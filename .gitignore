@@ -1,0 +1,15 @@
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+.env*
+!.env.example
+*.log
+*.tsbuildinfo
+data/*.db
+data/*.pbf
+data/graph-cache
+data/graphhopper*.jar
+public/sw.js
+public/workbox-*.js

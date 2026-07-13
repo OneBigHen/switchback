@@ -1,0 +1,57 @@
+{
+  "name": "switchback-moto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "routing:import": "scripts/graphhopper.sh import",
+    "routing:start": "scripts/graphhopper.sh start",
+    "data:bootstrap": "scripts/bootstrap-data.sh",
+    "validate:live": "node scripts/validate-live.mjs",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "5.2.8",
+    "@fontsource-variable/sora": "5.2.8",
+    "@phosphor-icons/react": "2.1.10",
+    "better-sqlite3": "12.11.1",
+    "dexie": "4.4.4",
+    "maplibre-gl": "5.24.0",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3",
+    "zustand": "5.0.14"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.10",
+    "fake-indexeddb": "^6.2.4",
+    "jsdom": "29.1.1",
+    "postcss": "8.5.10",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  }
+}

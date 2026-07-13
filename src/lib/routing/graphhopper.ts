@@ -1,0 +1,205 @@
+import type { Coordinate, PlannedRoute, RouteProfileId, RouteRequest } from "./types"
+import { getProfile } from "./profiles"
+import { analyzeGeometry, calculateDetailDistribution, type DetailInterval } from "./scoring"
+
+export interface GraphHopperOptions {
+  baseUrl: string
+  fetcher?: typeof fetch
+}
+
+export interface GraphHopperResult {
+  engine: "graphhopper"
+  engineVersion: string
+  routes: PlannedRoute[]
+}
+
+export class GraphHopperProviderError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status: number
+  ) {
+    super(message)
+  }
+}
+
+export function createGraphHopperRequest(_request: RouteRequest): Record<string, unknown> {
+  const profile = getProfile(_request.profile)
+  if (_request.points.length < 2) {
+    throw new Error("A route requires at least two waypoints")
+  }
+  return {
+    profile: profile.engineProfile,
+    points: _request.points.map((point) => [point.lon, point.lat]),
+    points_encoded: false,
+    instructions: true,
+    calc_points: true,
+    elevation: false,
+    locale: "en-US",
+    details: ["road_class", "surface", "track_type"]
+  }
+}
+
+interface GraphHopperInstruction {
+  distance?: number
+  time?: number
+  sign?: number
+  text?: string
+  street_name?: string
+  interval?: [number, number]
+}
+
+interface GraphHopperPath {
+  distance?: number
+  time?: number
+  ascend?: number
+  descend?: number
+  points?: { coordinates?: [number, number][] }
+  snapped_waypoints?: { coordinates?: [number, number][] }
+  instructions?: GraphHopperInstruction[]
+  details?: Record<string, DetailInterval[]>
+}
+
+interface GraphHopperResponse {
+  message?: string
+  paths?: GraphHopperPath[]
+}
+
+function providerError(status: number, message: string): GraphHopperProviderError {
+  const normalized = message.toLowerCase()
+  const outOfCoverage =
+    normalized.includes("out of bounds") ||
+    normalized.includes("cannot find point") ||
+    normalized.includes("not found in graph")
+  if (outOfCoverage) {
+    return new GraphHopperProviderError(
+      `One or more waypoints are outside the installed routing region. ${message}`,
+      "OUT_OF_COVERAGE",
+      status
+    )
+  }
+  if (status >= 500) {
+    return new GraphHopperProviderError(
+      `The routing engine is unavailable. ${message}`,
+      "PROVIDER_UNAVAILABLE",
+      status
+    )
+  }
+  return new GraphHopperProviderError(
+    `The routing engine rejected this trip. ${message}`,
+    "ROUTING_REJECTED",
+    status
+  )
+}
+
+export function createRouteId(
+  profile: RouteProfileId,
+  geometry: Coordinate[],
+  index: number
+): string {
+  const fingerprint = geometry
+    .map(([longitude, latitude]) => `${longitude.toFixed(6)},${latitude.toFixed(6)}`)
+    .join(";")
+  let hash = 2166136261
+  for (let cursor = 0; cursor < fingerprint.length; cursor += 1) {
+    hash ^= fingerprint.charCodeAt(cursor)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `${profile}-${index + 1}-${(hash >>> 0).toString(36)}`
+}
+
+function normalizePath(
+  path: GraphHopperPath,
+  request: RouteRequest,
+  index: number
+): PlannedRoute {
+  const geometry = path.points?.coordinates
+  if (!geometry || geometry.length < 2) {
+    throw new GraphHopperProviderError(
+      "GraphHopper returned no routable road geometry",
+      "INVALID_PROVIDER_RESPONSE",
+      502
+    )
+  }
+
+  const analysis = analyzeGeometry(geometry)
+  const snapped = path.snapped_waypoints?.coordinates
+  const waypoints = request.points.map((point, waypointIndex) => ({
+    lat: snapped?.[waypointIndex]?.[1] ?? point.lat,
+    lon: snapped?.[waypointIndex]?.[0] ?? point.lon,
+    label: point.label
+  }))
+  const profile = getProfile(request.profile)
+
+  return {
+    id: createRouteId(request.profile, geometry, index),
+    name: index === 0 ? `${profile.label} route` : `${profile.label} alternative ${index + 1}`,
+    profile: request.profile,
+    geometry,
+    waypoints,
+    instructions: (path.instructions ?? []).map((instruction) => ({
+      distanceMeters: instruction.distance ?? 0,
+      timeMilliseconds: instruction.time ?? 0,
+      sign: instruction.sign ?? 0,
+      text: instruction.text ?? "Continue",
+      streetName: instruction.street_name ?? "",
+      interval: instruction.interval ?? [0, 0]
+    })),
+    distanceMiles: Number((((path.distance ?? 0) / 1609.344)).toFixed(2)),
+    durationMinutes: Number((((path.time ?? 0) / 60000)).toFixed(2)),
+    ascentMeters: path.ascend ?? null,
+    descentMeters: path.descend ?? null,
+    twistiness: analysis.twistiness,
+    turnCount: analysis.turnCount,
+    roadMix: calculateDetailDistribution(geometry, path.details?.road_class ?? []),
+    surfaceMix: calculateDetailDistribution(geometry, path.details?.surface ?? []),
+    routingSource: "live",
+    previewOnly: false
+  }
+}
+
+export async function requestGraphHopperRoutes(
+  request: RouteRequest,
+  options: GraphHopperOptions
+): Promise<GraphHopperResult> {
+  const fetcher = options.fetcher ?? fetch
+  let response: Response
+  try {
+    response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createGraphHopperRequest(request)),
+      signal: AbortSignal.timeout(30_000)
+    })
+  } catch {
+    throw new GraphHopperProviderError(
+      "Cannot reach the routing engine. Check that GraphHopper is running and try again.",
+      "PROVIDER_UNAVAILABLE",
+      503
+    )
+  }
+
+  let payload: GraphHopperResponse
+  try {
+    payload = (await response.json()) as GraphHopperResponse
+  } catch {
+    throw new GraphHopperProviderError(
+      "GraphHopper returned an unreadable response",
+      "INVALID_PROVIDER_RESPONSE",
+      502
+    )
+  }
+
+  if (!response.ok) {
+    throw providerError(response.status, payload.message ?? response.statusText)
+  }
+  if (!payload.paths?.length) {
+    throw providerError(422, payload.message ?? "No route was found")
+  }
+
+  return {
+    engine: "graphhopper",
+    engineVersion: "11.0",
+    routes: payload.paths.map((path, index) => normalizePath(path, request, index))
+  }
+}

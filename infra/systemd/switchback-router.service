@@ -1,0 +1,24 @@
+[Unit]
+Description=Switchback GraphHopper router
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=switchback
+Group=switchback
+WorkingDirectory=/opt/switchback
+EnvironmentFile=-/etc/switchback/switchback.env
+ExecStart=/opt/switchback/scripts/graphhopper.sh start
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=45s
+SuccessExitStatus=143
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/switchback/data
+
+[Install]
+WantedBy=multi-user.target
