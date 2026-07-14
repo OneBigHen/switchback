@@ -1046,6 +1046,44 @@ h2 {
   opacity: 0;
 }
 
+.library-search {
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 4px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0d100f;
+  color: var(--metal);
+}
+
+.library-search:focus-within {
+  border-color: rgb(214 255 80 / 55%);
+  box-shadow: 0 0 0 3px rgb(214 255 80 / 8%);
+}
+
+.library-search svg {
+  width: 18px;
+  height: 18px;
+}
+
+.library-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--instrument);
+  font: inherit;
+  font-size: 12px;
+}
+
+.library-search input::placeholder {
+  color: var(--metal);
+}
+
 .library-empty {
   display: grid;
   min-height: 60%;
@@ -1080,6 +1118,34 @@ h2 {
   border-top: 0;
 }
 
+.library-collections {
+  display: grid;
+  gap: 20px;
+}
+
+.library-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 2px 8px;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.library-section-title strong {
+  display: grid;
+  min-width: 26px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--signal);
+  font-size: 9px;
+}
+
 .library-row {
   position: relative;
   display: grid;
@@ -1099,6 +1165,14 @@ h2 {
   background: transparent;
   text-align: left;
   cursor: pointer;
+}
+
+.library-project-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.library-project-row .library-load {
+  padding-right: 4px;
 }
 
 .library-load > span:first-child {

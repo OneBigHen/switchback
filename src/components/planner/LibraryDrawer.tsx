@@ -1,22 +1,41 @@
 "use client"
 
-import { ArrowRight, FileArrowUp, MapTrifold, Trash, X } from "@phosphor-icons/react"
+import { ArrowRight, FileArrowUp, MagnifyingGlass, MapTrifold, Trash, X } from "@phosphor-icons/react"
 import { useEffect, useRef, useState } from "react"
+import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { SavedRoute } from "@/lib/storage/route-library"
 
 interface LibraryDrawerProps {
   routes: SavedRoute[]
+  projectRoutes?: ProjectGpxRouteSummary[]
   onClose(): void
   onLoad(route: SavedRoute): void
+  onLoadProject?(route: ProjectGpxRouteSummary): void
   onDelete(route: SavedRoute): void
   onImport(file: File): void
 }
 
-export function LibraryDrawer({ routes, onClose, onLoad, onDelete, onImport }: LibraryDrawerProps) {
+export function LibraryDrawer({
+  routes,
+  projectRoutes = [],
+  onClose,
+  onLoad,
+  onLoadProject,
+  onDelete,
+  onImport
+}: LibraryDrawerProps) {
   const scrimRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const matchesQuery = (name: string, source = "") =>
+    !normalizedQuery || `${name} ${source}`.toLocaleLowerCase().includes(normalizedQuery)
+  const visibleSavedRoutes = routes.filter((route) => matchesQuery(route.name))
+  const visibleProjectRoutes = projectRoutes.filter((route) =>
+    matchesQuery(route.name, `${route.sourceProject} ${route.sourceFile}`)
+  )
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
@@ -122,15 +141,34 @@ export function LibraryDrawer({ routes, onClose, onLoad, onDelete, onImport }: L
           </div>
         </header>
 
-        {routes.length === 0 ? (
+        <label className="library-search">
+          <MagnifyingGlass aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search ride library"
+            placeholder={`Search ${projectRoutes.length + routes.length} rides`}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+        </label>
+
+        {visibleSavedRoutes.length === 0 && visibleProjectRoutes.length === 0 ? (
           <div className="library-empty">
             <MapTrifold aria-hidden="true" />
-            <strong>No routes parked yet</strong>
-            <p>Build a live route, then save it here for another day.</p>
+            <strong>{normalizedQuery ? "No matching rides" : "No routes parked yet"}</strong>
+            <p>{normalizedQuery
+              ? "Try a route name, source project, or location."
+              : "Build a live route, then save it here for another day."}</p>
           </div>
         ) : (
-          <div className="library-list">
-            {routes.map((route) => (
+          <div className="library-collections">
+            {visibleSavedRoutes.length > 0 ? <section>
+              <div className="library-section-title">
+                <span>On this device</span>
+                <strong>{visibleSavedRoutes.length}</strong>
+              </div>
+              <div className="library-list">
+            {visibleSavedRoutes.map((route) => (
               <article className="library-row" key={route.id}>
                 <button type="button" className="library-load" onClick={() => onLoad(route)}>
                   <span>
@@ -164,6 +202,35 @@ export function LibraryDrawer({ routes, onClose, onLoad, onDelete, onImport }: L
                 </button>
               </article>
             ))}
+              </div>
+            </section> : null}
+            {visibleProjectRoutes.length > 0 ? <section>
+              <div className="library-section-title">
+                <span>Imported projects</span>
+                <strong>{visibleProjectRoutes.length}</strong>
+              </div>
+              <div className="library-list">
+                {visibleProjectRoutes.map((route) => (
+                  <article className="library-row library-project-row" key={route.id}>
+                    <button
+                      type="button"
+                      className="library-load"
+                      aria-label={`Load ${route.name} from ${route.sourceProject}`}
+                      onClick={() => onLoadProject?.(route)}
+                    >
+                      <span>
+                        <small>{route.sourceProject}</small>
+                        <strong>{route.name}</strong>
+                      </span>
+                      <span className="library-metrics">
+                        {route.distanceMiles.toFixed(1)} mi · {Math.round(route.durationMinutes)} min
+                      </span>
+                      <ArrowRight aria-hidden="true" />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section> : null}
           </div>
         )}
       </aside>

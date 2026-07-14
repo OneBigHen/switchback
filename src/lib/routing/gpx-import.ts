@@ -9,6 +9,7 @@ interface GpxImportOptions {
   fileName: string
   id?: string
   byteLength?: number
+  disconnectedSegments?: "reject" | "longest"
 }
 
 function distanceMeters(first: Coordinate, second: Coordinate): number {
@@ -57,22 +58,40 @@ export function parseGpxRoute(xml: string, options: GpxImportOptions): PlannedRo
   }
 
   const trackPointElements = [...document.querySelectorAll("trkpt")]
-  if (trackPointElements.length < 2) {
-    throw new Error("The GPX file must contain at least two track points")
+  const routePointElements = [...document.querySelectorAll("rtept")]
+  const pointElementName = trackPointElements.length >= 2 ? "trkpt" : "rtept"
+  const pointElements = pointElementName === "trkpt" ? trackPointElements : routePointElements
+  if (pointElements.length < 2) {
+    throw new Error("The GPX file must contain at least two route or track points")
   }
-  if (trackPointElements.length > MAX_GPX_TRACK_POINTS) {
+  if (pointElements.length > MAX_GPX_TRACK_POINTS) {
     throw new Error(`GPX tracks are limited to ${MAX_GPX_TRACK_POINTS.toLocaleString()} points`)
   }
 
-  const segmentElements = [...document.querySelectorAll("trkseg")]
-  const parsedSegments = segmentElements
+  const segmentElements = pointElementName === "trkpt"
+    ? [...document.querySelectorAll("trkseg")]
+    : [...document.querySelectorAll("rte")]
+  let parsedSegments = segmentElements
     .map((segment) => [...segment.children]
-      .filter((element) => element.localName === "trkpt")
+      .filter((element) => element.localName === pointElementName)
       .flatMap((element) => {
         const coordinate = coordinateFromElement(element)
         return coordinate ? [{ coordinate, element }] : []
       }))
     .filter((segment) => segment.length > 0)
+  const hasDisconnectedSegments = parsedSegments.slice(1).some((segment, index) => {
+    const previousFinish = parsedSegments[index].at(-1)!.coordinate
+    return distanceMeters(previousFinish, segment[0].coordinate) > 250
+  })
+  if (hasDisconnectedSegments && options.disconnectedSegments === "longest") {
+    parsedSegments = [parsedSegments.reduce((longest, segment) => {
+      const length = (candidate: typeof segment) => candidate.slice(1).reduce(
+        (total, point, index) => total + distanceMeters(candidate[index].coordinate, point.coordinate),
+        0
+      )
+      return length(segment) > length(longest) ? segment : longest
+    })]
+  }
   for (let index = 1; index < parsedSegments.length; index += 1) {
     const previousFinish = parsedSegments[index - 1].at(-1)!.coordinate
     const nextStart = parsedSegments[index][0].coordinate
@@ -140,12 +159,13 @@ export function parseGpxRoute(xml: string, options: GpxImportOptions): PlannedRo
   )
   const metadataName = document.querySelector("metadata > name")?.textContent?.trim()
   const trackName = document.querySelector("trk > name")?.textContent?.trim()
+  const routeName = document.querySelector("rte > name")?.textContent?.trim()
   const fallbackName = options.fileName.replace(/\.gpx$/i, "").replaceAll(/[-_]+/g, " ").trim()
   const analysis = analyzeGeometry(geometry)
 
   return {
     id: options.id ?? routeId(),
-    name: (metadataName || trackName || fallbackName || "Imported ride").slice(0, 160),
+    name: (metadataName || trackName || routeName || fallbackName || "Imported ride").slice(0, 160),
     profile: "scenic",
     geometry,
     waypoints,

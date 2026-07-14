@@ -61,6 +61,31 @@ describe("GPX import", () => {
       .toThrow(/disconnected/i)
   })
 
+  it("imports GPX route points when no recorded track exists", () => {
+    const routeOnly = `<gpx version="1.1"><rte><name>Backroad Route</name>
+      <rtept lat="40.1" lon="-76.1"/><rtept lat="40.2" lon="-76.2"/>
+    </rte></gpx>`
+
+    const route = parseGpxRoute(routeOnly, { fileName: "backroad.gpx" })
+
+    expect(route.name).toBe("Backroad Route")
+    expect(route.geometry).toEqual([[-76.1, 40.1], [-76.2, 40.2]])
+  })
+
+  it("can preserve a legacy file by selecting its longest disconnected segment", () => {
+    const disconnected = `<gpx version="1.1"><trk>
+      <trkseg><trkpt lat="40" lon="-76"/><trkpt lat="40.01" lon="-76.01"/></trkseg>
+      <trkseg><trkpt lat="41" lon="-77"/><trkpt lat="41.1" lon="-77.1"/><trkpt lat="41.2" lon="-77.2"/></trkseg>
+    </trk></gpx>`
+
+    const route = parseGpxRoute(disconnected, {
+      fileName: "legacy.gpx",
+      disconnectedSegments: "longest"
+    })
+
+    expect(route.geometry).toEqual([[-77, 41], [-77.1, 41.1], [-77.2, 41.2]])
+  })
+
   it("anchors POIs between the actual track start and finish", () => {
     const withPoi = `<gpx version="1.1">
       <wpt lat="41.705" lon="-77.25"><name>Fuel stop</name></wpt>

@@ -6,6 +6,7 @@ import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { requestTripPlan, RoutingClientError } from "@/lib/client/routing-client"
 import { routeToGpx } from "@/lib/routing/gpx"
 import { MAX_GPX_IMPORT_BYTES, parseGpxRoute } from "@/lib/routing/gpx-import"
+import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 import { RouteLibrary, type SavedRoute } from "@/lib/storage/route-library"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
@@ -31,6 +32,7 @@ export function PlannerShell() {
   const curvatureVisible = usePlannerStore((state) => state.curvatureVisible)
   const surface = usePlannerStore((state) => state.surface)
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([])
+  const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
   const [routerStatus, setRouterStatus] = useState<RouterStatus>("checking")
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [routeRequestGate] = useState(createLatestRequestGate)
@@ -50,6 +52,13 @@ export function PlannerShell() {
     void refreshLibrary().catch(() => {
       setNotice({ kind: "warning", message: "The local route library could not be opened." })
     })
+    void fetch("/api/gpx-library", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Project GPX library unavailable")
+        return response.json() as Promise<ProjectGpxCatalog>
+      })
+      .then((catalog) => setProjectRoutes(catalog.routes))
+      .catch(() => setProjectRoutes([]))
   }, [])
 
   useEffect(() => {
@@ -158,6 +167,31 @@ export function PlannerShell() {
     }
   }
 
+  const handleLoadProject = async (summary: ProjectGpxRouteSummary) => {
+    try {
+      const existing = await libraryRef.current!.get(summary.id)
+      if (existing) {
+        handleLoad(existing)
+        return
+      }
+      const response = await fetch(`/api/gpx-library?id=${encodeURIComponent(summary.id)}`)
+      if (!response.ok) throw new Error("The imported GPX route could not be loaded.")
+      const imported = await response.json() as PlannedRoute
+      if (imported.id !== summary.id || !Array.isArray(imported.geometry) || imported.geometry.length < 2) {
+        throw new Error("The imported GPX route is invalid.")
+      }
+      const saved = await libraryRef.current!.save(imported, `Imported from ${summary.sourceFile}`)
+      await refreshLibrary()
+      handleLoad(saved)
+      setNotice({ kind: "success", message: `${saved.name} added to this device.` })
+    } catch (caught) {
+      setNotice({
+        kind: "warning",
+        message: caught instanceof Error ? caught.message : "The imported GPX route could not be loaded."
+      })
+    }
+  }
+
   const handleImport = async (file: File) => {
     if (file.size > MAX_GPX_IMPORT_BYTES) {
       setNotice({ kind: "warning", message: "GPX imports must be 5 MB or smaller." })
@@ -209,7 +243,7 @@ export function PlannerShell() {
           error={error}
           curvatureVisible={curvatureVisible}
           routerStatus={routerStatus}
-          savedCount={savedRoutes.length}
+          savedCount={savedRoutes.length + projectRoutes.length}
           onPointChange={handlePointChange}
           onPointQueryChange={(id, query) => {
             routeRequestGate.invalidate()
@@ -250,8 +284,10 @@ export function PlannerShell() {
       {surface === "library" ? (
         <LibraryDrawer
           routes={savedRoutes}
+          projectRoutes={projectRoutes}
           onClose={() => usePlannerStore.getState().setSurface("planner")}
           onLoad={handleLoad}
+          onLoadProject={(route) => void handleLoadProject(route)}
           onDelete={(route) => void handleDelete(route)}
           onImport={(file) => void handleImport(file)}
         />

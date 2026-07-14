@@ -18,7 +18,9 @@
     "routing:import": "scripts/graphhopper.sh import",
     "routing:start": "scripts/graphhopper.sh start",
     "data:bootstrap": "scripts/bootstrap-data.sh",
+    "gpx:import-projects": "tsx scripts/import-project-gpx.ts",
     "validate:live": "node scripts/validate-live.mjs",
+    "validate:curvature": "node scripts/validate-curvature-live.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
@@ -48,6 +50,7 @@
     "fake-indexeddb": "^6.2.4",
     "jsdom": "29.1.1",
     "postcss": "8.5.10",
+    "tsx": "^4.20.6",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
   },

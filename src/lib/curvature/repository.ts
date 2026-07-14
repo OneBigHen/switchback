@@ -1,3 +1,5 @@
+import { DatabaseSync } from "node:sqlite"
+
 export interface CurvatureBounds {
   south: number
   west: number
@@ -26,7 +28,7 @@ export class CurvatureRepository {
       throw new Error("west must be less than east")
     }
     const limit = Math.max(1, Math.min(Math.floor(bounds.limit), 2_000))
-    const database = new Database(this.databasePath, { readonly: true, fileMustExist: true })
+    const database = new DatabaseSync(this.databasePath, { readOnly: true })
     try {
       const rows = database.prepare(`
         select id, name, score, surface, geometry
@@ -43,7 +45,7 @@ export class CurvatureRepository {
         bounds.east,
         bounds.minScore,
         limit
-      ) as CurvatureRow[]
+      ) as unknown as CurvatureRow[]
 
       return rows.flatMap((row) => {
         try {
@@ -92,4 +94,3 @@ export function curvatureFeatureCollection(segments: CurvatureSegment[]) {
     }))
   }
 }
-import Database from "better-sqlite3"

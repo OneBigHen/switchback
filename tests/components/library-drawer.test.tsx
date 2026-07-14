@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { LibraryDrawer } from "@/components/planner/LibraryDrawer"
+import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { SavedRoute } from "@/lib/storage/route-library"
 
 const savedRoute: SavedRoute = {
@@ -28,6 +29,18 @@ const savedRoute: SavedRoute = {
   notes: "",
   createdAt: "2026-07-13T12:00:00.000Z",
   updatedAt: "2026-07-13T12:00:00.000Z"
+}
+
+const projectRoute: ProjectGpxRouteSummary = {
+  id: "project-gpx-ridge",
+  name: "Pine Ridge Ramble",
+  distanceMiles: 86.4,
+  durationMinutes: 130,
+  twistiness: 82,
+  turnCount: 48,
+  sourceProject: "LongWay",
+  sourceFile: "LongWay/public/gpx/pine-ridge.gpx",
+  sources: ["LongWay/public/gpx/pine-ridge.gpx"]
 }
 
 afterEach(cleanup)
@@ -61,12 +74,13 @@ describe("ride library drawer", () => {
 
     const close = screen.getByRole("button", { name: "Close library" })
     const importer = screen.getByLabelText("Import GPX file")
+    expect(importer).toBeInTheDocument()
     expect(close).toHaveFocus()
     expect(opener).toHaveAttribute("aria-hidden", "true")
     expect(opener).toHaveProperty("inert", true)
 
     await user.tab()
-    expect(importer).toHaveFocus()
+    expect(screen.getByRole("searchbox", { name: "Search ride library" })).toHaveFocus()
     await user.tab({ shift: true })
     expect(close).toHaveFocus()
 
@@ -75,6 +89,30 @@ describe("ride library drawer", () => {
     expect(opener).toHaveFocus()
     expect(opener).not.toHaveAttribute("aria-hidden")
     expect(opener).toHaveProperty("inert", false)
+  })
+
+  it("searches project GPX routes and loads one from its source collection", async () => {
+    const user = userEvent.setup()
+    const onLoadProject = vi.fn()
+    render(
+      <LibraryDrawer
+        routes={[]}
+        projectRoutes={[projectRoute]}
+        onClose={vi.fn()}
+        onLoad={vi.fn()}
+        onLoadProject={onLoadProject}
+        onDelete={vi.fn()}
+        onImport={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("Pine Ridge Ramble")).toBeVisible()
+    expect(screen.getByText("LongWay")).toBeVisible()
+    await user.type(screen.getByRole("searchbox", { name: "Search ride library" }), "missing")
+    expect(screen.queryByText("Pine Ridge Ramble")).not.toBeInTheDocument()
+    await user.clear(screen.getByRole("searchbox", { name: "Search ride library" }))
+    await user.click(screen.getByRole("button", { name: /load pine ridge ramble/i }))
+    expect(onLoadProject).toHaveBeenCalledWith(projectRoute)
   })
 
   it("imports an accessible file input and requires confirmation before deleting", async () => {

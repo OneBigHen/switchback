@@ -45,6 +45,20 @@ if (!health?.app?.ok || !health?.router?.ok) {
   throw new Error("Health endpoint did not confirm both app and router")
 }
 
+const curvature = await jsonRequest("/api/curvature?south=39.7&west=-77.5&north=40.8&east=-75.8&minScore=650&limit=5")
+if (curvature?.type !== "FeatureCollection" || curvature.features?.length === 0) {
+  throw new Error("Curvature endpoint did not return mapped road segments")
+}
+
+const gpxCatalog = await jsonRequest("/api/gpx-library")
+if (gpxCatalog?.importedRoutes < 400 || gpxCatalog.routes?.length !== gpxCatalog.importedRoutes) {
+  throw new Error("Project GPX catalog did not return the imported route collection")
+}
+const catalogRoute = await jsonRequest(`/api/gpx-library?id=${encodeURIComponent(gpxCatalog.routes[0].id)}`)
+if (catalogRoute?.geometry?.length < 2 || catalogRoute.id !== gpxCatalog.routes[0].id) {
+  throw new Error("Project GPX catalog could not load route geometry")
+}
+
 const results = []
 for (const profile of profiles) {
   const plan = await jsonRequest("/api/routes", {

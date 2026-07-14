@@ -86,6 +86,16 @@ const tripPlan = {
 
 test("plans, compares, saves, exports, restores, and opens ride mode", async ({ page }, testInfo) => {
   let routeRequest: Record<string, unknown> | undefined
+  const projectRoute = {
+    ...plannedRoute("scenic", [[-77.1, 40.1], [-77.2, 40.2]], {
+      distance: 19.4,
+      duration: 34,
+      twistiness: 71,
+      overlap: 0
+    }),
+    id: "project-gpx-e2e",
+    name: "Pine Ridge Ramble"
+  }
   await page.route("**/api/health", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -96,6 +106,27 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
     contentType: "application/geo+json",
     body: JSON.stringify({ type: "FeatureCollection", features: [] })
   }))
+  await page.route("**/api/gpx-library**", (route) => {
+    const requestedId = new URL(route.request().url()).searchParams.get("id")
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(requestedId ? projectRoute : {
+        importedRoutes: 1,
+        routes: [{
+          id: projectRoute.id,
+          name: projectRoute.name,
+          distanceMiles: projectRoute.distanceMiles,
+          durationMinutes: projectRoute.durationMinutes,
+          twistiness: projectRoute.twistiness,
+          turnCount: projectRoute.turnCount,
+          sourceProject: "LongWay",
+          sourceFile: "LongWay/public/gpx/pine-ridge.gpx",
+          sources: ["LongWay/public/gpx/pine-ridge.gpx"]
+        }]
+      })
+    })
+  })
   await page.route("**/api/routes", async (route) => {
     routeRequest = route.request().postDataJSON() as Record<string, unknown>
     await new Promise((resolve) => setTimeout(resolve, 120))
@@ -124,20 +155,21 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expect((await downloadPromise).suggestedFilename()).toMatch(/quick-route\.gpx$/)
 
   await page.getByRole("button", { name: "Save route" }).click()
-  await expect(page.getByRole("button", { name: /Library 1/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /Library 2/ })).toBeVisible()
   await expect(page.getByText("Route saved on this device.")).toBeHidden({ timeout: 10_000 })
   await page.screenshot({
     path: `artifacts/screenshots/e2e-planner-${testInfo.project.name}.png`,
     fullPage: false
   })
 
-  await page.getByRole("button", { name: /Library 1/ }).click()
+  await page.getByRole("button", { name: /Library 2/ }).click()
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
   await waitForAnimations(page.getByRole("dialog", { name: "Ride library" }))
   if (testInfo.project.name.includes("landscape")) {
     await expectInsideViewport(page, page.getByRole("dialog", { name: "Ride library" }))
   }
   await expect(page.getByRole("button", { name: /Quick route 37.8 mi/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /Load Pine Ridge Ramble from LongWay/i })).toBeVisible()
   await page.getByLabel("Import GPX file").setInputFiles({
     name: "imported-loop.gpx",
     mimeType: "application/gpx+xml",
