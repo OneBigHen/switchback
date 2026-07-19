@@ -26,8 +26,8 @@ describe("map GeoJSON builders", () => {
     const collection = buildRouteFeatures([route("active"), route("other")], "active")
 
     expect(collection.features.map((feature) => feature.properties)).toEqual([
-      { routeId: "other", selected: false },
-      { routeId: "active", selected: true }
+      { routeId: "other", selected: false, traversed: false },
+      { routeId: "active", selected: true, traversed: false }
     ])
   })
 
@@ -41,6 +41,19 @@ describe("map GeoJSON builders", () => {
     expect(collection.features[1]).toMatchObject({
       properties: { kind: "finish", marker: "F" },
       geometry: { coordinates: [-76.8, 40.3] }
+    })
+  })
+
+  it("includes numbered shaping points as draggable via markers", () => {
+    const collection = buildWaypointFeatures(
+      { lat: 40.2, lon: -76.9, label: "Start" },
+      { lat: 40.3, lon: -76.8, label: "Finish" },
+      [{ lat: 40.25, lon: -76.85, label: "Brewery" }]
+    )
+
+    expect(collection.features[1]).toMatchObject({
+      properties: { kind: "via", index: 0, marker: "1", label: "Brewery" },
+      geometry: { coordinates: [-76.85, 40.25] }
     })
   })
 })

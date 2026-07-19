@@ -19,7 +19,9 @@ case "${1:-start}" in
       exit 1
     fi
     cd "$ROOT"
-    exec java -Xms768m -Xmx2g -jar "$JAR" server "$CONFIG"
+    # The PA+NJ graph loads four landmark caches. Keep the serving heap below
+    # the import heap while leaving enough room for the planner and the host.
+    exec java -Xms1g -Xmx4g -jar "$JAR" server "$CONFIG"
     ;;
   *)
     echo "Usage: scripts/graphhopper.sh [import|start]"

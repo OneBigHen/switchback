@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next"
 import "maplibre-gl/dist/maplibre-gl.css"
 import "./globals.css"
+import "./styles/planner-shell.css"
+import "./styles/waypoint-field.css"
+import "./styles/planner-controls.css"
+import "./styles/route-comparison.css"
+import "./styles/library-drawer.css"
+import "./styles/ride-hud.css"
+import "./styles/responsive.css"
 
 export const metadata: Metadata = {
   title: "Switchback — Ride the better road",

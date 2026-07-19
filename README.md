@@ -2,24 +2,47 @@
 
 Switchback is a map-first motorcycle route planner for riders who care more about the road than the shortest ETA. It plans real road geometry, compares motorcycle-specific route styles, explains their tradeoffs, saves rides locally, imports and exports GPX, and provides a distraction-reduced ride view.
 
-The first deployable routing region is **Pennsylvania**. The basemap and place search are broader than that, but route requests with a waypoint outside the installed Pennsylvania graph return an explicit coverage error instead of drawing a fake straight line.
+The default deployable routing region is **Pennsylvania plus New Jersey**. The basemap and place search are broader; route requests outside the installed graph return an explicit coverage error instead of drawing a fake straight line.
 
 ## What works
 
 - Quick, Twisty, Scenic, and Adventure routing profiles
+- Route comparison that rejects near-duplicates, preserves genuinely distinct same-profile alternatives, and explains why each option differs
 - Motorcycle-specific way/node access and turn restrictions, including explicit `motorcycle=no`
-- Side-by-side route comparison with distance, time, turn density, road mix, and surface mix
-- Address/place search plus map-picked start and finish points
+- Free-form destination, address, and loop requests such as “Route me to 10 W Main St, New Hope, PA” or “two-hour gravel loop from Carlisle with a brewery stop,” with a deterministic local interpreter and optional OpenRouter enhancement
+- A modular free-form waypoint resolver that acquires browser location when a fresh session has no start, then location-biases destination lookup from the origin that will actually be routed
+- Google Places Text Search for precise destinations when configured, with location-biased Photon fallback when Google is absent, empty, or unavailable
+- GraphHopper-primary hybrid routing with optional distinct Valhalla alternatives/fallback for supported point-to-point requests, route-level provider provenance, and independently degradable elevation enrichment
+- Timeboxed 60/90/120/180-minute loops using GraphHopper's native round-trip algorithm, measured-duration feedback, varied seeds, and headings
+- Address/place search, map-picked points, routed shaping stops, and draggable start/finish/via markers
+- Finger, stylus, and mouse rough-route sketching that turns a traced corridor into a legal route with at most six editable shaping stops
+- A 50-step route-edit history with undo/redo, shaping-stop reordering, route reversal, deletion, and draggable fine-tuning
+- Explicit highway avoidance that removes motorway and trunk candidates at the routing engine
+- Side-by-side route comparison with distance, time, turn density, overlap, road mix, and surface mix
 - Optional viewport-bounded curvy-road overlay
+- Pennsylvania DEP corridor evidence that biases Adventure candidates, a toggleable official-road overlay, live topographic, imagery, terrain, access, weather, and rider-stop layers, and Clean, Explorer, and Night OpenFreeMap styles
+- National Weather Service forecasts sampled along the selected route plus active weather alerts
 - Local route library in IndexedDB; no account required
-- GPX 1.1 import and export
-- High-contrast ride preview with browser GPS, heading/continuity-aware progress, maneuver, accuracy, off-route detection, and a screen wake lock when available
+- GPX 1.1 import/export plus an optional server-side project GPX catalog
+- High-contrast ride preview with browser GPS, heading/continuity-aware progress, spoken maneuvers, weather alerts, automatic off-route recovery, and a screen wake lock when available
 - Desktop sidebar and touch-oriented mobile layout
-- App/router health endpoint and actionable provider errors
+- App/provider health endpoint that reports GraphHopper and optional Valhalla independently, plus actionable provider errors
 
 Ride guidance is an early browser-based aid, not a safety-critical navigation system. Keep your attention on the road, obey posted restrictions, and verify Adventure routes before riding; map surface/access data can be incomplete or stale.
 
 GraphHopper 11's configurable road model uses its car access parser. Before graph import, Switchback creates a derived OSM extract that projects explicit `motorcycle=*` tags onto the parser's access keys while retaining the original tags for auditability. Conditional-only motorcycle access is excluded conservatively: a static graph cannot safely interpret every time-of-day, seasonal, or free-text condition at ride time.
+
+## Planning a ride
+
+Choose a start, then either pick a destination or switch to **Loop** and choose a ride-time target. You can also describe the whole trip in the ride prompt. Switchback recognizes concise place names, city/state pairs, full addresses, explicit origins, duration, loop/destination intent, riding style, highway avoidance, and brewery, coffee, or food stops. If no start is available in a fresh browser, planning explicitly asks for current location before searching for the destination. Destination search is biased from that resolved origin. When a stop is requested, Switchback first plans the ride, searches within 35 km of the route midpoint, rejects distant/non-POI results, adds a compatible result as a routed shaping waypoint, and plans again.
+
+To shape the trip directly, choose **Sketch route** and drag one rough line over the roads or area you want to ride. Switchback reduces the trace to the routing provider's waypoint budget, preserves the start/destination or loop anchors and current preferences, then requests normal legal road geometry. The generated shaping stops remain visible and editable; the sketch itself is guidance, not synthetic route geometry.
+
+Route-point edits are recoverable. Use **Undo** and **Redo** after adding, deleting, reordering, dragging, reversing, or replacing shaping points with a sketch. The latest 50 point states remain in memory for the active planning session; making a new edit after undo intentionally starts a new branch.
+
+For a loop without shaping stops, Switchback gives GraphHopper one start point plus a target distance estimated from the requested duration and profile. It measures the returned duration and retries bounded seed/heading/distance variants when the first line misses the timebox. Comparison profiles explore genuinely different directions. Adding a shaping stop converts the loop into an explicit start → shape anchors/stops → start route, preserving the original loop character while allowing the markers to be dragged and re-routed. Fixed shaping points that cannot meet the target produce an explicit warning rather than pretending the timebox still matches.
+
+Adventure selection strongly favors gravel and other unpaved surfaces reported by GraphHopper's OpenStreetMap details. It also submits up to four simplified candidate corridors to the Pennsylvania DEP “Unpaved Roads 2009_07” service, measures only aligned contiguous matches, and uses that positive official evidence to choose among already-routable candidates. The same dataset is available as a map overlay at zoom 9 or closer. Because the source is from 2009, it never establishes public access, overrides GraphHopper routability, or replaces current road-condition checks. Treat every unpaved route as a candidate to verify before riding.
 
 ## Why this stack
 
@@ -27,12 +50,17 @@ GraphHopper 11's configurable road model uses its car access parser. Before grap
 | --- | --- | --- |
 | App | Next.js 16, React 19, TypeScript | One production process for the UI and server-side provider boundary |
 | Map | MapLibre GL JS + OpenFreeMap | Open rendering stack with a replaceable style URL and no required map token |
-| Router | Self-hosted GraphHopper 11 | Deterministic road routing, turn instructions, custom encoded values, and app-owned motorcycle models |
+| Router | Self-hosted GraphHopper 11 primary + optional Valhalla | GraphHopper owns motorcycle profiles and native loops; Valhalla can add distinct supported alternatives or preserve a supported point-to-point request during a GraphHopper failure |
 | Route quality | GraphHopper custom models + SQLite curvature data | Makes Twisty, Scenic, and Adventure behavior controllable instead of relying on car-only profiles |
-| Place search | Photon | Lightweight server-side geocoding adapter that can be replaced or self-hosted |
+| Place search | Google Places Text Search + Photon fallback | Uses Google for destination precision when a server-only key is configured and keeps no-key/outage-safe, location-biased search through Photon |
+| Ride intent | Local parser + optional OpenRouter | Keeps core planning available without a cloud key while supporting richer free-form requests when configured |
+| Weather | National Weather Service API | Hourly conditions and active alerts for route samples without a weather API key |
+| PA unpaved intelligence | PASDA / Pennsylvania DEP ArcGIS service | Cached route-corridor evidence plus viewport-bounded official reference lines |
 | Rider data | Dexie/IndexedDB | Fast local-first saved routes without a sign-in gate |
 
-Mapbox is not the routing core because its Directions API does not expose a motorcycle profile. Google two-wheel routing is region-limited and does not provide the custom curvy/scenic weighting this product needs. The provider boundaries are configuration-driven, so either can still be added later without replacing the planner.
+GraphHopper is always attempted first. When `VALHALLA_URL` is configured, eligible non-Adventure, non-round-trip requests are also sent to Valhalla and distinct candidates are merged with route-level provider/version provenance. If GraphHopper fails, a successful Valhalla result preserves that supported request; optional-provider failure becomes a warning rather than deleting valid GraphHopper geometry. Native round trips and Adventure remain GraphHopper-only because their current semantics are not interchangeable. `VALHALLA_ELEVATION_URL` is independent and may enrich any returned geometry through `/height`; an elevation outage leaves the route intact.
+
+Mapbox is not the routing core because its Directions API does not expose a motorcycle profile. Google two-wheel routing is region-limited and does not provide the custom curvy/scenic weighting this product needs. Google Places is used only for search quality when configured. The provider boundaries remain configuration-driven.
 
 ## Requirements
 
@@ -41,7 +69,7 @@ Mapbox is not the routing core because its Directions API does not expose a moto
 - npm 10 or newer
 - Java 17 or newer
 - Approximately 2 GB RAM to serve the router and at least 6 GB available during graph import
-- Roughly 2 GB free disk for the Pennsylvania extract, GraphHopper jar, and imported graph
+- Roughly 4 GB free disk for the Pennsylvania/New Jersey extracts, GraphHopper jar, and imported graph
 - `curl` for automatic data downloads
 - `osmium-tool` for the motorcycle access normalization pass
 
@@ -56,7 +84,7 @@ npm run data:bootstrap
 npm run routing:import
 ```
 
-`data:bootstrap` first reuses compatible files from known local Vibe projects, then downloads the pinned GraphHopper 11 jar and current Pennsylvania Geofabrik extract when needed. It creates `data/pennsylvania-motorcycle.osm.pbf` with motorcycle-specific access normalized for GraphHopper. The curvature database is optional; without it, normal routing still works and the overlay reports that its data is unavailable.
+`data:bootstrap` first reuses compatible files from known local Vibe projects, then downloads the pinned GraphHopper 11 jar and current Pennsylvania and New Jersey Geofabrik extracts when needed. It merges them and creates `data/pa-nj-motorcycle.osm.pbf` with motorcycle-specific access normalized for GraphHopper. The curvature database is optional; without it, normal routing still works and the overlay reports that its data is unavailable.
 
 The first `routing:import` can take several minutes and uses up to 5 GB of heap. It **replaces `data/graph-cache`**, so do not run it while the router is serving traffic.
 
@@ -79,21 +107,52 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GRAPHHOPPER_URL` | `http://127.0.0.1:8989` | Server-only GraphHopper endpoint |
+| `VALHALLA_URL` | unset | Optional server-only Valhalla endpoint for supplemental alternatives and supported-request fallback; it does not replace GraphHopper |
+| `VALHALLA_ELEVATION_URL` | unset | Optional server-only Valhalla `/height` source; may be configured independently from Valhalla routing |
 | `PHOTON_URL` | `https://photon.komoot.io/api/` | Server-only Photon-compatible search endpoint |
+| `GOOGLE_MAPS_API_KEY` | unset | Optional server-only key for Google Places Text Search and rider-stop ideas; never expose it through `NEXT_PUBLIC_*` |
+| `OPENROUTER_API_KEY` | unset | Optional server-only key for enhanced free-form ride interpretation; without it, the local parser is used |
+| `OPENROUTER_MODEL` | `openrouter/free` | OpenRouter model/router used when a key is configured |
+| `NWS_USER_AGENT` | built-in Switchback identifier | Deployment identifier sent to `api.weather.gov`; configure a contact-bearing value for your instance |
 | `CURVATURE_DB_PATH` | `<repo>/data/segments.db` | Absolute or repo-relative path to the optional curvature SQLite database |
-| `NEXT_PUBLIC_MAP_STYLE_URL` | OpenFreeMap Fiord | Browser-visible MapLibre style URL; set this before building |
+| `GPX_LIBRARY_PATH` | `<repo>/data/gpx-library` | Server-side catalog scanned by `/api/gpx-library`; separate from each browser's IndexedDB routes |
+| `NEXT_PUBLIC_MAP_STYLE_URL` | OpenFreeMap Positron | Browser-visible MapLibre style URL for the Clean map; set this before building |
+| `SPOTIFY_CLIENT_ID` | unset | Public Spotify application ID used by the optional remote player controls |
+| `SPOTIFY_REDIRECT_URI` | unset | Exact registered callback URL, normally `https://your-switchback-host/callback` |
+| `SPOTIFY_SESSION_SECRET` | unset | Server-only, 32+ character key used to encrypt Spotify PKCE and refresh-token cookies |
 
-The public Photon endpoint is convenient for a personal deployment. For heavier or multi-user traffic, run a Photon instance you control and set `PHOTON_URL` rather than treating the public service as an unlimited production API.
+When `GOOGLE_MAPS_API_KEY` is configured, deliberate destination searches use Google Places Text Search with a location bias from the resolved start. Empty results and provider errors fall back to Photon. The public Photon endpoint is convenient for a personal deployment; for heavier or multi-user traffic, run a Photon instance you control and set `PHOTON_URL` rather than treating the public service as an unlimited production API.
+
+Valhalla is optional. The pinned [Valhalla Compose contract](infra/valhalla/README.md) builds Pennsylvania/New Jersey tiles from the same normalized extract and binds the service to `127.0.0.1:8002`; it is not required by the default GraphHopper startup. Enable `VALHALLA_URL` and/or `VALHALLA_ELEVATION_URL` only after the documented local route, status, and elevation checks pass. When `VALHALLA_URL` is configured, `/api/health` reports that routing provider independently; a Valhalla outage marks the app degraded while GraphHopper readiness remains authoritative. An elevation-only endpoint is not currently a separate health probe.
+
+`OPENROUTER_API_KEY` is optional. When it is absent, invalid, rate-limited, or returns unusable structured output, Switchback falls back to its local ride-intent parser. Keep the key only in `.env.local`, `.env.production`, or your service manager's protected environment; never use a `NEXT_PUBLIC_` name for it. The default `openrouter/free` router may choose different free models over time, so set `OPENROUTER_MODEL` to a specific compatible model if reproducibility matters.
+
+### Spotify mini-player
+
+The optional player uses Spotify's Authorization Code with PKCE flow and Web API playback controls. It never needs `SPOTIFY_CLIENT_SECRET`; do not add or deploy one. Register the exact value of `SPOTIFY_REDIRECT_URI` in the Spotify Developer Dashboard, set the three variables above, rebuild/restart Next, and choose **Connect Spotify** in the player dock. Generate `SPOTIFY_SESSION_SECRET` independently from any Spotify credential:
+
+```bash
+openssl rand -base64 32
+```
+
+Production callbacks must use HTTPS. For local development, Spotify requires an explicit loopback IP such as `http://127.0.0.1:3000/callback`; `localhost` is not accepted. The configured URI, including path, case, port, and trailing slash, must match the dashboard entry exactly.
+
+Switchback keeps the PKCE verifier and Spotify refresh token in encrypted `httpOnly`, `SameSite=Lax` cookies. The OAuth return uses a short-lived, one-time handoff so the same browser can establish the encrypted session without putting Spotify credentials in the URL. Token and playback responses are private and `no-store`. Access tokens refresh silently before expiry, refresh-token rotation is retained when Spotify supplies it, and an expired or revoked refresh token returns the player to the connect prompt. Spotify currently documents a six-month refresh-token lifetime, so eventual reauthorization is expected.
+
+Switchback controls the Spotify app or Connect device that is already active; it does not transfer protected audio into the browser. Open Spotify and start a song once if no active device is shown. Spotify's playback-control endpoints require an eligible Premium account, and Development Mode limits who can use the registered app. Review the current [playback-state API](https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback), [PKCE flow](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow), and [Development Mode limits](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) before sharing the deployment.
+
+The weather and Pennsylvania unpaved-road adapters use fixed public provider endpoints. They need no API keys. Set `NWS_USER_AGENT` to an application identifier with a real contact before relying on the public NWS service, and expect both external overlays to degrade gracefully when their providers are unavailable.
 
 Bootstrap downloads can also be overridden for one command:
 
 ```bash
-SWITCHBACK_PBF_URL=https://example.test/region.osm.pbf \
+SWITCHBACK_PBF_URL=https://example.test/pennsylvania.osm.pbf \
+SWITCHBACK_NJ_PBF_URL=https://example.test/new-jersey.osm.pbf \
 SWITCHBACK_GRAPHHOPPER_JAR_URL=https://example.test/graphhopper-web-11.0.jar \
 npm run data:bootstrap
 ```
 
-Do not expose GraphHopper directly to the LAN or internet. The browser only calls Next.js `/api/*` routes, and Next talks to GraphHopper over loopback.
+Do not expose GraphHopper or Valhalla directly to the LAN or internet. The browser only calls Next.js `/api/*` routes, and Next talks to routing providers over the server-side network boundary.
 
 ## Production on a LAN with HTTPS
 
@@ -125,7 +184,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now switchback-router switchback-app
 ```
 
-The examples bind Next to `127.0.0.1:3100`; GraphHopper must bind its application connector to `127.0.0.1:8989`. Confirm both before enabling the proxy:
+The checked-in example binds Next to `127.0.0.1:3100`; GraphHopper must bind its application connector to `127.0.0.1:8989`, and an optional Valhalla service should likewise remain loopback-only. The current `switchback-cloudflare` host service uses `0.0.0.0:3100` for its existing Cloudflare origin topology while both router ports remain loopback-only; do not mistake that host-specific service for the safer generic example. Confirm the actual listeners before enabling a proxy:
 
 ```bash
 ss -ltnp | grep -E ':(3100|8989)\b'
@@ -155,7 +214,7 @@ sudo systemctl reload caddy
 
 The example uses Caddy's local certificate authority. Export its root certificate from the host (the package install commonly stores it at `/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`) and explicitly trust it on each phone. On iOS, installing the profile is not enough: also enable full trust under **Settings → General → About → Certificate Trust Settings**. Android menus vary by vendor; install it as a trusted CA certificate. The certificate is meant to be distributed to your devices; Caddy's corresponding private root key is sensitive and must stay on the server.
 
-If you own a real DNS name, a publicly trusted certificate is preferable. Point a name at the LAN host (split DNS) and replace `tls internal` in the example with your ACME/DNS-challenge configuration. Do not port-forward GraphHopper or Next's loopback ports.
+If you own a real DNS name, a publicly trusted certificate is preferable. Point a name at the LAN host (split DNS) and replace `tls internal` in the example with your ACME/DNS-challenge configuration. Do not port-forward GraphHopper, Valhalla, or the Next origin port.
 
 Finally, open `https://switchback.home.arpa` on the phone and grant location access. Add it to the home screen from the browser if desired. Offline maps and offline routing are not included in this release.
 
@@ -189,6 +248,28 @@ curl --fail --show-error \
   --data '{"profile":"twisty","compare":true,"points":[{"lat":40.2732,"lon":-76.8867,"label":"Harrisburg"},{"lat":40.0379,"lon":-76.3055,"label":"Lancaster"}]}'
 ```
 
+Smoke-test a two-hour Adventure loop and the optional public-data adapters:
+
+```bash
+curl --fail --show-error \
+  --request POST http://127.0.0.1:3000/api/routes \
+  --header 'content-type: application/json' \
+  --data '{"profile":"adventure","compare":true,"points":[{"lat":40.2732,"lon":-76.8867,"label":"Harrisburg"}],"roundTrip":{"targetMinutes":120,"seed":17}}'
+
+curl --fail --show-error \
+  'http://127.0.0.1:3000/api/pa-unpaved-roads?bbox=-77.1,40.1,-76.6,40.5&zoom=10&limit=25'
+
+curl --fail --show-error \
+  --request POST http://127.0.0.1:3000/api/route-weather \
+  --header 'content-type: application/json' \
+  --data '{"points":[{"lat":40.2732,"lon":-76.8867}]}'
+
+curl --fail --show-error \
+  --request POST http://127.0.0.1:3000/api/ride-intent \
+  --header 'content-type: application/json' \
+  --data '{"prompt":"two-hour gravel loop with a brewery stop"}'
+```
+
 Useful service checks:
 
 ```bash
@@ -215,9 +296,14 @@ Graph caches are coupled to the pinned engine and profile/encoded-value configur
 ## Data and privacy
 
 - Saved and imported routes live in the browser's IndexedDB on that device.
+- Project GPX files under `GPX_LIBRARY_PATH` remain on the server and are exposed to the browser through the catalog API when opened.
 - GPX export is generated in the browser.
 - Live location is read by the ride view and is not persisted by the application.
-- Place queries pass through the Next server to the configured Photon endpoint.
+- Place queries pass through the Next server to Google Places Text Search when `GOOGLE_MAPS_API_KEY` is configured; no-key, empty-result, and provider-failure cases use the configured Photon endpoint. Location bias contains the selected or freshly acquired route origin.
+- Ride descriptions pass through the Next server to OpenRouter only when `OPENROUTER_API_KEY` is configured; otherwise interpretation stays in the app's local parser.
+- Selected route sample coordinates pass through the Next server to the National Weather Service for forecasts and active alerts.
+- Pennsylvania unpaved-road viewport and planned-route corridor queries pass through the Next server to PASDA and are cached. They contain map bounds or simplified candidate geometry, not a stored GPS history.
+- Spotify PKCE and refresh credentials stay in encrypted server-readable cookies; only the SDK's short-lived access token enters browser memory, and it is never persisted by Switchback.
 - Map style and tile requests go to the configured browser-visible map provider.
 
 Clearing site data removes the local route library. Export important rides as GPX before clearing browser storage or moving to another device.
@@ -225,11 +311,19 @@ Clearing site data removes the local route library. Export important rides as GP
 ## Project layout
 
 ```text
-src/app/api/             Next server boundary for routes, health, geocoding, curvature
+src/app/api/             Next server boundary for routing, geocoding, ride intent, weather, GPX, and map overlays
 src/components/planner/ Planner, map, library, comparison, and ride surfaces
-src/lib/routing/         Profiles, GraphHopper adapter, scoring, GPX import/export
+src/components/spotify/ Persistent Web Playback SDK mini-player
+src/lib/ai/              Local and optional OpenRouter ride-intent interpretation
+src/lib/geocoding/       Google-first destination-provider chain, Photon normalization, bias, and result selection
+src/lib/planner/         Modular free-form waypoint resolution plus destination and timeboxed-loop request construction
+src/lib/roads/           Pennsylvania unpaved-road provider and validation
+src/lib/routing/         Profiles, GraphHopper/Valhalla adapters, hybrid orchestration, comparison/scoring, and GPX import/export
+src/lib/spotify/         PKCE, encrypted sessions, token refresh, and browser SDK adapter
 src/lib/storage/         IndexedDB route library
+src/lib/weather/         National Weather Service forecast and alert adapter
 infra/graphhopper/       Pinned profiles, custom models, and GraphHopper config
+infra/valhalla/          Optional pinned PA/NJ supplemental-router Compose contract and runbook
 infra/caddy/             HTTPS reverse-proxy example
 infra/systemd/           Production process supervisor examples
 scripts/                 Data bootstrap, motorcycle normalization, validation, and lifecycle scripts

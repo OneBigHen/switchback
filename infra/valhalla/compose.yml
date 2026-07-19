@@ -1,0 +1,52 @@
+services:
+  valhalla:
+    image: ghcr.io/valhalla/valhalla@sha256:c781b28bf7b2cf8dd713f0d5934848cedb6fadcb7a1a935fa2861e39c862290f
+    container_name: pa-moto-valhalla
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - ../../data/pa-nj-motorcycle.osm.pbf:/custom_files/pa-nj-motorcycle.osm.pbf:ro
+      - valhalla_data:/data/valhalla
+    entrypoint: sh
+    command:
+      - -ec
+      - |
+        mkdir -p /data/valhalla
+        if [ ! -f /data/valhalla/valhalla.json ]; then
+          valhalla_build_config \
+            --mjolnir-tile-dir /data/valhalla \
+            --mjolnir-admin /data/valhalla/admins.sqlite \
+            --mjolnir-timezone /data/valhalla/tz_world.sqlite \
+            --mjolnir-hierarchy 1 \
+            -o /data/valhalla/valhalla.json
+        fi
+        if [ ! -f /data/valhalla/admins.sqlite ]; then
+          valhalla_build_admins \
+            -c /data/valhalla/valhalla.json \
+            /custom_files/pa-nj-motorcycle.osm.pbf
+        fi
+        if [ ! -f /data/valhalla/tz_world.sqlite ]; then
+          timezone_workdir="$$(mktemp -d)"
+          (cd "$$timezone_workdir" && valhalla_build_timezones > /data/valhalla/tz_world.sqlite)
+          rm -rf "$$timezone_workdir"
+        fi
+        if [ ! -d /data/valhalla/0 ]; then
+          valhalla_build_tiles \
+            -c /data/valhalla/valhalla.json \
+            /custom_files/pa-nj-motorcycle.osm.pbf
+        fi
+        if [ -d /data/valhalla/elevation ] && [ -z "$${SKIP_ELEVATION:-}" ]; then
+          valhalla_add_elevation -c /data/valhalla/valhalla.json -j 4 || true
+        fi
+        exec valhalla_service /data/valhalla/valhalla.json 1
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8002/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 10m
+
+volumes:
+  valhalla_data:
+    name: switchback_valhalla_3_8_2_pa_nj

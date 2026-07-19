@@ -137,13 +137,51 @@ function sampleLine(coordinates: Coordinate[], spacingMeters = 120): Coordinate[
 
 function directionalOverlap(first: Coordinate[], second: Coordinate[]): number {
   if (first.length === 0 || second.length === 0) return 0
+
+  const GRID_METERS = 140
+  const DEG_PER_M = 1 / 111_000
+  const cellDeg = GRID_METERS * DEG_PER_M
+
+  const hash = new Map<string, Coordinate[]>()
+  for (const coord of second) {
+    const key = `${Math.round(coord[1] / cellDeg)},${Math.round(coord[0] / cellDeg)}`
+    const bucket = hash.get(key)
+    if (bucket) bucket.push(coord)
+    else hash.set(key, [coord])
+  }
+
   let matches = 0
+  const thresholdSq = (GRID_METERS * 1.05) ** 2
   for (const coordinate of first) {
-    if (second.some((candidate) => haversine(coordinate, candidate) <= 140)) {
-      matches += 1
+    const cx = Math.round(coordinate[1] / cellDeg)
+    const cy = Math.round(coordinate[0] / cellDeg)
+    let found = false
+    outer: for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const bucket = hash.get(`${cx + dx},${cy + dy}`)
+        if (!bucket) continue
+        for (const candidate of bucket) {
+          if (haversineSq(coordinate, candidate) <= thresholdSq) {
+            found = true
+            break outer
+          }
+        }
+      }
     }
+    if (found) matches += 1
   }
   return matches / first.length
+}
+
+function haversineSq(first: Coordinate, second: Coordinate): number {
+  const firstLat = toRadians(first[1])
+  const secondLat = toRadians(second[1])
+  const latitudeDelta = secondLat - firstLat
+  const longitudeDelta = toRadians(second[0] - first[0])
+  const a =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(longitudeDelta / 2) ** 2
+  return (2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a))) ** 2
 }
 
 export function calculateGeometryOverlap(

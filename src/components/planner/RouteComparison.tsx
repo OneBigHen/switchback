@@ -1,19 +1,40 @@
 "use client"
 
 import {
+  CaretDown,
+  CaretUp,
   DownloadSimple,
   FloppyDisk,
+  ListNumbers,
   NavigationArrow
 } from "@phosphor-icons/react"
+import { useState } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { ManeuverGlyph } from "./maneuver-glyph"
+import { maneuverKind } from "@/lib/client/maneuver"
+import { RouteWeatherPanel } from "./RouteWeatherPanel"
+import { TripStagePanel } from "./TripStagePanel"
+import { RouteRating } from "./RouteRating"
+import { RouteSharePanel } from "./RouteSharePanel"
+import { RouteEvidencePanel } from "./RouteEvidencePanel"
+import type { GpxExportVariant } from "@/lib/routing/gpx"
+import type { RiderPreference } from "@/lib/intelligence/rider-preferences"
+import type { TripStagePlan } from "@/lib/trip/stage-planner"
+import type { TripStageConstraints } from "@/lib/trip/stage-planner"
+import type { TripPlan } from "@/lib/trip/trip-plan"
 
 interface RouteComparisonProps {
   routes: PlannedRoute[]
   selectedId: string
   onSelect(id: string): void
   onSave(route: PlannedRoute): void
-  onExport(route: PlannedRoute): void
+  onExport(route: PlannedRoute, variant: GpxExportVariant): void
   onRide(route: PlannedRoute): void
+  onRate?(route: PlannedRoute, motorcycleId: string, rating: 1 | 2 | 3 | 4 | 5): Promise<RiderPreference> | void
+  onShareCreated?(url: string): void
+  savedTrip?: TripPlan
+  onSaveTrip?(route: PlannedRoute, plan: TripStagePlan, constraints: TripStageConstraints): void
+  showRideAction?: boolean
 }
 
 function dominantMix(mix: Record<string, number>): string {
@@ -22,14 +43,63 @@ function dominantMix(mix: Record<string, number>): string {
   return `${Math.round(dominant[1])}% ${dominant[0].replaceAll("_", " ")}`
 }
 
+const UNPAVED_SURFACES = new Set([
+  "compacted",
+  "dirt",
+  "earth",
+  "fine_gravel",
+  "grass",
+  "gravel",
+  "ground",
+  "mud",
+  "sand",
+  "unpaved"
+])
+
+function unpavedPercent(mix: Record<string, number>): number {
+  return Math.round(Object.entries(mix).reduce(
+    (total, [surface, percent]) => total + (UNPAVED_SURFACES.has(surface.toLowerCase()) ? percent : 0),
+    0
+  ))
+}
+
+function routeReason(route: PlannedRoute): string {
+  switch (route.profile) {
+    case "quick":
+      return "Lowest travel time"
+    case "twisty":
+      return "Most curves and direction changes"
+    case "scenic":
+      return "Balanced for back roads and views"
+    case "adventure":
+      return "Targets gravel and unpaved roads"
+  }
+}
+
+function officialUnpavedLabel(route: PlannedRoute): string | null {
+  const evidence = route.officialUnpavedEvidence
+  if (!evidence) return null
+  if (evidence.sharePercent <= 0) return "Official PA data checked"
+  const share = evidence.sharePercent < 0.1 ? "<0.1" : evidence.sharePercent.toFixed(1)
+  return `${share}% official PA unpaved`
+}
+
 export function RouteComparison({
   routes,
   selectedId,
   onSelect,
   onSave,
   onExport,
-  onRide
+  onRide,
+  showRideAction = true,
+  onRate,
+  onShareCreated,
+  onSaveTrip,
+  savedTrip
 }: RouteComparisonProps) {
+  const [directionsOpen, setDirectionsOpen] = useState(true)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [exportVariant, setExportVariant] = useState<GpxExportVariant>("track")
   const selectedRoute = routes.find((route) => route.id === selectedId) ?? routes[0]
   if (!selectedRoute) return null
 
@@ -37,8 +107,8 @@ export function RouteComparison({
     <section className="route-rack" aria-labelledby="route-rack-title">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Route telemetry</span>
-          <h2 id="route-rack-title">Choose your line</h2>
+          <span className="eyebrow">Your options</span>
+          <h2 id="route-rack-title">Choose a route</h2>
         </div>
         <span className="route-count">{routes.length.toString().padStart(2, "0")}</span>
       </div>
@@ -46,6 +116,7 @@ export function RouteComparison({
       <div className="route-slips">
         {routes.map((route, index) => {
           const selected = route.id === selectedId
+          const officialUnpaved = officialUnpavedLabel(route)
           return (
             <button
               className={`route-slip${selected ? " is-selected" : ""}`}
@@ -56,44 +127,128 @@ export function RouteComparison({
               onClick={() => onSelect(route.id)}
             >
               <span className="route-slip-index">{String(index + 1).padStart(2, "0")}</span>
-              <span className="route-slip-name">
-                <strong>{route.name}</strong>
-                <small>{dominantMix(route.roadMix)}</small>
+              <span className="route-slip-body">
+                <span className="route-slip-name">
+                  <strong>{route.name}</strong>
+                  <small>{routeReason(route)}</small>
+                </span>
+                <span className="route-character">
+                  <span>{dominantMix(route.roadMix)}</span>
+                  <span>{unpavedPercent(route.surfaceMix)}% unpaved</span>
+                  {officialUnpaved ? <span className="official-unpaved">{officialUnpaved}</span> : null}
+                  {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
+                    <span>{Math.round(100 - route.overlapPercent)}% different</span>
+                  ) : null}
+                </span>
               </span>
-              <span className="route-slip-metric">
-                <strong>{route.distanceMiles.toFixed(1)}</strong>
-                <small>miles</small>
+              <span className="route-slip-stats">
+                <span className="route-slip-metric">
+                  <strong>{route.distanceMiles.toFixed(1)}</strong>
+                  <small>miles</small>
+                </span>
+                <span className="route-slip-metric">
+                  <strong>{Math.round(route.durationMinutes)}</strong>
+                  <small>min</small>
+                </span>
+                <span className="route-slip-metric twistiness-meter">
+                  <strong>{Math.round(route.twistiness)}</strong>
+                  <small>twist</small>
+                </span>
               </span>
-              <span className="route-slip-metric">
-                <strong>{Math.round(route.durationMinutes)}</strong>
-                <small>min</small>
-              </span>
-              <span className="route-slip-metric twistiness-meter">
-                <strong>{Math.round(route.twistiness)}</strong>
-                <small>twist</small>
-              </span>
-              {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
-                <span className="route-overlap">{Math.round(route.overlapPercent)}% shared</span>
-              ) : null}
             </button>
           )
         })}
       </div>
+
+      <div className="directions-panel">
+        <button
+          type="button"
+          className="directions-toggle"
+          aria-label={`${directionsOpen ? "Hide" : "Show"} turn-by-turn directions`}
+          aria-expanded={directionsOpen}
+          aria-controls="route-directions"
+          onClick={() => setDirectionsOpen((open) => !open)}
+        >
+          <span><ListNumbers aria-hidden="true" /> Turn-by-turn directions</span>
+          <span>
+            {selectedRoute.instructions.length} steps
+            {directionsOpen ? <CaretUp aria-hidden="true" /> : <CaretDown aria-hidden="true" />}
+          </span>
+        </button>
+        {directionsOpen ? (
+          <div id="route-directions" className="directions-list" role="region" aria-label="Turn-by-turn directions">
+            {selectedRoute.instructions.length > 0 ? (
+              <ol>
+                {selectedRoute.instructions.map((instruction, index) => {
+                  const kind = maneuverKind(instruction.sign)
+                  return (
+                    <li key={`${instruction.interval[0]}-${instruction.interval[1]}-${index}`}>
+                      <span className="directions-icon" aria-hidden="true">
+                        <ManeuverGlyph kind={kind} />
+                      </span>
+                      <span className="directions-text">
+                        <strong>{instruction.text}</strong>
+                        <small>{instruction.streetName || "Unnamed road"}</small>
+                      </span>
+                      <b className="directions-distance">{
+                        instruction.distanceMeters < 1_000
+                          ? `${Math.max(1, Math.round(instruction.distanceMeters))} m`
+                          : `${(instruction.distanceMeters / 1_609.344).toFixed(1)} mi`
+                      }</b>
+                    </li>
+                  )
+                })}
+              </ol>
+            ) : <p>No turn instructions are available for this route.</p>}
+          </div>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        className="route-details-toggle"
+        aria-expanded={detailsOpen}
+        onClick={() => setDetailsOpen((open) => !open)}
+      >
+        {detailsOpen ? "Hide route details" : "Show route details"}
+      </button>
+
+      {detailsOpen ? <>
+      <RouteWeatherPanel route={selectedRoute} />
+
+      <RouteEvidencePanel route={selectedRoute} />
+
+      <TripStagePanel key={savedTrip?.routeId === selectedRoute.id ? savedTrip.id : selectedRoute.id} route={selectedRoute} savedTrip={savedTrip?.routeId === selectedRoute.id ? savedTrip : undefined} onSave={(plan, constraints) => onSaveTrip?.(selectedRoute, plan, constraints)} />
+
+      <RouteRating route={selectedRoute} onRate={onRate} />
+
+      <RouteSharePanel route={selectedRoute} onShareCreated={onShareCreated} />
 
       <div className="route-actions" aria-label="Selected route actions">
         <button type="button" className="tool-button" onClick={() => onSave(selectedRoute)}>
           <FloppyDisk aria-hidden="true" />
           <span>Save route</span>
         </button>
-        <button type="button" className="tool-button" onClick={() => onExport(selectedRoute)}>
+        <label className="gpx-export-variant">
+          <span>GPX format</span>
+          <select aria-label="GPX export format" value={exportVariant} onChange={(event) => setExportVariant(event.currentTarget.value as GpxExportVariant)}>
+            <option value="track">Track</option>
+            <option value="route">Route</option>
+            <option value="cues">Cues</option>
+          </select>
+        </label>
+        <button type="button" className="tool-button" onClick={() => onExport(selectedRoute, exportVariant)}>
           <DownloadSimple aria-hidden="true" />
           <span>Export GPX</span>
         </button>
-        <button type="button" className="ride-button" onClick={() => onRide(selectedRoute)}>
-          <NavigationArrow weight="fill" aria-hidden="true" />
-          <span>Start ride</span>
-        </button>
+        {showRideAction ? (
+          <button type="button" className="ride-button" onClick={() => onRide(selectedRoute)}>
+            <NavigationArrow weight="fill" aria-hidden="true" />
+            <span>Start ride</span>
+          </button>
+        ) : null}
       </div>
+      </> : null}
     </section>
   )
 }

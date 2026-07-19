@@ -1,0 +1,147 @@
+.route-rack {
+  padding: 22px 2px 2px;
+  border-top: 1px solid var(--line);
+}
+
+.route-count {
+  color: var(--signal);
+  font-size: 20px;
+  font-weight: 580;
+}
+
+.route-slips {
+  border-top: 1px solid var(--line);
+}
+
+.route-slip {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 78px;
+  grid-template-columns: 25px minmax(88px, 1fr) 48px 43px 43px;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 5px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, padding 160ms ease;
+}
+
+.route-slip:hover {
+  background: rgb(243 239 230 / 2%);
+}
+
+.route-slip.is-selected {
+  padding-left: 9px;
+  background: rgb(243 106 45 / 6%);
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.route-slip-index {
+  color: var(--metal);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 9px;
+}
+
+.route-slip.is-selected .route-slip-index {
+  color: var(--signal);
+}
+
+.route-slip-name {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.route-slip-name strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 670;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-slip-name small,
+.route-slip-metric small {
+  color: var(--metal);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.route-slip-metric {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.route-slip-metric strong {
+  font-size: 13px;
+  font-weight: 570;
+}
+
+.twistiness-meter strong {
+  color: var(--signal);
+}
+
+.route-overlap {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  color: rgb(148 156 151 / 65%);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.25fr;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.tool-button,
+.ride-button {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #111513;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.tool-button:hover {
+  border-color: rgb(243 239 230 / 30%);
+  color: var(--instrument);
+}
+
+.tool-button svg,
+.ride-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ride-button {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: var(--oled);
+}
+
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 55%);
+}

@@ -40,4 +40,19 @@ describe("same-origin routing client", () => {
       message: "The destination is outside Pennsylvania."
     })
   })
+
+  it("passes an abort signal through to the route request", async () => {
+    const controller = new AbortController()
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      selectedRouteId: "twisty-1",
+      routes: [],
+      warnings: []
+    }), { status: 200 }))
+
+    await requestTripPlan(request, fetcher, controller.signal)
+
+    expect(fetcher).toHaveBeenCalledWith("/api/routes", expect.objectContaining({
+      signal: controller.signal
+    }))
+  })
 })

@@ -1,0 +1,380 @@
+.library-drawer {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  overflow-y: auto;
+  border: 1px solid rgb(243 239 230 / 14%);
+  border-radius: 18px;
+  background: var(--machined);
+  box-shadow: -30px 0 80px rgb(0 0 0 / 38%);
+  animation: drawer-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.library-drawer > header {
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-route-button {
+  position: relative;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111513;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 720;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.import-route-button:hover,
+.import-route-button:focus-within {
+  border-color: rgb(243 239 230 / 30%);
+  color: var(--instrument);
+}
+
+.import-route-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.import-route-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.library-search {
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 4px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0d100f;
+  color: var(--metal);
+}
+
+.library-search:focus-within {
+  border-color: rgb(214 255 80 / 55%);
+  box-shadow: 0 0 0 3px rgb(214 255 80 / 8%);
+}
+
+.library-search svg {
+  width: 18px;
+  height: 18px;
+}
+
+.library-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--instrument);
+  font: inherit;
+  font-size: 12px;
+}
+
+.library-search input::placeholder {
+  color: var(--metal);
+}
+
+.library-empty {
+  display: grid;
+  min-height: 60%;
+  place-content: center;
+  justify-items: center;
+  padding: 32px;
+  color: var(--metal);
+  text-align: center;
+}
+
+.library-empty svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  color: var(--signal);
+}
+
+.library-empty strong {
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 15px;
+}
+
+.library-empty p {
+  max-width: 250px;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.library-list {
+  border-top: 0;
+}
+
+.library-collections {
+  display: grid;
+  gap: 20px;
+}
+
+.library-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 2px 8px;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.library-section-title strong {
+  display: grid;
+  min-width: 26px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--signal);
+  font-size: 9px;
+}
+
+.library-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.library-load {
+  display: grid;
+  min-height: 88px;
+  grid-template-columns: 1fr auto 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px 12px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-project-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.library-project-row .library-load {
+  padding-right: 4px;
+}
+
+.library-load > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.library-load small {
+  color: var(--signal);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.library-load strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-metrics {
+  color: var(--metal);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 10px;
+}
+
+.delete-route {
+  min-width: 48px;
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--metal);
+}
+
+.delete-route.is-confirming {
+  width: auto;
+  padding: 0 9px;
+  border: 1px solid rgb(227 93 84 / 45%);
+  color: var(--danger);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.delete-route:hover {
+  color: var(--danger);
+}
+
+.ride-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  pointer-events: none;
+}
+
+.ride-topbar,
+.ride-instruction,
+.ride-telemetry {
+  border: 1px solid rgb(243 239 230 / 15%);
+  background: rgb(11 14 13 / 96%);
+  box-shadow:
+    0 24px 70px rgb(0 0 0 / 42%),
+    inset 0 0 0 5px rgb(243 239 230 / 2%);
+  pointer-events: auto;
+}
+
+.ride-topbar {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  left: 18px;
+  min-height: 72px;
+  padding: 10px 12px 10px 18px;
+  border-radius: 15px;
+}
+
+.ride-route-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ride-route-name > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.ride-route-name small {
+  color: var(--signal);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ride-route-name strong {
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 14px;
+}
+
+.gps-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--metal);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gps-status svg {
+  width: 18px;
+  height: 18px;
+  color: var(--success);
+}
+
+.gps-acquiring .live-dot,
+.gps-weak .live-dot {
+  background: var(--signal);
+  box-shadow: 0 0 0 4px rgb(243 106 45 / 12%);
+}
+
+.gps-error .live-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgb(227 93 84 / 12%);
+}
+
+.gps-acquiring .gps-status svg,
+.gps-weak .gps-status svg {
+  color: var(--signal);
+}
+
+.gps-error .gps-status svg {
+  color: var(--danger);
+}
+
+.ride-exit {
+  min-width: 50px;
+  min-height: 50px;
+  background: var(--raised);
+}
+
+.ride-instruction {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  width: min(560px, calc(100vw - 48px));
+  min-height: 172px;
+  grid-template-columns: 92px 1fr;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  border-radius: 18px;
+}
+
+.maneuver-icon {
+  display: grid;
+  width: 84px;
+  height: 84px;
+  place-items: center;
+  border: 1px solid rgb(243 106 45 / 42%);
+  border-radius: 16px;
+  background: rgb(243 106 45 / 10%);
+  color: var(--signal);
+}
+
+.maneuver-icon svg {
+  width: 52px;
+  height: 52px;
+}
+
+.ride-instruction h2 {
+  max-width: 400px;
+  font-size: clamp(24px, 3vw, 40px);
+  line-height: 1.04;
+}
+
+.ride-instruction p {
+  margin-top: 7px;
+  color: var(--metal);
+  font-size: 14px;
+}

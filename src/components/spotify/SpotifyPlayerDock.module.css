@@ -1,0 +1,759 @@
+.player,
+.prompt {
+  --spotify-green: #1ed760;
+  --player-ink: #f5f7f4;
+  --player-muted: #aeb7b1;
+  position: fixed;
+  z-index: 70;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  color: var(--player-ink);
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 18% 0%, rgb(30 215 96 / 17%), transparent 44%),
+    linear-gradient(145deg, rgb(22 26 23 / 96%), rgb(8 11 9 / 98%));
+  box-shadow: 0 20px 60px rgb(0 0 0 / 42%), 0 2px 8px rgb(0 0 0 / 25%);
+  backdrop-filter: blur(22px) saturate(1.2);
+}
+
+.compactPrompt {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  grid-template-columns: 1fr;
+  padding: 0;
+  overflow: visible;
+  border-radius: 50%;
+  background: #101813;
+}
+
+.compactPrompt .promptIcon {
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgb(255 255 255 / 14%);
+  border-radius: 50%;
+  background: #101813;
+  color: var(--spotify-green);
+}
+
+.compactPrompt .promptIcon::after {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #101813;
+  border-radius: 50%;
+  background: #f1b14d;
+  content: "";
+}
+
+.compactPrompt .promptCopy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.compactPrompt .promptActions {
+  position: absolute;
+  inset: 0;
+}
+
+.compactPrompt .connect {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 0;
+}
+
+.compactPrompt .recheck {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 0;
+}
+
+@media (min-width: 761px) {
+  .player,
+  .prompt {
+    right: max(84px, calc(env(safe-area-inset-right) + 66px));
+  }
+}
+
+.player {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(390px, calc(100vw - 36px));
+  padding: 10px;
+  overflow: hidden;
+  transition: width 180ms ease, border-radius 180ms ease;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 42px auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.player::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  opacity: 0.16;
+  background-image: linear-gradient(90deg, transparent 49%, rgb(255 255 255 / 12%) 50%, transparent 51%);
+  background-size: 24px 100%;
+}
+
+.collapsed {
+  width: min(330px, calc(100vw - 36px));
+  border-radius: 16px;
+}
+
+.collapsed .header {
+  grid-template-columns: 52px minmax(0, 1fr) 42px auto;
+}
+
+.cover {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  overflow: hidden;
+  color: #08130c;
+  border-radius: 13px;
+  background: var(--spotify-green);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.collapsed .cover {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+}
+
+.cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover svg {
+  width: 34px;
+  height: 34px;
+}
+
+.summary {
+  min-width: 0;
+}
+
+.summary strong,
+.summary span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary strong {
+  color: var(--player-ink);
+  font: 700 0.91rem/1.3 var(--font-sora, "Sora Variable"), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.summary span {
+  margin-top: 3px;
+  color: var(--player-muted);
+  font: 600 0.74rem/1.3 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+}
+
+.primary,
+.collapse,
+.controls button {
+  display: inline-grid;
+  place-items: center;
+  color: var(--player-ink);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.primary {
+  width: 42px;
+  height: 42px;
+  color: #07110b;
+  border-radius: 50%;
+  background: var(--spotify-green);
+  box-shadow: 0 5px 18px rgb(30 215 96 / 22%);
+}
+
+.primary svg {
+  width: 20px;
+  height: 20px;
+}
+
+.collapse {
+  width: 28px;
+  height: 42px;
+  color: var(--player-muted);
+}
+
+.primary:disabled,
+.controls button:disabled,
+.volume input:disabled {
+  cursor: default;
+  opacity: 0.44;
+}
+
+.detail {
+  width: 100%;
+  padding: 2px 4px 1px;
+  animation: player-reveal 180ms ease-out both;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: 33px minmax(0, 1fr) 37px;
+  gap: 8px;
+  align-items: center;
+  color: #89938d;
+  font: 650 0.62rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline span:last-child {
+  text-align: right;
+}
+
+.timeline input,
+.volume input {
+  height: 18px;
+  margin: 0;
+  accent-color: var(--spotify-green);
+  cursor: pointer;
+}
+
+.timeline input {
+  width: 100%;
+}
+
+.controls {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 5px;
+}
+
+.controls button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.controls button:hover:not(:disabled),
+.controls button:focus-visible,
+.collapse:hover,
+.collapse:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 9%);
+}
+
+.volume {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  width: 92px;
+  margin-left: 5px;
+  color: var(--player-muted);
+}
+
+.volume svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.volume input {
+  min-width: 0;
+  width: 100%;
+}
+
+.message {
+  margin: 4px 2px 0;
+  color: #f2c66d;
+  font: 600 0.68rem/1.35 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  text-align: center;
+}
+
+.openSpotify {
+  display: block;
+  width: fit-content;
+  margin: 5px auto 0;
+  padding: 7px 10px;
+  color: #07110b;
+  border-radius: 999px;
+  background: var(--spotify-green);
+  font: 800 0.68rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  text-decoration: none;
+}
+
+.prompt {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: min(440px, calc(100vw - 36px));
+  padding: 11px 12px;
+}
+
+.promptActions,
+.playerUtilities {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.playerUtilities {
+  position: static;
+  justify-content: flex-end;
+}
+
+.utility,
+.recheck,
+.reveal {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  cursor: pointer;
+}
+
+.utility {
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  color: var(--player-muted);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.utility:hover,
+.utility:focus-visible,
+.recheck:hover,
+.recheck:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 15%);
+}
+
+.utility:first-child {
+  cursor: grab;
+}
+
+.utility svg {
+  width: 15px;
+  height: 15px;
+}
+
+.recheck {
+  padding: 8px 9px;
+  color: var(--player-ink);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  font: 750 0.66rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  white-space: nowrap;
+}
+
+.reveal {
+  position: fixed;
+  z-index: 70;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  gap: 5px;
+  min-height: 36px;
+  padding: 8px 11px;
+  color: #07110b;
+  border-radius: 999px;
+  background: var(--spotify-green);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 25%);
+  font: 800 0.69rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+}
+
+.reveal svg {
+  width: 16px;
+  height: 16px;
+}
+
+.promptIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: #08120c;
+  border-radius: 12px;
+  background: var(--spotify-green);
+}
+
+.promptIcon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.promptCopy {
+  min-width: 0;
+}
+
+.promptCopy strong,
+.promptCopy small {
+  display: block;
+}
+
+.promptCopy strong {
+  font: 750 0.82rem/1.2 var(--font-sora, "Sora Variable"), sans-serif;
+}
+
+.promptCopy small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--player-muted);
+  font: 600 0.68rem/1.3 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connect {
+  padding: 9px 11px;
+  color: #07110b;
+  border-radius: 999px;
+  background: var(--spotify-green);
+  font: 800 0.7rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.primary:focus-visible,
+.connect:focus-visible,
+.openSpotify:focus-visible,
+.controls button:focus-visible,
+.collapse:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes player-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .player,
+  .prompt {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: calc(100vw - max(20px, env(safe-area-inset-left) + env(safe-area-inset-right)));
+  }
+
+  .player {
+    width: min(390px, calc(100vw - 20px));
+  }
+
+  .header {
+    grid-template-columns: 60px minmax(0, 1fr) 42px auto;
+    gap: 8px;
+  }
+
+  .cover {
+    width: 60px;
+    height: 60px;
+  }
+
+  .collapsed {
+    width: min(310px, calc(100vw - 20px));
+  }
+
+  .collapsed .header {
+    grid-template-columns: 48px minmax(0, 1fr) 42px auto;
+  }
+
+  .collapsed .cover {
+    width: 48px;
+    height: 48px;
+  }
+
+  .prompt {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+
+  .promptIcon {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 380px) {
+  .promptCopy small {
+    display: none;
+  }
+
+  .volume {
+    width: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player,
+  .detail {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* The phone planner keeps primary actions in a bottom sheet and map tools on
+   the upper-left. A narrow upper-right rail leaves both interaction zones free. */
+@media (max-width: 760px) {
+  .player:not(.rideMode) {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
+    width: min(360px, calc(100vw - 20px));
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .player:not(.rideMode) .header {
+    grid-template-columns: 40px minmax(0, 1fr) 40px auto;
+    gap: 8px;
+  }
+
+  .player:not(.rideMode) .cover {
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+  }
+
+  .player:not(.rideMode) .detail {
+    display: none;
+  }
+
+  .prompt:not(.rideMode) {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
+    width: auto;
+    grid-template-columns: 1fr;
+    padding: 6px;
+  }
+
+  .compactPrompt:not(.rideMode) {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
+    width: 52px;
+    height: 52px;
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+
+  .compactPrompt:not(.rideMode) .promptIcon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .prompt:not(.rideMode) .promptIcon,
+  .prompt:not(.rideMode) .promptCopy {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .compactPrompt:not(.rideMode) {
+    top: max(64px, calc(env(safe-area-inset-top) + 56px));
+    right: max(10px, env(safe-area-inset-right));
+    width: 52px;
+    height: 52px;
+    padding: 0;
+  }
+
+  .prompt:not(.rideMode) {
+    top: max(64px, calc(env(safe-area-inset-top) + 56px));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
+    width: min(300px, calc(100vw - max(20px, env(safe-area-inset-left) + env(safe-area-inset-right))));
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .prompt:not(.rideMode) .promptIcon {
+    display: grid;
+  }
+
+  .prompt:not(.rideMode) .promptCopy {
+    display: block;
+  }
+
+  .prompt:not(.rideMode) .promptCopy small {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* Navigation owns the screen edges. The desktop rail begins below the alert
+   tray; portrait reserves the recenter rail; landscape uses the open map band. */
+.player.rideMode {
+  top: max(172px, calc(env(safe-area-inset-top) + 164px));
+  right: max(24px, env(safe-area-inset-right));
+  bottom: auto;
+  left: auto;
+  width: min(330px, calc(100vw - 48px));
+  grid-template-columns: 52px minmax(0, 1fr) 42px;
+  padding: 8px;
+}
+
+.player.rideMode .header {
+  grid-template-columns: 52px minmax(0, 1fr) 42px;
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .player.rideMode {
+    top: auto;
+    right: auto;
+    bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
+    left: max(10px, env(safe-area-inset-left));
+    width: min(250px, calc(100vw - 140px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .player:not(.rideMode),
+  .prompt:not(.rideMode) {
+    top: max(104px, calc(env(safe-area-inset-top) + 96px));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: auto;
+    left: auto;
+    width: min(310px, calc(46vw - 16px));
+  }
+
+  .player:not(.rideMode) {
+    width: min(360px, calc(46vw - 16px));
+  }
+
+  .player:not(.rideMode) .header {
+    grid-template-columns: 48px minmax(0, 1fr) 42px auto;
+    gap: 7px;
+  }
+
+  .player:not(.rideMode) .cover {
+    width: 48px;
+    height: 48px;
+  }
+
+  .prompt:not(.rideMode) {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 7px;
+  }
+
+  .prompt:not(.rideMode) .promptIcon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+  }
+
+  .prompt:not(.rideMode) .promptCopy {
+    display: block;
+  }
+
+  .prompt:not(.rideMode) .promptCopy small {
+    display: none;
+  }
+
+  .player.rideMode {
+    top: max(148px, calc(env(safe-area-inset-top) + 140px));
+    right: auto;
+    bottom: auto;
+    left: max(12px, env(safe-area-inset-left));
+    width: min(300px, calc(58vw - 20px));
+  }
+}
+
+/* Keep an unavailable connection as a one-tap status dot, never a banner. */
+.prompt.compactPrompt {
+  width: 58px;
+  height: 58px;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.prompt.compactPrompt .promptIcon {
+  width: 58px;
+  height: 58px;
+}
+
+@media (max-width: 760px) {
+  .prompt.compactPrompt:not(.rideMode) {
+    top: max(64px, calc(env(safe-area-inset-top) + 56px));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
+    left: auto;
+    width: 52px;
+    height: 52px;
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .prompt.compactPrompt:not(.rideMode) .promptIcon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+  }
+
+  .prompt.compactPrompt:not(.rideMode) .promptCopy {
+    display: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 380px) {
+  .player.rideMode {
+    display: none;
+  }
+}

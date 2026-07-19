@@ -1,0 +1,228 @@
+.waypoint-stack {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.waypoint-stack::before {
+  position: absolute;
+  top: 47px;
+  bottom: 47px;
+  left: 20px;
+  width: 1px;
+  content: "";
+  background: var(--line);
+}
+
+.waypoint-field {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 9px;
+  min-height: 64px;
+  padding: 7px 7px 7px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #111513;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.waypoint-field:focus-within,
+.waypoint-field.is-armed {
+  border-color: rgb(243 106 45 / 60%);
+  box-shadow: 0 0 0 3px rgb(243 106 45 / 8%);
+}
+
+.waypoint-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  margin-left: 8px;
+  place-items: center;
+  border: 2px solid var(--oled);
+  border-radius: 50%;
+  background: var(--instrument);
+  color: var(--oled);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.waypoint-node-finish {
+  background: var(--signal);
+}
+
+.waypoint-field label {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.waypoint-field label > span {
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.waypoint-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 0;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--instrument);
+  font-size: 13px;
+  font-weight: 590;
+  text-overflow: ellipsis;
+}
+
+.waypoint-field input::placeholder {
+  color: rgb(148 156 151 / 55%);
+}
+
+.map-pick-button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: var(--raised);
+}
+
+.is-armed .map-pick-button {
+  background: var(--signal);
+  color: var(--oled);
+}
+
+.place-suggestions {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 40px;
+  z-index: 20;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  border: 1px solid rgb(243 239 230 / 16%);
+  border-radius: 11px;
+  background: #0e1210;
+  box-shadow: 0 18px 45px rgb(0 0 0 / 52%);
+}
+
+.place-suggestions li + li {
+  border-top: 1px solid var(--line);
+}
+
+.place-suggestions button {
+  display: grid;
+  width: 100%;
+  min-height: 52px;
+  padding: 9px 11px;
+  gap: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.place-suggestions button:hover {
+  background: var(--raised);
+}
+
+.place-suggestions strong {
+  font-size: 13px;
+}
+
+.place-suggestions span,
+.field-error {
+  color: var(--metal);
+  font-size: 10px;
+}
+
+.field-error {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 6px;
+  z-index: 2;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--oled);
+  color: #f19a94;
+}
+
+.map-pick-hint {
+  margin: 10px 2px 0;
+  color: var(--signal);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.profile-glyph {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--signal);
+}
+
+.profile-glyph svg {
+  width: 28px;
+  height: 28px;
+}
+
+.profile-switch {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0f1311;
+}
+
+.profile-switch button {
+  min-height: 44px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--metal);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.profile-switch button[aria-pressed="true"] {
+  border-color: rgb(243 239 230 / 13%);
+  background: var(--raised);
+  color: var(--instrument);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+.profile-switch button[aria-pressed="true"]::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--signal);
+  content: "";
+  vertical-align: 1px;
+}
+
+.profile-description {
+  min-height: 36px;
+  margin: 10px 2px 14px;
+  color: var(--metal);
+  font-size: 11px;
+  line-height: 1.5;
+}

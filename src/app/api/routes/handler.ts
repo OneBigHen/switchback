@@ -1,19 +1,77 @@
-import type { RouteProvider } from "@/lib/routing/planner"
+import type { RouteCandidateEnricher, RouteProvider } from "@/lib/routing/planner"
 import { planMotorcycleTrip } from "@/lib/routing/planner"
 import { GraphHopperProviderError } from "@/lib/routing/graphhopper"
-import { z } from "zod"
+import { ValhallaProviderError } from "@/lib/routing/valhalla"
+import {
+  number, string, boolean, enum_, object_, tuple, array,
+  optional, withDefault, safeParse, ValidationError
+} from "@/lib/validate"
 
-const waypointSchema = z.object({
-  lat: z.number().finite().min(-90).max(90),
-  lon: z.number().finite().min(-180).max(180),
-  label: z.string().trim().max(160).optional()
+const waypointSchema = object_({
+  lat: number({ finite: true, min: -90, max: 90 }),
+  lon: number({ finite: true, min: -180, max: 180 }),
+  label: optional(string({ trim: true, max: 160 })),
+  locked: optional(boolean())
 })
 
-const routeRequestSchema = z.object({
-  profile: z.enum(["quick", "twisty", "scenic", "adventure"]),
-  compare: z.boolean().optional().default(true),
-  points: z.array(waypointSchema).min(2).max(8)
+const coordinateSchema = tuple([
+  number({ finite: true, min: -180, max: 180 }),
+  number({ finite: true, min: -90, max: 90 })
+])
+
+const avoidAreaSchema = object_({
+  id: string({ trim: true, min: 1, max: 80 }),
+  name: optional(string({ trim: true, min: 1, max: 120 })),
+  polygon: array(coordinateSchema, { min: 3, max: 12 })
 })
+
+const PROFILES = ["quick", "twisty", "scenic", "adventure"] as const
+
+const routeRequestSchema = object_({
+  profile: enum_(PROFILES),
+  compare: withDefault(optional(boolean()), true),
+  avoidHighways: optional(boolean()),
+  avoidAreas: optional(array(avoidAreaSchema, { max: 3 })),
+  segmentProfiles: optional(array(enum_(PROFILES), { max: 7 })),
+  loopTargetMinutes: optional(number({ int: true, min: 20, max: 480 })),
+  points: array(waypointSchema, { min: 1, max: 8 }),
+  roundTrip: optional(object_({
+    targetMinutes: number({ int: true, min: 20, max: 480 }),
+    seed: optional(number({ int: true, min: 0, max: 999_999 })),
+    heading: optional(number({ min: 0, max: 359.999 }))
+  }))
+})
+
+function validateRouteRequest(value: {
+  roundTrip?: { targetMinutes: number; seed?: number; heading?: number }
+  points: { lat: number; lon: number; label?: string; locked?: boolean }[]
+  loopTargetMinutes?: number
+  segmentProfiles?: string[]
+}): void {
+  if (value.roundTrip && value.points.length !== 1) {
+    throw new ValidationError("Round trips require one start point.", "points")
+  }
+  if (!value.roundTrip && value.points.length < 2) {
+    throw new ValidationError("Routes require at least two waypoints.", "points")
+  }
+  if (value.roundTrip && value.loopTargetMinutes) {
+    throw new ValidationError("Use one loop timebox format.", "loopTargetMinutes")
+  }
+  if (value.segmentProfiles && value.segmentProfiles.length !== value.points.length - 1) {
+    throw new ValidationError("Choose one riding style for every route leg.", "segmentProfiles")
+  }
+  if (value.segmentProfiles && (value.roundTrip || value.loopTargetMinutes)) {
+    throw new ValidationError("Per-leg riding styles are available for A-to-B routes.", "segmentProfiles")
+  }
+  if (value.loopTargetMinutes) {
+    const first = value.points[0]
+    const last = value.points.at(-1)
+    if (value.points.length < 3 || !first || !last ||
+      Math.abs(first.lat - last.lat) > 0.000_001 || Math.abs(first.lon - last.lon) > 0.000_001) {
+      throw new ValidationError("Shaped loops must return to their start point.", "points")
+    }
+  }
+}
 
 const MAX_ROUTE_REQUEST_BYTES = 16 * 1024
 
@@ -51,7 +109,8 @@ async function readRoutePayload(
 
 export async function handleRouteRequest(
   request: Request,
-  provider: RouteProvider
+  provider: RouteProvider,
+  enricher?: RouteCandidateEnricher
 ): Promise<Response> {
   const body = await readRoutePayload(request)
   if ("tooLarge" in body) {
@@ -69,21 +128,35 @@ export async function handleRouteRequest(
     )
   }
 
-  const parsed = routeRequestSchema.safeParse(body.payload)
+  const parsed = safeParse(routeRequestSchema, body.payload)
   if (!parsed.success) {
     return errorResponse(
       "INVALID_ROUTE_REQUEST",
-      "Choose a motorcycle profile and provide between two and eight valid waypoints.",
+      "Choose a motorcycle profile and provide valid waypoints or one timeboxed loop start.",
       400,
-      parsed.error.flatten()
+      { message: parsed.error.message, path: parsed.error.path }
     )
   }
 
   try {
-    const trip = await planMotorcycleTrip(parsed.data, provider)
+    validateRouteRequest(parsed.data)
+  } catch (e) {
+    if (e instanceof ValidationError) {
+      return errorResponse(
+        "INVALID_ROUTE_REQUEST",
+        e.message,
+        400,
+        { path: e.path }
+      )
+    }
+    throw e
+  }
+
+  try {
+    const trip = await planMotorcycleTrip(parsed.data, provider, enricher)
     return Response.json(trip)
   } catch (error) {
-    if (error instanceof GraphHopperProviderError) {
+    if (error instanceof GraphHopperProviderError || error instanceof ValhallaProviderError) {
       return errorResponse(error.code, error.message, normalizeStatus(error.status))
     }
     const message = error instanceof Error ? error.message : "The route could not be planned."

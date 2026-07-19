@@ -1,0 +1,311 @@
+
+.ride-reroute-card {
+  margin-top: 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgb(243 106 45 / 28%);
+  background: rgb(243 106 45 / 7%);
+}
+
+.ride-reroute-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.ride-reroute-loading svg {
+  animation: spin 1.2s linear infinite;
+  width: 18px;
+  height: 18px;
+  color: var(--signal);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.reroute-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid rgb(243 239 230 / 8%);
+  background: transparent;
+  color: var(--paper);
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+
+.reroute-option:last-child {
+  border-bottom: 0;
+}
+
+.reroute-option:hover {
+  background: rgb(243 106 45 / 10%);
+}
+
+.reroute-option:active {
+  background: rgb(243 106 45 / 18%);
+}
+
+.reroute-option-secondary {
+  opacity: 0.72;
+}
+
+.reroute-option-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: rgb(243 106 45 / 14%);
+  color: var(--signal);
+}
+
+.reroute-option-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.reroute-option-secondary .reroute-option-icon {
+  background: rgb(243 239 230 / 8%);
+  color: var(--paper);
+  opacity: 0.72;
+}
+
+.reroute-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+}
+
+.reroute-option-text strong {
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.reroute-option-text small {
+  font-size: 10px;
+  font-weight: 540;
+  opacity: 0.68;
+}
+
+.ride-telemetry {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  width: min(520px, calc(100vw - 48px));
+  min-height: 172px;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  gap: 1px;
+  padding: 24px;
+  border-radius: 18px;
+}
+
+.ride-telemetry > div:not(.ride-progress-track) {
+  display: grid;
+  gap: 4px;
+  padding: 0 14px;
+  border-left: 1px solid var(--line);
+}
+
+.ride-telemetry > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ride-telemetry strong {
+  color: var(--instrument);
+  font-size: 30px;
+  font-weight: 540;
+}
+
+.ride-telemetry span {
+  color: var(--metal);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.ride-speed-badge strong {
+  font-size: 26px;
+  color: var(--instrument);
+}
+
+.ride-speed-badge span {
+  color: var(--metal);
+}
+
+.ride-speed-limit {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  border-left: 1px solid var(--line);
+}
+
+.ride-speed-limit-value {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid #f4f1ec;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ride-progress-readout strong {
+  color: var(--signal);
+}
+
+.ride-progress-track {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  left: 24px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.ride-progress-track > span {
+  display: block;
+  height: 100%;
+  background: var(--signal);
+  transition: width 400ms ease;
+}
+
+.app-notice {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--oled);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 42%);
+  font-size: 11px;
+  font-weight: 650;
+  transform: translateX(-50%);
+  animation: notice-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.app-notice svg {
+  width: 19px;
+  height: 19px;
+}
+
+.notice-success svg {
+  color: var(--success);
+}
+
+.notice-warning svg {
+  color: var(--signal);
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes scrim-in {
+  from { opacity: 0; }
+}
+
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(30px); }
+}
+
+@keyframes notice-in {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+@media (max-width: 1120px) {
+  .ride-instruction {
+    width: calc(58vw - 36px);
+  }
+
+  .ride-telemetry {
+    width: calc(42vw - 36px);
+  }
+
+  .ride-telemetry strong {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 760px) {
+  .ride-map-recenter {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0 12px;
+  }
+
+  .planner-shell {
+    min-height: 520px;
+  }
+
+  .planner-deck {
+    top: auto;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+    max-height: min(70dvh, 690px);
+    border-radius: 19px;
+  }
+
+  .planner-scroll {
+    padding: 22px 16px 28px;
+  }
+
+  .deck-header {
+    margin-bottom: 18px;
+  }
+
+  .brand-lockup small {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .engine-status {
+    font-size: 8px;
+  }
+
+  h1 {
+    font-size: 23px;
+  }
+
+  .deck-section {

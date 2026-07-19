@@ -3,8 +3,22 @@ import Dexie, { type EntityTable } from "dexie"
 
 export interface SavedRoute extends PlannedRoute {
   notes: string
+  folder: string
+  tags: string[]
+  visible: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface RouteOrganization {
+  folder?: string
+  tags?: string[]
+  visible?: boolean
+}
+
+export interface RouteListFilter {
+  folder?: string
+  visible?: boolean
 }
 
 class SwitchbackDatabase extends Dexie {
@@ -14,6 +28,9 @@ class SwitchbackDatabase extends Dexie {
     super(name)
     this.version(1).stores({
       routes: "&id, name, profile, createdAt, updatedAt"
+    })
+    this.version(2).stores({
+      routes: "&id, name, profile, folder, *tags, visible, createdAt, updatedAt"
     })
   }
 }
@@ -41,6 +58,9 @@ export class RouteLibrary {
     const saved: SavedRoute = {
       ...route,
       notes,
+      folder: existing?.folder ?? "Unfiled",
+      tags: existing?.tags ?? [],
+      visible: existing?.visible ?? true,
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp
     }
@@ -52,8 +72,37 @@ export class RouteLibrary {
     return this.database.routes.get(id)
   }
 
-  async list(): Promise<SavedRoute[]> {
-    return this.database.routes.orderBy("updatedAt").reverse().toArray()
+  async list(filter: RouteListFilter = {}): Promise<SavedRoute[]> {
+    const routes = await this.database.routes.orderBy("updatedAt").reverse().toArray()
+    return routes.filter((route) => {
+      if (filter.folder !== undefined && route.folder !== filter.folder) return false
+      if (filter.visible !== undefined && route.visible !== filter.visible) return false
+      return true
+    })
+  }
+
+  async organize(id: string, organization: RouteOrganization): Promise<SavedRoute> {
+    const route = await this.database.routes.get(id)
+    if (!route) throw new Error("This route no longer exists in the local library.")
+    const folder = organization.folder === undefined
+      ? route.folder
+      : organization.folder.trim().slice(0, 80) || "Unfiled"
+    const tags = organization.tags === undefined
+      ? route.tags
+      : [...new Set(organization.tags
+        .map((tag) => tag.trim().toLocaleLowerCase())
+        .filter(Boolean)
+        .map((tag) => tag.slice(0, 32)))]
+        .slice(0, 12)
+    const updated: SavedRoute = {
+      ...route,
+      folder,
+      tags,
+      visible: organization.visible ?? route.visible,
+      updatedAt: this.now()
+    }
+    await this.database.routes.put(updated)
+    return updated
   }
 
   async remove(id: string): Promise<void> {

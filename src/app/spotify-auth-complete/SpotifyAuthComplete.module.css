@@ -1,0 +1,51 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #f5f7f4;
+  background:
+    radial-gradient(circle at 16% 8%, rgb(30 215 96 / 19%), transparent 43%),
+    linear-gradient(145deg, #151a17, #050706);
+}
+
+.card {
+  width: min(420px, 100%);
+  padding: 28px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 22px;
+  background: rgb(12 16 13 / 88%);
+  box-shadow: 0 22px 60px rgb(0 0 0 / 38%);
+}
+
+.kicker {
+  margin: 0 0 8px;
+  color: #1ed760;
+  font: 750 0.72rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0;
+  font: 750 clamp(1.45rem, 6vw, 2rem)/1.08 var(--font-sora, "Sora Variable"), sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.card > p:not(.kicker) {
+  margin: 13px 0 22px;
+  color: #bbc4bd;
+  font: 550 0.94rem/1.55 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+}
+
+.returnLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 15px;
+  color: #061009;
+  border-radius: 999px;
+  background: #1ed760;
+  font: 800 0.75rem/1 var(--font-dm-sans, "DM Sans Variable"), sans-serif;
+  text-decoration: none;
+}

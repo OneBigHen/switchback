@@ -3,23 +3,25 @@ import type {
   CurvatureSegment
 } from "@/lib/curvature/repository"
 import { curvatureFeatureCollection } from "@/lib/curvature/repository"
-import { z } from "zod"
+import { coerceNumber, object_, withDefault, safeParse, ValidationError } from "@/lib/validate"
 
-const boundsSchema = z.object({
-  south: z.coerce.number().finite().min(-90).max(90),
-  west: z.coerce.number().finite().min(-180).max(180),
-  north: z.coerce.number().finite().min(-90).max(90),
-  east: z.coerce.number().finite().min(-180).max(180),
-  minScore: z.coerce.number().finite().min(0).max(10_000).default(650),
-  limit: z.coerce.number().int().min(1).max(2_000).default(500)
-}).superRefine((bounds, context) => {
-  if (bounds.south >= bounds.north || bounds.west >= bounds.east) {
-    context.addIssue({ code: "custom", message: "The map bounds are inverted." })
-  }
-  if (bounds.north - bounds.south > 5 || bounds.east - bounds.west > 5) {
-    context.addIssue({ code: "custom", message: "Zoom in to inspect curvy roads." })
-  }
+const boundsSchema = object_({
+  south: coerceNumber({ finite: true, min: -90, max: 90 }),
+  west: coerceNumber({ finite: true, min: -180, max: 180 }),
+  north: coerceNumber({ finite: true, min: -90, max: 90 }),
+  east: coerceNumber({ finite: true, min: -180, max: 180 }),
+  minScore: withDefault(coerceNumber({ finite: true, min: 0, max: 10_000 }), 650),
+  limit: withDefault(coerceNumber({ finite: true, int: true, min: 1, max: 2_000 }), 500)
 })
+
+function validateBounds(data: { south: number; west: number; north: number; east: number }): void {
+  if (data.south >= data.north || data.west >= data.east) {
+    throw new ValidationError("The map bounds are inverted.")
+  }
+  if (data.north - data.south > 5 || data.east - data.west > 5) {
+    throw new ValidationError("Zoom in to inspect curvy roads.")
+  }
+}
 
 export interface CurvatureReader {
   queryBounds(bounds: CurvatureBounds): CurvatureSegment[]
@@ -30,7 +32,7 @@ export async function handleCurvatureRequest(
   repository: CurvatureReader
 ): Promise<Response> {
   const searchParams = new URL(request.url).searchParams
-  const parsed = boundsSchema.safeParse({
+  const parsed = safeParse(boundsSchema, {
     south: searchParams.get("south"),
     west: searchParams.get("west"),
     north: searchParams.get("north"),
@@ -38,17 +40,16 @@ export async function handleCurvatureRequest(
     minScore: searchParams.get("minScore") ?? undefined,
     limit: searchParams.get("limit") ?? undefined
   })
-  if (!parsed.success) {
+  if (!parsed.success || (() => { try { validateBounds(parsed.data); return false } catch { return true } })()) {
+    const message = !parsed.success
+      ? parsed.error.message
+      : "Invalid map bounds."
     return Response.json(
-      {
-        error: {
-          code: "INVALID_CURVATURE_BOUNDS",
-          message: parsed.error.issues[0]?.message ?? "Invalid map bounds."
-        }
-      },
+      { error: { code: "INVALID_CURVATURE_BOUNDS", message } },
       { status: 400 }
     )
   }
+  validateBounds(parsed.data)
 
   try {
     return Response.json(curvatureFeatureCollection(repository.queryBounds(parsed.data)))

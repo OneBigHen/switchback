@@ -18,4 +18,20 @@ describe("same-origin geocoding client", () => {
     expect(fetcher).toHaveBeenCalledWith("/api/geocode?q=Wellsboro%2C+PA", expect.anything())
     expect(places[0].label).toMatch(/Wellsboro/)
   })
+
+  it("forwards a route-corridor bias for stop discovery", async () => {
+    const fetcher = vi.fn(async () => Response.json({ places: [] }))
+    await searchPlacesClient(
+      "brewery",
+      fetcher,
+      undefined,
+      { lat: 40.3, lon: -76.7 },
+      { stopKind: "brewery", radiusKm: 35 }
+    )
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/geocode?q=brewery&lat=40.3&lon=-76.7&stopKind=brewery&radiusKm=35",
+      expect.anything()
+    )
+  })
 })

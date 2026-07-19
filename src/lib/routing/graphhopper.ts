@@ -23,12 +23,51 @@ export class GraphHopperProviderError extends Error {
   }
 }
 
+const ROUND_TRIP_SPEED_MPH: Record<RouteProfileId, number> = {
+  quick: 48,
+  twisty: 38,
+  scenic: 34,
+  adventure: 28
+}
+
+export function estimateRoundTripDistanceMeters(
+  profile: RouteProfileId,
+  targetMinutes: number
+): number {
+  const boundedMinutes = Math.max(20, Math.min(480, targetMinutes))
+  return Math.round(ROUND_TRIP_SPEED_MPH[profile] * boundedMinutes / 60 * 1609.344)
+}
+
 export function createGraphHopperRequest(_request: RouteRequest): Record<string, unknown> {
   const profile = getProfile(_request.profile)
-  if (_request.points.length < 2) {
+  if (_request.roundTrip && _request.points.length !== 1) {
+    throw new Error("A round trip requires exactly one start point")
+  }
+  if (!_request.roundTrip && _request.points.length < 2) {
     throw new Error("A route requires at least two waypoints")
   }
-  return {
+  const avoidAreas = _request.avoidAreas ?? []
+  const areaFeatures = avoidAreas.map((area, index) => {
+    const id = `switchback_avoid_${index}`
+    const first = area.polygon[0]
+    const last = area.polygon.at(-1)
+    const closed = first && (!last || first[0] !== last[0] || first[1] !== last[1])
+      ? [...area.polygon, first]
+      : area.polygon
+    return {
+      type: "Feature",
+      id,
+      geometry: { type: "Polygon", coordinates: [closed] }
+    } as const
+  })
+  const priority = [
+    ...(_request.avoidHighways ? [{
+      if: "road_class == MOTORWAY || road_class == TRUNK",
+      multiply_by: "0"
+    }] : []),
+    ...areaFeatures.map((feature) => ({ if: `in_${feature.id}`, multiply_by: "0" }))
+  ]
+  const baseRequest: Record<string, unknown> = {
     profile: profile.engineProfile,
     points: _request.points.map((point) => [point.lon, point.lat]),
     points_encoded: false,
@@ -36,8 +75,42 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
     calc_points: true,
     elevation: false,
     locale: "en-US",
-    details: ["road_class", "surface", "track_type"]
+    details: ["road_class", "surface", "track_type", "max_speed"],
+    ...(priority.length > 0
+      ? {
+          custom_model: {
+            priority,
+            ...(areaFeatures.length > 0 ? {
+              areas: { type: "FeatureCollection", features: areaFeatures }
+            } : {})
+          }
+        }
+      : {})
   }
+  if (_request.roundTrip) {
+    return {
+      ...baseRequest,
+      algorithm: "round_trip",
+      "round_trip.distance": estimateRoundTripDistanceMeters(
+        _request.profile,
+        _request.roundTrip.targetMinutes
+      ),
+      "round_trip.seed": _request.roundTrip.seed ?? 0,
+      ...(_request.roundTrip.heading === undefined
+        ? {}
+        : { headings: [_request.roundTrip.heading] })
+    }
+  }
+  if (_request.points.length === 2) {
+    return {
+      ...baseRequest,
+      algorithm: "alternative_route",
+      "alternative_route.max_paths": 3,
+      "alternative_route.max_weight_factor": 1.8,
+      "alternative_route.max_share_factor": 0.62
+    }
+  }
+  return baseRequest
 }
 
 interface GraphHopperInstruction {
@@ -92,6 +165,22 @@ function providerError(status: number, message: string): GraphHopperProviderErro
   )
 }
 
+function lookupSpeedLimit(
+  interval: [number, number] | undefined,
+  details: DetailInterval[]
+): number | null {
+  if (!interval || details.length === 0) return null
+  const [from, to] = interval
+  const midpoint = Math.floor((from + to) / 2)
+  for (const [detailFrom, detailTo, value] of details) {
+    if (midpoint >= detailFrom && midpoint < detailTo) {
+      const speed = Number(value)
+      return Number.isFinite(speed) && speed > 0 ? speed : null
+    }
+  }
+  return null
+}
+
 export function createRouteId(
   profile: RouteProfileId,
   geometry: Coordinate[],
@@ -129,7 +218,10 @@ function normalizePath(
     lon: snapped?.[waypointIndex]?.[0] ?? point.lon,
     label: point.label
   }))
+  if (request.roundTrip && waypoints[0]) waypoints.push({ ...waypoints[0] })
   const profile = getProfile(request.profile)
+
+  const maxSpeedDetails = path.details?.max_speed ?? []
 
   return {
     id: createRouteId(request.profile, geometry, index),
@@ -143,7 +235,8 @@ function normalizePath(
       sign: instruction.sign ?? 0,
       text: instruction.text ?? "Continue",
       streetName: instruction.street_name ?? "",
-      interval: instruction.interval ?? [0, 0]
+      interval: instruction.interval ?? [0, 0],
+      speedLimitKmh: lookupSpeedLimit(instruction.interval, maxSpeedDetails)
     })),
     distanceMiles: Number((((path.distance ?? 0) / 1609.344)).toFixed(2)),
     durationMinutes: Number((((path.time ?? 0) / 60000)).toFixed(2)),
@@ -154,7 +247,11 @@ function normalizePath(
     roadMix: calculateDetailDistribution(geometry, path.details?.road_class ?? []),
     surfaceMix: calculateDetailDistribution(geometry, path.details?.surface ?? []),
     routingSource: "live",
-    previewOnly: false
+    previewOnly: false,
+    loopTargetMinutes: request.roundTrip?.targetMinutes ?? request.loopTargetMinutes,
+    avoidHighways: request.avoidHighways,
+    avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
+    segmentProfiles: request.segmentProfiles ? [...request.segmentProfiles] : undefined
   }
 }
 

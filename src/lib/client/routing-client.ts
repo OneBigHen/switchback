@@ -19,7 +19,8 @@ export class RoutingClientError extends Error {
 
 export async function requestTripPlan(
   request: TripPlanRequest,
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  signal?: AbortSignal
 ): Promise<TripPlan> {
   let response: Response
   try {
@@ -29,7 +30,8 @@ export async function requestTripPlan(
         accept: "application/json",
         "content-type": "application/json"
       },
-      body: JSON.stringify(request)
+      body: JSON.stringify(request),
+      signal
     })
   } catch {
     throw new RoutingClientError(

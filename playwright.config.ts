@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
+const externalBaseUrl = process.env.SWITCHBACK_E2E_URL
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 60_000,
@@ -7,7 +9,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:3100",
+    baseURL: externalBaseUrl ?? "http://127.0.0.1:3100",
     geolocation: { latitude: 40.2732, longitude: -76.8867 },
     permissions: ["geolocation"],
     trace: "retain-on-failure",
@@ -26,7 +28,7 @@ export default defineConfig({
     },
     { name: "mobile-landscape-narrow", use: { ...devices["iPhone SE landscape"] } }
   ],
-  webServer: {
+  webServer: externalBaseUrl ? undefined : {
     command: "npx next dev --hostname 127.0.0.1 --port 3100",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: true,

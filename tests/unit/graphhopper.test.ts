@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import {
   createRouteId,
   createGraphHopperRequest,
+  estimateRoundTripDistanceMeters,
   requestGraphHopperRoutes
 } from "@/lib/routing/graphhopper"
 
@@ -69,8 +70,122 @@ describe("GraphHopper provider", () => {
       ],
       points_encoded: false,
       instructions: true,
-      details: ["road_class", "surface", "track_type"]
+      algorithm: "alternative_route",
+      "alternative_route.max_paths": 3,
+      details: ["road_class", "surface", "track_type", "max_speed"]
     })
+  })
+
+  it("removes motorway and trunk roads from quick routes when highways are avoided", () => {
+    const body = createGraphHopperRequest({
+      profile: "quick",
+      avoidHighways: true,
+      points: [
+        { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
+        { lat: 39.9526, lon: -75.1652, label: "Philadelphia" }
+      ]
+    })
+
+    expect(body).toMatchObject({
+      profile: "motorcycle_fastest",
+      custom_model: {
+        priority: [
+          {
+            if: "road_class == MOTORWAY || road_class == TRUNK",
+            multiply_by: "0"
+          }
+        ]
+      }
+    })
+  })
+
+  it("uses GraphHopper's FeatureCollection areas and legal in_area condition names", () => {
+    const body = createGraphHopperRequest({
+      profile: "twisty",
+      avoidHighways: true,
+      avoidAreas: [{
+        id: "closed-bridge",
+        polygon: [
+          [-76.82, 40.2],
+          [-76.8, 40.2],
+          [-76.8, 40.22],
+          [-76.82, 40.22]
+        ]
+      }],
+      points: [
+        { lat: 40.19, lon: -76.9 },
+        { lat: 40.3, lon: -76.7 }
+      ]
+    } as Parameters<typeof createGraphHopperRequest>[0])
+
+    expect(body).toMatchObject({
+      custom_model: {
+        areas: {
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            id: "switchback_avoid_0",
+            geometry: {
+              type: "Polygon",
+              coordinates: [[
+                [-76.82, 40.2],
+                [-76.8, 40.2],
+                [-76.8, 40.22],
+                [-76.82, 40.22],
+                [-76.82, 40.2]
+              ]]
+            }
+          }]
+        },
+        priority: expect.arrayContaining([
+          { if: "road_class == MOTORWAY || road_class == TRUNK", multiply_by: "0" },
+          { if: "in_switchback_avoid_0", multiply_by: "0" }
+        ])
+      }
+    })
+  })
+
+  it("keeps the configured profile unchanged when highway avoidance is omitted", () => {
+    const body = createGraphHopperRequest({
+      profile: "quick",
+      points: [
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 39.9526, lon: -75.1652 }
+      ]
+    })
+
+    expect(body).not.toHaveProperty("custom_model")
+  })
+
+  it("builds native timeboxed GraphHopper round trips from one fuzzy start", () => {
+    expect(estimateRoundTripDistanceMeters("twisty", 120)).toBe(122_310)
+    expect(createGraphHopperRequest({
+      profile: "twisty",
+      points: [{ lat: 40.2732, lon: -76.8867, label: "Around Harrisburg" }],
+      roundTrip: { targetMinutes: 120, seed: 17, heading: 80 }
+    })).toMatchObject({
+      profile: "motorcycle_twisty",
+      points: [[-76.8867, 40.2732]],
+      algorithm: "round_trip",
+      "round_trip.distance": 122_310,
+      "round_trip.seed": 17
+    })
+    expect(createGraphHopperRequest({
+      profile: "twisty",
+      points: [{ lat: 40.2732, lon: -76.8867 }],
+      roundTrip: { targetMinutes: 120, seed: 17, heading: 80 }
+    })).toMatchObject({ headings: [80] })
+    expect(createGraphHopperRequest({
+      profile: "twisty",
+      points: [{ lat: 40.2732, lon: -76.8867 }],
+      roundTrip: { targetMinutes: 120, seed: 17, heading: 80 }
+    })).not.toHaveProperty("round_trip.heading")
+    const roundTripBody = createGraphHopperRequest({
+      profile: "twisty",
+      points: [{ lat: 40.2732, lon: -76.8867 }],
+      roundTrip: { targetMinutes: 120, seed: 17, heading: 80 }
+    })
+    expect(Object.hasOwn(roundTripBody, "round_trip.distance")).toBe(true)
   })
 
   it("normalizes live geometry, instructions, road details, and rider metrics", async () => {
@@ -97,6 +212,21 @@ describe("GraphHopper provider", () => {
     expect(result.routes[0].surfaceMix.asphalt).toBe(100)
     expect(result.routes[0].routingSource).toBe("live")
     expect(result.routes[0].previewOnly).toBe(false)
+  })
+
+  it("preserves loop timebox metadata and a closing waypoint", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(responseFixture), { status: 200 }))
+    const result = await requestGraphHopperRoutes({
+      profile: "adventure",
+      points: [{ lat: 40.2732, lon: -76.8867, label: "Near home" }],
+      roundTrip: { targetMinutes: 90, seed: 17 }
+    }, { baseUrl: "http://router.test", fetcher })
+
+    expect(result.routes[0].loopTargetMinutes).toBe(90)
+    expect(result.routes[0].waypoints).toEqual([
+      { lat: 40.2731, lon: -76.8866, label: "Near home" },
+      { lat: 40.2731, lon: -76.8866, label: "Near home" }
+    ])
   })
 
   it("returns an actionable provider error and never synthetic geometry", async () => {

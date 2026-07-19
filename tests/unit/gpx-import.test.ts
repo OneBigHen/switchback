@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { MAX_GPX_IMPORT_BYTES, parseGpxRoute } from "@/lib/routing/gpx-import"
+import { MAX_GPX_IMPORT_BYTES, parseGpxRoute, parseKmlRoute, parseRouteFile, parseRouteImport } from "@/lib/routing/gpx-import"
 
 const validGpx = `<?xml version="1.0"?>
 <gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
@@ -109,5 +109,73 @@ describe("GPX import", () => {
       fileName: "huge.gpx",
       byteLength: MAX_GPX_IMPORT_BYTES + 1
     })).toThrow(/5 MB/i)
+  })
+})
+
+describe("portable route imports", () => {
+  const validKml = `<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+    <name>Ridge connector</name><Placemark><name>Ridge line</name><LineString>
+      <coordinates>-77.3,41.7,400 -77.25,41.705,430 -77.2,41.71,410</coordinates>
+    </LineString></Placemark><Placemark><name>Fuel</name><Point><coordinates>-77.25,41.705,0</coordinates></Point></Placemark>
+  </Document></kml>`
+
+  it("imports a bounded KML line and preserves named placemark stops", () => {
+    const route = parseKmlRoute(validKml, { id: "kml-1", fileName: "ridge.kml" })
+
+    expect(route).toMatchObject({
+      id: "kml-1",
+      name: "Ridge connector",
+      routingSource: "imported",
+      previewOnly: false
+    })
+    expect(route.geometry).toEqual([[-77.3, 41.7], [-77.25, 41.705], [-77.2, 41.71]])
+    expect(route.waypoints.map((waypoint) => waypoint.label)).toEqual(["KML start", "Fuel", "KML finish"])
+  })
+
+  it("routes supported file formats deliberately and rejects KMZ before unsafe parsing", () => {
+    expect(parseRouteImport(validKml, { fileName: "ridge.kml" }).name).toBe("Ridge connector")
+    expect(() => parseRouteImport("not a zip", { fileName: "ridge.kmz" }))
+      .toThrow(/KMZ.*not available/i)
+  })
+
+  it("extracts a bounded KML document from a KMZ archive before parsing it", async () => {
+    const contents = new TextEncoder().encode(validKml)
+    const name = new TextEncoder().encode("doc.kml")
+    const local = new Uint8Array(30 + name.length + contents.length)
+    const localView = new DataView(local.buffer)
+    localView.setUint32(0, 0x04034b50, true)
+    localView.setUint16(4, 20, true)
+    localView.setUint32(18, contents.length, true)
+    localView.setUint32(22, contents.length, true)
+    localView.setUint16(26, name.length, true)
+    local.set(name, 30)
+    local.set(contents, 30 + name.length)
+    const central = new Uint8Array(46 + name.length)
+    const centralView = new DataView(central.buffer)
+    centralView.setUint32(0, 0x02014b50, true)
+    centralView.setUint16(4, 20, true)
+    centralView.setUint16(6, 20, true)
+    centralView.setUint32(20, contents.length, true)
+    centralView.setUint32(24, contents.length, true)
+    centralView.setUint16(28, name.length, true)
+    central.set(name, 46)
+    const end = new Uint8Array(22)
+    const endView = new DataView(end.buffer)
+    endView.setUint32(0, 0x06054b50, true)
+    endView.setUint16(8, 1, true)
+    endView.setUint16(10, 1, true)
+    endView.setUint32(12, central.length, true)
+    endView.setUint32(16, local.length, true)
+    const archive = new Uint8Array(local.length + central.length + end.length)
+    archive.set(local)
+    archive.set(central, local.length)
+    archive.set(end, local.length + central.length)
+
+    await expect(parseRouteFile({
+      name: "ridge.kmz",
+      size: archive.byteLength,
+      arrayBuffer: async () => archive.buffer,
+      text: async () => ""
+    })).resolves.toMatchObject({ name: "Ridge connector", geometry: [[-77.3, 41.7], [-77.25, 41.705], [-77.2, 41.71]] })
   })
 })

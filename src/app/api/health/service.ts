@@ -1,33 +1,57 @@
 export interface HealthOptions {
   routerBaseUrl: string
+  valhallaBaseUrl?: string
   fetcher?: typeof fetch
 }
 
-export async function getSystemHealth(_options: HealthOptions) {
+interface ProviderHealth {
+  ok: boolean
+  status: number
+  latencyMs: number
+}
+
+async function probeProvider(
+  baseUrl: string,
+  path: string,
+  fetcher: typeof fetch
+): Promise<ProviderHealth> {
   const startedAt = performance.now()
   try {
-    const response = await (_options.fetcher ?? fetch)(
-      `${_options.routerBaseUrl.replace(/\/$/, "")}/health`,
-      {
-        headers: { accept: "text/plain, application/json" },
-        signal: AbortSignal.timeout(4_000)
-      }
-    )
-    const router = {
+    const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
+      headers: { accept: "text/plain, application/json" },
+      signal: AbortSignal.timeout(4_000)
+    })
+    return {
       ok: response.ok,
       status: response.status,
       latencyMs: Math.round(performance.now() - startedAt)
     }
-    return { ok: router.ok, app: { ok: true }, router }
   } catch {
     return {
       ok: false,
-      app: { ok: true },
-      router: {
-        ok: false,
-        status: 0,
-        latencyMs: Math.round(performance.now() - startedAt)
-      }
+      status: 0,
+      latencyMs: Math.round(performance.now() - startedAt)
     }
+  }
+}
+
+export async function getSystemHealth(options: HealthOptions) {
+  const fetcher = options.fetcher ?? fetch
+  const valhallaBaseUrl = options.valhallaBaseUrl?.trim()
+  const [router, valhalla] = await Promise.all([
+    probeProvider(options.routerBaseUrl, "/health", fetcher),
+    valhallaBaseUrl ? probeProvider(valhallaBaseUrl, "/status", fetcher) : undefined
+  ])
+  const providers = {
+    graphhopper: router,
+    ...(valhalla ? { valhalla } : {})
+  }
+
+  return {
+    ok: router.ok,
+    degraded: Boolean(valhalla && !valhalla.ok),
+    app: { ok: true },
+    router,
+    providers
   }
 }

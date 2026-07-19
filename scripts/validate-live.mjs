@@ -5,6 +5,8 @@ import { createHash } from "node:crypto"
 const baseUrl = (process.env.SWITCHBACK_URL ?? "http://127.0.0.1:3100").replace(/\/$/, "")
 const routerUrl = (process.env.GRAPHHOPPER_URL ?? "http://127.0.0.1:8989").replace(/\/$/, "")
 const profiles = ["quick", "twisty", "scenic", "adventure"]
+const requireValhalla = process.env.REQUIRE_VALHALLA === "1"
+const requireElevation = process.env.REQUIRE_ELEVATION === "1"
 const graphHopperProfiles = {
   quick: "motorcycle_fastest",
   twisty: "motorcycle_twisty",
@@ -43,6 +45,58 @@ async function graphHopperRequest(body) {
 const health = await jsonRequest("/api/health")
 if (!health?.app?.ok || !health?.router?.ok) {
   throw new Error("Health endpoint did not confirm both app and router")
+}
+if (requireValhalla && !health?.providers?.valhalla?.ok) {
+  throw new Error("Health endpoint did not confirm the required Valhalla provider")
+}
+
+const rideIntent = await jsonRequest("/api/ride-intent", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ prompt: "Route me to New Hope, PA avoiding highways" })
+})
+if (
+  rideIntent?.mode !== "destination" ||
+  rideIntent?.destinationQuery !== "New Hope, PA" ||
+  rideIntent?.avoidHighways !== true
+) {
+  throw new Error("Free-form ride intent did not preserve destination and highway avoidance")
+}
+
+const destinationSearch = await jsonRequest(
+  "/api/geocode?q=New%20Hope%2C%20PA&lat=40.2732&lon=-76.8867"
+)
+const freeformDestination = destinationSearch?.places?.[0]
+if (!Number.isFinite(freeformDestination?.lat) || !Number.isFinite(freeformDestination?.lon)) {
+  throw new Error("Free-form destination search did not return a routable place")
+}
+
+const freeformPlan = await jsonRequest("/api/routes", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    profile: rideIntent.profile,
+    compare: true,
+    avoidHighways: rideIntent.avoidHighways,
+    points: [points[0], {
+      lat: freeformDestination.lat,
+      lon: freeformDestination.lon,
+      label: freeformDestination.label
+    }]
+  })
+})
+const freeformRoutes = freeformPlan?.routes ?? []
+const freeformShapes = new Set(freeformRoutes.map((route) =>
+  createHash("sha256").update(JSON.stringify(route.geometry)).digest("hex")
+))
+if (freeformRoutes.length < 3 || freeformShapes.size < 3) {
+  throw new Error("Free-form destination routing did not return at least three distinct choices")
+}
+if (freeformRoutes.some((route) => !["graphhopper", "valhalla"].includes(route.provider))) {
+  throw new Error("Free-form route choices did not retain provider provenance")
+}
+if (requireElevation && freeformRoutes.some((route) => !Number.isFinite(route.ascentMeters))) {
+  throw new Error("Free-form route choices did not receive required elevation enrichment")
 }
 
 const curvature = await jsonRequest("/api/curvature?south=39.7&west=-77.5&north=40.8&east=-75.8&minScore=650&limit=5")
@@ -120,4 +174,5 @@ for (const profile of profiles) {
 
 console.table(results)
 console.table(restrictedChecks)
+console.log(`Free-form destination: ${freeformDestination.label}; ${freeformRoutes.length} routes from ${[...new Set(freeformRoutes.map((route) => route.provider))].join(" + ")}`)
 console.log(`Switchback live validation passed at ${baseUrl}`)

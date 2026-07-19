@@ -1,26 +1,60 @@
 "use client"
 
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { createLatestRequestGate } from "@/lib/client/latest-request"
-import { requestTripPlan, RoutingClientError } from "@/lib/client/routing-client"
-import { routeToGpx } from "@/lib/routing/gpx"
-import { MAX_GPX_IMPORT_BYTES, parseGpxRoute } from "@/lib/routing/gpx-import"
+import { isNightTime } from "@/lib/client/day-phase"
+import { type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
+import type { ReferenceMap } from "@/lib/client/reference-map"
+import {
+  applyRiderMapPack,
+  defaultRiderLayerSettings,
+  type MapStyleId,
+  type RiderLayerId,
+  type RiderLayerSetting
+} from "@/lib/client/map-layers"
+import { runLatestTripPlan } from "@/lib/client/trip-planning-coordinator"
+import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
+import { buildLoopStopVia, buildRideTripRequest } from "@/lib/planner/ride-plan-request"
+import { routeEditState } from "@/lib/planner/route-edit-state"
+import { restorePortableShare } from "@/lib/share/route-share"
+import { routePointsFromSketch } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
-import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
-import { RouteLibrary, type SavedRoute } from "@/lib/storage/route-library"
+import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
+import type { AvoidArea, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
+import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
+import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
+import { TripPlanLibrary } from "@/lib/storage/trip-plan-library"
+import { createTripPlan } from "@/lib/trip/trip-plan"
+import type { TripPlan as SavedTripPlan } from "@/lib/trip/trip-plan"
+import type { RecordedRide } from "@/lib/storage/ride-journal"
+import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
 import { LibraryDrawer } from "./LibraryDrawer"
 import { MapStage } from "./MapStage"
-import { PlannerDeck } from "./PlannerDeck"
+import { PlannerDeck, type PlanMode, type RideIntentStatus } from "./PlannerDeck"
 import { RideHud } from "./RideHud"
 import { RouteComparison } from "./RouteComparison"
+import { usePlannerLibraries } from "./usePlannerLibraries"
+import { usePlannerHome } from "./usePlannerHome"
+import { usePlannerRideIntent } from "./usePlannerRideIntent"
+import { usePlannerRideResearch } from "./usePlannerRideResearch"
+import { usePlannerLocationSeed } from "./usePlannerLocationSeed"
+import { usePlannerRideActions } from "./usePlannerRideActions"
+import type { RideResearchSource } from "@/lib/ai/ride-research"
 
-type RouterStatus = "checking" | "ready" | "offline"
+function normalizedSegmentProfiles(
+  profiles: RouteProfileId[],
+  count: number,
+  fallback: RouteProfileId
+): RouteProfileId[] {
+  return Array.from({ length: Math.max(0, count) }, (_, index) => profiles[index] ?? fallback)
+}
 
 export function PlannerShell() {
   const start = usePlannerStore((state) => state.start)
   const finish = usePlannerStore((state) => state.finish)
+  const via = usePlannerStore((state) => state.via)
   const startQuery = usePlannerStore((state) => state.startQuery)
   const finishQuery = usePlannerStore((state) => state.finishQuery)
   const armedPoint = usePlannerStore((state) => state.armedPoint)
@@ -31,27 +65,75 @@ export function PlannerShell() {
   const error = usePlannerStore((state) => state.error)
   const curvatureVisible = usePlannerStore((state) => state.curvatureVisible)
   const surface = usePlannerStore((state) => state.surface)
-  const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([])
+  const canUndoRoutePoints = usePlannerStore((state) => state.canUndoRoutePoints)
+  const canRedoRoutePoints = usePlannerStore((state) => state.canRedoRoutePoints)
   const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
-  const [routerStatus, setRouterStatus] = useState<RouterStatus>("checking")
+  const [savedTrips, setSavedTrips] = useState<SavedTripPlan[]>([])
+  const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
+  const [planMode, setPlanMode] = useState<PlanMode>("destination")
+  const [targetMinutes, setTargetMinutes] = useState(120)
+  const [avoidHighways, setAvoidHighways] = useState(false)
+  const [avoidAreas, setAvoidAreas] = useState<AvoidArea[]>([])
+  const [segmentProfiles, setSegmentProfiles] = useState<RouteProfileId[]>([])
+  const [intentStatus, setIntentStatus] = useState<RideIntentStatus>("idle")
+  const [intentSummary, setIntentSummary] = useState<string | null>(null)
+  const [stopIdeas, setStopIdeas] = useState<PlaceIdeasResult | null>(null)
+  const [researchStatus, setResearchStatus] = useState<"idle" | "researching">("idle")
+  const [researchSources, setResearchSources] = useState<RideResearchSource[]>([])
+  const [unpavedVisible, setUnpavedVisible] = useState(true)
+  const [mapStyle, setMapStyle] = useState<MapStyleId>("clean")
+
+  const autoNightRef = useRef(true)
+  const [riderLayers, setRiderLayers] = useState<RiderLayerSetting[]>(() => defaultRiderLayerSettings().map((layer) => ({
+    ...layer,
+    visible: layer.id === "curvature" || layer.id === "unpaved"
+  })))
+  const [routeVisibility, setRouteVisibility] = useState<"standard" | "high-contrast">("standard")
+  const [referenceMap, setReferenceMap] = useState<ReferenceMap | null>(null)
+  const [rideOriginalRoute, setRideOriginalRoute] = useState<PlannedRoute | null>(null)
+  const [addingVia, setAddingVia] = useState(false)
+  const [sketching, setSketching] = useState(false)
   const [routeRequestGate] = useState(createLatestRequestGate)
-  const libraryRef = useRef<RouteLibrary | null>(null)
-  if (libraryRef.current == null) {
-    libraryRef.current = new RouteLibrary()
+  const loopSeed = useRef(17)
+  const offlinePackLibraryRef = useRef<OfflineRoutePackLibrary | null>(null)
+  const riderPreferenceLibraryRef = useRef<RiderPreferenceLibrary | null>(null)
+  const tripPlanLibraryRef = useRef<TripPlanLibrary | null>(null)
+  if (offlinePackLibraryRef.current == null) {
+    offlinePackLibraryRef.current = new OfflineRoutePackLibrary()
   }
+  if (riderPreferenceLibraryRef.current == null) {
+    riderPreferenceLibraryRef.current = new RiderPreferenceLibrary()
+  }
+  if (tripPlanLibraryRef.current == null) tripPlanLibraryRef.current = new TripPlanLibrary()
+  useEffect(() => { void tripPlanLibraryRef.current!.list().then(setSavedTrips).catch(() => undefined) }, [])
+  const showStorageWarning = useCallback((message: string) => {
+    setNotice({ kind: "warning", message })
+  }, [])
+  const { home, useHome, saveHome, clearHome } = usePlannerHome({
+    invalidateRequests: routeRequestGate.invalidate,
+    setStart: (point) => usePlannerStore.getState().setPoint("start", point),
+    onNotice: setNotice
+  })
+  const {
+    savedRoutes,
+    mapPacks,
+    recordedRides,
+    routeLibrary,
+    mapPackLibrary,
+    rideJournalLibrary,
+    refreshRoutes: refreshLibrary,
+    refreshMapPacks,
+    refreshRideJournal
+  } = usePlannerLibraries({ onWarning: showStorageWarning })
 
   const routes = plan?.routes ?? []
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null
-
-  const refreshLibrary = async () => {
-    setSavedRoutes(await libraryRef.current!.list())
-  }
+  const activeSegmentProfiles = planMode === "destination"
+    ? normalizedSegmentProfiles(segmentProfiles, via.length + 1, profile)
+    : []
 
   useEffect(() => {
-    void refreshLibrary().catch(() => {
-      setNotice({ kind: "warning", message: "The local route library could not be opened." })
-    })
     void fetch("/api/gpx-library", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Project GPX library unavailable")
@@ -62,21 +144,59 @@ export function PlannerShell() {
   }, [])
 
   useEffect(() => {
-    let disposed = false
-    const check = async () => {
-      try {
-        const response = await fetch("/api/health", { cache: "no-store" })
-        if (!disposed) setRouterStatus(response.ok ? "ready" : "offline")
-      } catch {
-        if (!disposed) setRouterStatus("offline")
+    if (!autoNightRef.current) return
+    const check = () => {
+      const coord = start ?? finish
+      if (!coord) return
+      if (isNightTime(new Date(), coord.lat, coord.lon)) {
+        setMapStyle((prev) => (prev === "night" ? prev : "night"))
       }
     }
-    void check()
-    const interval = window.setInterval(check, 15_000)
-    return () => {
-      disposed = true
-      window.clearInterval(interval)
-    }
+    check()
+    const id = setInterval(check, 120_000)
+    return () => clearInterval(id)
+  }, [start, finish])
+
+  useEffect(() => {
+    // those environments load their current assets directly; caching them in a
+    // service worker can pin a stale chunk and masquerade as a routing fault.
+    if (process.env.NODE_ENV !== "production") return
+    if (!("serviceWorker" in navigator)) return
+    void navigator.serviceWorker.register("/sw.js").catch(() => {
+      // The route pack remains usable from IndexedDB even if this browser has
+      // disabled service workers or persistent tile caching.
+    })
+  }, [])
+
+  const handleLocationSeed = useCallback((source: "saved" | "live") => {
+    setIntentSummary(source === "live"
+      ? "Using your current location as the route start. It is kept only in this browser."
+      : "Using your last saved browser location while the current GPS fix loads.")
+  }, [])
+  usePlannerLocationSeed({
+    gate: routeRequestGate,
+    getPlanner: usePlannerStore.getState,
+    onSeed: handleLocationSeed
+  })
+
+  useEffect(() => {
+    const shared = restorePortableShare(window.location.href)
+    if (!shared) return
+    const editState = routeEditState(shared)
+    const store = usePlannerStore.getState()
+    store.replaceRoutePoints({ start: editState.start, finish: editState.finish, via: editState.via })
+    store.setProfile(shared.profile)
+    store.applyPlan({
+      selectedRouteId: shared.id,
+      routes: [shared],
+      warnings: ["Private portable route copy loaded. It is editable and remains local until you save or share it."]
+    })
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
+    const publishLoadedShare = window.setTimeout(() => {
+      setPlanMode(editState.mode)
+      setNotice({ kind: "success", message: "Private route copy loaded with its protected start/end geometry removed." })
+    }, 0)
+    return () => window.clearTimeout(publishLoadedShare)
   }, [])
 
   useEffect(() => {
@@ -90,132 +210,257 @@ export function PlannerShell() {
     usePlannerStore.getState().setPoint(id, point)
   }
 
+  const runTripPlan = async (request: TripPlanRequest): Promise<TripPlan | null> => {
+    return runLatestTripPlan({
+      request,
+      gate: routeRequestGate,
+      getPlanner: usePlannerStore.getState,
+      onWarning: (message) => setNotice({ kind: "warning", message })
+    })
+  }
+
   const handlePlan = async () => {
     const current = usePlannerStore.getState()
-    if (!current.start || !current.finish) {
-      current.failRouting({ code: "MISSING_WAYPOINTS", message: "Choose a start and finish first." })
-      return
-    }
-    const requestId = routeRequestGate.begin()
-    current.beginRouting()
     try {
-      const nextPlan = await requestTripPlan({
+      loopSeed.current += 1
+      const customSegmentProfiles = planMode === "destination" && activeSegmentProfiles.some((item) => item !== current.profile)
+        ? activeSegmentProfiles
+        : undefined
+      await runTripPlan(buildRideTripRequest({
+        mode: planMode,
+        start: current.start,
+        finish: current.finish,
         profile: current.profile,
-        compare: true,
-        points: [current.start, current.finish]
-      })
-      if (routeRequestGate.isCurrent(requestId)) {
-        usePlannerStore.getState().applyPlan(nextPlan)
-        if (nextPlan.warnings.length > 0) {
-          setNotice({ kind: "warning", message: nextPlan.warnings.join(" ") })
-        }
-      }
+        targetMinutes,
+        seed: loopSeed.current,
+        via: current.via,
+        avoidHighways,
+        avoidAreas,
+        segmentProfiles: customSegmentProfiles
+      }))
     } catch (caught) {
-      if (!routeRequestGate.isCurrent(requestId)) return
-      const failure = caught instanceof RoutingClientError
-        ? caught
-        : new RoutingClientError("This trip could not be routed.", "ROUTE_PLANNING_FAILED", 500)
-      usePlannerStore.getState().failRouting({ code: failure.code, message: failure.message })
+      current.failRouting({
+        code: "MISSING_WAYPOINTS",
+        message: caught instanceof Error ? caught.message : "Choose the points for this ride first."
+      })
     }
   }
 
-  const handleSave = async (route: PlannedRoute) => {
+  const handleRidePrompt = usePlannerRideIntent({
+    gate: routeRequestGate,
+    home,
+    targetMinutes,
+    nextSeed: () => ++loopSeed.current,
+    runTripPlan,
+    setPlanMode,
+    setTargetMinutes,
+    setAvoidHighways,
+    setStopIdeas,
+    setResearchSources,
+    setIntentStatus,
+    setIntentSummary,
+    onNotice: setNotice
+  })
+
+  const handleChooseStopIdea = async (stop: Waypoint) => {
+    const current = usePlannerStore.getState()
+    const activeRoute = current.plan?.routes.find((route) => route.id === current.selectedRouteId) ?? current.plan?.routes[0]
+    const routedVia = planMode === "loop" && activeRoute
+      ? buildLoopStopVia(activeRoute.geometry, stop)
+      : [stop]
+    current.clearVia()
+    routedVia.forEach((point) => current.addVia(point))
+    setStopIdeas(null)
     try {
-      await libraryRef.current!.save(route)
-      await refreshLibrary()
-      setNotice({ kind: "success", message: "Route saved on this device." })
-    } catch {
-      setNotice({ kind: "warning", message: "This route could not be saved on this device." })
+      loopSeed.current += 1
+      await runTripPlan(buildRideTripRequest({
+        mode: planMode,
+        start: current.start,
+        finish: current.finish,
+        profile: current.profile,
+        targetMinutes,
+        seed: loopSeed.current,
+        via: routedVia,
+        avoidHighways,
+        avoidAreas
+      }))
+      setIntentSummary(`${stop.label ?? "That stop"} is now a routed stop. Change the idea or choose another route whenever you like.`)
+    } catch (caught) {
+      current.failRouting({
+        code: "STOP_ROUTE_FAILED",
+        message: caught instanceof Error ? caught.message : "That stop could not be added to the route."
+      })
     }
   }
 
-  const handleExport = (route: PlannedRoute) => {
-    const blob = new Blob([routeToGpx(route)], { type: "application/gpx+xml;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement("a")
-    anchor.href = url
-    anchor.download = `${route.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "switchback-route"}.gpx`
-    document.body.append(anchor)
-    anchor.click()
-    anchor.remove()
-    // WebKit can start consuming the object URL after the click handler has
-    // returned. Revoking it synchronously makes GPX downloads intermittent on
-    // iOS/Safari, especially while the map is rendering.
-    window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
-    setNotice({ kind: "success", message: "GPX track exported." })
-  }
+  const { researchRideIdea: handleRideResearch, cancel: cancelRideResearch } = usePlannerRideResearch({
+    setStatus: setResearchStatus,
+    setSources: setResearchSources,
+    setSummary: setIntentSummary,
+    onNotice: setNotice
+  })
 
-  const handleLoad = (route: SavedRoute) => {
+  const handleLoad = (route: PlannedRoute, trip: SavedTripPlan | null = null) => {
     routeRequestGate.invalidate()
-    if (route.waypoints[0]) usePlannerStore.getState().setPoint("start", route.waypoints[0])
-    if (route.waypoints.at(-1)) usePlannerStore.getState().setPoint("finish", route.waypoints.at(-1)!)
-    usePlannerStore.getState().applyPlan({
+    const editState = routeEditState(route)
+    const store = usePlannerStore.getState()
+    store.replaceRoutePoints({
+      start: editState.start,
+      finish: editState.finish,
+      via: editState.via
+    })
+    store.setProfile(route.profile)
+    setPlanMode(editState.mode)
+    if (editState.targetMinutes) setTargetMinutes(editState.targetMinutes)
+    setAvoidHighways(route.avoidHighways ?? false)
+    setAvoidAreas(route.avoidAreas ?? [])
+    setSegmentProfiles(route.segmentProfiles ?? [])
+    setIntentSummary(null)
+    setRestoredTrip(trip)
+    store.applyPlan({
       selectedRouteId: route.id,
       routes: [route],
       warnings: []
     })
+    store.setSurface("planner")
+  }
+
+  const {
+    saveRoute: handleSave,
+    exportRoute: handleExport,
+    deleteRoute: handleDelete,
+    loadProject: handleLoadProject,
+    importRoute: handleImport
+  } = createRouteExchangeActions({
+    library: routeLibrary,
+    refresh: refreshLibrary,
+    onNotice: setNotice,
+    onLoad: handleLoad
+  })
+
+  const { startRide: handleStartRide, matchImported: handleMatchImported } = usePlannerRideActions({
+    runTripPlan,
+    invalidateRequests: routeRequestGate.invalidate,
+    setPlanMode,
+    setAvoidAreas,
+    setSegmentProfiles,
+    setRideOriginalRoute,
+    onNotice: setNotice
+  })
+
+  const handleLoadRecordedRide = (ride: RecordedRide) => {
+    routeRequestGate.invalidate()
+    const actual: PlannedRoute = {
+      ...ride.route,
+      id: `${ride.id}-actual`,
+      name: `${ride.routeName} · actual ride`,
+      geometry: ride.points.map((point) => point.coordinate),
+      instructions: [],
+      routingSource: "imported",
+      previewOnly: false
+    }
+    usePlannerStore.getState().applyPlan({
+      selectedRouteId: actual.id,
+      routes: [ride.route, actual],
+      warnings: ["Actual ride replay loaded beside the planned route. Imported replay geometry is not silently re-routed."]
+    })
     usePlannerStore.getState().setSurface("planner")
+    setNotice({ kind: "success", message: `Replay loaded: ${ride.points.length} recorded points, notes, and photo metadata remain on this device.` })
   }
 
-  const handleDelete = async (route: SavedRoute) => {
-    try {
-      await libraryRef.current!.remove(route.id)
-      await refreshLibrary()
-      setNotice({ kind: "warning", message: `${route.name} removed from this device.` })
-    } catch {
-      setNotice({ kind: "warning", message: `${route.name} could not be removed.` })
-    }
-  }
-
-  const handleLoadProject = async (summary: ProjectGpxRouteSummary) => {
-    try {
-      const existing = await libraryRef.current!.get(summary.id)
-      if (existing) {
-        handleLoad(existing)
-        return
+  const handleMapPick = async (point: Waypoint) => {
+    if (addingVia) {
+      routeRequestGate.invalidate()
+      const picked = { ...point, label: point.label ?? `Shaping stop ${via.length + 1}` }
+      const current = usePlannerStore.getState()
+      let routeToShape: PlannedRoute | null = selectedRoute
+      if (planMode === "loop" && !routeToShape) {
+        loopSeed.current += 1
+        const initialLoop = await runTripPlan(buildRideTripRequest({
+          mode: "loop",
+          start: current.start,
+          finish: null,
+          profile: current.profile,
+          targetMinutes,
+          seed: loopSeed.current,
+          avoidHighways,
+          avoidAreas
+        }))
+        routeToShape = initialLoop?.routes.find((route) => route.id === initialLoop.selectedRouteId) ?? initialLoop?.routes[0] ?? null
       }
-      const response = await fetch(`/api/gpx-library?id=${encodeURIComponent(summary.id)}`)
-      if (!response.ok) throw new Error("The imported GPX route could not be loaded.")
-      const imported = await response.json() as PlannedRoute
-      if (imported.id !== summary.id || !Array.isArray(imported.geometry) || imported.geometry.length < 2) {
-        throw new Error("The imported GPX route is invalid.")
+      if (planMode === "loop" && routeToShape && current.via.length === 0) {
+        current.clearVia()
+        buildLoopStopVia(routeToShape.geometry, picked).forEach((waypoint) => current.addVia(waypoint))
+      } else {
+        current.addVia(picked)
       }
-      const saved = await libraryRef.current!.save(imported, `Imported from ${summary.sourceFile}`)
-      await refreshLibrary()
-      handleLoad(saved)
-      setNotice({ kind: "success", message: `${saved.name} added to this device.` })
-    } catch (caught) {
-      setNotice({
-        kind: "warning",
-        message: caught instanceof Error ? caught.message : "The imported GPX route could not be loaded."
-      })
-    }
-  }
-
-  const handleImport = async (file: File) => {
-    if (file.size > MAX_GPX_IMPORT_BYTES) {
-      setNotice({ kind: "warning", message: "GPX imports must be 5 MB or smaller." })
+      setAddingVia(false)
+      await handlePlan()
       return
     }
+    const id = usePlannerStore.getState().armedPoint
+    if (id) handlePointChange(id, point)
+  }
+
+  const handleRouteSketch = async (trace: Waypoint[]) => {
+    routeRequestGate.invalidate()
     try {
-      const imported = parseGpxRoute(await file.text(), {
-        fileName: file.name,
-        byteLength: file.size
+      const current = usePlannerStore.getState()
+      const points = routePointsFromSketch({
+        mode: planMode,
+        start: current.start,
+        finish: current.finish,
+        trace
       })
-      await libraryRef.current!.save(imported)
-      await refreshLibrary()
-      setNotice({ kind: "success", message: `${imported.name} imported to your library.` })
+      current.replaceRoutePoints(points)
+      setSegmentProfiles([])
+      setAddingVia(false)
+      await handlePlan()
+      setNotice({
+        kind: "success",
+        message: `Rough line converted to ${points.via.length} editable shaping stop${points.via.length === 1 ? "" : "s"}.`
+      })
     } catch (caught) {
       setNotice({
         kind: "warning",
-        message: caught instanceof Error ? caught.message : "The GPX file could not be imported."
+        message: caught instanceof Error ? caught.message : "The rough route could not be read."
       })
     }
   }
 
-  const handleMapPick = (point: Waypoint) => {
-    const id = usePlannerStore.getState().armedPoint
-    if (id) handlePointChange(id, point)
+  const handleWaypointDrag = (kind: "start" | "finish" | "via", index: number, point: Waypoint) => {
+    routeRequestGate.invalidate()
+    const current = usePlannerStore.getState()
+    if (kind === "via") {
+      current.updateVia(index, {
+        ...point,
+        label: current.via[index]?.label ?? `Shaping stop ${index + 1}`,
+        locked: current.via[index]?.locked
+      })
+    } else {
+      current.setPoint(kind, { ...point, label: current[kind]?.label ?? `Dragged ${kind}` })
+    }
+    void handlePlan()
+  }
+
+  const handleClearRoute = () => {
+    routeRequestGate.invalidate()
+    cancelRideResearch()
+    usePlannerStore.getState().clearRoute()
+    setPlanMode("destination")
+    setTargetMinutes(120)
+    setAvoidHighways(false)
+    setAvoidAreas([])
+    setSegmentProfiles([])
+    setAddingVia(false)
+    setStopIdeas(null)
+    setIntentStatus("idle")
+    setIntentSummary(null)
+    setResearchStatus("idle")
+    setResearchSources([])
+    setRideOriginalRoute(null)
+    navigationStore.clear()
+    setNotice({ kind: "success", message: "Route cleared. Choose a new ride whenever you’re ready." })
   }
 
   return (
@@ -225,13 +470,80 @@ export function PlannerShell() {
         selectedRouteId={selectedRouteId}
         start={start}
         finish={finish}
+        via={via}
         armedPoint={armedPoint}
+        addingVia={addingVia}
         curvatureVisible={curvatureVisible}
+        unpavedVisible={unpavedVisible}
+        mapStyle={mapStyle}
+        riderLayers={riderLayers}
+        routeVisibility={routeVisibility}
+        mapPacks={mapPacks}
+        referenceMap={referenceMap}
         rideMode={surface === "ride"}
-        onMapPick={handleMapPick}
+        onCurvatureChange={(visible) => {
+          usePlannerStore.getState().setCurvatureVisible(visible)
+          setRiderLayers((layers) => layers.map((layer) => layer.id === "curvature" ? { ...layer, visible } : layer))
+        }}
+        onUnpavedChange={(visible) => {
+          setUnpavedVisible(visible)
+          setRiderLayers((layers) => layers.map((layer) => layer.id === "unpaved" ? { ...layer, visible } : layer))
+        }}
+        onMapStyleChange={(style) => {
+          autoNightRef.current = false
+          setMapStyle(style)
+        }}
+        onRiderLayerChange={(id: RiderLayerId, patch) => {
+          setRiderLayers((layers) => layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer))
+          if (id === "curvature" && typeof patch.visible === "boolean") usePlannerStore.getState().setCurvatureVisible(patch.visible)
+          if (id === "unpaved" && typeof patch.visible === "boolean") setUnpavedVisible(patch.visible)
+        }}
+        onMoveRiderLayer={(id, direction) => {
+          setRiderLayers((layers) => {
+            const sorted = [...layers].sort((first, second) => first.order - second.order)
+            const index = sorted.findIndex((layer) => layer.id === id)
+            const nextIndex = direction === "earlier" ? index - 1 : index + 1
+            if (index < 0 || nextIndex < 0 || nextIndex >= sorted.length) return layers
+            const current = sorted[index]!
+            sorted[index] = sorted[nextIndex]!
+            sorted[nextIndex] = current
+            return sorted.map((layer, order) => ({ ...layer, order }))
+          })
+        }}
+        onRouteVisibilityChange={setRouteVisibility}
+        onSaveMapPack={(name) => {
+          void mapPackLibrary.save({ name, mapStyle, routeVisibility, layers: riderLayers })
+            .then(async (pack) => {
+              await refreshMapPacks()
+              setNotice({ kind: "success", message: `${pack.name} map pack saved on this device.` })
+            })
+            .catch((caught) => setNotice({ kind: "warning", message: caught instanceof Error ? caught.message : "Map pack could not be saved." }))
+        }}
+        onApplyMapPack={(id) => {
+          const pack = mapPacks.find((candidate) => candidate.id === id)
+          if (!pack) return
+          const applied = applyRiderMapPack(riderLayers, pack)
+          setMapStyle(applied.mapStyle)
+          setRouteVisibility(applied.routeVisibility)
+          setRiderLayers(applied.layers)
+          usePlannerStore.getState().setCurvatureVisible(applied.layers.find((layer) => layer.id === "curvature")?.visible ?? false)
+          setUnpavedVisible(applied.layers.find((layer) => layer.id === "unpaved")?.visible ?? false)
+          setNotice({ kind: "success", message: `${pack.name} map pack applied.` })
+        }}
+        onReferenceMapChange={setReferenceMap}
+        onWaypointDrag={handleWaypointDrag}
+        onMapPick={(point) => void handleMapPick(point)}
+        onRouteSketch={(trace) => void handleRouteSketch(trace)}
+        onSketchModeChange={setSketching}
+        avoidAreas={avoidAreas}
+        onAvoidArea={(area) => {
+          routeRequestGate.invalidate()
+          setAvoidAreas((areas) => [...areas, area].slice(0, 3))
+          setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} will be excluded when you replan.` })
+        }}
       />
 
-      {surface !== "ride" ? (
+      {surface !== "ride" && !sketching ? (
         <PlannerDeck
           start={start}
           finish={finish}
@@ -242,19 +554,37 @@ export function PlannerShell() {
           status={status}
           error={error}
           curvatureVisible={curvatureVisible}
-          routerStatus={routerStatus}
+          avoidHighways={avoidHighways}
           savedCount={savedRoutes.length + projectRoutes.length}
+          via={via}
+          addingVia={addingVia}
+          segmentProfiles={activeSegmentProfiles}
+          avoidAreaCount={avoidAreas.length}
+          canUndoRoutePoints={canUndoRoutePoints}
+          canRedoRoutePoints={canRedoRoutePoints}
+          planMode={planMode}
+          targetMinutes={targetMinutes}
+          intentStatus={intentStatus}
+          intentSummary={intentSummary}
+          stopIdeas={stopIdeas}
+          researchStatus={researchStatus}
+          researchSources={researchSources}
+          selectedRoute={selectedRoute}
+          home={home}
           onPointChange={handlePointChange}
           onPointQueryChange={(id, query) => {
             routeRequestGate.invalidate()
             usePlannerStore.getState().setPointQuery(id, query)
           }}
-          onArm={(id) => usePlannerStore.getState().armPoint(armedPoint === id ? null : id)}
+          onArm={(id) => {
+            setAddingVia(false)
+            usePlannerStore.getState().armPoint(armedPoint === id ? null : id)
+          }}
           onSwap={() => {
             if (start && finish) {
               routeRequestGate.invalidate()
-              usePlannerStore.getState().setPoint("start", finish)
-              usePlannerStore.getState().setPoint("finish", start)
+              usePlannerStore.getState().reverseRoutePoints("destination")
+              void handlePlan()
             }
           }}
           onProfileChange={(nextProfile) => {
@@ -262,9 +592,97 @@ export function PlannerShell() {
             routeRequestGate.invalidate()
             usePlannerStore.getState().setProfile(nextProfile)
           }}
-          onCurvatureChange={(visible) => usePlannerStore.getState().setCurvatureVisible(visible)}
+          onCurvatureChange={(visible) => {
+            usePlannerStore.getState().setCurvatureVisible(visible)
+            setRiderLayers((layers) => layers.map((layer) => layer.id === "curvature" ? { ...layer, visible } : layer))
+          }}
+          onAvoidHighwaysChange={(avoid) => {
+            routeRequestGate.invalidate()
+            setAvoidHighways(avoid)
+          }}
+          onPlanModeChange={(mode) => {
+            routeRequestGate.invalidate()
+            setPlanMode(mode)
+            setIntentSummary(null)
+          }}
+          onTargetMinutesChange={(minutes) => {
+            routeRequestGate.invalidate()
+            setTargetMinutes(minutes)
+          }}
+          onRidePrompt={(prompt) => void handleRidePrompt(prompt)}
+          onChooseStopIdea={(stop) => void handleChooseStopIdea(stop)}
+          onResearchRideIdea={(prompt) => void handleRideResearch(prompt)}
+          onToggleAddVia={() => {
+            usePlannerStore.getState().armPoint(null)
+            setAddingVia((active) => !active)
+          }}
+          onSegmentProfileChange={(index, nextProfile) => {
+            routeRequestGate.invalidate()
+            setSegmentProfiles((profiles) => {
+              const next = normalizedSegmentProfiles(profiles, via.length + 1, profile)
+              next[index] = nextProfile
+              return next
+            })
+          }}
+          onToggleViaLock={(index) => {
+            routeRequestGate.invalidate()
+            const current = usePlannerStore.getState()
+            const point = current.via[index]
+            if (!point) return
+            current.updateVia(index, { ...point, locked: !point.locked })
+          }}
+          onRemoveAvoidArea={() => {
+            routeRequestGate.invalidate()
+            setAvoidAreas((areas) => areas.slice(0, -1))
+          }}
+          onRemoveVia={(index) => {
+            routeRequestGate.invalidate()
+            usePlannerStore.getState().removeVia(index)
+            void handlePlan()
+          }}
+          onMoveVia={(fromIndex, toIndex) => {
+            routeRequestGate.invalidate()
+            usePlannerStore.getState().moveVia(fromIndex, toIndex)
+            void handlePlan()
+          }}
+          onReverseRoute={() => {
+            routeRequestGate.invalidate()
+            usePlannerStore.getState().reverseRoutePoints(planMode)
+            void handlePlan()
+          }}
+          onUndoRoutePoints={() => {
+            routeRequestGate.invalidate()
+            usePlannerStore.getState().undoRoutePoints()
+            void handlePlan()
+          }}
+          onRedoRoutePoints={() => {
+            routeRequestGate.invalidate()
+            usePlannerStore.getState().redoRoutePoints()
+            void handlePlan()
+          }}
+          onClearRoute={handleClearRoute}
           onPlan={() => void handlePlan()}
+          onUseHome={useHome}
+          onSaveHome={() => saveHome(start)}
+          onClearHome={clearHome}
           onOpenLibrary={() => usePlannerStore.getState().setSurface("library")}
+          onStartRide={(route) => void handleStartRide(route)}
+          onSaveOffline={(route) => {
+            void offlinePackLibraryRef.current!.save({
+              route,
+              mapStyle,
+              routeVisibility,
+              activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
+            }).then(() => {
+              setNotice({
+                kind: "success",
+                message: "Offline route pack saved: route, cues, and active map setup are ready for recovery."
+              })
+            }).catch((caught) => setNotice({
+              kind: "warning",
+              message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
+            }))
+          }}
         >
           {routes.length > 0 && selectedRouteId ? (
             <RouteComparison
@@ -273,10 +691,41 @@ export function PlannerShell() {
               onSelect={(id) => usePlannerStore.getState().selectRoute(id)}
               onSave={(route) => void handleSave(route)}
               onExport={handleExport}
-              onRide={(route) => {
-                usePlannerStore.getState().selectRoute(route.id)
-                usePlannerStore.getState().setSurface("ride")
+              onRide={(route) => void handleStartRide(route)}
+              onRate={(route, motorcycleId, rating) => {
+                return riderPreferenceLibraryRef.current!.record({
+                  route,
+                  motorcycleId,
+                  rating,
+                  source: "rating"
+                }).then((preference) => {
+                  setNotice({
+                    kind: "success",
+                    message: `Saved your ${rating}/5 rating for ${preference.motorcycleId} · ${preference.profile}.`
+                  })
+                  return preference
+                }).catch((error) => {
+                  setNotice({ kind: "warning", message: "Your route rating could not be saved on this device." })
+                  throw error
+                })
               }}
+              onShareCreated={() => setNotice({
+                kind: "success",
+                message: "Private editable route link created. Selected privacy zones were removed before sharing."
+              })}
+              savedTrip={restoredTrip ?? undefined}
+              onSaveTrip={(route, tripStages, constraints) => {
+                const created = createTripPlan(route, tripStages, constraints)
+                const trip = restoredTrip?.routeId === route.id
+                  ? { ...created, id: restoredTrip.id, createdAt: restoredTrip.createdAt }
+                  : created
+                void tripPlanLibraryRef.current!.save(trip).then((savedTrip) => {
+                  setRestoredTrip(savedTrip)
+                  setNotice({ kind: "success", message: `${savedTrip.stages.length}-day trip saved on this device.` })
+                  void tripPlanLibraryRef.current!.list().then(setSavedTrips)
+                }).catch(() => setNotice({ kind: "warning", message: "This trip could not be saved on this device." }))
+              }}
+              showRideAction={false}
             />
           ) : null}
         </PlannerDeck>
@@ -284,16 +733,66 @@ export function PlannerShell() {
       {surface === "library" ? (
         <LibraryDrawer
           routes={savedRoutes}
+          recordedRides={recordedRides}
+          trips={savedTrips}
           projectRoutes={projectRoutes}
           onClose={() => usePlannerStore.getState().setSurface("planner")}
           onLoad={handleLoad}
+          onLoadTrip={(trip) => handleLoad(trip.route, trip)}
+          onDeleteTrip={(trip) => {
+            void tripPlanLibraryRef.current!.remove(trip.id).then(async () => {
+              if (restoredTrip?.id === trip.id) setRestoredTrip(null)
+              setSavedTrips(await tripPlanLibraryRef.current!.list())
+              setNotice({ kind: "success", message: `${trip.name} was removed from this device.` })
+            }).catch(() => setNotice({ kind: "warning", message: "That saved trip could not be removed." }))
+          }}
+          onLoadRecorded={handleLoadRecordedRide}
+          onMatchImported={(route) => void handleMatchImported(route)}
           onLoadProject={(route) => void handleLoadProject(route)}
           onDelete={(route) => void handleDelete(route)}
+          onOrganize={(route, organization) => {
+            void routeLibrary.organize(route.id, organization)
+              .then(async () => {
+                await refreshLibrary()
+                setNotice({ kind: "success", message: `${route.name} organization updated on this device.` })
+              })
+              .catch((caught) => setNotice({
+                kind: "warning",
+                message: caught instanceof Error ? caught.message : "Route organization could not be updated."
+              }))
+          }}
           onImport={(file) => void handleImport(file)}
         />
       ) : null}
       {surface === "ride" && selectedRoute ? (
-        <RideHud route={selectedRoute} onExit={() => usePlannerStore.getState().setSurface("planner")} />
+        <RideHud
+          key={selectedRoute.id}
+          route={selectedRoute}
+          onExit={() => {
+            navigationStore.clear()
+            setRideOriginalRoute(null)
+            usePlannerStore.getState().setSurface("planner")
+          }}
+          onReroute={(rerouted) => {
+            // A detour is a new navigable line, never an overwrite of the
+            // rider's authored plan. Both lines remain selectable when they
+            // return to the planner.
+            usePlannerStore.getState().applyPlan({
+              selectedRouteId: rerouted.id,
+              routes: [rideOriginalRoute ?? selectedRoute, rerouted],
+              warnings: ["Recovery line added. Your original planned route is preserved beside it."]
+            })
+          }}
+          onRideRecorded={(recorded) => {
+            void rideJournalLibrary.save(recorded).then((saved) => {
+              void refreshRideJournal()
+              setNotice({ kind: "success", message: `Ride replay saved locally with ${saved.points.length} GPS points.` })
+            }).catch((caught) => setNotice({
+              kind: "warning",
+              message: caught instanceof Error ? caught.message : "Ride replay could not be saved."
+            }))
+          }}
+        />
       ) : null}
 
       {notice ? (

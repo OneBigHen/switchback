@@ -72,4 +72,21 @@ describe("local route library", () => {
     await library.remove("saved-route")
     expect(await library.get("saved-route")).toBeUndefined()
   })
+
+  it("organizes routes with normalized folders, tags, and local visibility", async () => {
+    await library.save(plannedRoute)
+    const organized = await library.organize(plannedRoute.id, {
+      folder: "  Fall Appalachia  ",
+      tags: ["Gravel", "weekend", "gravel", ""],
+      visible: false
+    })
+
+    expect(organized).toMatchObject({
+      folder: "Fall Appalachia",
+      tags: ["gravel", "weekend"],
+      visible: false
+    })
+    expect((await library.list({ folder: "Fall Appalachia" })).map((route) => route.id)).toEqual([plannedRoute.id])
+    expect(await library.list({ visible: true })).toEqual([])
+  })
 })

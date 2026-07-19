@@ -1,5 +1,5 @@
 graphhopper:
-  datareader.file: data/pennsylvania-motorcycle.osm.pbf
+  datareader.file: data/pa-nj-motorcycle.osm.pbf
   graph.location: data/graph-cache
   custom_models.directory: infra/graphhopper/custom-models
 

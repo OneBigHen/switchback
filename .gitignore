@@ -1,8 +1,10 @@
 node_modules/
+.opencode/
 .next/
 coverage/
 playwright-report/
 test-results/
+dogfood-output/
 .env*
 !.env.example
 *.log

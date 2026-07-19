@@ -4,7 +4,8 @@ export const dynamic = "force-dynamic"
 
 export async function GET(): Promise<Response> {
   const health = await getSystemHealth({
-    routerBaseUrl: process.env.GRAPHHOPPER_URL ?? "http://127.0.0.1:8989"
+    routerBaseUrl: process.env.GRAPHHOPPER_URL ?? "http://127.0.0.1:8989",
+    valhallaBaseUrl: process.env.VALHALLA_URL
   })
   return Response.json(health, { status: health.ok ? 200 : 503 })
 }

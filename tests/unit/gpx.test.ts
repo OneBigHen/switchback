@@ -46,4 +46,25 @@ describe("GPX export", () => {
       })
     ).toThrow(/preview-only/i)
   })
+
+  it("exports portable route and cue variants without changing the recorded track", () => {
+    const route = {
+      id: "route-variant",
+      name: "Cue route",
+      profile: "scenic" as const,
+      geometry: [[-77, 40], [-76.9, 40.1], [-76.8, 40.2]] as [number, number][],
+      waypoints: [{ lat: 40, lon: -77, label: "Start" }, { lat: 40.2, lon: -76.8, label: "Finish" }],
+      instructions: [{ distanceMeters: 500, timeMilliseconds: 60_000, sign: 0, text: "Continue", streetName: "Ridge Road", interval: [1, 2] as [number, number] }],
+      distanceMiles: 20,
+      durationMinutes: 35
+    }
+
+    const routeDocument = new DOMParser().parseFromString(routeToGpx(route, { variant: "route" }), "application/xml")
+    const cueDocument = new DOMParser().parseFromString(routeToGpx(route, { variant: "cues" }), "application/xml")
+
+    expect(routeDocument.querySelectorAll("rte rtept")).toHaveLength(2)
+    expect(routeDocument.querySelector("trk")).toBeNull()
+    expect(cueDocument.querySelector("rtept name")?.textContent).toBe("Continue onto Ridge Road")
+    expect(cueDocument.querySelector("rtept cmt")?.textContent).toContain("500 m")
+  })
 })
