@@ -91,24 +91,62 @@ interface RoadLockAreaFeature {
   polygon: Coordinate[]
 }
 
+const METERS_PER_DEGREE_LATITUDE = 111_320
+
+/**
+ * Build a thin closed corridor around a lock's LineString using its
+ * fallback tolerance. The result is a closed ring (first coord ==
+ * last coord) so GraphHopper's `in_<area>` condition can resolve it
+ * as a polygon mask for must/prefer custom_model rules.
+ */
+function bufferLineStringToPolygon(
+  coordinates: Coordinate[],
+  toleranceMeters: number
+): Coordinate[] {
+  if (coordinates.length < 2) return []
+  const tolerance = Math.max(toleranceMeters, 5)
+  const left: Coordinate[] = []
+  const right: Coordinate[] = []
+  for (let index = 0; index < coordinates.length - 1; index += 1) {
+    const [lonA, latA] = coordinates[index]!
+    const [lonB, latB] = coordinates[index + 1]!
+    const deltaLon = lonB - lonA
+    const deltaLat = latB - latA
+    const length = Math.hypot(deltaLon, deltaLat)
+    if (length === 0) continue
+    // Perpendicular direction adjusted for latitude so degrees are
+    // roughly isotropic at the lock's location.
+    const cosLat = Math.cos((latA * Math.PI) / 180) || 1
+    const scale = tolerance / METERS_PER_DEGREE_LATITUDE
+    const perpLon = (-deltaLat / length) * (scale / cosLat)
+    const perpLat = (deltaLon / length) * scale
+    if (left.length === 0) left.push([lonA + perpLon, latA + perpLat])
+    left.push([lonB + perpLon, latB + perpLat])
+    if (right.length === 0) right.push([lonA - perpLon, latA - perpLat])
+    right.push([lonB - perpLon, latB - perpLat])
+  }
+  if (left.length === 0 || right.length === 0) return []
+  const ring: Coordinate[] = [...left, ...right.reverse(), left[0]!]
+  return ring
+}
+
 function expandRoadLockGeometry(lock: RoadLock): Coordinate[] {
   return lock.geometry.coordinates.map((c) => [c[0], c[1]] as Coordinate)
 }
 
-function buildRoadLockAreaFeatures(locks: readonly RoadLock[]): {
+function buildRoadLockAreaFeatures(locks: readonly RoadLock[], idOffset = 0): {
   features: RoadLockAreaFeature[]
   closedPolygons: Coordinate[][]
 } {
   const features: RoadLockAreaFeature[] = []
   const closedPolygons: Coordinate[][] = []
   locks.forEach((lock, index) => {
-    const ring = expandRoadLockGeometry(lock)
-    if (ring.length < 3) return
-    const first = ring[0]!
-    const last = ring[ring.length - 1]!
-    const closed = first[0] === last[0] && first[1] === last[1] ? ring : [...ring, first]
-    features.push({ id: `switchback_lock_${index}`, polygon: ring })
-    closedPolygons.push(closed)
+    const sourceLine = expandRoadLockGeometry(lock)
+    const polygon = bufferLineStringToPolygon(sourceLine, lock.fallbackToleranceMeters)
+    if (polygon.length < 4) return
+    const id = `switchback_lock_${idOffset + index}`
+    features.push({ id, polygon })
+    closedPolygons.push(polygon)
   })
   return { features, closedPolygons }
 }
@@ -256,8 +294,8 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
 
   const mustLocks = roadLocks.filter((lock) => lock.mode === "must")
   const preferLocks = roadLocks.filter((lock) => lock.mode === "prefer")
-  const mustAreas = buildRoadLockAreaFeatures(mustLocks)
-  const preferAreas = buildRoadLockAreaFeatures(preferLocks)
+  const mustAreas = buildRoadLockAreaFeatures(mustLocks, 0)
+  const preferAreas = buildRoadLockAreaFeatures(preferLocks, mustAreas.features.length)
 
   const lockAreaFeatures: GraphHopperAreaFeature[] = []
   ;[...mustAreas.features, ...preferAreas.features].forEach((feature, index) => {
