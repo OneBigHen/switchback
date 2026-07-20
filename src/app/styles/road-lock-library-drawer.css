@@ -1,0 +1,434 @@
+.road-lock-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 50%);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 60;
+  animation: road-lock-scrim-in 200ms ease both;
+}
+
+@keyframes road-lock-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.road-lock-library-drawer {
+  position: relative;
+  width: min(440px, calc(100vw - 16px));
+  height: 100%;
+  padding: 24px;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: var(--machined);
+  color: var(--instrument);
+  box-shadow: -30px 0 80px rgb(0 0 0 / 38%);
+  animation: road-lock-drawer-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes road-lock-drawer-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.road-lock-library-drawer > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.road-lock-library-drawer .eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--metal);
+}
+
+.road-lock-library-drawer > header h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.road-lock-library-drawer .icon-tool {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--metal);
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.road-lock-library-drawer .icon-tool:hover,
+.road-lock-library-drawer .icon-tool:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.road-lock-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.road-lock-filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--metal);
+}
+
+.road-lock-filters select {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--oled);
+  color: var(--instrument);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.road-lock-filters select:focus-visible {
+  border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.road-lock-library-error {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: rgb(227 93 84 / 8%);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.road-lock-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 40px 12px;
+  color: var(--metal);
+  text-align: center;
+}
+
+.road-lock-empty svg {
+  width: 36px;
+  height: 36px;
+}
+
+.road-lock-empty strong {
+  font-size: 14px;
+  color: var(--instrument);
+}
+
+.road-lock-empty p {
+  margin: 0;
+  font-size: 12px;
+  max-width: 280px;
+}
+
+.road-lock-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.road-lock-row {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--oled);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.road-lock-row.is-highlighted {
+  border-color: var(--signal);
+  background: rgb(243 106 45 / 6%);
+}
+
+.road-lock-row.is-confirming {
+  border-color: var(--danger);
+}
+
+.road-lock-row-primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.road-lock-row-title {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.road-lock-row-title:hover,
+.road-lock-row-title:focus-visible {
+  border-color: var(--line);
+  background: rgb(243 239 230 / 4%);
+}
+
+.road-lock-provenance {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgb(243 239 230 / 6%);
+  color: var(--metal);
+}
+
+.road-lock-provenance svg {
+  width: 18px;
+  height: 18px;
+}
+
+.road-lock-row-title small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--metal);
+}
+
+.road-lock-row-title strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--instrument);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.road-lock-mode-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--metal);
+}
+
+.road-lock-mode-badge[data-mode="must"] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.road-lock-mode-badge[data-mode="prefer"] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.road-lock-row-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 40px);
+  gap: 6px;
+}
+
+.road-lock-row-actions .icon-tool {
+  width: 40px;
+  height: 40px;
+}
+
+.road-lock-delete:hover,
+.road-lock-delete:focus-visible {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.road-lock-edit-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.road-lock-edit-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--metal);
+}
+
+.road-lock-edit-form input {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--oled);
+  color: var(--instrument);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.road-lock-edit-form input:focus-visible {
+  border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.road-lock-convert {
+  min-height: 44px;
+  border: 1px solid var(--signal);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--signal);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.road-lock-convert:hover,
+.road-lock-convert:focus-visible {
+  background: rgb(243 106 45 / 12%);
+}
+
+.road-lock-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.road-lock-edit-actions button {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--instrument);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.road-lock-edit-actions button.ghost {
+  background: transparent;
+  color: var(--metal);
+}
+
+.road-lock-edit-actions button:hover,
+.road-lock-edit-actions button:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.road-lock-confirm {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: rgb(227 93 84 / 6%);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.road-lock-confirm button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.road-lock-confirm button.danger {
+  background: var(--danger);
+  color: var(--oled);
+}
+
+.road-lock-confirm button:hover,
+.road-lock-confirm button:focus-visible {
+  background: var(--danger);
+  color: var(--oled);
+  opacity: 0.92;
+}
+
+.road-lock-library-drawer > footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--metal);
+}
+
+.road-lock-library-drawer > footer strong {
+  font-size: 16px;
+  color: var(--instrument);
+}
+
+.road-lock-clear {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.road-lock-clear:hover,
+.road-lock-clear:focus-visible {
+  border-color: var(--danger);
+}
+
+@media (max-width: 760px) {
+  .road-lock-library-drawer {
+    width: 100%;
+    padding: 18px 16px;
+  }
+}
