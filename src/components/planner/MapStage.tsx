@@ -2,13 +2,14 @@
 
 import type { FeatureCollection } from "geojson"
 import type { Map as MapLibreMap } from "maplibre-gl"
-import { Crosshair } from "@phosphor-icons/react"
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { Crosshair, Lock, X } from "@phosphor-icons/react"
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react"
 import { buildWaypointFeatures, emptyFeatureCollection } from "@/lib/client/map-data"
 import { createFallbackStyleImage } from "@/lib/client/map-style"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 import { buildNavigationMapFeatures } from "@/lib/client/navigation-map"
 import type { ReferenceMap } from "@/lib/client/reference-map"
+import "@/app/styles/map-stage-road-locks.css"
 import {
   mapStyleUrl,
   riderFeatureLayersAtZoom,
@@ -20,8 +21,11 @@ import {
   shouldShowBaseMapFailure,
   type MapStyleId
 } from "@/lib/client/map-layers"
-import type { AvoidArea, PlannedRoute, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
+import { createManualRoadLock, type RoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
+import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 import type { PlannerPointId } from "@/stores/planner-store"
+import { usePlannerStore } from "@/stores/planner-store"
 import { useNavigationFrame } from "@/stores/navigation-store"
 import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"
 import {
@@ -33,8 +37,41 @@ import {
   updateRiderMapLayerPresentation
 } from "./map-stage-sources"
 import { useReferenceMapOverlay } from "./useReferenceMapOverlay"
-import { appendSketchPoint, avoidAreaPolygon, createAvoidArea, hasUsableSketch, routeSketchWaypoints } from "./map-drawing"
+import {
+  appendSketchPoint,
+  avoidAreaPolygon,
+  createAvoidArea,
+  hasUsableSketch,
+  roadLockAnchorFeatures,
+  roadLockDriftArrowFeatures,
+  roadLockLineFeatures,
+  routeSketchWaypoints,
+  resolveRoadLockMatchColorMap,
+  snapRouteTapToRoutableEdge
+} from "./map-drawing"
 import { MapStageLayerControl } from "./MapStageLayerControl"
+
+/**
+ * Permissive access snapshot for a manually drawn road lock. The
+ * `rematchRoadLock` path fills the real snapshot in once the corridor
+ * is matched against the routing graph; the UI just needs a placeholder
+ * that survives the precedence model without contradicting legal access
+ * (e.g. not motorcycle=no). Defaults to "unknown but routable".
+ */
+function defaultManualLockAccessSnapshot(): RoadAccessSnapshot {
+  return {
+    highwayClass: "unknown",
+    motorcycleAccess: "unknown",
+    generalAccess: "unknown",
+    surface: "unknown",
+    smoothness: "unknown",
+    tracktype: "unknown",
+    maxweightTonnes: null,
+    seasonalUndated: false,
+    activeConditions: [],
+    routable: true
+  }
+}
 
 interface MapStageProps {
   routes: PlannedRoute[]
@@ -103,7 +140,92 @@ export function MapStage(props: MapStageProps) {
   const [avoidEnd, setAvoidEnd] = useState<SketchScreenPoint | null>(null)
   const [sketchPoints, setSketchPoints] = useState<SketchScreenPoint[]>([])
   const [sketchMessage, setSketchMessage] = useState("")
+  const roadLocks = usePlannerStore((state) => state.roadLocks)
+  const addRoadLock = usePlannerStore((state) => state.addRoadLock)
+  const [lockDrawMode, setLockDrawMode] = useState(false)
+  const [lockAnchors, setLockAnchors] = useState<Coordinate[]>([])
+  const [lockMode, setLockMode] = useState<RoadLockMode>("must")
+  const [lockName, setLockName] = useState("")
+  const [lockDraftStep, setLockDraftStep] = useState<"first" | "second" | "naming">("first")
+  const [lockDraftMessage, setLockDraftMessage] = useState("")
+  const [highlightedLockId, setHighlightedLockId] = useState<string | null>(null)
   const ready = readyStyle === props.mapStyle
+
+  const lockDrawRef = useRef({
+    active: false,
+    step: "first" as "first" | "second" | "naming",
+    anchors: [] as Coordinate[],
+    mode: "must" as RoadLockMode,
+    name: ""
+  })
+
+  useEffect(() => {
+    lockDrawRef.current = {
+      active: lockDrawMode,
+      step: lockDraftStep,
+      anchors: lockAnchors,
+      mode: lockMode,
+      name: lockName
+    }
+  }, [lockDrawMode, lockDraftStep, lockAnchors, lockMode, lockName])
+
+  const resetLockDraft = useCallback(() => {
+    setLockDrawMode(false)
+    setLockAnchors([])
+    setLockDraftStep("first")
+    setLockDraftMessage("")
+    setLockName("")
+    setLockMode("must")
+  }, [])
+
+  const handleLockDrawTap = useCallback((point: { lat: number; lon: number }) => {
+    const coordinate: Coordinate = [point.lon, point.lat]
+    const snap = snapRouteTapToRoutableEdge(coordinate)
+    setLockAnchors((previous) => {
+      if (lockDrawRef.current.step === "first") {
+        const next = [snap.coordinate] as Coordinate[]
+        setLockDraftStep("second")
+        setLockDraftMessage("Tap the end of the corridor to lock.")
+        return next
+      }
+      if (lockDrawRef.current.step === "second") {
+        // Reject a duplicate first/last tap; the rider must place two distinct anchors.
+        if (previous.length === 1 && snap.coordinate[0] === previous[0]![0] && snap.coordinate[1] === previous[0]![1]) {
+          return previous
+        }
+        const next = [...previous, snap.coordinate] as Coordinate[]
+        setLockDraftStep("naming")
+        setLockDraftMessage("Name the lock (optional) and save.")
+        return next
+      }
+      return previous
+    })
+  }, [])
+
+  const commitLockDraft = useCallback(() => {
+    const draft = lockDrawRef.current
+    if (draft.anchors.length < 2) {
+      setLockDraftMessage("Place two corridor anchors before saving the lock.")
+      return
+    }
+    try {
+      const geometry: Coordinate[] = draft.anchors.map(([lon, lat]) => [lon, lat] as Coordinate)
+      const lock = createManualRoadLock({
+        mode: draft.mode,
+        displayName: draft.name.trim() || undefined,
+        edgeIds: [],
+        geometry,
+        orderedAnchors: draft.anchors,
+        accessSnapshot: defaultManualLockAccessSnapshot(),
+        sourceRegionId: "manual",
+        sourceGraphVersion: "manual"
+      })
+      addRoadLock(lock)
+      resetLockDraft()
+    } catch (caught) {
+      setLockDraftMessage(caught instanceof Error ? caught.message : "The road lock could not be saved.")
+    }
+  }, [addRoadLock, resetLockDraft])
   const { referenceMessage, alignReferenceToView, handleReferenceFile, removeReferenceMap } = useReferenceMapOverlay({
     mapRef,
     ready,
@@ -280,6 +402,13 @@ export function MapStage(props: MapStageProps) {
           return
         }
         const current = propsRef.current
+        if (lockDrawRef.current.active) {
+          handleLockDrawTap({
+            lat: Number(event.lngLat.lat.toFixed(6)),
+            lon: Number(event.lngLat.lng.toFixed(6))
+          })
+          return
+        }
         if (!current.armedPoint && !current.addingVia) return
         current.onMapPick({
           lat: Number(event.lngLat.lat.toFixed(6)),
@@ -474,6 +603,65 @@ export function MapStage(props: MapStageProps) {
           layout: { "line-cap": "round", "line-join": "round" }
         }, "switchback-route-casing")
         addRiderMapLayers(map)
+        map.addSource("switchback-road-locks", {
+          type: "geojson",
+          data: emptyFeatureCollection()
+        })
+        map.addSource("switchback-road-lock-anchors", {
+          type: "geojson",
+          data: emptyFeatureCollection()
+        })
+        map.addSource("switchback-road-lock-drift", {
+          type: "geojson",
+          data: emptyFeatureCollection()
+        })
+        map.addLayer({
+          id: "switchback-road-lock-lines",
+          type: "line",
+          source: "switchback-road-locks",
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": ["case", ["get", "selected"], 6, 4],
+            "line-opacity": ["case", ["get", "unresolved"], 0.7, 1],
+            "line-dasharray": ["case", ["get", "unresolved"], ["literal", [2, 1.5]], ["literal", [1, 0]]]
+          },
+          layout: { "line-cap": "round", "line-join": "round" }
+        }, "switchback-route-casing")
+        map.addLayer({
+          id: "switchback-road-lock-drift",
+          type: "line",
+          source: "switchback-road-lock-drift",
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": 2,
+            "line-opacity": 0.6,
+            "line-dasharray": [1.4, 1]
+          },
+          layout: { "line-cap": "round" }
+        }, "switchback-route-casing")
+        map.addLayer({
+          id: "switchback-road-lock-anchors",
+          type: "circle",
+          source: "switchback-road-lock-anchors",
+          paint: {
+            "circle-radius": ["case", ["get", "selected"], 9, 7],
+            "circle-color": "#FFFFFF",
+            "circle-stroke-color": ["case", ["get", "selected"], "#F36A2D", "#949C97"],
+            "circle-stroke-width": ["case", ["get", "selected"], 4, 3]
+          }
+        })
+        map.on("mouseenter", "switchback-road-lock-lines", () => {
+          map!.getCanvas().style.cursor = "pointer"
+        })
+        map.on("mouseleave", "switchback-road-lock-lines", () => {
+          map!.getCanvas().style.cursor = ""
+        })
+        map.on("click", "switchback-road-lock-lines", (event) => {
+          const id = event.features?.[0]?.properties?.id
+          if (typeof id === "string") {
+            setHighlightedLockId((current) => (current === id ? null : id))
+          }
+        })
         map.addSource("switchback-waypoints", {
           type: "geojson",
           data: emptyFeatureCollection()
@@ -603,6 +791,21 @@ export function MapStage(props: MapStageProps) {
     updatePlannerSources(map, current)
     fitSelectedRoute(map, current)
   }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const colorMap = resolveRoadLockMatchColorMap()
+    geoJsonSource(map, "switchback-road-locks")?.setData(
+      roadLockLineFeatures(roadLocks, props.routes, colorMap, highlightedLockId)
+    )
+    geoJsonSource(map, "switchback-road-lock-anchors")?.setData(
+      roadLockAnchorFeatures(roadLocks, highlightedLockId)
+    )
+    geoJsonSource(map, "switchback-road-lock-drift")?.setData(
+      roadLockDriftArrowFeatures(roadLocks, props.routes, colorMap)
+    )
+  }, [roadLocks, props.routes, highlightedLockId, ready])
 
   useEffect(() => {
     if (!props.rideMode) return
@@ -953,6 +1156,102 @@ export function MapStage(props: MapStageProps) {
         <div className="map-crosshair" aria-hidden="true">
           <span />
           <small>{props.addingVia ? "Place stop" : `Place ${props.armedPoint}`}</small>
+        </div>
+      ) : null}
+      {!props.rideMode && !sketchMode && !avoidMode ? (
+        <button
+          type="button"
+          className={`map-layers-button map-road-lock-toggle${lockDrawMode ? " is-active" : ""}`}
+          aria-label={lockDrawMode ? "Cancel drawing a road lock" : "Lock a road corridor"}
+          aria-pressed={lockDrawMode}
+          onClick={() => {
+            if (lockDrawMode) resetLockDraft()
+            else {
+              setLockDrawMode(true)
+              setLockDraftStep("first")
+              setLockDraftMessage("Tap the start of the corridor you want to lock.")
+            }
+          }}
+        >
+          <Lock weight="bold" aria-hidden="true" />
+          <span>{lockDrawMode ? "Cancel" : "Lock a road"}</span>
+        </button>
+      ) : null}
+      {lockDrawMode && !props.rideMode ? (
+        <div
+          className="map-road-lock-panel"
+          role="region"
+          aria-label="Road lock draft"
+        >
+          <header>
+            <strong>
+              {lockDraftStep === "first" ? "Tap the start of the corridor"
+                : lockDraftStep === "second" ? "Tap the end of the corridor"
+                : "Name and save this lock"}
+            </strong>
+            <button
+              type="button"
+              className="icon-tool"
+              aria-label="Cancel road lock draft"
+              onClick={resetLockDraft}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <span className="map-road-lock-status" aria-live="polite">
+            {lockDraftMessage
+              || (lockAnchors.length === 0
+                ? "Tap a road on the map. Switchback snaps to the nearest routable edge."
+                : `${lockAnchors.length} anchor${lockAnchors.length === 1 ? "" : "s"} placed`)}
+          </span>
+          {lockDraftStep === "naming" ? (
+            <>
+              <fieldset
+                className="map-road-lock-mode-picker"
+                aria-label="Road lock mode"
+                role="radiogroup"
+              >
+                <label className={`map-road-lock-mode-option${lockMode === "must" ? " is-selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="road-lock-mode"
+                    value="must"
+                    checked={lockMode === "must"}
+                    onChange={() => setLockMode("must")}
+                  />
+                  Must use
+                </label>
+                <label className={`map-road-lock-mode-option${lockMode === "prefer" ? " is-selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="road-lock-mode"
+                    value="prefer"
+                    checked={lockMode === "prefer"}
+                    onChange={() => setLockMode("prefer")}
+                  />
+                  Prefer
+                </label>
+              </fieldset>
+              <label className="map-road-lock-name">
+                <span>Name (optional)</span>
+                <input
+                  type="text"
+                  value={lockName}
+                  placeholder="Best section of PA-125"
+                  maxLength={120}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setLockName(event.currentTarget.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="map-road-lock-save"
+                onClick={commitLockDraft}
+                aria-label="Save road lock"
+              >
+                Save lock
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

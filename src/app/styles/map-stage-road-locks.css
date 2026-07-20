@@ -1,0 +1,228 @@
+/**
+ * Road-lock map surface + match-state color tokens.
+ *
+ * The road-lock palette is split into named tokens so the reskin can
+ * re-theme every lock surface in one place:
+ *   --road-lock-exact       — routed exactly as authored (green)
+ *   --road-lock-matched     — rematched within the fallback corridor (amber)
+ *   --road-lock-approximate — no match yet (red, dashed)
+ *   --road-lock-unresolved  — satisfaction unresolved (red, dashed)
+ * The map source stores resolved hex/rgba strings (MapLibre paint
+ * properties do not accept CSS vars); the JS reads these tokens via
+ * `getComputedStyle(document.documentElement)` and falls back to the
+ * brand tokens (`--success` / `--signal` / `--danger`) so a default
+ * Switchback install already shows them correctly.
+ */
+:root {
+  --road-lock-exact: var(--success);
+  --road-lock-matched: var(--signal);
+  --road-lock-approximate: var(--danger);
+  --road-lock-unresolved: var(--danger);
+}
+
+.map-road-lock-toggle {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--machined);
+  color: var(--instrument);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.map-road-lock-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.map-road-lock-toggle:hover,
+.map-road-lock-toggle:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.map-road-lock-toggle.is-active {
+  border-color: var(--signal);
+  background: rgb(243 106 45 / 12%);
+  color: var(--signal);
+}
+
+.map-road-lock-panel {
+  position: absolute;
+  top: max(76px, calc(env(safe-area-inset-top) + 72px));
+  right: max(16px, env(safe-area-inset-right));
+  display: grid;
+  width: min(360px, calc(100vw - 32px));
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--machined);
+  box-shadow: 0 22px 64px rgb(0 0 0 / 42%);
+  color: var(--instrument);
+}
+
+.map-road-lock-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.map-road-lock-panel > header > strong {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.map-road-lock-panel .icon-tool {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--metal);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.map-road-lock-panel .icon-tool:hover,
+.map-road-lock-panel .icon-tool:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.map-road-lock-status {
+  font-size: 12px;
+  color: var(--metal);
+}
+
+.map-road-lock-mode-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+
+.map-road-lock-mode-option {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--oled);
+  color: var(--metal);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.map-road-lock-mode-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.map-road-lock-mode-option:hover,
+.map-road-lock-mode-option:focus-within {
+  border-color: rgb(243 239 230 / 30%);
+  color: var(--instrument);
+}
+
+.map-road-lock-mode-option.is-selected {
+  border-color: var(--signal);
+  background: rgb(243 106 45 / 12%);
+  color: var(--signal);
+}
+
+.map-road-lock-name {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--metal);
+}
+
+.map-road-lock-name input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--oled);
+  color: var(--instrument);
+  font: inherit;
+}
+
+.map-road-lock-name input:focus-visible {
+  border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.map-road-lock-save {
+  min-height: 48px;
+  border: 1px solid var(--signal);
+  border-radius: 10px;
+  background: var(--signal);
+  color: var(--oled);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.map-road-lock-save:hover,
+.map-road-lock-save:focus-visible {
+  background: rgb(243 106 45 / 12%);
+  color: var(--signal);
+}
+
+@media (max-width: 760px) {
+  .map-road-lock-toggle {
+    top: auto;
+    bottom: max(70dvh + 12px, calc(env(safe-area-inset-bottom) + 70dvh));
+    right: max(16px, env(safe-area-inset-right));
+    min-width: 48px;
+    padding: 0 10px;
+  }
+
+  .map-road-lock-toggle > span:last-child {
+    display: none;
+  }
+
+  .map-road-lock-panel {
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    right: max(16px, env(safe-area-inset-right));
+    left: max(16px, env(safe-area-inset-left));
+    width: auto;
+    padding: 12px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .map-road-lock-panel {
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: auto;
+    width: min(360px, calc(100vw - 16px));
+  }
+}
