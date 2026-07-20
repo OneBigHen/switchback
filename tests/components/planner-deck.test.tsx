@@ -238,7 +238,10 @@ describe("planner ride composer", () => {
     expect(screen.getByText("Saved ride corridor")).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Save offline pack" }))
-    expect(onSaveOffline).toHaveBeenCalledWith(plannedRoute)
+    expect(onSaveOffline).toHaveBeenCalledWith(plannedRoute, {
+      level: "saved-ride-corridor",
+      corridorMiles: 10
+    })
   })
 
   it("clears the active route so the rider can start a new one", async () => {
