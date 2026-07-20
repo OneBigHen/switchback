@@ -378,3 +378,169 @@
   color: var(--metal);
   font-size: 14px;
 }
+
+/* "Import as lock" affordance + inline picker (§1.5 / §2.4). */
+.import-lock-button {
+  cursor: pointer;
+}
+
+.library-lock-import {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--oled);
+}
+
+.library-lock-import > header {
+  display: grid;
+  gap: 4px;
+}
+
+.library-lock-import > header strong {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.library-lock-import > header small {
+  font-size: 11px;
+  color: var(--metal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.library-lock-import-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+
+.library-lock-import-mode label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--machined);
+  color: var(--metal);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.library-lock-import-mode label input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.library-lock-import-mode label:hover,
+.library-lock-import-mode label:focus-within {
+  border-color: rgb(243 239 230 / 30%);
+  color: var(--instrument);
+}
+
+.library-lock-import-mode label.is-selected {
+  border-color: var(--signal);
+  background: rgb(243 106 45 / 12%);
+  color: var(--signal);
+}
+
+.library-lock-import-name {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--metal);
+}
+
+.library-lock-import-name input {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--machined);
+  color: var(--instrument);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.library-lock-import-name input:focus-visible {
+  border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.library-lock-import-error,
+.library-lock-import-notice {
+  font-size: 11px;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.library-lock-import-error {
+  border: 1px solid var(--danger);
+  background: rgb(227 93 84 / 10%);
+  color: var(--danger);
+}
+
+.library-lock-import-notice {
+  border: 1px solid var(--success);
+  background: rgb(128 185 154 / 10%);
+  color: var(--success);
+}
+
+.library-lock-import-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.library-lock-import-actions button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--instrument);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.library-lock-import-actions button[type="submit"] {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: var(--oled);
+}
+
+.library-lock-import-actions button:hover:not(:disabled),
+.library-lock-import-actions button:focus-visible:not(:disabled) {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.library-lock-import-actions button[type="submit"]:hover:not(:disabled),
+.library-lock-import-actions button[type="submit"]:focus-visible:not(:disabled) {
+  background: rgb(243 106 45 / 16%);
+  color: var(--signal);
+}
+
+.library-lock-import-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
