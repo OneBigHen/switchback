@@ -12,6 +12,8 @@ import { useState } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { ManeuverGlyph } from "./maneuver-glyph"
 import { maneuverKind } from "@/lib/client/maneuver"
+import { RoadLockSatisfactionBadge } from "./RoadLockSatisfactionBadge"
+import { RouteDataQualityPanel } from "./RouteDataQualityPanel"
 import { RouteWeatherPanel } from "./RouteWeatherPanel"
 import { TripStagePanel } from "./TripStagePanel"
 import { RouteRating } from "./RouteRating"
@@ -22,6 +24,7 @@ import type { RiderPreference } from "@/lib/intelligence/rider-preferences"
 import type { TripStagePlan } from "@/lib/trip/stage-planner"
 import type { TripStageConstraints } from "@/lib/trip/stage-planner"
 import type { TripPlan } from "@/lib/trip/trip-plan"
+import type { RoadLockSatisfaction } from "@/lib/roads/road-locks"
 
 interface RouteComparisonProps {
   routes: PlannedRoute[]
@@ -35,6 +38,7 @@ interface RouteComparisonProps {
   savedTrip?: TripPlan
   onSaveTrip?(route: PlannedRoute, plan: TripStagePlan, constraints: TripStageConstraints): void
   showRideAction?: boolean
+  sourceMapUpdated?: string | null
 }
 
 function dominantMix(mix: Record<string, number>): string {
@@ -61,6 +65,21 @@ function unpavedPercent(mix: Record<string, number>): number {
     (total, [surface, percent]) => total + (UNPAVED_SURFACES.has(surface.toLowerCase()) ? percent : 0),
     0
   ))
+}
+
+function hasSkippedPreferLock(route: PlannedRoute): RoadLockSatisfaction | undefined {
+  return route.lockSatisfaction?.find((row) => row.mode === "prefer" && Boolean(row.skippedReason))
+}
+
+function formatUnknownSurfaceMiles(route: PlannedRoute): string | null {
+  const surfaceEntries = Object.entries(route.surfaceMix)
+  const surfaceTotal = surfaceEntries.reduce((sum, [, share]) => sum + share, 0)
+  if (surfaceTotal <= 0 || route.distanceMiles <= 0) return null
+  const unknown = surfaceEntries
+    .filter(([surface]) => surface.toLowerCase() === "unknown")
+    .reduce((sum, [, share]) => sum + (share / surfaceTotal) * route.distanceMiles, 0)
+  if (unknown <= 0) return null
+  return unknown.toFixed(1)
 }
 
 function routeReason(route: PlannedRoute): string {
@@ -95,7 +114,8 @@ export function RouteComparison({
   onRate,
   onShareCreated,
   onSaveTrip,
-  savedTrip
+  savedTrip,
+  sourceMapUpdated
 }: RouteComparisonProps) {
   const [directionsOpen, setDirectionsOpen] = useState(true)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -117,6 +137,8 @@ export function RouteComparison({
         {routes.map((route, index) => {
           const selected = route.id === selectedId
           const officialUnpaved = officialUnpavedLabel(route)
+          const unknownSurfaceLabel = formatUnknownSurfaceMiles(route)
+          const skippedSatisfaction = hasSkippedPreferLock(route)
           return (
             <button
               className={`route-slip${selected ? " is-selected" : ""}`}
@@ -135,11 +157,17 @@ export function RouteComparison({
                 <span className="route-character">
                   <span>{dominantMix(route.roadMix)}</span>
                   <span>{unpavedPercent(route.surfaceMix)}% unpaved</span>
+                  {unknownSurfaceLabel ? (
+                    <span className="route-character-unknown">~{unknownSurfaceLabel} mi unknown surface</span>
+                  ) : null}
                   {officialUnpaved ? <span className="official-unpaved">{officialUnpaved}</span> : null}
                   {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
                     <span>{Math.round(100 - route.overlapPercent)}% different</span>
                   ) : null}
                 </span>
+                {skippedSatisfaction ? (
+                  <RoadLockSatisfactionBadge satisfaction={skippedSatisfaction} displayName={route.name} />
+                ) : null}
               </span>
               <span className="route-slip-stats">
                 <span className="route-slip-metric">
@@ -214,6 +242,22 @@ export function RouteComparison({
       </button>
 
       {detailsOpen ? <>
+      <RouteDataQualityPanel route={selectedRoute} sourceMapUpdated={sourceMapUpdated ?? null} />
+
+      {selectedRoute.lockSatisfaction?.length ? (
+        <div className="route-lock-satisfaction-list" aria-label="Road lock satisfaction for this route">
+          {selectedRoute.lockSatisfaction
+            .filter((row) => Boolean(row.skippedReason))
+            .map((row) => (
+              <RoadLockSatisfactionBadge
+                key={row.lockId}
+                satisfaction={row}
+                displayName={selectedRoute.name}
+              />
+            ))}
+        </div>
+      ) : null}
+
       <RouteWeatherPanel route={selectedRoute} />
 
       <RouteEvidencePanel route={selectedRoute} />

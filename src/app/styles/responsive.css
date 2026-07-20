@@ -4129,3 +4129,28 @@
     bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
   }
 }
+
+.route-character > .route-character-unknown {
+  background: rgb(227 93 84 / 12%);
+  color: var(--road-lock-approximate);
+  font-variant-numeric: tabular-nums;
+}
+
+.route-lock-satisfaction-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .route-lock-satisfaction-list {
+    gap: 8px;
+    margin-top: 10px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .route-lock-satisfaction-list {
+    margin-top: 6px;
+  }
+}

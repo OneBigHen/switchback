@@ -1,0 +1,242 @@
+.route-data-quality-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--oled);
+  color: var(--instrument);
+}
+
+.route-data-quality-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.route-data-quality-header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.route-data-quality-header .eyebrow {
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.route-data-quality-header h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.route-data-quality-header h3 small {
+  color: var(--metal);
+  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-data-quality-header h3 span[data-tier="strong"] {
+  color: var(--success);
+}
+
+.route-data-quality-header h3 span[data-tier="warn"] {
+  color: var(--signal);
+}
+
+.route-data-quality-header h3 span[data-tier="weak"] {
+  color: var(--danger);
+}
+
+.route-data-quality-seasonal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--signal);
+  border-radius: 999px;
+  background: rgb(243 106 45 / 12%);
+  color: var(--signal);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-data-quality-seasonal svg {
+  width: 12px;
+  height: 12px;
+}
+
+.route-data-quality-bars {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.route-data-quality-bar {
+  display: grid;
+  gap: 4px;
+}
+
+.route-data-quality-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.route-data-quality-bar-row span {
+  color: var(--metal);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.route-data-quality-bar-row strong {
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.route-data-quality-bar[data-tier="strong"] .route-data-quality-bar-row strong {
+  color: var(--success);
+}
+
+.route-data-quality-bar[data-tier="warn"] .route-data-quality-bar-row strong {
+  color: var(--signal);
+}
+
+.route-data-quality-bar[data-tier="weak"] .route-data-quality-bar-row strong {
+  color: var(--danger);
+}
+
+.route-data-quality-bar-track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.route-data-quality-bar-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--metal);
+  transition: width 200ms ease;
+}
+
+.route-data-quality-bar[data-tier="strong"] .route-data-quality-bar-track > span {
+  background: var(--success);
+}
+
+.route-data-quality-bar[data-tier="warn"] .route-data-quality-bar-track > span {
+  background: var(--signal);
+}
+
+.route-data-quality-bar[data-tier="weak"] .route-data-quality-bar-track > span {
+  background: var(--danger);
+}
+
+.route-data-quality-caveats {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.route-data-quality-caveats li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.route-data-quality-caveats svg {
+  width: 12px;
+  height: 12px;
+  color: var(--road-lock-approximate);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.route-data-quality-clean {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--metal);
+  font-size: 10px;
+}
+
+.route-data-quality-clean svg {
+  width: 12px;
+  height: 12px;
+  color: var(--success);
+}
+
+.route-data-quality-footer {
+  display: grid;
+  gap: 1px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.route-data-quality-footer strong {
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 10px;
+}
+
+.route-data-quality-footer small {
+  color: var(--metal);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 760px) {
+  .route-data-quality-panel {
+    padding: 12px;
+  }
+
+  .route-data-quality-header h3 {
+    font-size: 18px;
+  }
+
+  .route-data-quality-bar-row strong {
+    font-size: 13px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .route-data-quality-panel {
+    margin-top: 8px;
+    padding: 10px;
+    gap: 7px;
+  }
+}

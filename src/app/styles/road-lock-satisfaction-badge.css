@@ -1,0 +1,43 @@
+.road-lock-satisfaction-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--road-lock-unresolved);
+  border-radius: 8px;
+  background: rgb(227 93 84 / 8%);
+  color: var(--instrument);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.road-lock-satisfaction-badge > svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--road-lock-unresolved);
+}
+
+.road-lock-satisfaction-badge > span {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .road-lock-satisfaction-badge {
+    font-size: 11px;
+    padding: 8px 11px;
+  }
+
+  .road-lock-satisfaction-badge > svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .road-lock-satisfaction-badge {
+    margin-top: 4px;
+  }
+}
