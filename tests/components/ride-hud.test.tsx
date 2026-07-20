@@ -9,6 +9,7 @@ import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather } from "@/lib/client/weather-client"
 import { loadRideRecovery } from "@/lib/storage/ride-recovery"
 import { discoverPlaceIdeas } from "@/lib/client/place-ideas-client"
+import { usePlannerStore } from "@/stores/planner-store"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { RouteWeatherAlert } from "@/lib/weather/types"
@@ -659,5 +660,73 @@ describe("RideHud presentation extraction", () => {
     )
 
     expect(screen.getByText("No mapped fuel stops were available nearby.")).toBeInTheDocument()
+  })
+})
+
+describe("ride HUD status strip and locked corridor", () => {
+  afterEach(() => {
+    cleanup()
+    window.sessionStorage.clear()
+    window.localStorage.clear()
+  })
+
+  it("shows the active bike profile and the route data quality headline in the status strip", () => {
+    render(<RideHud route={route} onExit={vi.fn()} />)
+    const strip = screen.getByLabelText("Ride status strip")
+    expect(strip.querySelector(".ride-hud-status-bike")?.getAttribute("data-label")).toBe("Street")
+    expect(strip.querySelector(".ride-hud-status-quality")).toBeInTheDocument()
+  })
+
+  it("shows a persistent badge when riding through a satisfied must-lock corridor", async () => {
+    const mustSatisfaction = {
+      lockId: "lock-must-1",
+      mode: "must" as const,
+      satisfied: true,
+      match: { kind: "exact" as const, edgeIds: ["e1"] }
+    }
+    const routeWithLock: PlannedRoute = {
+      ...route,
+      lockSatisfaction: [mustSatisfaction]
+    }
+    vi.mocked(startRideSession).mockImplementation(async ({ onPosition }) => {
+      onPosition(gpsPosition({ longitude: -76.95, latitude: 40, heading: 90, timestamp: 1_000 }))
+      return { stop: vi.fn(async () => undefined) }
+    })
+    usePlannerStore.getState().addRoadLock({
+      id: "lock-must-1",
+      mode: "must",
+      edgeIds: ["e1"],
+      geometry: { type: "LineString", coordinates: [[-77, 40], [-76.9, 40]] },
+      orderedAnchors: [[-77, 40], [-76.9, 40]],
+      fallbackToleranceMeters: 50,
+      source: "manual",
+      confidence: "exact",
+      sourceRegionId: "us-pa",
+      sourceGraphVersion: "v1",
+      accessSnapshot: {
+        highwayClass: "secondary",
+        motorcycleAccess: "yes",
+        generalAccess: "yes",
+        surface: "asphalt",
+        smoothness: "good",
+        tracktype: "unknown",
+        maxweightTonnes: null,
+        seasonalUndated: false,
+        activeConditions: [],
+        routable: true
+      },
+      createdAt: "2026-07-20T00:00:00.000Z"
+    })
+    try {
+      render(<RideHud route={routeWithLock} onExit={vi.fn()} />)
+      await waitFor(() => expect(screen.getByText("On locked corridor")).toBeInTheDocument())
+    } finally {
+      usePlannerStore.getState().clearRoadLocks()
+    }
+  })
+
+  it("does not show the locked corridor badge when no must locks are satisfied", () => {
+    render(<RideHud route={route} onExit={vi.fn()} />)
+    expect(screen.queryByText("On locked corridor")).not.toBeInTheDocument()
   })
 })

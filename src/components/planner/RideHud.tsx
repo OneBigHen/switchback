@@ -5,15 +5,19 @@ import {
   Bookmarks,
   GpsFix,
   GpsSlash,
+  LockSimple,
   Pause,
   Play,
   SpinnerGap,
   SpeakerHigh,
   SpeakerSlash,
+  WarningCircle,
   X
 } from "@phosphor-icons/react"
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { maneuverKind } from "@/lib/client/maneuver"
+import { computeRouteDataQuality } from "@/lib/roads/route-data-quality"
+import { usePlannerStore } from "@/stores/planner-store"
 import { ManeuverGlyph } from "./maneuver-glyph"
 import { RideHudStatus } from "./RideHudStatus"
 import { RideRecoveryActions } from "./RideRecoveryActions"
@@ -62,6 +66,31 @@ export function RideHud(input: NavigationSessionControllerInput) {
   const currentInstruction = guidanceReady && frame ? frame.instruction : null
   const currentSpeedLimit = currentInstruction?.speedLimitKmh ?? null
   const route = input.route
+
+  const roadLocks = usePlannerStore((state) => state.roadLocks)
+  const bikeProfile = usePlannerStore((state) => state.bikeProfile)
+  const routeDataQuality = useMemo(
+    () => computeRouteDataQuality({ route }),
+    [route]
+  )
+
+  const satisfiedMustLock = useMemo(() => {
+    const satisfactions = route.lockSatisfaction ?? []
+    return satisfactions
+      .filter((row) => row.mode === "must" && row.satisfied)
+      .map((row) => {
+        const lock = roadLocks.find((entry) => entry.id === row.lockId)
+        return {
+          lockId: row.lockId,
+          displayName: lock?.displayName?.trim() || lock?.sourceRegionId || "Locked corridor"
+        }
+      })
+  }, [route.lockSatisfaction, roadLocks])
+
+  const inMustCorridor = progressReady && satisfiedMustLock.length > 0
+  const exitedCorridorUnexpectedly = offRoute && satisfiedMustLock.length > 0
+
+  const lockedCorridorLabel = satisfiedMustLock[0]?.displayName ?? null
 
   const headerLabel = controller.guidancePaused
     ? "Guidance paused"
@@ -236,7 +265,27 @@ export function RideHud(input: NavigationSessionControllerInput) {
             eyebrow={instructionEyebrow}
             heading={instructionHeading}
             detail={instructionDetail}
+            bikeProfileLabel={bikeProfile.name}
+            headlinePercent={routeDataQuality.headlinePercent}
           />
+          {inMustCorridor && lockedCorridorLabel ? (
+            <div className="ride-hud-corridor-badge" role="status" aria-live="polite">
+              <LockSimple weight="fill" aria-hidden="true" />
+              <span>
+                <small>On locked corridor</small>
+                <strong>{lockedCorridorLabel}</strong>
+              </span>
+            </div>
+          ) : null}
+          {exitedCorridorUnexpectedly ? (
+            <div className="ride-hud-corridor-exit-alert" role="alert">
+              <WarningCircle weight="fill" aria-hidden="true" />
+              <span>
+                <strong>Off-route from locked corridor</strong>
+                <small>{lockedCorridorLabel ?? "Locked corridor"} was exited unexpectedly. Switchback is rebuilding the line from your current location.</small>
+              </span>
+            </div>
+          ) : null}
           {guidanceReady &&
           !offRoute &&
           !deviating &&

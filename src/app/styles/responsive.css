@@ -4382,3 +4382,181 @@
   }
 }
 
+.ride-hud-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ride-hud-status-bike,
+.ride-hud-status-quality {
+  display: grid;
+  gap: 1px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--machined);
+  color: var(--instrument);
+  line-height: 1;
+}
+
+.ride-hud-status-bike strong,
+.ride-hud-status-quality strong {
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.ride-hud-status-bike small,
+.ride-hud-status-quality small {
+  color: var(--metal);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ride-hud-status-quality[data-tier="strong"] {
+  border-color: var(--success);
+  background: rgb(128 185 154 / 12%);
+}
+
+.ride-hud-status-quality[data-tier="strong"] strong {
+  color: var(--success);
+}
+
+.ride-hud-status-quality[data-tier="warn"] {
+  border-color: var(--signal);
+  background: rgb(243 106 45 / 12%);
+}
+
+.ride-hud-status-quality[data-tier="warn"] strong {
+  color: var(--signal);
+}
+
+.ride-hud-status-quality[data-tier="weak"] {
+  border-color: var(--danger);
+  background: rgb(227 93 84 / 12%);
+}
+
+.ride-hud-status-quality[data-tier="weak"] strong {
+  color: var(--danger);
+}
+
+.ride-hud-corridor-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--success);
+  border-radius: 8px;
+  background: rgb(128 185 154 / 10%);
+  color: var(--instrument);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ride-hud-corridor-badge svg {
+  width: 14px;
+  height: 14px;
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.ride-hud-corridor-badge span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ride-hud-corridor-badge small {
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ride-hud-corridor-badge strong {
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 720;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ride-hud-corridor-exit-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--danger);
+  border-radius: 9px;
+  background: rgb(227 93 84 / 12%);
+  color: var(--instrument);
+  font-size: 11px;
+}
+
+.ride-hud-corridor-exit-alert svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--danger);
+}
+
+.ride-hud-corridor-exit-alert span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ride-hud-corridor-exit-alert strong {
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.ride-hud-corridor-exit-alert small {
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .ride-hud-status-strip {
+    gap: 5px;
+  }
+
+  .ride-hud-status-bike,
+  .ride-hud-status-quality {
+    padding: 5px 9px;
+  }
+
+  .ride-hud-status-bike strong,
+  .ride-hud-status-quality strong {
+    font-size: 13px;
+  }
+
+  .ride-hud-corridor-badge,
+  .ride-hud-corridor-exit-alert {
+    padding: 8px 10px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .ride-hud-status-strip {
+    margin-top: 4px;
+  }
+
+  .ride-hud-corridor-badge,
+  .ride-hud-corridor-exit-alert {
+    margin-top: 4px;
+    padding: 6px 9px;
+  }
+}
+
