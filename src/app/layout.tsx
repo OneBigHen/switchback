@@ -9,6 +9,7 @@ import "./styles/library-drawer.css"
 import "./styles/ride-hud.css"
 import "./styles/storage-quota-meter.css"
 import "./styles/download-mode-picker.css"
+import "./styles/region-suite-picker.css"
 import "./styles/responsive.css"
 
 export const metadata: Metadata = {

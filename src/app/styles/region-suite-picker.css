@@ -1,0 +1,204 @@
+.region-suite-picker {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0d100f;
+}
+
+.region-suite-picker-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.region-suite-picker-label svg {
+  width: 14px;
+  height: 14px;
+}
+
+.region-suite-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.region-suite-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #111513;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.region-suite-option:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.region-suite-option:hover,
+.region-suite-option:focus-visible {
+  border-color: rgb(243 239 230 / 28%);
+}
+
+.region-suite-option[data-selected="true"] {
+  border-color: rgb(243 106 45 / 70%);
+  background: rgb(243 106 45 / 8%);
+}
+
+.region-suite-option[data-recommended="true"] {
+  border-color: rgb(128 185 154 / 40%);
+  background: rgb(128 185 154 / 6%);
+}
+
+.region-suite-option[data-selected="true"][data-recommended="true"] {
+  border-color: rgb(243 106 45 / 70%);
+  background: rgb(243 106 45 / 8%);
+}
+
+.region-suite-option-input {
+  display: none;
+}
+
+.region-suite-option-mark {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #0b0e0d;
+  color: transparent;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.region-suite-option[data-selected="true"] .region-suite-option-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: var(--oled);
+}
+
+.region-suite-option-mark svg {
+  width: 11px;
+  height: 11px;
+}
+
+.region-suite-option-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.region-suite-option-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.region-suite-option-title[data-recommended="true"]::after {
+  padding: 2px 6px;
+  border: 1px solid rgb(128 185 154 / 60%);
+  border-radius: 999px;
+  background: rgb(128 185 154 / 12%);
+  color: var(--success);
+  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  content: "Default";
+}
+
+.region-suite-option-description {
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.region-suite-option-codes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--metal);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.region-suite-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111513;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.region-suite-clear:hover,
+.region-suite-clear:focus-visible {
+  border-color: rgb(243 239 230 / 30%);
+  color: var(--instrument);
+  outline: 0;
+}
+
+.region-suite-clear[disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.region-suite-clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+.region-suite-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.region-suite-summary {
+  color: var(--metal);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.region-suite-summary strong {
+  color: var(--instrument);
+  font-variant-numeric: tabular-nums;
+}
