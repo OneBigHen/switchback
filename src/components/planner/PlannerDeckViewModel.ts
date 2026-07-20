@@ -102,7 +102,7 @@ export interface PlannerDeckCommands {
   onSaveHome?(): void
   onClearHome?(): void
   onStartRide?(route: PlannedRoute): void
-  onSaveOffline?(route: PlannedRoute): void
+  onSaveOffline?(route: PlannedRoute, options?: import("@/lib/client/offline-pack-coordinator").OfflinePackCorridorOptions): void
 }
 
 export function buildPlannerDeckViewModel(state: {

@@ -712,8 +712,8 @@ export function PlannerShell() {
             onClearHome: clearHome,
             onOpenLibrary: () => usePlannerStore.getState().setSurface("library"),
             onStartRide: (route) => void handleStartRide(route),
-            onSaveOffline: (route) => {
-              void buildOfflinePackCorridor(route).then(() => {
+            onSaveOffline: (route, options) => {
+              void buildOfflinePackCorridor(route, options ?? {}).then(() => {
                 return offlinePackLibraryRef.current!.save({
                   route,
                   mapStyle,

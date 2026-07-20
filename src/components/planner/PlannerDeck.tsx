@@ -709,7 +709,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           onCancel={() => setOfflinePackOpen(false)}
           onSave={(route) => {
             setOfflinePackOpen(false)
-            onSaveOffline?.(route)
+            onSaveOffline?.(route, {
+              level: downloadMode.level,
+              corridorMiles: downloadMode.corridorMiles
+            })
           }}
         />
       ) : null}
