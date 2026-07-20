@@ -10,6 +10,7 @@ import {
 } from "@/lib/roads/road-locks"
 import type { Coordinate } from "@/lib/routing/types"
 import { usePlannerStore } from "@/stores/planner-store"
+import { FocusReturn, KeyboardScope } from "./a11y"
 import "@/app/styles/road-lock-image-overlay.css"
 
 type Phase = "upload" | "georeference" | "trace" | "review"
@@ -221,12 +222,14 @@ export function RoadLockImageOverlay({
   if (!open) return null
 
   return (
-    <section
-      className="road-lock-image-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="road-lock-image-overlay-title"
-    >
+    <KeyboardScope onEscape={onClose}>
+      <FocusReturn />
+      <section
+        className="road-lock-image-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="road-lock-image-overlay-title"
+      >
       <header>
         <div>
           <span className="eyebrow">Phase one · image trace</span>
@@ -405,6 +408,7 @@ export function RoadLockImageOverlay({
         </div>
       ) : null}
     </section>
+    </KeyboardScope>
   )
 }
 

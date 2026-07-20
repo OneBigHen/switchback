@@ -8,6 +8,7 @@ import {
   type RoadLockSatisfaction
 } from "@/lib/roads/road-locks"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { FocusReturn, KeyboardScope } from "./a11y"
 import "@/app/styles/must-lock-unresolved-panel.css"
 
 export interface MustLockUnresolvedPanelProps {
@@ -67,15 +68,17 @@ export function MustLockUnresolvedPanel({
   const previousName = previousRoute?.name ?? "previous route"
 
   return (
-    <section
-      ref={panelRef}
-      className="must-lock-unresolved-panel"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="must-lock-unresolved-title"
-      aria-describedby="must-lock-unresolved-reason"
-      tabIndex={-1}
-    >
+    <KeyboardScope onEscape={onDismiss}>
+      <FocusReturn />
+      <section
+        ref={panelRef}
+        className="must-lock-unresolved-panel"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="must-lock-unresolved-title"
+        aria-describedby="must-lock-unresolved-reason"
+        tabIndex={-1}
+      >
       <header>
         <span className="eyebrow">Must-use road lock could not be included</span>
         <h2 id="must-lock-unresolved-title">{name} could not be included.</h2>
@@ -113,5 +116,6 @@ export function MustLockUnresolvedPanel({
       </ul>
       <button type="button" className="must-lock-dismiss" onClick={onDismiss}>Dismiss</button>
     </section>
+    </KeyboardScope>
   )
 }

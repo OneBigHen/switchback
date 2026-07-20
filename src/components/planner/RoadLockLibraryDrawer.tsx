@@ -17,6 +17,7 @@ import {
 } from "@/lib/roads/road-locks"
 import { ROAD_LOCK_MATCH_TOKEN, resolveRoadLockMatchColorMap } from "@/components/planner/map-drawing"
 import { RoadLockLibrary } from "@/lib/roads/road-locks"
+import { FocusReturn, KeyboardScope } from "./a11y"
 import { usePlannerStore } from "@/stores/planner-store"
 import "@/app/styles/road-lock-library-drawer.css"
 
@@ -155,20 +156,16 @@ export function RoadLockLibraryDrawer({
     <div className="road-lock-scrim" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose()
     }}>
-      <aside
-        ref={dialogRef}
-        className="road-lock-library-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="road-lock-library-title"
-        tabIndex={-1}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault()
-            onClose()
-          }
-        }}
-      >
+      <KeyboardScope onEscape={onClose}>
+        <FocusReturn />
+        <aside
+          ref={dialogRef}
+          className="road-lock-library-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="road-lock-library-title"
+          tabIndex={-1}
+        >
         <header>
           <div>
             <span className="eyebrow">Saved on this device</span>
@@ -299,6 +296,7 @@ export function RoadLockLibraryDrawer({
           </button>
         </footer>
       </aside>
+      </KeyboardScope>
     </div>
   )
 }

@@ -4560,3 +4560,248 @@
   }
 }
 
+
+/* ============================================================
+ * Wave C §11 — mobile variants for the new B/C surfaces
+ * (appended; prior rules untouched).
+ * Covers: BikeProfilePicker, RouteDataQualityPanel,
+ * StorageQuotaMeter, DownloadModePicker, RegionSuitePicker,
+ * RoadLockLibraryDrawer, MustLockUnresolvedPanel,
+ * RoadLockImageOverlay. Mirrors the established breakpoints in
+ * this file (≤760px tablet-portrait, ≤480px phone-portrait,
+ * landscape max-height 520px); the modules that already ship
+ * embedded media queries (e.g. bike-profile-picker.css) get
+ * the central overrides reasserted here in one place so the
+ * reskin can capture every mobile rule from a single file.
+ * ============================================================ */
+
+/* ---- Tablet portrait (≤760px) ---------------------------------- */
+
+@media (max-width: 760px) {
+  .bike-profile-picker {
+    gap: 8px;
+    padding: 11px;
+  }
+  .bike-profile-option {
+    min-height: 50px;
+  }
+  .bike-profile-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .route-data-quality-panel {
+    margin-top: 6px;
+    padding: 11px;
+    gap: 8px;
+  }
+  .route-data-quality-bar-row strong {
+    font-size: 12px;
+  }
+
+  .storage-quota-meter {
+    gap: 8px;
+    padding: 11px;
+  }
+  .storage-quota-meter-tier-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .storage-quota-meter-row,
+  .storage-quota-meter-projection {
+    font-size: 11px;
+  }
+  .storage-quota-meter-persist {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .storage-quota-meter-persist-cta {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .download-mode-list {
+    gap: 6px;
+  }
+  .download-mode-option {
+    min-height: 48px;
+    padding: 9px 10px;
+  }
+  .download-mode-corridor {
+    padding: 8px 9px;
+  }
+  .download-mode-corridor-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .region-suite-list {
+    gap: 6px;
+  }
+  .region-suite-option {
+    min-height: 50px;
+    padding: 9px 10px;
+  }
+
+  .road-lock-library-drawer {
+    width: 100%;
+    max-width: none;
+    padding: 12px;
+  }
+  .road-lock-library-drawer .eyebrow {
+    font-size: 9px;
+  }
+  .road-lock-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+  .road-lock-row-actions {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .must-lock-unresolved-panel {
+    margin: 16px;
+    padding: 14px;
+  }
+  .must-lock-unresolved-panel > header > h2 {
+    font-size: 16px;
+  }
+
+  .road-lock-image-overlay {
+    margin: 14px;
+    padding: 12px;
+  }
+  .road-lock-image-canvas {
+    min-height: 240px;
+  }
+  .road-lock-transform-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Phone portrait (≤480px) ----------------------------------- */
+
+@media (max-width: 480px) {
+  .bike-profile-segmented {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bike-profile-option {
+    min-height: 46px;
+  }
+  .bike-profile-fields,
+  .bike-profile-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bike-profile-mismatch {
+    font-size: 10px;
+  }
+
+  .route-data-quality-bars {
+    gap: 6px;
+  }
+  .route-data-quality-bar-track {
+    height: 6px;
+  }
+  .route-data-quality-caveats li {
+    font-size: 11px;
+  }
+  .route-data-quality-footer {
+    font-size: 10px;
+  }
+
+  .storage-quota-meter-persist-cta {
+    min-height: 42px;
+    padding: 9px 12px;
+  }
+  .storage-quota-meter-tier {
+    font-size: 11px;
+  }
+  .storage-quota-meter-bar {
+    height: 6px;
+  }
+
+  .download-mode-option-name strong {
+    font-size: 13px;
+  }
+  .download-mode-corridor {
+    padding: 9px 10px;
+  }
+
+  .region-suite-option-text strong {
+    font-size: 13px;
+  }
+
+  .road-lock-library-drawer {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100vw;
+    padding: 12px 12px calc(env(safe-area-inset-bottom) + 14px);
+  }
+  .road-lock-library-drawer > header h2 {
+    font-size: 16px;
+  }
+  .road-lock-row {
+    gap: 6px;
+  }
+  .road-lock-row-title strong {
+    font-size: 13px;
+  }
+
+  .must-lock-unresolved-panel {
+    margin: 10px;
+    padding: 13px;
+  }
+  .must-lock-unresolved-panel > header > h2 {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  .must-lock-option button {
+    min-height: 44px;
+  }
+
+  .road-lock-image-overlay {
+    margin: 8px;
+    padding: 10px;
+  }
+  .road-lock-accuracy-statement {
+    font-size: 11px;
+  }
+  .road-lock-image-canvas {
+    min-height: 200px;
+  }
+}
+
+/* ---- Landscape phone (≥768px width, ≤520px height) ------------ */
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .bike-profile-picker,
+  .route-data-quality-panel,
+  .storage-quota-meter {
+    padding: 10px 12px;
+    gap: 7px;
+  }
+  .bike-profile-option,
+  .download-mode-option,
+  .region-suite-option {
+    min-height: 42px;
+  }
+  .bike-profile-fields,
+  .download-mode-corridor-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .storage-quota-meter-persist {
+    align-items: center;
+  }
+
+  .road-lock-library-drawer {
+    width: min(420px, 90vw);
+    padding: 11px 12px;
+  }
+  .road-lock-image-overlay {
+    width: min(640px, calc(100vw - 24px));
+    padding: 10px 12px;
+  }
+  .must-lock-unresolved-panel {
+    margin: 10px;
+    padding: 11px 12px;
+  }
+}
