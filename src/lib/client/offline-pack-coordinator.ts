@@ -4,6 +4,11 @@ import { buildCorridorManifest } from "@/lib/offline/corridor-manifest"
 import { extractCorridorGraph } from "@/lib/offline/corridor-extractor"
 import { suggestRegionsForRoute } from "@/lib/offline/region-catalog"
 import { RegionDownloadClient } from "@/lib/storage/region-download-client"
+import {
+  corridorMilesToHalfWidthMeters,
+  SAVED_RIDE_CORRIDOR_DEFAULT_MILES,
+  type OfflineDownloadLevel
+} from "@/lib/offline/download-mode"
 
 export interface OfflinePackCorridorResult {
   graph: OfflineGraph | null
@@ -12,10 +17,35 @@ export interface OfflinePackCorridorResult {
   warning: string | null
 }
 
-const CORRIDOR_WIDTH_METERS = 500
+export interface OfflinePackCorridorOptions {
+  /** Which download level the rider chose. Defaults to `saved-ride-corridor`. */
+  level?: OfflineDownloadLevel
+  /** Corridor width in miles for `saved-ride-corridor`. Ignored for other levels. */
+  corridorMiles?: number
+}
+
+interface LevelProfile {
+  corridorWidthMeters: number
+  maxEstimatedBytes: number
+}
+
 const MAX_GRAPH_SEGMENTS = 50
-const MAX_ESTIMATED_BYTES = 5_000_000
 const SAMPLE_SPACING_METERS = 200
+
+const LEVEL_PROFILES: Record<OfflineDownloadLevel, LevelProfile> = {
+  "routing-only": {
+    corridorWidthMeters: 250,
+    maxEstimatedBytes: 2_000_000
+  },
+  "full-region": {
+    corridorWidthMeters: 2_000,
+    maxEstimatedBytes: 25_000_000
+  },
+  "saved-ride-corridor": {
+    corridorWidthMeters: corridorMilesToHalfWidthMeters(SAVED_RIDE_CORRIDOR_DEFAULT_MILES.street),
+    maxEstimatedBytes: 5_000_000
+  }
+}
 
 /**
  * Attempt to build a corridor graph for a route from downloaded region data.
@@ -24,12 +54,25 @@ const SAMPLE_SPACING_METERS = 200
  * no suitable region data is downloaded. The caller decides whether to embed
  * the graph in the offline pack.
  *
+ * The corridor width and storage cap are chosen from the rider's selected
+ * download level (and `corridorMiles` for the saved-ride-corridor level)
+ * instead of the historical hard-coded 500 m / 5 MB profile.
+ *
  * Never throws — all errors surface as `warning`.
  */
 export async function buildOfflinePackCorridor(
-  route: PlannedRoute
+  route: PlannedRoute,
+  options: OfflinePackCorridorOptions = {}
 ): Promise<OfflinePackCorridorResult> {
   const client = new RegionDownloadClient()
+
+  const level: OfflineDownloadLevel = options.level ?? "saved-ride-corridor"
+  const baseProfile = LEVEL_PROFILES[level]
+  const corridorWidthMeters =
+    level === "saved-ride-corridor"
+      ? corridorMilesToHalfWidthMeters(options.corridorMiles ?? SAVED_RIDE_CORRIDOR_DEFAULT_MILES.street)
+      : baseProfile.corridorWidthMeters
+  const maxEstimatedBytes = baseProfile.maxEstimatedBytes
 
   const waypoints = route.waypoints.map((w) => [w.lon, w.lat] as const)
   if (waypoints.length === 0) {
@@ -66,9 +109,9 @@ export async function buildOfflinePackCorridor(
   }
 
   const manifestResult = buildCorridorManifest(route, {
-    corridorWidthMeters: CORRIDOR_WIDTH_METERS,
+    corridorWidthMeters,
     maxGraphSegments: MAX_GRAPH_SEGMENTS,
-    maxEstimatedBytes: MAX_ESTIMATED_BYTES,
+    maxEstimatedBytes,
     sampleSpacingMeters: SAMPLE_SPACING_METERS
   })
 
