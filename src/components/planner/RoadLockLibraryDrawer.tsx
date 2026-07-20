@@ -61,6 +61,14 @@ export function RoadLockLibraryDrawer({
   const [sourceFilter, setSourceFilter] = useState<"" | RoadLockProvenance>("")
   const [modeFilter, setModeFilter] = useState<"" | RoadLockMode>("")
   const [libraryError, setLibraryError] = useState("")
+  // Internal highlight state. Tapping the same lock toggles it off
+  // without requiring the parent to echo back the change. The drawer
+  // is a modal surface, so the parent's `highlightedLockId` only needs
+  // to seed the initial state when the dialog opens.
+  const [internalHighlightedLockId, setInternalHighlightedLockId] = useState<string | null>(
+    highlightedLockId ?? null
+  )
+  const activeHighlight = internalHighlightedLockId
 
   const [libraryLocks, setLibraryLocks] = useState<RoadLock[]>([])
   useEffect(() => {
@@ -236,13 +244,13 @@ export function RoadLockLibraryDrawer({
               <RoadLockRow
                 key={lock.id}
                 lock={lock}
-                isHighlighted={highlightedLockId === lock.id}
+                isHighlighted={activeHighlight === lock.id}
                 isEditing={editingId === lock.id}
                 isPendingDelete={pendingDeleteId === lock.id}
                 onHighlight={(id) => {
-                  if (onHighlightLock) {
-                    onHighlightLock(highlightedLockId === id ? null : id)
-                  }
+                  const next = activeHighlight === id ? null : id
+                  setInternalHighlightedLockId(next)
+                  onHighlightLock?.(next)
                 }}
                 onStartEdit={() => setEditingId((current) => (current === lock.id ? null : lock.id))}
                 onApplyEdits={(patch) => {

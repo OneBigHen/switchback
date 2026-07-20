@@ -22,7 +22,7 @@ import {
   type MapStyleId
 } from "@/lib/client/map-layers"
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
-import { createManualRoadLock, type RoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
+import { createManualRoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 import type { PlannerPointId } from "@/stores/planner-store"
 import { usePlannerStore } from "@/stores/planner-store"
@@ -782,6 +782,7 @@ export function MapStage(props: MapStageProps) {
       map?.remove()
       mapRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mapStyle])
 
   useEffect(() => {
