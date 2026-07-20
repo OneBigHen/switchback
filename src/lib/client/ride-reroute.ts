@@ -8,7 +8,7 @@ import {
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 
-export type RideRerouteMode = "nearest-safe" | "next-shaping" | "skip-point" | "fuel-detour" | "automatic"
+export type RideRerouteMode = "nearest-safe" | "next-shaping-point" | "skip-point" | "fuel-detour" | "automatic"
 
 interface BuildReroutePointsInput {
   route: PlannedRoute

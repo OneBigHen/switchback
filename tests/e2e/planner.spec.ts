@@ -60,6 +60,16 @@ async function expectRideViewportLocked(page: import("@playwright/test").Page) {
   expect(metrics.bodyHeight).toBeLessThanOrEqual(metrics.innerHeight + 1)
 }
 
+async function openRouteEditor(page: import("@playwright/test").Page) {
+  const editorHeading = page.getByRole("heading", { name: /Pick two points|Start here/i })
+  if (await editorHeading.isVisible().catch(() => false)) return
+
+  await expect(async () => {
+    await page.getByRole("button", { name: "Edit route" }).click()
+    await expect(editorHeading).toBeVisible({ timeout: 1_000 })
+  }).toPass()
+}
+
 function plannedRoute(
   profile: RouteProfileId,
   geometry: [number, number][],
@@ -203,6 +213,16 @@ async function mockSharedPlannerServices(page: import("@playwright/test").Page) 
     contentType: "application/geo+json",
     body: JSON.stringify({ type: "FeatureCollection", features: [] })
   }))
+  await page.route("**/api/map-features?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/geo+json",
+    body: JSON.stringify({ type: "FeatureCollection", features: [] })
+  }))
+  await page.route("**/api/geocode?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ places: [] })
+  }))
   await page.route("**/api/route-weather", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -261,7 +281,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
 
   await page.goto(appUrl)
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-  await page.getByRole("button", { name: /Edit route/i }).click()
+  await openRouteEditor(page)
   await expect(page.getByRole("heading", { name: /Pick two points/i })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Start" })).toHaveValue("Current location")
   await expect(page.getByRole("combobox", { name: "Finish" })).toHaveValue("")
@@ -449,7 +469,7 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
     points: [{ lat: 40.2732, lon: -76.8867 }],
     roundTrip: { targetMinutes: 90 }
   })
-  await page.getByRole("button", { name: /Edit route/i }).click()
+  await openRouteEditor(page)
   await expect(page.getByRole("button", { name: "Loop ride" })).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
   await page.getByRole("button", { name: /Show route details/i }).click()
@@ -462,6 +482,94 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   await expect(page.getByRole("dialog", { name: "Map layers and style" })).toBeVisible()
   await expect.poll(() => paRequestCount).toBeGreaterThan(0)
   await expect(page.getByText(/1 in view · official PASDA/i)).toBeVisible()
+})
+
+test("interprets a free-form destination ride without live geocoding", async ({ page }) => {
+  let intentRequest: Record<string, unknown> | undefined
+  let routeRequest: Record<string, unknown> | undefined
+
+  await mockSharedPlannerServices(page)
+  await page.route("**/api/gpx-library**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ importedRoutes: 0, routes: [] })
+  }))
+  await page.route("**/api/ride-intent", async (route) => {
+    intentRequest = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "destination",
+        profile: "twisty",
+        targetMinutes: null,
+        startQuery: "Harrisburg",
+        destinationQuery: "Gettysburg",
+        stopQuery: null,
+        preferGravel: false,
+        avoidHighways: false,
+        summary: "twisty ride from Harrisburg to Gettysburg",
+        source: "local"
+      })
+    })
+  })
+  await page.route("**/api/geocode?**", async (route) => {
+    const query = new URL(route.request().url()).searchParams.get("q") ?? ""
+    const places = query.toLowerCase().includes("gettysburg") ? [{
+      id: "gettysburg-pa",
+      name: "Gettysburg",
+      label: "Gettysburg, Pennsylvania",
+      lat: 39.8309,
+      lon: -77.2311,
+      region: "Pennsylvania",
+      country: "United States"
+    }] : [{
+      id: "harrisburg-pa",
+      name: "Harrisburg",
+      label: "Harrisburg, Pennsylvania",
+      lat: 40.2732,
+      lon: -76.8867,
+      region: "Pennsylvania",
+      country: "United States"
+    }]
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ places })
+    })
+  })
+  await page.route("**/api/routes", async (route) => {
+    routeRequest = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(tripPlan)
+    })
+  })
+
+  await page.goto(appUrl)
+  await page.locator("#ride-prompt").fill("I want to ride from Harrisburg to Gettysburg via some twisty roads")
+  await page.getByRole("button", { name: "Find ride options" }).click()
+
+  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+  expect(intentRequest).toEqual({
+    prompt: "I want to ride from Harrisburg to Gettysburg via some twisty roads"
+  })
+  expect(routeRequest).toMatchObject({
+    profile: "twisty",
+    compare: true,
+    points: [
+      { lat: 40.2732, lon: -76.8867, label: "Harrisburg, Pennsylvania" },
+      { lat: 39.8309, lon: -77.2311, label: "Gettysburg, Pennsylvania" }
+    ]
+  })
+  await expect(page.getByText("Understood: twisty ride from Harrisburg to Gettysburg.")).toBeVisible()
+  await openRouteEditor(page)
+  await expect(page.getByRole("combobox", { name: "Start" })).toHaveValue("Harrisburg, Pennsylvania")
+  await expect(page.getByRole("combobox", { name: "Finish", exact: true })).toHaveValue("Gettysburg, Pennsylvania")
+  await expect(
+    page.getByLabel("Motorcycle routing profile").getByRole("button", { name: "Twisty", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
 })
 
 test("draws a rough route on the map and snaps it into editable route points", async ({ page }, testInfo) => {
@@ -483,7 +591,7 @@ test("draws a rough route on the map and snaps it into editable route points", a
   })
 
   await page.goto(appUrl)
-  await page.getByRole("button", { name: /Edit route/i }).click()
+  await openRouteEditor(page)
   await page.getByRole("button", { name: "Loop ride" }).click()
   await page.getByRole("button", { name: "Sketch a rough route" }).click()
   const surface = page.getByRole("region", { name: "Draw a rough route" })
@@ -512,7 +620,7 @@ test("draws a rough route on the map and snaps it into editable route points", a
   ]))
   // PlannerDeck remounts after sketch ends, so the editor toggle state resets.
   // Re-open the editor to expose the via-points list before asserting count.
-  await page.getByRole("button", { name: /Edit route/i }).click()
+  await openRouteEditor(page)
   await expect(page.locator(".via-points > span")).toHaveCount(6)
 
   await page.getByRole("button", { name: "Move Sketch stop 2 earlier" }).click()

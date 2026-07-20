@@ -184,9 +184,11 @@ describe("offline route packs", () => {
       expect(restored?.route.geometry).toEqual(route.geometry)
       expect(restored?.cues).toEqual(route.instructions)
       expect(restored?.navigationMode).toBe("follow-saved-route")
-      // Migrated packs are stamped with the legacy schema version so callers can
-      // distinguish them from freshly authored packs.
-      expect(restored?.schemaVersion).toBe(1)
+      expect(restored?.schemaVersion).toBe(OFFLINE_ROUTE_PACK_SCHEMA_VERSION)
+      expect(restored?.routingCapability).toBe("follow-saved-route")
+      expect(restored?.corridorWidthMeters).toBe(0)
+      expect(restored?.graphManifestVersion).toBeNull()
+      expect(restored?.legalAccessProvenance).toEqual([])
       expect(restored?.estimatedBytes).toBeGreaterThan(0)
       expect(restored?.freshness.ttlMillis).toBe(DEFAULT_OFFLINE_ROUTE_PACK_TTL_MILLIS)
       expect(restored?.freshness.expiresAt).toBe(

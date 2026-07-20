@@ -1,318 +1,258 @@
-# Switchback Remaining Roadmap — GLM Execution Guide
+# Switchback Closure and Reskin Handoff for GLM 5.2
 
-## Purpose
+**Baseline:** `main` at `c75e0df` (`Complete planner refactor and offline foundations`)
 
-This document is the authoritative remaining-work backlog for completing Switchback beyond the currently working core. It is written for a lead engineer who owns architecture, integration, deployment, and release decisions, with `neuralwatt/glm-5.2` used for bounded implementation packages.
+## Mission and ordering
 
-The application already has meaningful planning, routing, navigation recovery, GPX exchange, map layers, local route storage, and initial trip persistence. Do not treat those existing slices as proof that the systems below are complete.
+Close the outstanding functional and architectural debt in the current rider workbench. GLM 5.2 must **stop after tech-debt closure and its verification evidence are delivered**. It must not begin, propose, scaffold, design, style, or implement a visual reskin. The user will return to Codex separately for the final UI/UX rewrite.
 
-## Non-negotiable delivery rules
+This is an execution brief for a lead engineer using GLM 5.2 for narrowly bounded implementation packages. It is not permission for an autonomous worker to redesign the application, add accounts/cloud infrastructure, alter service configuration, or broaden the product.
 
-- GLM works only from a complete work package containing: Scope, Allowed files, Forbidden files, Acceptance criteria, Validation commands, and Non-goals.
-- Use an isolated worktree for every GLM package. Never run a worker in the dirty integration tree.
-- GLM does not edit shared routing contracts, global stores, deployment/configuration, dependencies, service infrastructure, or the integration branch unless the lead explicitly approves the exact paths.
-- The lead reviews every worker diff, reruns validation, resolves integration conflicts, and performs production/public-browser verification.
-- No requirement is complete merely because source code exists or a mocked unit test passes.
-- Preserve existing saved routes, recovery sessions, trip plans, map packs, and ride records through versioned IndexedDB migrations.
+## Current truth
 
-## Current architectural gaps
+The following bounded foundations are implemented and tested. They require lead integration, not a second rewrite:
 
-| Area | Current state | Remaining outcome |
+| Area | Accepted foundation | Still missing |
 | --- | --- | --- |
-| Ride HUD | Single large component owns controller effects and presentation. | Navigation-session controller separated from HUD presentation; GPS updates do not create unnecessary UI work. |
-| Offline | Packs contain verified route/cues and map configuration only. | Bounded offline graph, worker routing, pack lifecycle, and recovery drills. |
-| Trips | Local staged route snapshots exist. | Durable editable multi-day plans, library organization, replay, and portable/shareable trip workflows. |
-| Sharing | Portable route links exist. | Revocable optional authenticated shares, copies, expiry, privacy zones, and collaboration boundaries. |
-| Community | Not implemented. | Scoped, expiring, moderated reports that warn/rank but never silently decide legal access. |
-| Regional expansion | PA/NJ-centric services and data. | Region manifests with data provenance, freshness, coverage, and gated expansion suites. |
+| Ride HUD | Presentation extraction for recovery actions and weather alerts. | A dedicated navigation-session boundary; real-device recovery/performance proof. |
+| Offline | Deterministic corridor manifest, typed graph, bounded A*, worker protocol. | Actual legal/provenanced graph data, browser pack lifecycle, worker-to-pack wiring, offline recovery proof. |
+| Trips | Validation helpers for plans and stages. | Versioned editable plan/stage timeline, local library UX, actual-versus-planned replay. |
+| Sharing | Strict portable-route validation and privacy redaction. | Optional authenticated/revocable sharing only if product contracts approve it. |
+| Planner | Hybrid routing, GPX exchange/import worker, map layers, route library, sketching and recovery controls. | Must-use road locks, reference-image line extraction, data-quality/provenance completion, final mobile/device evidence. |
 
----
+Do not reopen accepted pure helpers solely to make them match a future UI. Integrate through their typed public contracts and add adapters if a boundary changes.
 
-# Phase 1 — Finish the Ride HUD/controller boundary
+## Non-negotiable worker rules
 
-## Lead-owned design work
+- One GLM package has one outcome, a disjoint allowlist, explicit non-goals, and focused tests.
+- Work in an isolated worktree. The lead alone merges packages into `main`.
+- GLM may not alter `package.json`, lockfiles, deployment/systemd/Cloudflare config, GraphHopper/Valhalla infrastructure, global stores, or shared routing contracts unless the package explicitly names the file and the lead has approved it.
+- No external API key, OAuth secret, private route, home address, raw ride record, or production cookie may enter source, fixtures, screenshots, prompts, or commits.
+- Do not claim an offline route is possible just because a saved geometry/cue track is present. Do not claim access is legal from an unproven community report or map layer.
+- Preserve existing IndexedDB data with versioned migrations and test both old and new records.
+- Every package ends with a clean commit, focused tests, `npm run lint`, and `npm run typecheck`. The lead runs the full gate and live verification after integration.
+- **Stop condition:** after all closure streams and the integrated release gate are complete, report the evidence and stop. Do not open a reskin task, create design assets/tokens, change layout/CSS for a new visual direction, or perform product redesign work.
 
-Define a `NavigationSessionController` boundary that owns:
+## Closure stream A — prove the existing release surface
 
-- GPS lifecycle, stale-fix detection, foreground/background behavior, and retry state.
-- Navigation frame calculation, recovery checkpointing, completed waypoint tracking, and deviation history.
-- Explicit rejoin policies: nearest-safe, next shaping point, skip point, preserve original line, and fuel detour.
-- Automatic reroute timing and cancellation.
-- Voice cue and wake-lock degradation behavior.
-- Recording lifecycle and ride-journal handoff.
+This stream prevents the team from disguising unverified behavior as technical debt closure.
 
-The controller must expose a compact, typed view model and commands to presentation. It must not require the planner tree to render for GPS samples.
+### A1 — Refresh public-browser evidence
 
-## GLM packages
+**Lead owned. Do not delegate as a broad GLM task.**
 
-### RH-01 — Extract pure HUD status/presentation
+Verify the deployed `https://ride.henning.rodeo` application, not only localhost:
 
-Allowed files:
+1. Planner: destination-only, explicit origin/destination, ambiguous search, multi-stop edit, loop route, avoid area, and free-form ride request.
+2. Routing: Quick/Twisty/Scenic/Adventure diversity; GraphHopper primary; Valhalla supplemental/fallback; elevation degradation; restricted-road avoidance.
+3. Exchange: GPX/KML/KMZ import; source-track preservation; route/cue export; import/export round trip in a new browser profile.
+4. Ride: denied GPS, weak/stale GPS, dropped signal, pause/resume, reroute cancellation, preserve-original rejoin, fuel detour, and restart recovery.
+5. Mobile: iPhone-sized portrait and landscape Safari, planner sheet gestures, tap targets, map controls, library, and Ride HUD.
 
-- `src/components/planner/RideHud.tsx`
-- `src/components/planner/RideHudStatus.tsx`
-- `tests/components/ride-hud.test.tsx`
+Save only deliberate final screenshots to `artifacts/screenshots/`; ignore raw server logs and dogfood output.
 
-Acceptance criteria:
+### A2 — Add a stable E2E matrix
 
-- `RideHudStatus` accepts display-only props.
-- Existing heading, instruction, progress, GPS, alert, and recovery UI remains behaviorally identical.
-- No effects, browser APIs, routing requests, or storage calls move into the presentation component.
-
-Validation:
-
-```bash
-npx vitest run tests/components/ride-hud.test.tsx
-npm run typecheck
-npm run lint
-```
-
-### RH-02 — Extract static recovery action panel
+**GLM package A2.**
 
 Allowed files:
 
-- `src/components/planner/RideHud.tsx`
-- `src/components/planner/RideRecoveryActions.tsx`
-- `tests/components/ride-hud.test.tsx`
+- `tests/e2e/planner.spec.ts`
+- `playwright.config.ts`
+- `artifacts/screenshots/` only for intentional baseline images
 
 Acceptance criteria:
 
-- Recovery action controls are presentation-only and receive callbacks from `RideHud`.
-- All policy labels, disabled states, and explicit preserve-original behavior remain unchanged.
-- Controls meet the existing 48px ride-mode target styling without CSS redesign.
+- Tests target current user-facing labels and flows, not retired planner markup.
+- Desktop Chromium and mobile Safari cover one complete plan-to-ride journey.
+- A smoke test covers free-form intent and a route-sketch/edit flow.
+- Tests never depend on real personal credentials, a mutable personal route library, or uncontrolled public provider responses.
+- Failures produce useful screenshots/traces without committing temporary test output.
 
-Validation: focused RideHud test, typecheck, lint.
+Non-goals: changing planner behavior, CSS, routing code, or production deployment.
 
-### RH-03 — Extract weather-alert presentation
+## Closure stream B — complete architecture boundaries
 
-Allowed files:
+### B1 — Navigation session controller
 
-- `src/components/planner/RideHud.tsx`
-- `src/components/planner/RideWeatherAlert.tsx`
-- `tests/components/ride-hud.test.tsx`
+**Lead design, then small GLM packages. This is the largest reskin blocker.**
 
-Acceptance criteria:
+Create a `NavigationSessionController` hook/store which owns:
 
-- Alert rendering/dismissal UI moves to a pure component.
-- Fetching, session storage, and alert selection remain in controller code.
+- geolocation lifecycle, permissions, stale fixes, foreground/background transitions, retry state, and cleanup;
+- navigation-frame calculation, completed points, deviation history, recovery checkpoints, recording, and journal handoff;
+- reroute scheduling/cancellation and explicit rejoin policies: nearest-safe, next shaping point, skip point, preserve original, and fuel detour;
+- voice/wake-lock capability degradation without assuming browser APIs exist;
+- a compact typed view model plus commands consumed by `RideHud`.
 
-Validation: focused RideHud test, typecheck, lint.
+`RideHud` becomes presentation-first. GPS samples must not require the root planner tree to re-render.
 
-## Lead integration and release gates
+Suggested packages:
 
-- Introduce the controller hook/store only after the above presentation packages are accepted.
-- Verify denied geolocation, stale GPS, tunnel/dropout, pause/resume, overnight recovery, reroute cancellation, and recording restart.
-- Verify portrait/landscape controls on real iPhone dimensions and a public deployed build.
-- Prove no root planner rerender occurs for each GPS sample.
+| Package | Bounded outcome | Candidate allowlist |
+| --- | --- | --- |
+| B1a | Define controller view model, commands, reducer/state transitions, and pure tests. | `src/lib/client/navigation-*`, `src/stores/navigation-store.ts`, navigation tests. |
+| B1b | Move geolocation/session effects out of `RideHud` without changing visible behavior. | `RideHud.tsx`, controller files, RideHud/navigation tests. |
+| B1c | Move recovery/recording/voice handoff behind controller commands and prove teardown. | Same narrow controller boundary and tests. |
 
----
+Lead acceptance:
 
-# Phase 2 — True offline corridor routing
+- Denied location, stale location, tunnel/dropout, pause/resume, overnight restart, and reroute cancellation are exercised.
+- A profiler or deterministic render counter proves root planner rendering is not coupled to every GPS fix.
+- iPhone HTTPS validation proves wake-lock/voice/geolocation failure paths remain understandable and recoverable.
 
-## Required product definition
+### B2 — Planner composition boundary
 
-An offline pack is not complete if it contains only route geometry and cues. A complete pack includes a bounded road graph suitable for recoverable local routing, selected map assets, route/cues, shaping constraints, access metadata, size/freshness information, and lifecycle controls.
+The planner is more modular than the old audit states, but the orchestration boundary must be finished before a reskin.
 
-## Lead-owned architecture
+Required end state:
 
-Define versioned contracts:
+- `PlannerShell` coordinates typed feature hooks; it does not own unrelated routing, research, library, location, and ride effects inline.
+- `PlannerDeck` receives grouped, stable view models/command objects rather than an expanding flat prop surface.
+- `MapStage` owns map rendering/interaction boundaries; drawing, sources, navigation camera, and layer controls remain independently testable.
+- CSS stays component-scoped under `src/app/styles/`; do not return to one global stylesheet.
 
-- `OfflinePackManifest`
-- `OfflineGraphSegment`
-- `OfflineRoutingRequest`
-- `OfflineRoutingResult`
-- `OfflinePackEstimate`
-- `OfflinePackStatus`
+GLM work must be extraction-only: no label, layout, route, gesture, or style changes. The lead must approve every moved boundary after a behavior comparison.
 
-Define a corridor strategy around the planned route with configurable width, graph-size limits, segment/access provenance, and a Web Worker protocol. The worker performs bounded A* routing; it must not claim global/off-corridor routing.
+### B3 — Accessibility and interaction primitives
 
-## GLM packages
+Before reskin, establish testable primitives instead of embedding accessibility fixes into a visual rewrite:
 
-### OFF-01 — Offline-pack metadata and migration
+- Announce material route, GPS, and navigation-instruction changes through appropriate `aria-live` regions without announcing every distance tick.
+- Preserve keyboard escape/focus return for drawer, dialogs, sheet states, map controls, and share/import errors.
+- Define touch target, focus-visible, reduced-motion, contrast, and landscape-safe rules as reusable tokens.
+- Add focused component tests for these contracts.
 
-Allowed files:
+## Closure stream C — make offline behavior truthful and usable
 
-- `src/lib/storage/offline-route-pack.ts`
-- `tests/unit/offline-route-pack.test.ts`
+### C1 — Offline pack contract and storage migration
 
-Acceptance criteria:
+The implemented graph helpers are not an offline product until a pack carries real bounded data.
 
-- Versioned pack records include estimated bytes, freshness/expiry, and status metadata.
-- Existing records migrate without loss.
-- Existing follow-saved-route behavior remains accurately labeled until OFF-04 lands.
+Lead defines and freezes versioned contracts before GLM work:
 
-### OFF-02 — Pure corridor manifest builder
+- `OfflinePackManifest`, `OfflineGraphSegment`, `OfflineRoutingRequest`, `OfflineRoutingResult`, `OfflinePackEstimate`, and `OfflinePackStatus`;
+- corridor width, maximum graph budget, source/version/date, legal-access provenance, expiry, and storage accounting;
+- clear states for `available`, `downloading`, `ready`, `stale`, `expired`, `failed`, and `deleted`.
 
-Allowed files:
+GLM package C1 may update only `src/lib/storage/offline-route-pack.ts` and its tests to migrate old route/cue-only packs without data loss. It must continue to label those packs as follow-saved-route, not offline routing.
 
-- `src/lib/offline/corridor-manifest.ts`
-- `tests/unit/corridor-manifest.test.ts`
+### C2 — Data acquisition and worker integration
 
-Acceptance criteria:
+**Lead owned because this involves licensing, data provenance, budgets, and browser cache policy.**
 
-- Given route geometry and settings, produce a deterministic bounded corridor manifest.
-- Validate width, geometry, and maximum graph budget inputs.
-- No fetches, IndexedDB, map UI, or routing-service calls.
+The lead must choose a legally distributable bounded graph source and packaging format. Then wire:
 
-### OFF-03 — Offline graph utility algorithms
+`pack manifest -> graph asset retrieval -> IndexedDB/Cache Storage -> worker request -> bounded A* result -> navigation recovery`
 
-Allowed files:
+Requirements:
 
-- `src/lib/offline/graph.ts`
-- `src/lib/offline/a-star.ts`
-- `tests/unit/offline-graph.test.ts`
+- Routing is strictly in-corridor; outside-corridor requests fail with an explicit, actionable result.
+- Restrictions and shaping constraints are honored.
+- Request IDs support cancellation/stale-result rejection.
+- Pack install estimates bytes before download; deletion genuinely reclaims data; update and expiry are visible.
+- Service worker/PWA configuration does not cache arbitrary graph data or stale private records.
 
-Acceptance criteria:
+### C3 — Offline UX and recovery drills
 
-- Typed graph adjacency, restrictions, shaping points, and bounded A* algorithm.
-- Tests cover path found, no path, restricted edge avoidance, and shaping-point ordering.
-- No browser-worker wiring or UI.
+GLM may implement presentation only after C1/C2 contracts are frozen:
 
-### OFF-04 — Worker protocol implementation
+- Pack estimate, quota, download/update/delete, freshness, and error views.
+- A visible distinction among saved-route guidance, offline map availability, and offline rerouting.
+- Status text that says what the rider can do while disconnected.
 
-Allowed files:
+Lead proof: install a pack, disable network, create/recover a route inside the corridor, attempt an outside-corridor reroute, restart the browser, and delete the pack. Record evidence on a physical phone.
 
-- `src/workers/offline-routing.worker.ts`
-- `src/lib/offline/worker-protocol.ts`
-- `tests/unit/offline-worker-protocol.test.ts`
+## Closure stream D — finish trip, library, and sharing behavior
 
-Acceptance criteria:
+### D1 — Local-first trip command model
 
-- Versioned request/result messages.
-- Worker rejects unsupported/malformed requests with normalized errors.
-- Cancellation and stale request IDs are represented.
+Freeze versioned `TripPlan` and `TripStage` contracts that cover:
 
-## Lead integration and release gates
+- ordered stages, terminal destination behavior, route snapshots, alternates, notes, checklist state, and deliberate skip/reorder/split actions;
+- fuel envelope, daylight/weather windows, lodging/camping/service stops, and typed validation errors;
+- migration of existing saved trip snapshots.
 
-- Acquire/package the actual bounded graph and legal-access data with explicit provenance.
-- Connect worker to the offline pack library and PWA cache controls.
-- Build pack estimate, quota, update, deletion, expiry, and freshness UI.
-- Test offline mode by disabling network after pack installation; verify initial route, reroute within corridor, unavailable route outside corridor, and restart recovery.
-- Never label a route/cues-only pack as offline routing.
+Use the accepted pure validators in `src/lib/trip/` as the single source of truth. UI must not recreate validation rules.
 
----
+### D2 — Library and timeline integration
 
-# Phase 3 — Complete trip, library, replay, and share workflows
+Build a coherent local-first interface to create, edit, save, restore, duplicate, delete-confirm, search, and load trips. `LibraryDrawer` stays presentation-only; storage access remains in a library/service hook. Verify a fresh browser profile and a migrated existing profile.
 
-## Required product definition
+### D3 — Planned versus actual replay
 
-Trip plans must be local-first and durable. A rider can build stages, edit/reorder/split/skip, preserve fuel/daylight constraints, save/restore, record actual rides, compare plan to actual, and export or share deliberate copies without silently exposing private locations.
+Define a privacy-preserving ride-journal contract before building UI. A rider must be able to compare planned geometry to recorded geometry, deviations, stops, notes, and optional media metadata locally. No cloud sync is implied.
 
-## GLM packages
+### D4 — Sharing boundary
 
-### TRIP-01 — Trip-plan model validation helpers
+Portable, local route shares remain available without accounts. Account-backed sharing is a separate product decision and cannot be smuggled into the reskin. If approved, it requires authentication, expiry, revocation, copies rather than shared mutation by default, privacy-zone redaction, auditability, and a dedicated service/security review.
 
-Allowed files:
+## Closure stream E — data quality, rider intelligence, and region contracts
 
-- `src/lib/trip/trip-plan.ts`
-- `src/lib/trip/stage-planner.ts`
-- `tests/unit/trip-plan.test.ts`
-- `tests/unit/stage-planner.test.ts`
+### E1 — Map/data provenance
 
-Acceptance criteria:
+Every operational layer must expose source, coverage, refresh date, confidence, and limitations. Finish the semantic distinction between public/private access, closures, traffic, weather, services, cell coverage, MVUM/access, and reference overlays. Approximate/heuristic layers must say so.
 
-- Pure helpers validate stage ordering, terminal destination behavior, and fuel/daylight constraints.
-- Invalid state produces typed, actionable errors.
-- No UI or IndexedDB changes.
+### E2 — Reference and road-editing gaps
 
-### TRIP-02 — Trip-library organization actions
+Complete two signature planner gaps before reskin:
 
-Allowed files:
+- must-use road/corridor locks that survive route edits and provider changes; and
+- reference-image line extraction or a clearly bounded assisted workflow that never presents a guessed trace as an authoritative legal road.
 
-- `src/lib/storage/trip-plan-library.ts`
-- `tests/unit/trip-plan.test.ts`
+Each needs real route/edit/reload tests and iPhone Safari gesture proof.
 
-Acceptance criteria:
+### E3 — Rider learning and community reports
 
-- Local trip list supports stable update, delete, and deterministic recency ordering.
-- Version migrations preserve prior snapshots.
+Durable per-rider/per-motorcycle preference learning and community reports remain incomplete. Do not make them broad GLM assignments. First decide retention, consent, categories, geographic scope, freshness/expiry, corroboration, moderation, dismissal, trust signals, and legal-safety policy. Community data may inform/rank/warn; it must never silently determine legal access.
 
-### TRIP-03 — Library trip presentation
+### E4 — Region manifests and expansion
 
-Allowed files:
+Define a region manifest containing graph versions, map/layer availability, provenance, freshness, coverage, restrictions, and storage budgets. A region is not enabled until its routing profile, restriction, fallback, geocoding, offline-pack, and recovery suites pass.
 
-- `src/components/planner/LibraryDrawer.tsx`
-- `tests/components/library-drawer.test.tsx`
+## Reskin handoff gate
 
-Acceptance criteria:
+These are the conditions Codex will require before it accepts a separate future full UI/UX rewrite. They are **not work for GLM 5.2**:
 
-- Saved trips are searchable, loadable, and delete-confirmed.
-- Accessibility/focus behavior remains intact.
-- No direct IndexedDB access from the component.
+- Navigation-session controller is integrated, behaviorally verified, and decoupled from planner-wide GPS renders.
+- Offline packs either support real, bounded, proven offline rerouting or the product explicitly scopes offline to saved-route guidance and removes misleading affordances.
+- Trip/library contracts and essential local-first workflows are stable and migration-tested.
+- Sharing policy is frozen; unapproved account/community work is visually and architecturally out of scope.
+- Planner, map, and accessibility interaction boundaries are stable enough that presentation can consume view models rather than moving business logic.
+- Current public browser matrix, real-iPhone checks, and offline/recovery drills have evidence.
+- `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and the Playwright suite pass on the integrated tree.
+- No open critical privacy, data-provenance, routing-safety, or stale-test issue remains.
 
-### SHARE-01 — Portable share validation hardening
+If any item is open, make only narrow, behavior-preserving usability/accessibility fixes required to close the relevant tech-debt package. Do not start a visual rewrite.
 
-Allowed files:
+## Reserved future phase — full UI/UX reskin
 
-- `src/lib/share/route-share.ts`
-- `tests/unit/route-share.test.ts`
+**Reserved for Codex and the user after GLM has stopped.** This section is context only; GLM must not execute it, create tasks for it, or modify files in anticipation of it. It is a product/UI project, not another architecture extraction.
 
-Acceptance criteria:
+### Reskin deliverables
 
-- Strictly validate decoded payload fields and numeric coordinates.
-- Preserve explicit privacy-zone redaction behavior.
-- Reject malformed or oversized portable shares without throwing to callers.
+1. A written design contract: rider personas, information hierarchy, navigation states, desktop/mobile/landscape layouts, interaction inventory, typography, color/tokens, motion/reduced-motion behavior, empty/loading/error/offline states, and accessibility requirements.
+2. A visual baseline for planner, route comparison, library, map layers, trip timeline, pack lifecycle, active ride, recovery, and share/import flows.
+3. A reusable component/token system that consumes stable view models and does not import routing/storage/browser side effects.
+4. Incremental screen migration behind behavior-preserving contracts, with desktop and iPhone Safari visual regression evidence.
+5. Final live rider workflow validation and a post-reskin cleanup pass removing obsolete styles and duplicate components.
 
-## Lead integration and release gates
+### Reskin non-goals
 
-- Add versioned `TripPlan`, `TripStage`, timeline, checklist, fuel envelope, and alternate-plan data contracts.
-- Add actual ride comparison: planned versus recorded geometry, deviations, stops, notes, and media metadata.
-- Implement optional account-backed shares only as a separate service with authentication, expiry, revocation, and privacy zones.
-- Keep local-first planning, GPX portability, and recovery fully usable without accounts.
-- Verify save/restore/edit/delete and GPX round-trip in a fresh browser profile.
+- No new routing provider, map-data source, account system, offline graph format, or community backend.
+- No hidden change to privacy, legal-access, safety, or data-retention policy.
+- No redesign that trades map usability, touch targets, keyboard access, or visible failure state for visual polish.
 
----
+## Integrated release gate
 
-# Phase 4 — Collaboration, community, and regional expansion
-
-## Lead-owned systems
-
-These require product/security decisions and must not be delegated as broad GLM tasks:
-
-- Optional authentication and synchronization service: Postgres/PostGIS plus S3-compatible object storage.
-- Revocable share links, collaborative copies, live safety sharing, privacy zones, and expiry.
-- Community reports: geographic scope, category, timestamps, expiry, corroboration, moderation state, trust signals, and dismissals.
-- Region manifests: graph versions, map/layer availability, provenance, freshness, coverage, and storage budget.
-
-## GLM-safe packages after contracts are frozen
-
-- Pure report validation/expiry helpers and unit tests.
-- Region-manifest schema validation and fixtures.
-- Presentation-only report cards, filters, empty states, and accessibility tests.
-- Documentation and fixture expansion with disjoint file allowlists.
-
-## Release gates
-
-- Community data may warn or rank but must never silently decide legal access.
-- Every report and layer exposes provenance/freshness/confidence.
-- Every new region passes routing profile, restriction, fallback, geocoding, offline-pack, and recovery suites before availability.
-
----
-
-# Full release gate
-
-Before declaring the roadmap core complete, run and preserve evidence for:
+Run from a clean integrated tree, then verify the public deployment:
 
 ```bash
 npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run test:e2e
 ```
 
-Then verify deployed behavior at `https://ride.henning.rodeo`:
-
-- Planner: destination-only, address, ambiguous destination, origin/destination, multiple stops, loop, highway avoidance, provider fallback.
-- Routing: GraphHopper profiles, route diversity, Valhalla supplementation/fallback, elevation degradation, restricted-road avoidance.
-- Exchange: GPX/KML/KMZ import/export round trips and no silent road matching.
-- Ride: denied/stale GPS, dropout, pause/resume, overnight restart recovery, rejoin policies, fuel detour, background/foreground behavior.
-- Offline: pack lifecycle and actual in-corridor reroute with network disabled.
-- Usability: desktop Chromium, mobile Safari dimensions, real iPhone portrait/landscape, keyboard/screen-reader, touch targets, and map/sheet gestures.
-
-## Recommended execution order
-
-1. RH-01 through RH-03, then lead controller extraction.
-2. OFF-01 through OFF-04, then lead graph acquisition/worker/PWA integration.
-3. TRIP-01 through TRIP-03 and SHARE-01, then lead replay and optional-share service work.
-4. Community and region contracts, then bounded GLM presentation/validation packages.
-5. Full release gate and live public evidence.
+The lead then checks deployed planner/routing/exchange/ride/offline/mobile behavior as defined in A1. Capture only final intentional evidence, document any intentionally deferred product decision, and do not call the roadmap closed from unit tests alone.

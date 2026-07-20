@@ -21,12 +21,32 @@ export type RiderLayerId =
 
 export type RiderLayerStatus = "live" | "regional" | "planned"
 
+export type DataCategory =
+  | "road-geometry"
+  | "road-surface"
+  | "basemap-imagery"
+  | "basemap-topo"
+  | "basemap-terrain"
+  | "access-boundary"
+  | "access-mvum"
+  | "conditions-construction"
+  | "conditions-traffic"
+  | "conditions-weather"
+  | "conditions-connectivity"
+  | "services-fuel"
+  | "services-food"
+  | "services-camping"
+  | "services-lodging"
+  | "services-repair"
+
 export interface RiderLayerDefinition {
   id: RiderLayerId
   name: string
   category: "base" | "roads" | "access" | "conditions" | "stops"
   status: RiderLayerStatus
   source: string
+  provenance: string
+  dataCategory: DataCategory
   freshness: string
   coverage: string
   legend: string
@@ -129,87 +149,138 @@ export function riderLayerConfidence(definition: RiderLayerDefinition): string {
 export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
     id: "curvature", name: "High-curvature roads", category: "roads", status: "live",
-    source: "Switchback road-shape analysis", freshness: "Computed from local road geometry", coverage: "Current routing region",
+    source: "Switchback road-shape analysis",
+    provenance: "Computed heuristically from OpenStreetMap road geometry using bend-density scoring. Approximate — not ground-truthed.",
+    dataCategory: "road-geometry",
+    freshness: "Computed from local road geometry", coverage: "Current routing region",
     legend: "Orange dashed line = high bend density", minZoom: 7
   },
   {
     id: "unpaved", name: "PA unpaved roads", category: "roads", status: "regional",
-    source: "Pennsylvania Spatial Data Access (PASDA)", freshness: "Dataset version shown by provider", coverage: "Pennsylvania",
+    source: "Pennsylvania Spatial Data Access (PASDA)",
+    provenance: "Pennsylvania Spatial Data Access (PASDA) official unpaved road dataset. Government-published, regional coverage. Verify currency against provider release notes.",
+    dataCategory: "road-surface",
+    freshness: "Dataset version shown by provider", coverage: "Pennsylvania",
     legend: "Brown dashed line = official unpaved road", minZoom: 7
   },
   {
     id: "topo", name: "Topographic base", category: "base", status: "live",
-    source: "OpenTopoMap", freshness: "Provider tiles", coverage: "Global basemap",
+    source: "OpenTopoMap",
+    provenance: "OpenTopoMap tile service rendering OpenStreetMap data. CC-BY-SA. Tile freshness varies by region.",
+    dataCategory: "basemap-topo",
+    freshness: "Provider tiles", coverage: "Global basemap",
     legend: "Topographic map overlay", minZoom: 0
   },
   {
     id: "satellite", name: "Satellite imagery", category: "base", status: "live",
-    source: "Esri World Imagery", freshness: "Provider imagery updates", coverage: "Provider coverage",
+    source: "Esri World Imagery",
+    provenance: "Esri World Imagery tile service. Proprietary imagery with community-contributed updates. Resolution and age vary by location.",
+    dataCategory: "basemap-imagery",
+    freshness: "Provider imagery updates", coverage: "Provider coverage",
     legend: "Satellite image overlay", minZoom: 0
   },
   {
     id: "terrain", name: "Terrain and hillshade", category: "base", status: "live",
-    source: "USGS National Map", freshness: "Static terrain tiles", coverage: "United States",
+    source: "USGS National Map",
+    provenance: "USGS National Map shaded relief tiles. Public domain. Terrain is static — does not reflect recent earthworks or trail changes.",
+    dataCategory: "basemap-terrain",
+    freshness: "Static terrain tiles", coverage: "United States",
     legend: "Shaded relief overlay", minZoom: 8
   },
   {
     id: "public-land", name: "Protected and public land", category: "access", status: "live",
-    source: "OpenStreetMap protected-area tags", freshness: "Community-maintained", coverage: "Mapped areas",
+    source: "OpenStreetMap protected-area tags",
+    provenance: "OpenStreetMap boundary=protected_area and leisure=nature_reserve tags. Community-mapped; boundaries may be approximate. Not a legal determination.",
+    dataCategory: "access-boundary",
+    freshness: "Community-maintained", coverage: "Mapped areas",
     legend: "Green fill = mapped protected or public land", minZoom: 8
   },
   {
     id: "private-land", name: "Restricted-access context", category: "access", status: "live",
-    source: "OpenStreetMap access tags", freshness: "Community-maintained", coverage: "Mapped restrictions",
+    source: "OpenStreetMap access tags",
+    provenance: "OpenStreetMap access=private and access=no tags. Heuristic only — not parcel data, not legal boundaries. False positives and omissions occur.",
+    dataCategory: "access-boundary",
+    freshness: "Community-maintained", coverage: "Mapped restrictions",
     legend: "Red lines/areas = mapped private or no-access tags, not parcel ownership", minZoom: 11
   },
   {
     id: "mvum", name: "Forest-road access", category: "access", status: "live",
-    source: "OpenStreetMap US Forest Service tags", freshness: "Community-maintained", coverage: "Mapped forest roads",
+    source: "OpenStreetMap US Forest Service tags",
+    provenance: "OpenStreetMap motor_vehicle=yes/designated tags within USFS boundaries. Community-mapped approximation — always check the current MVUM.",
+    dataCategory: "access-mvum",
+    freshness: "Community-maintained", coverage: "Mapped forest roads",
     legend: "Green lines = mapped Forest Service roads; confirm current MVUM rules", minZoom: 9
   },
   {
     id: "closures", name: "Construction projects", category: "conditions", status: "live",
-    source: "OpenStreetMap construction tags", freshness: "Community-maintained", coverage: "Mapped road work",
+    source: "OpenStreetMap construction tags",
+    provenance: "OpenStreetMap highway=construction tags. Community-reported, not a live closure feed. A mapped construction zone may have already reopened.",
+    dataCategory: "conditions-construction",
+    freshness: "Community-maintained", coverage: "Mapped road work",
     legend: "Red markers = mapped road construction, not a live closure feed", minZoom: 9
   },
   {
     id: "traffic", name: "Traffic signals and restrictions", category: "conditions", status: "live",
-    source: "OpenStreetMap traffic-control tags", freshness: "Community-maintained", coverage: "Mapped controls",
+    source: "OpenStreetMap traffic-control tags",
+    provenance: "OpenStreetMap highway=traffic_signals and restriction relations. Community-mapped infrastructure, not real-time traffic data.",
+    dataCategory: "conditions-traffic",
+    freshness: "Community-maintained", coverage: "Mapped controls",
     legend: "Amber markers = mapped traffic controls; not real-time traffic", minZoom: 11
   },
   {
     id: "weather", name: "Active weather alerts", category: "conditions", status: "regional",
-    source: "National Weather Service", freshness: "Live alert feed", coverage: "United States",
+    source: "National Weather Service",
+    provenance: "National Weather Service (NWS) API alert feed. NOAA public data. Live within refresh window; subject to NWS update cadence and polygon precision.",
+    dataCategory: "conditions-weather",
+    freshness: "Live alert feed", coverage: "United States",
     legend: "Blue polygons = active NWS alert areas", minZoom: 5
   },
   {
     id: "fuel", name: "Fuel", category: "stops", status: "live",
-    source: "OpenStreetMap amenity data", freshness: "Community-maintained", coverage: "Mapped locations",
+    source: "OpenStreetMap amenity data",
+    provenance: "OpenStreetMap amenity=fuel nodes. Community-mapped point data. Hours, pricing, and availability are not tracked. Call ahead.",
+    dataCategory: "services-fuel",
+    freshness: "Community-maintained", coverage: "Mapped locations",
     legend: "Yellow marker = mapped fuel stop", minZoom: 10
   },
   {
     id: "food", name: "Food", category: "stops", status: "live",
-    source: "OpenStreetMap amenity data", freshness: "Community-maintained", coverage: "Mapped locations",
+    source: "OpenStreetMap amenity data",
+    provenance: "OpenStreetMap amenity=restaurant/fast_food/cafe nodes. Community-mapped point data. Hours and availability are not tracked.",
+    dataCategory: "services-food",
+    freshness: "Community-maintained", coverage: "Mapped locations",
     legend: "Orange marker = mapped food stop", minZoom: 10
   },
   {
     id: "camping", name: "Camping", category: "stops", status: "live",
-    source: "OpenStreetMap tourism data", freshness: "Community-maintained", coverage: "Mapped locations",
+    source: "OpenStreetMap tourism data",
+    provenance: "OpenStreetMap tourism=camp_site and tourism=caravan_site nodes. Community-mapped. Site type, fees, and seasonal availability are not tracked.",
+    dataCategory: "services-camping",
+    freshness: "Community-maintained", coverage: "Mapped locations",
     legend: "Green marker = mapped campground", minZoom: 9
   },
   {
     id: "lodging", name: "Lodging", category: "stops", status: "live",
-    source: "OpenStreetMap tourism data", freshness: "Community-maintained", coverage: "Mapped locations",
+    source: "OpenStreetMap tourism data",
+    provenance: "OpenStreetMap tourism=hotel/motel/guest_house nodes. Community-mapped point data. Rates, availability, and seasonal closures are not tracked.",
+    dataCategory: "services-lodging",
+    freshness: "Community-maintained", coverage: "Mapped locations",
     legend: "Purple marker = mapped lodging", minZoom: 10
   },
   {
     id: "repair", name: "Motorcycle and vehicle repair", category: "stops", status: "live",
-    source: "OpenStreetMap shop data", freshness: "Community-maintained", coverage: "Mapped locations",
+    source: "OpenStreetMap shop data",
+    provenance: "OpenStreetMap shop=motorcycle and shop=car_repair nodes. Community-mapped. Hours, services offered, and motorcycle-specific capability are not tracked.",
+    dataCategory: "services-repair",
+    freshness: "Community-maintained", coverage: "Mapped locations",
     legend: "Blue marker = mapped repair stop", minZoom: 10
   },
   {
     id: "cell-coverage", name: "Cell towers", category: "conditions", status: "live",
-    source: "OpenStreetMap communications tags", freshness: "Community-maintained", coverage: "Mapped towers",
+    source: "OpenStreetMap communications tags",
+    provenance: "OpenStreetMap man_made=mast and communication:mobile_phone=yes nodes. Tower locations only — not signal strength, not carrier availability, not a coverage guarantee.",
+    dataCategory: "conditions-connectivity",
+    freshness: "Community-maintained", coverage: "Mapped towers",
     legend: "Purple marker = mapped tower, not a coverage guarantee", minZoom: 9
   }
 ]

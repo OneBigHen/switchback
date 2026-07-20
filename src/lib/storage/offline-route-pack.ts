@@ -1,16 +1,15 @@
 import Dexie, { type EntityTable } from "dexie"
 import type { MapStyleId, RiderLayerId } from "@/lib/client/map-layers"
 import type { PlannedRoute, RouteInstruction } from "@/lib/routing/types"
+import type { OfflinePackManifest } from "@/lib/storage/offline-contracts"
 
 /**
  * Schema version of the persisted {@link OfflineRoutePack} payload.
  *
- * New saves always write the current version. Legacy packs persisted before
- * this field existed are stamped `1` by the Dexie v2 upgrade so that callers
- * can distinguish migrated records from freshly authored packs and interpret
- * the payload accordingly.
+ * New saves always write the current version. Legacy packs are upgraded in
+ * place and retain follow-saved-route semantics until graph data lands.
  */
-export const OFFLINE_ROUTE_PACK_SCHEMA_VERSION = 2
+export const OFFLINE_ROUTE_PACK_SCHEMA_VERSION = 3
 
 /**
  * Default window after `updatedAt` during which a pack is still "fresh".
@@ -34,6 +33,26 @@ export interface OfflineRoutePackFreshness {
   readonly expiresAt: string
 }
 
+type OfflineRoutePackRoutingCapability = OfflinePackManifest["routingCapability"]
+type OfflineRoutePackLegalAccessProvenance = OfflinePackManifest["legalAccessProvenance"][number]
+
+export interface OfflineRoutePackV2Shape {
+  id: string
+  routeId: string
+  routeName: string
+  createdAt: string
+  updatedAt: string
+  mapStyle: MapStyleId
+  routeVisibility: "standard" | "high-contrast"
+  activeLayerIds: RiderLayerId[]
+  route: PlannedRoute
+  cues: RouteInstruction[]
+  navigationMode: "follow-saved-route"
+  schemaVersion: number
+  estimatedBytes: number
+  freshness: OfflineRoutePackFreshness
+}
+
 export interface OfflineRoutePack {
   id: string
   routeId: string
@@ -52,6 +71,14 @@ export interface OfflineRoutePack {
   estimatedBytes: number
   /** Freshness and expiry window used to derive user-visible expiry state. */
   freshness: OfflineRoutePackFreshness
+  routingCapability?: OfflineRoutePackRoutingCapability
+  corridorWidthMeters?: number
+  maxGraphBudgetBytes?: number
+  graphManifestVersion?: string | null
+  legalAccessProvenance?: OfflineRoutePackLegalAccessProvenance[] | null
+  segmentsCount?: number
+  /** Serialized corridor graph enabling offline routing. Stored inline so packs are self-contained. */
+  corridorGraph?: string | null
 }
 
 export interface OfflineRoutePackInput {
@@ -63,6 +90,16 @@ export interface OfflineRoutePackInput {
   freshnessTtlMillis?: number
   /** Overrides the default window after which the pack is considered expired. */
   freshnessExpiryMillis?: number
+  /** Optional corridor graph data that upgrades the pack to in-corridor-routing capability. */
+  corridor?: {
+    graph: OfflinePackManifest["segments"][number][]
+    corridorWidthMeters: number
+    maxGraphBudgetBytes: number
+    graphManifestVersion: string
+    legalAccessProvenance: OfflinePackManifest["legalAccessProvenance"]
+    segmentsCount: number
+    serializedGraph: string
+  }
 }
 
 /**
@@ -78,6 +115,37 @@ export function estimateOfflineRoutePackBytes(
   pack: Readonly<Omit<OfflineRoutePack, "estimatedBytes">>
 ): number {
   return new TextEncoder().encode(JSON.stringify(pack)).byteLength
+}
+
+export function migrateOfflineRoutePackV2toV3(
+  pack: Readonly<OfflineRoutePackV2Shape>
+): OfflineRoutePack {
+  const basePack: Omit<OfflineRoutePack, "estimatedBytes"> = {
+    id: pack.id,
+    routeId: pack.routeId,
+    routeName: pack.routeName,
+    createdAt: pack.createdAt,
+    updatedAt: pack.updatedAt,
+    mapStyle: pack.mapStyle,
+    routeVisibility: pack.routeVisibility,
+    activeLayerIds: [...pack.activeLayerIds],
+    route: structuredClone(pack.route),
+    cues: structuredClone(pack.cues),
+    navigationMode: pack.navigationMode,
+    schemaVersion: OFFLINE_ROUTE_PACK_SCHEMA_VERSION,
+    freshness: structuredClone(pack.freshness),
+    routingCapability: "follow-saved-route",
+    corridorWidthMeters: 0,
+    maxGraphBudgetBytes: 0,
+    graphManifestVersion: null,
+    legalAccessProvenance: [],
+    segmentsCount: 0,
+    corridorGraph: null
+  }
+  return {
+    ...basePack,
+    estimatedBytes: estimateOfflineRoutePackBytes(basePack)
+  }
 }
 
 /**
@@ -132,6 +200,13 @@ class OfflineRoutePackDatabase extends Dexie {
           }
         })
       ))
+    this.version(3)
+      .stores({ packs: "&id, routeId, updatedAt, createdAt" })
+      .upgrade((transaction) => (
+        transaction.table("packs").toCollection().modify((pack: OfflineRoutePackV2Shape) => {
+          Object.assign(pack, migrateOfflineRoutePackV2toV3(pack))
+        })
+      ))
   }
 }
 
@@ -169,11 +244,16 @@ export class OfflineRoutePackLibrary {
       activeLayerIds: [...new Set(input.activeLayerIds)],
       route: structuredClone(input.route),
       cues: structuredClone(input.route.instructions),
-      // Offline packs are intentionally limited to the verified route/cues.
-      // They never claim to provide a stale or unverified rerouting engine.
-      navigationMode: "follow-saved-route",
+      navigationMode: input.corridor ? "follow-saved-route" : "follow-saved-route",
       schemaVersion: OFFLINE_ROUTE_PACK_SCHEMA_VERSION,
-      freshness: { ttlMillis, expiresAt }
+      freshness: { ttlMillis, expiresAt },
+      routingCapability: input.corridor ? "in-corridor-routing" : "follow-saved-route",
+      corridorWidthMeters: input.corridor?.corridorWidthMeters ?? 0,
+      maxGraphBudgetBytes: input.corridor?.maxGraphBudgetBytes ?? 0,
+      graphManifestVersion: input.corridor?.graphManifestVersion ?? null,
+      legalAccessProvenance: input.corridor?.legalAccessProvenance ? [...input.corridor.legalAccessProvenance] : [],
+      segmentsCount: input.corridor?.segmentsCount ?? 0,
+      corridorGraph: input.corridor?.serializedGraph ?? null
     }
     const pack: OfflineRoutePack = {
       ...basePack,

@@ -11,7 +11,7 @@ import type { PlaceResult } from "@/lib/geocoding/photon"
 
 export type RejoinPolicy =
   | "nearest-safe"
-  | "next-shaping"
+  | "next-shaping-point"
   | "skip-point"
   | "preserve-original"
   | "fuel-detour"
@@ -66,7 +66,7 @@ export function RideRecoveryActions({
           <small>Return to closest point on the route</small>
         </span>
       </button>
-      <button type="button" className="reroute-option" onClick={() => onRequestRejoin("next-shaping")}>
+      <button type="button" className="reroute-option" onClick={() => onRequestRejoin("next-shaping-point")}>
         <span className="reroute-option-icon" aria-hidden="true"><Path weight="fill" /></span>
         <span className="reroute-option-text">
           <strong>Next stop</strong>

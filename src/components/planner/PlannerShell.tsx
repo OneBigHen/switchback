@@ -28,6 +28,7 @@ import { TripPlanLibrary } from "@/lib/storage/trip-plan-library"
 import { createTripPlan } from "@/lib/trip/trip-plan"
 import type { TripPlan as SavedTripPlan } from "@/lib/trip/trip-plan"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
+import { buildOfflinePackCorridor } from "@/lib/client/offline-pack-coordinator"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
 import { LibraryDrawer } from "./LibraryDrawer"
@@ -42,6 +43,7 @@ import { usePlannerRideResearch } from "./usePlannerRideResearch"
 import { usePlannerLocationSeed } from "./usePlannerLocationSeed"
 import { usePlannerRideActions } from "./usePlannerRideActions"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
+import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
 
 function normalizedSegmentProfiles(
   profiles: RouteProfileId[],
@@ -545,143 +547,155 @@ export function PlannerShell() {
 
       {surface !== "ride" && !sketching ? (
         <PlannerDeck
-          start={start}
-          finish={finish}
-          startQuery={startQuery}
-          finishQuery={finishQuery}
-          armedPoint={armedPoint}
-          profile={profile}
-          status={status}
-          error={error}
-          curvatureVisible={curvatureVisible}
-          avoidHighways={avoidHighways}
-          savedCount={savedRoutes.length + projectRoutes.length}
-          via={via}
-          addingVia={addingVia}
-          segmentProfiles={activeSegmentProfiles}
-          avoidAreaCount={avoidAreas.length}
-          canUndoRoutePoints={canUndoRoutePoints}
-          canRedoRoutePoints={canRedoRoutePoints}
-          planMode={planMode}
-          targetMinutes={targetMinutes}
-          intentStatus={intentStatus}
-          intentSummary={intentSummary}
-          stopIdeas={stopIdeas}
-          researchStatus={researchStatus}
-          researchSources={researchSources}
-          selectedRoute={selectedRoute}
-          home={home}
-          onPointChange={handlePointChange}
-          onPointQueryChange={(id, query) => {
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().setPointQuery(id, query)
-          }}
-          onArm={(id) => {
-            setAddingVia(false)
-            usePlannerStore.getState().armPoint(armedPoint === id ? null : id)
-          }}
-          onSwap={() => {
-            if (start && finish) {
-              routeRequestGate.invalidate()
-              usePlannerStore.getState().reverseRoutePoints("destination")
-              void handlePlan()
+          viewModel={buildPlannerDeckViewModel({
+            start,
+            finish,
+            startQuery,
+            finishQuery,
+            armedPoint,
+            profile,
+            status,
+            error,
+            curvatureVisible,
+            avoidHighways,
+            savedCount: savedRoutes.length + projectRoutes.length,
+            via,
+            addingVia,
+            segmentProfiles: activeSegmentProfiles,
+            avoidAreaCount: avoidAreas.length,
+            canUndoRoutePoints,
+            canRedoRoutePoints,
+            planMode,
+            targetMinutes,
+            intentStatus,
+            intentSummary,
+            stopIdeas,
+            researchStatus,
+            researchSources,
+            selectedRoute,
+            home
+          })}
+          commands={{
+            waypoint: {
+              onPointChange: handlePointChange,
+              onPointQueryChange: (id, query) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().setPointQuery(id, query)
+              },
+              onArm: (id) => {
+                setAddingVia(false)
+                usePlannerStore.getState().armPoint(armedPoint === id ? null : id)
+              },
+              onSwap: () => {
+                if (start && finish) {
+                  routeRequestGate.invalidate()
+                  usePlannerStore.getState().reverseRoutePoints("destination")
+                  void handlePlan()
+                }
+              },
+              onToggleAddVia: () => {
+                usePlannerStore.getState().armPoint(null)
+                setAddingVia((active) => !active)
+              },
+              onRemoveVia: (index) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().removeVia(index)
+                void handlePlan()
+              },
+              onMoveVia: (fromIndex, toIndex) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().moveVia(fromIndex, toIndex)
+                void handlePlan()
+              },
+              onReverseRoute: () => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().reverseRoutePoints(planMode)
+                void handlePlan()
+              },
+              onUndoRoutePoints: () => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().undoRoutePoints()
+                void handlePlan()
+              },
+              onRedoRoutePoints: () => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().redoRoutePoints()
+                void handlePlan()
+              },
+              onToggleViaLock: (index) => {
+                routeRequestGate.invalidate()
+                const current = usePlannerStore.getState()
+                const point = current.via[index]
+                if (!point) return
+                current.updateVia(index, { ...point, locked: !point.locked })
+              }
+            },
+            rideConfig: {
+              onProfileChange: (nextProfile) => {
+                if (nextProfile === usePlannerStore.getState().profile) return
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().setProfile(nextProfile)
+              },
+              onCurvatureChange: (visible) => {
+                usePlannerStore.getState().setCurvatureVisible(visible)
+                setRiderLayers((layers) => layers.map((layer) => layer.id === "curvature" ? { ...layer, visible } : layer))
+              },
+              onAvoidHighwaysChange: (avoid) => {
+                routeRequestGate.invalidate()
+                setAvoidHighways(avoid)
+              },
+              onPlanModeChange: (mode) => {
+                routeRequestGate.invalidate()
+                setPlanMode(mode)
+                setIntentSummary(null)
+              },
+              onTargetMinutesChange: (minutes) => {
+                routeRequestGate.invalidate()
+                setTargetMinutes(minutes)
+              },
+              onSegmentProfileChange: (index, nextProfile) => {
+                routeRequestGate.invalidate()
+                setSegmentProfiles((profiles) => {
+                  const next = normalizedSegmentProfiles(profiles, via.length + 1, profile)
+                  next[index] = nextProfile
+                  return next
+                })
+              },
+              onRemoveAvoidArea: () => {
+                routeRequestGate.invalidate()
+                setAvoidAreas((areas) => areas.slice(0, -1))
+              }
+            },
+            intent: {
+              onRidePrompt: (prompt) => void handleRidePrompt(prompt),
+              onChooseStopIdea: (stop) => void handleChooseStopIdea(stop),
+              onResearchRideIdea: (prompt) => void handleRideResearch(prompt)
+            },
+            onClearRoute: handleClearRoute,
+            onPlan: () => void handlePlan(),
+            onUseHome: useHome,
+            onSaveHome: () => saveHome(start),
+            onClearHome: clearHome,
+            onOpenLibrary: () => usePlannerStore.getState().setSurface("library"),
+            onStartRide: (route) => void handleStartRide(route),
+            onSaveOffline: (route) => {
+              void buildOfflinePackCorridor(route).then(() => {
+                return offlinePackLibraryRef.current!.save({
+                  route,
+                  mapStyle,
+                  routeVisibility,
+                  activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
+                })
+              }).then(() => {
+                setNotice({
+                  kind: "success",
+                  message: "Offline route pack saved: route, cues, and active map setup are ready for recovery."
+                })
+              }).catch((caught) => setNotice({
+                kind: "warning",
+                message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
+              }))
             }
-          }}
-          onProfileChange={(nextProfile) => {
-            if (nextProfile === usePlannerStore.getState().profile) return
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().setProfile(nextProfile)
-          }}
-          onCurvatureChange={(visible) => {
-            usePlannerStore.getState().setCurvatureVisible(visible)
-            setRiderLayers((layers) => layers.map((layer) => layer.id === "curvature" ? { ...layer, visible } : layer))
-          }}
-          onAvoidHighwaysChange={(avoid) => {
-            routeRequestGate.invalidate()
-            setAvoidHighways(avoid)
-          }}
-          onPlanModeChange={(mode) => {
-            routeRequestGate.invalidate()
-            setPlanMode(mode)
-            setIntentSummary(null)
-          }}
-          onTargetMinutesChange={(minutes) => {
-            routeRequestGate.invalidate()
-            setTargetMinutes(minutes)
-          }}
-          onRidePrompt={(prompt) => void handleRidePrompt(prompt)}
-          onChooseStopIdea={(stop) => void handleChooseStopIdea(stop)}
-          onResearchRideIdea={(prompt) => void handleRideResearch(prompt)}
-          onToggleAddVia={() => {
-            usePlannerStore.getState().armPoint(null)
-            setAddingVia((active) => !active)
-          }}
-          onSegmentProfileChange={(index, nextProfile) => {
-            routeRequestGate.invalidate()
-            setSegmentProfiles((profiles) => {
-              const next = normalizedSegmentProfiles(profiles, via.length + 1, profile)
-              next[index] = nextProfile
-              return next
-            })
-          }}
-          onToggleViaLock={(index) => {
-            routeRequestGate.invalidate()
-            const current = usePlannerStore.getState()
-            const point = current.via[index]
-            if (!point) return
-            current.updateVia(index, { ...point, locked: !point.locked })
-          }}
-          onRemoveAvoidArea={() => {
-            routeRequestGate.invalidate()
-            setAvoidAreas((areas) => areas.slice(0, -1))
-          }}
-          onRemoveVia={(index) => {
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().removeVia(index)
-            void handlePlan()
-          }}
-          onMoveVia={(fromIndex, toIndex) => {
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().moveVia(fromIndex, toIndex)
-            void handlePlan()
-          }}
-          onReverseRoute={() => {
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().reverseRoutePoints(planMode)
-            void handlePlan()
-          }}
-          onUndoRoutePoints={() => {
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().undoRoutePoints()
-            void handlePlan()
-          }}
-          onRedoRoutePoints={() => {
-            routeRequestGate.invalidate()
-            usePlannerStore.getState().redoRoutePoints()
-            void handlePlan()
-          }}
-          onClearRoute={handleClearRoute}
-          onPlan={() => void handlePlan()}
-          onUseHome={useHome}
-          onSaveHome={() => saveHome(start)}
-          onClearHome={clearHome}
-          onOpenLibrary={() => usePlannerStore.getState().setSurface("library")}
-          onStartRide={(route) => void handleStartRide(route)}
-          onSaveOffline={(route) => {
-            void offlinePackLibraryRef.current!.save({
-              route,
-              mapStyle,
-              routeVisibility,
-              activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
-            }).then(() => {
-              setNotice({
-                kind: "success",
-                message: "Offline route pack saved: route, cues, and active map setup are ready for recovery."
-              })
-            }).catch((caught) => setNotice({
-              kind: "warning",
-              message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
-            }))
           }}
         >
           {routes.length > 0 && selectedRouteId ? (

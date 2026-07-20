@@ -79,49 +79,53 @@ vi.mock("@/components/planner/RideHud", () => ({ RideHud: () => null }))
 vi.mock("@/components/planner/RouteComparison", () => ({ RouteComparison: () => null }))
 vi.mock("@/components/planner/PlannerDeck", () => ({
   PlannerDeck: ({
-    onRidePrompt,
-    onChooseStopIdea,
-    onClearRoute,
-    onMoveVia,
-    onReverseRoute,
-    onUndoRoutePoints,
-    onRedoRoutePoints,
-    onResearchRideIdea,
-    onStartRide,
-    researchSources,
-    selectedRoute,
+    viewModel,
+    commands,
     children
   }: {
-    onRidePrompt(prompt: string): void
-    onChooseStopIdea(stop: Waypoint): void
-    onClearRoute(): void
-    onMoveVia(fromIndex: number, toIndex: number): void
-    onReverseRoute(): void
-    onUndoRoutePoints(): void
-    onRedoRoutePoints(): void
-    onResearchRideIdea(prompt: string): void
-    onStartRide?(route: PlannedRoute): void
-    selectedRoute?: PlannedRoute | null
-    researchSources: RideResearchSource[]
+    viewModel: {
+      intent: { researchSources: RideResearchSource[] }
+      ui: { selectedRoute?: PlannedRoute | null }
+    }
+    commands: {
+      intent: {
+        onRidePrompt(prompt: string): void
+        onChooseStopIdea(stop: Waypoint): void
+        onResearchRideIdea(prompt: string): void
+      }
+      waypoint: {
+        onMoveVia(fromIndex: number, toIndex: number): void
+        onReverseRoute(): void
+        onUndoRoutePoints(): void
+        onRedoRoutePoints(): void
+      }
+      onClearRoute(): void
+      onStartRide?(route: PlannedRoute): void
+    }
     children?: ReactNode
-  }) => (
-    <section>
-      <button type="button" onClick={() => onRidePrompt("test ride request")}>Plan prompt</button>
-      <button type="button" onClick={() => onChooseStopIdea({ lat: 40.42, lon: -76.68, label: "Trailhead Brewing" })}>Choose stop idea</button>
-      <button type="button" onClick={onClearRoute}>Clear test route</button>
-      <button type="button" onClick={() => onMoveVia(1, 0)}>Move second stop</button>
-      <button type="button" onClick={onReverseRoute}>Reverse route</button>
-      <button type="button" onClick={onUndoRoutePoints}>Undo edit</button>
-      <button type="button" onClick={onRedoRoutePoints}>Redo edit</button>
-      <button type="button" onClick={() => onResearchRideIdea("first request")}>Research first request</button>
-      <button type="button" onClick={() => onResearchRideIdea("second request")}>Research second request</button>
-      <output data-testid="research-source-count">{researchSources.length}</output>
-      {onStartRide && selectedRoute ? (
-        <button type="button" onClick={() => onStartRide(selectedRoute)}>Start test ride</button>
-      ) : null}
-      {children}
-    </section>
-  )
+  }) => {
+    const researchSources = viewModel.intent.researchSources
+    const selectedRoute = viewModel.ui.selectedRoute ?? null
+    const { intent, waypoint, onClearRoute, onStartRide } = commands
+    return (
+      <section>
+        <button type="button" onClick={() => intent.onRidePrompt("test ride request")}>Plan prompt</button>
+        <button type="button" onClick={() => intent.onChooseStopIdea({ lat: 40.42, lon: -76.68, label: "Trailhead Brewing" })}>Choose stop idea</button>
+        <button type="button" onClick={onClearRoute}>Clear test route</button>
+        <button type="button" onClick={() => waypoint.onMoveVia(1, 0)}>Move second stop</button>
+        <button type="button" onClick={waypoint.onReverseRoute}>Reverse route</button>
+        <button type="button" onClick={waypoint.onUndoRoutePoints}>Undo edit</button>
+        <button type="button" onClick={waypoint.onRedoRoutePoints}>Redo edit</button>
+        <button type="button" onClick={() => intent.onResearchRideIdea("first request")}>Research first request</button>
+        <button type="button" onClick={() => intent.onResearchRideIdea("second request")}>Research second request</button>
+        <output data-testid="research-source-count">{researchSources.length}</output>
+        {onStartRide && selectedRoute ? (
+          <button type="button" onClick={() => onStartRide(selectedRoute)}>Start test ride</button>
+        ) : null}
+        {children}
+      </section>
+    )
+  }
 }))
 
 const route: PlannedRoute = {

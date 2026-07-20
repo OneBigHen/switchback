@@ -25,15 +25,15 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from "react"
-import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
-import type { RideResearchSource } from "@/lib/ai/ride-research"
 import { listProfiles } from "@/lib/routing/profiles"
-import type { PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
-import type { PlannerError, PlannerPointId, PlannerStatus } from "@/stores/planner-store"
+import type { RouteProfileId } from "@/lib/routing/types"
 import { WaypointField } from "./WaypointField"
+import type {
+  PlannerDeckCommands,
+  PlannerDeckViewModel
+} from "./PlannerDeckViewModel"
 
-export type PlanMode = "destination" | "loop"
-export type RideIntentStatus = "idle" | "interpreting"
+export type { PlanMode, RideIntentStatus } from "./PlannerDeckViewModel"
 
 interface VoiceRecognitionResultEvent {
   results: ArrayLike<ArrayLike<{ transcript: string }>>
@@ -50,122 +50,78 @@ interface VoiceRecognition {
 type VoiceRecognitionConstructor = new () => VoiceRecognition
 
 interface PlannerDeckProps {
-  start: Waypoint | null
-  finish: Waypoint | null
-  startQuery: string
-  finishQuery: string
-  armedPoint: PlannerPointId | null
-  profile: RouteProfileId
-  status: PlannerStatus
-  error: PlannerError | null
-  curvatureVisible: boolean
-  avoidHighways: boolean
-  savedCount: number
-  via: Waypoint[]
-  addingVia: boolean
-  segmentProfiles: RouteProfileId[]
-  avoidAreaCount: number
-  canUndoRoutePoints: boolean
-  canRedoRoutePoints: boolean
-  planMode: PlanMode
-  targetMinutes: number
-  intentStatus: RideIntentStatus
-  intentSummary: string | null
-  stopIdeas: PlaceIdeasResult | null
-  researchStatus: "idle" | "researching"
-  researchSources: RideResearchSource[]
-  selectedRoute?: PlannedRoute | null
-  home?: Waypoint | null
-  onPointChange(id: PlannerPointId, point: Waypoint): void
-  onPointQueryChange(id: PlannerPointId, query: string): void
-  onArm(id: PlannerPointId): void
-  onSwap(): void
-  onProfileChange(profile: RouteProfileId): void
-  onCurvatureChange(visible: boolean): void
-  onAvoidHighwaysChange(avoid: boolean): void
-  onPlanModeChange(mode: PlanMode): void
-  onTargetMinutesChange(minutes: number): void
-  onRidePrompt(prompt: string): void
-  onChooseStopIdea(stop: Waypoint): void
-  onResearchRideIdea(prompt: string): void
-  onToggleAddVia(): void
-  onRemoveVia(index: number): void
-  onMoveVia(fromIndex: number, toIndex: number): void
-  onReverseRoute(): void
-  onUndoRoutePoints(): void
-  onRedoRoutePoints(): void
-  onSegmentProfileChange(index: number, profile: RouteProfileId): void
-  onToggleViaLock(index: number): void
-  onRemoveAvoidArea(): void
-  onClearRoute(): void
-  onPlan(): void
-  onOpenLibrary(): void
-  onUseHome?(): void
-  onSaveHome?(): void
-  onClearHome?(): void
-  onStartRide?(route: PlannedRoute): void
-  onSaveOffline?(route: PlannedRoute): void
+  viewModel: PlannerDeckViewModel
+  commands: PlannerDeckCommands
   children?: ReactNode
 }
 
-export function PlannerDeck({
-  start,
-  finish,
-  startQuery,
-  finishQuery,
-  armedPoint,
-  profile,
-  status,
-  error,
-  curvatureVisible,
-  avoidHighways,
-  savedCount,
-  via,
-  addingVia,
-  segmentProfiles,
-  avoidAreaCount,
-  canUndoRoutePoints,
-  canRedoRoutePoints,
-  planMode,
-  targetMinutes,
-  intentStatus,
-  intentSummary,
-  stopIdeas,
-  researchStatus,
-  researchSources,
-  selectedRoute = null,
-  home = null,
-  onPointChange,
-  onPointQueryChange,
-  onArm,
-  onSwap,
-  onProfileChange,
-  onCurvatureChange,
-  onAvoidHighwaysChange,
-  onPlanModeChange,
-  onTargetMinutesChange,
-  onRidePrompt,
-  onChooseStopIdea,
-  onResearchRideIdea,
-  onToggleAddVia,
-  onRemoveVia,
-  onMoveVia,
-  onReverseRoute,
-  onUndoRoutePoints,
-  onRedoRoutePoints,
-  onSegmentProfileChange,
-  onToggleViaLock,
-  onRemoveAvoidArea,
-  onClearRoute,
-  onPlan,
-  onOpenLibrary,
-  onUseHome,
-  onSaveHome,
-  onClearHome,
-  onStartRide,
-  onSaveOffline,
-  children
-}: PlannerDeckProps) {
+export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps) {
+  /* ── viewModel destructuring ── */
+  const { waypoint, rideConfig, intent, ui } = viewModel
+
+  const start = waypoint.start
+  const finish = waypoint.finish
+  const startQuery = waypoint.startQuery
+  const finishQuery = waypoint.finishQuery
+  const armedPoint = waypoint.armedPoint
+  const via = waypoint.via
+  const addingVia = waypoint.addingVia
+  const canUndoRoutePoints = waypoint.canUndoRoutePoints
+  const canRedoRoutePoints = waypoint.canRedoRoutePoints
+
+  const profile = rideConfig.profile
+  const status = ui.status
+  const error = ui.error
+  const curvatureVisible = rideConfig.curvatureVisible
+  const avoidHighways = rideConfig.avoidHighways
+  const savedCount = ui.savedCount
+  const segmentProfiles = rideConfig.segmentProfiles
+  const avoidAreaCount = rideConfig.avoidAreaCount
+  const planMode = rideConfig.planMode
+  const targetMinutes = rideConfig.targetMinutes
+  const intentStatus = intent.intentStatus
+  const intentSummary = intent.intentSummary
+  const stopIdeas = intent.stopIdeas
+  const researchStatus = intent.researchStatus
+  const researchSources = intent.researchSources
+  const selectedRoute = ui.selectedRoute ?? null
+  const home = ui.home ?? null
+
+  /* ── commands destructuring ── */
+  const { waypoint: wc, rideConfig: rc, intent: ic } = commands
+
+  const onPointChange = wc.onPointChange
+  const onPointQueryChange = wc.onPointQueryChange
+  const onArm = wc.onArm
+  const onSwap = wc.onSwap
+  const onToggleAddVia = wc.onToggleAddVia
+  const onRemoveVia = wc.onRemoveVia
+  const onMoveVia = wc.onMoveVia
+  const onReverseRoute = wc.onReverseRoute
+  const onUndoRoutePoints = wc.onUndoRoutePoints
+  const onRedoRoutePoints = wc.onRedoRoutePoints
+  const onToggleViaLock = wc.onToggleViaLock
+
+  const onProfileChange = rc.onProfileChange
+  const onCurvatureChange = rc.onCurvatureChange
+  const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
+  const onPlanModeChange = rc.onPlanModeChange
+  const onTargetMinutesChange = rc.onTargetMinutesChange
+  const onSegmentProfileChange = rc.onSegmentProfileChange
+  const onRemoveAvoidArea = rc.onRemoveAvoidArea
+
+  const onRidePrompt = ic.onRidePrompt
+  const onChooseStopIdea = ic.onChooseStopIdea
+  const onResearchRideIdea = ic.onResearchRideIdea
+
+  const onClearRoute = commands.onClearRoute
+  const onPlan = commands.onPlan
+  const onOpenLibrary = commands.onOpenLibrary
+  const onUseHome = commands.onUseHome
+  const onSaveHome = commands.onSaveHome
+  const onClearHome = commands.onClearHome
+  const onStartRide = commands.onStartRide
+  const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
   const [minimized, setMinimized] = useState(false)
   const [editing, setEditing] = useState(false)

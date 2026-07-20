@@ -1,4 +1,5 @@
 import type { PaUnpavedRoadEvidence } from "@/lib/roads/types"
+import type { RoadLock } from "@/lib/roads/road-locks"
 
 export type Coordinate = [longitude: number, latitude: number]
 
@@ -29,6 +30,14 @@ export interface RouteRequest {
     seed?: number
     heading?: number
   }
+  /**
+   * Active road locks for this plan. Locks preserve rider intent across
+   * replans and graph updates: a `must` lock invalidates the route when
+   * the corridor cannot be legally included, while a `prefer` lock
+   * rewards the corridor without forbidding detours. Legal access and
+   * active closures always override locks (see lock-precedence.ts).
+   */
+  roadLocks?: RoadLock[]
 }
 
 export interface RouteInstruction {
