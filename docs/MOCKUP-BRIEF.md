@@ -1,6 +1,6 @@
 # Switchback UI Mockup Brief
 
-19 components across 3 surfaces. Use for AI mockup generation.
+28 components across 3 surfaces, plus 9 Wave B/C road-lock / data-quality / offline surfaces. Use for AI mockup generation.
 
 ## 3 Surfaces (orchestrated by PlannerShell)
 
@@ -290,6 +290,208 @@
 
 ---
 
+## 20–28. Wave B/C surfaces — road locks, data quality, offline, region suites
+
+> These surfaces ship from the §1–§8 wiring waves prior to reskin. All are mounted
+> inside PlannerShell and reuse tokens from `src/app/globals.css` plus the
+> road-lock palette in `src/app/styles/map-stage-road-locks.css`.
+
+### 20. RoadLockLibraryDrawer — Saved road locks modal
+
+**What:** Right-side modal drawer listing every `RoadLock` on the device plus the
+provenance icon, mode badge, source region, and quick edit/delete controls. Mounted
+from the planner action dock via the "Road locks" entry point.
+
+**States / elements:**
+- **Empty:** "No road locks" placeholder copy
+- **Has locks:** Rows with provenance icon (manual / gpx / image-trace), display name,
+  region chip, mode badge ("Must use" / "Prefer"), edit + delete buttons
+- **Pending delete:** Row switches to "Confirm delete" — locks must never disappear silently
+- **Editing:** Inline rename field + mode toggle + corridor widening control
+- **Filters:** Region, source, mode `<select>` filters; "Clear all" reset
+- **Library fetch error:** Inline alert, not modal
+- **Header:** "Road locks" title + close affordance; mobile collapses to bottom sheet
+
+**Tokens loaded (CSS module: `src/app/styles/road-lock-library-drawer.css`):**
+`--oled`, `--machined`, `--raised`, `--instrument`, `--metal`, `--line`, `--signal`,
+`--danger`, `--success`, `--road-lock-exact`, `--road-lock-matched`,
+`--road-lock-approximate`, `--road-lock-unresolved`.
+
+---
+
+### 21. MustLockUnresolvedPanel — Must-use lock failure recovery
+
+**What:** Modal `alertdialog` shown when a `must`-use lock could not be satisfied.
+Must never silently fall through to a route that omits the lock.
+
+**States:**
+- **Reasoned failure:** "<displayName> could not be included." headline + reason text
+- **Four recovery options:** "Try a wider match", "Convert to Prefer", "Remove lock",
+  "Restore previous route"
+- **Pending:** Option buttons disabled while action runs
+- **Previous route preserved:** Top-level reverse flag prevents planner-store overwrite
+
+**Tokens loaded (CSS module: `src/app/styles/must-lock-unresolved-panel.css`):**
+`--oled`, `--machined`, `--instrument`, `--metal`, `--line`, `--danger`,
+`--road-lock-approximate`, `--signal`, `--success`.
+
+---
+
+### 22. RoadLockImageOverlay — Image trace overlay tool
+
+**What:** Two/three-point georeferenced image overlay the rider traces freehand to
+create an `image-trace` provenance `RoadLock`. Local-only image bytes (never persisted,
+never redistributed).
+
+**States / panels:**
+- **Upload phase:** File input + accuracy statement banner + "I'll be careful" hint
+- **Align phase:** Image canvas + two-point control placement + transform sliders (translate / scale / rotate / opacity)
+- **Verify point:** Optional third control point confirming alignment
+- **Trace phase:** Freehand pixel polyline; matched OSM edges render as a separate
+  green / amber / red line below the image
+- **Done:** "Name (optional)" field + "Save road lock" button — bytes dropped after save
+- **Error:** Inline "Couldn't match the trace onto OSM roads" message
+
+**Tokens loaded (CSS module: `src/app/styles/road-lock-image-overlay.css`):**
+`--oled`, `--machined`, `--raised`, `--instrument`, `--metal`, `--line`, `--signal`,
+`--danger`, `--road-lock-exact`, `--road-lock-matched`, `--road-lock-approximate`,
+`--road-lock-unresolved`.
+
+---
+
+### 23. BikeProfilePicker — Motorcycle profile segmented control
+
+**What:** Inline `radiogroup` with rider-editable fields, surfaced inside `PlannerDeck`.
+
+**States:**
+- **Four options:** Street / Touring / Adventure / Dual-Sport, each with glyph + label
+  + one-line description; selected option borders `--signal`
+- **Fields collapsed:** "Edit bike profile fields" toggle button
+- **Fields expanded:** Fuel range + reserve + "allow maintained gravel" toggle +
+  rule summary (fuel range, disallowed surfaces, track types)
+- **Profile mismatch:** Small danger-tinted banner when route profile != selected profile
+
+**Tokens loaded (CSS module: `src/app/styles/bike-profile-picker.css`):**
+`--oled`, `--machined`, `--instrument`, `--metal`, `--line`, `--signal`,
+`--road-lock-approximate`.
+
+---
+
+### 24. RouteDataQualityPanel — Coverage bars + caveats
+
+**What:** Three-bar coverage summary appended to each route card. Headline = lowest
+of the three coverages.
+
+**States / elements:**
+- **Three bars:** Access / Surface / Condition coverage percentages; bar fill is data-driven
+  width via inline `style={{ width }}`; tier color via `[data-tier]` attribute
+- **Headline:** `XX% lowest coverage` styled by tier (strong ≥90 / warn ≥70 / weak)
+- **Seasonal badge:** Amber banner when `seasonalUncertainty` is true
+- **Caveats:** Each caveat as a warning row with phosphor icon — includes the
+  unknown-surface-mileage string ("Surface type is unknown for N.N miles of this route.")
+- **Footer:** "Source map updated: <date> | Unknown" with the region build date
+
+**Tokens loaded (CSS module: `src/app/styles/route-data-quality-panel.css`):**
+`--oled`, `--instrument`, `--metal`, `--line`, `--signal`, `--danger`, `--success`.
+
+---
+
+### 25. RegionSuitePicker — Region suite presets
+
+**What:** Radiogroup of three suites (Home Territory / Appalachia / Northeast) plus
+the individual regions each preset references.
+
+**States:**
+- **Selected suite:** Each preset is independently toggleable; selecting presets checks
+  every region they reference without bundling them — each region remains independently
+  downloadable / updateable / removable / versioned
+- **Recommended:** "Home Territory" carries a distinct chip and the default-active state
+- **Region list below:** Reuses the existing RegionDownloadsPanel region rows
+
+**Tokens loaded (CSS module: `src/app/styles/region-suite-picker.css`):**
+`--oled`, `--machined`, `--instrument`, `--metal`, `--line`, `--signal`, `--success`.
+
+---
+
+### 26. StorageQuotaMeter — Offline storage usage meter
+
+**What:** Inline panel inside `RegionDownloadsPanel` rendering current usage, projected
+usage, persistence status, and packages remaining.
+
+**States / elements:**
+- **Tier badge:** `[data-tier="normal"|"warn"|"strong-warn"|"block"]` mapped to
+  Healthy / High use / Near limit / Blocked
+- **Progress bar:** width set by `visibleFraction` via inline `style` (data-driven)
+- **Projection row:** Shows projected bytes after install + reason if blocked
+- **Persistence banner:** Persistent / non-persistent variant with "Request durable" CTA
+- **Error:** Inline "Could not request persistent storage."
+
+**Tokens loaded (CSS module: `src/app/styles/storage-quota-meter.css`):**
+`--oled`, `--instrument`, `--metal`, `--line`, `--success`, `--signal`, `--danger`.
+
+---
+
+### 27. DownloadModePicker — Three-choice offline level picker
+
+**What:** Radiogroup picking one of routing-only / full offline region / saved-ride corridor.
+
+**States:**
+- **Three options:** Three segmented cards with "Recommended" chip on the
+  saved-ride-corridor preset
+- **Corridor width:** Conditional radio group shown only when saved-ride-corridor is
+  selected — segmented by Street / Adventure / Multi-day with 10/20/30 miles defaults
+- **Summary:** "Half-width ≈ N meters" copy derived via `corridorMilesToHalfWidthMeters`
+
+**Tokens loaded (CSS module: `src/app/styles/download-mode-picker.css`):**
+`--oled`, `--machined`, `--instrument`, `--metal`, `--line`, `--signal`, `--success`.
+
+---
+
+### 28. RoadLockSatisfactionBadge + road-lock map surface
+
+**What:** (a) Skip-reason badge rendered on Prefer-lock routes that were skipped
+(no render if `skippedReason` is null); (b) Map-stage polylines for every RoadLock
+in the proposal, with a separate toggle button ("Lock a road" / "Cancel") that drops
+into a new lock draft.
+
+**States — badge:**
+- **Hidden:** No render when the lock is satisfied (preferred behaviour)
+- **Visible:** Phosphor `WarningCircle` + reason line ("Preferred road skipped because
+  it requires a 47-mile backtrack.")
+
+**States — map surface (`src/app/styles/map-stage-road-locks.css`):**
+- **Toggle button:** "Lock a road" (inactive) / "Cancel" (active)
+- **Draft panel:** Inline panel with step text ("Tap the start / end / name and save")
+  + mode picker (Must use / Prefer) + optional name field + Save / Cancel actions
+- **Match-state polylines:** Green `--road-lock-exact`, amber `--road-lock-matched`,
+  red `--road-lock-approximate`, dashed `--road-lock-unresolved`
+- **Drift arrows:** Small arrows when rematching moves the snap off the authored corridor
+
+**Tokens loaded (CSS module: `src/app/styles/map-stage-road-locks.css`):**
+`--oled`, `--machined`, `--instrument`, `--metal`, `--line`, `--signal`,
+`--road-lock-exact` (aliases `--success`), `--road-lock-matched` (aliases `--signal`),
+`--road-lock-approximate` (aliases `--danger`), `--road-lock-unresolved` (aliases `--danger`).
+
+---
+
+## Wave B/C design-token map
+
+| New surface | CSS module | Tokens loaded |
+|---|---|---|
+| RoadLockLibraryDrawer | `src/app/styles/road-lock-library-drawer.css` | `--oled --machined --raised --instrument --metal --line --signal --danger --success --road-lock-exact --road-lock-matched --road-lock-approximate --road-lock-unresolved` |
+| MustLockUnresolvedPanel | `src/app/styles/must-lock-unresolved-panel.css` | `--oled --machined --instrument --metal --line --danger --road-lock-approximate --signal --success` |
+| RoadLockImageOverlay | `src/app/styles/road-lock-image-overlay.css` | `--oled --machined --raised --instrument --metal --line --signal --danger --road-lock-exact --road-lock-matched --road-lock-approximate --road-lock-unresolved` |
+| BikeProfilePicker | `src/app/styles/bike-profile-picker.css` | `--oled --machined --instrument --metal --line --signal --road-lock-approximate` |
+| RouteDataQualityPanel | `src/app/styles/route-data-quality-panel.css` | `--oled --instrument --metal --line --signal --danger --success` |
+| RegionSuitePicker | `src/app/styles/region-suite-picker.css` | `--oled --machined --instrument --metal --line --signal --success` |
+| StorageQuotaMeter | `src/app/styles/storage-quota-meter.css` | `--oled --instrument --metal --line --success --signal --danger` |
+| DownloadModePicker | `src/app/styles/download-mode-picker.css` | `--oled --machined --instrument --metal --line --signal --success` |
+| RoadLockSatisfactionBadge + map surface | `src/app/styles/road-lock-satisfaction-badge.css` + `src/app/styles/map-stage-road-locks.css` | `--oled --machined --instrument --metal --line --signal --road-lock-exact --road-lock-matched --road-lock-approximate --road-lock-unresolved` |
+
+The road-lock palette is centralized in `src/app/styles/map-stage-road-locks.css` so reskin can re-theme every lock surface by editing that single file. Base tokens map: `--road-lock-exact` → `--success`, `--road-lock-matched` → `--signal`, `--road-lock-approximate` / `--road-lock-unresolved` → `--danger`.
+
+---
+
 ## Global states
 
 | State | Where |
@@ -300,3 +502,6 @@
 | **Map error** | MapStage — "The base map could not load" banner |
 | **No GPS** | RideHUD — error state with retry |
 | **Offline** | RideHUD + MapStage — uses corridor graph from pack, "follow-saved-route" or "in-corridor-routing" |
+| **Must-lock unresolved** | MustLockUnresolvedPanel — surfaces previous route, never silently drops the lock |
+| **Road lock badge** | PlannerDeck action dock — "Road locks" pill with count when one or more must-use locks active |
+| **Bike profile mismatch** | PlannerDeck action dock — small danger-tinted "Profile mismatch" hint |
