@@ -1,0 +1,297 @@
+.bike-profile-picker {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--oled);
+  color: var(--instrument);
+}
+
+.bike-profile-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bike-profile-picker-header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.bike-profile-picker-header .eyebrow {
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bike-profile-picker-header h3 {
+  margin: 0;
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.bike-profile-fields-toggle {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--metal);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.bike-profile-fields-toggle[aria-pressed="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+  background: rgb(243 106 45 / 12%);
+}
+
+.bike-profile-fields-toggle:hover,
+.bike-profile-fields-toggle:focus-visible {
+  border-color: rgb(243 239 230 / 32%);
+  color: var(--instrument);
+}
+
+.bike-profile-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--machined);
+}
+
+.bike-profile-option {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--metal);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.bike-profile-option:hover,
+.bike-profile-option:focus-visible {
+  border-color: rgb(243 239 230 / 22%);
+  color: var(--instrument);
+}
+
+.bike-profile-option.is-selected {
+  border-color: var(--signal);
+  background: rgb(243 106 45 / 12%);
+  color: var(--instrument);
+}
+
+.bike-profile-option-glyph {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 7px;
+  background: rgb(243 239 230 / 6%);
+  color: var(--metal);
+}
+
+.bike-profile-option.is-selected .bike-profile-option-glyph {
+  background: var(--signal);
+  color: var(--oled);
+}
+
+.bike-profile-option-glyph svg {
+  width: 13px;
+  height: 13px;
+}
+
+.bike-profile-option-text {
+  display: grid;
+  gap: 1px;
+}
+
+.bike-profile-option-text strong {
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.bike-profile-option-text small {
+  color: var(--metal);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.bike-profile-description {
+  margin: 0;
+  color: var(--metal);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.bike-profile-mismatch {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--road-lock-approximate);
+  border-radius: 8px;
+  background: rgb(227 93 84 / 8%);
+  color: var(--instrument);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.bike-profile-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bike-profile-field {
+  display: grid;
+  gap: 4px;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bike-profile-field input[type="number"] {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--oled);
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.bike-profile-field input[type="number"]:focus-visible {
+  border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.bike-profile-field-toggle {
+  grid-column: 1 / -1;
+  align-items: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bike-profile-field-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  accent-color: var(--signal);
+  cursor: pointer;
+}
+
+.bike-profile-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d100f;
+  list-style: none;
+}
+
+.bike-profile-summary li {
+  display: grid;
+  gap: 1px;
+  padding: 0 6px;
+  border-left: 1px solid var(--line);
+}
+
+.bike-profile-summary li:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.bike-profile-summary span {
+  color: var(--metal);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bike-profile-summary strong {
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 12px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.bike-profile-presets-hint {
+  margin: 0;
+  color: var(--metal);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .bike-profile-picker {
+    padding: 12px;
+  }
+
+  .bike-profile-segmented {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bike-profile-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bike-profile-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bike-profile-summary li {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 6px;
+  }
+
+  .bike-profile-summary li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .bike-profile-picker {
+    padding: 10px;
+    gap: 7px;
+  }
+
+  .bike-profile-option {
+    min-height: 44px;
+  }
+}
