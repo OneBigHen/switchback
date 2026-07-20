@@ -1,9 +1,9 @@
-import type { RouteCandidateEnricher, RouteProvider } from "@/lib/routing/planner"
+import type { RouteCandidateEnricher, RouteProvider, TripPlanRequest } from "@/lib/routing/planner"
 import { planMotorcycleTrip } from "@/lib/routing/planner"
 import { GraphHopperProviderError } from "@/lib/routing/graphhopper"
 import { ValhallaProviderError } from "@/lib/routing/valhalla"
 import {
-  number, string, boolean, enum_, object_, tuple, array,
+  number, string, boolean, enum_, literal, object_, tuple, array,
   optional, withDefault, safeParse, ValidationError
 } from "@/lib/validate"
 
@@ -25,6 +25,62 @@ const avoidAreaSchema = object_({
   polygon: array(coordinateSchema, { min: 3, max: 12 })
 })
 
+const ROAD_LOCK_MODES = ["must", "prefer"] as const
+const ROAD_LOCK_PROVENANCES = ["manual", "gpx", "image-trace", "rematched"] as const
+const ROAD_LOCK_CONFIDENCES = ["exact", "matched", "approximate"] as const
+const BIKE_PROFILE_CATEGORIES = ["street", "touring", "adventure", "dual-sport"] as const
+
+const roadAccessConditionSchema = object_({
+  sourceKey: string({ max: 120 }),
+  raw: string({ max: 500 }),
+  isOpen: boolean(),
+  reason: string({ max: 300 })
+}, { passthrough: true })
+
+const roadAccessSnapshotSchema = object_({
+  highwayClass: string({ max: 40 }),
+  motorcycleAccess: string({ max: 30 }),
+  generalAccess: string({ max: 30 }),
+  surface: string({ max: 40 }),
+  smoothness: string({ max: 40 }),
+  tracktype: string({ max: 40 }),
+  maxweightTonnes: optional(number({ min: 0, max: 1000 })),
+  seasonalUndated: withDefault(optional(boolean()), false),
+  activeConditions: withDefault(optional(array(roadAccessConditionSchema, { max: 32 })), []),
+  routable: withDefault(optional(boolean()), true)
+}, { passthrough: true })
+
+const roadLockSchema = object_({
+  id: string({ trim: true, min: 1, max: 120 }),
+  mode: enum_(ROAD_LOCK_MODES),
+  displayName: optional(string({ trim: true, max: 160 })),
+  edgeIds: withDefault(array(string({ max: 200 }), { max: 5_000 }), []),
+  geometry: object_({
+    type: literal("LineString"),
+    coordinates: array(coordinateSchema, { min: 2, max: 50_000 })
+  }),
+  orderedAnchors: array(coordinateSchema, { min: 2, max: 200 }),
+  fallbackToleranceMeters: number({ min: 1, max: 5_000 }),
+  source: enum_(ROAD_LOCK_PROVENANCES),
+  confidence: enum_(ROAD_LOCK_CONFIDENCES),
+  sourceRegionId: string({ trim: true, min: 1, max: 80 }),
+  sourceGraphVersion: string({ trim: true, min: 1, max: 120 }),
+  accessSnapshot: roadAccessSnapshotSchema,
+  createdAt: string({ max: 80 }),
+  rematchedAt: optional(string({ max: 80 }))
+}, { passthrough: true })
+
+const bikeProfileSchema = object_({
+  name: string({ trim: true, min: 1, max: 80 }),
+  category: enum_(BIKE_PROFILE_CATEGORIES),
+  wetWeightKg: optional(number({ min: 0, max: 1_000 })),
+  fuelRangeMiles: number({ min: 1, max: 1_000 }),
+  reserveMiles: number({ min: 0, max: 500 }),
+  allowMaintainedGravel: boolean(),
+  allowRoughTracks: boolean(),
+  avoidUnknownSurface: boolean()
+}, { passthrough: true })
+
 const PROFILES = ["quick", "twisty", "scenic", "adventure"] as const
 
 const routeRequestSchema = object_({
@@ -39,8 +95,10 @@ const routeRequestSchema = object_({
     targetMinutes: number({ int: true, min: 20, max: 480 }),
     seed: optional(number({ int: true, min: 0, max: 999_999 })),
     heading: optional(number({ min: 0, max: 359.999 }))
-  }))
-})
+  })),
+  roadLocks: optional(array(roadLockSchema, { max: 64 })),
+  bikeProfile: optional(bikeProfileSchema)
+}, { passthrough: true })
 
 function validateRouteRequest(value: {
   roundTrip?: { targetMinutes: number; seed?: number; heading?: number }
@@ -153,7 +211,7 @@ export async function handleRouteRequest(
   }
 
   try {
-    const trip = await planMotorcycleTrip(parsed.data, provider, enricher)
+    const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher)
     return Response.json(trip)
   } catch (error) {
     if (error instanceof GraphHopperProviderError || error instanceof ValhallaProviderError) {

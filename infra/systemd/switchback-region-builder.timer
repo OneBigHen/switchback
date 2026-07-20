@@ -1,0 +1,11 @@
+[Unit]
+Description=Switchback region graph weekly builder
+Requires=switchback-region-builder.service
+
+[Timer]
+# Sunday 03:15 - rebuild every region's tile bundle once a week
+OnCalendar=Sun *-*-* 03:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

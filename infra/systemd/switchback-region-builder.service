@@ -1,0 +1,18 @@
+[Unit]
+Description=Switchback region graph builder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=switchback
+Group=switchback
+WorkingDirectory=/opt/switchback
+EnvironmentFile=-/etc/switchback/switchback.env
+ExecStart=/opt/switchback/scripts/build-region-tiles.sh --all
+TimeoutStartSec=4h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/switchback/data

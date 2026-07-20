@@ -36,13 +36,36 @@ const incrementVersion = (xml) =>
  * Conditional motorcycle access is deliberately blocked. GraphHopper's import
  * graph is static and cannot safely evaluate every time-of-day, seasonal, or
  * free-text condition at ride time.
+ *
+ * In addition to the motorcycle-specific access projection, this step
+ * ingests the surface/smoothness/tracktype/maxweight/seasonal/access:conditional
+ * tags so the build pipeline retains them on the way object even when no
+ * motorcycle-specific tag is present. Those tags are preserved in place; only
+ * `access:conditional` is mirrored to `motorcar:conditional` as `no` so the
+ * static graph does not flag the way as always-open.
  */
 export function normalizeMotorcycleObject(sourceXml) {
   const motorcycleAccess = readTag(sourceXml, "motorcycle")
   const conditionalAccess = readTag(sourceXml, "motorcycle:conditional")
   const motorcycleOneway = readTag(sourceXml, "oneway:motorcycle")
+  const accessConditional = readTag(sourceXml, "access:conditional")
+  const surface = readTag(sourceXml, "surface")
+  const smoothness = readTag(sourceXml, "smoothness")
+  const tracktype = readTag(sourceXml, "tracktype")
+  const maxweight = readTag(sourceXml, "maxweight")
+  const seasonal = readTag(sourceXml, "seasonal")
 
-  if (motorcycleAccess === null && conditionalAccess === null && motorcycleOneway === null) {
+  const hasMotorcycleTag =
+    motorcycleAccess !== null || conditionalAccess !== null || motorcycleOneway !== null
+  const hasSurfaceTag =
+    surface !== null ||
+    smoothness !== null ||
+    tracktype !== null ||
+    maxweight !== null ||
+    seasonal !== null ||
+    accessConditional !== null
+
+  if (!hasMotorcycleTag && !hasSurfaceTag) {
     throw new Error("OSM object has no supported motorcycle-specific tag")
   }
 
@@ -61,6 +84,11 @@ export function normalizeMotorcycleObject(sourceXml) {
   if (motorcycleOneway !== null) {
     normalized = removeTag(normalized, "oneway")
     normalized = addTag(normalized, "oneway", motorcycleOneway)
+  }
+
+  if (accessConditional !== null && motorcycleAccess === null && conditionalAccess === null) {
+    normalized = removeTag(normalized, "motorcar:conditional")
+    normalized = addTag(normalized, "motorcar:conditional", "no")
   }
 
   return normalized

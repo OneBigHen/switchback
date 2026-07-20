@@ -5,7 +5,7 @@ import {
   partitionLocksByPrecedence
 } from "@/lib/roads/lock-precedence"
 import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
-import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
+import type { RoadLock } from "@/lib/roads/road-locks"
 
 export interface TripPlanRequest extends RouteRequest {
   compare?: boolean
@@ -456,7 +456,8 @@ function partitionLocksForRequest(request: TripPlanRequest): RoadLockPartitionRe
   if (partition.surviving.length === initialLocks.length) {
     return { request, survivingLocks: partition.surviving, warnings }
   }
-  const { roadLocks: _omitted, ...requestWithoutLocks } = request
+  const { roadLocks: _omittedLocks, ...requestWithoutLocks } = request
+  void _omittedLocks
   return {
     request: {
       ...requestWithoutLocks,

@@ -64,7 +64,7 @@ graphhopper:
   prepare.min_one_way_network_size: 0
   routing.non_ch.max_waypoint_distance: 1000000
   graph.flag_encoders: motorcycle
-  graph.encoded_values: motorcycle_access,road_class,road_environment,max_speed,surface,smoothness,toll
+  graph.encoded_values: motorcycle_access,road_class,road_environment,max_speed,surface,smoothness,track_type,toll,max_weight,seasonal
 profiles:
   - name: motorcycle
     vehicle: motorcycle
