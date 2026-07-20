@@ -8,6 +8,7 @@ import {
   CaretUp,
   Clock,
   DownloadSimple,
+  LockSimple,
   NavigationArrow,
   Microphone,
   MapPin,
@@ -15,6 +16,7 @@ import {
   Plus,
   SpinnerGap,
   WaveSine,
+  WarningCircle,
   X
 } from "@phosphor-icons/react"
 import {
@@ -27,7 +29,15 @@ import {
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
 import type { RouteProfileId } from "@/lib/routing/types"
+import { BikeProfilePicker } from "./BikeProfilePicker"
+import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
 import { WaypointField } from "./WaypointField"
+import {
+  DOWNLOAD_MODE_PICKER_DEFAULT,
+  DownloadModePicker,
+  type DownloadModePickerValue
+} from "./DownloadModePicker"
+import { KeyboardScope } from "./a11y"
 import type {
   PlannerDeckCommands,
   PlannerDeckViewModel
@@ -103,6 +113,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onToggleViaLock = wc.onToggleViaLock
 
   const onProfileChange = rc.onProfileChange
+  const onBikeProfileChange = rc.onBikeProfileChange
   const onCurvatureChange = rc.onCurvatureChange
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
   const onPlanModeChange = rc.onPlanModeChange
@@ -126,6 +137,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [minimized, setMinimized] = useState(false)
   const [editing, setEditing] = useState(false)
   const [exampleIndex, setExampleIndex] = useState(0)
+  const [roadLocksOpen, setRoadLocksOpen] = useState(false)
+  const [offlinePackOpen, setOfflinePackOpen] = useState(false)
+  const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
   const sheetDragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
   const profiles = listProfiles()
   const activeProfile = profiles.find((item) => item.id === profile) ?? profiles[0]
@@ -147,6 +161,14 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     via.length > 0 ? `${via.length} ${via.length === 1 ? "stop" : "stops"}` : null,
     avoidHighways ? "No highways" : null
   ].filter((chip): chip is string => Boolean(chip))
+  const mustLockCount = rideConfig.roadLocks.filter((lock) => lock.mode === "must").length
+  const bikeProfileMismatch = Boolean(selectedRoute) && (() => {
+    const bikeCategory = rideConfig.bikeProfile.category
+    const routeProfile = selectedRoute!.profile
+    if (bikeCategory === "street" || bikeCategory === "touring") return routeProfile === "adventure"
+    if (bikeCategory === "adventure") return false
+    return routeProfile !== "adventure"
+  })()
   useEffect(() => {
     const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % examples.length), 4200)
     return () => window.clearInterval(timer)
@@ -365,6 +387,13 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             ))}
           </div>
           <p className="profile-description">{activeProfile.description}</p>
+
+          <BikeProfilePicker
+            value={rideConfig.bikeProfile}
+            onChange={(next) => onBikeProfileChange(next)}
+            routingProfile={rideConfig.profile}
+            id="bike-profile-picker"
+          />
 
           <div className="planner-controls">
             <div className="planner-preferences">
@@ -610,6 +639,26 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       </>
       )}
       <div className="planner-action-dock" aria-label="Route actions">
+        <button
+          type="button"
+          className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
+          aria-label={`Open road locks${mustLockCount > 0 ? `, ${mustLockCount} must-use ${mustLockCount === 1 ? "lock" : "locks"} active` : ""}`}
+          aria-haspopup="dialog"
+          aria-expanded={roadLocksOpen}
+          onClick={() => setRoadLocksOpen(true)}
+        >
+          <LockSimple weight="fill" aria-hidden="true" />
+          <span>Road locks</span>
+          {mustLockCount > 0 ? (
+            <span className="road-locks-dock-count" data-tier="must">{mustLockCount}</span>
+          ) : null}
+        </button>
+        {bikeProfileMismatch ? (
+          <span className="planner-dock-mismatch" role="status">
+            <WarningCircle aria-hidden="true" weight="fill" />
+            Profile mismatch
+          </span>
+        ) : null}
         {selectedRoute ? (
           <button
             type="button"
@@ -629,7 +678,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <span>{status === "routing" ? "Replanning…" : "Replan"}</span>
             </button> : null}
             {editing && onSaveOffline ? (
-              <button type="button" className="offline-pack-button" onClick={() => onSaveOffline(selectedRoute)}>
+              <button type="button" className="offline-pack-button" onClick={() => setOfflinePackOpen(true)}>
                 <DownloadSimple weight="bold" aria-hidden="true" />
                 <span>Offline pack</span>
               </button>
@@ -646,6 +695,80 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           </button>
         ) : null}
       </div>
+
+      <RoadLockLibraryDrawer
+        open={roadLocksOpen}
+        onClose={() => setRoadLocksOpen(false)}
+      />
+
+      {offlinePackOpen && selectedRoute ? (
+        <OfflinePackModal
+          route={selectedRoute}
+          value={downloadMode}
+          onChange={setDownloadMode}
+          onCancel={() => setOfflinePackOpen(false)}
+          onSave={(route) => {
+            setOfflinePackOpen(false)
+            onSaveOffline?.(route)
+          }}
+        />
+      ) : null}
     </aside>
+  )
+}
+
+interface OfflinePackModalProps {
+  route: Parameters<NonNullable<PlannerDeckCommands["onSaveOffline"]>>[0]
+  value: DownloadModePickerValue
+  onChange(next: DownloadModePickerValue): void
+  onCancel(): void
+  onSave(route: Parameters<NonNullable<PlannerDeckCommands["onSaveOffline"]>>[0]): void
+}
+
+function OfflinePackModal({ route, value, onChange, onCancel, onSave }: OfflinePackModalProps) {
+  return (
+    <KeyboardScope onEscape={onCancel}>
+      <div
+        className="offline-pack-modal-scrim"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) onCancel()
+        }}
+      >
+        <aside
+          className="offline-pack-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="offline-pack-modal-title"
+          tabIndex={-1}
+        >
+          <header>
+            <div>
+              <span className="eyebrow">Offline pack</span>
+              <h2 id="offline-pack-modal-title">{route.name}</h2>
+            </div>
+            <button
+              type="button"
+              className="icon-tool"
+              aria-label="Cancel offline pack"
+              onClick={onCancel}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <p className="offline-pack-modal-summary">
+            Saving this route as an offline pack lets you resume guidance and turn-by-turn cues when you lose signal. Browser-stored data is not guaranteed permanent — saved-route packs remain recoverable from the server.
+          </p>
+          <DownloadModePicker value={value} onChange={onChange} id="offline-pack-download-mode" />
+          <footer>
+            <button type="button" className="offline-pack-modal-cancel" onClick={onCancel}>Cancel</button>
+            <button type="button" className="offline-pack-modal-save" onClick={() => onSave(route)}>
+              <DownloadSimple weight="bold" aria-hidden="true" />
+              <span>Save offline pack</span>
+            </button>
+          </footer>
+        </aside>
+      </div>
+    </KeyboardScope>
   )
 }

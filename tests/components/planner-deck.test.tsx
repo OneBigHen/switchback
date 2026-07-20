@@ -232,6 +232,12 @@ describe("planner ride composer", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit route" }))
     await user.click(screen.getByRole("button", { name: "Offline pack" }))
+
+    const dialog = await screen.findByRole("dialog", { name: plannedRoute.name })
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByText("Saved ride corridor")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Save offline pack" }))
     expect(onSaveOffline).toHaveBeenCalledWith(plannedRoute)
   })
 
@@ -477,5 +483,61 @@ describe("planner ride composer", () => {
       lon: -74.94,
       label: "Local Favorite, New Hope, PA"
     })
+  })
+
+  it("renders BikeProfilePicker inside the route editor pane", async () => {
+    const user = userEvent.setup()
+    renderDeck()
+
+    await user.click(screen.getByRole("button", { name: "Edit route" }))
+
+    expect(screen.getByRole("radiogroup", { name: /motorcycle bike profile preset/i })).toBeInTheDocument()
+  })
+
+  it("shows the road locks action dock entry point always when the deck is rendered", () => {
+    renderDeck()
+    expect(screen.getByRole("button", { name: /^Open road locks$/i })).toBeInTheDocument()
+  })
+
+  it("badges the road locks dock button when a must-use lock is active", () => {
+    const mustLock = {
+      id: "lock-must-1",
+      mode: "must" as const,
+      edgeIds: ["e1"],
+      geometry: { type: "LineString" as const, coordinates: [[-77, 40] as [number, number], [-76.8, 40.1] as [number, number]] },
+      orderedAnchors: [[-77, 40] as [number, number], [-76.8, 40.1] as [number, number]],
+      fallbackToleranceMeters: 50,
+      source: "manual" as const,
+      confidence: "exact" as const,
+      sourceRegionId: "us-pa",
+      sourceGraphVersion: "v1",
+      accessSnapshot: { highwayClass: "secondary" as const, motorcycleAccess: "yes" as const, generalAccess: "yes" as const, surface: "asphalt" as const, smoothness: "good" as const, tracktype: "unknown" as const, maxweightTonnes: null, seasonalUndated: false, activeConditions: [], routable: true },
+      createdAt: "2026-07-20T00:00:00.000Z"
+    }
+    renderDeck({ vm: { rideConfig: { roadLocks: [mustLock] } } })
+
+    const button = screen.getByRole("button", { name: /Open road locks, 1 must-use lock active/i })
+    expect(button.querySelector(".road-locks-dock-count")?.getAttribute("data-tier")).toBe("must")
+    expect(button.querySelector(".road-locks-dock-count")).toHaveTextContent("1")
+  })
+
+  it("opens the road locks drawer when the dock entry is tapped", async () => {
+    const user = userEvent.setup()
+    renderDeck()
+
+    await user.click(screen.getByRole("button", { name: /^Open road locks$/i }))
+
+    expect(await screen.findByRole("dialog", { name: "Road locks" })).toBeInTheDocument()
+  })
+
+  it("surfaces a profile mismatch hint on the dock when bikeProfile disagrees with the route profile", async () => {
+    renderDeck({
+      vm: {
+        ui: { selectedRoute: { ...plannedRoute, profile: "adventure" } },
+        rideConfig: { bikeProfile: { ...MOTORCYCLE_PROFILES[0]! } }
+      }
+    })
+
+    expect(screen.getByText(/Profile mismatch/i)).toBeInTheDocument()
   })
 })
