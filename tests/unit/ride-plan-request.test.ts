@@ -1,8 +1,43 @@
 import { describe, expect, it } from "vitest"
 import { buildLoopStopVia, buildRideTripRequest } from "@/lib/planner/ride-plan-request"
+import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
+import { createManualRoadLock } from "@/lib/roads/road-locks"
+import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
+import type { Coordinate } from "@/lib/routing/types"
 
 const start = { lat: 40.2732, lon: -76.8867, label: "Harrisburg" }
 const finish = { lat: 39.8309, lon: -77.2311, label: "Gettysburg" }
+
+const accessibleSnapshot: RoadAccessSnapshot = {
+  highwayClass: "secondary",
+  motorcycleAccess: "yes",
+  generalAccess: "yes",
+  surface: "asphalt",
+  smoothness: "good",
+  tracktype: "unknown",
+  maxweightTonnes: null,
+  seasonalUndated: false,
+  activeConditions: [],
+  routable: true
+}
+
+const lockLine: Coordinate[] = [
+  [-76.7, 40.1],
+  [-76.6, 40.12]
+]
+
+function mustLock() {
+  return createManualRoadLock({
+    mode: "must",
+    displayName: "River bend",
+    edgeIds: ["edge-1", "edge-2"],
+    geometry: lockLine,
+    orderedAnchors: [lockLine[0]!, lockLine[1]!],
+    accessSnapshot: accessibleSnapshot,
+    sourceRegionId: "pennsylvania",
+    sourceGraphVersion: "gh-11-1"
+  })
+}
 
 describe("ride trip request builder", () => {
   it("builds a compared destination request", () => {
@@ -120,5 +155,81 @@ describe("ride trip request builder", () => {
       stop,
       { lat: 40.4, lon: -76.8, label: "Loop shape 2" }
     ])
+  })
+
+  it("carries road locks and bike profile into a destination request", () => {
+    const lock = mustLock()
+    const bikeProfile = MOTORCYCLE_PROFILES.find((p) => p.category === "adventure")!
+    const request = buildRideTripRequest({
+      mode: "destination",
+      start,
+      finish,
+      profile: "twisty",
+      bikeProfile: { ...bikeProfile },
+      roadLocks: [lock],
+      targetMinutes: 120,
+      seed: 8
+    })
+
+    expect(request).toMatchObject({
+      profile: "twisty",
+      bikeProfile: expect.objectContaining({ category: "adventure" }),
+      roadLocks: [expect.objectContaining({ id: lock.id })]
+    })
+  })
+
+  it("omits road locks and bike profile from payloads that did not carry them", () => {
+    const request = buildRideTripRequest({
+      mode: "destination",
+      start,
+      finish,
+      profile: "twisty",
+      targetMinutes: 120,
+      seed: 8
+    })
+
+    expect(request).not.toHaveProperty("roadLocks")
+    expect(request).not.toHaveProperty("bikeProfile")
+  })
+
+  it("carries road locks and bike profile into a seeded round-trip request", () => {
+    const lock = mustLock()
+    const bikeProfile = MOTORCYCLE_PROFILES[0]!
+    const request = buildRideTripRequest({
+      mode: "loop",
+      start,
+      finish: null,
+      profile: "adventure",
+      bikeProfile: { ...bikeProfile },
+      roadLocks: [lock],
+      targetMinutes: 90,
+      seed: 37
+    })
+
+    expect(request).toMatchObject({
+      bikeProfile: expect.objectContaining({ name: bikeProfile.name }),
+      roadLocks: [expect.objectContaining({ id: lock.id })]
+    })
+  })
+
+  it("carries road locks and bike profile into a shaped loop request", () => {
+    const lock = mustLock()
+    const bikeProfile = MOTORCYCLE_PROFILES.find((p) => p.category === "dual-sport")!
+    const request = buildRideTripRequest({
+      mode: "loop",
+      start,
+      finish: null,
+      profile: "scenic",
+      bikeProfile: { ...bikeProfile },
+      roadLocks: [lock],
+      targetMinutes: 120,
+      seed: 9,
+      via: [{ lat: 40.1, lon: -76.8, label: "Fun stop" }]
+    })
+
+    expect(request).toMatchObject({
+      bikeProfile: expect.objectContaining({ category: "dual-sport" }),
+      roadLocks: [expect.objectContaining({ id: lock.id })]
+    })
   })
 })
