@@ -1,4 +1,5 @@
 import type { RouteProvider, RoutingResult } from "./planner"
+import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { PlannedRoute, RouteRequest } from "./types"
 import { calculateGeometryOverlap } from "./scoring"
 
@@ -22,6 +23,24 @@ function withProvenance(
     ...route,
     provider,
     providerVersion: result.engineVersion
+  }))
+}
+
+/**
+ * Compute and attach per-lock satisfaction results to every candidate.
+ * This is the union of satisfactions across both engines: each candidate
+ * gets its own evaluation reflecting how its geometry meets each lock's
+ * corridor. A must lock that is not satisfied produces a `RoadLockSatisfaction`
+ * with `satisfied: false` and a reason, never a silent drop.
+ */
+function attachRoadLockSatisfaction(
+  routes: PlannedRoute[],
+  roadLocks: RouteRequest["roadLocks"]
+): PlannedRoute[] {
+  if (!roadLocks || roadLocks.length === 0) return routes
+  return routes.map((route) => ({
+    ...route,
+    lockSatisfaction: roadLocks.map((lock) => evaluateRoadLockSatisfaction(lock, route.geometry))
   }))
 }
 
@@ -91,6 +110,8 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
       // so TypeScript can prove that provider result values exist before use.
       throw graphHopperAttempt.reason
     }
+
+    routes = attachRoadLockSatisfaction(routes, request.roadLocks)
 
     let result: RoutingResult = {
       engine,

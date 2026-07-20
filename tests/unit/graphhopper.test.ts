@@ -81,8 +81,8 @@ describe("GraphHopper provider", () => {
       profile: "quick",
       avoidHighways: true,
       points: [
-        { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
-        { lat: 39.9526, lon: -75.1652, label: "Philadelphia" }
+        { lat: 39.29, lon: -76.61, label: "Baltimore" },
+        { lat: 38.98, lon: -77.04, label: "Bethesda" }
       ]
     })
 
@@ -106,15 +106,15 @@ describe("GraphHopper provider", () => {
       avoidAreas: [{
         id: "closed-bridge",
         polygon: [
-          [-76.82, 40.2],
-          [-76.8, 40.2],
-          [-76.8, 40.22],
-          [-76.82, 40.22]
+          [-76.82, 39.20],
+          [-76.80, 39.20],
+          [-76.80, 39.22],
+          [-76.82, 39.22]
         ]
       }],
       points: [
-        { lat: 40.19, lon: -76.9 },
-        { lat: 40.3, lon: -76.7 }
+        { lat: 39.29, lon: -76.61, label: "Baltimore" },
+        { lat: 39.20, lon: -76.86, label: "Columbia" }
       ]
     } as Parameters<typeof createGraphHopperRequest>[0])
 
@@ -128,11 +128,11 @@ describe("GraphHopper provider", () => {
             geometry: {
               type: "Polygon",
               coordinates: [[
-                [-76.82, 40.2],
-                [-76.8, 40.2],
-                [-76.8, 40.22],
-                [-76.82, 40.22],
-                [-76.82, 40.2]
+                [-76.82, 39.20],
+                [-76.80, 39.20],
+                [-76.80, 39.22],
+                [-76.82, 39.22],
+                [-76.82, 39.20]
               ]]
             }
           }]
@@ -149,8 +149,8 @@ describe("GraphHopper provider", () => {
     const body = createGraphHopperRequest({
       profile: "quick",
       points: [
-        { lat: 40.2732, lon: -76.8867 },
-        { lat: 39.9526, lon: -75.1652 }
+        { lat: 39.29, lon: -76.61 },
+        { lat: 39.20, lon: -76.86 }
       ]
     })
 

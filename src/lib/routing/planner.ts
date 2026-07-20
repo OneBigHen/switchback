@@ -1,6 +1,11 @@
 import type { PlannedRoute, RouteRequest } from "./types"
 import { calculateGeometryOverlap } from "./scoring"
 import { listProfiles } from "./profiles"
+import {
+  partitionLocksByPrecedence
+} from "@/lib/roads/lock-precedence"
+import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
+import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
 
 export interface TripPlanRequest extends RouteRequest {
   compare?: boolean
@@ -422,6 +427,66 @@ function variedComparisonRequest(
   }
 }
 
+interface RoadLockPartitionResult {
+  /** Request carrying only the locks that survived precedence. */
+  request: TripPlanRequest
+  /** Surviving locks, used by the planner to attach per-candidate satisfaction. */
+  survivingLocks: RoadLock[]
+  /** Warnings explaining why each blocked lock was skipped. */
+  warnings: string[]
+}
+
+/**
+ * Partition the request's road locks by precedence. Blocked locks are
+ * surfaced as warnings (never silently dropped); only surviving locks
+ * are forwarded to the routing provider. The bike profile is preserved
+ * on the submission request so GraphHopper still translates it into
+ * custom_model rules.
+ */
+function partitionLocksForRequest(request: TripPlanRequest): RoadLockPartitionResult {
+  const initialLocks = request.roadLocks ?? []
+  if (initialLocks.length === 0) {
+    return { request, survivingLocks: [], warnings: [] }
+  }
+  const partition = partitionLocksByPrecedence(initialLocks, request.bikeProfile, false)
+  const warnings = partition.blocked.map((entry) => {
+    const displayName = entry.lock.displayName?.trim() || entry.lock.id
+    return `Road lock "${displayName}" was skipped: ${entry.evaluation.reason}`
+  })
+  if (partition.surviving.length === initialLocks.length) {
+    return { request, survivingLocks: partition.surviving, warnings }
+  }
+  const { roadLocks: _omitted, ...requestWithoutLocks } = request
+  return {
+    request: {
+      ...requestWithoutLocks,
+      ...(partition.surviving.length > 0 ? { roadLocks: partition.surviving } : {})
+    },
+    survivingLocks: partition.surviving,
+    warnings
+  }
+}
+
+/**
+ * Attach per-lock satisfaction to a route when the provider did not
+ * already (hybrid attaches it directly; segmented and timeboxed fallbacks
+ * fall through to here). Surviving locks are the source of truth —
+ * blocked locks are surfaced as route warnings, not as satisfaction rows.
+ */
+function ensureLockSatisfaction(
+  route: PlannedRoute,
+  survivingLocks: readonly RoadLock[]
+): PlannedRoute {
+  if (survivingLocks.length === 0) return route
+  if (route.lockSatisfaction && route.lockSatisfaction.length > 0) return route
+  return {
+    ...route,
+    lockSatisfaction: survivingLocks.map((lock) =>
+      evaluateRoadLockSatisfaction(lock, route.geometry)
+    )
+  }
+}
+
 export async function planMotorcycleTrip(
   request: TripPlanRequest,
   provider: RouteProvider,
@@ -430,14 +495,23 @@ export async function planMotorcycleTrip(
   if (request.segmentProfiles?.length) {
     return planSegmentedTrip(request, provider, enricher)
   }
-  const selectedAttempt = await requestTimeboxedRoutes(request, provider, enricher)
+  const partitioned = partitionLocksForRequest(request)
+  const submissionRequest = partitioned.request
+  const lockWarnings = partitioned.warnings
+
+  const selectedAttempt = await requestTimeboxedRoutes(submissionRequest, provider, enricher)
   const selected = chooseSelectedCandidate(selectedAttempt.result.routes)
   if (!selected) {
     throw new Error("The selected profile returned no routes")
   }
 
-  const routes: PlannedRoute[] = [{ ...selected, overlapPercent: 100 }]
-  const warnings: string[] = selectedAttempt.warning ? [selectedAttempt.warning] : []
+  const routes: PlannedRoute[] = [
+    ensureLockSatisfaction({ ...selected, overlapPercent: 100 }, partitioned.survivingLocks)
+  ]
+  const warnings: string[] = [
+    ...lockWarnings,
+    ...(selectedAttempt.warning ? [selectedAttempt.warning] : [])
+  ]
   if (!request.compare) {
     return { selectedRouteId: selected.id, routes, warnings }
   }
@@ -451,7 +525,12 @@ export async function planMotorcycleTrip(
   ) {
     const distinct = chooseDistinctCandidate(selectedProfileAlternatives, routes)
     if (!distinct || distinct.worstOverlap > MAX_COMPARISON_OVERLAP) break
-    routes.push({ ...distinct.route, overlapPercent: distinct.overlapPercent })
+    routes.push(
+      ensureLockSatisfaction(
+        { ...distinct.route, overlapPercent: distinct.overlapPercent },
+        partitioned.survivingLocks
+      )
+    )
     const usedIndex = selectedProfileAlternatives.findIndex((candidate) => candidate.id === distinct.route.id)
     if (usedIndex >= 0) selectedProfileAlternatives.splice(usedIndex, 1)
   }
@@ -461,7 +540,7 @@ export async function planMotorcycleTrip(
     .filter((profile) => profile !== request.profile)
   const comparisons = await Promise.allSettled(
     profiles.map((profile, index) => requestTimeboxedRoutes(
-      variedComparisonRequest(request, profile, index),
+      variedComparisonRequest(submissionRequest, profile, index),
       provider,
       enricher
     ))
@@ -483,7 +562,12 @@ export async function planMotorcycleTrip(
       warnings.push(`Dropped duplicate ${profile} route.`)
       return
     }
-    routes.push({ ...distinct.route, overlapPercent: distinct.overlapPercent })
+    routes.push(
+      ensureLockSatisfaction(
+        { ...distinct.route, overlapPercent: distinct.overlapPercent },
+        partitioned.survivingLocks
+      )
+    )
   })
 
   return { selectedRouteId: selected.id, routes, warnings }

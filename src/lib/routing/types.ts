@@ -1,5 +1,6 @@
 import type { PaUnpavedRoadEvidence } from "@/lib/roads/types"
-import type { RoadLock } from "@/lib/roads/road-locks"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
+import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
 
 export type Coordinate = [longitude: number, latitude: number]
 
@@ -38,6 +39,14 @@ export interface RouteRequest {
    * active closures always override locks (see lock-precedence.ts).
    */
   roadLocks?: RoadLock[]
+  /**
+   * Selected bike profile. Translated into GraphHopper custom_model
+   * surface/smoothness/tracktype rules so the engine refuses edges the
+   * bike cannot physically ride (e.g. Street excluding tracks). The
+   * planner additionally applies `bikeMatchesSurface` as a precedence
+   * layer over road locks.
+   */
+  bikeProfile?: BikeProfile
 }
 
 export interface RouteInstruction {
@@ -75,4 +84,11 @@ export interface PlannedRoute {
   avoidAreas?: AvoidArea[]
   segmentProfiles?: RouteProfileId[]
   officialUnpavedEvidence?: PaUnpavedRoadEvidence
+  /**
+   * Per-lock satisfaction results for this candidate, computed after the
+   * engines return. A must-use lock that is not satisfied surfaces a
+   * `MustLockUnresolved` warning on the route instead of silently
+   * dropping the lock.
+   */
+  lockSatisfaction?: RoadLockSatisfaction[]
 }

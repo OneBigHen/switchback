@@ -1,6 +1,18 @@
 import type { Coordinate, PlannedRoute, RouteProfileId, RouteRequest } from "./types"
+import type { BikeProfile } from "./bike-profiles"
 import { getProfile } from "./profiles"
 import { analyzeGeometry, calculateDetailDistribution, type DetailInterval } from "./scoring"
+import {
+  disallowedSmoothness,
+  disallowedSurfaces,
+  disallowedTracktypes
+} from "./bike-profiles"
+import type { RoadLock } from "@/lib/roads/road-locks"
+import {
+  REGION_POLICY_OVERLAYS,
+  type RegionPolicyOverlay
+} from "./region-policy"
+import { findRegionsContaining } from "@/lib/offline/region-catalog"
 
 export interface GraphHopperOptions {
   baseUrl: string
@@ -38,6 +50,183 @@ export function estimateRoundTripDistanceMeters(
   return Math.round(ROUND_TRIP_SPEED_MPH[profile] * boundedMinutes / 60 * 1609.344)
 }
 
+/**
+ * GraphHopper custom_model priority statement. Kept loose so callers can
+ * compose must/prefer/bike/region rules without depending on a strict
+ * GraphQL-shaped type that GraphHopper 11 still accepts via JSON.
+ */
+interface GraphHopperCustomModelRule {
+  if?: string
+  else?: string
+  multiply_by?: string
+  to?: string
+  limit_to?: string
+}
+
+/** GraphHopper FeatureCollection area wrapper used by custom_model priority rules. */
+interface GraphHopperAreaFeature {
+  type: "Feature"
+  id: string
+  geometry: {
+    type: "Polygon"
+    coordinates: Coordinate[][]
+  }
+}
+
+interface GraphHopperCustomModel {
+  priority?: GraphHopperCustomModelRule[]
+  speed?: GraphHopperCustomModelRule[]
+  areas?: {
+    type: "FeatureCollection"
+    features: GraphHopperAreaFeature[]
+  }
+}
+
+const MUST_LOCK_PRIORITY_ZERO = "0"
+const PREFER_LOCK_REWARD = "1.6"
+
+/** A lock's geometry corridor rendered as a GraphHopper polygon feature. */
+interface RoadLockAreaFeature {
+  id: string
+  polygon: Coordinate[]
+}
+
+function expandRoadLockGeometry(lock: RoadLock): Coordinate[] {
+  return lock.geometry.coordinates.map((c) => [c[0], c[1]] as Coordinate)
+}
+
+function buildRoadLockAreaFeatures(locks: readonly RoadLock[]): {
+  features: RoadLockAreaFeature[]
+  closedPolygons: Coordinate[][]
+} {
+  const features: RoadLockAreaFeature[] = []
+  const closedPolygons: Coordinate[][] = []
+  locks.forEach((lock, index) => {
+    const ring = expandRoadLockGeometry(lock)
+    if (ring.length < 3) return
+    const first = ring[0]!
+    const last = ring[ring.length - 1]!
+    const closed = first[0] === last[0] && first[1] === last[1] ? ring : [...ring, first]
+    features.push({ id: `switchback_lock_${index}`, polygon: ring })
+    closedPolygons.push(closed)
+  })
+  return { features, closedPolygons }
+}
+
+function buildMustLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
+  return features.map((feature) => ({
+    if: `!in_${feature.id}`,
+    multiply_by: MUST_LOCK_PRIORITY_ZERO
+  }))
+}
+
+function buildPreferLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
+  return features.map((feature) => ({
+    if: `in_${feature.id}`,
+    multiply_by: PREFER_LOCK_REWARD
+  }))
+}
+
+/** Bike-profile rules per §3: surface/smoothness/tracktype exclusions and penalties. */
+function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule[] {
+  const rules: GraphHopperCustomModelRule[] = []
+  const surfaces = disallowedSurfaces(profile)
+  const smoothness = disallowedSmoothness(profile)
+  const tracktypes = disallowedTracktypes(profile)
+
+  if (surfaces.size > 0) {
+    const condition = [...surfaces].map((s) => `surface == ${String(s).toUpperCase()}`).join(" || ")
+    rules.push({ if: condition, multiply_by: "0" })
+  }
+  if (smoothness.size > 0) {
+    const condition = [...smoothness].map((s) => `smoothness == ${String(s).toUpperCase()}`).join(" || ")
+    rules.push({ if: condition, multiply_by: "0" })
+  }
+  if (tracktypes.size > 0) {
+    const condition = [...tracktypes].map((t) => `track_type == ${String(t).toUpperCase()}`).join(" || ")
+    rules.push({ if: condition, multiply_by: "0" })
+  }
+  if (profile.category === "street" || profile.category === "touring") {
+    rules.push({ if: "road_class == PATH", multiply_by: "0" })
+  }
+  return rules
+}
+
+/**
+ * Region policy overlay rules. Speed multipliers convert to GraphHopper
+ * `speed` statements; priority multipliers and exclusions become
+ * `priority` statements. Each region overlay references a degenerate
+ * area id so the `in_<region>` condition resolves consistently even
+ * before the route touches the region's bounding box.
+ */
+function buildRegionOverlayRules(
+  overlays: readonly RegionPolicyOverlay[]
+): { rules: GraphHopperCustomModelRule[]; areas: { type: "FeatureCollection"; features: GraphHopperAreaFeature[] } | null } {
+  if (overlays.length === 0) return { rules: [], areas: null }
+  const rules: GraphHopperCustomModelRule[] = []
+  const features: GraphHopperAreaFeature[] = []
+  overlays.forEach((overlay, index) => {
+    const id = `switchback_region_${index}`
+    const degenerateRing: Coordinate[] = [[0, 0], [0, 0], [0, 0], [0, 0]]
+    features.push({
+      type: "Feature",
+      id,
+      geometry: { type: "Polygon", coordinates: [degenerateRing] }
+    })
+    if (overlay.customModel.speedMultipliers) {
+      for (const [highwayClass, multiplier] of Object.entries(overlay.customModel.speedMultipliers)) {
+        rules.push({
+          if: `in_${id} && road_class == ${highwayClass.toUpperCase()}`,
+          multiply_by: String(multiplier)
+        })
+      }
+    }
+    if (overlay.customModel.priorityMultipliers) {
+      for (const [highwayClass, multiplier] of Object.entries(overlay.customModel.priorityMultipliers)) {
+        rules.push({
+          if: `in_${id} && road_class == ${highwayClass.toUpperCase()}`,
+          multiply_by: String(multiplier)
+        })
+      }
+    }
+    if (overlay.customModel.excludeHighwayClasses) {
+      for (const highwayClass of overlay.customModel.excludeHighwayClasses) {
+        rules.push({
+          if: `in_${id} && road_class == ${highwayClass.toUpperCase()}`,
+          multiply_by: "0"
+        })
+      }
+    }
+    if (overlay.customModel.excludeSurfaces) {
+      for (const surface of overlay.customModel.excludeSurfaces) {
+        rules.push({
+          if: `in_${id} && surface == ${surface.toUpperCase()}`,
+          multiply_by: "0"
+        })
+      }
+    }
+  })
+  return {
+    rules,
+    areas: features.length > 0 ? { type: "FeatureCollection", features } : null
+  }
+}
+
+/**
+ * Resolve every region-policy overlay whose source region contains any
+ * of the request waypoints. Per §2.5, PA/WV/NJ/NY overlays tune speed,
+ * priority, surface, and parkway behaviour at request time.
+ */
+function resolveRegionOverlaysForRequest(points: { lat: number; lon: number }[]): RegionPolicyOverlay[] {
+  const matched = new Set<string>()
+  for (const point of points) {
+    for (const region of findRegionsContaining([point.lon, point.lat])) {
+      matched.add(region.id)
+    }
+  }
+  return REGION_POLICY_OVERLAYS.filter((overlay) => matched.has(overlay.regionId))
+}
+
 export function createGraphHopperRequest(_request: RouteRequest): Record<string, unknown> {
   const profile = getProfile(_request.profile)
   if (_request.roundTrip && _request.points.length !== 1) {
@@ -47,7 +236,7 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
     throw new Error("A route requires at least two waypoints")
   }
   const avoidAreas = _request.avoidAreas ?? []
-  const areaFeatures = avoidAreas.map((area, index) => {
+  const areaFeatures: GraphHopperAreaFeature[] = avoidAreas.map((area, index) => {
     const id = `switchback_avoid_${index}`
     const first = area.polygon[0]
     const last = area.polygon.at(-1)
@@ -58,15 +247,65 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
       type: "Feature",
       id,
       geometry: { type: "Polygon", coordinates: [closed] }
-    } as const
+    }
   })
-  const priority = [
-    ...(_request.avoidHighways ? [{
-      if: "road_class == MOTORWAY || road_class == TRUNK",
-      multiply_by: "0"
-    }] : []),
-    ...areaFeatures.map((feature) => ({ if: `in_${feature.id}`, multiply_by: "0" }))
+
+  const roadLocks = _request.roadLocks ?? []
+  const bikeProfile = _request.bikeProfile
+  const regionOverlays = resolveRegionOverlaysForRequest(_request.points)
+
+  const mustLocks = roadLocks.filter((lock) => lock.mode === "must")
+  const preferLocks = roadLocks.filter((lock) => lock.mode === "prefer")
+  const mustAreas = buildRoadLockAreaFeatures(mustLocks)
+  const preferAreas = buildRoadLockAreaFeatures(preferLocks)
+
+  const lockAreaFeatures: GraphHopperAreaFeature[] = []
+  ;[...mustAreas.features, ...preferAreas.features].forEach((feature, index) => {
+    const ring = [...mustAreas.closedPolygons, ...preferAreas.closedPolygons][index] ?? feature.polygon
+    lockAreaFeatures.push({
+      type: "Feature",
+      id: feature.id,
+      geometry: { type: "Polygon", coordinates: [ring] }
+    })
+  })
+  const mustRules = buildMustLockRules(mustAreas.features)
+  const preferRules = buildPreferLockRules(preferAreas.features)
+  const bikeRules = bikeProfile ? buildBikeProfileRules(bikeProfile) : []
+  const regionRulesResult = buildRegionOverlayRules(regionOverlays)
+
+  const highwayAvoidanceRule: GraphHopperCustomModelRule[] = _request.avoidHighways
+    ? [{ if: "road_class == MOTORWAY || road_class == TRUNK", multiply_by: "0" }]
+    : []
+
+  const priorityRules: GraphHopperCustomModelRule[] = [
+    ...highwayAvoidanceRule,
+    ...areaFeatures.map((feature) => ({ if: `in_${feature.id}`, multiply_by: "0" })),
+    ...mustRules,
+    ...preferRules,
+    ...bikeRules,
+    ...regionRulesResult.rules
   ]
+
+  const customModelAreasFeatures: GraphHopperAreaFeature[] = [
+    ...areaFeatures,
+    ...lockAreaFeatures,
+    ...(regionRulesResult.areas?.features ?? [])
+  ]
+
+  const hasCustomModelContent =
+    priorityRules.length > 0 || customModelAreasFeatures.length > 0
+  const customModel: GraphHopperCustomModel | null = hasCustomModelContent
+    ? {
+        priority: priorityRules,
+        ...(customModelAreasFeatures.length > 0 ? {
+          areas: {
+            type: "FeatureCollection",
+            features: customModelAreasFeatures
+          }
+        } : {})
+      }
+    : null
+
   const baseRequest: Record<string, unknown> = {
     profile: profile.engineProfile,
     points: _request.points.map((point) => [point.lon, point.lat]),
@@ -76,16 +315,7 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
     elevation: false,
     locale: "en-US",
     details: ["road_class", "surface", "track_type", "max_speed"],
-    ...(priority.length > 0
-      ? {
-          custom_model: {
-            priority,
-            ...(areaFeatures.length > 0 ? {
-              areas: { type: "FeatureCollection", features: areaFeatures }
-            } : {})
-          }
-        }
-      : {})
+    ...(customModel ? { custom_model: customModel } : {})
   }
   if (_request.roundTrip) {
     return {

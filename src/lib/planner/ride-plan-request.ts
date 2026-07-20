@@ -1,4 +1,6 @@
 import type { TripPlanRequest } from "@/lib/routing/planner"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
+import type { RoadLock } from "@/lib/roads/road-locks"
 import type { AvoidArea, Coordinate, RouteProfileId, Waypoint } from "@/lib/routing/types"
 
 interface BuildRideTripRequestOptions {
@@ -6,6 +8,8 @@ interface BuildRideTripRequestOptions {
   start: Waypoint | null
   finish: Waypoint | null
   profile: RouteProfileId
+  bikeProfile?: BikeProfile
+  roadLocks?: RoadLock[]
   targetMinutes: number
   seed: number
   via?: Waypoint[]
@@ -35,6 +39,8 @@ export function buildRideTripRequest({
   start,
   finish,
   profile,
+  bikeProfile,
+  roadLocks = [],
   targetMinutes,
   seed,
   via = [],
@@ -43,6 +49,8 @@ export function buildRideTripRequest({
   segmentProfiles
 }: BuildRideTripRequestOptions): TripPlanRequest {
   if (!start) throw new Error("Choose a start point first.")
+  const roadLocksPayload = roadLocks.length > 0 ? { roadLocks } : {}
+  const bikeProfilePayload = bikeProfile ? { bikeProfile } : {}
   if (mode === "destination") {
     if (!finish) throw new Error("Choose a finish point first.")
     return {
@@ -51,7 +59,9 @@ export function buildRideTripRequest({
       points: [start, ...via, finish],
       ...(avoidHighways ? { avoidHighways: true } : {}),
       ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
-      ...(segmentProfiles ? { segmentProfiles } : {})
+      ...(segmentProfiles ? { segmentProfiles } : {}),
+      ...bikeProfilePayload,
+      ...roadLocksPayload
     }
   }
 
@@ -66,7 +76,9 @@ export function buildRideTripRequest({
       points: [start, ...via, start],
       loopTargetMinutes: targetMinutes,
       ...(avoidHighways ? { avoidHighways: true } : {}),
-      ...(avoidAreas.length > 0 ? { avoidAreas } : {})
+      ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
+      ...bikeProfilePayload,
+      ...roadLocksPayload
     }
   }
   return {
@@ -75,6 +87,8 @@ export function buildRideTripRequest({
     points: [start],
     ...(avoidHighways ? { avoidHighways: true } : {}),
     ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
+    ...bikeProfilePayload,
+    ...roadLocksPayload,
     roundTrip: {
       targetMinutes,
       seed: normalizedSeed,
