@@ -61,6 +61,8 @@ export function PlannerShell() {
   const finishQuery = usePlannerStore((state) => state.finishQuery)
   const armedPoint = usePlannerStore((state) => state.armedPoint)
   const profile = usePlannerStore((state) => state.profile)
+  const bikeProfile = usePlannerStore((state) => state.bikeProfile)
+  const roadLocks = usePlannerStore((state) => state.roadLocks)
   const status = usePlannerStore((state) => state.status)
   const plan = usePlannerStore((state) => state.plan)
   const selectedRouteId = usePlannerStore((state) => state.selectedRouteId)
@@ -554,6 +556,8 @@ export function PlannerShell() {
             finishQuery,
             armedPoint,
             profile,
+            bikeProfile,
+            roadLocks,
             status,
             error,
             curvatureVisible,
@@ -636,6 +640,10 @@ export function PlannerShell() {
                 routeRequestGate.invalidate()
                 usePlannerStore.getState().setProfile(nextProfile)
               },
+              onBikeProfileChange: (nextBikeProfile) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().setBikeProfile(nextBikeProfile)
+              },
               onCurvatureChange: (visible) => {
                 usePlannerStore.getState().setCurvatureVisible(visible)
                 setRiderLayers((layers) => layers.map((layer) => layer.id === "curvature" ? { ...layer, visible } : layer))
@@ -664,6 +672,26 @@ export function PlannerShell() {
               onRemoveAvoidArea: () => {
                 routeRequestGate.invalidate()
                 setAvoidAreas((areas) => areas.slice(0, -1))
+              },
+              onAddRoadLock: (lock) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().addRoadLock(lock)
+              },
+              onUpdateRoadLock: (id, patch) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().updateRoadLock(id, patch)
+              },
+              onRemoveRoadLock: (id) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().removeRoadLock(id)
+              },
+              onConvertRoadLock: (id) => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().convertRoadLock(id)
+              },
+              onClearRoadLocks: () => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().clearRoadLocks()
               }
             },
             intent: {

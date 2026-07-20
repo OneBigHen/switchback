@@ -1,5 +1,7 @@
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
+import type { RoadLock } from "@/lib/roads/road-locks"
 import type { PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { PlannerError, PlannerPointId, PlannerStatus } from "@/stores/planner-store"
 
@@ -22,6 +24,8 @@ export interface PlannerRideConfigViewModel {
   planMode: PlanMode
   targetMinutes: number
   profile: RouteProfileId
+  bikeProfile: BikeProfile
+  roadLocks: RoadLock[]
   curvatureVisible: boolean
   avoidHighways: boolean
   segmentProfiles: RouteProfileId[]
@@ -69,10 +73,16 @@ export interface PlannerRideConfigCommands {
   onPlanModeChange(mode: PlanMode): void
   onTargetMinutesChange(minutes: number): void
   onProfileChange(profile: RouteProfileId): void
+  onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onRemoveAvoidArea(): void
+  onAddRoadLock(lock: RoadLock): void
+  onUpdateRoadLock(id: string, patch: Partial<RoadLock>): void
+  onRemoveRoadLock(id: string): void
+  onConvertRoadLock(id: string): void
+  onClearRoadLocks(): void
 }
 
 export interface PlannerIntentCommands {
@@ -102,6 +112,8 @@ export function buildPlannerDeckViewModel(state: {
   finishQuery: string
   armedPoint: PlannerPointId | null
   profile: RouteProfileId
+  bikeProfile: BikeProfile
+  roadLocks: RoadLock[]
   status: PlannerStatus
   error: PlannerError | null
   curvatureVisible: boolean
@@ -139,6 +151,8 @@ export function buildPlannerDeckViewModel(state: {
       planMode: state.planMode,
       targetMinutes: state.targetMinutes,
       profile: state.profile,
+      bikeProfile: state.bikeProfile,
+      roadLocks: state.roadLocks,
       curvatureVisible: state.curvatureVisible,
       avoidHighways: state.avoidHighways,
       segmentProfiles: state.segmentProfiles,

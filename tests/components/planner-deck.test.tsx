@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { PlannerDeck } from "@/components/planner/PlannerDeck"
 import type { PlannerDeckViewModel, PlannerDeckCommands } from "@/components/planner/PlannerDeckViewModel"
+import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 
 const harrisburg: Waypoint = {
@@ -49,6 +50,8 @@ function defaultViewModel(): PlannerDeckViewModel {
       planMode: "destination",
       targetMinutes: 120,
       profile: "twisty",
+      bikeProfile: { ...MOTORCYCLE_PROFILES[0]! },
+      roadLocks: [],
       curvatureVisible: true,
       avoidHighways: false,
       segmentProfiles: ["twisty"],
@@ -90,10 +93,16 @@ function defaultCommands(): PlannerDeckCommands {
       onPlanModeChange: vi.fn(),
       onTargetMinutesChange: vi.fn(),
       onProfileChange: vi.fn(),
+      onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
       onAvoidHighwaysChange: vi.fn(),
       onSegmentProfileChange: vi.fn(),
-      onRemoveAvoidArea: vi.fn()
+      onRemoveAvoidArea: vi.fn(),
+      onAddRoadLock: vi.fn(),
+      onUpdateRoadLock: vi.fn(),
+      onRemoveRoadLock: vi.fn(),
+      onConvertRoadLock: vi.fn(),
+      onClearRoadLocks: vi.fn()
     },
     intent: {
       onRidePrompt: vi.fn(),

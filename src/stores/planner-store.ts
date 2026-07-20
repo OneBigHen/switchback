@@ -1,11 +1,26 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
+import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
+import type { RoadLock } from "@/lib/roads/road-locks"
+import { convertMustLockToPrefer } from "@/lib/roads/road-locks"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 
 export type PlannerPointId = "start" | "finish"
 export type PlannerSurface = "planner" | "library" | "ride"
 export type PlannerStatus = "idle" | "routing" | "ready" | "error"
+
+const DEFAULT_BIKE_PROFILE: BikeProfile =
+  MOTORCYCLE_PROFILES[0] ?? {
+    name: "Street",
+    category: "street",
+    fuelRangeMiles: 180,
+    reserveMiles: 35,
+    allowMaintainedGravel: false,
+    allowRoughTracks: false,
+    avoidUnknownSurface: true
+  }
 
 export interface PlannerError {
   code: string
@@ -90,6 +105,8 @@ interface PlannerState {
   finishQuery: string
   armedPoint: PlannerPointId | null
   profile: RouteProfileId
+  bikeProfile: BikeProfile
+  roadLocks: RoadLock[]
   status: PlannerStatus
   plan: TripPlan | null
   selectedRouteId: string | null
@@ -121,12 +138,18 @@ interface PlannerState {
   redoRoutePoints(): void
   armPoint(id: PlannerPointId | null): void
   setProfile(profile: RouteProfileId): void
+  setBikeProfile(profile: BikeProfile): void
   beginRouting(): void
   applyPlan(plan: TripPlan): void
   failRouting(error: PlannerError): void
   selectRoute(id: string): void
   setCurvatureVisible(visible: boolean): void
   setSurface(surface: PlannerSurface): void
+  addRoadLock(lock: RoadLock): void
+  updateRoadLock(id: string, patch: Partial<RoadLock>): void
+  removeRoadLock(id: string): void
+  convertRoadLock(id: string): void
+  clearRoadLocks(): void
   addSavedPlace(place: Omit<SavedPlace, "id" | "createdAt">): void
   removeSavedPlace(id: string): void
   clearSavedPlaces(): void
@@ -142,6 +165,8 @@ export const initialPlannerState = {
   finishQuery: "",
   armedPoint: null,
   profile: "twisty" as const,
+  bikeProfile: DEFAULT_BIKE_PROFILE,
+  roadLocks: [] as RoadLock[],
   status: "idle" as const,
   plan: null,
   selectedRouteId: null,
@@ -295,6 +320,24 @@ export const usePlannerStore = create<PlannerState>()(
         status: "idle",
         error: null
       }),
+      setBikeProfile: (bikeProfile) => set((state) => {
+        if (
+          state.bikeProfile.name === bikeProfile.name &&
+          state.bikeProfile.category === bikeProfile.category &&
+          state.bikeProfile.fuelRangeMiles === bikeProfile.fuelRangeMiles &&
+          state.bikeProfile.reserveMiles === bikeProfile.reserveMiles &&
+          state.bikeProfile.allowMaintainedGravel === bikeProfile.allowMaintainedGravel &&
+          state.bikeProfile.allowRoughTracks === bikeProfile.allowRoughTracks &&
+          state.bikeProfile.avoidUnknownSurface === bikeProfile.avoidUnknownSurface
+        ) return {}
+        return {
+          bikeProfile,
+          plan: null,
+          selectedRouteId: null,
+          status: "idle",
+          error: null
+        }
+      }),
       beginRouting: () => set({
         status: "routing",
         plan: null,
@@ -342,7 +385,59 @@ export const usePlannerStore = create<PlannerState>()(
           searchHistory: [searchEntry, ...existing].slice(0, SEARCH_HISTORY_LIMIT)
         }
       }),
-      clearSearchHistory: () => set({ searchHistory: [] })
+      clearSearchHistory: () => set({ searchHistory: [] }),
+      addRoadLock: (lock) => set((state) => {
+        const existing = state.roadLocks.some((existingLock) => existingLock.id === lock.id)
+        if (existing) return {}
+        return {
+          roadLocks: [...state.roadLocks, lock],
+          plan: null,
+          selectedRouteId: null,
+          status: "idle",
+          error: null
+        }
+      }),
+      updateRoadLock: (id, patch) => set((state) => {
+        const index = state.roadLocks.findIndex((lock) => lock.id === id)
+        if (index < 0) return {}
+        const current = state.roadLocks[index]!
+        const next: RoadLock = { ...current, ...patch, id: current.id }
+        if (
+          next.mode === current.mode &&
+          next.displayName === current.displayName &&
+          next.edgeIds === current.edgeIds &&
+          next.orderedAnchors === current.orderedAnchors &&
+          next.fallbackToleranceMeters === current.fallbackToleranceMeters
+        ) return {}
+        const roadLocks = state.roadLocks.map((lock) => lock.id === id ? next : lock)
+        return { roadLocks, plan: null, selectedRouteId: null, status: "idle", error: null }
+      }),
+      removeRoadLock: (id) => set((state) => {
+        if (!state.roadLocks.some((lock) => lock.id === id)) return {}
+        return {
+          roadLocks: state.roadLocks.filter((lock) => lock.id !== id),
+          plan: null,
+          selectedRouteId: null,
+          status: "idle",
+          error: null
+        }
+      }),
+      convertRoadLock: (id) => set((state) => {
+        const index = state.roadLocks.findIndex((lock) => lock.id === id)
+        if (index < 0) return {}
+        const current = state.roadLocks[index]!
+        if (current.mode !== "must") return {}
+        const next = convertMustLockToPrefer(current)
+        const roadLocks = state.roadLocks.map((lock) => lock.id === id ? next : lock)
+        return { roadLocks, plan: null, selectedRouteId: null, status: "idle", error: null }
+      }),
+      clearRoadLocks: () => set((state) => state.roadLocks.length === 0 ? {} : {
+        roadLocks: [],
+        plan: null,
+        selectedRouteId: null,
+        status: "idle",
+        error: null
+      })
     }),
     {
       name: "switchback.planner.v1",
@@ -351,6 +446,8 @@ export const usePlannerStore = create<PlannerState>()(
         savedPlaces: state.savedPlaces,
         searchHistory: state.searchHistory,
         profile: state.profile,
+        bikeProfile: state.bikeProfile,
+        roadLocks: state.roadLocks,
         curvatureVisible: state.curvatureVisible
       })
     }
