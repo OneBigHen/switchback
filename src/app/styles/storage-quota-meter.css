@@ -1,0 +1,204 @@
+.storage-quota-meter {
+  display: grid;
+  gap: 9px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0d100f;
+}
+
+.storage-quota-meter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--metal);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+.storage-quota-meter-row strong {
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 680;
+  letter-spacing: 0;
+  text-align: right;
+}
+
+.storage-quota-meter-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.storage-quota-meter-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--success);
+  transition: width 220ms cubic-bezier(0.2, 0.8, 0.2, 1), background 220ms ease;
+}
+
+.storage-quota-meter-bar-fill[data-tier="warn"] {
+  background: var(--signal);
+}
+
+.storage-quota-meter-bar-fill[data-tier="strong-warn"] {
+  background: var(--danger);
+}
+
+.storage-quota-meter-bar-fill[data-tier="block"] {
+  background: var(--danger);
+}
+
+.storage-quota-meter-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.storage-quota-meter-tier[data-tier="normal"] {
+  border-color: rgb(128 185 154 / 38%);
+  color: var(--success);
+}
+
+.storage-quota-meter-tier[data-tier="warn"] {
+  border-color: rgb(243 106 45 / 45%);
+  color: var(--signal);
+}
+
+.storage-quota-meter-tier[data-tier="strong-warn"],
+.storage-quota-meter-tier[data-tier="block"] {
+  border-color: rgb(227 93 84 / 55%);
+  color: var(--danger);
+}
+
+.storage-quota-meter-tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.storage-quota-meter-projection {
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111513;
+}
+
+.storage-quota-meter-projection[data-blocked="true"] {
+  border-color: rgb(227 93 84 / 55%);
+  background: rgb(227 93 84 / 7%);
+}
+
+.storage-quota-meter-projection-label {
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.storage-quota-meter-projection-usage {
+  color: var(--instrument);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-quota-meter-projection-reason {
+  color: var(--danger);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.storage-quota-meter-projection-allowed {
+  color: var(--success);
+  font-size: 10px;
+}
+
+.storage-quota-meter-persist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.storage-quota-meter-persist[data-persistent="true"] {
+  border-style: solid;
+  border-color: rgb(128 185 154 / 40%);
+  color: var(--success);
+}
+
+.storage-quota-meter-persist svg {
+  width: 16px;
+  height: 16px;
+}
+
+.storage-quota-meter-persist-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111513;
+  color: var(--instrument);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.storage-quota-meter-persist-cta:hover,
+.storage-quota-meter-persist-cta:focus-visible {
+  border-color: rgb(243 239 230 / 35%);
+  color: var(--signal);
+  outline: 0;
+}
+
+.storage-quota-meter-persist-cta[disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.storage-quota-meter-disclaimer {
+  margin: 0;
+  color: var(--metal);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.storage-quota-meter-packages {
+  color: var(--metal);
+  font-family: "Sora Variable", Sora, sans-serif;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-quota-meter-packages strong {
+  color: var(--instrument);
+}

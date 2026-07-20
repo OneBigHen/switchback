@@ -7,6 +7,7 @@ import "./styles/planner-controls.css"
 import "./styles/route-comparison.css"
 import "./styles/library-drawer.css"
 import "./styles/ride-hud.css"
+import "./styles/storage-quota-meter.css"
 import "./styles/responsive.css"
 
 export const metadata: Metadata = {
