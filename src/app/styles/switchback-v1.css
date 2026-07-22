@@ -31,6 +31,18 @@
   backdrop-filter: blur(18px);
 }
 
+.planner-shell[data-sketching="true"] .app-navigation {
+  pointer-events: none;
+}
+
+@media (min-width: 761px) {
+  .map-road-lock-toggle {
+    top: 20px;
+    right: 390px;
+    z-index: 7;
+  }
+}
+
 .app-navigation-brand {
   display: grid;
   min-height: 88px;

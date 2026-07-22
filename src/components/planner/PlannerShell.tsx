@@ -361,6 +361,19 @@ export function PlannerShell() {
     onNotice: setNotice
   })
 
+  const applyAppTab = (tab: AppTab, historyMode: "push" | "replace" = "push") => {
+    dispatchNavigation({ type: "select_tab", tab })
+    usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+    const url = new URL(window.location.href)
+    if (tab === "plan") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", tab)
+    window.history[historyMode === "push" ? "pushState" : "replaceState"](
+      { switchbackTab: tab },
+      "",
+      `${url.pathname}${url.search}${url.hash}`
+    )
+  }
+
   const handleLoad = (route: PlannedRoute, trip: SavedTripPlan | null = null) => {
     routeRequestGate.invalidate()
     const editState = routeEditState(route)
@@ -383,7 +396,7 @@ export function PlannerShell() {
       routes: [route],
       warnings: []
     })
-    store.setSurface("planner")
+    applyAppTab("plan", "replace")
   }
 
   const {
@@ -425,7 +438,7 @@ export function PlannerShell() {
       routes: [ride.route, actual],
       warnings: ["Actual ride replay loaded beside the planned route. Imported replay geometry is not silently re-routed."]
     })
-    usePlannerStore.getState().setSurface("planner")
+    applyAppTab("plan", "replace")
     setNotice({ kind: "success", message: `Replay loaded: ${ride.points.length} recorded points, notes, and photo metadata remain on this device.` })
   }
 
@@ -527,16 +540,11 @@ export function PlannerShell() {
   }
 
   const handleAppTab = (tab: AppTab) => {
-    dispatchNavigation({ type: "select_tab", tab })
-    usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
-    const url = new URL(window.location.href)
-    if (tab === "plan") url.searchParams.delete("tab")
-    else url.searchParams.set("tab", tab)
-    window.history.pushState({ switchbackTab: tab }, "", `${url.pathname}${url.search}${url.hash}`)
+    applyAppTab(tab)
   }
 
   return (
-    <main className="planner-shell" id="top">
+    <main className="planner-shell" id="top" data-sketching={sketching ? "true" : "false"}>
       <MapStage
         routes={routes}
         selectedRouteId={selectedRouteId}
