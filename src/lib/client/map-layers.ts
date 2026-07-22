@@ -21,6 +21,15 @@ export type RiderLayerId =
 
 export type RiderLayerStatus = "live" | "regional" | "planned"
 
+/**
+ * Per-layer load state for feature-backed rider layers. Tracked in MapStage
+ * after each Overpass/NWS fetch so the Layers panel can show per-layer
+ * feedback (which specific layers are loading, found nothing in view,
+ * errored, or are below zoom). `idle` means the layer is not enabled or
+ * not in scope; everything else is a real, surfacable state.
+ */
+export type FeatureLayerState = "idle" | "loading" | "ready" | "empty" | "zoom" | "error"
+
 export type DataCategory =
   | "road-geometry"
   | "road-surface"

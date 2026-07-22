@@ -55,7 +55,16 @@
 
   .map-layer-status {
     top: 64px;
+    /* Anchor to the left of the visible area below the toolbar so the
+       banner does not run off the edge of a narrow phone screen. The
+       default desktop rule centers it horizontally. */
     left: 12px;
+    transform: none;
+    max-width: calc(100% - 24px);
+  }
+
+  .map-feature-banner {
+    max-width: calc(100% - 24px);
   }
 
   .map-loading,
@@ -3118,13 +3127,28 @@
 }
 
 .map-layer-status {
-  left: 488px;
+  /* In non-ride mode the basemap is light, so the pill gets a light card
+     style. The horizontal-centred position is inherited from
+     planner-shell.css so the loading/error/zoom banner is always visible
+     on desktop widths (previously this was left:488px, which placed it
+     past the visible area on most viewports). */
   border-color: rgb(66 58 47 / 12%);
   border-radius: 999px;
   background: rgb(255 255 255 / 92%);
   color: #625e58;
   font-size: 11px;
   box-shadow: 0 4px 14px rgb(49 42 33 / 9%);
+}
+
+.map-layer-status.map-feature-banner {
+  color: #383531;
+  box-shadow: 0 6px 22px rgb(49 42 33 / 14%);
+}
+
+.map-layer-status.map-layer-error {
+  border-color: rgb(200 68 50 / 42%);
+  color: #b53a2b;
+  background: rgb(255 250 248 / 95%);
 }
 
 .map-layer-status.unpaved-status {
@@ -3173,6 +3197,25 @@
 .map-layers-button svg {
   width: 19px;
   height: 19px;
+  color: #d95629;
+}
+
+/* Layers button reflects overall layer-load state so the user can see at a
+   glance whether something is currently loading or has errored even when
+   the Layers panel is closed. */
+.map-layers-button.is-loading {
+  border-color: rgb(232 95 44 / 42%);
+  color: #a63f1e;
+}
+
+.map-layers-button.has-error {
+  border-color: rgb(200 68 50 / 50%);
+  color: #b53a2b;
+}
+
+.map-layers-button-spinner {
+  width: 14px;
+  height: 14px;
   color: #d95629;
 }
 
@@ -3326,7 +3369,7 @@
 .overlay-options label {
   display: grid;
   min-height: 58px;
-  grid-template-columns: 18px 27px minmax(0, 1fr);
+  grid-template-columns: 18px 27px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   cursor: pointer;
@@ -3335,6 +3378,14 @@
 .overlay-options label.is-unavailable {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+.overlay-options label.has-layer-state.is-error {
+  background: rgb(227 93 84 / 6%);
+}
+
+.overlay-options label.has-layer-state.is-loading {
+  background: rgb(232 95 44 / 4%);
 }
 
 .overlay-options label + label {
@@ -3366,7 +3417,7 @@
   background: linear-gradient(90deg, #7d9181, #b1b8ae);
 }
 
-.overlay-options label > span:last-child {
+.overlay-options label > .overlay-meta {
   display: grid;
   gap: 3px;
 }
@@ -3410,6 +3461,128 @@
   height: 14px;
   margin-top: 2px;
   accent-color: #e85f2c;
+}
+
+/* Per-layer status badge — surfaces loading / count / empty / zoom / error
+   directly inside the Layers panel so users always know which specific
+   layers have data and which found nothing in view. */
+.layer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.layer-status-badge.is-loading {
+  color: #c46635;
+  background: #fdf0e6;
+  border-color: #f1d6b8;
+}
+
+.layer-status-badge.is-ready {
+  color: #1b6e42;
+  background: #e9f3ed;
+  border-color: #c5dccf;
+}
+
+.layer-status-badge.is-empty {
+  color: #7a766f;
+  background: #f1efeb;
+  border-color: #e1ddd5;
+}
+
+.layer-status-badge.is-zoom {
+  color: #6c7480;
+  background: #eef0f2;
+  border-color: #d9dde2;
+}
+
+.layer-status-badge.is-error {
+  color: #c84432;
+  background: #fdeae7;
+  border-color: #f3cfc8;
+}
+
+/* Section header summarizing active status across the whole overlay list */
+.overlay-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.layer-section-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.layer-section-status.is-loading {
+  color: #c46635;
+  background: #fdf0e6;
+}
+
+.layer-section-status.is-error {
+  color: #c84432;
+  background: #fdeae7;
+}
+
+.layer-section-status.is-empty {
+  color: #7a766f;
+  background: #f1efeb;
+}
+
+.layer-section-status .map-layer-spinner {
+  width: 10px;
+  height: 10px;
+  border-width: 1.4px;
+}
+
+/* Retry banner — surfaces a big "Retry layers" button when any layer errors */
+.layer-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 8px 11px;
+  border-radius: 7px;
+  border: 1px solid #f3cfc8;
+  background: #fdeae7;
+  color: #c84432;
+  font-size: 11px;
+}
+
+.layer-error-banner button {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid #c84432;
+  border-radius: 999px;
+  background: transparent;
+  color: #c84432;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.layer-error-banner button:hover {
+  background: #c84432;
+  color: #fff;
 }
 
 .route-visibility-options label {

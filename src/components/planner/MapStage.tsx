@@ -11,9 +11,11 @@ import { buildNavigationMapFeatures } from "@/lib/client/navigation-map"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import "@/app/styles/map-stage-road-locks.css"
 import {
+  featureMapLayerIds,
   mapStyleUrl,
   riderFeatureLayersAtZoom,
   riderFeatureQuery,
+  type FeatureLayerState,
   type RiderLayerId,
   type RiderLayerSetting,
   type RiderMapPack,
@@ -133,6 +135,9 @@ export function MapStage(props: MapStageProps) {
   const [unpavedStatus, setUnpavedStatus] = useState<"hidden" | "loading" | "ready" | "zoom" | "error">("hidden")
   const [unpavedCount, setUnpavedCount] = useState(0)
   const [riderFeaturesStatus, setRiderFeaturesStatus] = useState<"hidden" | "loading" | "ready" | "zoom" | "error">("hidden")
+  const [riderLayerStates, setRiderLayerStates] = useState<Record<string, FeatureLayerState>>({})
+  const [riderLayerCounts, setRiderLayerCounts] = useState<Record<string, number>>({})
+  const [riderFeaturesRetry, setRiderFeaturesRetry] = useState(0)
   const [navigationFollowing, setNavigationFollowing] = useState(true)
   const [sketchMode, setSketchMode] = useState(false)
   const [avoidMode, setAvoidMode] = useState(false)
@@ -988,39 +993,117 @@ export function MapStage(props: MapStageProps) {
     const map = mapRef.current
     if (!map || !ready) return
 
+    const FEATURE_LAYER_SET = new Set<RiderLayerId>(featureMapLayerIds)
+
     const refreshRiderFeatures = async () => {
+      const current = propsRef.current
       const bounds = map.getBounds()
-      const selectedLayers = riderFeatureLayersAtZoom(propsRef.current.riderLayers, map.getZoom())
-      const query = riderFeatureQuery(propsRef.current.riderLayers, {
+      const zoom = map.getZoom()
+      const selectedLayers = riderFeatureLayersAtZoom(current.riderLayers, zoom)
+      const selectedSet = new Set<RiderLayerId>(selectedLayers)
+      const visibleFeatureLayers = current.riderLayers
+        .filter((setting) => setting.visible && FEATURE_LAYER_SET.has(setting.id))
+        .map((setting) => setting.id)
+      const query = riderFeatureQuery(current.riderLayers, {
         west: bounds.getWest(),
         south: bounds.getSouth(),
         east: bounds.getEast(),
         north: bounds.getNorth()
-      }, map.getZoom())
+      }, zoom)
+
+      // No query (zoom too low for every enabled feature layer, or no layers
+      // enabled at all). Mark the visible-but-below-zoom layers so the panel
+      // can tell the user *why* nothing is showing.
       if (!query) {
-        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
-        setRiderFeaturesStatus(selectedLayers.length > 0 ? "zoom" : "hidden")
+        if (selectedLayers.length === 0 && visibleFeatureLayers.length === 0) {
+          setRiderLayerStates({})
+          setRiderLayerCounts({})
+          setRiderFeaturesStatus("hidden")
+          return
+        }
+        setRiderLayerStates(() => {
+          const next: Record<string, FeatureLayerState> = {}
+          for (const id of visibleFeatureLayers) next[id] = "zoom"
+          return next
+        })
+        setRiderLayerCounts({})
+        setRiderFeaturesStatus("zoom")
         return
       }
+
       riderFeaturesAbortRef.current?.abort()
       const controller = new AbortController()
       riderFeaturesAbortRef.current = controller
+
+      // Preserve prior ready/empty states while a refetch is in flight so
+      // panning around with already-loaded data does not flash "loading"
+      // back onto the screen. Only newly-enabled layers show loading.
+      setRiderLayerStates((prev) => {
+        const next: Record<string, FeatureLayerState> = {}
+        for (const id of visibleFeatureLayers) {
+          if (selectedSet.has(id)) {
+            const was = prev[id]
+            next[id] = was === "ready" || was === "empty" ? was : "loading"
+          } else {
+            next[id] = "zoom"
+          }
+        }
+        return next
+      })
+      // The aggregate banner only flips to loading if there is no prior
+      // successful data — otherwise keep "ready" so the corner banner
+      // stays calm during panning.
+      setRiderFeaturesStatus((prev) => (prev === "ready" ? "ready" : "loading"))
+
       try {
-        setRiderFeaturesStatus("loading")
         const response = await fetch(`/api/map-features?${query}`, {
           headers: { accept: "application/geo+json, application/json" },
           signal: controller.signal
         })
         if (!response.ok) {
           geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
+          setRiderLayerStates((prev) => {
+            const next: Record<string, FeatureLayerState> = { ...prev }
+            for (const id of selectedLayers) next[id] = "error"
+            return next
+          })
+          setRiderLayerCounts({})
           setRiderFeaturesStatus("error")
           return
         }
-        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(await response.json() as FeatureCollection)
+        const collection = await response.json() as FeatureCollection
+        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(collection)
+        // Tally per-layer counts so the Layers panel can answer "did this
+        // layer load but find nothing in view?" — a very common case for
+        // sparse OSM data that previously looked indistinguishable from a
+        // failed fetch.
+        const counts: Record<string, number> = {}
+        for (const feature of collection.features) {
+          const lid = (feature.properties as Record<string, unknown> | null)?.layerId
+          if (typeof lid === "string") counts[lid] = (counts[lid] ?? 0) + 1
+        }
+        setRiderLayerCounts(counts)
+        setRiderLayerStates((prev) => {
+          const next: Record<string, FeatureLayerState> = { ...prev }
+          for (const id of visibleFeatureLayers) {
+            if (selectedSet.has(id)) {
+              next[id] = (counts[id] ?? 0) > 0 ? "ready" : "empty"
+            } else {
+              next[id] = "zoom"
+            }
+          }
+          return next
+        })
         setRiderFeaturesStatus("ready")
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return
         geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
+        setRiderLayerStates((prev) => {
+          const next: Record<string, FeatureLayerState> = { ...prev }
+          for (const id of selectedLayers) next[id] = "error"
+          return next
+        })
+        setRiderLayerCounts({})
         setRiderFeaturesStatus("error")
       }
     }
@@ -1034,7 +1117,7 @@ export function MapStage(props: MapStageProps) {
       map.off("moveend", onMoveEnd)
       riderFeaturesAbortRef.current?.abort()
     }
-  }, [props.riderLayers, ready])
+  }, [props.riderLayers, ready, riderFeaturesRetry])
 
   return (
     <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}`} aria-label="Interactive route map">
@@ -1046,9 +1129,23 @@ export function MapStage(props: MapStageProps) {
       {curvatureStatus === "error" ? <div className="map-layer-status map-layer-error" role="status">Curve overlay unavailable</div> : null}
       {unpavedStatus === "loading" ? <div className="map-layer-status unpaved-status" role="status">Loading official PA gravel roads…</div> : null}
       {unpavedStatus === "error" ? <div className="map-layer-status map-layer-error unpaved-status" role="status">PA gravel overlay unavailable</div> : null}
-      {riderFeaturesStatus === "loading" ? <div className="map-layer-status" role="status">Loading selected map layers…</div> : null}
-      {riderFeaturesStatus === "zoom" ? <div className="map-layer-status">Zoom in to load selected map layers</div> : null}
-      {riderFeaturesStatus === "error" ? <div className="map-layer-status map-layer-error" role="status">Selected map layers are temporarily unavailable</div> : null}
+      {riderFeaturesStatus === "loading" ? (
+        <div className="map-layer-status map-feature-banner" role="status" aria-live="polite">
+          <span className="map-layer-spinner" aria-hidden="true" />
+          <span>Loading map layers…</span>
+        </div>
+      ) : null}
+      {riderFeaturesStatus === "zoom" ? (
+        <div className="map-layer-status map-feature-banner" role="status">
+          <span>Zoom in to load selected layers</span>
+        </div>
+      ) : null}
+      {riderFeaturesStatus === "error" ? (
+        <div className="map-layer-status map-layer-error map-feature-banner" role="alert">
+          <span>Map layers unavailable</span>
+          <button type="button" className="map-feature-retry" onClick={() => setRiderFeaturesRetry((value) => value + 1)}>Retry</button>
+        </div>
+      ) : null}
       {props.rideMode && navigationFrame ? (
         <button
           type="button"
@@ -1075,6 +1172,9 @@ export function MapStage(props: MapStageProps) {
         mapPacks={props.mapPacks}
         unpavedStatus={unpavedStatus}
         unpavedCount={unpavedCount}
+        riderLayerStates={riderLayerStates}
+        riderLayerCounts={riderLayerCounts}
+        onRetryRiderLayers={() => setRiderFeaturesRetry((value) => value + 1)}
         referenceMap={props.referenceMap}
         referenceMessage={referenceMessage}
         onToggleSketch={() => {

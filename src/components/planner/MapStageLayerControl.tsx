@@ -2,7 +2,7 @@
 
 import { PencilLine, Stack, X } from "@phosphor-icons/react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
-import { catalogLayerSettings, riderLayerConfidence, type MapStyleId, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
+import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type MapStyleId, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
 import { useMapLayerMenu } from "./useMapLayerMenu"
 
 interface MapStageLayerControlProps {
@@ -14,6 +14,9 @@ interface MapStageLayerControlProps {
   mapPacks: RiderMapPack[]
   unpavedStatus: "hidden" | "loading" | "ready" | "zoom" | "error"
   unpavedCount: number
+  riderLayerStates: Record<string, FeatureLayerState>
+  riderLayerCounts: Record<string, number>
+  onRetryRiderLayers(): void
   referenceMap: ReferenceMap | null
   referenceMessage: string
   onToggleSketch(): void
@@ -30,6 +33,8 @@ interface MapStageLayerControlProps {
   onRemoveReferenceMap(): void
 }
 
+const FEATURE_LAYER_SET: ReadonlySet<RiderLayerId> = new Set(featureMapLayerIds)
+
 export function MapStageLayerControl({
   sketchMode,
   avoidMode,
@@ -39,6 +44,9 @@ export function MapStageLayerControl({
   mapPacks,
   unpavedStatus,
   unpavedCount,
+  riderLayerStates,
+  riderLayerCounts,
+  onRetryRiderLayers,
   referenceMap,
   referenceMessage,
   onToggleSketch,
@@ -66,6 +74,13 @@ export function MapStageLayerControl({
     saveMapPack
   } = useMapLayerMenu({ onSaveMapPack })
 
+  // Aggregate count of how many layers are currently loading, errored, or
+  // empty-but-loaded, so the panel header can surface a one-line status
+  // summary that survives even when the panel is closed.
+  const loadingLayerCount = Object.values(riderLayerStates).filter((state) => state === "loading").length
+  const errorLayerCount = Object.values(riderLayerStates).filter((state) => state === "error").length
+  const emptyLayerCount = Object.values(riderLayerStates).filter((state) => state === "empty").length
+
   return (
     <div className="map-layer-control" onKeyDown={handleLayerMenuKeyDown}>
       <div className="map-tool-row">
@@ -77,9 +92,10 @@ export function MapStageLayerControl({
           {avoidMode ? <X aria-hidden="true" /> : <span className="avoid-area-glyph" aria-hidden="true">▧</span>}
           <span>{avoidMode ? "Cancel" : "Avoid area"}</span>
         </button>
-        <button ref={layerButtonRef} type="button" className="map-layers-button" aria-label={layerMenuOpen ? "Close map layers" : "Open map layers"} aria-expanded={layerMenuOpen} onClick={() => { if (sketchMode) onToggleSketch(); if (avoidMode) onToggleAvoid(); toggleLayerMenu() }}>
+        <button ref={layerButtonRef} type="button" className={`map-layers-button${loadingLayerCount > 0 ? " is-loading" : ""}${errorLayerCount > 0 ? " has-error" : ""}`} aria-label={layerMenuOpen ? "Close map layers" : "Open map layers"} aria-expanded={layerMenuOpen} onClick={() => { if (sketchMode) onToggleSketch(); if (avoidMode) onToggleAvoid(); toggleLayerMenu() }}>
           {layerMenuOpen ? <X aria-hidden="true" /> : <Stack weight="fill" aria-hidden="true" />}
           <span>Layers</span>
+          {loadingLayerCount > 0 ? <span className="map-layer-spinner map-layers-button-spinner" aria-hidden="true" /> : null}
         </button>
       </div>
       {layerMenuOpen ? <div className="map-layer-menu" role="dialog" aria-label="Map layers and style">
@@ -88,16 +104,53 @@ export function MapStageLayerControl({
           <div className="map-style-options">{(["clean", "explorer", "night"] as const).map((style) => <button type="button" key={style} aria-pressed={mapStyle === style} onClick={() => onMapStyleChange(style)}><span className={`style-swatch style-${style}`} aria-hidden="true" />{style === "clean" ? "Clean" : style === "explorer" ? "Explore" : "Night"}</button>)}</div>
         </div>
         <div className="overlay-options">
-          <strong>Rider map studio</strong>
+          <div className="overlay-options-header">
+            <strong>Rider map studio</strong>
+            {loadingLayerCount > 0 ? <span className="layer-section-status is-loading"><span className="map-layer-spinner" aria-hidden="true" /> Loading {loadingLayerCount}</span> : null}
+            {errorLayerCount > 0 ? <span className="layer-section-status is-error">{errorLayerCount} failed</span> : null}
+            {emptyLayerCount > 0 && loadingLayerCount === 0 && errorLayerCount === 0 ? <span className="layer-section-status is-empty">{emptyLayerCount} found nothing in view</span> : null}
+          </div>
+          {errorLayerCount > 0 ? (
+            <div className="layer-error-banner" role="status">
+              <span>Some layers failed to load — the OSM map-data provider may be busy or unreachable.</span>
+              <button type="button" onClick={onRetryRiderLayers}>Retry layers</button>
+            </div>
+          ) : null}
           {catalogSettings.map(({ definition, setting }, index) => {
-            const detail = definition.id === "unpaved" && unpavedStatus === "ready" ? `${unpavedCount} in view · official PASDA` : `${definition.source} · ${definition.coverage}`
-            return <label key={definition.id}>
+            // Per-layer detail line: for feature layers, surface load
+            // state (loading / count / empty / zoom-too-low / failed) so
+            // users can tell apart "loaded but nothing here" from "broken".
+            const isFeatureLayer = FEATURE_LAYER_SET.has(definition.id)
+            const layerState = isFeatureLayer ? riderLayerStates[definition.id] : undefined
+            const layerCount = isFeatureLayer ? (riderLayerCounts[definition.id] ?? 0) : 0
+            const detail = (() => {
+              if (definition.id === "unpaved" && unpavedStatus === "ready") return `${unpavedCount} in view · official PASDA`
+              if (!isFeatureLayer || layerState === undefined) return `${definition.source} · ${definition.coverage}`
+              switch (layerState) {
+                case "loading": return "Fetching features…"
+                case "ready": return `${layerCount} in view · ${definition.source}`
+                case "empty": return `None in view · ${definition.source}`
+                case "zoom": return `Zoom in to ${definition.minZoom}+ to load · ${definition.source}`
+                case "error": return "Failed to load — tap retry above"
+                default: return `${definition.source} · ${definition.coverage}`
+              }
+            })()
+            return <label key={definition.id} className={layerState ? `has-layer-state is-${layerState}` : undefined}>
               <input type="checkbox" checked={setting.visible} onChange={(event) => onRiderLayerChange(definition.id, { visible: event.target.checked })} />
               <span className={`overlay-key ${definition.id === "unpaved" ? "unpaved-key" : definition.id === "curvature" ? "curvature-key" : "catalog-key"}`} aria-hidden="true" />
-              <span><b>{definition.name}</b><small>{detail}</small><small className="layer-freshness">{definition.freshness} · zoom {definition.minZoom}+</small><small className="layer-legend">Legend: {definition.legend}</small><small className="layer-confidence">Confidence: {riderLayerConfidence(definition)}</small>
+              <span className="overlay-meta"><b>{definition.name}</b><small>{detail}</small><small className="layer-freshness">{definition.freshness} · zoom {definition.minZoom}+</small><small className="layer-legend">Legend: {definition.legend}</small><small className="layer-confidence">Confidence: {riderLayerConfidence(definition)}</small>
                 <span className="layer-order-controls"><button type="button" aria-label={`Move ${definition.name} earlier`} disabled={index === 0} onClick={() => onMoveRiderLayer(definition.id, "earlier")}>Up</button><button type="button" aria-label={`Move ${definition.name} later`} disabled={index === catalogSettings.length - 1} onClick={() => onMoveRiderLayer(definition.id, "later")}>Down</button></span>
                 <input className="layer-opacity" type="range" min="0.2" max="1" step="0.05" value={setting.opacity} aria-label={`${definition.name} opacity`} onChange={(event) => onRiderLayerChange(definition.id, { opacity: Number(event.target.value) })} />
               </span>
+              {isFeatureLayer && layerState ? (
+                <span className={`layer-status-badge is-${layerState}`} aria-hidden="true">
+                  {layerState === "loading" ? <span className="map-layer-spinner" /> : null}
+                  {layerState === "ready" ? layerCount : null}
+                  {layerState === "empty" ? "0" : null}
+                  {layerState === "zoom" ? "Z" : null}
+                  {layerState === "error" ? "!" : null}
+                </span>
+              ) : null}
             </label>
           })}
         </div>

@@ -48,17 +48,57 @@
 
 .map-layer-status {
   position: absolute;
-  top: 24px;
-  left: 480px;
-  z-index: 2;
-  padding: 7px 10px;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: rgb(11 14 13 / 88%);
-  color: var(--metal);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  border-radius: 999px;
+  background: rgb(11 14 13 / 92%);
+  color: var(--instrument);
+  font-size: 11px;
+  letter-spacing: 0.02em;
   pointer-events: none;
+}
+
+/* The aggregate banner shown while rider feature layers fetch. It needs
+   to be impossible to miss — the previous pill was hidden at left:480px
+   and never reappeared on desktop widths. */
+.map-feature-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.map-layer-spinner {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1.6px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: map-layer-spin 0.7s linear infinite;
+}
+
+@keyframes map-layer-spin {
+  to { transform: rotate(360deg); }
+}
+
+.map-feature-retry {
+  margin-left: 8px;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 
 .map-layer-error {
