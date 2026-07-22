@@ -83,7 +83,10 @@ interface GraphHopperCustomModel {
 }
 
 const MUST_LOCK_PRIORITY_ZERO = "0"
-const PREFER_LOCK_REWARD = "1.6"
+// This GraphHopper deployment caps custom-model priority multipliers at 1.
+// Penalizing edges outside the corridor by the inverse of the old 1.6 reward
+// preserves the same relative preference without producing an invalid model.
+const PREFER_LOCK_OUTSIDE_PENALTY = "0.625"
 
 /** A lock's geometry corridor rendered as a GraphHopper polygon feature. */
 interface RoadLockAreaFeature {
@@ -160,8 +163,8 @@ function buildMustLockRules(features: readonly RoadLockAreaFeature[]): GraphHopp
 
 function buildPreferLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
   return features.map((feature) => ({
-    if: `in_${feature.id}`,
-    multiply_by: PREFER_LOCK_REWARD
+    if: `!in_${feature.id}`,
+    multiply_by: PREFER_LOCK_OUTSIDE_PENALTY
   }))
 }
 

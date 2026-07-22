@@ -82,7 +82,7 @@ describe("GraphHopper road lock translation", () => {
     })
   })
 
-  it("rewards edges inside a prefer-use corridor with a multiply_by reward", () => {
+  it("prefers a corridor by penalizing edges outside it with a legal multiplier", () => {
     const lock = preferLock()
     const body = createGraphHopperRequest({
       profile: "twisty",
@@ -92,8 +92,8 @@ describe("GraphHopper road lock translation", () => {
 
     const priority = findPriority(body)
     expect(priority).toContainEqual({
-      if: "in_switchback_lock_0",
-      multiply_by: "1.6"
+      if: "!in_switchback_lock_0",
+      multiply_by: "0.625"
     })
   })
 
@@ -117,7 +117,7 @@ describe("GraphHopper road lock translation", () => {
 
     const priority = findPriority(body)
     const mustIndex = priority.findIndex((rule) => rule.if === "!in_switchback_lock_0")
-    const preferIndex = priority.findIndex((rule) => rule.if === "in_switchback_lock_1")
+    const preferIndex = priority.findIndex((rule) => rule.if === "!in_switchback_lock_1")
     expect(mustIndex).toBeGreaterThanOrEqual(0)
     expect(preferIndex).toBeGreaterThan(mustIndex)
   })
@@ -197,7 +197,7 @@ describe("GraphHopper road lock translation", () => {
     })
     const priority = findPriority(body)
     expect(priority).toContainEqual({ if: "!in_switchback_lock_0", multiply_by: "0" })
-    expect(priority).toContainEqual({ if: "in_switchback_lock_1", multiply_by: "1.6" })
+    expect(priority).toContainEqual({ if: "!in_switchback_lock_1", multiply_by: "0.625" })
     expect(priority.some((rule) => rule.if === "road_class == PATH" && rule.multiply_by === "0")).toBe(true)
   })
 })

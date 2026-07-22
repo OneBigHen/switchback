@@ -55,6 +55,7 @@ describe("region policy overlay", () => {
     expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("SECONDARY"))).toBe(true)
     expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("TERTIARY"))).toBe(true)
     expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("TRACK"))).toBe(true)
+    expect(priority.every((rule) => rule.multiply_by === undefined || Number(rule.multiply_by) <= 1)).toBe(true)
   })
 
   it("does not emit region overlay priority rules when waypoints fall outside every overlay region", () => {
@@ -107,7 +108,7 @@ describe("region policy overlay", () => {
 
     const highwayIdx = priority.findIndex((rule) => rule.if === "road_class == MOTORWAY || road_class == TRUNK")
     const mustIdx = priority.findIndex((rule) => rule.if === "!in_switchback_lock_0")
-    const preferIdx = priority.findIndex((rule) => rule.if === "in_switchback_lock_1")
+    const preferIdx = priority.findIndex((rule) => rule.if === "!in_switchback_lock_1")
     const bikePathIdx = priority.findIndex((rule) => rule.if === "road_class == PATH")
     const regionIdx = priority.findIndex((rule) => rule.if?.startsWith("in_switchback_region_"))
 
@@ -155,7 +156,7 @@ describe("region policy overlay", () => {
     expect(ids.some((id) => id.startsWith("switchback_region_"))).toBe(true)
   })
 
-  it("multiplies PA secondary road priority rather than zeroing it out", () => {
+  it("keeps PA secondary roads at the legal priority ceiling", () => {
     const body = createGraphHopperRequest({
       profile: "twisty",
       points: [harrisburg, lancaster]
@@ -164,7 +165,7 @@ describe("region policy overlay", () => {
     const secondaryRule = priority.find((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("SECONDARY"))
     expect(secondaryRule).toBeDefined()
     const multiplier = Number(secondaryRule!.multiply_by)
-    expect(multiplier).toBeGreaterThan(1.0)
+    expect(multiplier).toBe(1)
   })
 
   it("does not silently drop a lock when both a must lock and a region overlay apply to the same request", () => {

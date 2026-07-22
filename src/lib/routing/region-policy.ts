@@ -55,8 +55,7 @@ export const REGION_POLICY_OVERLAYS: readonly RegionPolicyOverlay[] = [
     regionId: "pennsylvania",
     summary: "Reward curvy secondary roads; forest-road use for Adventure and Dual-Sport; penalize uncertain surfaces.",
     customModel: {
-      speedMultipliers: { secondary: 1.05, tertiary: 1.05 },
-      priorityMultipliers: { secondary: 1.2, tertiary: 1.15, track: 0.9 },
+      priorityMultipliers: { secondary: 1, tertiary: 0.96, track: 0.75 },
       rewardCurvySecondary: true,
       penalizeUncertainSurface: true,
       emphasizeElevationAndRemoteness: true,
@@ -71,8 +70,7 @@ export const REGION_POLICY_OVERLAYS: readonly RegionPolicyOverlay[] = [
     regionId: "west-virginia",
     summary: "Reward curvy secondary roads; forest-road use for Adventure and Dual-Sport; emphasize elevation and remoteness.",
     customModel: {
-      speedMultipliers: { secondary: 1.05, tertiary: 1.05 },
-      priorityMultipliers: { secondary: 1.25, tertiary: 1.15, track: 0.95 },
+      priorityMultipliers: { secondary: 1, tertiary: 0.92, track: 0.76 },
       rewardCurvySecondary: true,
       penalizeUncertainSurface: true,
       emphasizeElevationAndRemoteness: true,
@@ -101,8 +99,7 @@ export const REGION_POLICY_OVERLAYS: readonly RegionPolicyOverlay[] = [
     regionId: "new-york",
     summary: "Model mountain and seasonal roads; account for longer fuel gaps; distinguish maintained gravel from poor tracks.",
     customModel: {
-      speedMultipliers: { secondary: 1.05, tertiary: 1.05 },
-      priorityMultipliers: { secondary: 1.15, tertiary: 1.1, track: 0.85 },
+      priorityMultipliers: { secondary: 1, tertiary: 0.96, track: 0.74 },
       modelSeasonalMountainClosures: true,
       penalizeUncertainSurface: true,
       fuelGapMiles: 90
