@@ -1,0 +1,481 @@
+/* EliteDesk v1 visual layer. This file loads last while legacy selectors are
+   removed screen-by-screen; every value maps to design/DESIGN-CONTRACT.md. */
+
+.planner-shell {
+  background: var(--oled);
+  color: var(--instrument);
+}
+
+.planner-shell .map-stage {
+  background: var(--oled);
+}
+
+.planner-shell .map-stage::after {
+  box-shadow: inset 0 0 56px rgb(16 37 61 / 8%);
+}
+
+.app-navigation {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 18;
+  display: flex;
+  width: 72px;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--machined) 96%, transparent);
+  box-shadow: 0 8px 28px rgb(16 37 61 / 12%);
+  backdrop-filter: blur(18px);
+}
+
+.app-navigation-brand {
+  display: grid;
+  min-height: 88px;
+  place-items: center;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-navigation-brand > span:last-child {
+  display: none;
+}
+
+.switchback-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  transform: skew(-8deg);
+  border-radius: 12px;
+  background: var(--twisty);
+  color: #fff;
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: 26px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.app-navigation-items {
+  display: grid;
+  gap: 8px;
+  padding: 10px 8px 14px;
+}
+
+.app-navigation button {
+  display: grid;
+  min-width: 44px;
+  min-height: 56px;
+  place-items: center;
+  gap: 2px;
+  padding: 7px 3px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--metal);
+  cursor: pointer;
+}
+
+.app-navigation button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.app-navigation button span {
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.app-navigation button.is-active {
+  background: color-mix(in srgb, var(--signal) 11%, var(--machined));
+  color: var(--signal);
+}
+
+.planner-deck {
+  left: 104px;
+  width: 456px;
+  border-color: var(--line);
+  border-radius: 24px;
+  background: var(--machined);
+  box-shadow: 0 8px 28px rgb(16 37 61 / 12%);
+}
+
+.planner-deck::before {
+  display: none;
+}
+
+.planner-scroll {
+  scrollbar-color: var(--line) transparent;
+}
+
+.brand-lockup,
+.planner-deck,
+.planner-deck button,
+.planner-deck input,
+.planner-deck select {
+  color: var(--instrument);
+}
+
+.brand-mark {
+  border-color: color-mix(in srgb, var(--twisty) 28%, var(--line));
+  background: color-mix(in srgb, var(--twisty) 8%, var(--machined));
+  box-shadow: none;
+}
+
+.brand-mark svg,
+.route-count,
+.twistiness-meter strong {
+  color: var(--twisty);
+}
+
+.brand-lockup small,
+.engine-status,
+.route-slip-name small,
+.route-slip-metric small {
+  color: var(--metal);
+}
+
+.planner-action-dock {
+  border-top-color: var(--line);
+  background: color-mix(in srgb, var(--machined) 96%, transparent);
+  box-shadow: 0 -8px 24px rgb(16 37 61 / 7%);
+}
+
+.planner-action-dock .plan-button,
+.primary-action {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: #fff;
+}
+
+.planner-deck > .planner-action-dock .dock-ride-button,
+.primary-commit {
+  border-color: var(--twisty);
+  background: var(--twisty);
+  color: #fff;
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--twisty) 24%, transparent);
+}
+
+.route-slip,
+.directions-panel,
+.route-rack {
+  border-color: var(--line);
+}
+
+.route-slip {
+  border-radius: 16px;
+  background: var(--machined);
+}
+
+.route-slip.is-selected {
+  border: 1px solid color-mix(in srgb, var(--twisty) 54%, var(--line));
+  background: color-mix(in srgb, var(--twisty) 5%, var(--machined));
+  box-shadow: inset 3px 0 0 var(--twisty);
+}
+
+.maplibregl-map {
+  font-family: "Inter Variable", Inter, sans-serif;
+}
+
+.maplibregl-ctrl-group,
+.maplibregl-ctrl-attrib {
+  border-color: var(--line) !important;
+  background: color-mix(in srgb, var(--machined) 94%, transparent) !important;
+  color: var(--metal) !important;
+  box-shadow: 0 8px 28px rgb(16 37 61 / 12%) !important;
+}
+
+.maplibregl-ctrl-group button {
+  background-color: var(--machined) !important;
+}
+
+.maplibregl-ctrl-group button span {
+  filter: none;
+}
+
+.maplibregl-ctrl-bottom-left {
+  left: 560px;
+}
+
+.destination-panel {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 104px;
+  z-index: 12;
+  width: min(480px, calc(100vw - 136px));
+  padding: 28px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--machined);
+  color: var(--instrument);
+  box-shadow: 0 8px 28px rgb(16 37 61 / 12%);
+}
+
+.destination-panel header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 6px;
+  font-size: 28px;
+  letter-spacing: -0.035em;
+}
+
+.destination-panel header p {
+  margin: 0;
+  color: var(--metal);
+  line-height: 1.5;
+}
+
+.destination-kicker {
+  color: var(--signal);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.record-readiness,
+.profile-storage-entry {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--raised);
+  color: var(--instrument);
+}
+
+.record-readiness > div,
+.profile-storage-entry span {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.record-readiness small,
+.profile-storage-entry small {
+  color: var(--metal);
+}
+
+.record-pulse {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--metal);
+}
+
+.record-pulse.is-recording {
+  background: var(--danger);
+  animation: record-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes record-pulse {
+  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--danger) 15%, transparent); }
+}
+
+.record-map {
+  position: relative;
+  display: grid;
+  min-height: 210px;
+  margin-top: 16px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, transparent 49%, color-mix(in srgb, var(--line) 55%, transparent) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 49%, color-mix(in srgb, var(--line) 55%, transparent) 50%, transparent 51%),
+    var(--raised);
+  background-size: 42px 42px;
+  color: var(--metal);
+  text-align: center;
+}
+
+.record-map > svg {
+  position: absolute;
+  inset: 14px;
+  width: calc(100% - 28px);
+  height: calc(100% - 28px);
+}
+
+.record-map polyline {
+  fill: none;
+  stroke: var(--twisty);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 6;
+}
+
+.record-telemetry {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.record-telemetry div {
+  padding: 14px;
+  border-right: 1px solid var(--line);
+}
+
+.record-telemetry div:last-child { border-right: 0; }
+.record-telemetry dt { color: var(--metal); font-size: 10px; text-transform: uppercase; }
+.record-telemetry dd { margin: 4px 0 0; font-size: 19px; font-variant-numeric: tabular-nums; }
+
+.record-actions,
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.record-actions button,
+.profile-actions button,
+.profile-storage-entry,
+.app-overlay-panel > header button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--machined);
+  color: var(--instrument);
+  cursor: pointer;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.profile-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--metal);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.profile-grid input,
+.profile-grid select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--machined);
+  color: var(--instrument);
+}
+
+.profile-grid .profile-check {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 9px;
+}
+
+.profile-grid .profile-check input { width: 20px; min-height: 20px; }
+.profile-storage-entry { width: 100%; margin: 0 0 18px; }
+.profile-storage-entry > svg { width: 28px; height: 28px; color: var(--signal); }
+.profile-actions .primary-action { border-color: var(--signal); color: #fff; }
+.profile-actions .danger-action { color: var(--danger); }
+.profile-notice { color: var(--success); }
+
+.app-overlay-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(7 18 30 / 48%);
+}
+
+.app-overlay-panel {
+  width: min(760px, 100%);
+  max-height: min(850px, 94dvh);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--machined);
+  color: var(--instrument);
+  box-shadow: 0 24px 70px rgb(7 18 30 / 28%);
+}
+
+.app-overlay-panel > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--machined);
+}
+
+.app-overlay-panel > header h2 { margin: 0; }
+.app-overlay-panel > header button { width: 44px; padding: 0; font-size: 24px; }
+
+@media (max-width: 760px) {
+  .app-navigation {
+    top: auto;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+    height: 68px;
+    flex-direction: row;
+    border-radius: 20px;
+  }
+
+  .app-navigation-brand { display: none; }
+  .app-navigation-items { width: 100%; grid-template-columns: repeat(4, 1fr); padding: 6px 8px; }
+  .app-navigation button { min-height: 54px; }
+
+  .planner-deck,
+  .planner-deck.is-minimized {
+    right: 8px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+    max-height: min(70dvh, 680px);
+    border-radius: 24px;
+  }
+
+  .planner-deck.is-minimized { height: 146px; }
+  .planner-deck > .planner-action-dock { bottom: 0; }
+
+  .destination-panel {
+    top: 8px;
+    right: 8px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+    padding: 22px 18px;
+    border-radius: 24px;
+  }
+
+  .profile-grid { grid-template-columns: 1fr; }
+  .record-telemetry dd { font-size: 16px; }
+  .maplibregl-ctrl-bottom-left { left: 0; bottom: 84px; }
+  .app-overlay-scrim { padding: 8px; }
+  .app-overlay-panel { max-height: calc(100dvh - 16px); border-radius: 22px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-navigation { width: 64px; height: auto; top: 8px; right: auto; bottom: 8px; }
+  .app-navigation-items { grid-template-columns: 1fr; }
+  .planner-deck,
+  .destination-panel { top: 8px; right: 8px; bottom: 8px; left: 80px; width: min(420px, 48vw); max-height: none; }
+}

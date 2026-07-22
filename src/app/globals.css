@@ -1,23 +1,53 @@
-@import "@fontsource-variable/dm-sans/index.css";
-@import "@fontsource-variable/sora/index.css";
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/space-grotesk/index.css";
 
 :root {
-  --background: 150 12% 5%;
-  --foreground: 42 35% 93%;
-  --primary: 18 89% 56%;
-  --accent: 18 89% 56%;
-  --surface: 150 8% 10%;
-  --muted: 150 5% 60%;
+  --background: 207 47% 97%;
+  --foreground: 211 58% 15%;
+  --primary: 215 70% 47%;
+  --accent: 215 70% 47%;
+  --surface: 0 0% 100%;
+  --muted: 211 17% 45%;
   --radius: 0.75rem;
-  --oled: #0b0e0d;
-  --machined: #171b19;
-  --raised: #202522;
-  --instrument: #f3efe6;
-  --metal: #949c97;
-  --line: #343b37;
-  --signal: #f36a2d;
-  --danger: #e35d54;
-  --success: #80b99a;
+  --oled: #f4f8fb;
+  --machined: #ffffff;
+  --raised: #f0f4f8;
+  --instrument: #10253d;
+  --metal: #607287;
+  --line: #d8e2ea;
+  --signal: #246bce;
+  --ride-orange: #ff3b24;
+  --danger: #d74646;
+  --success: #168b5b;
+  --warning: #c87808;
+  --twisty: #ff3b24;
+  --scenic: #10a6a6;
+  --adventure: #e99400;
+  --direct: #8d9aaa;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --background: 208 62% 7%;
+  --foreground: 204 26% 97%;
+  --primary: 215 86% 63%;
+  --surface: 207 52% 11%;
+  --muted: 209 19% 69%;
+  --oled: #07121e;
+  --machined: #0e1d2c;
+  --raised: #14283a;
+  --instrument: #f3f7fa;
+  --metal: #9fb0c0;
+  --line: #294156;
+  --signal: #4d91f2;
+  --ride-orange: #ff573d;
+  --danger: #ff6666;
+  --success: #36c78a;
+  --warning: #f0a52c;
+  --twisty: #ff573d;
+  --scenic: #31c7c7;
+  --adventure: #f4b138;
+  --direct: #7f90a3;
   color-scheme: dark;
 }
 
@@ -60,8 +90,9 @@ body.ride-mode-active {
 
 body,
 button,
-input {
-  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+input,
+select {
+  font-family: "Inter Variable", Inter, sans-serif;
 }
 
 button,
@@ -82,7 +113,26 @@ label {
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--signal);
   outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+.brand-lockup strong {
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -12,6 +12,7 @@ import "./styles/download-mode-picker.css"
 import "./styles/region-suite-picker.css"
 import "./styles/region-downloads.css"
 import "./styles/responsive.css"
+import "./styles/switchback-v1.css"
 
 export const metadata: Metadata = {
   title: "Switchback — Ride the better road",
@@ -25,7 +26,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0B0E0D"
+  themeColor: "#F4F8FB"
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

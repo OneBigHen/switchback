@@ -1,7 +1,13 @@
 "use client"
 
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useReducer, useRef, useState } from "react"
+import {
+  appNavigationReducer,
+  createInitialAppNavigationState,
+  type AppTab,
+  type ThemePreference
+} from "@/lib/client/app-navigation"
 import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { isNightTime } from "@/lib/client/day-phase"
 import { type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
@@ -44,6 +50,10 @@ import { usePlannerLocationSeed } from "./usePlannerLocationSeed"
 import { usePlannerRideActions } from "./usePlannerRideActions"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
+import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
+import { AppNavigation } from "@/components/shell/AppNavigation"
+import { ProfilePanel } from "@/components/shell/ProfilePanel"
+import { RecordPanel } from "@/components/shell/RecordPanel"
 
 function normalizedSegmentProfiles(
   profiles: RouteProfileId[],
@@ -51,6 +61,28 @@ function normalizedSegmentProfiles(
   fallback: RouteProfileId
 ): RouteProfileId[] {
   return Array.from({ length: Math.max(0, count) }, (_, index) => profiles[index] ?? fallback)
+}
+
+function initialThemePreference(): ThemePreference {
+  if (typeof window === "undefined") return "auto"
+  const stored = localStorage.getItem("switchback:theme")
+  return stored === "light" || stored === "dark" ? stored : "auto"
+}
+
+function recordedDistanceMiles(points: Array<{ coordinate: [number, number] }>): number {
+  const radians = (value: number) => value * Math.PI / 180
+  let meters = 0
+  for (let index = 1; index < points.length; index++) {
+    const previous = points[index - 1]!.coordinate
+    const current = points[index]!.coordinate
+    const latitudeDelta = radians(current[1] - previous[1])
+    const longitudeDelta = radians(current[0] - previous[0])
+    const firstLatitude = radians(previous[1])
+    const secondLatitude = radians(current[1])
+    const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDelta / 2) ** 2
+    meters += 2 * 6_371_000 * Math.asin(Math.sqrt(a))
+  }
+  return meters / 1609.344
 }
 
 export function PlannerShell() {
@@ -87,6 +119,11 @@ export function PlannerShell() {
   const [researchSources, setResearchSources] = useState<RideResearchSource[]>([])
   const [unpavedVisible, setUnpavedVisible] = useState(true)
   const [mapStyle, setMapStyle] = useState<MapStyleId>("clean")
+  const [navigation, dispatchNavigation] = useReducer(
+    appNavigationReducer,
+    undefined,
+    () => createInitialAppNavigationState(initialThemePreference())
+  )
 
   const autoNightRef = useRef(true)
   const [riderLayers, setRiderLayers] = useState<RiderLayerSetting[]>(() => defaultRiderLayerSettings().map((layer) => ({
@@ -160,6 +197,22 @@ export function PlannerShell() {
     const id = setInterval(check, 120_000)
     return () => clearInterval(id)
   }, [start, finish])
+
+  useEffect(() => {
+    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
+    const resolved = navigation.theme === "auto"
+      ? (mapStyle === "night" || prefersDark ? "dark" : "light")
+      : navigation.theme
+    document.documentElement.dataset.theme = resolved
+    document.documentElement.dataset.themePreference = navigation.theme
+    localStorage.setItem("switchback:theme", navigation.theme)
+  }, [mapStyle, navigation.theme])
+
+  useEffect(() => {
+    const handleBack = () => dispatchNavigation({ type: "back" })
+    window.addEventListener("popstate", handleBack)
+    return () => window.removeEventListener("popstate", handleBack)
+  }, [])
 
   useEffect(() => {
     // those environments load their current assets directly; caching them in a
@@ -473,6 +526,15 @@ export function PlannerShell() {
     setNotice({ kind: "success", message: "Route cleared. Choose a new ride whenever you’re ready." })
   }
 
+  const handleAppTab = (tab: AppTab) => {
+    dispatchNavigation({ type: "select_tab", tab })
+    usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+    const url = new URL(window.location.href)
+    if (tab === "plan") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", tab)
+    window.history.pushState({ switchbackTab: tab }, "", `${url.pathname}${url.search}${url.hash}`)
+  }
+
   return (
     <main className="planner-shell" id="top">
       <MapStage
@@ -553,7 +615,11 @@ export function PlannerShell() {
         }}
       />
 
-      {surface !== "ride" && !sketching ? (
+      {surface !== "ride" ? (
+        <AppNavigation activeTab={navigation.activeTab} onSelect={handleAppTab} />
+      ) : null}
+
+      {surface !== "ride" && navigation.activeTab === "plan" && !sketching ? (
         <PlannerDeck
           viewModel={buildPlannerDeckViewModel({
             start,
@@ -710,7 +776,7 @@ export function PlannerShell() {
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
             onClearHome: clearHome,
-            onOpenLibrary: () => usePlannerStore.getState().setSurface("library"),
+            onOpenLibrary: () => handleAppTab("library"),
             onStartRide: (route) => void handleStartRide(route),
             onSaveOffline: (route, options) => {
               void buildOfflinePackCorridor(route, options ?? {}).then(() => {
@@ -778,13 +844,13 @@ export function PlannerShell() {
           ) : null}
         </PlannerDeck>
       ) : null}
-      {surface === "library" ? (
+      {surface === "library" && navigation.activeTab === "library" ? (
         <LibraryDrawer
           routes={savedRoutes}
           recordedRides={recordedRides}
           trips={savedTrips}
           projectRoutes={projectRoutes}
-          onClose={() => usePlannerStore.getState().setSurface("planner")}
+          onClose={() => handleAppTab("plan")}
           onLoad={handleLoad}
           onLoadTrip={(trip) => handleLoad(trip.route, trip)}
           onDeleteTrip={(trip) => {
@@ -811,6 +877,65 @@ export function PlannerShell() {
           }}
           onImport={(file) => void handleImport(file)}
         />
+      ) : null}
+      {surface !== "ride" && navigation.activeTab === "record" ? (
+        <RecordPanel
+          onFinish={(points) => {
+            if (points.length < 2) {
+              setNotice({ kind: "warning", message: "Record at least two GPS points before finishing." })
+              return
+            }
+            const first = points[0]!.coordinate
+            const last = points.at(-1)!.coordinate
+            const durationMinutes = Math.max(0, (Date.parse(points.at(-1)!.recordedAt) - Date.parse(points[0]!.recordedAt)) / 60_000)
+            const recordedRoute: PlannedRoute = selectedRoute ?? {
+              id: `recording-${Date.now()}`,
+              name: `Recorded ride · ${new Date().toLocaleDateString()}`,
+              profile: "quick",
+              geometry: points.map((point) => point.coordinate),
+              waypoints: [
+                { lat: first[1], lon: first[0], label: "Recording start" },
+                { lat: last[1], lon: last[0], label: "Recording finish" }
+              ],
+              instructions: [],
+              distanceMiles: recordedDistanceMiles(points),
+              durationMinutes,
+              ascentMeters: null,
+              descentMeters: null,
+              twistiness: 0,
+              turnCount: 0,
+              roadMix: {},
+              surfaceMix: {},
+              routingSource: "imported",
+              previewOnly: false
+            }
+            void rideJournalLibrary.save({ route: recordedRoute, points }).then(async (saved) => {
+              await refreshRideJournal()
+              setNotice({ kind: "success", message: `${saved.routeName} saved to Library rides.` })
+            }).catch((caught) => setNotice({
+              kind: "warning",
+              message: caught instanceof Error ? caught.message : "Recorded ride could not be saved."
+            }))
+          }}
+        />
+      ) : null}
+      {surface !== "ride" && navigation.activeTab === "profile" ? (
+        <ProfilePanel
+          theme={navigation.theme}
+          onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
+          onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}
+        />
+      ) : null}
+      {surface !== "ride" && navigation.overlays.includes("downloads") ? (
+        <div className="app-overlay-scrim" role="dialog" aria-modal="true" aria-labelledby="downloads-overlay-title">
+          <section className="app-overlay-panel">
+            <header><h2 id="downloads-overlay-title">Region downloads</h2><button type="button" aria-label="Close region downloads" onClick={() => dispatchNavigation({ type: "close_overlay", overlay: "downloads" })}>×</button></header>
+            <RegionDownloadsPanel
+              activeWaypoints={[start, ...via, finish].filter((point): point is Waypoint => point != null).map((point) => [point.lon, point.lat])}
+              pendingRoute={selectedRoute ? { id: selectedRoute.id, waypoints: selectedRoute.waypoints } : null}
+            />
+          </section>
+        </div>
       ) : null}
       {surface === "ride" && selectedRoute ? (
         <RideHud
