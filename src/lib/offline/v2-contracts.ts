@@ -485,7 +485,9 @@ export function validateOfflineGraphTileV2(input: unknown): boolean {
  * Manifest validation
  * ------------------------------------------------------------------ */
 
-export function validateOfflineRegionManifestV2(input: unknown): boolean {
+export function validateOfflineRegionManifestV2(
+  input: unknown
+): input is OfflineRegionManifestV2 {
   if (!isObject(input)) return false
 
   const {
