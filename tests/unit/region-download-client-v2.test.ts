@@ -18,9 +18,6 @@ const region: OfflineRegion = {
   estimatedDownloadBytes: 10,
   estimatedNodeCount: 2,
   estimatedEdgeCount: 1,
-  dataDate: "2026-07-20T00:00:00Z",
-  buildDate: "2026-07-21T00:00:00Z",
-  bundleVersion: "2"
 }
 
 function manifest(version: string, bytes: Uint8Array, sha = createHash("sha256").update(bytes).digest("hex")) {
@@ -30,8 +27,8 @@ function manifest(version: string, bytes: Uint8Array, sha = createHash("sha256")
     regionName: region.name,
     version,
     compression: "gzip-json",
-    buildDate: region.buildDate,
-    sourceDataDate: region.dataDate,
+    buildDate: "2026-07-21T00:00:00Z",
+    sourceDataDate: "2026-07-20T00:00:00Z",
     snapshotUrl: "https://example.com/pa.osm.pbf",
     sourceUrl: region.sourceUrl,
     bounds: region.bounds,

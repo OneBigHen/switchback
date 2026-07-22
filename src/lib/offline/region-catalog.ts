@@ -22,12 +22,6 @@ export interface OfflineRegion {
   estimatedNodeCount: number
   /** Approximate count of graph edges in this region. */
   estimatedEdgeCount: number
-  /** ISO timestamp of the OSM data snapshot used to build this region. */
-  dataDate: string
-  /** ISO timestamp when the tile bundle was last rebuilt. */
-  buildDate: string
-  /** Semantic version of the tile bundle format. */
-  bundleVersion: string
 }
 
 /** Regions eligible for offline download. Built from Geofabrik US extracts. */
@@ -43,9 +37,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 120_000_000,
     estimatedNodeCount: 1_200_000,
     estimatedEdgeCount: 2_800_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "new-jersey",
@@ -58,9 +49,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 45_000_000,
     estimatedNodeCount: 450_000,
     estimatedEdgeCount: 1_050_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "new-york",
@@ -73,9 +61,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 180_000_000,
     estimatedNodeCount: 1_800_000,
     estimatedEdgeCount: 4_200_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "maryland",
@@ -88,9 +73,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 32_000_000,
     estimatedNodeCount: 320_000,
     estimatedEdgeCount: 750_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "delaware",
@@ -103,9 +85,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 6_000_000,
     estimatedNodeCount: 60_000,
     estimatedEdgeCount: 140_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "west-virginia",
@@ -118,9 +97,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 85_000_000,
     estimatedNodeCount: 850_000,
     estimatedEdgeCount: 2_000_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "virginia",
@@ -133,9 +109,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 140_000_000,
     estimatedNodeCount: 1_400_000,
     estimatedEdgeCount: 3_300_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "ohio",
@@ -148,9 +121,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 140_000_000,
     estimatedNodeCount: 1_400_000,
     estimatedEdgeCount: 3_300_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "vermont",
@@ -163,9 +133,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 28_000_000,
     estimatedNodeCount: 280_000,
     estimatedEdgeCount: 650_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   },
   {
     id: "north-carolina",
@@ -178,9 +145,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedDownloadBytes: 170_000_000,
     estimatedNodeCount: 1_700_000,
     estimatedEdgeCount: 4_000_000,
-    dataDate: "2026-07-15T00:00:00Z",
-    buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "2"
   }
 ]
 

@@ -548,7 +548,7 @@ export function RegionDownloadsPanel({
                   {formatRegionBytes(region.estimatedDownloadBytes)} • {region.estimatedNodeCount.toLocaleString()} nodes
                 </span>
                 <span className="region-item-meta">
-                  Map data as of {region.dataDate.slice(0, 10)}
+                  Current build date and checksums come from the region manifest.
                 </span>
                 {rs.stalenessLabel && (
                   <span
