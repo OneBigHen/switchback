@@ -418,7 +418,7 @@ for (const key of [...tileKeys].sort((a, b) => a.localeCompare(b))) {
   const staged = await readFile(join(stagingDirectory, `${key}.ndjson`), "utf8")
   const tileNodes = new Map()
   const tileEdges = new Map()
-  const turnRestrictions = []
+  const pendingRestrictions = []
   for (const line of staged.split("\n")) {
     if (!line) continue
     const record = JSON.parse(line)
@@ -426,9 +426,23 @@ for (const key of [...tileKeys].sort((a, b) => a.localeCompare(b))) {
       tileEdges.set(record.edge.id, record.edge)
       for (const node of record.nodes) tileNodes.set(node.id, node)
     } else if (record.type === "restriction") {
-      turnRestrictions.push(record.restriction)
+      pendingRestrictions.push(record.restriction)
     }
   }
+  // Filter cross-tile restrictions: only include restrictions where both
+  // the incoming and outgoing directed edges are present in THIS tile.
+  // Cross-tile restrictions reference edges from adjacent tiles and would
+  // fail validateOfflineGraphTileV2, causing the entire tile to be rejected.
+  // Also deduplicate by signature (incoming|via|outgoing|kind) since the
+  // OSM relation expansion can produce identical directed-edge pairs.
+  const restrictionSignatures = new Set()
+  const turnRestrictions = pendingRestrictions.filter((r) => {
+    if (!tileEdges.has(r.incomingEdgeId) || !tileEdges.has(r.outgoingEdgeId)) return false
+    const sig = `${r.incomingEdgeId}|${r.viaNodeId}|${r.outgoingEdgeId}|${r.restriction}`
+    if (restrictionSignatures.has(sig)) return false
+    restrictionSignatures.add(sig)
+    return true
+  })
   const semantic = {
     schemaVersion: 2,
     tileId: key,

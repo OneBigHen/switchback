@@ -1,0 +1,547 @@
+{
+  "runId": "e6df13fcc22d",
+  "generatedAt": "2026-07-22T12:45:43.285Z",
+  "graphHopperUrl": "http://127.0.0.1:8989",
+  "totalPairs": 204,
+  "successCount": 171,
+  "successRatePct": 83.82,
+  "successGatePct": 98,
+  "successGatePassed": false,
+  "failureKinds": {
+    "out_of_coverage": 33,
+    "no_path": 30,
+    "search_budget": 1
+  },
+  "parityBuckets": {
+    "under5pct": 71,
+    "under10pct": 13,
+    "under25pct": 13,
+    "over25pct": 26
+  },
+  "parityUnder5pct": 71,
+  "parityUnder10pct": 84,
+  "legalityAudit": {
+    "totalReturnedEdges": 18892,
+    "pairsContainingIllegalEdges": 0,
+    "totalTurnRestrictionViolations": 0,
+    "pairsContainingTurnViolations": 0,
+    "verdict": "clean"
+  },
+  "regions": [
+    {
+      "id": "pennsylvania",
+      "version": "2026-07-22-d584915c11813d91",
+      "tileCount": 258,
+      "bounds": {
+        "minLon": -80.75,
+        "minLat": 39.5,
+        "maxLon": -74.5,
+        "maxLat": 42.5
+      }
+    },
+    {
+      "id": "new-jersey",
+      "version": "2026-07-22-f8a9f5a8f4941931",
+      "tileCount": 55,
+      "bounds": {
+        "minLon": -75.75,
+        "minLat": 38.75,
+        "maxLon": -73.75,
+        "maxLat": 41.5
+      }
+    }
+  ],
+  "goldenPairs": [
+    {
+      "idx": "pa-statecollege-bellefonte",
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -77.8602,
+        40.7984
+      ],
+      "finish": [
+        -77.7736,
+        40.9136
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": true,
+        "distanceMeters": 17326.81766888055,
+        "visitedStates": 101702,
+        "edgeCount": 527
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 18809
+      },
+      "parity": {
+        "ghMeters": 18809,
+        "offlineMeters": 17326.81766888055,
+        "diffMeters": 1482,
+        "pct": 7.88
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": "pa-lewistown-reedsville",
+      "profile": "twisty",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -77.313,
+        40.5995
+      ],
+      "finish": [
+        -77.5936,
+        40.6626
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": true,
+        "distanceMeters": 41918.84946604718,
+        "visitedStates": 48361,
+        "edgeCount": 983
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 44766
+      },
+      "parity": {
+        "ghMeters": 44766,
+        "offlineMeters": 41918.84946604718,
+        "diffMeters": 2847,
+        "pct": 6.36
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": "border-newhope-lambertville",
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania",
+        "new-jersey"
+      ],
+      "start": [
+        -74.9379,
+        40.3643
+      ],
+      "finish": [
+        -74.9421,
+        40.3659
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": true,
+        "distanceMeters": 496.04222035382105,
+        "visitedStates": 355,
+        "edgeCount": 17
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 626
+      },
+      "parity": {
+        "ghMeters": 626,
+        "offlineMeters": 496.04222035382105,
+        "diffMeters": 130,
+        "pct": 20.76
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": "border-easton-phillipsburg",
+      "profile": "quick",
+      "regions": [
+        "pennsylvania",
+        "new-jersey"
+      ],
+      "start": [
+        -75.2022,
+        40.6916
+      ],
+      "finish": [
+        -75.1836,
+        40.6892
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": true,
+        "distanceMeters": 2186.4097410120016,
+        "visitedStates": 13666,
+        "edgeCount": 85
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 2259
+      },
+      "parity": {
+        "ghMeters": 2259,
+        "offlineMeters": 2186.4097410120016,
+        "diffMeters": 73,
+        "pct": 3.21
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    }
+  ],
+  "randomFailureSample": [
+    {
+      "idx": 9,
+      "profile": "twisty",
+      "regions": [
+        "new-jersey"
+      ],
+      "start": [
+        -75.5557588,
+        39.4129428
+      ],
+      "finish": [
+        -75.54461224,
+        39.38519904
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 39.4129428,-75.5557588"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 10,
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -76.11621507000001,
+        39.58516762
+      ],
+      "finish": [
+        -76.14936371,
+        39.55516306
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 39.58516762,-76.11621507000001"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 12,
+      "profile": "quick",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -75.88341281000001,
+        42.16841687
+      ],
+      "finish": [
+        -75.88695513,
+        42.14628991
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 42.16841687,-75.88341281000001"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 14,
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -78.40134849,
+        42.143184530000006
+      ],
+      "finish": [
+        -78.37092521000001,
+        42.15067253000001
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 42.143184530000006,-78.40134849"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 16,
+      "profile": "quick",
+      "regions": [
+        "pennsylvania",
+        "new-jersey"
+      ],
+      "start": [
+        -78.30004701,
+        42.147128540000004
+      ],
+      "finish": [
+        -78.33073085,
+        42.130904060000006
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 42.147128540000004,-78.30004701"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 17,
+      "profile": "twisty",
+      "regions": [
+        "new-jersey"
+      ],
+      "start": [
+        -74.78089081,
+        41.474080310000005
+      ],
+      "finish": [
+        -74.74304153,
+        41.45880967000001
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 8620
+      },
+      "parity": null,
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 18,
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -76.66783622,
+        40.44354862
+      ],
+      "finish": [
+        -76.66084646,
+        40.48102318
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 40.44354862,-76.66783622"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 19,
+      "profile": "adventure",
+      "regions": [
+        "new-jersey"
+      ],
+      "start": [
+        -75.09030926,
+        40.52789327
+      ],
+      "finish": [
+        -75.0798123,
+        40.51838183
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 1616
+      },
+      "parity": null,
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 22,
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -78.02122976,
+        40.94908317
+      ],
+      "finish": [
+        -78.04098488,
+        40.91985245
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
+      },
+      "graphhopper": {
+        "ok": true,
+        "distanceMeters": 10246
+      },
+      "parity": null,
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 30,
+      "profile": "scenic",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -78.82940228000001,
+        39.562386610000004
+      ],
+      "finish": [
+        -78.80190220000001,
+        39.59342045
+      ],
+      "corridorTiles": 1,
+      "offline": {
+        "ok": false,
+        "kind": "out_of_coverage",
+        "message": "A route point is outside installed road coverage"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "error": "Cannot find point 0: 39.562386610000004,-78.82940228000001"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    }
+  ]
+}
