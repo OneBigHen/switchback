@@ -64,7 +64,7 @@ function validManifest(tileId: string): OfflineRegionManifestV2 {
     regionId: "pennsylvania",
     regionName: "Pennsylvania",
     version: "2026-01-01-a1b2c3",
-    compression: "zstd-json",
+    compression: "gzip-json",
     buildDate: "2026-01-01T00:00:00Z",
     sourceDataDate: "2025-12-01T00:00:00Z",
     snapshotUrl: "https://example.com/snapshot.osm.pbf",
@@ -401,7 +401,7 @@ describe("validateOfflineRegionManifestV2", () => {
     expect(validateOfflineRegionManifestV2(missingVersion)).toBe(false)
 
     const wrongCompression = validManifest("tile-1")
-    ;(wrongCompression as { compression: string }).compression = "gzip-json"
+    ;(wrongCompression as { compression: string }).compression = "zstd-json"
     expect(validateOfflineRegionManifestV2(wrongCompression)).toBe(false)
   })
 

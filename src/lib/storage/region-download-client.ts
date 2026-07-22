@@ -4,7 +4,10 @@ import type { OfflineGraph } from "@/lib/offline/graph"
 import { validateOfflineGraph } from "@/lib/offline/graph"
 import type { OfflineRegion } from "@/lib/offline/region-catalog"
 import {
+  validateOfflineGraphTileV2,
   validateOfflineRegionManifestV2,
+  type OfflineBounds,
+  type OfflineGraphTileV2,
   type OfflineRegionManifestV2
 } from "@/lib/offline/v2-contracts"
 
@@ -81,6 +84,21 @@ async function sha256(bytes: Uint8Array): Promise<string> {
   copy.set(bytes)
   const digest = await crypto.subtle.digest("SHA-256", copy.buffer)
   return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, "0")).join("")
+}
+
+function intersects(a: OfflineBounds, b: OfflineBounds): boolean {
+  return a.minLon <= b.maxLon && a.maxLon >= b.minLon && a.minLat <= b.maxLat && a.maxLat >= b.minLat
+}
+
+async function decompressGraphTile(bytes: Uint8Array): Promise<OfflineGraphTileV2> {
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+  const compressed = new Response(copy.buffer).body
+  if (!compressed) throw new Error("Installed offline tile could not be read")
+  const stream = compressed.pipeThrough(new DecompressionStream("gzip"))
+  const parsed: unknown = JSON.parse(await new Response(stream).text())
+  if (!validateOfflineGraphTileV2(parsed)) throw new Error("Installed offline tile is corrupt")
+  return parsed
 }
 
 export class RegionDownloadClient {
@@ -242,6 +260,26 @@ export class RegionDownloadClient {
     if (!pointer) return null
     const tile = await this.tiles.get(tileKey(regionId, pointer.activeVersion, tileId))
     return tile?.bytes ?? null
+  }
+
+  async getActiveGraphTiles(
+    regionId: string,
+    searchBounds?: OfflineBounds
+  ): Promise<OfflineGraphTileV2[]> {
+    const pointer = await this.regions.get(regionId)
+    if (!pointer) return []
+    const storedVersion = await this.versions.get(versionKey(regionId, pointer.activeVersion))
+    if (!storedVersion) throw new Error("Active offline region metadata is missing")
+    const entries = searchBounds
+      ? storedVersion.manifest.tiles.filter((tile) => intersects(tile.bounds, searchBounds))
+      : storedVersion.manifest.tiles
+    const result: OfflineGraphTileV2[] = []
+    for (const entry of entries) {
+      const stored = await this.tiles.get(tileKey(regionId, pointer.activeVersion, entry.tileId))
+      if (!stored || stored.sha256 !== entry.sha256) throw new Error(`Installed offline tile ${entry.tileId} is missing`)
+      result.push(await decompressGraphTile(stored.bytes))
+    }
+    return result
   }
 
   /** v1 corridor packs remain readable; v1 regional prototypes are never treated as regional routing. */

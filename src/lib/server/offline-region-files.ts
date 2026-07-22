@@ -71,7 +71,7 @@ export async function readManifestTile(
 
   try {
     const bytes = await readFile(
-      join(rootDirectory(), manifest.regionId, manifest.version, "tiles", `${tileId}.json.zst`)
+      join(rootDirectory(), manifest.regionId, manifest.version, "tiles", `${tileId}.json.gz`)
     )
     if (bytes.byteLength !== entry.bytes) {
       throw new OfflineRegionFileError(500, "Offline tile size does not match its manifest")

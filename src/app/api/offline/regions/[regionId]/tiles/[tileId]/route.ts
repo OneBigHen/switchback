@@ -41,8 +41,7 @@ async function serve(request: Request, context: RouteContext, includeBody: boole
     const baseHeaders: Record<string, string> = {
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=31536000, immutable",
-      "Content-Encoding": "zstd",
-      "Content-Type": "application/json",
+      "Content-Type": "application/gzip",
       ETag: etag
     }
 

@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto"
 
 import { createHash } from "node:crypto"
+import { gzipSync } from "node:zlib"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { OfflineRegion } from "@/lib/offline/region-catalog"
@@ -28,7 +29,7 @@ function manifest(version: string, bytes: Uint8Array, sha = createHash("sha256")
     regionId: region.id,
     regionName: region.name,
     version,
-    compression: "zstd-json",
+    compression: "gzip-json",
     buildDate: region.buildDate,
     sourceDataDate: region.dataDate,
     snapshotUrl: "https://example.com/pa.osm.pbf",
@@ -112,5 +113,43 @@ describe("RegionDownloadClient v2 atomic installs", () => {
     await client.download(region, () => undefined)
     expect(tileAttempts).toBe(2)
     await expect(client.has(region.id)).resolves.toBe(true)
+  })
+
+  it("loads and validates only active spatial graph tiles", async () => {
+    const rawTile = {
+      schemaVersion: 2,
+      tileId: "10-20",
+      bounds: region.bounds,
+      nodes: [
+        { id: "a", coordinate: [-76, 40] },
+        { id: "b", coordinate: [-75.99, 40] }
+      ],
+      edges: [{
+        id: "ab",
+        fromNodeId: "a",
+        toNodeId: "b",
+        geometry: [[-76, 40], [-75.99, 40]],
+        osmWayId: "10",
+        motorcycleAccess: "permitted",
+        access: "permitted",
+        roadClass: "tertiary",
+        surface: "asphalt",
+        profileWeights: { quick: 1, twisty: 1, scenic: 1, adventure: 1 },
+        uncertainty: []
+      }],
+      turnRestrictions: []
+    }
+    const compressed = new Uint8Array(gzipSync(JSON.stringify(rawTile)))
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/manifest")) return Response.json(manifest("v-graph", compressed))
+      return new Response(compressed)
+    }))
+    const client = new RegionDownloadClient(`regions-v2-${crypto.randomUUID()}`)
+    clients.push(client)
+    await client.download(region, () => undefined)
+
+    const tiles = await client.getActiveGraphTiles(region.id, region.bounds)
+    expect(tiles).toHaveLength(1)
+    expect(tiles[0]).toMatchObject({ schemaVersion: 2, edges: [{ osmWayId: "10" }] })
   })
 })

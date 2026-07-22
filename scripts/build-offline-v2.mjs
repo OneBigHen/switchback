@@ -419,13 +419,13 @@ for (const key of [...tileKeys].sort((a, b) => a.localeCompare(b))) {
   }
   const semanticHash = hash(JSON.stringify(semantic))
   semantic.tileId = `t-${semanticHash}`
-  const compressed = spawnSync("zstd", ["-q", "-19", "-c"], {
+  const compressed = spawnSync("gzip", ["-9", "-c"], {
     input: JSON.stringify(semantic),
     maxBuffer: 1024 * 1024 * 1024
   })
-  if (compressed.status !== 0) throw new Error(`zstd failed for ${key}`)
+  if (compressed.status !== 0) throw new Error(`gzip failed for ${key}`)
   const tileSha = hash(compressed.stdout)
-  await writeFile(join(pendingDirectory, "tiles", `${semantic.tileId}.json.zst`), compressed.stdout)
+  await writeFile(join(pendingDirectory, "tiles", `${semantic.tileId}.json.gz`), compressed.stdout)
   inventory.push({
     tileId: semantic.tileId,
     bounds: semantic.bounds,
@@ -455,7 +455,7 @@ const manifest = {
   regionId,
   regionName,
   version,
-  compression: "zstd-json",
+  compression: "gzip-json",
   buildDate,
   sourceDataDate: process.env.SWITCHBACK_SOURCE_DATA_DATE || buildDate,
   snapshotUrl: process.env.SWITCHBACK_SOURCE_SNAPSHOT_URL || `file:${basename(inputPbf)}`,

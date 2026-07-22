@@ -48,8 +48,8 @@ describe("offline PBF builder v2", () => {
     let edgeCount = 0
     let restrictionCount = 0
     for (const entry of manifest.tiles) {
-      const compressed = join(output, "fixture", version, "tiles", `${entry.tileId}.json.zst`)
-      const unzip = spawnSync("zstd", ["-q", "-d", "-c", compressed], { encoding: "utf8" })
+      const compressed = join(output, "fixture", version, "tiles", `${entry.tileId}.json.gz`)
+      const unzip = spawnSync("gzip", ["-d", "-c", compressed], { encoding: "utf8" })
       expect(unzip.status, unzip.stderr).toBe(0)
       const tile = JSON.parse(unzip.stdout)
       expect(validateOfflineGraphTileV2(tile)).toBe(true)

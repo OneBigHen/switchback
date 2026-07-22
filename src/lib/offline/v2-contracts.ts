@@ -151,7 +151,7 @@ export interface OfflineRegionManifestV2 {
   regionName: string
   /** Immutable, content-addressed region release identifier. */
   version: string
-  compression: "zstd-json"
+  compression: "gzip-json"
   buildDate: string
   sourceDataDate: string
   snapshotUrl: string
@@ -357,7 +357,7 @@ function isBounds(value: unknown): value is OfflineBounds {
  * Tile validation
  * ------------------------------------------------------------------ */
 
-export function validateOfflineGraphTileV2(input: unknown): boolean {
+export function validateOfflineGraphTileV2(input: unknown): input is OfflineGraphTileV2 {
   if (!isObject(input)) return false
 
   const { schemaVersion, tileId, bounds, nodes, edges, turnRestrictions } =
@@ -511,7 +511,7 @@ export function validateOfflineRegionManifestV2(
   if (!isNonEmptyString(regionId)) return false
   if (!isNonEmptyString(regionName)) return false
   if (!isNonEmptyString(version)) return false
-  if (compression !== "zstd-json") return false
+  if (compression !== "gzip-json") return false
   if (!isNonEmptyString(buildDate)) return false
   if (!isNonEmptyString(sourceDataDate)) return false
   if (!isNonEmptyString(snapshotUrl)) return false

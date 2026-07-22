@@ -21,7 +21,7 @@ describe("offline region v2 API", () => {
     root = await mkdtemp(join(tmpdir(), "switchback-offline-api-"))
     const versionDir = join(root, "pennsylvania", "v-test")
     await mkdir(join(versionDir, "tiles"), { recursive: true })
-    await writeFile(join(versionDir, "tiles", "10-20.json.zst"), tileBytes)
+    await writeFile(join(versionDir, "tiles", "10-20.json.gz"), tileBytes)
     await writeFile(
       join(root, "pennsylvania", "active.json"),
       JSON.stringify({ version: "v-test" })
@@ -33,7 +33,7 @@ describe("offline region v2 API", () => {
         regionId: "pennsylvania",
         regionName: "Pennsylvania",
         version: "v-test",
-        compression: "zstd-json",
+        compression: "gzip-json",
         buildDate: "2026-07-21T00:00:00Z",
         sourceDataDate: "2026-07-20T00:00:00Z",
         snapshotUrl: "https://download.geofabrik.de/pennsylvania.osm.pbf",
