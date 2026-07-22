@@ -1,3 +1,4 @@
+@media (max-width: 760px) {
   .deck-section {
     padding: 18px 2px;
   }
@@ -200,6 +201,7 @@
     width: max-content;
     max-width: calc(100vw - 32px);
   }
+}
 
 @media (max-width: 390px) {
   .planner-deck {

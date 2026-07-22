@@ -141,6 +141,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [offlinePackOpen, setOfflinePackOpen] = useState(false)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
   const sheetDragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
+  const routeEditorRef = useRef<HTMLDivElement>(null)
   const profiles = listProfiles()
   const activeProfile = profiles.find((item) => item.id === profile) ?? profiles[0]
   const durationLabel = targetMinutes % 60 === 0
@@ -173,6 +174,13 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % examples.length), 4200)
     return () => window.clearInterval(timer)
   }, [examples.length])
+  useEffect(() => {
+    if (!editing) return
+    const frame = window.requestAnimationFrame(() => {
+      routeEditorRef.current?.scrollIntoView?.({ block: "start", behavior: "auto" })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [editing])
   const submitRidePrompt = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const prompt = ridePrompt.trim()
@@ -431,7 +439,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           ) : null}
         </div>
 
-        <div className="deck-section waypoint-composer">
+        <div ref={routeEditorRef} className="deck-section waypoint-composer">
           <div className="plan-mode-switch" aria-label="Trip shape">
             <button
               type="button"

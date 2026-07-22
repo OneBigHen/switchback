@@ -40,10 +40,15 @@
 }
 
 @media (min-width: 761px) {
-  .map-road-lock-toggle {
-    top: 20px;
-    right: 390px;
+  .planner-shell .map-road-lock-toggle {
+    top: 88px;
+    right: 20px;
     z-index: 7;
+  }
+
+  .planner-shell .map-road-lock-panel {
+    top: 138px;
+    right: 20px;
   }
 }
 
@@ -505,8 +510,17 @@
     bottom: calc(84px + env(safe-area-inset-bottom));
     left: 8px;
     width: auto;
+    height: min(70dvh, 680px);
     max-height: min(70dvh, 680px);
     border-radius: 24px;
+  }
+
+  .planner-deck .planner-scroll {
+    height: calc(100% - 82px);
+  }
+
+  .planner-deck.has-expanded-route-dock:not(.is-minimized) .planner-scroll {
+    height: calc(100% - 132px);
   }
 
   .planner-deck.is-minimized { height: 146px; }
@@ -530,8 +544,93 @@
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .app-navigation { width: 64px; height: auto; top: 8px; right: auto; bottom: 8px; }
-  .app-navigation-items { grid-template-columns: 1fr; }
+  .app-navigation {
+    top: 8px;
+    right: auto;
+    bottom: 8px;
+    width: 64px;
+    height: auto;
+    flex-direction: column;
+  }
+
+  .app-navigation-items {
+    width: 100%;
+    grid-template-columns: 1fr;
+    padding: 6px;
+  }
+
+  .app-navigation button {
+    min-height: 52px;
+  }
+
   .planner-deck,
   .destination-panel { top: 8px; right: 8px; bottom: 8px; left: 80px; width: min(420px, 48vw); max-height: none; }
+
+  .planner-deck .deck-header {
+    position: static;
+  }
+
+  .planner-deck .ride-deck-header {
+    display: flex;
+  }
+
+  .planner-deck .planner-scroll {
+    height: calc(100% - 72px);
+    scroll-padding-block: 88px 80px;
+  }
+
+  .planner-deck .route-slip {
+    scroll-margin-block: 88px 80px;
+  }
+
+  .planner-shell .planner-deck .route-actions {
+    position: static;
+    bottom: auto;
+    z-index: auto;
+    margin: 14px 0 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .planner-deck > .planner-action-dock,
+  .planner-deck > .planner-action-dock:has(.clear-route-button):has(.offline-pack-button) {
+    min-height: 72px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas: "replan clear start offline";
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .planner-deck > .planner-action-dock .ride-button,
+  .planner-deck > .planner-action-dock .replan-button,
+  .planner-deck > .planner-action-dock .clear-route-button,
+  .planner-deck > .planner-action-dock .offline-pack-button {
+    min-height: 48px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  .planner-shell .map-layer-control {
+    top: 8px;
+    right: 88px;
+    left: auto;
+  }
+
+  .planner-shell .map-tool-row .map-layers-button {
+    width: 46px;
+    min-width: 46px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .planner-shell .map-tool-row .map-layers-button > span:last-child {
+    display: none;
+  }
+
+  .planner-shell .map-road-lock-toggle {
+    top: 68px;
+    right: 16px;
+    bottom: auto;
+  }
 }

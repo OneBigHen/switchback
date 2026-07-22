@@ -12,6 +12,10 @@ export default defineConfig({
     baseURL: externalBaseUrl ?? "http://127.0.0.1:3100",
     geolocation: { latitude: 40.2732, longitude: -76.8867 },
     permissions: ["geolocation"],
+    // Production registers the offline PWA worker. Requests handled by a
+    // service worker bypass page.route(), so API fixtures become order- and
+    // viewport-dependent unless the worker is disabled for this matrix.
+    serviceWorkers: "block",
     trace: "retain-on-failure",
     screenshot: "only-on-failure"
   },
