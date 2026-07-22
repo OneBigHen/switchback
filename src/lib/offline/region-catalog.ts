@@ -10,8 +10,8 @@ export interface OfflineRegion {
   code: string
   /** ISO 3166-2 region code if applicable, for interoperability. */
   isoCode: string | null
-  /** URL to the prebuilt GraphHopper tile bundle for this region. */
-  tileUrl: string
+  /** Stable endpoint that resolves the currently active immutable tile inventory. */
+  manifestUrl: string
   /** Human-readable URL for attribution. */
   sourceUrl: string
   /** Bounding box of the region in geographic coordinates. */
@@ -28,8 +28,6 @@ export interface OfflineRegion {
   buildDate: string
   /** Semantic version of the tile bundle format. */
   bundleVersion: string
-  /** Whether this region is available for download (e.g. tiles are built and published). */
-  available: boolean
 }
 
 /** Regions eligible for offline download. Built from Geofabrik US extracts. */
@@ -39,7 +37,7 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     name: "Pennsylvania",
     code: "PA",
     isoCode: "US-PA",
-    tileUrl: "/api/offline/regions/pennsylvania.graph",
+    manifestUrl: "/api/offline/regions/pennsylvania/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/pennsylvania.html",
     bounds: { minLon: -80.52, minLat: 39.72, maxLon: -74.69, maxLat: 42.27 },
     estimatedDownloadBytes: 120_000_000,
@@ -47,15 +45,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 2_800_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "new-jersey",
     name: "New Jersey",
     code: "NJ",
     isoCode: "US-NJ",
-    tileUrl: "/api/offline/regions/new-jersey.graph",
+    manifestUrl: "/api/offline/regions/new-jersey/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/new-jersey.html",
     bounds: { minLon: -75.56, minLat: 38.93, maxLon: -73.89, maxLat: 41.36 },
     estimatedDownloadBytes: 45_000_000,
@@ -63,15 +60,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 1_050_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "new-york",
     name: "New York",
     code: "NY",
     isoCode: "US-NY",
-    tileUrl: "/api/offline/regions/new-york.graph",
+    manifestUrl: "/api/offline/regions/new-york/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/new-york.html",
     bounds: { minLon: -79.76, minLat: 40.50, maxLon: -71.86, maxLat: 45.01 },
     estimatedDownloadBytes: 180_000_000,
@@ -79,15 +75,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 4_200_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "maryland",
     name: "Maryland",
     code: "MD",
     isoCode: "US-MD",
-    tileUrl: "/api/offline/regions/maryland.graph",
+    manifestUrl: "/api/offline/regions/maryland/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/maryland.html",
     bounds: { minLon: -79.49, minLat: 37.89, maxLon: -75.05, maxLat: 39.72 },
     estimatedDownloadBytes: 32_000_000,
@@ -95,15 +90,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 750_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "delaware",
     name: "Delaware",
     code: "DE",
     isoCode: "US-DE",
-    tileUrl: "/api/offline/regions/delaware.graph",
+    manifestUrl: "/api/offline/regions/delaware/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/delaware.html",
     bounds: { minLon: -75.79, minLat: 38.45, maxLon: -74.98, maxLat: 39.84 },
     estimatedDownloadBytes: 6_000_000,
@@ -111,15 +105,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 140_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "west-virginia",
     name: "West Virginia",
     code: "WV",
     isoCode: "US-WV",
-    tileUrl: "/api/offline/regions/west-virginia.graph",
+    manifestUrl: "/api/offline/regions/west-virginia/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/west-virginia.html",
     bounds: { minLon: -82.64, minLat: 37.20, maxLon: -77.72, maxLat: 40.64 },
     estimatedDownloadBytes: 85_000_000,
@@ -127,15 +120,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 2_000_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "virginia",
     name: "Virginia",
     code: "VA",
     isoCode: "US-VA",
-    tileUrl: "/api/offline/regions/virginia.graph",
+    manifestUrl: "/api/offline/regions/virginia/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/virginia.html",
     bounds: { minLon: -83.68, minLat: 36.54, maxLon: -75.24, maxLat: 39.47 },
     estimatedDownloadBytes: 140_000_000,
@@ -143,15 +135,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 3_300_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "ohio",
     name: "Ohio",
     code: "OH",
     isoCode: "US-OH",
-    tileUrl: "/api/offline/regions/ohio.graph",
+    manifestUrl: "/api/offline/regions/ohio/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/ohio.html",
     bounds: { minLon: -84.82, minLat: 38.40, maxLon: -80.52, maxLat: 42.00 },
     estimatedDownloadBytes: 140_000_000,
@@ -159,15 +150,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 3_300_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "vermont",
     name: "Vermont",
     code: "VT",
     isoCode: "US-VT",
-    tileUrl: "/api/offline/regions/vermont.graph",
+    manifestUrl: "/api/offline/regions/vermont/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/vermont.html",
     bounds: { minLon: -73.44, minLat: 42.73, maxLon: -71.47, maxLat: 45.02 },
     estimatedDownloadBytes: 28_000_000,
@@ -175,15 +165,14 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 650_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   },
   {
     id: "north-carolina",
     name: "North Carolina",
     code: "NC",
     isoCode: "US-NC",
-    tileUrl: "/api/offline/regions/north-carolina.graph",
+    manifestUrl: "/api/offline/regions/north-carolina/manifest",
     sourceUrl: "https://download.geofabrik.de/north-america/us/north-carolina.html",
     bounds: { minLon: -84.32, minLat: 33.84, maxLon: -75.46, maxLat: 36.59 },
     estimatedDownloadBytes: 170_000_000,
@@ -191,8 +180,7 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
     estimatedEdgeCount: 4_000_000,
     dataDate: "2026-07-15T00:00:00Z",
     buildDate: "2026-07-16T00:00:00Z",
-    bundleVersion: "1.0.0",
-    available: true
+    bundleVersion: "2"
   }
 ]
 

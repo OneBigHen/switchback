@@ -66,6 +66,7 @@ interface RegionStateMap {
 type DownloadAction =
   | { type: "set_downloading"; regionId: string }
   | { type: "set_progress"; regionId: string; progress: number }
+  | { type: "set_paused"; regionId: string }
   | { type: "set_ready"; regionId: string; builtAt: string; bundleVersion: string }
   | { type: "set_error"; regionId: string; error: string }
   | { type: "set_removed"; regionId: string }
@@ -87,6 +88,20 @@ function downloadReducer(
         regionStates: {
           ...state.regionStates,
           [action.regionId]: { ...prev, status: "downloading", progress: action.progress }
+        },
+        downloadedIds: state.downloadedIds
+      }
+    }
+    case "set_paused": {
+      const prev = state.regionStates[action.regionId]
+      return {
+        regionStates: {
+          ...state.regionStates,
+          [action.regionId]: {
+            ...(prev ?? { progress: 0, error: null, stalenessTier: null, stalenessLabel: null, stalenessGuidance: null, bundleVersion: null, builtAt: null }),
+            status: "paused",
+            error: null
+          }
         },
         downloadedIds: state.downloadedIds
       }
@@ -314,6 +329,10 @@ export function RegionDownloadsPanel({
       setInstalledBytes(await client.getTotalBytes())
       onRegionDownloaded?.(region.id)
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        dispatch({ type: "set_paused", regionId: region.id })
+        return
+      }
       dispatch({
         type: "set_error",
         regionId: region.id,
@@ -396,6 +415,7 @@ export function RegionDownloadsPanel({
   const statusLabel = (rs: RegionUIState): string => {
     switch (rs.status) {
       case "downloading": return `Downloading… ${Math.round(rs.progress * 100)}%`
+      case "paused": return `Paused at ${Math.round(rs.progress * 100)}%`
       case "ready": return "Ready"
       case "stale": return "Update available"
       case "failed": return rs.error ?? "Download failed"
@@ -549,26 +569,26 @@ export function RegionDownloadsPanel({
                 )}
               </div>
               <div className="region-item-actions">
-                {rs.status === "not-downloaded" || rs.status === "failed" || rs.status === "expired" ? (
+                {rs.status === "not-downloaded" || rs.status === "failed" || rs.status === "expired" || rs.status === "paused" ? (
                   <button
                     type="button"
                     className="region-download-btn"
                     onClick={() => downloadRegion(region)}
-                    aria-label={`Download offline data for ${region.name}`}
+                    aria-label={`${rs.status === "paused" ? "Resume" : "Download"} offline data for ${region.name}`}
                     data-blocked={projBlocked ? "true" : "false"}
                     disabled={projBlocked}
                   >
                     {statusIcon(rs)}
-                    <span>{statusLabel(rs)}</span>
+                    <span>{rs.status === "paused" ? "Resume" : statusLabel(rs)}</span>
                   </button>
                 ) : rs.status === "downloading" ? (
                   <button
                     type="button"
                     className="region-cancel-btn"
-                    onClick={() => clientRef.current?.cancel(region.id)}
-                    aria-label={`Cancel download for ${region.name}`}
+                    onClick={() => clientRef.current?.pause(region.id)}
+                    aria-label={`Pause download for ${region.name}`}
                   >
-                    Cancel
+                    Pause
                   </button>
                 ) : (
                   <>

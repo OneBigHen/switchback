@@ -12,11 +12,11 @@ describe("region catalog", () => {
     expect(OFFLINE_REGIONS.length).toBeGreaterThanOrEqual(8)
   })
 
-  it("each region has a unique id and a valid tile URL", () => {
+  it("each region has a unique id and a manifest endpoint", () => {
     const ids = OFFLINE_REGIONS.map((r) => r.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const region of OFFLINE_REGIONS) {
-      expect(region.tileUrl).toMatch(/^\/api\/offline\/regions\/.+/)
+      expect(region.manifestUrl).toBe(`/api/offline/regions/${region.id}/manifest`)
       expect(region.id.length).toBeGreaterThan(0)
       expect(region.code.length).toBeGreaterThanOrEqual(2)
       expect(region.estimatedDownloadBytes).toBeGreaterThan(0)

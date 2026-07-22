@@ -1,11 +1,17 @@
-import Dexie from "dexie"
+import Dexie, { type Table } from "dexie"
+
 import type { OfflineGraph } from "@/lib/offline/graph"
-import { validateOfflineGraph, OFFLINE_GRAPH_SCHEMA_VERSION } from "@/lib/offline/graph"
+import { validateOfflineGraph } from "@/lib/offline/graph"
 import type { OfflineRegion } from "@/lib/offline/region-catalog"
+import {
+  validateOfflineRegionManifestV2,
+  type OfflineRegionManifestV2
+} from "@/lib/offline/v2-contracts"
 
 export type RegionDownloadStatus =
   | "not-downloaded"
   | "downloading"
+  | "paused"
   | "ready"
   | "stale"
   | "expired"
@@ -20,29 +26,84 @@ export interface RegionState {
   error: string | null
 }
 
-interface RegionBundleResponse {
-  schemaVersion: number
-  regionId: string
-  bundleVersion: string
+interface RegionPointer {
+  id: string
+  activeVersion: string
+  previousVersion: string | null
   builtAt: string
-  checksum: string
-  graph: OfflineGraph
+  downloadedAt: string
+  byteSize: number
+}
+
+interface StoredVersion {
+  id: string
+  regionId: string
+  version: string
+  status: "pending" | "active" | "previous"
+  manifest: OfflineRegionManifestV2
+  downloadedAt: string | null
+}
+
+interface StoredTile {
+  id: string
+  regionId: string
+  versionKey: string
+  tileId: string
+  sha256: string
+  byteSize: number
+  bytes: Uint8Array
+}
+
+interface LegacyGraphEntry {
+  id: string
+  kind?: string
+  graph?: OfflineGraph
+  downloadedAt?: string
 }
 
 const BUNDLE_TTL_MILLIS = 1000 * 60 * 60 * 24 * 7
 const BUNDLE_EXPIRY_MILLIS = 1000 * 60 * 60 * 24 * 30
 
-function regionStoreKey(regionId: string): string {
-  return `switchback-region:${regionId}`
+function versionKey(regionId: string, version: string): string {
+  return `${regionId}:${version}`
+}
+
+function tileKey(regionId: string, version: string, tileId: string): string {
+  return `${versionKey(regionId, version)}:${tileId}`
+}
+
+function tileUrl(region: OfflineRegion, tileId: string): string {
+  return region.manifestUrl.replace(/\/manifest$/, `/tiles/${encodeURIComponent(tileId)}`)
+}
+
+async function sha256(bytes: Uint8Array): Promise<string> {
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+  const digest = await crypto.subtle.digest("SHA-256", copy.buffer)
+  return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, "0")).join("")
 }
 
 export class RegionDownloadClient {
   private readonly db: Dexie
+  private readonly regions: Table<RegionPointer, string>
+  private readonly versions: Table<StoredVersion, string>
+  private readonly tiles: Table<StoredTile, string>
+  private readonly graphs: Table<LegacyGraphEntry, string>
   private abortControllers = new Map<string, AbortController>()
 
   constructor(readonly name = "switchback-region-downloads") {
     this.db = new Dexie(name)
     this.db.version(1).stores({ graphs: "&id, downloadedAt" })
+    this.db.version(2).stores({
+      graphs: "&id, downloadedAt",
+      regions: "&id, downloadedAt",
+      versions: "&id, regionId, status, downloadedAt",
+      tiles: "&id, regionId, versionKey"
+    })
+    this.regions = this.db.table("regions")
+    this.versions = this.db.table("versions")
+    this.tiles = this.db.table("tiles")
+    this.graphs = this.db.table("graphs")
   }
 
   private now(): number {
@@ -50,7 +111,7 @@ export class RegionDownloadClient {
   }
 
   getStatus(state: RegionState): RegionDownloadStatus {
-    if (state.status === "downloading" || state.status === "failed") return state.status
+    if (state.status === "downloading" || state.status === "paused" || state.status === "failed") return state.status
     if (!state.downloadedAt) return "not-downloaded"
     if (state.error) return "failed"
     const downloadedMs = Date.parse(state.downloadedAt)
@@ -61,88 +122,135 @@ export class RegionDownloadClient {
     return "expired"
   }
 
+  private async checkQuota(requiredBytes: number): Promise<void> {
+    const estimate = await navigator.storage?.estimate?.()
+    if (!estimate?.quota) return
+    const available = estimate.quota - (estimate.usage ?? 0)
+    if (available < requiredBytes) {
+      throw new Error("Not enough device storage for this offline region")
+    }
+  }
+
   async download(
     region: OfflineRegion,
     onProgress: (progress: number) => void
-  ): Promise<OfflineGraph> {
-    const key = regionStoreKey(region.id)
-    this.abortControllers.get(key)?.abort()
+  ): Promise<OfflineRegionManifestV2> {
+    this.cancel(region.id)
     const controller = new AbortController()
-    this.abortControllers.set(key, controller)
+    this.abortControllers.set(region.id, controller)
 
     try {
-      const response = await fetch(region.tileUrl, {
+      const manifestResponse = await fetch(region.manifestUrl, {
         signal: controller.signal,
         headers: { Accept: "application/json" }
       })
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status} ${response.statusText}`)
+      if (!manifestResponse.ok) {
+        throw new Error(`Manifest request failed (${manifestResponse.status})`)
       }
-      const contentLength = response.headers.get("content-length")
-      const totalBytes = contentLength ? Number.parseInt(contentLength, 10) : region.estimatedDownloadBytes
-      const reader = response.body?.getReader()
-      if (!reader) {
-        const text = await response.text()
-        onProgress(1)
-        const bundle: RegionBundleResponse = JSON.parse(text)
-        return this.persist(region.id, bundle)
+      const manifest: unknown = await manifestResponse.json()
+      if (!validateOfflineRegionManifestV2(manifest) || manifest.regionId !== region.id) {
+        throw new Error("Offline region manifest is invalid")
+      }
+      await this.checkQuota(manifest.tileByteTotal)
+
+      const nextVersionKey = versionKey(region.id, manifest.version)
+      const pending: StoredVersion = {
+        id: nextVersionKey,
+        regionId: region.id,
+        version: manifest.version,
+        status: "pending",
+        manifest,
+        downloadedAt: null
+      }
+      await this.versions.put(pending)
+
+      let completedBytes = 0
+      for (const entry of manifest.tiles) {
+        const id = tileKey(region.id, manifest.version, entry.tileId)
+        const existing = await this.tiles.get(id)
+        if (existing?.sha256 === entry.sha256 && existing.byteSize === entry.bytes) {
+          completedBytes += entry.bytes
+          onProgress(completedBytes / manifest.tileByteTotal)
+          continue
+        }
+
+        const response = await fetch(tileUrl(region, entry.tileId), {
+          signal: controller.signal,
+          headers: { Accept: "application/json" }
+        })
+        if (!response.ok) throw new Error(`Tile ${entry.tileId} request failed (${response.status})`)
+        const bytes = new Uint8Array(await response.arrayBuffer())
+        if (bytes.byteLength !== entry.bytes) throw new Error(`Tile ${entry.tileId} size mismatch`)
+        if ((await sha256(bytes)) !== entry.sha256.toLowerCase()) {
+          throw new Error(`Tile ${entry.tileId} checksum mismatch`)
+        }
+        await this.tiles.put({
+          id,
+          regionId: region.id,
+          versionKey: nextVersionKey,
+          tileId: entry.tileId,
+          sha256: entry.sha256,
+          byteSize: entry.bytes,
+          bytes
+        })
+        completedBytes += entry.bytes
+        onProgress(completedBytes / manifest.tileByteTotal)
       }
 
-      const chunks: Uint8Array[] = []
-      let received = 0
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (value) {
-          chunks.push(value)
-          received += value.length
-          onProgress(Math.min(received / totalBytes, 0.99))
+      const activatedAt = new Date().toISOString()
+      await this.db.transaction("rw", this.regions, this.versions, this.tiles, async () => {
+        const current = await this.regions.get(region.id)
+        if (current?.previousVersion && current.previousVersion !== current.activeVersion) {
+          const obsoleteKey = versionKey(region.id, current.previousVersion)
+          await this.tiles.where("versionKey").equals(obsoleteKey).delete()
+          await this.versions.delete(obsoleteKey)
         }
-      }
+        if (current?.activeVersion && current.activeVersion !== manifest.version) {
+          const previousKey = versionKey(region.id, current.activeVersion)
+          await this.versions.update(previousKey, { status: "previous" })
+        }
+        await this.versions.put({ ...pending, status: "active", downloadedAt: activatedAt })
+        await this.regions.put({
+          id: region.id,
+          activeVersion: manifest.version,
+          previousVersion:
+            current?.activeVersion && current.activeVersion !== manifest.version
+              ? current.activeVersion
+              : current?.previousVersion ?? null,
+          builtAt: manifest.buildDate,
+          downloadedAt: activatedAt,
+          byteSize: manifest.tileByteTotal
+        })
+      })
       onProgress(1)
-      const full = new TextDecoder().decode(
-        chunks.reduce((acc, chunk) => {
-          const merged = new Uint8Array(acc.length + chunk.length)
-          merged.set(acc, 0)
-          merged.set(chunk, acc.length)
-          return merged
-        }, new Uint8Array(0))
-      )
-      const bundle: RegionBundleResponse = JSON.parse(full)
-      return this.persist(region.id, bundle)
+      return manifest
     } finally {
-      this.abortControllers.delete(key)
+      this.abortControllers.delete(region.id)
     }
   }
 
   cancel(regionId: string): void {
-    this.abortControllers.get(regionStoreKey(regionId))?.abort()
+    this.abortControllers.get(regionId)?.abort()
   }
 
-  private async persist(regionId: string, bundle: RegionBundleResponse): Promise<OfflineGraph> {
-    if (!bundle.graph) throw new Error("Bundle contains no graph data")
-    if (bundle.graph.schemaVersion !== OFFLINE_GRAPH_SCHEMA_VERSION) {
-      throw new Error(
-        `Unsupported graph schema version ${bundle.graph.schemaVersion} (expected ${OFFLINE_GRAPH_SCHEMA_VERSION})`
-      )
-    }
-    validateOfflineGraph(bundle.graph)
-    const entry = {
-      id: regionId,
-      graph: bundle.graph,
-      bundleVersion: bundle.bundleVersion,
-      builtAt: bundle.builtAt,
-      checksum: bundle.checksum,
-      downloadedAt: new Date().toISOString()
-    }
-    await this.db.table("graphs").put(entry)
-    return bundle.graph
+  pause(regionId: string): void {
+    this.cancel(regionId)
   }
 
+  async getActiveTile(regionId: string, tileId: string): Promise<Uint8Array | null> {
+    const pointer = await this.regions.get(regionId)
+    if (!pointer) return null
+    const tile = await this.tiles.get(tileKey(regionId, pointer.activeVersion, tileId))
+    return tile?.bytes ?? null
+  }
+
+  /** v1 corridor packs remain readable; v1 regional prototypes are never treated as regional routing. */
   async getGraph(regionId: string): Promise<OfflineGraph | null> {
     try {
-      const entry = await this.db.table("graphs").get(regionId)
-      return entry?.graph ?? null
+      const entry = await this.graphs.get(regionId)
+      if (entry?.kind !== "corridor" || !entry.graph) return null
+      validateOfflineGraph(entry.graph)
+      return entry.graph
     } catch {
       return null
     }
@@ -154,59 +262,41 @@ export class RegionDownloadClient {
     builtAt: string
     downloadedAt: string
   } | null> {
-    try {
-      const entry = await this.db.table("graphs").get(regionId)
-      if (!entry) return null
-      return {
-        id: entry.id,
-        bundleVersion: entry.bundleVersion,
-        builtAt: entry.builtAt,
-        downloadedAt: entry.downloadedAt
-      }
-    } catch {
-      return null
+    const entry = await this.regions.get(regionId)
+    if (!entry) return null
+    return {
+      id: entry.id,
+      bundleVersion: entry.activeVersion,
+      builtAt: entry.builtAt,
+      downloadedAt: entry.downloadedAt
     }
   }
 
   async has(regionId: string): Promise<boolean> {
-    try {
-      const count = await this.db.table("graphs").where("id").equals(regionId).count()
-      return count > 0
-    } catch {
-      return false
-    }
+    return (await this.regions.get(regionId)) !== undefined
   }
 
   async remove(regionId: string): Promise<void> {
     this.cancel(regionId)
-    try {
-      await this.db.table("graphs").delete(regionId)
-    } catch {
-      // already gone
-    }
+    await this.db.transaction("rw", this.regions, this.versions, this.tiles, this.graphs, async () => {
+      await this.tiles.where("regionId").equals(regionId).delete()
+      await this.versions.where("regionId").equals(regionId).delete()
+      await this.regions.delete(regionId)
+      await this.graphs.delete(regionId)
+    })
   }
 
   async list(): Promise<Array<{ id: string; builtAt: string; downloadedAt: string }>> {
-    try {
-      return await this.db.table("graphs").orderBy("downloadedAt").reverse().toArray()
-    } catch {
-      return []
-    }
+    return this.regions.orderBy("downloadedAt").reverse().toArray()
   }
 
   async getTotalBytes(): Promise<number> {
-    try {
-      const all = await this.db.table("graphs").toArray()
-      return all.reduce((sum: number, e: { byteSize?: number }) => sum + (e.byteSize ?? 0), 0)
-    } catch {
-      return 0
-    }
+    const all = await this.tiles.toArray()
+    return all.reduce((sum, tile) => sum + tile.byteSize, 0)
   }
 
   async destroy(): Promise<void> {
-    for (const [key] of this.abortControllers) {
-      this.abortControllers.get(key)?.abort()
-    }
+    for (const regionId of this.abortControllers.keys()) this.cancel(regionId)
     this.db.close()
     await Dexie.delete(this.name)
   }
