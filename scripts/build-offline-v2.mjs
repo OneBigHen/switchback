@@ -54,6 +54,7 @@ const writeEdgeRefs = database.transaction((batch) => {
 })
 const tileHandles = new Map()
 const tileKeys = new Set()
+const tileBuffers = new Map()
 let sourcePhase = "nodes"
 
 function flushNodes() {
@@ -145,15 +146,33 @@ function tileHandle(key) {
   return handle
 }
 
+function stageRecord(key, record) {
+  tileKeys.add(key)
+  const buffer = tileBuffers.get(key) ?? []
+  buffer.push(`${JSON.stringify(record)}\n`)
+  if (buffer.length >= 256) {
+    writeSync(tileHandle(key), buffer.join(""))
+    buffer.length = 0
+  }
+  tileBuffers.set(key, buffer)
+}
+
+function flushTileBuffers() {
+  for (const [key, buffer] of tileBuffers) {
+    if (buffer.length > 0) writeSync(tileHandle(key), buffer.join(""))
+  }
+  tileBuffers.clear()
+}
+
 function addEdgeToTile(key, edge, fromCoordinate, toCoordinate) {
-  writeSync(tileHandle(key), `${JSON.stringify({
+  stageRecord(key, {
     type: "edge",
     edge,
     nodes: [
       { id: edge.fromNodeId, coordinate: fromCoordinate },
       { id: edge.toNodeId, coordinate: toCoordinate }
     ]
-  })}\n`)
+  })
 }
 
 function rememberEdge(map, wayId, nodeId, edgeId) {
@@ -339,13 +358,13 @@ function processRestriction(line) {
   const relationId = /^r(\d+)/.exec(line)?.[1]
   for (const incomingEdgeId of incoming) {
     for (const outgoingEdgeId of outgoing) {
-      writeSync(tileHandle(key), `${JSON.stringify({ type: "restriction", restriction: {
+      stageRecord(key, { type: "restriction", restriction: {
         incomingEdgeId,
         viaNodeId: viaNode,
         outgoingEdgeId,
         restriction: kind,
         ...(relationId ? { sourceRelationId: relationId } : {})
-      } })}\n`)
+      } })
       stats.emittedRestrictions += 1
     }
   }
@@ -389,6 +408,7 @@ flushEdgeRefs()
 const exitCode = await new Promise((resolve) => osmium.once("close", resolve))
 if (exitCode !== 0) throw new Error(`osmium exited with status ${exitCode}`)
 if (tileKeys.size === 0 || stats.directedEdges === 0) throw new Error("No eligible directed road edges were extracted")
+flushTileBuffers()
 for (const handle of tileHandles.values()) closeSync(handle)
 database.close()
 
