@@ -137,6 +137,14 @@
   color: var(--metal);
 }
 
+.ride-intent-heading h1,
+.route-rack .section-heading h2,
+.route-slip-name strong,
+.planner-expand strong {
+  color: var(--instrument);
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+}
+
 .planner-action-dock {
   border-top-color: var(--line);
   background: color-mix(in srgb, var(--machined) 96%, transparent);
@@ -173,6 +181,20 @@
   border: 1px solid color-mix(in srgb, var(--twisty) 54%, var(--line));
   background: color-mix(in srgb, var(--twisty) 5%, var(--machined));
   box-shadow: inset 3px 0 0 var(--twisty);
+}
+
+.route-scenic-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.route-scenic-gallery img {
+  width: 100%;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .maplibregl-map {
@@ -299,11 +321,17 @@
   text-align: center;
 }
 
-.record-map > svg {
+.record-map > svg[role="img"] {
   position: absolute;
   inset: 14px;
   width: calc(100% - 28px);
   height: calc(100% - 28px);
+}
+
+.record-map > svg[aria-hidden="true"] {
+  width: 30px;
+  height: 30px;
+  color: var(--signal);
 }
 
 .record-map polyline {
@@ -349,6 +377,12 @@
   background: var(--machined);
   color: var(--instrument);
   cursor: pointer;
+}
+
+.record-actions .primary-commit {
+  border-color: var(--twisty);
+  background: var(--twisty);
+  color: #fff;
 }
 
 .profile-grid {

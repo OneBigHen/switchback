@@ -9,6 +9,7 @@ import {
   NavigationArrow
 } from "@phosphor-icons/react"
 import { useState } from "react"
+import Image from "next/image"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { ManeuverGlyph } from "./maneuver-glyph"
 import { maneuverKind } from "@/lib/client/maneuver"
@@ -242,6 +243,11 @@ export function RouteComparison({
       </button>
 
       {detailsOpen ? <>
+      <div className="route-scenic-gallery" aria-label="Route character previews">
+        <Image src="/assets/scenic/ridge-overlook.webp" alt="Appalachian ridge road overlook" width={720} height={480} />
+        <Image src="/assets/scenic/autumn-switchback.webp" alt="Autumn mountain switchback" width={720} height={480} />
+        <Image src="/assets/scenic/roadside-coffee.webp" alt="Roadside motorcycle coffee stop" width={720} height={480} />
+      </div>
       <RouteDataQualityPanel route={selectedRoute} sourceMapUpdated={sourceMapUpdated ?? null} />
 
       {selectedRoute.lockSatisfaction?.length ? (

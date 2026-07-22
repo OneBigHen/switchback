@@ -186,6 +186,8 @@ describe("route comparison rack", () => {
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
     expect(screen.getByRole("region", { name: "Why this route was chosen" })).toHaveTextContent("Traffic and closures")
+    expect(screen.getByRole("img", { name: "Appalachian ridge road overlook" })).toBeVisible()
+    expect(screen.getByRole("img", { name: "Roadside motorcycle coffee stop" })).toBeVisible()
 
     const directionsButton = screen.getByRole("button", { name: /Hide turn-by-turn directions/i })
     expect(directionsButton).toHaveAttribute("aria-expanded", "true")
