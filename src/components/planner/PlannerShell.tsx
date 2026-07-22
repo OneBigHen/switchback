@@ -200,8 +200,10 @@ export function PlannerShell() {
 
   useEffect(() => {
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
+    const hour = new Date().getHours()
+    const afterDark = hour < 6 || hour >= 19
     const resolved = navigation.theme === "auto"
-      ? (mapStyle === "night" || prefersDark ? "dark" : "light")
+      ? (mapStyle === "night" || prefersDark || afterDark ? "dark" : "light")
       : navigation.theme
     document.documentElement.dataset.theme = resolved
     document.documentElement.dataset.themePreference = navigation.theme

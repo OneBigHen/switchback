@@ -68,10 +68,16 @@
   border-radius: 12px;
   background: var(--twisty);
   color: #fff;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 26px;
-  font-weight: 750;
-  line-height: 1;
+}
+
+.switchback-mark svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.25;
 }
 
 .app-navigation-items {
