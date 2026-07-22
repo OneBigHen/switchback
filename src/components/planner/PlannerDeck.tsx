@@ -639,7 +639,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       </>
       )}
       <div className="planner-action-dock" aria-label="Route actions">
-        <button
+        {!minimized ? <button
           type="button"
           className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
           aria-label={`Open road locks${mustLockCount > 0 ? `, ${mustLockCount} must-use ${mustLockCount === 1 ? "lock" : "locks"} active` : ""}`}
@@ -652,14 +652,14 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           {mustLockCount > 0 ? (
             <span className="road-locks-dock-count" data-tier="must">{mustLockCount}</span>
           ) : null}
-        </button>
-        {bikeProfileMismatch ? (
+        </button> : null}
+        {!minimized && bikeProfileMismatch ? (
           <span className="planner-dock-mismatch" role="status">
             <WarningCircle aria-hidden="true" weight="fill" />
             Profile mismatch
           </span>
         ) : null}
-        {selectedRoute ? (
+        {!minimized && selectedRoute ? (
           <button
             type="button"
             className="clear-route-button"
@@ -673,11 +673,11 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
         ) : null}
         {selectedRoute && onStartRide ? (
           <>
-            {editing ? <button type="button" className="replan-button" disabled={planDisabled} onClick={onPlan}>
+            {!minimized && editing ? <button type="button" className="replan-button" disabled={planDisabled} onClick={onPlan}>
               {status === "routing" ? <SpinnerGap className="spin" aria-hidden="true" /> : <Path weight="bold" aria-hidden="true" />}
               <span>{status === "routing" ? "Replanning…" : "Replan"}</span>
             </button> : null}
-            {editing && onSaveOffline ? (
+            {!minimized && editing && onSaveOffline ? (
               <button type="button" className="offline-pack-button" onClick={() => setOfflinePackOpen(true)}>
                 <DownloadSimple weight="bold" aria-hidden="true" />
                 <span>Offline pack</span>

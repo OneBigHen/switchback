@@ -293,6 +293,7 @@ describe("planner ride composer", () => {
     expect(screen.queryByRole("heading", { name: /Pick two points/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Expand planner" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Plan route" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Open road locks/i })).not.toBeInTheDocument()
   })
 
   it("exposes time-boxed loops that only require a start point", async () => {
