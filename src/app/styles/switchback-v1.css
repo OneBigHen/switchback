@@ -437,7 +437,7 @@
 .profile-grid .profile-check input { width: 20px; min-height: 20px; }
 .profile-storage-entry { width: 100%; margin: 0 0 18px; }
 .profile-storage-entry > svg { width: 28px; height: 28px; color: var(--signal); }
-.profile-actions .primary-action { border-color: var(--signal); color: #fff; }
+.profile-actions .primary-action { border-color: var(--signal); background: var(--signal); color: #fff; }
 .profile-actions .danger-action { color: var(--danger); }
 .profile-notice { color: var(--success); }
 
