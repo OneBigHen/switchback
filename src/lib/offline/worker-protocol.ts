@@ -15,7 +15,7 @@
  * compatibility) but the worker itself rejects any version greater than this
  * constant via {@link OfflineRoutingWorkerFailureKind:"unsupported_version"}.
  */
-export const OFFLINE_ROUTING_WORKER_PROTOCOL_VERSION = 1
+export const OFFLINE_ROUTING_WORKER_PROTOCOL_VERSION = 2
 
 /**
  * Sentinel value used to mark a result as covering a stale (superseded)
@@ -31,6 +31,7 @@ export const OFFLINE_ROUTING_STALE_REQUEST_SENTINEL: unique symbol = Symbol.for(
 
 export type OfflineRoutingWorkerRequestKind =
   | "route"
+  | "route_v2"
   | "cancel"
   | "ping"
 
@@ -60,6 +61,14 @@ export interface OfflineRoutingWorkerRouteRequest extends OfflineRoutingWorkerBa
   respectOneWay?: boolean
 }
 
+export interface OfflineRoutingWorkerRouteV2Request extends OfflineRoutingWorkerBaseRequest {
+  kind: "route_v2"
+  /** Validated spatial graph tile payloads loaded for the bounded search area. */
+  tiles: unknown[]
+  /** Serialized OfflineRouteRequestV2. */
+  routeRequest: unknown
+}
+
 export interface OfflineRoutingWorkerCancelRequest extends OfflineRoutingWorkerBaseRequest {
   kind: "cancel"
   /** requestId to cancel. May be the same as this request's id (self-cancel) or another active one. */
@@ -74,6 +83,7 @@ export interface OfflineRoutingWorkerPingRequest extends OfflineRoutingWorkerBas
 
 export type OfflineRoutingWorkerRequest =
   | OfflineRoutingWorkerRouteRequest
+  | OfflineRoutingWorkerRouteV2Request
   | OfflineRoutingWorkerCancelRequest
   | OfflineRoutingWorkerPingRequest
 
@@ -86,6 +96,10 @@ export type OfflineRoutingWorkerFailureKind =
   | "missing_shaping_point"
   | "no_path"
   | "max_visited"
+  | "missing_region"
+  | "out_of_coverage"
+  | "corrupt_data"
+  | "search_budget"
   | "cancelled"
   | "stale"
   | "unsupported"
@@ -133,7 +147,12 @@ export function parseOfflineRoutingWorkerRequest(
 
   // kind: must be one of the supported values.
   const kind = message.kind
-  if (kind !== "route" && kind !== "cancel" && kind !== "ping") return null
+  if (kind !== "route" && kind !== "route_v2" && kind !== "cancel" && kind !== "ping") return null
+
+  if (kind === "route_v2") {
+    if (!Array.isArray(message.tiles) || !isObject(message.routeRequest)) return null
+    return { version, requestId, kind, tiles: message.tiles, routeRequest: message.routeRequest }
+  }
 
   if (kind === "route") {
     if (!isObject(message.graph)) return null

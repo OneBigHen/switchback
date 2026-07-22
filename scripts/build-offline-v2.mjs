@@ -2,9 +2,11 @@
 
 import { createHash } from "node:crypto"
 import { createInterface } from "node:readline"
-import { mkdir, mkdtemp, rename, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { closeSync, openSync, writeSync } from "node:fs"
 import { basename, join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
+import Database from "better-sqlite3"
 
 const [inputPbf, outputRoot, regionId, regionName = regionId] = process.argv.slice(2)
 if (!inputPbf || !outputRoot || !regionId || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(regionId)) {
@@ -13,10 +15,54 @@ if (!inputPbf || !outputRoot || !regionId || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
 }
 
 const TILE_DEGREES = Number(process.env.SWITCHBACK_OFFLINE_TILE_DEGREES || "0.25")
-const nodes = new Map()
-const tiles = new Map()
-const incomingByWayNode = new Map()
-const outgoingByWayNode = new Map()
+await mkdir(join(outputRoot, regionId), { recursive: true })
+const pendingDirectory = await mkdtemp(join(outputRoot, regionId, ".pending-"))
+const stagingDirectory = join(pendingDirectory, "staging")
+await mkdir(stagingDirectory)
+await mkdir(join(pendingDirectory, "tiles"))
+
+const database = new Database(join(pendingDirectory, "build.sqlite"))
+database.pragma("journal_mode = WAL")
+database.pragma("synchronous = NORMAL")
+database.exec(`
+  CREATE TABLE nodes (id TEXT PRIMARY KEY, lon REAL NOT NULL, lat REAL NOT NULL) WITHOUT ROWID;
+  CREATE TABLE edge_refs (
+    way_id TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    edge_id TEXT NOT NULL
+  );
+  CREATE INDEX edge_refs_lookup ON edge_refs (way_id, node_id, direction);
+`)
+const insertNode = database.prepare("INSERT INTO nodes (id, lon, lat) VALUES (?, ?, ?)")
+const getNode = database.prepare("SELECT lon, lat FROM nodes WHERE id = ?")
+const insertEdgeRef = database.prepare(
+  "INSERT INTO edge_refs (way_id, node_id, direction, edge_id) VALUES (?, ?, ?, ?)"
+)
+const findEdgeRefs = database.prepare(
+  "SELECT edge_id FROM edge_refs WHERE way_id = ? AND node_id = ? AND direction = ?"
+)
+const nodeBatch = []
+const edgeRefBatch = []
+const writeNodes = database.transaction((batch) => {
+  for (const [id, lon, lat] of batch) insertNode.run(id, lon, lat)
+})
+const writeEdgeRefs = database.transaction((batch) => {
+  for (const [wayId, nodeId, direction, edgeId] of batch) {
+    insertEdgeRef.run(wayId, nodeId, direction, edgeId)
+  }
+})
+const tileHandles = new Map()
+const tileKeys = new Set()
+let sourcePhase = "nodes"
+
+function flushNodes() {
+  if (nodeBatch.length > 0) writeNodes(nodeBatch.splice(0))
+}
+
+function flushEdgeRefs() {
+  if (edgeRefBatch.length > 0) writeEdgeRefs(edgeRefBatch.splice(0))
+}
 const stats = {
   sourceNodes: 0,
   sourceWays: 0,
@@ -89,27 +135,32 @@ function gridBounds(key) {
   }
 }
 
-function getTile(key) {
-  let tile = tiles.get(key)
-  if (!tile) {
-    tile = { key, nodes: new Map(), edges: new Map(), turnRestrictions: [] }
-    tiles.set(key, tile)
+function tileHandle(key) {
+  let handle = tileHandles.get(key)
+  if (handle === undefined) {
+    handle = openSync(join(stagingDirectory, `${key}.ndjson`), "a")
+    tileHandles.set(key, handle)
+    tileKeys.add(key)
   }
-  return tile
+  return handle
 }
 
 function addEdgeToTile(key, edge, fromCoordinate, toCoordinate) {
-  const tile = getTile(key)
-  tile.nodes.set(edge.fromNodeId, { id: edge.fromNodeId, coordinate: fromCoordinate })
-  tile.nodes.set(edge.toNodeId, { id: edge.toNodeId, coordinate: toCoordinate })
-  tile.edges.set(edge.id, edge)
+  writeSync(tileHandle(key), `${JSON.stringify({
+    type: "edge",
+    edge,
+    nodes: [
+      { id: edge.fromNodeId, coordinate: fromCoordinate },
+      { id: edge.toNodeId, coordinate: toCoordinate }
+    ]
+  })}\n`)
 }
 
 function rememberEdge(map, wayId, nodeId, edgeId) {
-  const key = `${wayId}:${nodeId}`
-  const list = map.get(key) ?? []
-  list.push(edgeId)
-  map.set(key, list)
+  edgeRefBatch.push([wayId, nodeId, map, edgeId])
+  if (edgeRefBatch.length >= 10_000) {
+    writeEdgeRefs(edgeRefBatch.splice(0))
+  }
 }
 
 function haversineMeters(a, b) {
@@ -226,8 +277,8 @@ function emitDirectedEdge(wayId, segmentIndex, suffix, fromId, toId, fromCoordin
   for (const key of new Set([gridKey(fromCoordinate), gridKey(toCoordinate)])) {
     addEdgeToTile(key, edge, fromCoordinate, toCoordinate)
   }
-  rememberEdge(outgoingByWayNode, wayId, fromId, edge.id)
-  rememberEdge(incomingByWayNode, wayId, toId, edge.id)
+  rememberEdge("outgoing", wayId, fromId, edge.id)
+  rememberEdge("incoming", wayId, toId, edge.id)
   stats.directedEdges += 1
 }
 
@@ -245,16 +296,14 @@ function processWay(line) {
   for (let index = 0; index < references.length - 1; index += 1) {
     const aId = references[index]
     const bId = references[index + 1]
-    const a = nodes.get(aId)
-    const b = nodes.get(bId)
-    if (!a || !b) continue
+    const aRow = getNode.get(aId)
+    const bRow = getNode.get(bId)
+    if (!aRow || !bRow) continue
+    const a = [aRow.lon, aRow.lat]
+    const b = [bRow.lon, bRow.lat]
     if (!reverseOnly) emitDirectedEdge(wayId, index, "f", aId, bId, a, b, tags)
     if (!forwardOnly || reverseOnly) emitDirectedEdge(wayId, index, "r", bId, aId, b, a, tags)
   }
-}
-
-function findEdgeInTile(tile, edgeId) {
-  return tile.edges.get(edgeId)
 }
 
 function processRestriction(line) {
@@ -276,27 +325,27 @@ function processRestriction(line) {
   const fromWay = from.slice(1, from.indexOf("@"))
   const viaNode = via.slice(1, via.indexOf("@"))
   const toWay = to.slice(1, to.indexOf("@"))
-  const coordinate = nodes.get(viaNode)
-  const incoming = incomingByWayNode.get(`${fromWay}:${viaNode}`) ?? []
-  const outgoing = outgoingByWayNode.get(`${toWay}:${viaNode}`) ?? []
-  if (!coordinate || incoming.length === 0 || outgoing.length === 0) {
+  const coordinateRow = getNode.get(viaNode)
+  const incoming = findEdgeRefs.all(fromWay, viaNode, "incoming").map((row) => row.edge_id)
+  const outgoing = findEdgeRefs.all(toWay, viaNode, "outgoing").map((row) => row.edge_id)
+  if (!coordinateRow || incoming.length === 0 || outgoing.length === 0) {
     stats.unsupportedRestrictions += 1
     return
   }
-  const tile = getTile(gridKey(coordinate))
+  const coordinate = [coordinateRow.lon, coordinateRow.lat]
+  const key = gridKey(coordinate)
   const restrictionValue = tags.get("restriction") ?? ""
   const kind = restrictionValue.startsWith("only_") ? "only_turn" : "no_turn"
   const relationId = /^r(\d+)/.exec(line)?.[1]
   for (const incomingEdgeId of incoming) {
     for (const outgoingEdgeId of outgoing) {
-      if (!findEdgeInTile(tile, incomingEdgeId) || !findEdgeInTile(tile, outgoingEdgeId)) continue
-      tile.turnRestrictions.push({
+      writeSync(tileHandle(key), `${JSON.stringify({ type: "restriction", restriction: {
         incomingEdgeId,
         viaNodeId: viaNode,
         outgoingEdgeId,
         restriction: kind,
         ...(relationId ? { sourceRelationId: relationId } : {})
-      })
+      } })}\n`)
       stats.emittedRestrictions += 1
     }
   }
@@ -316,32 +365,57 @@ for await (const line of lines) {
     const lon = /(?:^| )x(-?\d+(?:\.\d+)?)/.exec(line)?.[1]
     const lat = /(?:^| )y(-?\d+(?:\.\d+)?)/.exec(line)?.[1]
     if (id && lon && lat) {
-      nodes.set(id, [Number(lon), Number(lat)])
+      nodeBatch.push([id, Number(lon), Number(lat)])
+      if (nodeBatch.length >= 10_000) flushNodes()
       stats.sourceNodes += 1
     }
   } else if (line.startsWith("w")) {
+    if (sourcePhase === "nodes") {
+      flushNodes()
+      sourcePhase = "ways"
+    }
     processWay(line)
   } else if (line.startsWith("r")) {
+    if (sourcePhase !== "relations") {
+      flushNodes()
+      flushEdgeRefs()
+      sourcePhase = "relations"
+    }
     processRestriction(line)
   }
 }
+flushNodes()
+flushEdgeRefs()
 const exitCode = await new Promise((resolve) => osmium.once("close", resolve))
 if (exitCode !== 0) throw new Error(`osmium exited with status ${exitCode}`)
-if (tiles.size === 0 || stats.directedEdges === 0) throw new Error("No eligible directed road edges were extracted")
+if (tileKeys.size === 0 || stats.directedEdges === 0) throw new Error("No eligible directed road edges were extracted")
+for (const handle of tileHandles.values()) closeSync(handle)
+database.close()
 
-await mkdir(join(outputRoot, regionId), { recursive: true })
-const pendingDirectory = await mkdtemp(join(outputRoot, regionId, ".pending-"))
-await mkdir(join(pendingDirectory, "tiles"))
 const inventory = []
 
-for (const tile of [...tiles.values()].sort((a, b) => a.key.localeCompare(b.key))) {
+for (const key of [...tileKeys].sort((a, b) => a.localeCompare(b))) {
+  const staged = await readFile(join(stagingDirectory, `${key}.ndjson`), "utf8")
+  const tileNodes = new Map()
+  const tileEdges = new Map()
+  const turnRestrictions = []
+  for (const line of staged.split("\n")) {
+    if (!line) continue
+    const record = JSON.parse(line)
+    if (record.type === "edge") {
+      tileEdges.set(record.edge.id, record.edge)
+      for (const node of record.nodes) tileNodes.set(node.id, node)
+    } else if (record.type === "restriction") {
+      turnRestrictions.push(record.restriction)
+    }
+  }
   const semantic = {
     schemaVersion: 2,
-    tileId: tile.key,
-    bounds: gridBounds(tile.key),
-    nodes: [...tile.nodes.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    edges: [...tile.edges.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    turnRestrictions: tile.turnRestrictions.sort((a, b) => a.incomingEdgeId.localeCompare(b.incomingEdgeId))
+    tileId: key,
+    bounds: gridBounds(key),
+    nodes: [...tileNodes.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    edges: [...tileEdges.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    turnRestrictions: turnRestrictions.sort((a, b) => a.incomingEdgeId.localeCompare(b.incomingEdgeId))
   }
   const semanticHash = hash(JSON.stringify(semantic))
   semantic.tileId = `t-${semanticHash}`
@@ -349,7 +423,7 @@ for (const tile of [...tiles.values()].sort((a, b) => a.key.localeCompare(b.key)
     input: JSON.stringify(semantic),
     maxBuffer: 1024 * 1024 * 1024
   })
-  if (compressed.status !== 0) throw new Error(`zstd failed for ${tile.key}`)
+  if (compressed.status !== 0) throw new Error(`zstd failed for ${key}`)
   const tileSha = hash(compressed.stdout)
   await writeFile(join(pendingDirectory, "tiles", `${semantic.tileId}.json.zst`), compressed.stdout)
   inventory.push({
@@ -361,6 +435,11 @@ for (const tile of [...tiles.values()].sort((a, b) => a.key.localeCompare(b.key)
     edgeCount: semantic.edges.length
   })
 }
+
+await rm(stagingDirectory, { recursive: true })
+await rm(join(pendingDirectory, "build.sqlite"), { force: true })
+await rm(join(pendingDirectory, "build.sqlite-wal"), { force: true })
+await rm(join(pendingDirectory, "build.sqlite-shm"), { force: true })
 
 const inventorySha256 = hash(inventory.map((tile) => `${tile.tileId}:${tile.sha256}`).join("\n"))
 const buildDate = new Date().toISOString()

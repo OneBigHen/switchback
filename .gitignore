@@ -13,6 +13,7 @@ dogfood-output/
 data/*.db
 data/*.pbf
 data/graph-cache
+data/offline-regions/
 data/graphhopper*.jar
 data/gpx-library/
 public/sw.js

@@ -91,6 +91,18 @@ describe("offline-routing worker protocol", () => {
       }
     })
 
+    it("parses the v2 tile-backed route request", () => {
+      const parsed = parseOfflineRoutingWorkerRequest({
+        version: 2,
+        requestId: "req-v2",
+        kind: "route_v2",
+        tiles: [{ schemaVersion: 2 }],
+        routeRequest: { start: [-76, 40], finish: [-75, 40] }
+      })
+      expect(parsed).toMatchObject({ kind: "route_v2", requestId: "req-v2" })
+      if (parsed?.kind === "route_v2") expect(parsed.tiles).toHaveLength(1)
+    })
+
     it("rejects route requests with NaN, negative, or non-integer node indices", () => {
       expect(
         parseOfflineRoutingWorkerRequest({ ...validRouteRequest, startNodeIndex: NaN })

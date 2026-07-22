@@ -178,6 +178,30 @@ workerScope.addEventListener("message", async (event: MessageEvent) => {
       workerScope.postMessage(result)
       return
     }
+    case "route_v2": {
+      tracked.set(parsed.requestId, { cancelled: false, startedAt: Date.now() })
+      let result: OfflineRoutingWorkerResult
+      try {
+        const router = await import(/* @vite-ignore */ "@/lib/offline/v2-router")
+        const found = router.routeOfflineV2(
+          parsed.tiles as Parameters<typeof router.routeOfflineV2>[0],
+          parsed.routeRequest as Parameters<typeof router.routeOfflineV2>[1]
+        )
+        result = found.ok
+          ? buildOfflineRoutingWorkerOk(parsed, found)
+          : buildOfflineRoutingWorkerFailure(parsed, found.kind, found.message)
+      } catch {
+        result = buildOfflineRoutingWorkerFailure(parsed, "corrupt_data", "Offline v2 routing payload is invalid.")
+      } finally {
+        const tracker = tracked.get(parsed.requestId)
+        if (tracker?.cancelled) {
+          result = buildOfflineRoutingWorkerFailure(parsed, "cancelled", "Request was cancelled before completion.")
+        }
+        tracked.delete(parsed.requestId)
+      }
+      workerScope.postMessage(result)
+      return
+    }
     default: {
       workerScope.postMessage(
         buildOfflineRoutingWorkerFailure(
