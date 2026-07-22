@@ -30,8 +30,6 @@ export interface OfflineBounds {
   maxLat: number
 }
 
-export type OfflineDirectionality = "forward" | "backward" | "both"
-
 export type OfflineAccessState =
   | "permitted"
   | "designated"
@@ -90,7 +88,7 @@ export interface OfflineTurnRestriction {
   outgoingEdgeId: string
   restriction: OfflineTurnRestrictionKind
   /** OSM relation id this turn restriction was derived from, if known. */
-  sourceRelationId?: bigint
+  sourceRelationId?: string
 }
 
 export interface OfflineGraphNodeV2 {
@@ -104,8 +102,8 @@ export interface OfflineGraphEdgeV2 {
   toNodeId: string
   /** Ordered polyline of at least two coordinates. */
   geometry: Array<[longitude: number, latitude: number]>
-  osmWayId: bigint
-  directionality: OfflineDirectionality
+  /** Decimal OSM way identifier. A string keeps the wire format JSON-safe. */
+  osmWayId: string
   /** Motorcycle-specific access resolution. */
   motorcycleAccess: OfflineAccessState
   /** General vehicle access resolution (OSM `access=*`). */
@@ -135,6 +133,7 @@ export interface OfflineGraphTileV2 {
 
 export interface OfflineRegionManifestTileEntry {
   tileId: string
+  bounds: OfflineBounds
   bytes: number
   sha256: string
   nodeCount: number
@@ -142,14 +141,17 @@ export interface OfflineRegionManifestTileEntry {
 }
 
 export interface OfflineRegionManifestChecksums {
-  manifestSha256: string
-  tilesSha256: string
+  /** Hash of the ordered `tileId:sha256` inventory. */
+  inventorySha256: string
 }
 
 export interface OfflineRegionManifestV2 {
   schemaVersion: typeof OFFLINE_GRAPH_SCHEMA_V2
   regionId: string
   regionName: string
+  /** Immutable, content-addressed region release identifier. */
+  version: string
+  compression: "zstd-json"
   buildDate: string
   sourceDataDate: string
   snapshotUrl: string
@@ -242,11 +244,6 @@ function isSha256Hex(value: unknown): boolean {
   return typeof value === "string" && HEX64.test(value)
 }
 
-const DIRECTIONALITY: readonly OfflineDirectionality[] = [
-  "forward",
-  "backward",
-  "both"
-]
 const ACCESS_STATES: readonly OfflineAccessState[] = [
   "permitted",
   "designated",
@@ -324,8 +321,8 @@ function isGeometry(
   return true
 }
 
-function isBigIntNonNegative(value: unknown): value is bigint {
-  return typeof value === "bigint" && value >= 0n
+function isDecimalIdentifier(value: unknown): value is string {
+  return typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value)
 }
 
 function isProfileWeights(value: unknown): value is OfflineProfileWeights {
@@ -391,7 +388,6 @@ export function validateOfflineGraphTileV2(input: unknown): boolean {
       toNodeId,
       geometry,
       osmWayId,
-      directionality,
       motorcycleAccess,
       access,
       roadClass,
@@ -409,8 +405,7 @@ export function validateOfflineGraphTileV2(input: unknown): boolean {
     if (!isNonEmptyString(fromNodeId) || !nodeIds.has(fromNodeId)) return false
     if (!isNonEmptyString(toNodeId) || !nodeIds.has(toNodeId)) return false
     if (!isGeometry(geometry)) return false
-    if (!isBigIntNonNegative(osmWayId)) return false
-    if (!isOneOf(directionality, DIRECTIONALITY)) return false
+    if (!isDecimalIdentifier(osmWayId)) return false
     if (!isOneOf(motorcycleAccess, ACCESS_STATES)) return false
     if (!isOneOf(access, ACCESS_STATES)) return false
     if (!isOneOf(roadClass, ROAD_CLASSES)) return false
@@ -438,7 +433,7 @@ export function validateOfflineGraphTileV2(input: unknown): boolean {
   // Turn restrictions: every reference must resolve to an extant edge/node,
   // and the viaNode must actually be the meeting point of the incoming and
   // outgoing edges (incoming.toNodeId == via AND outgoing.fromNodeId == via
-  // OR the symmetric reverse-direction case for directionality-aware edges).
+  // OR the symmetric reverse-direction case for explicitly directed edges).
   const restrictionSignatures = new Set<string>()
 
   const findEdge = (id: string): OfflineGraphEdgeV2 | undefined =>
@@ -462,7 +457,7 @@ export function validateOfflineGraphTileV2(input: unknown): boolean {
     if (!isOneOf(restriction, TURN_KINDS)) return false
     if (
       sourceRelationId !== undefined &&
-      !isBigIntNonNegative(sourceRelationId)
+      !isDecimalIdentifier(sourceRelationId)
     ) {
       return false
     }
@@ -497,6 +492,8 @@ export function validateOfflineRegionManifestV2(input: unknown): boolean {
     schemaVersion,
     regionId,
     regionName,
+    version,
+    compression,
     buildDate,
     sourceDataDate,
     snapshotUrl,
@@ -511,6 +508,8 @@ export function validateOfflineRegionManifestV2(input: unknown): boolean {
   if (schemaVersion !== OFFLINE_GRAPH_SCHEMA_V2) return false
   if (!isNonEmptyString(regionId)) return false
   if (!isNonEmptyString(regionName)) return false
+  if (!isNonEmptyString(version)) return false
+  if (compression !== "zstd-json") return false
   if (!isNonEmptyString(buildDate)) return false
   if (!isNonEmptyString(sourceDataDate)) return false
   if (!isNonEmptyString(snapshotUrl)) return false
@@ -518,8 +517,8 @@ export function validateOfflineRegionManifestV2(input: unknown): boolean {
   if (!isBounds(bounds)) return false
 
   if (!isObject(checksums)) return false
-  const { manifestSha256, tilesSha256 } = checksums
-  if (!isSha256Hex(manifestSha256) || !isSha256Hex(tilesSha256)) return false
+  const { inventorySha256 } = checksums
+  if (!isSha256Hex(inventorySha256)) return false
 
   if (!isNonEmptyString(attribution)) return false
   if (!Array.isArray(tiles) || tiles.length === 0) return false
@@ -527,10 +526,11 @@ export function validateOfflineRegionManifestV2(input: unknown): boolean {
   const tileIds = new Set<string>()
   for (const t of tiles) {
     if (!isObject(t)) return false
-    const { tileId, bytes, sha256, nodeCount, edgeCount } = t
+    const { tileId, bounds: tileBounds, bytes, sha256, nodeCount, edgeCount } = t
     if (!isNonEmptyString(tileId)) return false
     if (tileIds.has(tileId)) return false
     tileIds.add(tileId)
+    if (!isBounds(tileBounds)) return false
     if (!isNonNegativeFinite(bytes) || bytes <= 0) return false
     if (!isSha256Hex(sha256)) return false
     if (!isPositiveInteger(nodeCount) || !isPositiveInteger(edgeCount)) {
@@ -539,6 +539,11 @@ export function validateOfflineRegionManifestV2(input: unknown): boolean {
   }
 
   if (!isNonNegativeFinite(tileByteTotal) || tileByteTotal <= 0) return false
+  const inventoryBytes = tiles.reduce(
+    (sum, tile) => sum + Number((tile as Record<string, unknown>).bytes),
+    0
+  )
+  if (inventoryBytes !== tileByteTotal) return false
 
   return true
 }

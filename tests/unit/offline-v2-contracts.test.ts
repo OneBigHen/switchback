@@ -37,8 +37,7 @@ function validEdge(
       [0, 0],
       [0.0001, 0]
     ],
-    osmWayId: 100n,
-    directionality: "both",
+    osmWayId: "100",
     motorcycleAccess: "permitted",
     access: "permitted",
     roadClass: "tertiary",
@@ -64,19 +63,21 @@ function validManifest(tileId: string): OfflineRegionManifestV2 {
     schemaVersion: OFFLINE_GRAPH_SCHEMA_V2,
     regionId: "pennsylvania",
     regionName: "Pennsylvania",
+    version: "2026-01-01-a1b2c3",
+    compression: "zstd-json",
     buildDate: "2026-01-01T00:00:00Z",
     sourceDataDate: "2025-12-01T00:00:00Z",
     snapshotUrl: "https://example.com/snapshot.osm.pbf",
     sourceUrl: "https://example.com/source",
     bounds: validBounds(),
     checksums: {
-      manifestSha256: "a".repeat(64),
-      tilesSha256: "b".repeat(64)
+      inventorySha256: "a".repeat(64)
     },
     attribution: "© OpenStreetMap contributors",
     tiles: [
       {
         tileId,
+        bounds: validBounds(),
         bytes: 1024,
         sha256: "c".repeat(64),
         nodeCount: 2,
@@ -214,9 +215,9 @@ describe("validateOfflineGraphTileV2 - rejections", () => {
     expect(validateOfflineGraphTileV2(tile)).toBe(false)
   })
 
-  it("rejects invalid directionality", () => {
+  it("rejects numeric OSM identifiers that are not JSON-safe strings", () => {
     const tile = validTile()
-    ;(tile.edges[0] as { directionality: string }).directionality = "sideways"
+    ;(tile.edges[0] as { osmWayId: unknown }).osmWayId = 100
     expect(validateOfflineGraphTileV2(tile)).toBe(false)
   })
 
@@ -244,13 +245,13 @@ describe("validateOfflineGraphTileV2 - rejections", () => {
 
   it("rejects negative osmWayId", () => {
     const tile = validTile()
-    tile.edges[0].osmWayId = -5n
+    tile.edges[0].osmWayId = "-5"
     expect(validateOfflineGraphTileV2(tile)).toBe(false)
   })
 
-  it("rejects non-number osmWayId shape", () => {
+  it("rejects non-decimal osmWayId shape", () => {
     const tile = validTile()
-    ;(tile.edges[0] as { osmWayId: unknown }).osmWayId = "100"
+    ;(tile.edges[0] as { osmWayId: unknown }).osmWayId = "way-100"
     expect(validateOfflineGraphTileV2(tile)).toBe(false)
   })
 })
@@ -281,7 +282,7 @@ describe("validateOfflineGraphTileV2 - turn restrictions", () => {
         viaNodeId: "n2",
         outgoingEdgeId: "e2",
         restriction: "only_turn",
-        sourceRelationId: 999n
+        sourceRelationId: "999"
       }
     ]
     expect(validateOfflineGraphTileV2(tile)).toBe(true)
@@ -394,15 +395,37 @@ describe("validateOfflineRegionManifestV2", () => {
     expect(validateOfflineRegionManifestV2(m)).toBe(false)
   })
 
+  it("requires an immutable version and supported compression", () => {
+    const missingVersion = validManifest("tile-1")
+    missingVersion.version = ""
+    expect(validateOfflineRegionManifestV2(missingVersion)).toBe(false)
+
+    const wrongCompression = validManifest("tile-1")
+    ;(wrongCompression as { compression: string }).compression = "gzip-json"
+    expect(validateOfflineRegionManifestV2(wrongCompression)).toBe(false)
+  })
+
   it("rejects bad manifest sha256", () => {
     const m = validManifest("tile-1")
-    m.checksums.manifestSha256 = "nothex"
+    m.checksums.inventorySha256 = "nothex"
     expect(validateOfflineRegionManifestV2(m)).toBe(false)
   })
 
   it("rejects tile with bad sha256", () => {
     const m = validManifest("tile-1")
     m.tiles[0].sha256 = "zz"
+    expect(validateOfflineRegionManifestV2(m)).toBe(false)
+  })
+
+  it("rejects a tile without valid spatial bounds", () => {
+    const m = validManifest("tile-1")
+    m.tiles[0].bounds.minLon = 200
+    expect(validateOfflineRegionManifestV2(m)).toBe(false)
+  })
+
+  it("rejects a tile-byte total that disagrees with inventory", () => {
+    const m = validManifest("tile-1")
+    m.tileByteTotal = 1025
     expect(validateOfflineRegionManifestV2(m)).toBe(false)
   })
 
