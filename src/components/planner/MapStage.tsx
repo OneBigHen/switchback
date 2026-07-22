@@ -185,7 +185,7 @@ export function MapStage(props: MapStageProps) {
       if (lockDrawRef.current.step === "first") {
         const next = [snap.coordinate] as Coordinate[]
         setLockDraftStep("second")
-        setLockDraftMessage("Tap the end of the corridor to lock.")
+        setLockDraftMessage("First anchor set. Choose the corridor end.")
         return next
       }
       if (lockDrawRef.current.step === "second") {
@@ -1037,7 +1037,7 @@ export function MapStage(props: MapStageProps) {
   }, [props.riderLayers, ready])
 
   return (
-    <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}`} aria-label="Interactive route map">
+    <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}`} aria-label="Interactive route map">
       <div ref={containerRef} className="map-canvas" />
       {!ready && !mapError ? <div className="map-loading">Reading the map…</div> : null}
       {mapError ? <div className="map-error" role="status">{mapError}</div> : null}
