@@ -1170,7 +1170,7 @@ export function MapStage(props: MapStageProps) {
             else {
               setLockDrawMode(true)
               setLockDraftStep("first")
-              setLockDraftMessage("Tap the start of the corridor you want to lock.")
+              setLockDraftMessage("Choose the first road point, then choose the corridor end.")
             }
           }}
         >
