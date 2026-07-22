@@ -216,7 +216,19 @@ The example uses Caddy's local certificate authority. Export its root certificat
 
 If you own a real DNS name, a publicly trusted certificate is preferable. Point a name at the LAN host (split DNS) and replace `tls internal` in the example with your ACME/DNS-challenge configuration. Do not port-forward GraphHopper, Valhalla, or the Next origin port.
 
-Finally, open `https://switchback.home.arpa` on the phone and grant location access. Add it to the home screen from the browser if desired. Offline maps and offline routing are not included in this release.
+Finally, open `https://switchback.home.arpa` on the phone and grant location access. Add it to the home screen from the browser if desired. Offline routing is available only for regions whose v2 manifest and complete immutable tile inventory have been published under `data/offline-regions`; selected-route guidance is not presented as arbitrary offline rerouting. Offline basemap and place search remain separate, explicitly incomplete capabilities.
+
+### Offline region artifacts
+
+Build a complete spatially sharded region from an OSM PBF without sampled route responses:
+
+```bash
+node --max-old-space-size=2048 scripts/build-offline-v2.mjs \
+  data/pennsylvania-motorcycle.osm.pbf data/offline-regions \
+  pennsylvania Pennsylvania
+```
+
+The builder uses a disk-backed index, rejects unevaluable conditional access, emits directed edges and supported node-via turn restrictions, compresses each content-addressed tile, and activates the new version only after the manifest and every tile are complete. Next serves the active manifest at `/api/offline/regions/{regionId}/manifest` and immutable byte-range tiles at `/api/offline/regions/{regionId}/tiles/{tileId}`. Generated artifacts are intentionally gitignored; publish them alongside the deployed runtime, not in Git.
 
 ## Verification
 

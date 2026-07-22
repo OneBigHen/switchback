@@ -445,10 +445,10 @@ export function RegionDownloadsPanel({
     <div className="region-downloads-panel">
       <h3 className="region-heading">
         <Database aria-hidden="true" weight="regular" />
-        {" "}Offline Map Data
+        {" "}Offline Routing Data
       </h3>
       <p className="region-description">
-        Download regional map tiles to your device for routing when you have no signal.
+        Download regional road-graph tiles to your device for routing when you have no signal.
         Data sourced from{" "}
         <a
           href="https://www.openstreetmap.org/copyright"

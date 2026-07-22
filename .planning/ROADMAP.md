@@ -38,7 +38,7 @@ Stabilize the route-to-a-place path before adding more breadth: robust free-form
 
 ### Phase 8: Navigation that does not fight the rider
 
-**Status: partial.** Explicit rejoin controls and browser ride recovery exist. Offline corridor packs currently preserve route/cue data rather than offline tiles and routing; full completed-waypoint lifecycle, closure detours, overnight recovery, and companion-display validation remain open.
+**Status: partial.** Explicit rejoin controls and browser ride recovery exist. Manifest-driven regional graph tiles, atomic browser installation, and a directed/turn-aware offline router now exist; generated PA/NJ artifacts, randomized production-graph comparison, offline basemap/overlay packaging, a physical airplane-mode drill, full completed-waypoint lifecycle, closure detours, overnight recovery, and companion-display validation remain release gates until each has current evidence.
 
 ### Phase 9: Multi-day ride command center
 

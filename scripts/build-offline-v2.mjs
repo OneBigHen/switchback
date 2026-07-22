@@ -4,7 +4,7 @@ import { createHash } from "node:crypto"
 import { createInterface } from "node:readline"
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { closeSync, openSync, writeSync } from "node:fs"
-import { basename, join } from "node:path"
+import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
 import Database from "better-sqlite3"
 
@@ -444,6 +444,8 @@ await rm(join(pendingDirectory, "build.sqlite-shm"), { force: true })
 const inventorySha256 = hash(inventory.map((tile) => `${tile.tileId}:${tile.sha256}`).join("\n"))
 const buildDate = new Date().toISOString()
 const version = `${buildDate.slice(0, 10)}-${inventorySha256.slice(0, 16)}`
+const geofabrikSlug = regionId === "new-jersey" ? "new-jersey" : regionId
+const geofabrikBase = `https://download.geofabrik.de/north-america/us/${geofabrikSlug}`
 const allBounds = inventory.reduce((bounds, tile) => ({
   minLon: Math.min(bounds.minLon, tile.bounds.minLon),
   minLat: Math.min(bounds.minLat, tile.bounds.minLat),
@@ -458,8 +460,8 @@ const manifest = {
   compression: "gzip-json",
   buildDate,
   sourceDataDate: process.env.SWITCHBACK_SOURCE_DATA_DATE || buildDate,
-  snapshotUrl: process.env.SWITCHBACK_SOURCE_SNAPSHOT_URL || `file:${basename(inputPbf)}`,
-  sourceUrl: process.env.SWITCHBACK_SOURCE_URL || "https://www.openstreetmap.org/copyright",
+  snapshotUrl: process.env.SWITCHBACK_SOURCE_SNAPSHOT_URL || `${geofabrikBase}-latest.osm.pbf`,
+  sourceUrl: process.env.SWITCHBACK_SOURCE_URL || `${geofabrikBase}.html`,
   bounds: allBounds,
   checksums: { inventorySha256 },
   attribution: "© OpenStreetMap contributors, ODbL 1.0",

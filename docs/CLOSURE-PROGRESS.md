@@ -1,5 +1,7 @@
 # Closure Progress Report — GLM 5.2 tech-debt closure
 
+> Historical worktree report, not current release status. See [CLOSURE-REALITY-2026-07-21.md](./CLOSURE-REALITY-2026-07-21.md).
+
 **Baseline:** `main` at `c75e0df`
 **Worktree:** `/root/Vibe/switchback-closure` on branch `closure/glm-wave-1`
 **Current gate status:** `tsc --noEmit` clean · `eslint --max-warnings=0` clean · `vitest run` **633 passed** (baseline was 578)

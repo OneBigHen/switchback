@@ -1,5 +1,7 @@
 # Closure Session — 2026-07-19
 
+> Historical snapshot, superseded by [CLOSURE-REALITY-2026-07-21.md](./CLOSURE-REALITY-2026-07-21.md). Its single-bundle regional graph and “ready for reskin” conclusions were not release proof.
+
 **Branch:** `main` (uncommitted)
 **Gate:** tsc clean, eslint clean, 73 offline tests pass
 
