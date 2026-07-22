@@ -634,3 +634,54 @@
     bottom: auto;
   }
 }
+
+/* The legacy planner layer declared local light tokens. Rebind every primary
+   sheet token for an explicit dark preference so dark mode remains semantic
+   instead of leaving a cream planner inside a dark application shell. */
+:root[data-theme="dark"] .planner-deck {
+  --oled: #07121e;
+  --machined: #0e1d2c;
+  --raised: #14283a;
+  --instrument: #f3f7fa;
+  --metal: #9fb0c0;
+  --line: #294156;
+  --ride-forest: #eaf3f7;
+  --ride-ink: #f3f7fa;
+  --ride-cream: #0e1d2c;
+  --ride-line: #294156;
+  --ride-orange: #ff573d;
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--machined) 97%, transparent);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] .planner-deck .ride-omnibox,
+:root[data-theme="dark"] .planner-deck .route-slip,
+:root[data-theme="dark"] .planner-deck .directions-panel,
+:root[data-theme="dark"] .planner-deck .directions-toggle,
+:root[data-theme="dark"] .planner-deck .route-weather,
+:root[data-theme="dark"] .planner-deck .trip-stage-panel,
+:root[data-theme="dark"] .planner-deck .route-rating,
+:root[data-theme="dark"] .planner-deck .planner-action-dock {
+  border-color: var(--line);
+  background: var(--machined);
+  color: var(--instrument);
+}
+
+:root[data-theme="dark"] .planner-deck .route-slip.is-selected {
+  border-color: var(--twisty);
+  background: color-mix(in srgb, var(--twisty) 9%, var(--machined));
+}
+
+:root[data-theme="dark"] .planner-deck .ride-recents button,
+:root[data-theme="dark"] .planner-deck .route-slips,
+:root[data-theme="dark"] .planner-deck .route-rack {
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .planner-deck .ride-intent-heading p,
+:root[data-theme="dark"] .planner-deck .ride-understanding p,
+:root[data-theme="dark"] .planner-deck .route-slip-name small,
+:root[data-theme="dark"] .planner-deck .route-slip-metric small {
+  color: var(--metal);
+}
