@@ -70,6 +70,12 @@ function defaultViewModel(): PlannerDeckViewModel {
       savedCount: 419,
       selectedRoute: null,
       home: null
+    },
+    lifecycle: {
+      phase: "idle",
+      startedAt: null,
+      isRecalculating: false,
+      label: ""
     }
   }
 }
@@ -111,6 +117,7 @@ function defaultCommands(): PlannerDeckCommands {
     },
     onClearRoute: vi.fn(),
     onPlan: vi.fn(),
+    onCancelPlanning: vi.fn(),
     onOpenLibrary: vi.fn()
   }
 }
@@ -121,6 +128,7 @@ interface RenderDeckOverrides {
     rideConfig: Partial<PlannerDeckViewModel["rideConfig"]>
     intent: Partial<PlannerDeckViewModel["intent"]>
     ui: Partial<PlannerDeckViewModel["ui"]>
+    lifecycle: Partial<PlannerDeckViewModel["lifecycle"]>
   }>
   cmds?: Partial<{
     waypoint: Partial<PlannerDeckCommands["waypoint"]>
@@ -128,6 +136,7 @@ interface RenderDeckOverrides {
     intent: Partial<PlannerDeckCommands["intent"]>
     onClearRoute: PlannerDeckCommands["onClearRoute"]
     onPlan: PlannerDeckCommands["onPlan"]
+    onCancelPlanning: PlannerDeckCommands["onCancelPlanning"]
     onOpenLibrary: PlannerDeckCommands["onOpenLibrary"]
     onUseHome: PlannerDeckCommands["onUseHome"]
     onSaveHome: PlannerDeckCommands["onSaveHome"]
@@ -146,6 +155,7 @@ function renderDeck(overrides: RenderDeckOverrides = {}) {
     if (overrides.vm.rideConfig) Object.assign(vm.rideConfig, overrides.vm.rideConfig)
     if (overrides.vm.intent) Object.assign(vm.intent, overrides.vm.intent)
     if (overrides.vm.ui) Object.assign(vm.ui, overrides.vm.ui)
+    if (overrides.vm.lifecycle) Object.assign(vm.lifecycle, overrides.vm.lifecycle)
   }
   if (overrides.cmds) {
     if (overrides.cmds.waypoint) Object.assign(cmds.waypoint, overrides.cmds.waypoint)
@@ -153,6 +163,7 @@ function renderDeck(overrides: RenderDeckOverrides = {}) {
     if (overrides.cmds.intent) Object.assign(cmds.intent, overrides.cmds.intent)
     if (overrides.cmds.onClearRoute !== undefined) cmds.onClearRoute = overrides.cmds.onClearRoute
     if (overrides.cmds.onPlan !== undefined) cmds.onPlan = overrides.cmds.onPlan
+    if (overrides.cmds.onCancelPlanning !== undefined) cmds.onCancelPlanning = overrides.cmds.onCancelPlanning
     if (overrides.cmds.onOpenLibrary !== undefined) cmds.onOpenLibrary = overrides.cmds.onOpenLibrary
     if (overrides.cmds.onUseHome !== undefined) cmds.onUseHome = overrides.cmds.onUseHome
     if (overrides.cmds.onSaveHome !== undefined) cmds.onSaveHome = overrides.cmds.onSaveHome
@@ -543,5 +554,32 @@ describe("planner ride composer", () => {
     })
 
     expect(screen.getByText(/Profile mismatch/i)).toBeInTheDocument()
+  })
+})
+
+describe("planner lifecycle progress (Phase 6)", () => {
+  it("shows continuous phase status in the omnibox with an accessible live region while planning", () => {
+    renderDeck({ vm: { lifecycle: { phase: "routing-primary", startedAt: Date.now() - 4_000, label: "Routing your ride…" } } })
+    const status = screen.getByRole("status", { name: "Ride planning progress" })
+    expect(status).toHaveTextContent("Routing your ride…")
+    expect(status).toHaveTextContent("4s")
+  })
+
+  it("exposes Cancel during an active lifecycle and fires the cancel command", async () => {
+    const user = userEvent.setup()
+    const onCancelPlanning = vi.fn()
+    renderDeck({
+      vm: { lifecycle: { phase: "alternatives", startedAt: Date.now(), label: "Adding alternatives…" } },
+      cmds: { onCancelPlanning }
+    })
+    const cancel = screen.getByRole("button", { name: "Cancel planning" })
+    expect(cancel).toBeInTheDocument()
+    await user.click(cancel)
+    expect(onCancelPlanning).toHaveBeenCalledOnce()
+  })
+
+  it("hides the progress status once the lifecycle is ready", () => {
+    renderDeck({ vm: { lifecycle: { phase: "ready", startedAt: null, label: "Ride ready" } } })
+    expect(screen.queryByRole("status", { name: "Ride planning progress" })).not.toBeInTheDocument()
   })
 })

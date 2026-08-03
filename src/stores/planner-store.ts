@@ -11,6 +11,22 @@ export type PlannerPointId = "start" | "finish"
 export type PlannerSurface = "planner" | "library" | "ride"
 export type PlannerStatus = "idle" | "routing" | "ready" | "error"
 
+/**
+ * One planner lifecycle state (Phase 6). `interpreting` and `geocoding` are
+ * driven by the free-text prompt flow; `routing-primary` and `alternatives`
+ * by the coordinator; `ready`/`cancelled`/`error` terminate a lifecycle.
+ * Transient — never persisted.
+ */
+export type PlanningPhase =
+  | "idle"
+  | "interpreting"
+  | "geocoding"
+  | "routing-primary"
+  | "alternatives"
+  | "ready"
+  | "cancelled"
+  | "error"
+
 const DEFAULT_BIKE_PROFILE: BikeProfile =
   MOTORCYCLE_PROFILES[0] ?? {
     name: "Street",
@@ -164,6 +180,12 @@ interface PlannerState {
   error: PlannerError | null
   curvatureVisible: boolean
   surface: PlannerSurface
+  /** Phase 6: active planning lifecycle; transient. */
+  planningPhase: PlanningPhase
+  /** Wall-clock start of the active lifecycle; transient. */
+  planningStartedAt: number | null
+  /** True while a replan keeps the previous route visible but dimmed. */
+  isRecalculating: boolean
   routePointPast: RoutePointSnapshot[]
   routePointFuture: RoutePointSnapshot[]
   canUndoRoutePoints: boolean
@@ -196,6 +218,10 @@ interface PlannerState {
    *  changing the selected primary route. */
   mergeAlternatives(plan: TripPlan): void
   failRouting(error: PlannerError): void
+  /** Phase 6 lifecycle control. */
+  beginPlanning(): void
+  setPlanningPhase(phase: PlanningPhase): void
+  cancelPlanning(): void
   selectRoute(id: string): void
   setCurvatureVisible(visible: boolean): void
   setSurface(surface: PlannerSurface): void
@@ -225,6 +251,9 @@ export const initialPlannerState = {
   plan: null,
   selectedRouteId: null,
   error: null,
+  planningPhase: "idle" as const,
+  planningStartedAt: null,
+  isRecalculating: false,
   curvatureVisible: true,
   surface: "planner" as const,
   routePointPast: [] as RoutePointSnapshot[],
@@ -392,16 +421,18 @@ export const usePlannerStore = create<PlannerState>()(
           error: null
         }
       }),
-      beginRouting: () => set({
+      beginRouting: () => set((state) => ({
         status: "routing",
-        plan: null,
-        selectedRouteId: null,
+        // Phase 6: keep the previous route visible (dimmed) while replanning
+        // instead of clearing the map; restored automatically on failure.
+        isRecalculating: Boolean(state.plan),
         error: null
-      }),
+      })),
       applyPlan: (plan) => set({
         plan,
         selectedRouteId: plan.selectedRouteId,
         status: "ready",
+        isRecalculating: false,
         error: null
       }),
       mergeAlternatives: (alternatives) => set((state) => {
@@ -416,10 +447,32 @@ export const usePlannerStore = create<PlannerState>()(
             warnings: Array.from(new Set([...state.plan.warnings, ...alternatives.warnings]))
           },
           status: "ready",
+          isRecalculating: false,
           error: null
         }
       }),
-      failRouting: (error) => set({ status: "error", error }),
+      failRouting: (error) => set({
+        status: "error",
+        error,
+        isRecalculating: false,
+        planningPhase: "error" as const
+      }),
+      beginPlanning: () => set((state) => ({
+        planningPhase: state.planningPhase === "idle" ? "routing-primary" as const : state.planningPhase,
+        planningStartedAt: state.planningStartedAt ?? Date.now()
+      })),
+      setPlanningPhase: (planningPhase) => set((state) => ({
+        planningPhase,
+        planningStartedAt: planningPhase === "ready" || planningPhase === "cancelled" || planningPhase === "error"
+          ? null
+          : state.planningStartedAt ?? Date.now()
+      })),
+      cancelPlanning: () => set({
+        planningPhase: "cancelled" as const,
+        planningStartedAt: null,
+        isRecalculating: false,
+        status: "idle"
+      }),
       selectRoute: (selectedRouteId) => set({ selectedRouteId }),
       setCurvatureVisible: (curvatureVisible) => set({ curvatureVisible }),
       setSurface: (surface) => set({ surface }),

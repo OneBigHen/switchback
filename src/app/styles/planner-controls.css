@@ -141,3 +141,40 @@
   color: #c9aaa7;
   font-size: 10px;
   line-height: 1.45;
+
+/* Phase 6: lifecycle progress in the omnibox (existing visual language) */
+.planner-lifecycle-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--planner-outline, rgba(148, 170, 170, 0.28));
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #bfd2d2;
+}
+
+.planner-lifecycle-status .spin {
+  color: #8fc7c0;
+}
+
+.planner-lifecycle-cancel {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid rgba(201, 170, 167, 0.45);
+  border-radius: 6px;
+  background: transparent;
+  color: #d9b6b2;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.planner-lifecycle-cancel:hover {
+  border-color: #e09a94;
+  color: #f0c4bf;
+}

@@ -107,14 +107,15 @@ describe("planner store", () => {
     })
   })
 
-  it("clears the previous comparison while a new route is being built", () => {
+  it("keeps the previous comparison visible (dimmed) while a new route is being built", () => {
     usePlannerStore.getState().applyPlan(plan)
     usePlannerStore.getState().beginRouting()
 
     expect(usePlannerStore.getState()).toMatchObject({
       status: "routing",
-      plan: null,
-      selectedRouteId: null,
+      plan: { selectedRouteId: plan.selectedRouteId },
+      isRecalculating: true,
+      selectedRouteId: plan.selectedRouteId,
       error: null
     })
   })

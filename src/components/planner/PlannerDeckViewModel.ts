@@ -3,7 +3,7 @@ import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import type { PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
-import type { PlannerError, PlannerPointId, PlannerStatus } from "@/stores/planner-store"
+import type { PlannerError, PlannerPointId, PlannerStatus, PlanningPhase } from "@/stores/planner-store"
 
 export type PlanMode = "destination" | "loop"
 export type RideIntentStatus = "idle" | "interpreting"
@@ -48,11 +48,43 @@ export interface PlannerUiViewModel {
   home: Waypoint | null | undefined
 }
 
+export interface PlannerLifecycleViewModel {
+  /** Active planning lifecycle phase; idle when nothing is running. */
+  phase: PlanningPhase
+  /** Wall-clock start of the active lifecycle, for elapsed-time display. */
+  startedAt: number | null
+  /** True while the previous route stays visible but dimmed. */
+  isRecalculating: boolean
+  /** Human label for the current phase. */
+  label: string
+}
+
 export interface PlannerDeckViewModel {
   waypoint: PlannerWaypointViewModel
   rideConfig: PlannerRideConfigViewModel
   intent: PlannerIntentViewModel
   ui: PlannerUiViewModel
+  lifecycle: PlannerLifecycleViewModel
+}
+
+const PHASE_LABELS: Record<PlanningPhase, string> = {
+  idle: "",
+  interpreting: "Reading your ride request…",
+  geocoding: "Finding places…",
+  "routing-primary": "Routing your ride…",
+  alternatives: "Adding alternatives…",
+  ready: "Ride ready",
+  cancelled: "Cancelled",
+  error: "Could not plan this ride"
+}
+
+export function planningPhaseLabel(phase: PlanningPhase): string {
+  return PHASE_LABELS[phase]
+}
+
+export function isActivePlanningPhase(phase: PlanningPhase): boolean {
+  return phase === "interpreting" || phase === "geocoding"
+    || phase === "routing-primary" || phase === "alternatives"
 }
 
 export interface PlannerWaypointCommands {
@@ -103,6 +135,7 @@ export interface PlannerDeckCommands {
   onClearHome?(): void
   onStartRide?(route: PlannedRoute): void
   onSaveOffline?(route: PlannedRoute, options?: import("@/lib/client/offline-pack-coordinator").OfflinePackCorridorOptions): void
+  onCancelPlanning(): void
 }
 
 export function buildPlannerDeckViewModel(state: {
@@ -134,6 +167,9 @@ export function buildPlannerDeckViewModel(state: {
   researchSources: RideResearchSource[]
   selectedRoute?: PlannedRoute | null
   home?: Waypoint | null
+  planningPhase: PlanningPhase
+  planningStartedAt: number | null
+  isRecalculating: boolean
 }): PlannerDeckViewModel {
   return {
     waypoint: {
@@ -171,6 +207,12 @@ export function buildPlannerDeckViewModel(state: {
       savedCount: state.savedCount,
       selectedRoute: state.selectedRoute,
       home: state.home
+    },
+    lifecycle: {
+      phase: state.planningPhase,
+      startedAt: state.planningStartedAt,
+      isRecalculating: state.isRecalculating,
+      label: planningPhaseLabel(state.planningPhase)
     }
   }
 }

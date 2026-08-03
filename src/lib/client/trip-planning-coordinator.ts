@@ -2,12 +2,17 @@ import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { RoutingClientError, requestTripPlan } from "@/lib/client/routing-client"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { Coordinate } from "@/lib/routing/types"
+import type { PlanningPhase } from "@/stores/planner-store"
 
 interface PlannerRouteLifecycle {
   beginRouting(): void
   applyPlan(plan: TripPlan): void
   mergeAlternatives(plan: TripPlan): void
   failRouting(error: { code: string; message: string }): void
+  /** Phase 6 lifecycle control. */
+  beginPlanning(): void
+  setPlanningPhase(phase: PlanningPhase): void
+  cancelPlanning(): void
 }
 
 interface RunLatestTripPlanOptions {
@@ -59,6 +64,8 @@ export async function runLatestTripPlan({
   const controller = new AbortController()
   activeController = controller
   getPlanner().beginRouting()
+  getPlanner().beginPlanning()
+  getPlanner().setPlanningPhase("routing-primary")
   try {
     const primary = await requestPlan(
       { ...request, compare: false, candidateSet: "primary" },
@@ -70,6 +77,7 @@ export async function runLatestTripPlan({
     // Progressive alternatives: same lifecycle id and abort controller,
     // never blocks or replaces the primary, never repaints after a newer
     // request takes ownership.
+    getPlanner().setPlanningPhase("alternatives")
     void loadAlternatives({
       request,
       primary,
@@ -122,8 +130,13 @@ async function loadAlternatives({
       primaryRoute: { id: primaryRoute.id, geometry }
     }, controller.signal)
     if (!gate.isCurrent(requestId)) return
-    if (alternatives.routes.length === 0) return
+    if (alternatives.routes.length === 0) {
+      // An empty successful alternative set is final, not an error.
+      getPlanner().setPlanningPhase("ready")
+      return
+    }
     getPlanner().mergeAlternatives(alternatives)
+    getPlanner().setPlanningPhase("ready")
   } catch {
     // Alternatives are optional evidence; never fail the primary or surface
     // cancellation noise after a newer request has taken ownership.

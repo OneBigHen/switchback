@@ -98,6 +98,7 @@ export function PlannerShell() {
   const status = usePlannerStore((state) => state.status)
   const plan = usePlannerStore((state) => state.plan)
   const selectedRouteId = usePlannerStore((state) => state.selectedRouteId)
+  const isRecalculating = usePlannerStore((state) => state.isRecalculating)
   const error = usePlannerStore((state) => state.error)
   const curvatureVisible = usePlannerStore((state) => state.curvatureVisible)
   const surface = usePlannerStore((state) => state.surface)
@@ -145,6 +146,9 @@ export function PlannerShell() {
       invalidate: () => {
         base.invalidate()
         cancelRoutingRequest()
+        // A manual edit, clear, or load ends the active planning lifecycle
+        // and restores any retained route.
+        usePlannerStore.getState().cancelPlanning()
       }
     }
   })
@@ -570,6 +574,7 @@ export function PlannerShell() {
         via={via}
         armedPoint={armedPoint}
         addingVia={addingVia}
+        recalculating={isRecalculating}
         curvatureVisible={curvatureVisible}
         unpavedVisible={unpavedVisible}
         mapStyle={mapStyle}
@@ -674,7 +679,10 @@ export function PlannerShell() {
             researchStatus,
             researchSources,
             selectedRoute,
-            home
+            home,
+            planningPhase: usePlannerStore.getState().planningPhase,
+            planningStartedAt: usePlannerStore.getState().planningStartedAt,
+            isRecalculating: usePlannerStore.getState().isRecalculating
           })}
           commands={{
             waypoint: {
@@ -798,6 +806,10 @@ export function PlannerShell() {
             },
             onClearRoute: handleClearRoute,
             onPlan: () => void handlePlan(),
+            onCancelPlanning: () => {
+              cancelRoutingRequest()
+              usePlannerStore.getState().cancelPlanning()
+            },
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
             onClearHome: clearHome,

@@ -23,7 +23,10 @@ function planner() {
     beginRouting: vi.fn(),
     applyPlan: vi.fn(),
     mergeAlternatives: vi.fn(),
-    failRouting: vi.fn()
+    failRouting: vi.fn(),
+    beginPlanning: vi.fn(),
+    setPlanningPhase: vi.fn(),
+    cancelPlanning: vi.fn()
   }
 }
 
@@ -288,5 +291,65 @@ describe("progressive alternatives and cancellation", () => {
     expect(result).toBe(primaryWithRoute)
     expect(state.failRouting).not.toHaveBeenCalled()
     expect(state.mergeAlternatives).not.toHaveBeenCalled()
+  })
+})
+
+describe("lifecycle phase driving (Phase 6)", () => {
+  const primaryWithRoute: TripPlan = {
+    selectedRouteId: "route-primary",
+    routes: [{
+      id: "route-primary",
+      name: "Primary",
+      profile: "scenic",
+      geometry: [[-76.9, 40.2], [-76.8, 40.2], [-76.7, 40.3]],
+      waypoints: [],
+      instructions: [],
+      distanceMiles: 20,
+      durationMinutes: 35,
+      ascentMeters: null,
+      descentMeters: null,
+      twistiness: 50,
+      turnCount: 12,
+      roadMix: {},
+      surfaceMix: {},
+      routingSource: "live",
+      previewOnly: false
+    }],
+    warnings: [],
+    planningId: "plan-lifecycle-0001"
+  }
+
+  it("drives the phase sequence routing-primary -> alternatives -> ready", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(primaryWithRoute)
+      .mockResolvedValueOnce({ selectedRouteId: "route-primary", routes: [], warnings: [] })
+
+    await runLatestTripPlan({
+      request,
+      gate,
+      getPlanner: () => state,
+      requestPlan,
+      onWarning: vi.fn()
+    })
+
+    const phases = state.setPlanningPhase.mock.calls.map(([phase]) => phase)
+    expect(phases).toEqual(["routing-primary", "alternatives", "ready"])
+    expect(state.beginPlanning).toHaveBeenCalledOnce()
+  })
+
+  it("marks the lifecycle as error when the primary request fails", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    await runLatestTripPlan({
+      request,
+      gate,
+      getPlanner: () => state,
+      requestPlan: vi.fn().mockRejectedValue(new Error("down")),
+      onWarning: vi.fn()
+    })
+    expect(state.setPlanningPhase).toHaveBeenCalledWith("routing-primary")
+    expect(state.failRouting).toHaveBeenCalled()
   })
 })

@@ -44,6 +44,7 @@ import type {
 } from "./PlannerDeckViewModel"
 
 export type { PlanMode, RideIntentStatus } from "./PlannerDeckViewModel"
+import { isActivePlanningPhase } from "./PlannerDeckViewModel"
 
 interface VoiceRecognitionResultEvent {
   results: ArrayLike<ArrayLike<{ transcript: string }>>
@@ -67,7 +68,7 @@ interface PlannerDeckProps {
 
 export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps) {
   /* ── viewModel destructuring ── */
-  const { waypoint, rideConfig, intent, ui } = viewModel
+  const { waypoint, rideConfig, intent, ui, lifecycle } = viewModel
 
   const start = waypoint.start
   const finish = waypoint.finish
@@ -96,9 +97,22 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const researchSources = intent.researchSources
   const selectedRoute = ui.selectedRoute ?? null
   const home = ui.home ?? null
+  const planningActive = isActivePlanningPhase(lifecycle.phase)
+  // Elapsed seconds must come from state, not Date.now() during render
+  // (react-hooks/purity): a 1s interval drives the ticker while planning.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!planningActive) return
+    const id = window.setInterval(() => setNow(Date.now()), 1_000)
+    return () => window.clearInterval(id)
+  }, [planningActive])
+  const elapsedSeconds = lifecycle.startedAt !== null && planningActive
+    ? Math.max(0, Math.floor((now - lifecycle.startedAt) / 1000))
+    : 0
 
   /* ── commands destructuring ── */
   const { waypoint: wc, rideConfig: rc, intent: ic } = commands
+  const onCancelPlanning = commands.onCancelPlanning
 
   const onPointChange = wc.onPointChange
   const onPointQueryChange = wc.onPointQueryChange
@@ -294,13 +308,22 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <button
               type="submit"
               aria-label="Find ride options"
-              disabled={ridePrompt.trim().length < 3 || intentStatus === "interpreting"}
+              disabled={ridePrompt.trim().length < 3 || intentStatus === "interpreting" || planningActive}
             >
-              {intentStatus === "interpreting"
+              {intentStatus === "interpreting" || planningActive
                 ? <SpinnerGap className="spin" aria-hidden="true" />
                 : <ArrowRight weight="bold" aria-hidden="true" />}
             </button>
           </form>
+          {planningActive ? (
+            <div className="planner-lifecycle-status" role="status" aria-live="polite" aria-label="Ride planning progress">
+              <SpinnerGap className="spin" aria-hidden="true" />
+              <span>{lifecycle.label}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
+              <button type="button" className="planner-lifecycle-cancel" onClick={onCancelPlanning} aria-label="Cancel planning">
+                <X weight="bold" aria-hidden="true" /> Cancel
+              </button>
+            </div>
+          ) : null}
           <div className="ride-quick-intents" aria-label="Quick ride ideas">
             <button type="button" onClick={() => submitQuickIntent("1-hour loop")}>1-hour loop</button>
             <button type="button" onClick={() => submitQuickIntent("Twisty roads")}>Twisties</button>

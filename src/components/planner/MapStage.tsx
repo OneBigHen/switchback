@@ -83,6 +83,8 @@ interface MapStageProps {
   via: Waypoint[]
   armedPoint: PlannerPointId | null
   addingVia: boolean
+  /** Phase 6: the previous route stays visible but dimmed during replan. */
+  recalculating?: boolean
   curvatureVisible: boolean
   unpavedVisible: boolean
   mapStyle: MapStyleId
@@ -1120,7 +1122,7 @@ export function MapStage(props: MapStageProps) {
   }, [props.riderLayers, ready, riderFeaturesRetry])
 
   return (
-    <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}`} aria-label="Interactive route map">
+    <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}${props.recalculating ? " is-recalculating" : ""}`} aria-label="Interactive route map" data-recalculating={props.recalculating ? "true" : "false"}>
       <div ref={containerRef} className="map-canvas" />
       {!ready && !mapError ? <div className="map-loading">Reading the map…</div> : null}
       {mapError ? <div className="map-error" role="status">{mapError}</div> : null}

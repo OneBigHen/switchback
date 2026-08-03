@@ -58,10 +58,12 @@ export function usePlannerRideIntent({
 }: UsePlannerRideIntentOptions) {
   return useCallback(async (prompt: string) => {
     const requestId = gate.begin()
+    const store = usePlannerStore.getState()
     setStopIdeas(null)
     setResearchSources([])
     setIntentStatus("interpreting")
     setIntentSummary("Reading your ride request…")
+    store.setPlanningPhase("interpreting")
     try {
       const intent = await requestRideIntent(prompt)
       if (!gate.isCurrent(requestId)) return
@@ -69,6 +71,7 @@ export function usePlannerRideIntent({
       const nextMode: PlanMode = intent.mode
       const nextDuration = intent.targetMinutes ?? targetMinutes
       const planningId = createPlanningId()
+      store.setPlanningPhase("geocoding")
 
       const resolved = await resolveRidePromptWaypoints({
         intent,
@@ -123,7 +126,9 @@ export function usePlannerRideIntent({
         planningId
       })
       setIntentSummary(`Understood: ${intent.summary}${intent.stopQuery ? ` with ${intent.stopQuery} stop ideas to choose from` : ""}.`)
-      setIntentStatus("idle")
+      // The lifecycle phase continues into routing (primary, then
+      // alternatives); the routing spinner no longer dies before the slow
+      // work starts.
       const firstPlan = await runTripPlan(request)
       if (!firstPlan) return
       // runLatestTripPlan advanced the gate itself while routing; take a
@@ -161,6 +166,7 @@ export function usePlannerRideIntent({
       }
     } catch (caught) {
       if (!gate.isCurrent(requestId)) return
+      usePlannerStore.getState().cancelPlanning()
       setIntentStatus("idle")
       const message = caught instanceof Error ? caught.message : "This ride request could not be interpreted."
       setIntentSummary(message)

@@ -181,6 +181,7 @@ All shares are clamped to `0..1`. Penalties are applied afterward: `-15` per dis
 | 3 | GraphHopper Toll and Fast-Path Correctness | [Detail](phases/phase-3.md) | completed (live candidate cache deferred to Phase 7 host — see handover) |
 | 4 | Timeboxed Destination Corridors and Scoring | [Detail](phases/phase-4.md) | completed (live golden-route quality deferred to Phase 7 host — see handover) |
 | 5 | You.com Corridor Adviser | [Detail](phases/phase-5.md) | completed |
+| 6 | Free-Text Preservation and Loading UX | [Detail](phases/phase-6.md) | completed |
 | 3 | GraphHopper Toll and Fast-Path Correctness | [Detail](phases/phase-3.md) | pending |
 | 4 | Timeboxed Destination Corridors and Scoring | [Detail](phases/phase-4.md) | pending |
 | 5 | You.com Corridor Adviser | [Detail](phases/phase-5.md) | pending |

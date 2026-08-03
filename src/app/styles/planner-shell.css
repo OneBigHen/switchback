@@ -434,3 +434,9 @@ h2 {
   width: 20px;
   height: 20px;
 }
+
+/* Phase 6: previous route stays visible but dimmed during replan */
+.map-stage.is-recalculating .map-canvas {
+  filter: saturate(0.45) brightness(0.92);
+  transition: filter 180ms ease;
+}
