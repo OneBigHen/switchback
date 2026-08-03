@@ -23,3 +23,4 @@ public/workbox-*.js
 artifacts/routing-rework/raw/
 data/graph-cache-*
 data/graph-cache-*.yml
+data/route-research-cache.sqlite

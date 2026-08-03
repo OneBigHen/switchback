@@ -24,10 +24,16 @@ describe("ride idea web research", () => {
       url: "https://example.test/pa-wilds",
       summary: "A long scenic road with overlooks."
     }])
-    expect(fetcher).toHaveBeenCalledWith("https://api.you.com/v1/search", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({ "x-api-key": "test-key" })
-    }))
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("https://ydc-index.io/v1/search?"),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ "x-api-key": "test-key" })
+      })
+    )
+    const calledUrl = String(fetcher.mock.calls[0]?.[0])
+    expect(calledUrl).toContain("count=5")
+    expect(calledUrl).toContain("motorcycle+ride+roads+stops+Pennsylvania")
   })
 
   it("does not make a search request when web research is not configured", async () => {

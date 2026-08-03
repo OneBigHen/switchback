@@ -9,13 +9,13 @@ updated: "2026-07-22"
 
 > Tracking [Switchback Routing Intelligence Rework](plan.md)
 
-## Active Phase: 5 - You.com Corridor Adviser (parallel-safe) / 6 - Progressive UX after 4
+## Active Phase: 6 - Planner Progress and Progressive Alternatives UX
 
 ### Phase Context
 
-- **Scope**: [Phase 5](phases/phase-5.md) and [Phase 6](phases/phase-6.md)
-- **Implementation**: [Phase 5 Plan](implementation/phase-5-impl.md), [Phase 6 Plan](implementation/phase-6-impl.md)
-- **Latest Handover**: `handovers/phase-4-corridor-scoring.md`
+- **Scope**: [Phase 6](phases/phase-6.md)
+- **Implementation**: [Phase 6 Plan](implementation/phase-6-impl.md)
+- **Latest Handover**: None yet; create under `handovers/` when pausing.
 - **Relevant Docs**: `README.md`, `docs/CLOSURE-REALITY-2026-07-21.md`, `docs/LEAD-DECISIONS.md`
 
 ### Pending
@@ -23,8 +23,8 @@ updated: "2026-07-22"
 - [ ] Build/validate the Phase 3 candidate cache on a ≥6 GB RAM host (`import-candidate phase3-toll` → `validate-candidate`), then swap in Phase 7. <!-- added: 2026-08-03 -->
 - [ ] Phase 3/4 live acceptance on the candidate graph: toll/road-environment/urban-density/curvature evidence, golden 108–132-minute route quality. <!-- added: 2026-08-03 -->
 - [ ] Phase 4 follow-up: tune corridor anchor generation if the golden route still trips backtracking/self-overlap gates on the live graph. <!-- added: 2026-08-03 -->
-- [ ] Phase 5: You.com corridor adviser package (independent; may run in parallel). <!-- added: 2026-08-03 -->
-- [ ] Phase 6: planner progress treatment + progressive alternatives UX. <!-- added: 2026-08-03 -->
+- [ ] Phase 5 merge step: invoke the corridor adviser from the alternatives path (background, deadline-bounded) and feed validated hints into Phase 4 anchor sets. <!-- added: 2026-08-03 -->
+- [ ] Phase 6: visible progress from prompt submission to primary route + progressive alternatives treatment. <!-- added: 2026-08-03 -->
 
 ### In Progress
 
@@ -55,6 +55,10 @@ updated: "2026-07-22"
 - [x] Phase 4: curvature/GPX corridor sources with graceful degradation + graceful detail retry. <!-- completed: 2026-08-03 -->
 - [x] Phase 4: unit + mock-orchestration tests; live smoke against the running graph recorded in the handover. <!-- completed: 2026-08-03 -->
 - [x] Phase 4: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
+- [x] Phase 5: current You.com Search/Research transports (Research structured output, Search GET migration). <!-- completed: 2026-08-03 -->
+- [x] Phase 5: strict corridor-hint schema, source preservation, geocoding validation, hallucination discard. <!-- completed: 2026-08-03 -->
+- [x] Phase 5: 7-day SQLite cache (intent-keyed, degrade-safe) + bounded /api/ride-corridors endpoint. <!-- completed: 2026-08-03 -->
+- [x] Phase 5: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
 
 ### Blocked
 

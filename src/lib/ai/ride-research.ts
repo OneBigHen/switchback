@@ -41,6 +41,12 @@ function normalizeSource(result: YouSearchResult): RideResearchSource | null {
   return { title: title.slice(0, 180), url, summary: summary.slice(0, 360) }
 }
 
+/**
+ * Migrated to the current You.com Search endpoint: GET ydc-index.io/v1/search
+ * with the X-API-Key header (the previous api.you.com/v1/search POST is
+ * retired). Source cards only — the structured corridor adviser lives in
+ * corridor-adviser.ts.
+ */
 export async function researchRideIdea(
   prompt: string,
   options: RideResearchOptions = {}
@@ -48,19 +54,19 @@ export async function researchRideIdea(
   const query = prompt.trim()
   if (!query || !options.apiKey?.trim()) return []
 
+  const params = new URLSearchParams({
+    query: `${query} motorcycle ride roads stops Pennsylvania`,
+    count: "5",
+    country: "US"
+  })
+
   let response: Response
   try {
-    response = await (options.fetcher ?? fetch)("https://api.you.com/v1/search", {
-      method: "POST",
+    response = await (options.fetcher ?? fetch)(`https://ydc-index.io/v1/search?${params.toString()}`, {
+      method: "GET",
       headers: {
-        "content-type": "application/json",
         "x-api-key": options.apiKey
       },
-      body: JSON.stringify({
-        query: `${query} motorcycle ride roads stops Pennsylvania`,
-        count: 5,
-        country: "US"
-      }),
       signal: AbortSignal.timeout(10_000)
     })
   } catch {
