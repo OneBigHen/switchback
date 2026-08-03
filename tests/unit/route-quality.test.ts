@@ -70,10 +70,11 @@ describe("hard gates", () => {
   it("rejects more than 15% immediate backtracking", () => {
     const backtracking = route({
       geometry: [
-        [-76.8867, 40.2732],
-        [-76.6, 40.3],
-        [-76.8867, 40.2732],
-        [-76.3055, 40.0379]
+        [-76.9, 40.2],
+        [-76.88, 40.2],
+        [-76.87, 40.3],
+        [-76.88, 40.2],
+        [-76.86, 40.2]
       ]
     })
     const failures = hardGates(input({ route: backtracking }))

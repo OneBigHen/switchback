@@ -66,13 +66,15 @@ describe("backtracking and self-overlap", () => {
     ]
     expect(backtrackingShare(straight)).toBeLessThan(0.05)
 
-    const outAndBack: [number, number][] = [
+    // A long dead-end spur: north 11 km, then immediately back south.
+    const spur: [number, number][] = [
       [-76.9, 40.2],
-      [-76.7, 40.3],
-      [-76.9, 40.2],
-      [-76.6, 40.2]
+      [-76.88, 40.2],
+      [-76.87, 40.3],
+      [-76.88, 40.2],
+      [-76.86, 40.2]
     ]
-    expect(backtrackingShare(outAndBack)).toBeGreaterThan(0.3)
+    expect(backtrackingShare(spur)).toBeGreaterThan(0.3)
   })
 
   it("measures self-overlap via revisited grid cells", () => {

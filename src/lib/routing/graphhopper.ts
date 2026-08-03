@@ -311,7 +311,10 @@ export function createGraphHopperRequest(
       ...baseRequest,
       algorithm: "alternative_route",
       "alternative_route.max_paths": 3,
-      "alternative_route.max_weight_factor": 1.8,
+      // Timeboxed destination corridors need the engine to explore much
+      // longer detours than a 1.8x ceiling allows; widen it so a swung
+      // corridor can actually reach the requested duration.
+      "alternative_route.max_weight_factor": _request.targetMinutes ? 4.0 : 1.8,
       "alternative_route.max_share_factor": 0.62
     }
   }
