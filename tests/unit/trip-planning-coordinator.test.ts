@@ -2,10 +2,16 @@ import { describe, expect, it, vi } from "vitest"
 import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { runLatestTripPlan } from "@/lib/client/trip-planning-coordinator"
 import { RoutingClientError } from "@/lib/client/routing-client"
+import { refreshCorridorHints } from "@/lib/client/corridor-hints-client"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
+
+vi.mock("@/lib/client/corridor-hints-client", () => ({
+  refreshCorridorHints: vi.fn(async () => undefined)
+}))
 
 const request: TripPlanRequest = {
   profile: "scenic",
+  targetMinutes: 120,
   points: [
     { lat: 40.2, lon: -76.9 },
     { lat: 40.3, lon: -76.8 }
@@ -240,6 +246,10 @@ describe("progressive alternatives and cancellation", () => {
     expect(alternativeRequest.primaryRoute.geometry.length).toBeLessThanOrEqual(128)
     await vi.waitFor(() => {
       expect(state.mergeAlternatives).toHaveBeenCalledWith(alternatives)
+    })
+    // Phase 5 merge: the alternatives flow warms the adviser hint cache.
+    await vi.waitFor(() => {
+      expect(vi.mocked(refreshCorridorHints)).toHaveBeenCalledWith(request, fetch, expect.anything())
     })
   })
 

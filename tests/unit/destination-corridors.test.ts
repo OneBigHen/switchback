@@ -6,6 +6,7 @@ import {
   corridorEnvelope,
   distanceMiles,
   estimateTimeboxBaseline,
+  hintsFromAdviser,
   lateralDistanceMiles,
   selfOverlapShare,
   type CorridorSourceCandidates
@@ -164,5 +165,26 @@ describe("anchor set building", () => {
     }
     const sets = buildAnchorSets(start, finish, corridorEnvelope(200), manySources)
     expect(sets.length).toBeLessThanOrEqual(4)
+  })
+
+  it("consumes validated adviser hints as hint-sourced anchor sets (Phase 5 merge)", () => {
+    const sets = buildAnchorSets(start, finish, corridorEnvelope(97), {
+      curvatureSegments: [],
+      gpxRoutes: [],
+      hints: hintsFromAdviser([
+        {
+          id: "hint-ridge",
+          name: "Ridge Road",
+          anchor: { lat: 40.28, lon: -76.55 }
+        }
+      ])
+    })
+    expect(sets).toHaveLength(1)
+    expect(sets[0]).toMatchObject({
+      id: "hint-ridge",
+      label: "Ridge Road",
+      source: "hint",
+      anchors: [[-76.55, 40.28]]
+    })
   })
 })

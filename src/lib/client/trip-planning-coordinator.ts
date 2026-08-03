@@ -1,5 +1,6 @@
 import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { RoutingClientError, requestTripPlan } from "@/lib/client/routing-client"
+import { refreshCorridorHints } from "@/lib/client/corridor-hints-client"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { Coordinate } from "@/lib/routing/types"
 import type { PlanningPhase } from "@/stores/planner-store"
@@ -133,10 +134,14 @@ async function loadAlternatives({
     if (alternatives.routes.length === 0) {
       // An empty successful alternative set is final, not an error.
       getPlanner().setPlanningPhase("ready")
+      void refreshCorridorHints(request, fetch, controller.signal)
       return
     }
     getPlanner().mergeAlternatives(alternatives)
     getPlanner().setPlanningPhase("ready")
+    // Phase 5 merge: warm the adviser hint cache in the background so the
+    // next timeboxed plan can use source-backed corridor hints locally.
+    void refreshCorridorHints(request, fetch, controller.signal)
   } catch {
     // Alternatives are optional evidence; never fail the primary or surface
     // cancellation noise after a newer request has taken ownership.

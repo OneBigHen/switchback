@@ -23,7 +23,6 @@ updated: "2026-07-22"
 - [ ] Build/validate the Phase 3 candidate cache on a ≥6 GB RAM host (`import-candidate phase3-toll` → `validate-candidate`), then swap. <!-- added: 2026-08-03 -->
 - [ ] Deploy the merged app; run e2e + live benchmark p95 gates + live golden route. <!-- added: 2026-08-03 -->
 - [ ] Phase 4 follow-up: tune corridor anchor generation if the golden route still trips the gates. <!-- added: 2026-08-03 -->
-- [ ] Phase 5 merge step: adviser hints into the alternatives path. <!-- added: 2026-08-03 -->
 - [ ] Authorized merge of `routing-rework/integration` → release branch and push. <!-- added: 2026-08-03 -->
 
 ### In Progress
@@ -64,6 +63,7 @@ updated: "2026-07-22"
 - [x] Phase 6: omnibox progress status with elapsed time + Cancel, accessible live region, mobile/minimized compatible. <!-- completed: 2026-08-03 -->
 - [x] Phase 6: lifecycle/merge/retention/accessibility tests; full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
 - [x] Phase 7 prep: full verify pipeline (lint/typecheck/tests/build) green; live smoke of the NEW build on a spare port recorded in `handovers/phase-7-release-readiness.md`. <!-- completed: 2026-08-03 -->
+- [x] Phase 5→4 merge step: background adviser-hint refresh from the alternatives flow + local cache read into Phase 4 anchor sets. <!-- completed: 2026-08-03 -->
 
 ### Blocked
 

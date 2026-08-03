@@ -203,6 +203,23 @@ export interface AnchorSet {
   evidenceMiles: number
 }
 
+/**
+ * Map validated adviser hints (source-backed, geocoded anchors) into the
+ * Phase 4 anchor-source shape. Pure mapping; Phase 4 still owns the envelope
+ * and routability checks.
+ */
+export function hintsFromAdviser(
+  hints: Array<{ id: string; name: string; anchor: { lat: number; lon: number } }>
+): CorridorSourceCandidates["hints"] {
+  return hints.map((hint) => ({
+    // buildAnchorSets prefixes hint ids with `hint-`; strip the adviser's
+    // own prefix so the final anchor-set id stays `hint-<id>`.
+    id: hint.id.replace(/^hint-/, ""),
+    label: hint.name,
+    anchor: [hint.anchor.lon, hint.anchor.lat] as Coordinate
+  }))
+}
+
 export interface CorridorSourceCandidates {
   curvatureSegments: CurvatureSegment[]
   gpxRoutes: Array<{ id: string; label: string; geometry: Coordinate[] }>

@@ -7,6 +7,9 @@ import { createRouteJobLimiter } from "@/lib/server/route-job-limiter"
 import { createRouteCache } from "@/lib/server/route-cache"
 import { CurvatureRepository } from "@/lib/curvature/repository"
 import { loadRouteGeometry } from "@/lib/gpx/route-geometry"
+import { hintsFromAdviser } from "@/lib/routing/destination-corridors"
+import { corridorCacheKey, createCorridorCache } from "@/lib/server/corridor-cache"
+import { characterForProfile } from "@/lib/client/corridor-hints-client"
 import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 import type { RouteRequest } from "@/lib/routing/types"
 import { readFile } from "node:fs/promises"
@@ -19,6 +22,11 @@ export const runtime = "nodejs"
 // bounded 10-minute primary-result cache. Health probes bypass both.
 const providerLimiter = createRouteJobLimiter(2)
 const routeCache = createRouteCache()
+// Phase 5 merge: the adviser endpoint writes here; the primary path reads it
+// locally so background research never blocks routing.
+const corridorCache = createCorridorCache(
+  process.env.CORRIDOR_CACHE_PATH ?? path.join(process.cwd(), "data/route-research-cache.sqlite")
+)
 
 /**
  * Phase 4 corridor sources: curvature database segments near the request and
@@ -57,6 +65,23 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
     }
   } catch {
     // GPX corridors are optional evidence.
+  }
+
+  // Validated adviser hints from the 7-day cache: fast local read, so the
+  // background refresh (fired from the alternatives flow) warms the next plan
+  // without ever delaying this one.
+  if (request.points.length >= 2 && request.targetMinutes != null) {
+    try {
+      const cached = corridorCache.get(corridorCacheKey({
+        start: request.points[0]!,
+        finish: request.points[request.points.length - 1]!,
+        targetMinutes: request.targetMinutes,
+        character: characterForProfile(request.profile)
+      })) ?? []
+      sources.hints = hintsFromAdviser(cached)
+    } catch {
+      // Cache reads are optional evidence.
+    }
   }
 
   return sources
