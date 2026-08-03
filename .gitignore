@@ -27,3 +27,5 @@ data/route-research-cache.sqlite
 data/graphhopper.log
 data/graphhopper-legacy-*
 data/graphhopper-legacy-models/
+data/graphhopper-legacy.yml
+data/next-3200.log
