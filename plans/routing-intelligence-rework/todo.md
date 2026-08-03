@@ -15,16 +15,16 @@ updated: "2026-07-22"
 
 - **Scope**: [Phase 7](phases/phase-7.md)
 - **Implementation**: [Phase 7 Plan](implementation/phase-7-impl.md)
-- **Latest Handover**: `handovers/phase-4-corridor-scoring.md`
+- **Latest Handover**: `handovers/phase-7-release-readiness.md`
 - **Relevant Docs**: `README.md`, `docs/CLOSURE-REALITY-2026-07-21.md`, `docs/LEAD-DECISIONS.md`
 
-### Pending
+### Pending (release gate — authorized lead + ≥6 GB RAM host required)
 
-- [ ] Build/validate the Phase 3 candidate cache on a ≥6 GB RAM host (`import-candidate phase3-toll` → `validate-candidate`), then swap in Phase 7. <!-- added: 2026-08-03 -->
-- [ ] Phase 3/4/5 live acceptance on the candidate graph + deployed app: toll/road-environment/urban-density/curvature evidence, golden 108–132-minute route quality, adviser endpoint behavior. <!-- added: 2026-08-03 -->
-- [ ] Phase 4 follow-up: tune corridor anchor generation if the golden route still trips backtracking/self-overlap gates on the live graph. <!-- added: 2026-08-03 -->
-- [ ] Phase 5 merge step: invoke the corridor adviser from the alternatives path (background, deadline-bounded) and feed validated hints into Phase 4 anchor sets. <!-- added: 2026-08-03 -->
-- [ ] Phase 7: merge integration branch to release, deploy, swap graph, run live golden + benchmark p95 gates, browser verification. <!-- added: 2026-08-03 -->
+- [ ] Build/validate the Phase 3 candidate cache on a ≥6 GB RAM host (`import-candidate phase3-toll` → `validate-candidate`), then swap. <!-- added: 2026-08-03 -->
+- [ ] Deploy the merged app; run e2e + live benchmark p95 gates + live golden route. <!-- added: 2026-08-03 -->
+- [ ] Phase 4 follow-up: tune corridor anchor generation if the golden route still trips the gates. <!-- added: 2026-08-03 -->
+- [ ] Phase 5 merge step: adviser hints into the alternatives path. <!-- added: 2026-08-03 -->
+- [ ] Authorized merge of `routing-rework/integration` → release branch and push. <!-- added: 2026-08-03 -->
 
 ### In Progress
 
@@ -63,6 +63,7 @@ updated: "2026-07-22"
 - [x] Phase 6: previous route retained and dimmed during replan; restored on cancel/failure. <!-- completed: 2026-08-03 -->
 - [x] Phase 6: omnibox progress status with elapsed time + Cancel, accessible live region, mobile/minimized compatible. <!-- completed: 2026-08-03 -->
 - [x] Phase 6: lifecycle/merge/retention/accessibility tests; full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
+- [x] Phase 7 prep: full verify pipeline (lint/typecheck/tests/build) green; live smoke of the NEW build on a spare port recorded in `handovers/phase-7-release-readiness.md`. <!-- completed: 2026-08-03 -->
 
 ### Blocked
 
