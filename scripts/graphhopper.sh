@@ -119,6 +119,35 @@ case "${1:-start}" in
     # the import heap while leaving enough room for the planner and the host.
     exec java -Xms1g -Xmx4g -jar "$JAR" server "$CONFIG"
     ;;
+  start-legacy)
+    # Graceful boot against a cache that predates an encoded-value change
+    # (e.g. the Phase 3 `toll` value): the custom models are served without
+    # the unsupported rule so routing works with that evidence unknown. The
+    # real fix is the Phase 7 candidate-graph swap on a >=6 GB RAM host.
+    if [[ ! -f "$ACTIVE_CACHE/properties" && ! -f "$ACTIVE_CACHE/properties.txt" ]]; then
+      echo "Graph cache is missing. Run: npm run routing:import"
+      exit 1
+    fi
+    legacy_models="$ROOT/data/graphhopper-legacy-models"
+    rm -rf "$legacy_models"
+    mkdir -p "$legacy_models"
+    for model in "$ROOT"/infra/graphhopper/custom-models/*.json; do
+      node -e '
+        const fs = require("fs");
+        const [source, target] = process.argv.slice(1);
+        const model = JSON.parse(fs.readFileSync(source, "utf8"));
+        if (Array.isArray(model.priority)) {
+          model.priority = model.priority.filter((rule) => !String(rule.if || "").includes("toll == YES"));
+        }
+        fs.writeFileSync(target, JSON.stringify(model, null, 2) + "\n");
+      ' "$model" "$legacy_models/$(basename "$model")"
+    done
+    legacy_config="$ROOT/data/graphhopper-legacy.yml"
+    sed "s|custom_models.directory: infra/graphhopper/custom-models|custom_models.directory: data/graphhopper-legacy-models|" \
+      "$CONFIG" > "$legacy_config"
+    cd "$ROOT"
+    exec java -Xms1g -Xmx4g -jar "$JAR" server "$legacy_config"
+    ;;
   *)
     echo "Usage: scripts/graphhopper.sh [import|import-candidate <name>|validate-candidate <name>|swap <name>|start]"
     exit 2

@@ -270,7 +270,10 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
     })
   })
   await page.route("**/api/routes", async (route) => {
-    routeRequest = route.request().postDataJSON() as Record<string, unknown>
+    const body = route.request().postDataJSON() as Record<string, unknown>
+    // The progressive client fires primary then alternatives; assert the
+    // primary request only.
+    if ((body.candidateSet ?? "primary") === "primary") routeRequest = body
     await new Promise((resolve) => setTimeout(resolve, 120))
     await route.fulfill({
       status: 200,
@@ -319,7 +322,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await planRouteButton.click()
   await page.getByRole("button", { name: "Twisty", exact: true }).click()
   await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
-  expect(routeRequest).toMatchObject({ profile: "twisty", compare: true })
+  expect(routeRequest).toMatchObject({ profile: "twisty", compare: false, candidateSet: "primary" })
   await page.getByRole("button", { name: /Show route details/i }).click()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
   await expect(page.getByText("Clear and mild")).toBeVisible()
@@ -448,7 +451,8 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
     })
   })
   await page.route("**/api/routes", async (route) => {
-    loopRequest = route.request().postDataJSON() as Record<string, unknown>
+    const body = route.request().postDataJSON() as Record<string, unknown>
+    if ((body.candidateSet ?? "primary") === "primary") loopRequest = body
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -468,7 +472,8 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   expect(intentRequest).toEqual({ prompt: "90 minutes of gravel, avoid highways" })
   expect(loopRequest).toMatchObject({
     profile: "adventure",
-    compare: true,
+    compare: false,
+    candidateSet: "primary",
     points: [{ lat: 40.2732, lon: -76.8867 }],
     roundTrip: { targetMinutes: 90 }
   })
@@ -545,7 +550,8 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
     })
   })
   await page.route("**/api/routes", async (route) => {
-    routeRequest = route.request().postDataJSON() as Record<string, unknown>
+    const body = route.request().postDataJSON() as Record<string, unknown>
+    if ((body.candidateSet ?? "primary") === "primary") routeRequest = body
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -563,7 +569,8 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
   })
   expect(routeRequest).toMatchObject({
     profile: "twisty",
-    compare: true,
+    compare: false,
+    candidateSet: "primary",
     points: [
       { lat: 40.2732, lon: -76.8867, label: "Harrisburg, Pennsylvania" },
       { lat: 39.8309, lon: -77.2311, label: "Gettysburg, Pennsylvania" }
@@ -588,7 +595,10 @@ test("draws a rough route on the map and snaps it into editable route points", a
     body: JSON.stringify({ importedRoutes: 0, routes: [] })
   }))
   await page.route("**/api/routes", async (route) => {
-    routeRequests.push(route.request().postDataJSON() as { points?: Array<Record<string, unknown>> })
+    const body = route.request().postDataJSON() as { points?: Array<Record<string, unknown>>; candidateSet?: string }
+    // Count only primary requests so sketch/replan counts stay stable despite
+    // the background alternatives call.
+    if ((body.candidateSet ?? "primary") === "primary") routeRequests.push(body)
     await route.fulfill({
       status: 200,
       contentType: "application/json",
