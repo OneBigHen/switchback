@@ -64,3 +64,13 @@ SWITCHBACK_URL=http://<host>:3100 npm run benchmark:routing
 npm test -- --run tests/integration/timeboxed-destination-routing.test.ts  # golden runs live
 ```
 Rollback: `mv data/graph-cache-rollback-phase3-toll data/graph-cache` (router stopped).
+
+## PRODUCTION DEPLOYMENT RECORD (2026-08-03)
+
+- Deployed commit: `9c75e8e` (tag `v0.2.0`) on `routing-rework/integration`, built and served by production `:3100` (next-server pid, started on the current `.next`).
+- Production smoke on `:3100`: `/api/health` ok (app + GraphHopper + Valhalla); golden intent contract verified; timeboxed route 200 in 4.39 s with honest gate fallback; alternatives exactly 2 distinct (quick, scenic); Playwright e2e **20/20** across desktop + mobile viewports (free-text, sketch, road-lock).
+- Temporary `:3200` app stopped after production confirmation. Legacy GraphHopper cache left active (toll evidence unknown until the graph swap).
+- Rollback command (restore the pre-rework production build):
+  `git checkout main && npm ci && npm run build && kill <:3100 pid> && (setsid nohup env PORT=3100 node_modules/.bin/next start -p 3100 -H 0.0.0.0 > data/next-3100.log 2>&1 &)`
+  (main = `b22ac77`, the last pre-rework commit; the old in-memory process is pid 9660's predecessor — the snapshot is git, not a copied build dir.)
+- Push/PR (NOT executed — awaiting authorization): see the release report.
