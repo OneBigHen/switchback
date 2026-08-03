@@ -867,7 +867,10 @@ async function planAlternativeRoutes(
     if (accepted.length >= MAX_ALTERNATIVES || deadline.aborted) break
     try {
       const result = await requestTimeboxedRoutes(
-        variedComparisonRequest(request, profile, 0),
+        // Comparison profiles are NOT timeboxed: strip the destination time
+        // target so they run at the normal alternative weight (1.8x) instead
+        // of the heavy 4.0x corridor factor, keeping them quick.
+        { ...variedComparisonRequest(request, profile, 0), targetMinutes: undefined },
         provider,
         undefined,
         { signal: deadline }

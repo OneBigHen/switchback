@@ -121,7 +121,12 @@ async function loadAlternatives({
   const primaryRoute = primary.routes.find((route) => route.id === primary.selectedRouteId)
     ?? primary.routes[0]
   const geometry = samplePrimaryGeometry(primaryRoute?.geometry)
-  if (geometry.length < 2) return
+  if (geometry.length < 2) {
+    // Without a sampled primary there is nothing to differentiate against;
+    // the lifecycle is still done, never left hanging on "alternatives".
+    getPlanner().setPlanningPhase("ready")
+    return
+  }
   try {
     const alternatives = await requestPlan({
       ...request,
@@ -143,7 +148,9 @@ async function loadAlternatives({
     // next timeboxed plan can use source-backed corridor hints locally.
     void refreshCorridorHints(request, fetch, controller.signal)
   } catch {
-    // Alternatives are optional evidence; never fail the primary or surface
-    // cancellation noise after a newer request has taken ownership.
+    // Alternatives are optional evidence; never fail the primary, but DO
+    // finish the lifecycle so the UI does not spin on "Adding alternatives…"
+    // forever when they time out or error.
+    if (gate.isCurrent(requestId)) getPlanner().setPlanningPhase("ready")
   }
 }

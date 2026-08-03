@@ -363,3 +363,51 @@ describe("lifecycle phase driving (Phase 6)", () => {
     expect(state.failRouting).toHaveBeenCalled()
   })
 })
+
+describe("alternatives failure finalizes the lifecycle (Phase 6 regression)", () => {
+  const primaryWithRoute: TripPlan = {
+    selectedRouteId: "route-primary",
+    routes: [{
+      id: "route-primary",
+      name: "Primary",
+      profile: "scenic",
+      geometry: [[-76.9, 40.2], [-76.8, 40.2], [-76.7, 40.3]],
+      waypoints: [],
+      instructions: [],
+      distanceMiles: 20,
+      durationMinutes: 35,
+      ascentMeters: null,
+      descentMeters: null,
+      twistiness: 50,
+      turnCount: 12,
+      roadMix: {},
+      surfaceMix: {},
+      routingSource: "live",
+      previewOnly: false
+    }],
+    warnings: [],
+    planningId: "plan-lifecycle-0001"
+  }
+
+  it("moves the lifecycle to ready when the alternatives request fails, instead of hanging on 'alternatives'", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(primaryWithRoute)
+      .mockRejectedValueOnce(new RoutingClientError("alternatives timed out", "ROUTER_UNREACHABLE", 503))
+
+    await runLatestTripPlan({
+      request,
+      gate,
+      getPlanner: () => state,
+      requestPlan,
+      onWarning: vi.fn()
+    })
+
+    await vi.waitFor(() => {
+      const phases = state.setPlanningPhase.mock.calls.map(([phase]) => phase)
+      expect(phases).toEqual(["routing-primary", "alternatives", "ready"])
+    })
+    expect(state.failRouting).not.toHaveBeenCalled()
+  })
+})
