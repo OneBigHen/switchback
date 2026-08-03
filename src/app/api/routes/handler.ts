@@ -3,6 +3,7 @@ import { planMotorcycleTrip } from "@/lib/routing/planner"
 import { GraphHopperProviderError } from "@/lib/routing/graphhopper"
 import { ValhallaProviderError } from "@/lib/routing/valhalla"
 import type { RouteRequest } from "@/lib/routing/types"
+import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 import { routeCacheKey, type RouteCache } from "@/lib/server/route-cache"
 import {
   number, string, boolean, enum_, literal, object_, tuple, array,
@@ -155,6 +156,8 @@ const MAX_ROUTE_REQUEST_BYTES = 16 * 1024
 /** Server-side planning context: optional short-lived primary cache. */
 export interface RoutePlanningContext {
   cache?: RouteCache
+  /** Phase 4 corridor-source resolver for destination timeboxing. */
+  resolveCorridors?: (request: RouteRequest) => Promise<CorridorSourceCandidates>
 }
 
 async function readRoutePayload(
@@ -238,7 +241,6 @@ export async function handleRouteRequest(
   try {
     // Thread the incoming request's abort signal through planning so a
     // client cancellation stops provider work, not just repainting.
-    const options = { signal: request.signal }
     const cache = context.cache ?? null
     const cacheKey = cache && parsed.data.candidateSet !== "alternatives"
       ? routeCacheKey(parsed.data as RouteRequest)
@@ -253,7 +255,10 @@ export async function handleRouteRequest(
         })
       }
     }
-    const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher, options)
+    const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher, {
+      signal: request.signal,
+      resolveCorridors: context.resolveCorridors
+    })
     if (cacheKey && cache) {
       cache.set(cacheKey, trip)
     }

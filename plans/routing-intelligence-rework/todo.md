@@ -9,20 +9,22 @@ updated: "2026-07-22"
 
 > Tracking [Switchback Routing Intelligence Rework](plan.md)
 
-## Active Phase: 4 - Timeboxed Destination Corridors and Scoring
+## Active Phase: 5 - You.com Corridor Adviser (parallel-safe) / 6 - Progressive UX after 4
 
 ### Phase Context
 
-- **Scope**: [Phase 4](phases/phase-4.md)
-- **Implementation**: [Phase 4 Plan](implementation/phase-4-impl.md)
-- **Latest Handover**: `handovers/phase-3-graph-audit.md`
+- **Scope**: [Phase 5](phases/phase-5.md) and [Phase 6](phases/phase-6.md)
+- **Implementation**: [Phase 5 Plan](implementation/phase-5-impl.md), [Phase 6 Plan](implementation/phase-6-impl.md)
+- **Latest Handover**: `handovers/phase-4-corridor-scoring.md`
 - **Relevant Docs**: `README.md`, `docs/CLOSURE-REALITY-2026-07-21.md`, `docs/LEAD-DECISIONS.md`
 
 ### Pending
 
-- [ ] Build and validate the Phase 3 candidate graph cache on a host with ≥6 GB free RAM (`scripts/graphhopper.sh import-candidate phase3-toll` then `validate-candidate`). <!-- added: 2026-08-03 -->
-- [ ] Phase 3 live acceptance: toll/road-environment/urban-density evidence on real routes, fast-path timing, avoid-area/lock regressions. <!-- added: 2026-08-03 -->
-- [ ] Phase 5 You.com corridor adviser package (independent; may run in parallel). <!-- added: 2026-08-03 -->
+- [ ] Build/validate the Phase 3 candidate cache on a ≥6 GB RAM host (`import-candidate phase3-toll` → `validate-candidate`), then swap in Phase 7. <!-- added: 2026-08-03 -->
+- [ ] Phase 3/4 live acceptance on the candidate graph: toll/road-environment/urban-density/curvature evidence, golden 108–132-minute route quality. <!-- added: 2026-08-03 -->
+- [ ] Phase 4 follow-up: tune corridor anchor generation if the golden route still trips backtracking/self-overlap gates on the live graph. <!-- added: 2026-08-03 -->
+- [ ] Phase 5: You.com corridor adviser package (independent; may run in parallel). <!-- added: 2026-08-03 -->
+- [ ] Phase 6: planner progress treatment + progressive alternatives UX. <!-- added: 2026-08-03 -->
 
 ### In Progress
 
@@ -47,6 +49,12 @@ updated: "2026-07-22"
 - [x] Phase 3: toll/road-environment/urban-density evidence returned and normalized. <!-- completed: 2026-08-03 -->
 - [x] Phase 3: side-by-side import/validate/swap script support + graph resource audit handover. <!-- completed: 2026-08-03 -->
 - [x] Phase 3: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
+- [x] Phase 4: corridor envelope, anchor bounds, and feasibility pure logic. <!-- completed: 2026-08-03 -->
+- [x] Phase 4: hard gates + maximum-twisties score + smoothed metrics + PA/NJ boundary counting. <!-- completed: 2026-08-03 -->
+- [x] Phase 4: destination-timebox orchestration (≤4 candidates, one refinement, closest-safe fallback). <!-- completed: 2026-08-03 -->
+- [x] Phase 4: curvature/GPX corridor sources with graceful degradation + graceful detail retry. <!-- completed: 2026-08-03 -->
+- [x] Phase 4: unit + mock-orchestration tests; live smoke against the running graph recorded in the handover. <!-- completed: 2026-08-03 -->
+- [x] Phase 4: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
 
 ### Blocked
 

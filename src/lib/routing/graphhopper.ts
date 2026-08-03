@@ -1,7 +1,7 @@
 import type { Coordinate, PlannedRoute, RouteProfileId, RouteRequest } from "./types"
 import type { BikeProfile } from "./bike-profiles"
 import { getProfile } from "./profiles"
-import { analyzeGeometry, calculateDetailDistribution, type DetailInterval } from "./scoring"
+import { analyzeGeometry, calculateDetailDistribution, curvedDistanceShare, type DetailInterval } from "./scoring"
 import {
   disallowedSmoothness,
   disallowedSurfaces,
@@ -196,7 +196,10 @@ function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule
   return rules
 }
 
-export function createGraphHopperRequest(_request: RouteRequest): Record<string, unknown> {
+export function createGraphHopperRequest(
+  _request: RouteRequest,
+  details: string[] = REQUESTED_DETAILS
+): Record<string, unknown> {
   const profile = getProfile(_request.profile)
   if (_request.roundTrip && _request.points.length !== 1) {
     throw new Error("A round trip requires exactly one start point")
@@ -286,7 +289,7 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
     calc_points: true,
     elevation: false,
     locale: "en-US",
-    details: ["road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density"],
+    details,
     ...(customModel ? { custom_model: customModel } : {})
   }
   if (_request.roundTrip) {
@@ -337,6 +340,7 @@ interface GraphHopperPath {
 
 interface GraphHopperResponse {
   message?: string
+  info?: { version?: string }
   paths?: GraphHopperPath[]
 }
 
@@ -467,6 +471,7 @@ function normalizePath(
     surfaceMix: calculateDetailDistribution(geometry, path.details?.surface ?? []),
     roadEnvironmentMix: calculateDetailDistribution(geometry, path.details?.road_environment ?? []),
     urbanDensityMix: calculateDetailDistribution(geometry, path.details?.urban_density ?? []),
+    curvatureDetailShare: curvedDistanceShare(geometry, path.details?.curvature),
     tollEvidence: tollEvidence(geometry, path.details?.toll),
     routingSource: "live",
     previewOnly: false,
@@ -477,17 +482,29 @@ function normalizePath(
   }
 }
 
-export async function requestGraphHopperRoutes(
+const REQUESTED_DETAILS = [
+  "road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density", "curvature"
+]
+
+interface RouteFetchResult {
+  response: Response
+  payload: GraphHopperResponse
+  /** Detail name the active graph cannot serve, when the request was rejected. */
+  unsupportedDetail: string | null
+}
+
+async function fetchRouteOnce(
   request: RouteRequest,
-  options: GraphHopperOptions
-): Promise<GraphHopperResult> {
+  options: GraphHopperOptions,
+  details: string[]
+): Promise<RouteFetchResult> {
   const fetcher = options.fetcher ?? fetch
   let response: Response
   try {
     response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(createGraphHopperRequest(request)),
+      body: JSON.stringify(createGraphHopperRequest(request, details)),
       signal: options.signal
         ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)])
         : AbortSignal.timeout(30_000)
@@ -518,16 +535,37 @@ export async function requestGraphHopperRoutes(
     )
   }
 
-  if (!response.ok) {
-    throw providerError(response.status, payload.message ?? response.statusText)
+  const missingDetail = response.ok
+    ? null
+    : payload.message?.match(/Cannot find the path details: \[([^\]]+)\]/)?.[1] ?? null
+  return { response, payload, unsupportedDetail: missingDetail }
+}
+
+export async function requestGraphHopperRoutes(
+  request: RouteRequest,
+  options: GraphHopperOptions
+): Promise<GraphHopperResult> {
+  // The active graph may predate an encoded-value change (e.g. the Phase 3
+  // `toll` value). Retry once without the unsupported detail so a rolled-back
+  // or not-yet-reimported graph degrades to missing evidence instead of
+  // failing every route; the evidence fields already handle absence.
+  let attempt = await fetchRouteOnce(request, options, REQUESTED_DETAILS)
+  if (attempt.unsupportedDetail) {
+    const degraded = REQUESTED_DETAILS.filter((detail) => detail !== attempt.unsupportedDetail)
+    attempt = await fetchRouteOnce(request, options, degraded)
   }
+
+  if (!attempt.response.ok) {
+    throw providerError(attempt.response.status, attempt.payload.message ?? attempt.response.statusText)
+  }
+  const payload = attempt.payload
   if (!payload.paths?.length) {
     throw providerError(422, payload.message ?? "No route was found")
   }
 
   return {
     engine: "graphhopper",
-    engineVersion: "11.0",
+    engineVersion: payload.info?.version ?? "11.0",
     routes: payload.paths.map((path, index) => normalizePath(path, request, index))
   }
 }

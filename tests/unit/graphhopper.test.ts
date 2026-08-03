@@ -72,7 +72,7 @@ describe("GraphHopper provider", () => {
       instructions: true,
       algorithm: "alternative_route",
       "alternative_route.max_paths": 3,
-      details: ["road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density"]
+      details: ["road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density", "curvature"]
     })
   })
 

@@ -96,6 +96,8 @@ export interface PlannedRoute {
   roadEnvironmentMix?: Record<string, number>
   /** Distribution of GraphHopper `urban_density` detail over the route. */
   urbanDensityMix?: Record<string, number>
+  /** Share (0..1) of route distance on curved road (curvature detail < 0.98). */
+  curvatureDetailShare?: number
   /**
    * Toll exposure derived from the graph's `toll` detail. `known` is false
    * when the provider omitted the detail — never a falsely clean "no toll".

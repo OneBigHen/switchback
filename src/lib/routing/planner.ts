@@ -1,4 +1,4 @@
-import type { CandidateSet, Coordinate, PlannedRoute, RouteRequest } from "./types"
+import type { CandidateSet, Coordinate, PlannedRoute, RouteRequest, Waypoint } from "./types"
 import { calculateGeometryOverlap } from "./scoring"
 import { listProfiles } from "./profiles"
 import {
@@ -6,6 +6,18 @@ import {
 } from "@/lib/roads/lock-precedence"
 import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { RoadLock } from "@/lib/roads/road-locks"
+import {
+  buildAnchorSets,
+  corridorEnvelope,
+  estimateTimeboxBaseline,
+  type AnchorSet,
+  type CorridorSourceCandidates
+} from "./destination-corridors"
+import {
+  countStateTransitions,
+  minimumStateTransitions,
+  routeQualityReport
+} from "./route-quality"
 
 export interface TripPlanRequest extends RouteRequest {
   compare?: boolean
@@ -54,6 +66,12 @@ export interface RoutingResult {
 export interface PlanningOptions {
   /** Cancellation signal; aborts provider fetches without a user-visible error. */
   signal?: AbortSignal
+  /**
+   * Phase 4: resolves corridor sources (curvature database, known-good GPX,
+   * research hints) for destination timeboxing. Injected by the API wiring
+   * so the planner stays pure; absent sources degrade to an empty set.
+   */
+  resolveCorridors?: (request: RouteRequest) => Promise<CorridorSourceCandidates>
 }
 
 export type RouteProvider = (
@@ -549,7 +567,197 @@ export async function planMotorcycleTrip(
   if (request.candidateSet === "alternatives") {
     return planAlternativeRoutes(request, provider, enricher, options)
   }
+  if (request.targetMinutes != null && !request.roundTrip && !request.loopTargetMinutes
+    && !request.segmentProfiles?.length && request.points.length >= 2) {
+    return planDestinationTimebox(request, provider, options)
+  }
   return planPrimaryRoute(request, provider, options)
+}
+
+/**
+ * Phase 4 destination timebox: shape the primary A-to-B route so it lands
+ * inside the requested duration instead of selecting an arbitrary provider
+ * alternative. Direct baseline first; bounded corridor envelope; at most four
+ * candidates; at most one refinement pass; hard gates then maximum-twisties
+ * score. A direct route already inside ±10% is returned as-is.
+ */
+async function planDestinationTimebox(
+  request: TripPlanRequest,
+  provider: RouteProvider,
+  options: PlanningOptions = {}
+): Promise<TripPlan> {
+  const started = performance.now()
+  const targetMinutes = request.targetMinutes!
+  const start = request.points[0]!
+  const finish = request.points[request.points.length - 1]!
+  const startCoord: Coordinate = [start.lon, start.lat]
+  const finishCoord: Coordinate = [finish.lon, finish.lat]
+  const baselinePoints: Waypoint[] = [start, finish]
+
+  const baselineAttempt = await requestTimeboxedRoutes(
+    { ...request, points: baselinePoints },
+    provider,
+    undefined,
+    options
+  )
+  const baseline = chooseSelectedCandidate(baselineAttempt.result.routes)
+  if (!baseline) throw new Error("The selected profile returned no routes")
+
+  const feasibility = estimateTimeboxBaseline(baseline.durationMinutes, baseline.distanceMiles, targetMinutes)
+  if (!feasibility.feasible) {
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: baseline.id,
+      routes: [baseline],
+      warnings: [
+        `The direct ${request.profile} route is ${baseline.durationMinutes} minutes, which already exceeds the ${targetMinutes}-minute target; no scenic detour can shorten it.`,
+        ...(baselineAttempt.warning ? [baselineAttempt.warning] : [])
+      ],
+      timingMs: { primary: performance.now() - started }
+    }
+  }
+  if (Math.abs(baseline.durationMinutes - targetMinutes) / targetMinutes <= 0.1) {
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: baseline.id,
+      routes: [baseline],
+      warnings: [...(baselineAttempt.warning ? [baselineAttempt.warning] : [])],
+      timingMs: { primary: performance.now() - started }
+    }
+  }
+
+  const deadline: AbortSignal = options.signal
+    ? AbortSignal.any([options.signal, AbortSignal.timeout(PRIMARY_CORRIDOR_DEADLINE_MS)])
+    : AbortSignal.timeout(PRIMARY_CORRIDOR_DEADLINE_MS)
+  const corridorOptions = { ...options, signal: deadline }
+
+  let envelope = corridorEnvelope(feasibility.estimatedTargetDistanceMiles)
+  let anchorSets = await resolveAnchorSets(request, options, startCoord, finishCoord, envelope)
+  let candidates = await routeAnchorSets(request, provider, anchorSets, corridorOptions)
+
+  // One refinement pass: when every candidate misses the target, re-derive
+  // the envelope from the best measured duration and re-route it once.
+  const inTolerance = (route: PlannedRoute) =>
+    Math.abs(route.durationMinutes - targetMinutes) / targetMinutes <= 0.1
+  if (candidates.length > 0 && !candidates.some(inTolerance)) {
+    const best = closestDurationCandidate(candidates, targetMinutes)
+    if (best) {
+      const refinedBaseline = estimateTimeboxBaseline(best.durationMinutes, best.distanceMiles, targetMinutes)
+      envelope = corridorEnvelope(refinedBaseline.estimatedTargetDistanceMiles)
+      anchorSets = await resolveAnchorSets(request, options, startCoord, finishCoord, envelope)
+      const refined = await routeAnchorSets(request, provider, anchorSets, corridorOptions)
+      if (refined.length > 0) candidates = refined
+    }
+  }
+
+  const partitioned = partitionLocksForRequest(request)
+  const withLocks = (route: PlannedRoute) =>
+    ensureLockSatisfaction({ ...route, overlapPercent: 100 }, partitioned.survivingLocks)
+
+  const scored = candidates.map((route) => ({
+    route: withLocks(route),
+    report: routeQualityReport({
+      route,
+      targetMinutes,
+      start: startCoord,
+      finish: finishCoord,
+      tollPolicy: request.tollPolicy ?? "allow-with-warning",
+      stateTransitions: countStateTransitions(route.geometry),
+      minimumStateTransitions: minimumStateTransitions(startCoord, finishCoord),
+      evidenceMiles: anchorSets.find((set) => set.label === route.name)?.evidenceMiles ?? 0
+    })
+  }))
+
+  const passing = scored
+    .filter((entry) => entry.report.passedGates)
+    .sort((left, right) => right.report.score - left.report.score)
+
+  if (passing.length > 0) {
+    const best = passing[0]!
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: best.route.id,
+      routes: [best.route],
+      warnings: [
+        ...partitioned.warnings,
+        ...(baselineAttempt.warning ? [baselineAttempt.warning] : []),
+        ...best.report.explanation
+      ],
+      timingMs: { primary: performance.now() - started }
+    }
+  }
+
+  // No candidate passed every gate: return the closest safe route with an
+  // honest warning rather than an irrelevant fun-shaped route.
+  const closest = closestDurationCandidate(candidates.map(withLocks), targetMinutes) ?? baseline
+  const bestFailures = scored.length > 0 ? scored[0]!.report.failures : {}
+  const gateSummary = Object.values(bestFailures).join(" ")
+  return {
+    ...tripPlanMetadata(request),
+    selectedRouteId: closest.id,
+    routes: [closest],
+    warnings: [
+      ...partitioned.warnings,
+      gateSummary
+        ? `No shaped route passed the safety gates (${gateSummary}); showing the closest safe route (${closest.durationMinutes} min).`
+        : `No shaped route met the ${targetMinutes}-minute target; showing the closest safe route (${closest.durationMinutes} min).`
+    ],
+    timingMs: { primary: performance.now() - started }
+  }
+}
+
+const PRIMARY_CORRIDOR_DEADLINE_MS = 6_000
+const MAX_CONCURRENT_CORRIDOR_ROUTES = 2
+
+async function resolveAnchorSets(
+  request: TripPlanRequest,
+  options: PlanningOptions,
+  start: Coordinate,
+  finish: Coordinate,
+  envelope: { maxPathDistanceMiles: number; maxLateralMiles: number }
+): Promise<AnchorSet[]> {
+  const sources = options.resolveCorridors
+    ? await options.resolveCorridors(request).catch(() => emptyCorridorSources())
+    : emptyCorridorSources()
+  return buildAnchorSets(start, finish, envelope, sources)
+}
+
+function emptyCorridorSources(): CorridorSourceCandidates {
+  return { curvatureSegments: [], gpxRoutes: [], hints: [] }
+}
+
+async function routeAnchorSets(
+  request: TripPlanRequest,
+  provider: RouteProvider,
+  anchorSets: AnchorSet[],
+  options: PlanningOptions
+): Promise<PlannedRoute[]> {
+  const results: PlannedRoute[] = []
+  let cursor = 0
+  // Concurrency at most two provider calls at once.
+  const workers = Array.from({ length: Math.min(MAX_CONCURRENT_CORRIDOR_ROUTES, anchorSets.length) }, async () => {
+    while (cursor < anchorSets.length) {
+      const set = anchorSets[cursor]!
+      cursor += 1
+      if (options.signal?.aborted) return
+      try {
+        const attempt = await requestTimeboxedRoutes({
+          ...request,
+          points: [
+            request.points[0]!,
+            ...set.anchors.map(([lon, lat]) => ({ lat, lon, label: set.label })),
+            request.points[request.points.length - 1]!
+          ]
+        }, provider, undefined, options)
+        const selected = chooseSelectedCandidate(attempt.result.routes)
+        if (selected) results.push({ ...selected, name: `${selected.name} · ${set.label}` })
+      } catch {
+        // A corridor that cannot be routed is skipped; the others still compete.
+      }
+    }
+  })
+  await Promise.all(workers)
+  return results
 }
 
 /**
