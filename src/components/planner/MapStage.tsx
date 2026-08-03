@@ -387,12 +387,17 @@ export function MapStage(props: MapStageProps) {
         }
       })
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), "bottom-right")
-      const geolocate = new maplibre.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: false,
-        fitBoundsOptions: { maxZoom: 16 }
-      })
-      map.addControl(geolocate, "bottom-right")
+      // The GeolocateControl is a dead button on insecure contexts (LAN http),
+      // where browsers hide navigator.geolocation entirely — only offer it
+      // when the browser can actually produce a fix.
+      if ("geolocation" in navigator) {
+        const geolocate = new maplibre.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: false,
+          fitBoundsOptions: { maxZoom: 16 }
+        })
+        map.addControl(geolocate, "bottom-right")
+      }
       map.addControl(new maplibre.ScaleControl({ maxWidth: 110, unit: "imperial" }), "bottom-left")
       map.on("dragstart", () => {
         if (!propsRef.current.rideMode) return

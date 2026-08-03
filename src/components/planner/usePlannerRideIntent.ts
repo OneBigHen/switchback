@@ -168,9 +168,19 @@ export function usePlannerRideIntent({
       if (!gate.isCurrent(requestId)) return
       usePlannerStore.getState().cancelPlanning()
       setIntentStatus("idle")
-      const message = caught instanceof Error ? caught.message : "This ride request could not be interpreted."
-      setIntentSummary(message)
-      onNotice({ kind: "warning", message })
+      const raw = caught instanceof Error ? caught.message : "This ride request could not be interpreted."
+      if (/location|start point/i.test(raw)) {
+        // Geolocation is unavailable on this connection (e.g. LAN http), so
+        // guide the rider to choose the start on the map instead of leaving
+        // them with a dead prompt and no plotted route.
+        usePlannerStore.getState().armPoint("start")
+        const message = "Choose your start point on the map (or type it in the start field), then plan again — location access isn't available on this connection."
+        setIntentSummary(message)
+        onNotice({ kind: "warning", message })
+        return
+      }
+      setIntentSummary(raw)
+      onNotice({ kind: "warning", message: raw })
     }
   }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setAvoidHighways, setIntentStatus, setIntentSummary, setPlanMode, setResearchSources, setStopIdeas, setTargetMinutes, targetMinutes])
 }

@@ -117,7 +117,10 @@ function conciseDestinationQuery(prompt: string, duration: number | null): strin
   if (candidate.length < 2 || candidate.length > 160 || duration !== null) return null
   if (/\b(?:loop|round[ -]?trip|home|twisty|curvy|curves?|scenic|gravel|dirt|unpaved|highways?|interstates?|coffee|cafe|brewery|lunch|dinner|ride somewhere|surprise me)\b/i.test(candidate)) return null
   if (/;|\b(?:then|via|with|avoid|without)\b/i.test(candidate)) return null
-  return cleanPlaceQuery(candidate)
+  // Bare "X to Y" (no verb): the part after "to" is the destination and the
+  // part before it is inferred as the origin by inferOriginFromTo.
+  const stripped = candidate.replace(/^.*?\bto\s+/i, "")
+  return cleanPlaceQuery(stripped) ?? cleanPlaceQuery(candidate)
 }
 
 function startQuery(prompt: string): string | null {
@@ -128,6 +131,22 @@ function startQuery(prompt: string): string | null {
   return query && /^(?:here|my\s+(?:current\s+)?location|current\s+location|where\s+i\s+am(?:\s+now)?)$/i.test(query)
     ? null
     : query
+}
+
+/**
+ * "New Hope to Stockton NJ" reads naturally as from New Hope to Stockton.
+ * When no explicit origin keyword is present, infer the origin from the text
+ * before "to", as long as it is not a verb, style, or duration phrase.
+ */
+function inferOriginFromTo(prompt: string): string | null {
+  const match = prompt.trim().match(/^(.*?)\bto\s+([\s\S]+)$/i)
+  if (!match?.[1]) return null
+  const candidate = cleanPlaceQuery(match[1])
+  if (!candidate) return null
+  if (/\b(?:take|bring|get|route|navigate|guide|direct|drive|go|head|travel|ride|from)\b/i.test(candidate)) return null
+  if (/^\d+\s*(?:hour|hr|min(?:ute)?|mile)/i.test(candidate)) return null
+  if (/\b(?:scenic|backroads?|twisty|curvy|winding|adventure|gravel|quick|fastest|fun)\b/i.test(candidate)) return null
+  return candidate
 }
 
 export function parseRidePromptLocally(prompt: string): RideIntent {
@@ -156,7 +175,7 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
   const destination = unresolvedSavedHome
     ? "Home"
     : destinationQuery(prompt) ?? conciseDestinationQuery(prompt, duration)
-  const origin = startQuery(prompt)
+  const origin = startQuery(prompt) ?? inferOriginFromTo(prompt)
   const loop = (!unresolvedSavedHome && /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)) ||
     (destination === null && !unresolvedSavedHome)
   const avoidHighways = /\b(?:(?:avoid(?:ing)?|no|skip)\s+(?:the\s+)?|stay\s+off\s+(?:the\s+)?|without\s+(?:the\s+)?)(?:highways?|interstates?|motorways?|freeways?|expressways?)\b/.test(normalized)

@@ -303,4 +303,28 @@ describe("routing-intelligence intent contract", () => {
       ambiguous: false
     })
   })
+
+  it("infers the origin from bare X-to-Y phrasing", () => {
+    expect(parseRidePromptLocally("new hope to stockton nj")).toMatchObject({
+      mode: "destination",
+      startQuery: "new hope",
+      destinationQuery: "stockton nj"
+    })
+    expect(parseRidePromptLocally("Hatboro to Doylestown, PA")).toMatchObject({
+      startQuery: "Hatboro",
+      destinationQuery: "Doylestown, PA"
+    })
+  })
+
+  it("does not invent an origin from verb or style phrases before 'to'", () => {
+    expect(parseRidePromptLocally("take me to jim thorpe")).toMatchObject({
+      startQuery: null
+    })
+    expect(parseRidePromptLocally("2 hour fun ride to new hope")).toMatchObject({
+      startQuery: null
+    })
+    expect(parseRidePromptLocally("scenic ride to jim thorpe")).toMatchObject({
+      startQuery: null
+    })
+  })
 })
