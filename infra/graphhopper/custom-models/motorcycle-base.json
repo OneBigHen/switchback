@@ -6,7 +6,7 @@
     { "if": "road_access == PRIVATE", "multiply_by": "0" },
     { "if": "road_access == DESTINATION", "multiply_by": "0.1" },
     { "if": "road_class == MOTORWAY || road_class == TRUNK", "multiply_by": "0.1" },
-    { "if": "toll == YES", "multiply_by": "0.2" }
+    { "if": "toll == ALL", "multiply_by": "0.2" }
   ],
   "speed": [
     { "if": "true", "limit_to": "0.9 * car_average_speed" },

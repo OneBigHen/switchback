@@ -176,13 +176,13 @@ describe("region policy reference data", () => {
       tollPolicy: "avoid"
     })
     const priority = findPriority(body)
-    expect(priority.some((rule) => rule.if === "toll == YES" && rule.multiply_by === "0")).toBe(true)
+    expect(priority.some((rule) => rule.if === "toll == ALL" && rule.multiply_by === "0")).toBe(true)
 
     const allowed = createGraphHopperRequest({
       profile: "twisty",
       points: [harrisburg, lancaster],
       tollPolicy: "allow-with-warning"
     })
-    expect(findPriority(allowed).some((rule) => rule.if === "toll == YES")).toBe(false)
+    expect(findPriority(allowed).some((rule) => rule.if === "toll == ALL")).toBe(false)
   })
 })

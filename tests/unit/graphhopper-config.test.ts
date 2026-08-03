@@ -41,16 +41,16 @@ describe("GraphHopper graph configuration (Phase 3)", () => {
   it("penalizes tolls persistently without excluding them, in every profile model", () => {
     // twisty and scenic inherit the base model's rules.
     const base = priorityRules(readCustomModel("motorcycle-base"))
-    expect(base).toContainEqual({ if: "toll == YES", multiply_by: "0.2" })
+    expect(base).toContainEqual({ if: "toll == ALL", multiply_by: "0.2" })
 
     for (const name of ["motorcycle-fastest", "motorcycle-adventure"]) {
-      expect(priorityRules(readCustomModel(name))).toContainEqual({ if: "toll == YES", multiply_by: "0.2" })
+      expect(priorityRules(readCustomModel(name))).toContainEqual({ if: "toll == ALL", multiply_by: "0.2" })
     }
 
     // The persistent penalty keeps tolls eligible (nonzero), matching the
     // locked "allow with warning" default; zeroing is the request-time rule.
     for (const name of ["motorcycle-base", "motorcycle-fastest", "motorcycle-adventure"]) {
-      const rule = priorityRules(readCustomModel(name)).find((entry) => entry.if === "toll == YES")
+      const rule = priorityRules(readCustomModel(name)).find((entry) => entry.if === "toll == ALL")
       expect(Number(rule?.multiply_by)).toBeGreaterThan(0)
     }
   })

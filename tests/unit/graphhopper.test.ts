@@ -228,7 +228,7 @@ describe("GraphHopper provider", () => {
           surface: [[0, 3, "asphalt"]],
           toll: [
             [0, 1, "NO"],
-            [1, 3, "YES"]
+            [1, 3, "ALL"]
           ],
           road_environment: [[0, 3, "ROAD"]],
           urban_density: [

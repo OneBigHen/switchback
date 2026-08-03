@@ -246,7 +246,7 @@ export function createGraphHopperRequest(
   // Explicit toll avoidance stays a request-time zero-priority rule; the
   // persistent profiles penalize tolls without excluding them by default.
   const tollAvoidanceRule: GraphHopperCustomModelRule[] = _request.tollPolicy === "avoid"
-    ? [{ if: "toll == YES", multiply_by: "0" }]
+    ? [{ if: "toll == ALL", multiply_by: "0" }]
     : []
 
   const highwayAvoidanceRule: GraphHopperCustomModelRule[] = _request.avoidHighways
@@ -390,7 +390,8 @@ function lookupSpeedLimit(
 /**
  * Toll evidence from GraphHopper's `toll` route detail. Missing detail stays
  * `known: false` with a null share — never a falsely clean "no toll".
- * GraphHopper's toll enum reports `YES` and `ALL` for tolled edges.
+ * GraphHopper's toll enum reports `ALL` for tolled edges (and `NO` /
+ * `UNKNOWN` for the rest).
  */
 function tollEvidence(
   geometry: Coordinate[],
@@ -400,7 +401,7 @@ function tollEvidence(
     return { known: false, tollSharePercent: null }
   }
   const distribution = calculateDetailDistribution(geometry, details)
-  const tolledShare = ((distribution.YES ?? 0) + (distribution.ALL ?? 0)) / 100
+  const tolledShare = (distribution.ALL ?? 0) / 100
   return { known: true, tollSharePercent: Number((tolledShare * 100).toFixed(1)) }
 }
 

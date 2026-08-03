@@ -137,7 +137,7 @@ case "${1:-start}" in
         const [source, target] = process.argv.slice(1);
         const model = JSON.parse(fs.readFileSync(source, "utf8"));
         if (Array.isArray(model.priority)) {
-          model.priority = model.priority.filter((rule) => !String(rule.if || "").includes("toll == YES"));
+          model.priority = model.priority.filter((rule) => !String(rule.if || "").includes("toll == ALL"));
         }
         fs.writeFileSync(target, JSON.stringify(model, null, 2) + "\n");
       ' "$model" "$legacy_models/$(basename "$model")"
