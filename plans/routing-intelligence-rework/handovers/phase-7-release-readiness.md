@@ -74,3 +74,23 @@ Rollback: `mv data/graph-cache-rollback-phase3-toll data/graph-cache` (router st
   `git checkout main && npm ci && npm run build && kill <:3100 pid> && (setsid nohup env PORT=3100 node_modules/.bin/next start -p 3100 -H 0.0.0.0 > data/next-3100.log 2>&1 &)`
   (main = `b22ac77`, the last pre-rework commit; the old in-memory process is pid 9660's predecessor — the snapshot is git, not a copied build dir.)
 - Push/PR (NOT executed — awaiting authorization): see the release report.
+
+## GRAPH UPGRADE COMPLETED (2026-08-03) — via the 64 GB Windows PC (zac@desktop over Tailscale)
+
+- Imported the toll-aware PA/NJ graph on the 64 GB PC (WSL2 Ubuntu 24.04, Java 17): `IMPORT_EXIT=0`, 1.3 GB candidate cache (`data/graph-cache-phase3-toll`), validated (health OK, 34.5 km route, toll detail served).
+- Transferred back (649 MB, SSH-streamed — scp receive on this host truncates at 200 KB, bypassed via `ssh cat > file`), swapped in: legacy cache preserved at `data/graph-cache-rollback-legacy`.
+- GraphHopper restarted with the full config (toll enabled). **Toll evidence now live**: `tollEvidence: {known: true, tollSharePercent: 0}` on Hatboro→Stockton.
+- Found and fixed a real defect: GraphHopper 11's Toll enum is NO/ALL/UNKNOWN — `toll == YES` in the models failed to compile (`244aaab`).
+- Tuned corridor anchors against real results (`3532ba6`): distance-forcing swings + forward-weave anchors (35%/70% opposite sides) + `max_weight_factor 4.0` + immediate-backtracking metric.
+- **Live golden test now PASSES 5/5**: Hatboro→Stockton 120-min timebox selects a 122.8-minute route (127 turns, 2.0/mile, 63% backroads, backtracking 3.1%, overlap 5.9%).
+- Production `:3100` runs the tuned build; `:8989` serves the toll-aware graph.
+
+## FINAL SERVICE STATE
+
+| Service | Port | Status |
+|---|---|---|
+| Switchback app (tuned build, v0.2.0+) | 0.0.0.0:3100 | Production, verified (e2e + live golden + toll evidence) |
+| GraphHopper (toll-aware candidate cache) | 127.0.0.1:8989/8990 | Running, full config |
+| Valhalla | :8000/:8002 | Running |
+| Legacy GraphHopper cache | data/graph-cache-rollback-legacy | Preserved for rollback |
+| 64 GB PC (zac@desktop) | Tailscale 100.78.187.73 | Import/validate done; scheduled tasks cleaned up |
