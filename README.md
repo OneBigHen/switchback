@@ -14,6 +14,9 @@ The default deployable routing region is **Pennsylvania plus New Jersey**. The b
 - Google Places Text Search for precise destinations when configured, with location-biased Photon fallback when Google is absent, empty, or unavailable
 - GraphHopper-primary hybrid routing with optional distinct Valhalla alternatives/fallback for supported point-to-point requests, route-level provider provenance, and independently degradable elevation enrichment
 - Timeboxed 60/90/120/180-minute loops using GraphHopper's native round-trip algorithm, measured-duration feedback, varied seeds, and headings
+- Timeboxed point-to-point rides: a direct baseline plus up to four curvature/GPX/research corridors shaped inside a safe envelope, scored by a maximum-twisties formula with hard duration, backtracking, and self-overlap gates
+- Source-backed corridor hints from the optional You.com adviser (`/api/ride-corridors`), validated by URL and geocoding and cached for seven days — research never blocks the primary route
+- Continuous planner progress with elapsed time and Cancel from the ride prompt, while the previous route stays visible (dimmed) during replan and alternatives merge without changing your selection
 - Address/place search, map-picked points, routed shaping stops, and draggable start/finish/via markers
 - Finger, stylus, and mouse rough-route sketching that turns a traced corridor into a legal route with at most six editable shaping stops
 - A 50-step route-edit history with undo/redo, shaping-stop reordering, route reversal, deletion, and draggable fine-tuning
@@ -115,6 +118,7 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 | `OPENROUTER_MODEL` | `openrouter/free` | OpenRouter model/router used when a key is configured |
 | `NWS_USER_AGENT` | built-in Switchback identifier | Deployment identifier sent to `api.weather.gov`; configure a contact-bearing value for your instance |
 | `CURVATURE_DB_PATH` | `<repo>/data/segments.db` | Absolute or repo-relative path to the optional curvature SQLite database |
+| `CORRIDOR_CACHE_PATH` | `<repo>/data/route-research-cache.sqlite` | Server-side 7-day cache of validated corridor hints for `/api/ride-corridors` and the timeboxed destination planner |
 | `GPX_LIBRARY_PATH` | `<repo>/data/gpx-library` | Server-side catalog scanned by `/api/gpx-library`; separate from each browser's IndexedDB routes |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | OpenFreeMap Positron | Browser-visible MapLibre style URL for the Clean map; set this before building |
 | `SPOTIFY_CLIENT_ID` | unset | Public Spotify application ID used by the optional remote player controls |
