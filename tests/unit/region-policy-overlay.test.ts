@@ -37,8 +37,8 @@ function findAreaFeatures(body: Record<string, unknown>) {
   return customModel?.areas?.features ?? []
 }
 
-describe("region policy overlay", () => {
-  it("exposes overlays for PA, WV, NJ, and NY", () => {
+describe("region policy reference data", () => {
+  it("exposes overlays for PA, WV, NJ, and NY as documentation", () => {
     expect(getRegionPolicyOverlay("pennsylvania")?.regionId).toBe("pennsylvania")
     expect(getRegionPolicyOverlay("west-virginia")?.regionId).toBe("west-virginia")
     expect(getRegionPolicyOverlay("new-jersey")?.regionId).toBe("new-jersey")
@@ -46,31 +46,23 @@ describe("region policy overlay", () => {
     expect(REGION_POLICY_OVERLAYS).toHaveLength(4)
   })
 
-  it("emits region overlay priority rules when waypoints fall inside PA", () => {
+  it("never injects degenerate region overlay rules or (0,0) areas at request time", () => {
     const body = createGraphHopperRequest({
       profile: "twisty",
       points: [harrisburg, lancaster]
     })
     const priority = findPriority(body)
-    expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("SECONDARY"))).toBe(true)
-    expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("TERTIARY"))).toBe(true)
-    expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("TRACK"))).toBe(true)
-    expect(priority.every((rule) => rule.multiply_by === undefined || Number(rule.multiply_by) <= 1)).toBe(true)
-  })
+    const features = findAreaFeatures(body)
 
-  it("does not emit region overlay priority rules when waypoints fall outside every overlay region", () => {
-    const body = createGraphHopperRequest({
-      profile: "twisty",
-      points: [
-        { lat: 39.29, lon: -76.61 }, // Baltimore — in MD catalog but no overlay
-        { lat: 39.20, lon: -76.86 }
-      ]
-    })
-    const priority = findPriority(body)
+    // Phase 3: region tuning lives in persistent profile models; request-time
+    // `in_switchback_region_*` rules referencing (0,0) polygons are gone.
     expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_"))).toBe(false)
+    expect(features.some((feature) => feature.id.startsWith("switchback_region_"))).toBe(false)
+    expect(JSON.stringify(body)).not.toContain("switchback_region_")
+    expect(JSON.stringify(body)).not.toContain("[[0,0],[0,0]")
   })
 
-  it("merges must lock rules, prefer lock rules, bike profile rules, avoid highways, and region overlays without losing precedence", () => {
+  it("merges must lock, prefer lock, bike profile, and highway-avoidance rules without losing precedence", () => {
     const lockLine: Coordinate[] = [
       [-76.7, 40.1],
       [-76.6, 40.12]
@@ -110,16 +102,14 @@ describe("region policy overlay", () => {
     const mustIdx = priority.findIndex((rule) => rule.if === "!in_switchback_lock_0")
     const preferIdx = priority.findIndex((rule) => rule.if === "!in_switchback_lock_1")
     const bikePathIdx = priority.findIndex((rule) => rule.if === "road_class == PATH")
-    const regionIdx = priority.findIndex((rule) => rule.if?.startsWith("in_switchback_region_"))
 
     expect(highwayIdx).toBeGreaterThanOrEqual(0)
     expect(mustIdx).toBeGreaterThan(highwayIdx)
     expect(preferIdx).toBeGreaterThan(mustIdx)
     expect(bikePathIdx).toBeGreaterThan(preferIdx)
-    expect(regionIdx).toBeGreaterThan(bikePathIdx)
   })
 
-  it("retains avoid areas in the custom model areas alongside lock corridors and region features", () => {
+  it("retains rider avoid areas and lock corridors as the only custom-model areas", () => {
     const lockLine: Coordinate[] = [
       [-76.7, 40.1],
       [-76.6, 40.12]
@@ -149,26 +139,13 @@ describe("region policy overlay", () => {
       }],
       roadLocks: [mustLock]
     })
-    const features = findAreaFeatures(body)
-    const ids = features.map((f) => f.id)
+    const ids = findAreaFeatures(body).map((feature) => feature.id)
     expect(ids).toContain("switchback_avoid_0")
     expect(ids).toContain("switchback_lock_0")
-    expect(ids.some((id) => id.startsWith("switchback_region_"))).toBe(true)
+    expect(ids.some((id) => id.startsWith("switchback_region_"))).toBe(false)
   })
 
-  it("keeps PA secondary roads at the legal priority ceiling", () => {
-    const body = createGraphHopperRequest({
-      profile: "twisty",
-      points: [harrisburg, lancaster]
-    })
-    const priority = findPriority(body)
-    const secondaryRule = priority.find((rule) => rule.if?.startsWith("in_switchback_region_") && rule.if?.includes("SECONDARY"))
-    expect(secondaryRule).toBeDefined()
-    const multiplier = Number(secondaryRule!.multiply_by)
-    expect(multiplier).toBe(1)
-  })
-
-  it("does not silently drop a lock when both a must lock and a region overlay apply to the same request", () => {
+  it("keeps a must-use lock rule even when no region overlay applies", () => {
     const lockLine: Coordinate[] = [
       [-76.7, 40.1],
       [-76.6, 40.12]
@@ -190,6 +167,22 @@ describe("region policy overlay", () => {
     })
     const priority = findPriority(body)
     expect(priority.some((rule) => rule.if === "!in_switchback_lock_0")).toBe(true)
-    expect(priority.some((rule) => rule.if?.startsWith("in_switchback_region_"))).toBe(true)
+  })
+
+  it("emits a request-time zero-priority toll rule only when tolls are explicitly avoided", () => {
+    const body = createGraphHopperRequest({
+      profile: "twisty",
+      points: [harrisburg, lancaster],
+      tollPolicy: "avoid"
+    })
+    const priority = findPriority(body)
+    expect(priority.some((rule) => rule.if === "toll == YES" && rule.multiply_by === "0")).toBe(true)
+
+    const allowed = createGraphHopperRequest({
+      profile: "twisty",
+      points: [harrisburg, lancaster],
+      tollPolicy: "allow-with-warning"
+    })
+    expect(findPriority(allowed).some((rule) => rule.if === "toll == YES")).toBe(false)
   })
 })

@@ -9,19 +9,20 @@ updated: "2026-07-22"
 
 > Tracking [Switchback Routing Intelligence Rework](plan.md)
 
-## Active Phase: 3 - GraphHopper Toll and Fast-Path Correctness
+## Active Phase: 4 - Timeboxed Destination Corridors and Scoring
 
 ### Phase Context
 
-- **Scope**: [Phase 3](phases/phase-3.md)
-- **Implementation**: [Phase 3 Plan](implementation/phase-3-impl.md)
-- **Latest Handover**: None yet; create under `handovers/` when pausing.
+- **Scope**: [Phase 4](phases/phase-4.md)
+- **Implementation**: [Phase 4 Plan](implementation/phase-4-impl.md)
+- **Latest Handover**: `handovers/phase-3-graph-audit.md`
 - **Relevant Docs**: `README.md`, `docs/CLOSURE-REALITY-2026-07-21.md`, `docs/LEAD-DECISIONS.md`
 
 ### Pending
 
-- [ ] GraphHopper toll and fast-path encoded values, profiles, and re-import with rollback cache. <!-- added: 2026-07-22 -->
-- [ ] You.com corridor adviser package (Phase 5) from the Phase 1/2 integration commit. <!-- added: 2026-07-22 -->
+- [ ] Build and validate the Phase 3 candidate graph cache on a host with ≥6 GB free RAM (`scripts/graphhopper.sh import-candidate phase3-toll` then `validate-candidate`). <!-- added: 2026-08-03 -->
+- [ ] Phase 3 live acceptance: toll/road-environment/urban-density evidence on real routes, fast-path timing, avoid-area/lock regressions. <!-- added: 2026-08-03 -->
+- [ ] Phase 5 You.com corridor adviser package (independent; may run in parallel). <!-- added: 2026-08-03 -->
 
 ### In Progress
 
@@ -41,6 +42,11 @@ updated: "2026-07-22"
 - [x] Phase 2: cancellation wired end to end (client → handler → planner → providers). <!-- completed: 2026-08-03 -->
 - [x] Phase 2: bounded route-job limiter and 10-minute primary cache covered by tests. <!-- completed: 2026-08-03 -->
 - [x] Phase 2: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
+- [x] Phase 3: toll encoded value + persistent profile toll penalty; request-time toll avoidance rule. <!-- completed: 2026-08-03 -->
+- [x] Phase 3: inert (0,0) request-time region masks removed; region policy documented as reference intent. <!-- completed: 2026-08-03 -->
+- [x] Phase 3: toll/road-environment/urban-density evidence returned and normalized. <!-- completed: 2026-08-03 -->
+- [x] Phase 3: side-by-side import/validate/swap script support + graph resource audit handover. <!-- completed: 2026-08-03 -->
+- [x] Phase 3: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
 
 ### Blocked
 

@@ -1,12 +1,16 @@
 import type { OfflineRegion } from "@/lib/offline/region-catalog"
 
 /**
- * Region policy overlay. Each overlay is a *tuning* on GraphHopper's
- * custom model — it speeds, rewards, or penalizes specific highway
- * classes, surfaces, or features for that state. There is one universal
- * motorcycle graph schema; overlays are data, not separate codebases.
+ * Region policy reference data. Each overlay documents the intended tuning
+ * for a state's roads — which highway classes, surfaces, and features the
+ * motorcycle profiles should reward or penalize.
  *
- * Per-region guidance mirrors the lead decision:
+ * Phase 3 moved the tuning into the persistent GraphHopper custom models
+ * (they apply to the whole PA/NJ graph) and removed the request-time
+ * `in_<region>` area rules, which referenced degenerate `(0,0)` polygons
+ * and never affected real routes. `customModel` below is kept as the
+ * documented intent for those persistent profile rules; remaining
+ * per-region nuance is applied by Phase 4 route scoring, not by the router.
  *
  * - PA / WV: reward curvy secondary roads, use forest roads for
  *   Adventure and Dual-Sport, penalize uncertain surface quality, and
@@ -21,7 +25,12 @@ export interface RegionPolicyOverlay {
   regionId: string
   /** Short summary shown in the region card. */
   summary: string
-  /** GraphHopper custom-model multipliers the router applies. */
+  /**
+   * Documented custom-model intent. Phase 3 bakes the shared direction of
+   * these preferences into the persistent GraphHopper profile models;
+   * per-region nuance is applied by Phase 4 post-route scoring. Not
+   * injected into requests at runtime.
+   */
   customModel: {
     /** Multiplier applied to the base speed on these highway classes. */
     speedMultipliers?: Record<string, number>

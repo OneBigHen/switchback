@@ -8,11 +8,6 @@ import {
   disallowedTracktypes
 } from "./bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
-import {
-  REGION_POLICY_OVERLAYS,
-  type RegionPolicyOverlay
-} from "./region-policy"
-import { findRegionsContaining } from "@/lib/offline/region-catalog"
 
 export interface GraphHopperOptions {
   baseUrl: string
@@ -201,81 +196,6 @@ function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule
   return rules
 }
 
-/**
- * Region policy overlay rules. Speed multipliers convert to GraphHopper
- * `speed` statements; priority multipliers and exclusions become
- * `priority` statements. Each region overlay references a degenerate
- * area id so the `in_<region>` condition resolves consistently even
- * before the route touches the region's bounding box.
- */
-function buildRegionOverlayRules(
-  overlays: readonly RegionPolicyOverlay[]
-): { rules: GraphHopperCustomModelRule[]; areas: { type: "FeatureCollection"; features: GraphHopperAreaFeature[] } | null } {
-  if (overlays.length === 0) return { rules: [], areas: null }
-  const rules: GraphHopperCustomModelRule[] = []
-  const features: GraphHopperAreaFeature[] = []
-  overlays.forEach((overlay, index) => {
-    const id = `switchback_region_${index}`
-    const degenerateRing: Coordinate[] = [[0, 0], [0, 0], [0, 0], [0, 0]]
-    features.push({
-      type: "Feature",
-      id,
-      geometry: { type: "Polygon", coordinates: [degenerateRing] }
-    })
-    if (overlay.customModel.speedMultipliers) {
-      for (const [highwayClass, multiplier] of Object.entries(overlay.customModel.speedMultipliers)) {
-        rules.push({
-          if: `in_${id} && road_class == ${highwayClass.toUpperCase()}`,
-          multiply_by: String(multiplier)
-        })
-      }
-    }
-    if (overlay.customModel.priorityMultipliers) {
-      for (const [highwayClass, multiplier] of Object.entries(overlay.customModel.priorityMultipliers)) {
-        rules.push({
-          if: `in_${id} && road_class == ${highwayClass.toUpperCase()}`,
-          multiply_by: String(multiplier)
-        })
-      }
-    }
-    if (overlay.customModel.excludeHighwayClasses) {
-      for (const highwayClass of overlay.customModel.excludeHighwayClasses) {
-        rules.push({
-          if: `in_${id} && road_class == ${highwayClass.toUpperCase()}`,
-          multiply_by: "0"
-        })
-      }
-    }
-    if (overlay.customModel.excludeSurfaces) {
-      for (const surface of overlay.customModel.excludeSurfaces) {
-        rules.push({
-          if: `in_${id} && surface == ${surface.toUpperCase()}`,
-          multiply_by: "0"
-        })
-      }
-    }
-  })
-  return {
-    rules,
-    areas: features.length > 0 ? { type: "FeatureCollection", features } : null
-  }
-}
-
-/**
- * Resolve every region-policy overlay whose source region contains any
- * of the request waypoints. Per §2.5, PA/WV/NJ/NY overlays tune speed,
- * priority, surface, and parkway behaviour at request time.
- */
-function resolveRegionOverlaysForRequest(points: { lat: number; lon: number }[]): RegionPolicyOverlay[] {
-  const matched = new Set<string>()
-  for (const point of points) {
-    for (const region of findRegionsContaining([point.lon, point.lat])) {
-      matched.add(region.id)
-    }
-  }
-  return REGION_POLICY_OVERLAYS.filter((overlay) => matched.has(overlay.regionId))
-}
-
 export function createGraphHopperRequest(_request: RouteRequest): Record<string, unknown> {
   const profile = getProfile(_request.profile)
   if (_request.roundTrip && _request.points.length !== 1) {
@@ -301,7 +221,6 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
 
   const roadLocks = _request.roadLocks ?? []
   const bikeProfile = _request.bikeProfile
-  const regionOverlays = resolveRegionOverlaysForRequest(_request.points)
 
   const mustLocks = roadLocks.filter((lock) => lock.mode === "must")
   const preferLocks = roadLocks.filter((lock) => lock.mode === "prefer")
@@ -320,7 +239,12 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
   const mustRules = buildMustLockRules(mustAreas.features)
   const preferRules = buildPreferLockRules(preferAreas.features)
   const bikeRules = bikeProfile ? buildBikeProfileRules(bikeProfile) : []
-  const regionRulesResult = buildRegionOverlayRules(regionOverlays)
+
+  // Explicit toll avoidance stays a request-time zero-priority rule; the
+  // persistent profiles penalize tolls without excluding them by default.
+  const tollAvoidanceRule: GraphHopperCustomModelRule[] = _request.tollPolicy === "avoid"
+    ? [{ if: "toll == YES", multiply_by: "0" }]
+    : []
 
   const highwayAvoidanceRule: GraphHopperCustomModelRule[] = _request.avoidHighways
     ? [{ if: "road_class == MOTORWAY || road_class == TRUNK", multiply_by: "0" }]
@@ -328,17 +252,16 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
 
   const priorityRules: GraphHopperCustomModelRule[] = [
     ...highwayAvoidanceRule,
+    ...tollAvoidanceRule,
     ...areaFeatures.map((feature) => ({ if: `in_${feature.id}`, multiply_by: "0" })),
     ...mustRules,
     ...preferRules,
-    ...bikeRules,
-    ...regionRulesResult.rules
+    ...bikeRules
   ]
 
   const customModelAreasFeatures: GraphHopperAreaFeature[] = [
     ...areaFeatures,
-    ...lockAreaFeatures,
-    ...(regionRulesResult.areas?.features ?? [])
+    ...lockAreaFeatures
   ]
 
   const hasCustomModelContent =
@@ -363,7 +286,7 @@ export function createGraphHopperRequest(_request: RouteRequest): Record<string,
     calc_points: true,
     elevation: false,
     locale: "en-US",
-    details: ["road_class", "surface", "track_type", "max_speed"],
+    details: ["road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density"],
     ...(customModel ? { custom_model: customModel } : {})
   }
   if (_request.roundTrip) {
@@ -460,6 +383,23 @@ function lookupSpeedLimit(
   return null
 }
 
+/**
+ * Toll evidence from GraphHopper's `toll` route detail. Missing detail stays
+ * `known: false` with a null share — never a falsely clean "no toll".
+ * GraphHopper's toll enum reports `YES` and `ALL` for tolled edges.
+ */
+function tollEvidence(
+  geometry: Coordinate[],
+  details: DetailInterval[] | undefined
+): PlannedRoute["tollEvidence"] {
+  if (!details || details.length === 0) {
+    return { known: false, tollSharePercent: null }
+  }
+  const distribution = calculateDetailDistribution(geometry, details)
+  const tolledShare = ((distribution.YES ?? 0) + (distribution.ALL ?? 0)) / 100
+  return { known: true, tollSharePercent: Number((tolledShare * 100).toFixed(1)) }
+}
+
 export function createRouteId(
   profile: RouteProfileId,
   geometry: Coordinate[],
@@ -525,6 +465,9 @@ function normalizePath(
     turnCount: analysis.turnCount,
     roadMix: calculateDetailDistribution(geometry, path.details?.road_class ?? []),
     surfaceMix: calculateDetailDistribution(geometry, path.details?.surface ?? []),
+    roadEnvironmentMix: calculateDetailDistribution(geometry, path.details?.road_environment ?? []),
+    urbanDensityMix: calculateDetailDistribution(geometry, path.details?.urban_density ?? []),
+    tollEvidence: tollEvidence(geometry, path.details?.toll),
     routingSource: "live",
     previewOnly: false,
     loopTargetMinutes: request.roundTrip?.targetMinutes ?? request.loopTargetMinutes,

@@ -92,6 +92,19 @@ export interface PlannedRoute {
   turnCount: number
   roadMix: Record<string, number>
   surfaceMix: Record<string, number>
+  /** Distribution of GraphHopper `road_environment` detail over the route. */
+  roadEnvironmentMix?: Record<string, number>
+  /** Distribution of GraphHopper `urban_density` detail over the route. */
+  urbanDensityMix?: Record<string, number>
+  /**
+   * Toll exposure derived from the graph's `toll` detail. `known` is false
+   * when the provider omitted the detail — never a falsely clean "no toll".
+   */
+  tollEvidence?: {
+    known: boolean
+    /** Percentage of route miles on tolled edges; null while unknown. */
+    tollSharePercent: number | null
+  }
   routingSource: "live" | "imported" | "preview"
   provider?: "graphhopper" | "valhalla"
   providerVersion?: string

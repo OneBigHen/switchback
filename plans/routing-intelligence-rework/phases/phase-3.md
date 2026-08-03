@@ -3,9 +3,9 @@ type: planning
 entity: phase
 plan: "routing-intelligence-rework"
 phase: 3
-status: pending
+status: completed
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-08-03"
 ---
 
 # Phase 3: GraphHopper Toll and Fast-Path Correctness

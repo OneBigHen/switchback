@@ -21,3 +21,5 @@ public/workbox-*.js
 
 # Routing rework raw benchmark samples (sanitized summaries are tracked under reports/)
 artifacts/routing-rework/raw/
+data/graph-cache-*
+data/graph-cache-*.yml

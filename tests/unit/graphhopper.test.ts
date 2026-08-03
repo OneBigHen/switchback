@@ -72,7 +72,7 @@ describe("GraphHopper provider", () => {
       instructions: true,
       algorithm: "alternative_route",
       "alternative_route.max_paths": 3,
-      details: ["road_class", "surface", "track_type", "max_speed"]
+      details: ["road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density"]
     })
   })
 
@@ -210,8 +210,65 @@ describe("GraphHopper provider", () => {
     expect(result.routes[0].instructions[1].streetName).toBe("River Road")
     expect(result.routes[0].roadMix.secondary).toBeGreaterThan(40)
     expect(result.routes[0].surfaceMix.asphalt).toBe(100)
+    // Missing toll detail stays unknown — never a falsely clean "no toll".
+    expect(result.routes[0].tollEvidence).toEqual({ known: false, tollSharePercent: null })
+    expect(result.routes[0].roadEnvironmentMix).toEqual({})
+    expect(result.routes[0].urbanDensityMix).toEqual({})
     expect(result.routes[0].routingSource).toBe("live")
     expect(result.routes[0].previewOnly).toBe(false)
+  })
+
+  it("normalizes toll, road-environment, and urban-density evidence from route details", async () => {
+    const enrichedFixture = {
+      ...responseFixture,
+      paths: [{
+        ...responseFixture.paths[0],
+        details: {
+          road_class: [[0, 3, "secondary"]],
+          surface: [[0, 3, "asphalt"]],
+          toll: [
+            [0, 1, "NO"],
+            [1, 3, "YES"]
+          ],
+          road_environment: [[0, 3, "ROAD"]],
+          urban_density: [
+            [0, 1, "CITY"],
+            [1, 3, "RURAL"]
+          ]
+        }
+      }]
+    }
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(enrichedFixture), { status: 200 }))
+    const result = await requestGraphHopperRoutes(
+      {
+        profile: "twisty",
+        points: [
+          { lat: 40.2732, lon: -76.8867 },
+          { lat: 40.0379, lon: -76.3055 }
+        ]
+      },
+      { baseUrl: "http://router.test", fetcher }
+    )
+
+    const route = result.routes[0]
+    expect(route.tollEvidence?.known).toBe(true)
+    // Two of three route segments are tolled; the share is distance-weighted.
+    expect(route.tollEvidence?.tollSharePercent).toBeCloseTo(66.7, 0)
+    expect(route.roadEnvironmentMix?.ROAD).toBe(100)
+    expect(route.urbanDensityMix?.CITY).toBeGreaterThan(0)
+    expect(route.urbanDensityMix?.RURAL).toBeGreaterThan(0)
+  })
+
+  it("does not emit fake region areas or (0,0) polygons for PA requests", async () => {
+    const body = createGraphHopperRequest({
+      profile: "twisty",
+      points: [
+        { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
+        { lat: 40.0379, lon: -76.3055, label: "Lancaster" }
+      ]
+    })
+    expect(JSON.stringify(body)).not.toContain("switchback_region_")
+    expect(JSON.stringify(body)).not.toContain("[[0,0],[0,0]")
   })
 
   it("preserves loop timebox metadata and a closing waypoint", async () => {
