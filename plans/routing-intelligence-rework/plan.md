@@ -177,7 +177,7 @@ All shares are clamped to `0..1`. Penalties are applied afterward: `-15` per dis
 | Phase | Title | Scope | Status |
 |-------|-------|-------|--------|
 | 1 | Contracts, Baseline, and Golden Fixtures | [Detail](phases/phase-1.md) | completed |
-| 2 | Fast Primary-Route Pipeline | [Detail](phases/phase-2.md) | pending |
+| 2 | Fast Primary-Route Pipeline | [Detail](phases/phase-2.md) | completed |
 | 3 | GraphHopper Toll and Fast-Path Correctness | [Detail](phases/phase-3.md) | pending |
 | 4 | Timeboxed Destination Corridors and Scoring | [Detail](phases/phase-4.md) | pending |
 | 5 | You.com Corridor Adviser | [Detail](phases/phase-5.md) | pending |

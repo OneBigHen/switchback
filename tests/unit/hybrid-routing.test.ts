@@ -34,29 +34,29 @@ function result(engine: "graphhopper" | "valhalla", routes: PlannedRoute[]): Rou
 }
 
 describe("hybrid route provider", () => {
-  it("merges distinct GraphHopper and Valhalla candidates with provenance", async () => {
+  it("keeps a primary request on GraphHopper without calling optional Valhalla", async () => {
     const graphHopper = vi.fn(async () => result("graphhopper", [candidate("gh")]))
     const valhalla = vi.fn(async () => result("valhalla", [candidate("vh", 0.05)]))
     const provider = createHybridRouteProvider({ graphHopper, valhalla })
 
     await expect(provider(request)).resolves.toMatchObject({
-      engine: "hybrid",
+      engine: "graphhopper",
       routes: [
-        expect.objectContaining({ id: "gh", provider: "graphhopper" }),
-        expect.objectContaining({ id: "vh", provider: "valhalla" })
+        expect.objectContaining({ id: "gh", provider: "graphhopper" })
       ]
     })
+    expect(valhalla).not.toHaveBeenCalled()
   })
 
-  it("keeps GraphHopper results when optional Valhalla fails", async () => {
-    const provider = createHybridRouteProvider({
-      graphHopper: async () => result("graphhopper", [candidate("gh")]),
-      valhalla: async () => { throw new Error("Valhalla unavailable") }
-    })
+  it("does not attempt optional Valhalla when GraphHopper succeeds, even if it would fail", async () => {
+    const graphHopper = vi.fn(async () => result("graphhopper", [candidate("gh")]))
+    const valhalla = vi.fn(async () => { throw new Error("Valhalla unavailable") })
+    const provider = createHybridRouteProvider({ graphHopper, valhalla })
 
     const response = await provider(request)
     expect(response.routes.map((route) => route.id)).toEqual(["gh"])
-    expect(response.warnings?.join(" ")).toMatch(/Valhalla.*unavailable/i)
+    expect(response.warnings).toBeUndefined()
+    expect(valhalla).not.toHaveBeenCalled()
   })
 
   it("uses Valhalla as an explicit fallback for supported requests when GraphHopper fails", async () => {
@@ -86,19 +86,24 @@ describe("hybrid route provider", () => {
     expect(valhalla).not.toHaveBeenCalled()
   })
 
-  it("enriches the merged candidate set once", async () => {
+  it("enriches alternatives but never a primary request", async () => {
     const enrich = vi.fn(async (routing: RoutingResult): Promise<RoutingResult> => ({
       ...routing,
       routes: routing.routes.map((route) => ({ ...route, ascentMeters: 321 }))
     }))
     const provider = createHybridRouteProvider({
       graphHopper: async () => result("graphhopper", [candidate("gh")]),
-      valhalla: async () => result("valhalla", [candidate("vh", 0.05)]),
       enrich
     })
 
-    const response = await provider(request)
+    // Primary: no elevation enrichment on the critical path.
+    const primary = await provider(request)
+    expect(enrich).not.toHaveBeenCalled()
+    expect(primary.routes[0].ascentMeters).toBeNull()
+
+    // Alternatives: enrichment runs as background evidence.
+    const alternatives = await provider({ ...request, candidateSet: "alternatives" })
     expect(enrich).toHaveBeenCalledOnce()
-    expect(response.routes.every((route) => route.ascentMeters === 321)).toBe(true)
+    expect(alternatives.routes.every((route) => route.ascentMeters === 321)).toBe(true)
   })
 })

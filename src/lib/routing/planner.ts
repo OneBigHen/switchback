@@ -50,7 +50,16 @@ export interface RoutingResult {
   warnings?: string[]
 }
 
-export type RouteProvider = (request: RouteRequest) => Promise<RoutingResult>
+/** Lifecycle-scoped planning options threaded from the API boundary. */
+export interface PlanningOptions {
+  /** Cancellation signal; aborts provider fetches without a user-visible error. */
+  signal?: AbortSignal
+}
+
+export type RouteProvider = (
+  request: RouteRequest,
+  options?: PlanningOptions
+) => Promise<RoutingResult>
 
 export interface RouteCandidateEnrichmentResult {
   routes: PlannedRoute[]
@@ -69,7 +78,12 @@ interface TimeboxedProviderResult {
 
 const ROUND_TRIP_DURATION_TOLERANCE = 0.15
 const MAX_COMPARISON_OVERLAP = 90
-const MAX_SELECTED_PROFILE_ALTERNATIVES = 2
+/** Alternatives endpoint: at most two meaningfully different routes. */
+const MAX_ALTERNATIVES = 2
+/** Alternatives endpoint: shared 12-second total deadline. */
+const ALTERNATIVES_DEADLINE_MS = 12_000
+/** Meaningfully different means at most 85% sampled-geometry overlap. */
+const ALTERNATIVES_MAX_OVERLAP = 85
 // Native round trips can select an unroutable synthetic waypoint for a given
 // seed. These spread-out fallbacks keep a rider's requested seed first, while
 // giving the engine several independent loop shapes before we drop an option.
@@ -139,7 +153,8 @@ function mergeDistribution(
 async function planSegmentedTrip(
   request: TripPlanRequest,
   provider: RouteProvider,
-  enricher?: RouteCandidateEnricher
+  enricher?: RouteCandidateEnricher,
+  options: PlanningOptions = {}
 ): Promise<TripPlan> {
   const segmentProfiles = request.segmentProfiles ?? []
   if (segmentProfiles.length !== request.points.length - 1) {
@@ -155,7 +170,7 @@ async function planSegmentedTrip(
       points: [request.points[index]!, request.points[index + 1]!],
       avoidHighways: request.avoidHighways,
       avoidAreas: request.avoidAreas
-    })
+    }, options)
     const selected = chooseSelectedCandidate(result.routes)
     if (!selected) throw new Error(`The ${profile} leg returned no route.`)
     return selected
@@ -214,7 +229,9 @@ async function planSegmentedTrip(
 
 function chooseDistinctCandidate(
   candidates: PlannedRoute[],
-  existing: PlannedRoute[]
+  existing: PlannedRoute[],
+  maxOverlap = MAX_COMPARISON_OVERLAP,
+  strict = false
 ): { route: PlannedRoute; overlapPercent: number; worstOverlap: number } | null {
   if (candidates.length === 0) return null
   const ranked = candidates.map((route) => {
@@ -227,8 +244,11 @@ function chooseDistinctCandidate(
         worstOverlap: Math.max(0, ...overlaps)
       }
     })
-  const differentiated = ranked.filter((candidate) => candidate.worstOverlap <= MAX_COMPARISON_OVERLAP)
-  const pool = differentiated.length > 0 ? differentiated : ranked
+  const differentiated = ranked.filter((candidate) => candidate.worstOverlap <= maxOverlap)
+  const pool = strict
+    ? differentiated
+    : differentiated.length > 0 ? differentiated : ranked
+  if (pool.length === 0) return null
   return pool.sort((left, right) =>
       left.route.profile === "adventure" && right.route.profile === "adventure"
         ? selectedCandidateScore(right.route) - selectedCandidateScore(left.route) ||
@@ -283,9 +303,10 @@ async function enrichCandidates(
 
 async function requestInitialTimeboxedRoute(
   request: RouteRequest,
-  provider: RouteProvider
+  provider: RouteProvider,
+  options: PlanningOptions = {}
 ): Promise<RoutingResult> {
-  if (!request.roundTrip) return provider(request)
+  if (!request.roundTrip) return provider(request, options)
   const originalSeed = request.roundTrip.seed ?? 0
   let lastError: unknown
   const seedCandidates = [originalSeed, ...ROUND_TRIP_FALLBACK_SEEDS]
@@ -295,7 +316,7 @@ async function requestInitialTimeboxedRoute(
       return await provider(seed === originalSeed ? request : {
         ...request,
         roundTrip: { ...request.roundTrip, seed }
-      })
+      }, options)
     } catch (caught) {
       lastError = caught
     }
@@ -306,9 +327,10 @@ async function requestInitialTimeboxedRoute(
 async function requestTimeboxedRoutes(
   request: RouteRequest,
   provider: RouteProvider,
-  enricher?: RouteCandidateEnricher
+  enricher?: RouteCandidateEnricher,
+  options: PlanningOptions = {}
 ): Promise<TimeboxedProviderResult> {
-  const initial = await requestInitialTimeboxedRoute(request, provider)
+  const initial = await requestInitialTimeboxedRoute(request, provider, options)
   const roundTrip = request.roundTrip
   const targetMinutes = roundTrip?.targetMinutes ?? request.loopTargetMinutes
   if (!targetMinutes) {
@@ -324,8 +346,11 @@ async function requestTimeboxedRoutes(
     return { result: initial, warning: initial.warnings?.join(" ") || null }
   }
   const relativeError = durationDifference(initialCandidate, targetMinutes) / targetMinutes
+  // Adventure loops explore several time-matched seeds for gravel-rich
+  // variety even when the first seed already meets the timebox; this stays
+  // within the primary candidate budget and never waits on enrichment.
   const exploreAdventureAlternatives = Boolean(
-    roundTrip && request.profile === "adventure" && enricher
+    roundTrip && request.profile === "adventure"
   )
   if (relativeError <= ROUND_TRIP_DURATION_TOLERANCE && !exploreAdventureAlternatives) {
     const enriched = await enrichCandidates(request, [initialCandidate], enricher)
@@ -375,7 +400,7 @@ async function requestTimeboxedRoutes(
         seed: (roundTrip.seed ?? 0) + index * 101,
         heading: ((roundTrip.heading ?? 0) + index * 73) % 360
       }
-    }, provider))
+    }, provider, options))
   )
   const candidates = [
     ...initial.routes,
@@ -397,7 +422,7 @@ async function requestTimeboxedRoutes(
           ...roundTrip,
           targetMinutes: finalAdjustedMinutes
         }
-      }, provider)
+      }, provider, options)
       candidates.push(...finalAttempt.routes)
       closest = closestDurationCandidate(candidates, targetMinutes) ?? closest
       remainingError = durationDifference(closest, targetMinutes) / targetMinutes
@@ -518,16 +543,41 @@ function ensureLockSatisfaction(
 export async function planMotorcycleTrip(
   request: TripPlanRequest,
   provider: RouteProvider,
-  enricher?: RouteCandidateEnricher
+  enricher?: RouteCandidateEnricher,
+  options: PlanningOptions = {}
 ): Promise<TripPlan> {
+  if (request.candidateSet === "alternatives") {
+    return planAlternativeRoutes(request, provider, enricher, options)
+  }
+  return planPrimaryRoute(request, provider, options)
+}
+
+/**
+ * Primary path: one selected route for the requested profile. Comparison
+ * profiles, PASDA evidence, and elevation enrichment never delay the first
+ * usable route — they belong to the separate alternatives/evidence call.
+ */
+async function planPrimaryRoute(
+  request: TripPlanRequest,
+  provider: RouteProvider,
+  options: PlanningOptions = {}
+): Promise<TripPlan> {
+  const started = performance.now()
   if (request.segmentProfiles?.length) {
-    return planSegmentedTrip(request, provider, enricher)
+    const plan = await planSegmentedTrip(request, provider, undefined, options)
+    return {
+      ...plan,
+      ...tripPlanMetadata(request),
+      timingMs: { primary: performance.now() - started }
+    }
   }
   const partitioned = partitionLocksForRequest(request)
-  const submissionRequest = partitioned.request
-  const lockWarnings = partitioned.warnings
-
-  const selectedAttempt = await requestTimeboxedRoutes(submissionRequest, provider, enricher)
+  const selectedAttempt = await requestTimeboxedRoutes(
+    partitioned.request,
+    provider,
+    undefined,
+    options
+  )
   const selected = chooseSelectedCandidate(selectedAttempt.result.routes)
   if (!selected) {
     throw new Error("The selected profile returned no routes")
@@ -537,76 +587,112 @@ export async function planMotorcycleTrip(
     ensureLockSatisfaction({ ...selected, overlapPercent: 100 }, partitioned.survivingLocks)
   ]
   const warnings: string[] = [
-    ...lockWarnings,
+    ...partitioned.warnings,
     ...(selectedAttempt.warning ? [selectedAttempt.warning] : [])
   ]
-  if (!request.compare) {
-    return {
-      ...tripPlanMetadata(request),
-      selectedRouteId: selected.id,
-      routes,
-      warnings
-    }
-  }
-
-  const selectedProfileAlternatives = selectedAttempt.result.routes
-    .filter((candidate) => candidate.id !== selected.id)
-  for (
-    let index = 0;
-    index < MAX_SELECTED_PROFILE_ALTERNATIVES && selectedProfileAlternatives.length > 0;
-    index += 1
-  ) {
-    const distinct = chooseDistinctCandidate(selectedProfileAlternatives, routes)
-    if (!distinct || distinct.worstOverlap > MAX_COMPARISON_OVERLAP) break
-    routes.push(
-      ensureLockSatisfaction(
-        { ...distinct.route, overlapPercent: distinct.overlapPercent },
-        partitioned.survivingLocks
-      )
-    )
-    const usedIndex = selectedProfileAlternatives.findIndex((candidate) => candidate.id === distinct.route.id)
-    if (usedIndex >= 0) selectedProfileAlternatives.splice(usedIndex, 1)
-  }
-
-  const profiles = listProfiles()
-    .map((profile) => profile.id)
-    .filter((profile) => profile !== request.profile)
-  const comparisons = await Promise.allSettled(
-    profiles.map((profile, index) => requestTimeboxedRoutes(
-      variedComparisonRequest(submissionRequest, profile, index),
-      provider,
-      enricher
-    ))
-  )
-
-  comparisons.forEach((result, index) => {
-    const profile = profiles[index]
-    if (result.status === "rejected") {
-      warnings.push(`${profile} comparison unavailable.`)
-      return
-    }
-    if (result.value.warning) warnings.push(result.value.warning)
-    const distinct = chooseDistinctCandidate(result.value.result.routes, routes)
-    if (!distinct) {
-      warnings.push(`${profile} comparison returned no route.`)
-      return
-    }
-    if (distinct.worstOverlap > MAX_COMPARISON_OVERLAP) {
-      warnings.push(`Dropped duplicate ${profile} route.`)
-      return
-    }
-    routes.push(
-      ensureLockSatisfaction(
-        { ...distinct.route, overlapPercent: distinct.overlapPercent },
-        partitioned.survivingLocks
-      )
-    )
-  })
-
   return {
     ...tripPlanMetadata(request),
     selectedRouteId: selected.id,
     routes,
-    warnings
+    warnings,
+    timingMs: { primary: performance.now() - started }
+  }
+}
+
+/**
+ * Alternatives path: at most two meaningfully different routes (≤85%
+ * sampled-geometry overlap against the primary and every accepted
+ * alternative) drawn from the other profiles. Profiles run with concurrency
+ * one under a shared 12-second deadline; enrichment (PASDA, elevation) runs
+ * here as background evidence and never changes the selected primary.
+ */
+async function planAlternativeRoutes(
+  request: TripPlanRequest,
+  provider: RouteProvider,
+  enricher?: RouteCandidateEnricher,
+  options: PlanningOptions = {}
+): Promise<TripPlan> {
+  const started = performance.now()
+  if (!request.primaryRoute) {
+    throw new Error("Alternatives requests require the sampled primary route.")
+  }
+  const primaryId = request.primaryRoute.id
+  if (request.roundTrip || request.loopTargetMinutes || request.segmentProfiles?.length) {
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: primaryId,
+      routes: [],
+      warnings: ["Alternatives are only available for point-to-point destination rides."],
+      timingMs: { alternatives: performance.now() - started }
+    }
+  }
+  const deadline: AbortSignal = options.signal
+    ? AbortSignal.any([options.signal, AbortSignal.timeout(ALTERNATIVES_DEADLINE_MS)])
+    : AbortSignal.timeout(ALTERNATIVES_DEADLINE_MS)
+
+  const partitioned = partitionLocksForRequest(request)
+  const primaryAnchor: PlannedRoute = {
+    id: primaryId,
+    name: "Primary route",
+    profile: request.profile,
+    geometry: request.primaryRoute.geometry,
+    waypoints: [],
+    instructions: [],
+    distanceMiles: 0,
+    durationMinutes: 0,
+    ascentMeters: null,
+    descentMeters: null,
+    twistiness: 0,
+    turnCount: 0,
+    roadMix: {},
+    surfaceMix: {},
+    routingSource: "live",
+    previewOnly: false
+  }
+  const accepted: PlannedRoute[] = []
+  const warnings: string[] = [...partitioned.warnings]
+  const profiles = listProfiles()
+    .map((profile) => profile.id)
+    .filter((profile) => profile !== request.profile)
+
+  for (const profile of profiles) {
+    if (accepted.length >= MAX_ALTERNATIVES || deadline.aborted) break
+    try {
+      const result = await requestTimeboxedRoutes(
+        variedComparisonRequest(request, profile, 0),
+        provider,
+        undefined,
+        { signal: deadline }
+      )
+      if (result.warning) warnings.push(result.warning)
+      const enrichedCandidates = await enrichCandidates(request, result.result.routes, enricher)
+      warnings.push(...enrichedCandidates.warnings)
+      const distinct = chooseDistinctCandidate(
+        enrichedCandidates.routes,
+        [...accepted, primaryAnchor],
+        ALTERNATIVES_MAX_OVERLAP,
+        true
+      )
+      if (!distinct) {
+        warnings.push(`Dropped duplicate ${profile} route.`)
+        continue
+      }
+      accepted.push(
+        ensureLockSatisfaction(
+          { ...distinct.route, overlapPercent: distinct.overlapPercent },
+          partitioned.survivingLocks
+        )
+      )
+    } catch {
+      warnings.push(`${profile} comparison unavailable.`)
+    }
+  }
+
+  return {
+    ...tripPlanMetadata(request),
+    selectedRouteId: primaryId,
+    routes: accepted,
+    warnings,
+    timingMs: { alternatives: performance.now() - started }
   }
 }

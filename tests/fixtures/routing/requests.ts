@@ -1,5 +1,6 @@
 import type { TripPlanRequest } from "@/lib/routing/planner"
-import type { AvoidArea, RoadLock, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, Waypoint } from "@/lib/routing/types"
+import type { RoadLock } from "@/lib/roads/road-locks"
 import { HATBORO, STOCKTON_NJ } from "./golden"
 
 export const HARRISBURG: Waypoint = { lat: 40.2732, lon: -76.8867, label: "Harrisburg" }
@@ -90,6 +91,8 @@ export const roadLockRequest: TripPlanRequest = {
       surface: "asphalt",
       smoothness: "good",
       tracktype: "grade1",
+      maxweightTonnes: null,
+      seasonalUndated: false,
       routable: true,
       activeConditions: []
     }

@@ -2,9 +2,11 @@ import type { RouteCandidateEnricher, RouteProvider, TripPlanRequest } from "@/l
 import { planMotorcycleTrip } from "@/lib/routing/planner"
 import { GraphHopperProviderError } from "@/lib/routing/graphhopper"
 import { ValhallaProviderError } from "@/lib/routing/valhalla"
+import type { RouteRequest } from "@/lib/routing/types"
+import { routeCacheKey, type RouteCache } from "@/lib/server/route-cache"
 import {
   number, string, boolean, enum_, literal, object_, tuple, array,
-  optional, withDefault, safeParse, ValidationError
+  optional, nullable, withDefault, safeParse, ValidationError
 } from "@/lib/validate"
 
 const waypointSchema = object_({
@@ -44,7 +46,7 @@ const roadAccessSnapshotSchema = object_({
   surface: string({ max: 40 }),
   smoothness: string({ max: 40 }),
   tracktype: string({ max: 40 }),
-  maxweightTonnes: optional(number({ min: 0, max: 1000 })),
+  maxweightTonnes: nullable(number({ min: 0, max: 1000 })),
   seasonalUndated: withDefault(optional(boolean()), false),
   activeConditions: withDefault(optional(array(roadAccessConditionSchema, { max: 32 })), []),
   routable: withDefault(optional(boolean()), true)
@@ -150,6 +152,11 @@ function validateRouteRequest(value: {
 
 const MAX_ROUTE_REQUEST_BYTES = 16 * 1024
 
+/** Server-side planning context: optional short-lived primary cache. */
+export interface RoutePlanningContext {
+  cache?: RouteCache
+}
+
 async function readRoutePayload(
   request: Request
 ): Promise<{ payload: unknown } | { invalid: true } | { tooLarge: true }> {
@@ -185,7 +192,8 @@ async function readRoutePayload(
 export async function handleRouteRequest(
   request: Request,
   provider: RouteProvider,
-  enricher?: RouteCandidateEnricher
+  enricher?: RouteCandidateEnricher,
+  context: RoutePlanningContext = {}
 ): Promise<Response> {
   const body = await readRoutePayload(request)
   if ("tooLarge" in body) {
@@ -228,7 +236,27 @@ export async function handleRouteRequest(
   }
 
   try {
-    const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher)
+    // Thread the incoming request's abort signal through planning so a
+    // client cancellation stops provider work, not just repainting.
+    const options = { signal: request.signal }
+    const cache = context.cache ?? null
+    const cacheKey = cache && parsed.data.candidateSet !== "alternatives"
+      ? routeCacheKey(parsed.data as RouteRequest)
+      : null
+    if (cacheKey && cache) {
+      const cached = cache.get(cacheKey)
+      if (cached) {
+        return Response.json({
+          ...cached,
+          ...echoedMetadata(parsed.data),
+          timingMs: { cache: "hit" }
+        })
+      }
+    }
+    const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher, options)
+    if (cacheKey && cache) {
+      cache.set(cacheKey, trip)
+    }
     return Response.json(trip)
   } catch (error) {
     if (error instanceof GraphHopperProviderError || error instanceof ValhallaProviderError) {
@@ -241,6 +269,19 @@ export async function handleRouteRequest(
 
 function normalizeStatus(status: number): number {
   return status >= 400 && status <= 599 ? status : 500
+}
+
+/** Re-stamp the progressive-API echo fields on a cache hit for a new caller. */
+function echoedMetadata(request: {
+  planningId?: string
+  candidateSet?: "primary" | "alternatives"
+  targetMinutes?: number
+}): Record<string, unknown> {
+  return {
+    ...(request.planningId ? { planningId: request.planningId } : {}),
+    ...(request.candidateSet ? { candidateSet: request.candidateSet } : {}),
+    ...(request.targetMinutes != null ? { targetMinutes: request.targetMinutes } : {})
+  }
 }
 
 function errorResponse(

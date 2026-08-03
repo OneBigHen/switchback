@@ -22,6 +22,7 @@ function planner() {
   return {
     beginRouting: vi.fn(),
     applyPlan: vi.fn(),
+    mergeAlternatives: vi.fn(),
     failRouting: vi.fn()
   }
 }
@@ -159,5 +160,133 @@ describe("trip planning coordinator", () => {
     raise(new Error("socket reset"))
     await expect(stale).resolves.toBeNull()
     expect(state.failRouting).not.toHaveBeenCalled()
+  })
+})
+
+describe("progressive alternatives and cancellation", () => {
+  const primaryWithRoute: TripPlan = {
+    selectedRouteId: "route-primary",
+    routes: [{
+      id: "route-primary",
+      name: "Primary",
+      profile: "scenic",
+      geometry: [[-76.9, 40.2], [-76.8, 40.2], [-76.7, 40.3]],
+      waypoints: [],
+      instructions: [],
+      distanceMiles: 20,
+      durationMinutes: 35,
+      ascentMeters: null,
+      descentMeters: null,
+      twistiness: 50,
+      turnCount: 12,
+      roadMix: {},
+      surfaceMix: {},
+      routingSource: "live",
+      previewOnly: false
+    }],
+    warnings: [],
+    planningId: "plan-lifecycle-0001"
+  }
+  const alternatives: TripPlan = {
+    selectedRouteId: "route-primary",
+    planningId: "plan-lifecycle-0001",
+    candidateSet: "alternatives",
+    routes: [{
+      id: "route-quick",
+      name: "Quick alternative",
+      profile: "quick",
+      geometry: [[-76.9, 40.21], [-76.8, 40.21], [-76.7, 40.31]],
+      waypoints: [],
+      instructions: [],
+      distanceMiles: 19,
+      durationMinutes: 30,
+      ascentMeters: null,
+      descentMeters: null,
+      twistiness: 40,
+      turnCount: 9,
+      roadMix: {},
+      surfaceMix: {},
+      routingSource: "live",
+      previewOnly: false
+    }],
+    warnings: []
+  }
+
+  it("applies the primary first, then merges progressive alternatives with the same planning id", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(primaryWithRoute)
+      .mockResolvedValueOnce(alternatives)
+
+    await runLatestTripPlan({
+      request,
+      gate,
+      getPlanner: () => state,
+      requestPlan,
+      onWarning: vi.fn()
+    })
+
+    expect(state.applyPlan).toHaveBeenCalledWith(primaryWithRoute)
+    const alternativeRequest = requestPlan.mock.calls[1][0]
+    expect(alternativeRequest).toMatchObject({
+      candidateSet: "alternatives",
+      planningId: "plan-lifecycle-0001",
+      primaryRoute: { id: "route-primary" }
+    })
+    expect(alternativeRequest.primaryRoute.geometry.length).toBeLessThanOrEqual(128)
+    await vi.waitFor(() => {
+      expect(state.mergeAlternatives).toHaveBeenCalledWith(alternatives)
+    })
+  })
+
+  it("aborts the previous lifecycle's provider work when a newer run starts", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    let firstSignal!: AbortSignal
+    const requestPlan = vi.fn()
+      .mockImplementationOnce((_request, signal?: AbortSignal) => new Promise<TripPlan>((_, reject) => {
+        firstSignal = signal!
+        signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true })
+      }))
+      .mockResolvedValueOnce(primaryWithRoute)
+
+    const first = runLatestTripPlan({ request, gate, getPlanner: () => state, requestPlan, onWarning: vi.fn() })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await runLatestTripPlan({ request, gate, getPlanner: () => state, requestPlan, onWarning: vi.fn() })
+
+    expect(firstSignal.aborted).toBe(true)
+    await expect(first).resolves.toBeNull()
+    expect(state.failRouting).not.toHaveBeenCalled()
+  })
+
+  it("never merges alternatives after a newer request supersedes the lifecycle", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    let resolveAlternatives!: (value: TripPlan) => void
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(primaryWithRoute)
+      .mockImplementationOnce(() => new Promise<TripPlan>((resolve) => { resolveAlternatives = resolve }))
+
+    await runLatestTripPlan({ request, gate, getPlanner: () => state, requestPlan, onWarning: vi.fn() })
+    gate.invalidate()
+    resolveAlternatives(alternatives)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.mergeAlternatives).not.toHaveBeenCalled()
+  })
+
+  it("ignores alternatives failures without failing the primary", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(primaryWithRoute)
+      .mockRejectedValueOnce(new RoutingClientError("alternatives unavailable", "ROUTER_UNREACHABLE", 503))
+
+    const result = await runLatestTripPlan({ request, gate, getPlanner: () => state, requestPlan, onWarning: vi.fn() })
+
+    expect(result).toBe(primaryWithRoute)
+    expect(state.failRouting).not.toHaveBeenCalled()
+    expect(state.mergeAlternatives).not.toHaveBeenCalled()
   })
 })

@@ -9,18 +9,19 @@ updated: "2026-07-22"
 
 > Tracking [Switchback Routing Intelligence Rework](plan.md)
 
-## Active Phase: 1 - Contracts, Baseline, and Golden Fixtures
+## Active Phase: 3 - GraphHopper Toll and Fast-Path Correctness
 
 ### Phase Context
 
-- **Scope**: [Phase 1](phases/phase-1.md)
-- **Implementation**: [Phase 1 Plan](implementation/phase-1-impl.md)
+- **Scope**: [Phase 3](phases/phase-3.md)
+- **Implementation**: [Phase 3 Plan](implementation/phase-3-impl.md)
 - **Latest Handover**: None yet; create under `handovers/` when pausing.
 - **Relevant Docs**: `README.md`, `docs/CLOSURE-REALITY-2026-07-21.md`, `docs/LEAD-DECISIONS.md`
 
 ### Pending
 
-- [ ] Spawn isolated Phase 2, 3, and 5 workers from the Phase 1 commit. <!-- added: 2026-07-22 -->
+- [ ] GraphHopper toll and fast-path encoded values, profiles, and re-import with rollback cache. <!-- added: 2026-07-22 -->
+- [ ] You.com corridor adviser package (Phase 5) from the Phase 1/2 integration commit. <!-- added: 2026-07-22 -->
 
 ### In Progress
 
@@ -35,6 +36,11 @@ updated: "2026-07-22"
 - [x] Add locked shared intent, request, response, evidence, and progress contracts. <!-- completed: 2026-08-03 -->
 - [x] Add Hatboro→Stockton and PA/NJ golden fixtures without asserting unimplemented behavior. <!-- completed: 2026-08-03 -->
 - [x] Verify Phase 1 and commit the integration baseline. <!-- completed: 2026-08-03 -->
+- [x] Phase 2: primary route returns before comparison/enrichment work. <!-- completed: 2026-08-03 -->
+- [x] Phase 2: alternatives return separately (max two, concurrency one, 12s deadline). <!-- completed: 2026-08-03 -->
+- [x] Phase 2: cancellation wired end to end (client → handler → planner → providers). <!-- completed: 2026-08-03 -->
+- [x] Phase 2: bounded route-job limiter and 10-minute primary cache covered by tests. <!-- completed: 2026-08-03 -->
+- [x] Phase 2: focused + full verification and commit on the integration branch. <!-- completed: 2026-08-03 -->
 
 ### Blocked
 

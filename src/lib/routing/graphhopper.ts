@@ -17,6 +17,8 @@ import { findRegionsContaining } from "@/lib/offline/region-catalog"
 export interface GraphHopperOptions {
   baseUrl: string
   fetcher?: typeof fetch
+  /** Lifecycle cancellation signal, combined with the request timeout. */
+  signal?: AbortSignal
 }
 
 export interface GraphHopperResult {
@@ -33,6 +35,12 @@ export class GraphHopperProviderError extends Error {
   ) {
     super(message)
   }
+}
+
+/** AbortError travels across runtimes/realms, so check the name, not the class. */
+function isAbortError(caught: unknown): boolean {
+  return caught !== null && typeof caught === "object"
+    && (caught as { name?: unknown }).name === "AbortError"
 }
 
 const ROUND_TRIP_SPEED_MPH: Record<RouteProfileId, number> = {
@@ -537,9 +545,18 @@ export async function requestGraphHopperRoutes(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(createGraphHopperRequest(request)),
-      signal: AbortSignal.timeout(30_000)
+      signal: options.signal
+        ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000)
     })
-  } catch {
+  } catch (caught) {
+    if (isAbortError(caught)) {
+      throw new GraphHopperProviderError(
+        "Route planning was cancelled.",
+        "ROUTE_CANCELLED",
+        499
+      )
+    }
     throw new GraphHopperProviderError(
       "Cannot reach the routing engine. Check that GraphHopper is running and try again.",
       "PROVIDER_UNAVAILABLE",

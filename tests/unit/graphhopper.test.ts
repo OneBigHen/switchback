@@ -276,3 +276,26 @@ describe("GraphHopper provider", () => {
     await expect(result).rejects.not.toThrow(internalUrl)
   })
 })
+
+describe("GraphHopper cancellation", () => {
+  it("combines the lifecycle signal with the timeout so an abort surfaces ROUTE_CANCELLED", async () => {
+    const controller = new AbortController()
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      await new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true })
+      })
+      return new Response()
+    })
+
+    const pending = requestGraphHopperRoutes(
+      { profile: "twisty", points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }] },
+      { baseUrl: "http://graphhopper.test", fetcher, signal: controller.signal }
+    )
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({
+      code: "ROUTE_CANCELLED",
+      status: 499
+    })
+  })
+})

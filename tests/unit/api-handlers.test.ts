@@ -128,9 +128,11 @@ describe("route HTTP contract", () => {
       })
     }), provider, enricher)
 
-    expect(enricher).toHaveBeenCalledOnce()
+    // Phase 2: PASDA evidence never delays the primary route.
+    expect(enricher).not.toHaveBeenCalled()
     expect(await response.json()).toMatchObject({
-      routes: [{ officialUnpavedEvidence: { sharePercent: 1.4 } }]
+      selectedRouteId: "twisty-live",
+      routes: [{ id: "twisty-live" }]
     })
   })
 
@@ -160,7 +162,7 @@ describe("route HTTP contract", () => {
     expect(provider).toHaveBeenCalledWith(expect.objectContaining({
       profile: "quick",
       avoidHighways: true
-    }))
+    }), expect.anything())
   })
 
   it("accepts bounded per-leg styles and rider-drawn avoid zones", async () => {
@@ -263,7 +265,7 @@ describe("route HTTP contract", () => {
     expect(provider).toHaveBeenCalledWith(expect.objectContaining({
       profile: "adventure",
       roundTrip: { targetMinutes: 120, seed: 23, heading: 90 }
-    }))
+    }), expect.anything())
   })
 
   it("accepts loop timebox metadata for explicitly shaped start-to-start routes", async () => {
@@ -287,7 +289,7 @@ describe("route HTTP contract", () => {
     }), provider)
 
     expect(response.status).toBe(200)
-    expect(provider).toHaveBeenCalledWith(expect.objectContaining({ loopTargetMinutes: 120 }))
+    expect(provider).toHaveBeenCalledWith(expect.objectContaining({ loopTargetMinutes: 120 }), expect.anything())
   })
 
   it("forwards and echoes progressive planning metadata with compatibility defaults", async () => {
@@ -318,7 +320,7 @@ describe("route HTTP contract", () => {
       candidateSet: "primary",
       targetMinutes: 120,
       tollPolicy: "avoid"
-    }))
+    }), expect.anything())
     expect(await response.json()).toMatchObject({
       planningId: "plan-golden-0001",
       candidateSet: "primary",
@@ -345,7 +347,7 @@ describe("route HTTP contract", () => {
     expect(provider).toHaveBeenCalledWith(expect.objectContaining({
       candidateSet: "primary",
       tollPolicy: "allow-with-warning"
-    }))
+    }), expect.anything())
   })
 
   it("rejects an alternatives request without the sampled primary route", async () => {

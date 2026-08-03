@@ -239,8 +239,8 @@ describe("free-form planner place resolution", () => {
     render(<PlannerShell />)
     await user.click(screen.getByRole("button", { name: "Plan prompt" }))
 
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledOnce())
-    expect(requestTripPlan).toHaveBeenCalledWith(expect.objectContaining({ avoidHighways: true }))
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
+    expect(requestTripPlan).toHaveBeenCalledWith(expect.objectContaining({ avoidHighways: true }), expect.anything(), expect.anything())
     expect(searchPlacesClient).toHaveBeenNthCalledWith(
       1,
       "Carlisle",
@@ -325,13 +325,13 @@ describe("free-form planner place resolution", () => {
     render(<PlannerShell />)
     await user.click(screen.getByRole("button", { name: "Plan prompt" }))
 
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledOnce())
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
     expect(requestTripPlan).toHaveBeenCalledWith(expect.objectContaining({
       points: [
         { lat: 40.273246, lon: -76.886735, label: "Current location" },
         expect.objectContaining({ label: destination.label })
       ]
-    }))
+    }), expect.anything(), expect.anything())
   })
 
   it("rejects distant and non-POI stop results and keeps the unshaped ride", async () => {
@@ -341,7 +341,7 @@ describe("free-form planner place resolution", () => {
     await user.click(screen.getByRole("button", { name: "Plan prompt" }))
 
     expect(await screen.findByText(/no reliable brewery stops were found/i)).toBeInTheDocument()
-    expect(requestTripPlan).toHaveBeenCalledOnce()
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
     expect(usePlannerStore.getState().via).toEqual([])
   })
 
@@ -364,7 +364,7 @@ describe("free-form planner place resolution", () => {
     render(<PlannerShell />)
     await user.click(screen.getByRole("button", { name: "Plan prompt" }))
 
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledOnce())
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
     expect(usePlannerStore.getState().via).toEqual([])
     expect(discoverPlaceIdeas).toHaveBeenCalledWith(
       "brewery",
@@ -376,7 +376,8 @@ describe("free-form planner place resolution", () => {
     )
 
     await user.click(screen.getByRole("button", { name: "Choose stop idea" }))
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
+    // Initial prompt run plus the stop-idea rerun, each primary + alternatives.
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(4))
     expect(usePlannerStore.getState().via).toEqual(expect.arrayContaining([
       expect.objectContaining({ label: brewery.label })
     ]))
@@ -429,7 +430,7 @@ describe("free-form planner place resolution", () => {
     render(<PlannerShell />)
     await user.click(screen.getByRole("button", { name: "Complete rough sketch" }))
 
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledOnce())
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
     expect(usePlannerStore.getState().via).toEqual([
       { lat: 40.18, lon: -76.98, label: "Sketch stop 1" },
       { lat: 40.04, lon: -77.1, label: "Sketch stop 2" }
@@ -441,7 +442,7 @@ describe("free-form planner place resolution", () => {
         { lat: 40.04, lon: -77.1, label: "Sketch stop 2" },
         plannerTestFinish
       ]
-    }))
+    }), expect.anything(), expect.anything())
   })
 
   it("clears the planner sheet while the rider sketches on a phone-sized map", async () => {
@@ -469,19 +470,19 @@ describe("free-form planner place resolution", () => {
 
     render(<PlannerShell />)
     await user.click(screen.getByRole("button", { name: "Move second stop" }))
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
     expect(requestTripPlan).toHaveBeenLastCalledWith(expect.objectContaining({
       points: [plannerTestStart, second, first, plannerTestFinish]
-    }))
+    }), expect.anything(), expect.anything())
 
     await user.click(screen.getByRole("button", { name: "Undo edit" }))
     await user.click(screen.getByRole("button", { name: "Redo edit" }))
     await user.click(screen.getByRole("button", { name: "Reverse route" }))
 
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(4))
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(8))
     expect(requestTripPlan).toHaveBeenLastCalledWith(expect.objectContaining({
       points: [plannerTestFinish, first, second, plannerTestStart]
-    }))
+    }), expect.anything(), expect.anything())
   })
 
   it("keeps a must-use lock when a shaping stop is dragged", async () => {
@@ -541,14 +542,14 @@ describe("free-form planner place resolution", () => {
     render(<PlannerShell />)
     await user.click(screen.getByRole("button", { name: "Start test ride" }))
 
-    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledOnce())
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalledTimes(2))
     expect(requestTripPlan).toHaveBeenCalledWith(expect.objectContaining({
       compare: false,
       points: expect.arrayContaining([
         expect.objectContaining({ label: "Imported start" }),
         expect.objectContaining({ label: "Imported finish" })
       ])
-    }))
+    }), expect.anything(), expect.anything())
     await waitFor(() => expect(usePlannerStore.getState()).toMatchObject({
       surface: "ride",
       selectedRouteId: matched.id

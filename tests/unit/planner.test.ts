@@ -75,7 +75,7 @@ describe("trip planner", () => {
     ])
   })
 
-  it("requests a selected route plus useful comparison profiles", async () => {
+  it("returns only the selected primary route without comparison or enrichment work", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
@@ -94,18 +94,16 @@ describe("trip planner", () => {
       provider
     )
 
-    expect(provider.mock.calls.map(([request]) => request.profile)).toEqual([
-      "scenic",
-      "quick",
-      "twisty",
-      "adventure"
-    ])
+    // Phase 2: the primary call is one profile, one route. Comparison
+    // profiles belong to the separate alternatives call.
+    expect(provider).toHaveBeenCalledTimes(1)
+    expect(provider.mock.calls[0][0].profile).toBe("scenic")
+    expect(plan.routes).toHaveLength(1)
     expect(plan.routes[0].profile).toBe("scenic")
     expect(plan.selectedRouteId).toBe("scenic-route")
-    expect(plan.routes[1].overlapPercent).toBeLessThan(100)
   })
 
-  it("chooses the least-overlapping provider alternative for each route personality", async () => {
+  it("builds alternatives separately: sequential profiles, at most two meaningfully different routes", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
@@ -117,46 +115,55 @@ describe("trip planner", () => {
     const plan = await planMotorcycleTrip({
       profile: "scenic",
       compare: true,
+      candidateSet: "alternatives",
+      primaryRoute: { id: "scenic-primary", geometry: route("scenic").geometry },
       points: [
         { lat: 40.2, lon: -76.9 },
         { lat: 40.2, lon: -76.7 }
       ]
     }, provider)
 
+    expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual([
+      "quick",
+      "twisty"
+    ])
+    expect(plan.selectedRouteId).toBe("scenic-primary")
+    expect(plan.routes).toHaveLength(2)
     expect(plan.routes.find((candidate) => candidate.profile === "quick")?.id).toBe("quick-distinct")
-    expect(plan.routes).toHaveLength(4)
+    expect(plan.routes[0].overlapPercent).toBeLessThan(100)
   })
 
-  it("preserves distinct same-profile alternatives instead of collapsing provider variety", async () => {
+  it("caps progressive alternatives at two and skips the remaining profiles", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
-      routes: request.profile === "scenic"
-        ? [
-            route("scenic", 0, "scenic-primary"),
-            route("scenic", 0.04, "scenic-river"),
-            route("scenic", -0.04, "scenic-ridge")
-          ]
-        : [route(request.profile, 0)]
+      routes: [route(
+        request.profile,
+        request.profile === "quick" ? 0.02 : request.profile === "twisty" ? -0.02 : 0.04,
+        `${request.profile}-distinct`
+      )]
     }))
 
     const plan = await planMotorcycleTrip({
       profile: "scenic",
       compare: true,
+      candidateSet: "alternatives",
+      primaryRoute: { id: "scenic-primary", geometry: route("scenic").geometry },
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
     }, provider)
 
-    expect(plan.routes.filter((candidate) => candidate.profile === "scenic").map((candidate) => candidate.id))
-      .toEqual(["scenic-primary", "scenic-river", "scenic-ridge"])
+    // quick and twisty are accepted; adventure is not attempted once the cap is full.
+    expect(plan.routes).toHaveLength(2)
+    expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual(["quick", "twisty"])
   })
 
-  it("prefers official-road evidence among already-distinct Adventure comparisons", async () => {
+  it("prefers official-road evidence among already-distinct Adventure alternatives", async () => {
     const official = {
-      ...route("adventure", 0.03, "adventure-official"),
+      ...route("adventure", 0.11, "adventure-official"),
       geometry: [
-        [-76.9, 40.2],
-        [-76.8, 40.2],
-        [-76.7, 40.23]
+        [-76.9, 40.1],
+        [-76.8, 40.1],
+        [-76.7, 40.13]
       ] as [number, number][],
       officialUnpavedEvidence: {
         source: "Pennsylvania Department of Environmental Protection" as const,
@@ -171,17 +178,25 @@ describe("trip planner", () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
-      routes: request.profile === "adventure"
-        ? [official, route("adventure", 0.05, "adventure-farthest")]
-        : [route(request.profile, request.profile === "quick" ? 0.01 : request.profile === "twisty" ? -0.02 : 0)]
+      routes: request.profile === "quick"
+        ? [{ ...route("quick"), geometry: route("scenic").geometry }]
+        : request.profile === "adventure"
+          ? [official, route("adventure", 0.13, "adventure-farthest")]
+          : [route(request.profile, request.profile === "twisty" ? 0.02 : 0)]
     }))
 
     const plan = await planMotorcycleTrip({
       profile: "scenic",
       compare: true,
+      candidateSet: "alternatives",
+      primaryRoute: { id: "scenic-primary", geometry: route("scenic").geometry },
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
     }, provider)
 
+    // quick duplicates the primary and is dropped; twisty and adventure fill
+    // the two alternative slots, and adventure's official-evidence candidate
+    // beats the farthest lookalike.
+    expect(plan.routes.map((candidate) => candidate.profile)).toEqual(["twisty", "adventure"])
     expect(plan.routes.find((candidate) => candidate.profile === "adventure")?.id)
       .toBe("adventure-official")
   })
@@ -208,7 +223,7 @@ describe("trip planner", () => {
     expect(plan.selectedRouteId).toBe("gravel-adventure")
   })
 
-  it("lets positive official PA unpaved-road evidence change the Adventure winner", async () => {
+  it("does not let optional PA unpaved-road evidence delay the primary Adventure winner", async () => {
     const mappedGravel = {
       ...route("adventure", 0.02, "osm-gravel"),
       surfaceMix: { gravel: 2, asphalt: 98 }
@@ -244,11 +259,12 @@ describe("trip planner", () => {
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.7 }]
     }, provider, enricher)
 
-    expect(enricher).toHaveBeenCalledOnce()
-    expect(plan.selectedRouteId).toBe("pasda-gravel")
+    // Primary never waits for PASDA; selection uses surface evidence alone.
+    expect(enricher).not.toHaveBeenCalled()
+    expect(plan.selectedRouteId).toBe("osm-gravel")
   })
 
-  it("samples several time-matched Adventure loops before applying official-road evidence once", async () => {
+  it("samples several time-matched Adventure loops on the primary without enrichment", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => {
       const seed = request.roundTrip?.seed ?? 0
       return {
@@ -261,18 +277,7 @@ describe("trip planner", () => {
       }
     })
     const enricher = vi.fn(async (_request: RouteRequest, routes: PlannedRoute[]) => ({
-      routes: routes.map((candidate, index) => index === routes.length - 1 ? {
-        ...candidate,
-        officialUnpavedEvidence: {
-          source: "Pennsylvania Department of Environmental Protection" as const,
-          dataset: "Unpaved Roads 2009_07" as const,
-          matchedMeters: 1_200,
-          sharePercent: 3,
-          matchedFeatureCount: 2,
-          matchRadiusMeters: 40,
-          minimumContiguousMeters: 80
-        }
-      } : candidate),
+      routes,
       warnings: []
     }))
 
@@ -284,9 +289,8 @@ describe("trip planner", () => {
     }, provider, enricher)
 
     expect(provider).toHaveBeenCalledTimes(4)
-    expect(enricher).toHaveBeenCalledOnce()
-    expect(enricher.mock.calls[0][1]).toHaveLength(4)
-    expect(plan.selectedRouteId).toBe("adventure-320")
+    expect(enricher).not.toHaveBeenCalled()
+    expect(plan.selectedRouteId).toBe("adventure-17")
   })
 
   it("never lets gravel scoring displace an Adventure loop that is inside the requested timebox", async () => {
@@ -336,7 +340,7 @@ describe("trip planner", () => {
     expect(plan.warnings).toEqual([])
   })
 
-  it("varies round-trip seeds across route personalities", async () => {
+  it("samples native loop seeds on the primary profile without cross-profile variation", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => {
       const candidate = route(request.profile, (request.roundTrip?.seed ?? 0) / 10_000)
       return {
@@ -353,13 +357,15 @@ describe("trip planner", () => {
       roundTrip: { targetMinutes: 120, seed: 17, heading: 45 }
     }, provider)
 
-    expect(provider.mock.calls.map(([request]) => request.roundTrip?.seed)).toEqual([17, 118, 219, 320])
-    expect(new Set(provider.mock.calls.map(([request]) => request.roundTrip?.heading)).size).toBe(4)
+    // In-tolerance native loops return from the first seed without
+    // cross-profile variation or comparison work.
+    expect(provider.mock.calls.map(([callRequest]) => callRequest.roundTrip?.seed)).toEqual([17])
+    expect(provider.mock.calls.every(([callRequest]) => callRequest.profile === "twisty")).toBe(true)
   })
 
-  it("retries a failed native loop seed before dropping a comparison option", async () => {
+  it("retries a failed native loop seed without dropping the primary route", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => {
-      if (request.profile === "quick" && request.roundTrip?.seed === 118) {
+      if (request.roundTrip?.seed === 118) {
         throw new Error("round-trip seed could not snap")
       }
       const offset = request.profile === "quick" ? 0.03 : request.profile === "scenic" ? -0.03 : request.profile === "adventure" ? 0.06 : 0
@@ -380,9 +386,10 @@ describe("trip planner", () => {
       roundTrip: { targetMinutes: 120, seed: 17, heading: 45 }
     }, provider)
 
-    expect(provider.mock.calls.filter(([request]) => request.profile === "quick")
-      .map(([request]) => request.roundTrip?.seed)).toEqual([118, 341])
-    expect(plan.routes.map((candidate) => candidate.profile)).toContain("quick")
+    // The failed seed 118 attempt settles as rejected; surviving seeds keep
+    // the primary route usable.
+    expect(plan.routes.length).toBeGreaterThanOrEqual(1)
+    expect(plan.routes[0].profile).toBe("twisty")
   })
 
   it("retries an overlong round trip and keeps the candidate closest to the timebox", async () => {
@@ -488,17 +495,25 @@ describe("trip planner", () => {
     expect(plan.warnings.join(" ")).toMatch(/185 minutes.*120-minute target/i)
   })
 
-  it("drops a comparison route whose geometry duplicates the selected route", async () => {
+  it("drops an alternative whose geometry duplicates the primary route", async () => {
+    const primaryGeometry = route("twisty").geometry
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
-      routes: [route(request.profile, request.profile === "quick" ? 0.03 : 0)]
+      routes: [{
+        ...route(request.profile, request.profile === "quick" ? 0 : 0.02, `${request.profile}-candidate`),
+        geometry: request.profile === "quick"
+          ? primaryGeometry
+          : route(request.profile, request.profile === "scenic" ? 0.02 : -0.02).geometry
+      }]
     }))
 
     const plan = await planMotorcycleTrip(
       {
         profile: "twisty",
         compare: true,
+        candidateSet: "alternatives",
+        primaryRoute: { id: "twisty-primary", geometry: primaryGeometry },
         points: [
           { lat: 40.2, lon: -76.9 },
           { lat: 40.2, lon: -76.7 }
@@ -507,35 +522,38 @@ describe("trip planner", () => {
       provider
     )
 
-    expect(plan.routes.map((candidate) => candidate.profile)).toEqual(["twisty", "quick"])
-    expect(plan.warnings.join(" ")).toMatch(/duplicate scenic/i)
+    expect(plan.routes.map((candidate) => candidate.profile)).not.toContain("quick")
+    expect(plan.warnings.join(" ")).toMatch(/duplicate quick/i)
   })
 
-  it("drops a comparison that duplicates an already-added comparison", async () => {
+  it("drops an alternative that duplicates an already-accepted alternative", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
-      routes: [route(
-        request.profile,
-        request.profile === "quick" || request.profile === "scenic"
-          ? 0.03
-          : request.profile === "adventure"
-            ? -0.03
-            : 0
-      )]
+      routes: [{
+        ...route(request.profile, request.profile === "quick" || request.profile === "scenic" ? 0.02 : -0.02),
+        geometry: request.profile === "quick" || request.profile === "scenic"
+          ? route(request.profile, 0.02).geometry
+          : route(request.profile, -0.02).geometry
+      }]
     }))
 
     const plan = await planMotorcycleTrip({
       profile: "twisty",
       compare: true,
+      candidateSet: "alternatives",
+      primaryRoute: { id: "twisty-primary", geometry: route("twisty").geometry },
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
     }, provider)
 
+    // quick is accepted first; scenic duplicates it and is dropped; adventure is accepted second.
     expect(plan.routes.map((candidate) => candidate.profile)).not.toContain("scenic")
+    expect(plan.routes.map((candidate) => candidate.profile)).toContain("quick")
+    expect(plan.routes.map((candidate) => candidate.profile)).toContain("adventure")
     expect(plan.warnings.join(" ")).toMatch(/duplicate scenic/i)
   })
 
-  it("drops a comparison that overlaps more than ninety percent even when it is not identical", async () => {
+  it("drops an alternative that overlaps the primary more than eighty-five percent", async () => {
     const selectedGeometry: PlannedRoute["geometry"] = [
       [-76.9, 40.2],
       [-76.7, 40.2]
@@ -553,17 +571,17 @@ describe("trip planner", () => {
           request.profile,
           request.profile === "scenic" ? 0.03 : request.profile === "adventure" ? -0.03 : 0
         ),
-        geometry: request.profile === "twisty"
-          ? selectedGeometry
-          : request.profile === "quick"
-            ? nearDuplicateGeometry
-            : route(request.profile, request.profile === "scenic" ? 0.03 : -0.03).geometry
+        geometry: request.profile === "quick"
+          ? nearDuplicateGeometry
+          : route(request.profile, request.profile === "scenic" ? 0.03 : -0.03).geometry
       }]
     }))
 
     const plan = await planMotorcycleTrip({
       profile: "twisty",
       compare: true,
+      candidateSet: "alternatives",
+      primaryRoute: { id: "twisty-primary", geometry: selectedGeometry },
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
     }, provider)
 
@@ -571,7 +589,7 @@ describe("trip planner", () => {
     expect(plan.warnings.join(" ")).toMatch(/duplicate quick/i)
   })
 
-  it("keeps the selected route usable when an optional comparison provider fails", async () => {
+  it("keeps the primary route usable when an alternative profile fails", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => {
       if (request.profile === "twisty") throw new Error("profile unavailable")
       return {
@@ -585,6 +603,8 @@ describe("trip planner", () => {
       {
         profile: "scenic",
         compare: true,
+        candidateSet: "alternatives",
+        primaryRoute: { id: "scenic-primary", geometry: route("scenic").geometry },
         points: [
           { lat: 40.2, lon: -76.9 },
           { lat: 40.2, lon: -76.7 }
@@ -593,7 +613,7 @@ describe("trip planner", () => {
       provider
     )
 
-    expect(plan.routes[0].profile).toBe("scenic")
+    expect(plan.routes.length).toBeGreaterThanOrEqual(1)
     expect(plan.warnings.join(" ")).toMatch(/twisty.*unavailable/i)
   })
 

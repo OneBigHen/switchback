@@ -19,7 +19,7 @@ import {
   type RiderLayerId,
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
-import { runLatestTripPlan } from "@/lib/client/trip-planning-coordinator"
+import { cancelRoutingRequest, runLatestTripPlan } from "@/lib/client/trip-planning-coordinator"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
@@ -135,7 +135,19 @@ export function PlannerShell() {
   const [rideOriginalRoute, setRideOriginalRoute] = useState<PlannedRoute | null>(null)
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
-  const [routeRequestGate] = useState(createLatestRequestGate)
+  const [routeRequestGate] = useState(() => {
+    const base = createLatestRequestGate()
+    return {
+      ...base,
+      // Every invalidation (point edit, clear, load, ride start) also aborts
+      // the in-flight provider work instead of leaving it running to waste
+      // the host. A fresh run creates its own controller.
+      invalidate: () => {
+        base.invalidate()
+        cancelRoutingRequest()
+      }
+    }
+  })
   const loopSeed = useRef(17)
   const offlinePackLibraryRef = useRef<OfflineRoutePackLibrary | null>(null)
   const riderPreferenceLibraryRef = useRef<RiderPreferenceLibrary | null>(null)

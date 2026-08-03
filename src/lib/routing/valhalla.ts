@@ -5,6 +5,8 @@ import { analyzeGeometry } from "./scoring"
 export interface ValhallaOptions {
   baseUrl: string
   fetcher?: typeof fetch
+  /** Lifecycle cancellation signal, combined with the request timeout. */
+  signal?: AbortSignal
 }
 
 export interface ValhallaResult {
@@ -21,6 +23,12 @@ export class ValhallaProviderError extends Error {
   ) {
     super(message)
   }
+}
+
+/** AbortError travels across runtimes/realms, so check the name, not the class. */
+function isAbortError(caught: unknown): boolean {
+  return caught !== null && typeof caught === "object"
+    && (caught as { name?: unknown }).name === "AbortError"
 }
 
 const PROFILE_COSTING_OPTIONS: Record<RouteProfileId, Record<string, number>> = {
@@ -237,7 +245,8 @@ function sampleGeometryForHeight(geometry: Coordinate[], maxPoints = 200): { lat
 export async function fetchRouteElevations(
   geometry: Coordinate[],
   baseUrl: string,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  signal?: AbortSignal
 ): Promise<{ ascentMeters: number | null; descentMeters: number | null }> {
   const samples = sampleGeometryForHeight(geometry)
   let response: Response
@@ -246,7 +255,9 @@ export async function fetchRouteElevations(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ shape: samples, range: true }),
-      signal: AbortSignal.timeout(15_000)
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+        : AbortSignal.timeout(15_000)
     })
   } catch {
     return { ascentMeters: null, descentMeters: null }
@@ -529,9 +540,18 @@ export async function requestValhallaRoutes(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(30_000)
+      signal: options.signal
+        ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000)
     })
-  } catch {
+  } catch (caught) {
+    if (isAbortError(caught)) {
+      throw new ValhallaProviderError(
+        "Route planning was cancelled.",
+        "ROUTE_CANCELLED",
+        499
+      )
+    }
     throw new ValhallaProviderError(
       "Cannot reach the Valhalla routing engine. Check that the container is running.",
       "PROVIDER_UNAVAILABLE",
@@ -572,7 +592,7 @@ export async function enrichWithElevations<T extends { routes: PlannedRoute[] }>
   const fetcher = options.fetcher ?? fetch
   const enriched = await Promise.all(
     result.routes.map(async (route) => {
-      const elevations = await fetchRouteElevations(route.geometry, options.baseUrl, fetcher)
+      const elevations = await fetchRouteElevations(route.geometry, options.baseUrl, fetcher, options.signal)
       return { ...route, ...elevations }
     })
   )

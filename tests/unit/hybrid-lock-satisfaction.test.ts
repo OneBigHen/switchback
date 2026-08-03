@@ -105,15 +105,17 @@ describe("hybrid route provider — lock satisfaction", () => {
     }
   })
 
-  it("unions satisfaction across GraphHopper and Valhalla candidates", async () => {
+  it("attaches satisfaction to the GraphHopper candidate without calling optional Valhalla", async () => {
+    const valhalla = vi.fn(async () => result("valhalla", [candidate("vh-1", 0.06)]))
     const provider = createHybridRouteProvider({
       graphHopper: vi.fn(async () => result("graphhopper", [candidate("gh-1")])),
-      valhalla: vi.fn(async () => result("valhalla", [candidate("vh-1", 0.06)]))
+      valhalla
     })
     const lock = preferLock()
     const response = await provider({ ...request, roadLocks: [lock] })
 
-    expect(response.routes.map((r) => r.provider)).toEqual(["graphhopper", "valhalla"])
+    expect(response.routes.map((r) => r.provider)).toEqual(["graphhopper"])
+    expect(valhalla).not.toHaveBeenCalled()
     for (const route of response.routes) {
       expect(route.lockSatisfaction).toBeDefined()
       expect(route.lockSatisfaction).toHaveLength(1)
@@ -123,10 +125,11 @@ describe("hybrid route provider — lock satisfaction", () => {
     }
   })
 
-  it("still attaches lock satisfaction when Valhalla fails", async () => {
+  it("still attaches lock satisfaction when GraphHopper succeeds and Valhalla is never needed", async () => {
+    const valhalla = vi.fn(async () => { throw new Error("Valhalla unavailable") })
     const provider = createHybridRouteProvider({
       graphHopper: vi.fn(async () => result("graphhopper", [candidate("gh-only")])),
-      valhalla: vi.fn(async () => { throw new Error("Valhalla unavailable") })
+      valhalla
     })
     const lock = mustLock()
     const response = await provider({ ...request, roadLocks: [lock] })
@@ -134,7 +137,8 @@ describe("hybrid route provider — lock satisfaction", () => {
     expect(response.routes).toHaveLength(1)
     expect(response.routes[0]!.lockSatisfaction).toBeDefined()
     expect(findRouteSatisfaction(response.routes[0]!, lock.id)).toBeDefined()
-    expect(response.warnings?.join(" ")).toMatch(/Valhalla.*unavailable/i)
+    expect(response.warnings).toBeUndefined()
+    expect(valhalla).not.toHaveBeenCalled()
   })
 
   it("omits lock satisfaction when the request carries no locks", async () => {
@@ -178,7 +182,7 @@ describe("hybrid route provider — lock satisfaction", () => {
     }
   })
 
-  it("satisfies a lock whose corridor overlaps the on-graph candidate exactly and skips an off-corridor sibling", async () => {
+  it("satisfies a lock whose corridor overlaps the on-graph candidate exactly", async () => {
     const provider = createHybridRouteProvider({
       graphHopper: vi.fn(async () => result("graphhopper", [candidate("gh")])),
       valhalla: vi.fn(async () => result("valhalla", [candidate("vh", 0.06)]))
@@ -187,11 +191,9 @@ describe("hybrid route provider — lock satisfaction", () => {
     const response = await provider({ ...request, roadLocks: [lock] })
 
     const ghRow = findRouteSatisfaction(response.routes[0]!, lock.id)
-    const vhRow = findRouteSatisfaction(response.routes[1]!, lock.id)
+    expect(response.routes).toHaveLength(1)
     expect(ghRow?.satisfied).toBe(true)
     expect(ghRow?.match.kind === "exact" || ghRow?.match.kind === "approximate").toBe(true)
-    expect(vhRow?.satisfied).toBe(false)
-    expect(vhRow?.match.kind).toBe("unresolved")
   })
 
   it("computes satisfaction on each candidate independently of the others", async () => {

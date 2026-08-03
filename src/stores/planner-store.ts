@@ -192,6 +192,9 @@ interface PlannerState {
   setBikeProfile(profile: BikeProfile): void
   beginRouting(): void
   applyPlan(plan: TripPlan): void
+  /** Merge progressively loaded alternatives into the active plan without
+   *  changing the selected primary route. */
+  mergeAlternatives(plan: TripPlan): void
   failRouting(error: PlannerError): void
   selectRoute(id: string): void
   setCurvatureVisible(visible: boolean): void
@@ -400,6 +403,21 @@ export const usePlannerStore = create<PlannerState>()(
         selectedRouteId: plan.selectedRouteId,
         status: "ready",
         error: null
+      }),
+      mergeAlternatives: (alternatives) => set((state) => {
+        if (!state.plan) return {}
+        const existingIds = new Set(state.plan.routes.map((route) => route.id))
+        const fresh = alternatives.routes.filter((route) => !existingIds.has(route.id))
+        if (fresh.length === 0 && alternatives.warnings.length === 0) return {}
+        return {
+          plan: {
+            ...state.plan,
+            routes: [...state.plan.routes, ...fresh],
+            warnings: Array.from(new Set([...state.plan.warnings, ...alternatives.warnings]))
+          },
+          status: "ready",
+          error: null
+        }
       }),
       failRouting: (error) => set({ status: "error", error }),
       selectRoute: (selectedRouteId) => set({ selectedRouteId }),

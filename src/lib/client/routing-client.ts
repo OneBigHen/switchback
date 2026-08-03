@@ -17,6 +17,12 @@ export class RoutingClientError extends Error {
   }
 }
 
+/** AbortError travels across runtimes/realms, so check the name, not the class. */
+function isAbortError(caught: unknown): boolean {
+  return caught !== null && typeof caught === "object"
+    && (caught as { name?: unknown }).name === "AbortError"
+}
+
 export async function requestTripPlan(
   request: TripPlanRequest,
   fetcher: typeof fetch = fetch,
@@ -33,7 +39,14 @@ export async function requestTripPlan(
       body: JSON.stringify(request),
       signal
     })
-  } catch {
+  } catch (caught) {
+    if (isAbortError(caught)) {
+      throw new RoutingClientError(
+        "Route planning was cancelled.",
+        "ROUTE_CANCELLED",
+        499
+      )
+    }
     throw new RoutingClientError(
       "Switchback could not reach the routing service.",
       "ROUTER_UNREACHABLE",

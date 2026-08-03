@@ -104,34 +104,65 @@ describe("routes API provider wiring", () => {
     expect(response.status).toBe(200)
     expect(requestGraphHopperRoutes).toHaveBeenCalledWith(
       expect.objectContaining({ profile: "twisty" }),
-      { baseUrl: "http://graphhopper.test" }
+      expect.objectContaining({ baseUrl: "http://graphhopper.test" })
     )
     expect(requestValhallaRoutes).not.toHaveBeenCalled()
     expect(enrichWithElevations).not.toHaveBeenCalled()
   })
 
-  it("uses Valhalla as a supplement and enriches the merged provider result exactly once", async () => {
+  it("uses Valhalla only as a GraphHopper failure fallback and never enriches a primary request", async () => {
     process.env.VALHALLA_URL = "http://valhalla.test"
     process.env.VALHALLA_ELEVATION_URL = "http://elevation.test"
+    vi.mocked(requestGraphHopperRoutes).mockRejectedValueOnce(new Error("GraphHopper down"))
+    // Distinct points so the module-level primary cache cannot serve the hit.
+    const fallbackRequest = () => new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        points: [
+          { lat: 40.21, lon: -76.91 },
+          { lat: 40.41, lon: -76.71 }
+        ]
+      })
+    })
 
-    const response = await POST(routeRequest())
+    const response = await POST(fallbackRequest())
 
     expect(response.status).toBe(200)
-    expect(requestGraphHopperRoutes).toHaveBeenCalledOnce()
     expect(requestValhallaRoutes).toHaveBeenCalledWith(
       expect.objectContaining({ profile: "twisty" }),
-      { baseUrl: "http://valhalla.test" }
+      expect.objectContaining({ baseUrl: "http://valhalla.test" })
     )
-    expect(enrichWithElevations).toHaveBeenCalledOnce()
-    expect(enrichWithElevations).toHaveBeenCalledWith(
-      expect.objectContaining({
-        engine: "hybrid",
-        routes: [
-          expect.objectContaining({ id: "gh-primary", provider: "graphhopper" }),
-          expect.objectContaining({ id: "vh-supplemental", provider: "valhalla" })
+    expect(enrichWithElevations).not.toHaveBeenCalled()
+    const body = await response.json()
+    expect(body.routes[0]).toMatchObject({ provider: "valhalla" })
+  })
+
+  it("enriches alternatives requests but never a primary request", async () => {
+    process.env.VALHALLA_URL = "http://valhalla.test"
+    process.env.VALHALLA_ELEVATION_URL = "http://elevation.test"
+    const alternativesRequest = () => new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        candidateSet: "alternatives",
+        planningId: "plan-wiring-alt-0001",
+        primaryRoute: { id: "primary-1", geometry: [[-76.9, 40.2], [-76.71, 40.3]] },
+        points: [
+          { lat: 40.22, lon: -76.92 },
+          { lat: 40.42, lon: -76.72 }
         ]
-      }),
-      { baseUrl: "http://elevation.test" }
-    )
+      })
+    })
+
+    const response = await POST(alternativesRequest())
+
+    expect(response.status).toBe(200)
+    // Alternatives run one provider call per profile; each is enriched.
+    expect(enrichWithElevations).toHaveBeenCalled()
   })
 })
