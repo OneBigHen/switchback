@@ -105,6 +105,7 @@ export function SpotifyPlayerDock() {
   const rideMode = usePlannerStore((planner) => planner.surface === "ride")
   const [tokenClient] = useState(() => new SpotifyBrowserTokenClient(fetch, callbackHandoff()))
   const refreshTimerRef = useRef<number | null>(null)
+  const dragCleanupRef = useRef<(() => void) | null>(null)
 
   const [status, setStatus] = useState<PlayerStatus>("checking")
   const [connected, setConnected] = useState(false)
@@ -342,6 +343,7 @@ export function SpotifyPlayerDock() {
 
   useEffect(() => () => {
     if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current)
+    dragCleanupRef.current?.()
   }, [])
 
   const track = state?.track ?? null
@@ -441,7 +443,9 @@ export function SpotifyPlayerDock() {
       window.removeEventListener("pointermove", move)
       window.removeEventListener("pointerup", finish)
       window.removeEventListener("pointercancel", finish)
+      dragCleanupRef.current = null
     }
+    dragCleanupRef.current = finish
     window.addEventListener("pointermove", move)
     window.addEventListener("pointerup", finish)
     window.addEventListener("pointercancel", finish)

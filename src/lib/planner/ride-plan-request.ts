@@ -1,7 +1,7 @@
 import type { TripPlanRequest } from "@/lib/routing/planner"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
-import type { AvoidArea, Coordinate, RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, CandidateSet, Coordinate, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 
 interface BuildRideTripRequestOptions {
   mode: "destination" | "loop"
@@ -16,6 +16,28 @@ interface BuildRideTripRequestOptions {
   avoidHighways?: boolean
   avoidAreas?: AvoidArea[]
   segmentProfiles?: RouteProfileId[]
+  tollPolicy?: TollPolicy
+  planningId?: string
+  candidateSet?: CandidateSet
+}
+
+/**
+ * One UUID per planning lifecycle, shared by the primary and alternatives
+ * calls. Falls back to a time-random id where `crypto.randomUUID` is not
+ * available (e.g. non-secure LAN contexts).
+ */
+export function createPlanningId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `plan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function progressiveMetadata(options: Pick<BuildRideTripRequestOptions, "planningId" | "candidateSet">): Partial<TripPlanRequest> {
+  return {
+    ...(options.planningId ? { planningId: options.planningId } : {}),
+    ...(options.candidateSet ? { candidateSet: options.candidateSet } : {})
+  }
 }
 
 export function buildLoopStopVia(
@@ -46,11 +68,15 @@ export function buildRideTripRequest({
   via = [],
   avoidHighways = false,
   avoidAreas = [],
-  segmentProfiles
+  segmentProfiles,
+  tollPolicy,
+  planningId,
+  candidateSet
 }: BuildRideTripRequestOptions): TripPlanRequest {
   if (!start) throw new Error("Choose a start point first.")
   const roadLocksPayload = roadLocks.length > 0 ? { roadLocks } : {}
   const bikeProfilePayload = bikeProfile ? { bikeProfile } : {}
+  const progressive = progressiveMetadata({ planningId, candidateSet })
   if (mode === "destination") {
     if (!finish) throw new Error("Choose a finish point first.")
     return {
@@ -60,6 +86,11 @@ export function buildRideTripRequest({
       ...(avoidHighways ? { avoidHighways: true } : {}),
       ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
       ...(segmentProfiles ? { segmentProfiles } : {}),
+      ...(tollPolicy ? { tollPolicy } : {}),
+      ...(Number.isInteger(targetMinutes) && targetMinutes >= 20 && targetMinutes <= 480
+        ? { targetMinutes }
+        : {}),
+      ...progressive,
       ...bikeProfilePayload,
       ...roadLocksPayload
     }
@@ -77,6 +108,8 @@ export function buildRideTripRequest({
       loopTargetMinutes: targetMinutes,
       ...(avoidHighways ? { avoidHighways: true } : {}),
       ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
+      ...(tollPolicy ? { tollPolicy } : {}),
+      ...progressive,
       ...bikeProfilePayload,
       ...roadLocksPayload
     }
@@ -87,6 +120,8 @@ export function buildRideTripRequest({
     points: [start],
     ...(avoidHighways ? { avoidHighways: true } : {}),
     ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
+    ...(tollPolicy ? { tollPolicy } : {}),
+    ...progressive,
     ...bikeProfilePayload,
     ...roadLocksPayload,
     roundTrip: {

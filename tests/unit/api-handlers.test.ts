@@ -289,6 +289,100 @@ describe("route HTTP contract", () => {
     expect(response.status).toBe(200)
     expect(provider).toHaveBeenCalledWith(expect.objectContaining({ loopTargetMinutes: 120 }))
   })
+
+  it("forwards and echoes progressive planning metadata with compatibility defaults", async () => {
+    const provider = vi.fn(async (): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [route]
+    }))
+    const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        planningId: "plan-golden-0001",
+        candidateSet: "primary",
+        targetMinutes: 120,
+        tollPolicy: "avoid",
+        points: [
+          { lat: 40.1745, lon: -75.1059 },
+          { lat: 40.4082, lon: -74.9792 }
+        ]
+      })
+    }), provider)
+
+    expect(response.status).toBe(200)
+    expect(provider).toHaveBeenCalledWith(expect.objectContaining({
+      planningId: "plan-golden-0001",
+      candidateSet: "primary",
+      targetMinutes: 120,
+      tollPolicy: "avoid"
+    }))
+    expect(await response.json()).toMatchObject({
+      planningId: "plan-golden-0001",
+      candidateSet: "primary",
+      targetMinutes: 120
+    })
+  })
+
+  it("defaults candidate set and toll policy for legacy callers", async () => {
+    const provider = vi.fn(async (): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [route]
+    }))
+    const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "scenic",
+        compare: false,
+        points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }]
+      })
+    }), provider)
+
+    expect(response.status).toBe(200)
+    expect(provider).toHaveBeenCalledWith(expect.objectContaining({
+      candidateSet: "primary",
+      tollPolicy: "allow-with-warning"
+    }))
+  })
+
+  it("rejects an alternatives request without the sampled primary route", async () => {
+    const provider = vi.fn()
+    const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        candidateSet: "alternatives",
+        points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }]
+      })
+    }), provider)
+
+    expect(response.status).toBe(400)
+    expect(provider).not.toHaveBeenCalled()
+    expect(await response.json()).toMatchObject({
+      error: { details: { path: "primaryRoute" } }
+    })
+  })
+
+  it("rejects a sampled primary route on a primary request", async () => {
+    const provider = vi.fn()
+    const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        candidateSet: "primary",
+        primaryRoute: { id: "primary-1", geometry: [[-76.9, 40.2], [-76.8, 40.3]] },
+        points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }]
+      })
+    }), provider)
+
+    expect(response.status).toBe(400)
+    expect(provider).not.toHaveBeenCalled()
+  })
 })
 
 describe("supporting HTTP contracts", () => {

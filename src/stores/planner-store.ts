@@ -54,6 +54,57 @@ const SAVED_PLACES_LIMIT = 100
 const SEARCH_HISTORY_LIMIT = 50
 const ROUTE_POINT_HISTORY_LIMIT = 50
 
+const ROUTE_PROFILE_IDS = new Set<RouteProfileId>(["quick", "twisty", "scenic", "adventure"])
+
+/**
+ * Defensively validate the shape of localStorage-persisted planner state.
+ * IndexedDB-backed libraries validate on read, but the persist middleware
+ * previously rehydrated whatever JSON was stored without a version check,
+ * so a truncated write or a stale road-lock shape could flow into routing
+ * (e.g. a missing `fallbackToleranceMeters` produced `NaN` custom-model
+ * polygons). Invalid entries are dropped; the store keeps its defaults.
+ */
+function sanitizePersistedState(persisted: unknown): Partial<PlannerState> {
+  if (typeof persisted !== "object" || persisted === null || Array.isArray(persisted)) return {}
+  const state = persisted as Record<string, unknown>
+  const sanitized: Partial<PlannerState> = {}
+  if (Array.isArray(state.savedPlaces)) {
+    sanitized.savedPlaces = (state.savedPlaces as SavedPlace[]).filter(
+      (place) => place !== null && typeof place === "object"
+        && typeof (place as SavedPlace).label === "string"
+        && Number.isFinite((place as SavedPlace).lat)
+        && Number.isFinite((place as SavedPlace).lon)
+    )
+  }
+  if (Array.isArray(state.searchHistory)) {
+    sanitized.searchHistory = (state.searchHistory as SearchHistoryEntry[]).filter(
+      (entry) => entry !== null && typeof entry === "object"
+        && typeof (entry as SearchHistoryEntry).query === "string"
+    )
+  }
+  if (typeof state.profile === "string" && ROUTE_PROFILE_IDS.has(state.profile as RouteProfileId)) {
+    sanitized.profile = state.profile as RouteProfileId
+  }
+  const bikeProfile = state.bikeProfile as Partial<BikeProfile> | null | undefined
+  if (bikeProfile !== null && typeof bikeProfile === "object"
+    && typeof bikeProfile.name === "string"
+    && Number.isFinite(bikeProfile.fuelRangeMiles)
+    && Number.isFinite(bikeProfile.reserveMiles)) {
+    sanitized.bikeProfile = bikeProfile as BikeProfile
+  }
+  if (Array.isArray(state.roadLocks)) {
+    sanitized.roadLocks = (state.roadLocks as RoadLock[]).filter(
+      (lock) => lock !== null && typeof lock === "object"
+        && typeof (lock as RoadLock).id === "string"
+        && Number.isFinite((lock as RoadLock).fallbackToleranceMeters)
+        && (lock as RoadLock).fallbackToleranceMeters >= 5
+        && Array.isArray((lock as RoadLock).geometry?.coordinates)
+    )
+  }
+  if (typeof state.curvatureVisible === "boolean") sanitized.curvatureVisible = state.curvatureVisible
+  return sanitized
+}
+
 function cloneWaypoint(point: Waypoint | null): Waypoint | null {
   return point ? { ...point } : null
 }
@@ -442,6 +493,8 @@ export const usePlannerStore = create<PlannerState>()(
     {
       name: "switchback.planner.v1",
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      migrate: (persisted) => sanitizePersistedState(persisted),
       partialize: (state) => ({
         savedPlaces: state.savedPlaces,
         searchHistory: state.searchHistory,

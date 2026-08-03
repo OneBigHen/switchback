@@ -21,7 +21,7 @@ import {
 } from "@/lib/client/map-layers"
 import { runLatestTripPlan } from "@/lib/client/trip-planning-coordinator"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
-import { buildLoopStopVia, buildRideTripRequest } from "@/lib/planner/ride-plan-request"
+import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
 import { routePointsFromSketch } from "@/lib/planner/route-sketch"
@@ -297,7 +297,8 @@ export function PlannerShell() {
         via: current.via,
         avoidHighways,
         avoidAreas,
-        segmentProfiles: customSegmentProfiles
+        segmentProfiles: customSegmentProfiles,
+        planningId: createPlanningId()
       }))
     } catch (caught) {
       current.failRouting({
@@ -311,6 +312,8 @@ export function PlannerShell() {
     gate: routeRequestGate,
     home,
     targetMinutes,
+    avoidAreas,
+    segmentProfiles,
     nextSeed: () => ++loopSeed.current,
     runTripPlan,
     setPlanMode,

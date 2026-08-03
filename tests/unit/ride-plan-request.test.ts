@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildLoopStopVia, buildRideTripRequest } from "@/lib/planner/ride-plan-request"
+import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import { createManualRoadLock } from "@/lib/roads/road-locks"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
@@ -40,7 +40,7 @@ function mustLock() {
 }
 
 describe("ride trip request builder", () => {
-  it("builds a compared destination request", () => {
+  it("builds a compared destination request that preserves the time target", () => {
     expect(buildRideTripRequest({
       mode: "destination",
       start,
@@ -52,8 +52,39 @@ describe("ride trip request builder", () => {
     })).toEqual({
       profile: "twisty",
       compare: true,
-      points: [start, { lat: 40.1, lon: -76.8, label: "Fun stop" }, finish]
+      points: [start, { lat: 40.1, lon: -76.8, label: "Fun stop" }, finish],
+      targetMinutes: 120
     })
+  })
+
+  it("carries toll policy, planning id, and candidate set into a destination request", () => {
+    expect(buildRideTripRequest({
+      mode: "destination",
+      start,
+      finish,
+      profile: "twisty",
+      targetMinutes: 120,
+      seed: 8,
+      tollPolicy: "avoid",
+      planningId: "plan-test-1234",
+      candidateSet: "primary"
+    })).toMatchObject({
+      targetMinutes: 120,
+      tollPolicy: "avoid",
+      planningId: "plan-test-1234",
+      candidateSet: "primary"
+    })
+  })
+
+  it("omits an out-of-range destination time target", () => {
+    expect(buildRideTripRequest({
+      mode: "destination",
+      start,
+      finish,
+      profile: "scenic",
+      targetMinutes: 500,
+      seed: 1
+    })).not.toHaveProperty("targetMinutes")
   })
 
   it("carries an explicit highway-avoidance preference into routing", () => {
@@ -231,5 +262,14 @@ describe("ride trip request builder", () => {
       bikeProfile: expect.objectContaining({ category: "dual-sport" }),
       roadLocks: [expect.objectContaining({ id: lock.id })]
     })
+  })
+})
+
+describe("planning lifecycle ids", () => {
+  it("generates unique planning ids with a stable fallback shape", () => {
+    const first = createPlanningId()
+    const second = createPlanningId()
+    expect(first).not.toBe(second)
+    expect(first.length).toBeGreaterThanOrEqual(8)
   })
 })

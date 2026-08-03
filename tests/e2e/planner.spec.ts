@@ -433,7 +433,10 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
       body: JSON.stringify({
         mode: "loop",
         profile: "adventure",
+        rideCharacter: "adventure",
         targetMinutes: 90,
+        tollPolicy: "allow-with-warning",
+        ambiguous: false,
         startQuery: null,
         destinationQuery: null,
         stopQuery: null,
@@ -502,7 +505,10 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
       body: JSON.stringify({
         mode: "destination",
         profile: "twisty",
+        rideCharacter: "twisty",
         targetMinutes: null,
+        tollPolicy: "allow-with-warning",
+        ambiguous: false,
         startQuery: "Harrisburg",
         destinationQuery: "Gettysburg",
         stopQuery: null,

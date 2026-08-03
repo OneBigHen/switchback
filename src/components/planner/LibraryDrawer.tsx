@@ -27,6 +27,12 @@ import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { TripPlan } from "@/lib/trip/trip-plan"
 import { usePlannerStore } from "@/stores/planner-store"
 
+function formatDateLabel(value: string | number | Date | null | undefined): string {
+  if (value === null || value === undefined) return "date unavailable"
+  const parsed = typeof value === "number" ? value : Date.parse(String(value))
+  return Number.isFinite(parsed) ? new Date(parsed).toLocaleDateString() : "date unavailable"
+}
+
 interface LibraryDrawerProps {
   routes: SavedRoute[]
   recordedRides?: RecordedRide[]
@@ -564,7 +570,7 @@ export function LibraryDrawer({
                 />
                 <button type="button" className="library-load" onClick={() => onLoad(route)}>
                   <span>
-                    <small>{route.profile} · {route.folder || "Unfiled"} · {new Date(route.updatedAt).toLocaleDateString()}</small>
+                    <small>{route.profile} · {route.folder || "Unfiled"} · {formatDateLabel(route.updatedAt)}</small>
                     <strong>{route.name}</strong>
                     {route.tags?.length ? <em>{route.tags.map((tag) => `#${tag}`).join(" ")}</em> : null}
                   </span>
@@ -641,7 +647,7 @@ export function LibraryDrawer({
                 {recordedRides.map((ride) => <article className="library-row" key={ride.id}>
                   <button type="button" className="library-load" onClick={() => onLoadRecorded?.(ride)}>
                     <span>
-                      <small>Actual replay · {new Date(ride.endedAt).toLocaleDateString()}</small>
+                      <small>Actual replay · {formatDateLabel(ride.endedAt)}</small>
                       <strong>{ride.routeName}</strong>
                       <em>{ride.points.length} GPS points · {ride.notes ? "notes attached" : "no notes"} · {ride.photos.length} photos</em>
                     </span>

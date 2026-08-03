@@ -157,7 +157,10 @@ function intent(overrides: Partial<RideIntent>): RideIntent {
   return {
     mode: "loop",
     profile: "scenic",
+    rideCharacter: "scenic",
     targetMinutes: 120,
+    tollPolicy: "allow-with-warning",
+    ambiguous: false,
     startQuery: null,
     destinationQuery: null,
     stopQuery: null,

@@ -6,12 +6,12 @@ import { discoverPlaceIdeas, type PlaceIdeasResult } from "@/lib/client/place-id
 import { searchPlacesClient } from "@/lib/client/geocoding-client"
 import { requestRideIntent } from "@/lib/client/ride-intent-client"
 import type { LatestRequestGate } from "@/lib/client/latest-request"
-import { buildRideTripRequest } from "@/lib/planner/ride-plan-request"
+import { buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { resolveRidePromptWaypoints } from "@/lib/planner/ride-prompt-flow"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { GeocoderBias } from "@/lib/geocoding/photon"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
-import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import { usePlannerStore } from "@/stores/planner-store"
 import type { PlanMode, RideIntentStatus } from "./PlannerDeck"
 
@@ -21,6 +21,8 @@ interface UsePlannerRideIntentOptions {
   gate: LatestRequestGate
   home: Waypoint | null
   targetMinutes: number
+  avoidAreas: AvoidArea[]
+  segmentProfiles: RouteProfileId[]
   nextSeed(): number
   runTripPlan(request: TripPlanRequest): Promise<TripPlan | null>
   setPlanMode(mode: PlanMode): void
@@ -41,6 +43,8 @@ export function usePlannerRideIntent({
   gate,
   home,
   targetMinutes,
+  avoidAreas,
+  segmentProfiles,
   nextSeed,
   runTripPlan,
   setPlanMode,
@@ -53,16 +57,18 @@ export function usePlannerRideIntent({
   onNotice
 }: UsePlannerRideIntentOptions) {
   return useCallback(async (prompt: string) => {
-    gate.invalidate()
+    const requestId = gate.begin()
     setStopIdeas(null)
     setResearchSources([])
     setIntentStatus("interpreting")
     setIntentSummary("Reading your ride request…")
     try {
       const intent = await requestRideIntent(prompt)
+      if (!gate.isCurrent(requestId)) return
       const current = usePlannerStore.getState()
       const nextMode: PlanMode = intent.mode
       const nextDuration = intent.targetMinutes ?? targetMinutes
+      const planningId = createPlanningId()
 
       const resolved = await resolveRidePromptWaypoints({
         intent,
@@ -72,6 +78,11 @@ export function usePlannerRideIntent({
         search: (query, bias) => searchPlacesClient(query, fetch, undefined, bias),
         requestLocation: () => requestPlannerLocation(navigator.geolocation)
       })
+
+      // A newer prompt or a manual point/profile edit invalidates this
+      // request; committing stale resolution on top of it would clobber
+      // the rider's newer work. Abort before any planner mutation.
+      if (!gate.isCurrent(requestId)) return
 
       // Commit prompt-derived planner changes only after every required place
       // has resolved. A failed lookup must not erase the rider's current trip.
@@ -100,15 +111,25 @@ export function usePlannerRideIntent({
         start: usePlannerStore.getState().start,
         finish: resolved.finish,
         profile: intent.profile as RouteProfileId,
+        bikeProfile: usePlannerStore.getState().bikeProfile,
+        roadLocks: usePlannerStore.getState().roadLocks,
         targetMinutes: nextDuration,
         seed: nextSeed(),
         via: [],
-        avoidHighways: intent.avoidHighways
+        avoidHighways: intent.avoidHighways,
+        avoidAreas,
+        segmentProfiles: segmentProfiles.length > 0 ? segmentProfiles : undefined,
+        tollPolicy: intent.tollPolicy,
+        planningId
       })
       setIntentSummary(`Understood: ${intent.summary}${intent.stopQuery ? ` with ${intent.stopQuery} stop ideas to choose from` : ""}.`)
       setIntentStatus("idle")
       const firstPlan = await runTripPlan(request)
-      if (intent.stopQuery && firstPlan) {
+      if (!firstPlan) return
+      // runLatestTripPlan advanced the gate itself while routing; take a
+      // fresh token so a manual edit during stop discovery still wins.
+      const discoveryId = gate.begin()
+      if (intent.stopQuery) {
         const firstRoute = firstPlan.routes.find((route) => route.id === firstPlan.selectedRouteId) ?? firstPlan.routes[0]
         const midpoint = firstRoute?.geometry[Math.floor((firstRoute.geometry.length - 1) / 2)]
         const midpointBias: GeocoderBias | null = midpoint
@@ -123,6 +144,7 @@ export function usePlannerRideIntent({
         }
         try {
           const ideas = await discoverPlaceIdeas(intent.stopQuery, midpointBias, 35, fetch, undefined, firstRoute?.geometry ?? [])
+          if (!gate.isCurrent(discoveryId)) return
           if (ideas.places.length === 0) {
             onNotice({ kind: "warning", message: `The ride is ready, but no reliable ${intent.stopQuery} stops were found near this line.` })
             return
@@ -138,10 +160,11 @@ export function usePlannerRideIntent({
         }
       }
     } catch (caught) {
+      if (!gate.isCurrent(requestId)) return
       setIntentStatus("idle")
       const message = caught instanceof Error ? caught.message : "This ride request could not be interpreted."
       setIntentSummary(message)
       onNotice({ kind: "warning", message })
     }
-  }, [gate, home, nextSeed, onNotice, runTripPlan, setAvoidHighways, setIntentStatus, setIntentSummary, setPlanMode, setResearchSources, setStopIdeas, setTargetMinutes, targetMinutes])
+  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setAvoidHighways, setIntentStatus, setIntentSummary, setPlanMode, setResearchSources, setStopIdeas, setTargetMinutes, targetMinutes])
 }

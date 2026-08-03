@@ -6,6 +6,12 @@ export type Coordinate = [longitude: number, latitude: number]
 
 export type RouteProfileId = "quick" | "twisty" | "scenic" | "adventure"
 
+/** Toll exposure policy: disclose on the route by default, or hard-avoid. */
+export type TollPolicy = "allow-with-warning" | "avoid"
+
+/** Which progressive API call this request/response belongs to. */
+export type CandidateSet = "primary" | "alternatives"
+
 export interface Waypoint {
   lat: number
   lon: number
@@ -31,6 +37,18 @@ export interface RouteRequest {
     seed?: number
     heading?: number
   }
+  /**
+   * Client-generated lifecycle id shared across the primary and
+   * alternatives calls of one planning session. Echoed on responses.
+   */
+  planningId?: string
+  /** Primary-first progressive delivery; defaults to `primary`. */
+  candidateSet?: CandidateSet
+  /** Destination (A-to-B) time target in minutes; preserved through
+   *  free-text parsing and request construction. */
+  targetMinutes?: number
+  /** Defaults to `allow-with-warning`; `avoid` rejects toll exposure. */
+  tollPolicy?: TollPolicy
   /**
    * Active road locks for this plan. Locks preserve rider intent across
    * replans and graph updates: a `must` lock invalidates the route when

@@ -128,9 +128,6 @@ export function buildTripStages(route: PlannedRoute, constraints: TripStageConst
   if (daylightMinutes !== undefined && stages.some((stage) => stage.durationMinutes > daylightMinutes)) {
     warnings.push("Each stage is longer than the selected daylight window.")
   }
-  if (route.distanceMiles > usableFuelMiles && stages.some((stage) => stage.fuelStops.length === 0 && stage.distanceMiles > usableFuelMiles)) {
-    warnings.push("A stage exceeds your usable fuel range; choose a shorter day or confirm fuel availability.")
-  }
   return { routeId: route.id, stages, warnings }
 }
 

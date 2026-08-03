@@ -8,7 +8,10 @@ function intent(overrides: Partial<RideIntent> = {}): RideIntent {
   return {
     mode: "destination",
     profile: "scenic",
+    rideCharacter: "scenic",
     targetMinutes: null,
+    tollPolicy: "allow-with-warning",
+    ambiguous: false,
     startQuery: null,
     destinationQuery: "New Hope, PA",
     stopQuery: null,

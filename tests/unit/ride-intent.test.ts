@@ -157,7 +157,10 @@ describe("ride intent parser", () => {
           content: JSON.stringify({
             mode: "loop",
             profile: "adventure",
+            rideCharacter: "adventure",
             targetMinutes: 150,
+            tollPolicy: "allow-with-warning",
+            ambiguous: false,
             startQuery: null,
             destinationQuery: null,
             stopQuery: "brewery",
@@ -236,6 +239,68 @@ describe("ride intent parser", () => {
       profile: "twisty",
       targetMinutes: 60,
       source: "local"
+    })
+  })
+})
+
+describe("routing-intelligence intent contract", () => {
+  it("keeps the golden Hatboro→Stockton prompt as a timeboxed maximum-twisties destination", () => {
+    expect(parseRidePromptLocally("2 hour fun ride from Hatboro to Stockton NJ")).toMatchObject({
+      mode: "destination",
+      profile: "twisty",
+      rideCharacter: "fun",
+      targetMinutes: 120,
+      tollPolicy: "allow-with-warning",
+      ambiguous: false,
+      startQuery: "Hatboro",
+      destinationQuery: "Stockton NJ",
+      avoidHighways: false
+    })
+  })
+
+  it("maps unqualified fun to maximum twisties on paved roads", () => {
+    expect(parseRidePromptLocally("fun ride to New Hope, PA")).toMatchObject({
+      mode: "destination",
+      profile: "twisty",
+      rideCharacter: "fun",
+      targetMinutes: null,
+      destinationQuery: "New Hope, PA"
+    })
+  })
+
+  it("lets explicit quick and scenic language win over the fun default", () => {
+    expect(parseRidePromptLocally("quick fun ride to Doylestown, PA")).toMatchObject({
+      rideCharacter: "quick",
+      profile: "quick"
+    })
+    expect(parseRidePromptLocally("scenic fun ride to Doylestown, PA")).toMatchObject({
+      rideCharacter: "scenic",
+      profile: "scenic"
+    })
+  })
+
+  it("defaults tolls to allow-with-warning and honors explicit toll avoidance", () => {
+    expect(parseRidePromptLocally("fun ride to New Hope, PA")).toMatchObject({
+      tollPolicy: "allow-with-warning"
+    })
+    expect(parseRidePromptLocally("Take me to New Hope, PA avoiding tolls")).toMatchObject({
+      tollPolicy: "avoid"
+    })
+    expect(parseRidePromptLocally("Route me to Doylestown toll-free")).toMatchObject({
+      tollPolicy: "avoid"
+    })
+    expect(parseRidePromptLocally("A loop with no toll roads from Harrisburg")).toMatchObject({
+      tollPolicy: "avoid",
+      mode: "loop"
+    })
+  })
+
+  it("flags requests where the parser had to guess", () => {
+    expect(parseRidePromptLocally("route me somewhere nice")).toMatchObject({
+      ambiguous: true
+    })
+    expect(parseRidePromptLocally("Take me to Jim Thorpe on twisty backroads")).toMatchObject({
+      ambiguous: false
     })
   })
 })

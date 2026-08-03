@@ -139,7 +139,7 @@ export function object_<S extends ObjectShape>(shape: S, opts: { strict?: boolea
               result[key] = (schema as unknown as { __default?: unknown }).__default
             }
           } else {
-            fail(`Missing required field: ${key}`, key, "missing")
+            fail(`Missing required field: ${key}`, "", "missing")
           }
         }
       } catch (e) {

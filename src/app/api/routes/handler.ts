@@ -97,7 +97,15 @@ const routeRequestSchema = object_({
     heading: optional(number({ min: 0, max: 359.999 }))
   })),
   roadLocks: optional(array(roadLockSchema, { max: 64 })),
-  bikeProfile: optional(bikeProfileSchema)
+  bikeProfile: optional(bikeProfileSchema),
+  planningId: optional(string({ trim: true, min: 8, max: 64 })),
+  candidateSet: withDefault(optional(enum_(["primary", "alternatives"] as const)), "primary"),
+  targetMinutes: optional(number({ int: true, min: 20, max: 480 })),
+  tollPolicy: withDefault(optional(enum_(["allow-with-warning", "avoid"] as const)), "allow-with-warning"),
+  primaryRoute: optional(object_({
+    id: string({ trim: true, min: 1, max: 120 }),
+    geometry: array(coordinateSchema, { min: 2, max: 128 })
+  }))
 }, { passthrough: true })
 
 function validateRouteRequest(value: {
@@ -105,7 +113,16 @@ function validateRouteRequest(value: {
   points: { lat: number; lon: number; label?: string; locked?: boolean }[]
   loopTargetMinutes?: number
   segmentProfiles?: string[]
+  candidateSet?: "primary" | "alternatives"
+  primaryRoute?: { id: string; geometry: unknown[] }
+  targetMinutes?: number
 }): void {
+  if (value.candidateSet === "alternatives" && !value.primaryRoute) {
+    throw new ValidationError("Alternatives requests require the sampled primary route.", "primaryRoute")
+  }
+  if (value.candidateSet !== "alternatives" && value.primaryRoute) {
+    throw new ValidationError("The sampled primary route belongs on alternatives requests.", "primaryRoute")
+  }
   if (value.roundTrip && value.points.length !== 1) {
     throw new ValidationError("Round trips require one start point.", "points")
   }

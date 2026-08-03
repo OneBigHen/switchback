@@ -23,7 +23,8 @@
     "gpx:import-projects": "tsx scripts/import-project-gpx.ts",
     "validate:live": "node scripts/validate-live.mjs",
     "validate:curvature": "node scripts/validate-curvature-live.mjs",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "benchmark:routing": "tsx scripts/benchmark-routing.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

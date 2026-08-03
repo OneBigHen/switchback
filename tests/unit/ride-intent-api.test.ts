@@ -5,7 +5,10 @@ import type { RideIntent } from "@/lib/ai/ride-intent"
 const interpreted: RideIntent = {
   mode: "loop",
   profile: "adventure",
+  rideCharacter: "adventure",
   targetMinutes: 120,
+  tollPolicy: "allow-with-warning",
+  ambiguous: false,
   startQuery: null,
   destinationQuery: null,
   stopQuery: "brewery",

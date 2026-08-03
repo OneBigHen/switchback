@@ -1,4 +1,4 @@
-import type { PlannedRoute, RouteRequest } from "./types"
+import type { CandidateSet, Coordinate, PlannedRoute, RouteRequest } from "./types"
 import { calculateGeometryOverlap } from "./scoring"
 import { listProfiles } from "./profiles"
 import {
@@ -9,12 +9,38 @@ import type { RoadLock } from "@/lib/roads/road-locks"
 
 export interface TripPlanRequest extends RouteRequest {
   compare?: boolean
+  /**
+   * Required for `candidateSet: "alternatives"`: the primary route id plus
+   * its geometry sampled to at most 128 coordinates. The alternatives
+   * endpoint is stateless — it must work after a server cache miss.
+   */
+  primaryRoute?: { id: string; geometry: Coordinate[] }
 }
 
 export interface TripPlan {
+  /** Echoed from the request so the client can merge only matching lifecycles. */
+  planningId?: string
+  candidateSet?: CandidateSet
   selectedRouteId: string
   routes: PlannedRoute[]
   warnings: string[]
+  /** Destination time target echoed from the request. */
+  targetMinutes?: number
+  /** Server-side phase timings in milliseconds when measured. */
+  timingMs?: Record<string, number>
+}
+
+/**
+ * Compatibility-first echo of the progressive-API metadata. Later phases
+ * (2/3/4) fill the response contract; Phase 1 only guarantees the fields
+ * are present on the wire when the request carries them.
+ */
+function tripPlanMetadata(request: TripPlanRequest): Pick<TripPlan, "planningId" | "candidateSet" | "targetMinutes"> {
+  return {
+    ...(request.planningId ? { planningId: request.planningId } : {}),
+    ...(request.candidateSet ? { candidateSet: request.candidateSet } : {}),
+    ...(request.targetMinutes != null ? { targetMinutes: request.targetMinutes } : {})
+  }
 }
 
 export interface RoutingResult {
@@ -176,6 +202,7 @@ async function planSegmentedTrip(
   const enriched = await enrichCandidates(request, [composed], enricher)
   const selected = enriched.routes[0] ?? composed
   return {
+    ...tripPlanMetadata(request),
     selectedRouteId: selected.id,
     routes: [{ ...selected, overlapPercent: 100 }],
     warnings: [
@@ -514,7 +541,12 @@ export async function planMotorcycleTrip(
     ...(selectedAttempt.warning ? [selectedAttempt.warning] : [])
   ]
   if (!request.compare) {
-    return { selectedRouteId: selected.id, routes, warnings }
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: selected.id,
+      routes,
+      warnings
+    }
   }
 
   const selectedProfileAlternatives = selectedAttempt.result.routes
@@ -571,5 +603,10 @@ export async function planMotorcycleTrip(
     )
   })
 
-  return { selectedRouteId: selected.id, routes, warnings }
+  return {
+    ...tripPlanMetadata(request),
+    selectedRouteId: selected.id,
+    routes,
+    warnings
+  }
 }
