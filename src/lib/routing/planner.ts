@@ -326,17 +326,28 @@ async function requestInitialTimeboxedRoute(
 ): Promise<RoutingResult> {
   if (!request.roundTrip) return provider(request, options)
   const originalSeed = request.roundTrip.seed ?? 0
+  const originalMinutes = Math.max(20, request.roundTrip.targetMinutes ?? 60)
+  // A sparse road network cannot always support the full requested loop
+  // length (GraphHopper: "Could not find a valid point after 3 tries"),
+  // which surfaced to riders as a generic "couldn't be routed" failure.
+  // Walk the requested distance down in steps so the rider still gets a
+  // loop; the timebox caller warns when the achieved loop is shorter than
+  // the target instead of failing outright.
+  const distanceSteps = [1, 0.75, 0.5, 0.35, 0.25]
   let lastError: unknown
-  const seedCandidates = [originalSeed, ...ROUND_TRIP_FALLBACK_SEEDS]
-    .filter((seed, index, seeds) => seeds.indexOf(seed) === index)
-  for (const seed of seedCandidates) {
-    try {
-      return await provider(seed === originalSeed ? request : {
-        ...request,
-        roundTrip: { ...request.roundTrip, seed }
-      }, options)
-    } catch (caught) {
-      lastError = caught
+  for (const step of distanceSteps) {
+    const minutes = Math.max(20, Math.round(originalMinutes * step))
+    const seedCandidates = [originalSeed, ...ROUND_TRIP_FALLBACK_SEEDS]
+      .filter((seed, index, seeds) => seeds.indexOf(seed) === index)
+    for (const seed of seedCandidates) {
+      try {
+        return await provider({
+          ...request,
+          roundTrip: { ...request.roundTrip, targetMinutes: minutes, seed }
+        }, options)
+      } catch (caught) {
+        lastError = caught
+      }
     }
   }
   throw lastError

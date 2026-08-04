@@ -408,6 +408,7 @@ describe("trip planner", () => {
       }
     })
 
+
     const plan = await planMotorcycleTrip({
       profile: "twisty",
       compare: false,
@@ -419,6 +420,40 @@ describe("trip planner", () => {
     expect(provider).toHaveBeenCalledTimes(4)
     expect(provider.mock.calls.slice(1).map(([request]) => request.roundTrip?.targetMinutes))
       .toEqual([60, 60, 60])
+  })
+
+  it("walks the round-trip distance down instead of failing in sparse areas", async () => {
+    // Sparse road areas cannot support the full requested loop length: the
+    // provider rejects any attempt at 120 or 90 minutes (GraphHopper's
+    // "Could not find a valid point after 3 tries") but succeeds at 60.
+    const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => {
+      const minutes = request.roundTrip?.targetMinutes ?? 120
+      if (minutes >= 90) {
+        throw new Error("Could not find a valid point after 3 tries")
+      }
+      return {
+        engine: "graphhopper",
+        engineVersion: "11.0",
+        routes: [{
+          ...route("scenic", 0.01, `scenic-${minutes}`),
+          durationMinutes: minutes
+        }]
+      }
+    })
+
+    const plan = await planMotorcycleTrip({
+      profile: "scenic",
+      compare: false,
+      points: [{ lat: 39.7, lon: -78.0 }],
+      roundTrip: { targetMinutes: 120, seed: 17 }
+    }, provider)
+
+    // A shorter loop is returned instead of a hard failure, and the caller
+    // explains the shortened duration (the calibration walks it as high as
+    // the area supports — 86 in this fixture).
+    expect(plan.routes.length).toBeGreaterThanOrEqual(1)
+    expect(plan.routes[0].durationMinutes).toBeGreaterThanOrEqual(60)
+    expect(plan.warnings.join(" ")).toMatch(/loop is \d+ minutes/i)
   })
 
   it("uses a final feedback pass when the first calibration still misses", async () => {
