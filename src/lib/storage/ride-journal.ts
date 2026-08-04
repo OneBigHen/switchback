@@ -5,6 +5,12 @@ export interface RecordedRidePoint {
   coordinate: Coordinate
   recordedAt: string
   speedMph: number | null
+  /** Meters above sea level from the GPS fix, when the device reports it. */
+  altitudeMeters?: number | null
+  /** Degrees from true north, when the device reports it. */
+  headingDegrees?: number | null
+  /** Horizontal GPS accuracy in meters, when reported. */
+  accuracyMeters?: number | null
 }
 
 export interface RidePhotoNote {

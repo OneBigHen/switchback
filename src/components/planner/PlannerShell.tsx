@@ -62,6 +62,8 @@ import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
 import { AppNavigation } from "@/components/shell/AppNavigation"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
 import { RecordPanel } from "@/components/shell/RecordPanel"
+import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
+import { useRecordingSession } from "@/components/shell/useRecordingSession"
 
 function normalizedSegmentProfiles(
   profiles: RouteProfileId[],
@@ -119,6 +121,8 @@ export function PlannerShell() {
   const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
   const [previousRoute, setPreviousRoute] = useState<PlannedRoute | null>(null)
   const [replayComparison, setReplayComparison] = useState<ReplayComparisonResult | null>(null)
+  const recording = useRecordingSession()
+
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [planMode, setPlanMode] = useState<PlanMode>("destination")
   const [targetMinutes, setTargetMinutes] = useState(120)
@@ -198,6 +202,69 @@ export function PlannerShell() {
 
   const routes = plan?.routes ?? []
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null
+  // Enter riding mode the moment a recording starts — or is recovered from
+  // an interrupted session on reload — so the app opens straight into the
+  // recording HUD ("passively turn the app on to see everything"). Deferred
+  // so the store update never runs synchronously inside the effect.
+  useEffect(() => {
+    if (!recording.isActive) return
+    const id = window.setTimeout(() => usePlannerStore.getState().setSurface("ride"), 0)
+    return () => window.clearTimeout(id)
+  }, [recording.isActive])
+
+  // A finished recording is saved to the local ride journal, then the
+  // session resets and the app returns to the Record tab. Deferred so the
+  // store updates never run synchronously inside the effect.
+  useEffect(() => {
+    if (recording.state.status !== "finished") return
+    const id = window.setTimeout(() => {
+      const points = recording.state.points
+      if (points.length < 2) {
+        setNotice({ kind: "warning", message: "Record at least two GPS points before finishing." })
+        recording.discard()
+        usePlannerStore.getState().setSurface("planner")
+        return
+      }
+      const first = points[0]!.coordinate
+      const last = points.at(-1)!.coordinate
+      const durationMinutes = Math.max(0, (Date.parse(points.at(-1)!.recordedAt) - Date.parse(points[0]!.recordedAt)) / 60_000)
+      const recordedRoute: PlannedRoute = selectedRoute ?? {
+        id: `recording-${Date.now()}`,
+        name: `Recorded ride · ${new Date().toLocaleDateString()}`,
+        profile: "quick",
+        geometry: points.map((point) => point.coordinate),
+        waypoints: [
+          { lat: first[1], lon: first[0], label: "Recording start" },
+          { lat: last[1], lon: last[0], label: "Recording finish" }
+        ],
+        instructions: [],
+        distanceMiles: recordedDistanceMiles(points),
+        durationMinutes,
+        ascentMeters: null,
+        descentMeters: null,
+        twistiness: 0,
+        turnCount: 0,
+        roadMix: {},
+        surfaceMix: {},
+        routingSource: "imported",
+        previewOnly: false
+      }
+      void rideJournalLibrary.save({ route: recordedRoute, points }).then(async (saved) => {
+        await refreshRideJournal()
+        setNotice({ kind: "success", message: `${saved.routeName} saved to Library rides.` })
+      }).catch((caught) => setNotice({
+        kind: "warning",
+        message: caught instanceof Error ? caught.message : "Recorded ride could not be saved."
+      })).finally(() => {
+        recording.discard()
+        usePlannerStore.getState().setSurface("planner")
+      })
+    }, 0)
+    return () => window.clearTimeout(id)
+    // The effect intentionally runs only on the finished transition; the
+    // referenced libraries/routes are read at that moment, not subscribed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording.state.status])
   const activeSegmentProfiles = planMode === "destination"
     ? normalizedSegmentProfiles(segmentProfiles, via.length + 1, profile)
     : []
@@ -738,6 +805,9 @@ export function PlannerShell() {
         onWaypointDrag={handleWaypointDrag}
         onMapPick={(point) => void handleMapPick(point)}
         onLocateMe={(point) => void handleUseCurrentLocation(point)}
+        recordingTrail={recording.isActive
+          ? recording.state.points.map((point) => point.coordinate)
+          : null}
         onRouteSketch={(trace) => void handleRouteSketch(trace)}
         onSketchModeChange={setSketching}
         avoidAreas={avoidAreas}
@@ -1036,45 +1106,7 @@ export function PlannerShell() {
         />
       ) : null}
       {surface !== "ride" && navigation.activeTab === "record" ? (
-        <RecordPanel
-          onFinish={(points) => {
-            if (points.length < 2) {
-              setNotice({ kind: "warning", message: "Record at least two GPS points before finishing." })
-              return
-            }
-            const first = points[0]!.coordinate
-            const last = points.at(-1)!.coordinate
-            const durationMinutes = Math.max(0, (Date.parse(points.at(-1)!.recordedAt) - Date.parse(points[0]!.recordedAt)) / 60_000)
-            const recordedRoute: PlannedRoute = selectedRoute ?? {
-              id: `recording-${Date.now()}`,
-              name: `Recorded ride · ${new Date().toLocaleDateString()}`,
-              profile: "quick",
-              geometry: points.map((point) => point.coordinate),
-              waypoints: [
-                { lat: first[1], lon: first[0], label: "Recording start" },
-                { lat: last[1], lon: last[0], label: "Recording finish" }
-              ],
-              instructions: [],
-              distanceMiles: recordedDistanceMiles(points),
-              durationMinutes,
-              ascentMeters: null,
-              descentMeters: null,
-              twistiness: 0,
-              turnCount: 0,
-              roadMix: {},
-              surfaceMix: {},
-              routingSource: "imported",
-              previewOnly: false
-            }
-            void rideJournalLibrary.save({ route: recordedRoute, points }).then(async (saved) => {
-              await refreshRideJournal()
-              setNotice({ kind: "success", message: `${saved.routeName} saved to Library rides.` })
-            }).catch((caught) => setNotice({
-              kind: "warning",
-              message: caught instanceof Error ? caught.message : "Recorded ride could not be saved."
-            }))
-          }}
-        />
+        <RecordPanel controller={recording} />
       ) : null}
       {surface !== "ride" && navigation.activeTab === "profile" ? (
         <ProfilePanel
@@ -1094,7 +1126,15 @@ export function PlannerShell() {
           </section>
         </div>
       ) : null}
-      {surface === "ride" && selectedRoute ? (
+      {surface === "ride" && recording.isActive ? (
+        <RideRecordingHud
+          controller={recording}
+          onDiscard={() => {
+            recording.discard()
+            usePlannerStore.getState().setSurface("planner")
+          }}
+        />
+      ) : surface === "ride" && selectedRoute ? (
         <RideHud
           key={selectedRoute.id}
           route={selectedRoute}

@@ -111,6 +111,8 @@ interface MapStageProps {
   onAvoidArea(area: AvoidArea): void
   /** A browser "locate me" fix was produced; the planner should adopt it as the start. */
   onLocateMe?(point: { lat: number; lon: number }): void
+  /** Live breadcrumb trail for a recording session in ride mode. */
+  recordingTrail?: Coordinate[] | null
 }
 
 type LiveMapProps = MapStageProps
@@ -863,6 +865,68 @@ export function MapStage(props: MapStageProps) {
       followNavigationFrame(map, navigationFrame)
     }
   }, [navigationFrame, props.rideMode, ready])
+
+  // Recording session breadcrumb trail: draw the captured GPS trail and keep
+  // the camera on the latest fix while riding. The trail is removed when the
+  // recording ends or ride mode exits.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const trail = props.recordingTrail
+    if (!props.rideMode || !trail || trail.length === 0) {
+      for (const id of ["switchback-recording-head", "switchback-recording-trail-line"] as const) {
+        if (map.getLayer(id)) map.removeLayer(id)
+      }
+      if (map.getSource("switchback-recording-trail")) map.removeSource("switchback-recording-trail")
+      return
+    }
+    if (!map.getSource("switchback-recording-trail")) {
+      map.addSource("switchback-recording-trail", { type: "geojson", data: emptyFeatureCollection() })
+    }
+    if (!map.getLayer("switchback-recording-trail-line")) {
+      map.addLayer({
+        id: "switchback-recording-trail-line",
+        type: "line",
+        source: "switchback-recording-trail",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#FF3B24",
+          "line-width": 4,
+          "line-opacity": 0.9
+        }
+      })
+    }
+    if (!map.getLayer("switchback-recording-head")) {
+      map.addLayer({
+        id: "switchback-recording-head",
+        type: "circle",
+        source: "switchback-recording-trail",
+        filter: ["==", ["get", "kind"], "head"],
+        paint: {
+          "circle-radius": 9,
+          "circle-color": "#FF3B24",
+          "circle-stroke-color": "#FFFFFF",
+          "circle-stroke-width": 3
+        }
+      })
+    }
+    const head = trail[trail.length - 1]!
+    geoJsonSource(map, "switchback-recording-trail")?.setData({
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: trail } },
+        { type: "Feature", properties: { kind: "head" }, geometry: { type: "Point", coordinates: head } }
+      ]
+    })
+    // Follow the latest fix while recording so the rider can glance at the
+    // app and always see where they are.
+    map.easeTo({
+      center: head,
+      zoom: Math.max(map.getZoom(), 14.5),
+      duration: 650,
+      essential: true
+    })
+  }, [props.recordingTrail, props.rideMode, ready])
 
   useEffect(() => {
     const map = mapRef.current

@@ -1,13 +1,15 @@
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 import { navigationCameraOptions } from "@/lib/client/navigation-map"
-import type { PlannedRoute } from "@/lib/routing/types"
+import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 
 interface RouteViewportProps {
   routes: PlannedRoute[]
   selectedRouteId: string | null
   rideMode: boolean
   navigationFrame?: NavigationFrame | null
+  /** When a recording trail is live, the camera belongs to the recording. */
+  recordingTrail?: Coordinate[] | null
 }
 
 function routeFitPadding(rideMode: boolean) {
@@ -28,7 +30,7 @@ function routeFitPadding(rideMode: boolean) {
 }
 
 export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {
-  if (props.rideMode && props.navigationFrame) return
+  if (props.rideMode && (props.navigationFrame || props.recordingTrail)) return
   const route = props.routes.find((item) => item.id === props.selectedRouteId)
   if (!route || route.geometry.length < 2) return
   const longitudes = route.geometry.map(([longitude]) => longitude)
