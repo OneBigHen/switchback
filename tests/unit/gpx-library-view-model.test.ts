@@ -25,20 +25,27 @@ function projectRoute(
 /**
  * Builds a deterministic synthetic catalog with `entryCount` unique routes.
  * The real production catalog lives under the gitignored `data/` directory
- * and is not available in CI or on fresh clones, so the 419-entry grouping
- * guarantee is asserted against an equivalent generated set instead.
+ * and is not available in CI or on fresh clones, so the grouping guarantee
+ * is asserted against an equivalent generated set instead. Routes are
+ * generated in same-normalized-name pairs (a source project + its
+ * rideplanner variant), mirroring the production catalog's berks-discovery
+ * pattern, so grouping must collapse them.
  */
 function buildCatalog(entryCount: number): ProjectGpxCatalog {
-  const projects = ["Titan", "LongWay", "Roost", "rideplanner"] as const
   return {
     routes: Array.from({ length: entryCount }, (_, index) => {
-      const number = String(index + 1).padStart(3, "0")
-      const project = projects[index % projects.length]!
+      const number = String(Math.floor(index / 2) + 1).padStart(3, "0")
+      const isRideplannerVariant = index % 2 === 1
+      const sourceProject = isRideplannerVariant ? "rideplanner" : "Roost"
+      const name = `Catalog Route ${number}`
+      const sourceFile = isRideplannerVariant
+        ? `rideplanner/output/gpx/catalog-route-${number}-gaia_high_detail.gpx`
+        : `Roost/roostlocker_gpx/catalog/route-${number}.gpx`
       return projectRoute(
-        `route-${number}`,
-        `Catalog Route ${number}`,
-        project,
-        `${project}/catalog/route-${number}.gpx`
+        `route-${String(index + 1).padStart(3, "0")}`,
+        name,
+        sourceProject,
+        sourceFile
       )
     })
   }
