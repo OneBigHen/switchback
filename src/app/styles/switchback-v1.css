@@ -680,6 +680,7 @@
 }
 
 :root[data-theme="dark"] .planner-deck .ride-intent-heading p,
+:root[data-theme="dark"] .planner-deck .ride-intent-heading .ride-location-button,
 :root[data-theme="dark"] .planner-deck .ride-understanding p,
 :root[data-theme="dark"] .planner-deck .route-slip-name small,
 :root[data-theme="dark"] .planner-deck .route-slip-metric small {

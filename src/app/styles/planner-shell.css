@@ -158,7 +158,7 @@
 
 .maplibregl-ctrl-group {
   overflow: hidden;
-  border: 1px solid rgb(243 239 230 / 14%);
+  border: 1px solid var(--line);
   border-radius: 9px !important;
   background: var(--machined) !important;
   box-shadow: 0 8px 28px rgb(0 0 0 / 28%) !important;
@@ -194,7 +194,7 @@
 }
 
 .maplibregl-ctrl-attrib {
-  border: 1px solid rgb(243 239 230 / 14%);
+  border: 1px solid var(--line);
   border-radius: 5px;
   background: rgb(11 14 13 / 86%) !important;
   color: var(--metal);
@@ -213,7 +213,7 @@
   z-index: 5;
   width: 432px;
   overflow: hidden;
-  border: 1px solid rgb(243 239 230 / 14%);
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--machined);
   box-shadow:
@@ -225,7 +225,7 @@
   position: absolute;
   inset: 5px;
   z-index: 2;
-  border: 1px solid rgb(243 239 230 / 6%);
+  border: 1px solid var(--line);
   border-radius: 13px;
   content: "";
   pointer-events: none;
@@ -269,9 +269,9 @@
   width: 42px;
   height: 42px;
   place-items: center;
-  border: 1px solid rgb(243 239 230 / 16%);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: #111513;
+  background: var(--machined);
   box-shadow: inset 0 0 0 3px rgb(243 239 230 / 2%);
 }
 
@@ -402,7 +402,7 @@ h2 {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #111513;
+  background: var(--machined);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
   cursor: pointer;
   transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
@@ -412,7 +412,7 @@ h2 {
 .map-pick-button:hover,
 .delete-route:hover,
 .ride-exit:hover {
-  border-color: rgb(243 239 230 / 30%);
+  border-color: var(--line);
   color: var(--signal);
 }
 

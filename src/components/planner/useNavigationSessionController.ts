@@ -115,6 +115,14 @@ export function useNavigationSessionController({
   )
 
   const [sessionState, setSessionState] = useState<NavigationSessionState>(createNavigationSessionState)
+  // The onPosition closure lives in an effect that must not re-run on every
+  // phase change, so the phase is mirrored into a ref for fresh reads inside
+  // that closure (otherwise acquireFix would never fire and the session
+  // phase would stay stuck at "acquiring" forever).
+  const sessionPhaseRef = useRef<NavigationSessionState["phase"]>(createNavigationSessionState().phase)
+  useEffect(() => {
+    sessionPhaseRef.current = sessionState.phase
+  }, [sessionState.phase])
   const [frame, setFrame] = useState<NavigationFrame>(initialFrame)
   const [gpsState, setGpsState] = useState<GpsState>("acquiring")
   const [gpsMessage, setGpsMessage] = useState("Acquiring GPS")
@@ -276,9 +284,17 @@ export function useNavigationSessionController({
       fuelStop?: PlaceResult
     ) => {
       if (mode === "preserve-original") {
+        // The rider explicitly chose to keep the planned route: cancel any
+        // in-flight reroute and suppress the automatic reroute. Previously
+        // this re-armed the automatic reroute and left the request running,
+        // so the route was replaced seconds later anyway.
+        rerouteVersionRef.current += 1
+        rerouteAbortRef.current?.abort()
+        rerouteAbortRef.current = null
+        rerouteInFlightRef.current = false
+        automaticRerouteStartedRef.current = true
         setRejoinPolicy(mode)
         setRerouteStatus("idle")
-        automaticRerouteStartedRef.current = false
         return
       }
       if (rerouteInFlightRef.current) return
@@ -309,6 +325,13 @@ export function useNavigationSessionController({
       setRejoinPolicy(mode === "automatic" ? null : mode)
       setRerouteStatus("routing")
 
+      // The reducer's REROUTE_TIMEOUT effect is not executed by this
+      // controller (it drives the session lifecycle directly), so enforce the
+      // same 30s ceiling here: a hung routing request must not leave the HUD
+      // stuck on "Finding a safe way back…" indefinitely.
+      const rerouteDeadline = AbortSignal.timeout(30_000)
+      const rerouteSignal = AbortSignal.any([requestController.signal, rerouteDeadline])
+
       void requestTripPlan(
         {
           profile: route.profile,
@@ -318,7 +341,7 @@ export function useNavigationSessionController({
           points
         },
         fetch,
-        requestController.signal
+        rerouteSignal
       ).then((plan) => {
         if (requestVersion !== rerouteVersionRef.current) return
         if (rerouteAbortRef.current === requestController) rerouteAbortRef.current = null
@@ -604,7 +627,10 @@ export function useNavigationSessionController({
           )
         }
 
-        if (sessionState.phase === "acquiring") {
+        if (
+          sessionPhaseRef.current === "acquiring" ||
+          sessionPhaseRef.current === "recovering"
+        ) {
           dispatch({ type: "acquireFix" })
         }
 

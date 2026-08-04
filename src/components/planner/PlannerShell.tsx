@@ -5,6 +5,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import {
   appNavigationReducer,
   createInitialAppNavigationState,
+  tabFromLocation,
   type AppTab,
   type ThemePreference
 } from "@/lib/client/app-navigation"
@@ -20,6 +21,11 @@ import {
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
 import { cancelRoutingRequest, runLatestTripPlan } from "@/lib/client/trip-planning-coordinator"
+import {
+  createPlannerLocation,
+  requestPlannerLocation,
+  savePlannerLocation
+} from "@/lib/client/planner-location"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
@@ -35,6 +41,8 @@ import { createTripPlan } from "@/lib/trip/trip-plan"
 import type { TripPlan as SavedTripPlan } from "@/lib/trip/trip-plan"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import { buildOfflinePackCorridor } from "@/lib/client/offline-pack-coordinator"
+import { comparePlannedVsActual, type ReplayComparisonResult } from "@/lib/client/replay-comparison"
+import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
 import { LibraryDrawer } from "./LibraryDrawer"
@@ -101,12 +109,16 @@ export function PlannerShell() {
   const isRecalculating = usePlannerStore((state) => state.isRecalculating)
   const error = usePlannerStore((state) => state.error)
   const curvatureVisible = usePlannerStore((state) => state.curvatureVisible)
+  const planningPhase = usePlannerStore((state) => state.planningPhase)
+  const planningStartedAt = usePlannerStore((state) => state.planningStartedAt)
   const surface = usePlannerStore((state) => state.surface)
   const canUndoRoutePoints = usePlannerStore((state) => state.canUndoRoutePoints)
   const canRedoRoutePoints = usePlannerStore((state) => state.canRedoRoutePoints)
   const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
   const [savedTrips, setSavedTrips] = useState<SavedTripPlan[]>([])
   const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
+  const [previousRoute, setPreviousRoute] = useState<PlannedRoute | null>(null)
+  const [replayComparison, setReplayComparison] = useState<ReplayComparisonResult | null>(null)
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [planMode, setPlanMode] = useState<PlanMode>("destination")
   const [targetMinutes, setTargetMinutes] = useState(120)
@@ -227,7 +239,15 @@ export function PlannerShell() {
   }, [mapStyle, navigation.theme])
 
   useEffect(() => {
-    const handleBack = () => dispatchNavigation({ type: "back" })
+    const handleBack = () => {
+      // Browser Back / forward: re-derive the tab from the URL instead of
+      // only popping the internal stack, so the surface and the address bar
+      // can never desync (previously the URL kept ?tab=library while the UI
+      // showed the planner, and a reload would open the wrong tab).
+      const tab = tabFromLocation(window.location.href)
+      dispatchNavigation({ type: "restore_tab", tab })
+      usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+    }
     window.addEventListener("popstate", handleBack)
     return () => window.removeEventListener("popstate", handleBack)
   }, [])
@@ -276,7 +296,9 @@ export function PlannerShell() {
 
   useEffect(() => {
     if (!notice) return
-    const timeout = window.setTimeout(() => setNotice(null), 3_200)
+    // Warnings carry routing details the rider may need to act on; give them
+    // enough time to read (and a dismiss button) instead of flashing past.
+    const timeout = window.setTimeout(() => setNotice(null), notice.kind === "warning" ? 8_000 : 3_200)
     return () => window.clearTimeout(timeout)
   }, [notice])
 
@@ -286,12 +308,48 @@ export function PlannerShell() {
   }
 
   const runTripPlan = async (request: TripPlanRequest): Promise<TripPlan | null> => {
+    // Keep the previous route around for the must-lock recovery panel: when
+    // a must road-lock cannot be satisfied, the rider can restore the route
+    // that existed before this replan.
+    const current = usePlannerStore.getState()
+    const existing = current.plan?.routes.find((route) => route.id === current.selectedRouteId)
+      ?? current.plan?.routes[0]
+      ?? null
+    if (existing) setPreviousRoute(existing)
     return runLatestTripPlan({
       request,
       gate: routeRequestGate,
       getPlanner: usePlannerStore.getState,
       onWarning: (message) => setNotice({ kind: "warning", message })
     })
+  }
+
+  const handleUseCurrentLocation = async (coordinates?: { lat: number; lon: number }) => {
+    try {
+      const location = coordinates
+        ? createPlannerLocation(coordinates.lat, coordinates.lon)
+        : await requestPlannerLocation(navigator.geolocation)
+      if (!location) {
+        throw new Error("Your browser returned an invalid location. Choose a start point instead.")
+      }
+      routeRequestGate.invalidate()
+      usePlannerStore.getState().setPoint("start", location)
+      try {
+        savePlannerLocation(window.localStorage, location)
+      } catch {
+        // Routing can proceed from the fresh fix even when browser storage
+        // is unavailable or private-mode restricted.
+      }
+      setIntentSummary("Using your current location as the route start. It is kept only in this browser.")
+      // "Run everything": when a finish is already set, go straight to a
+      // full route instead of leaving the rider to replan by hand.
+      if (usePlannerStore.getState().finish) await handlePlan()
+    } catch (caught) {
+      const raw = caught instanceof Error ? caught.message : "Location access is unavailable on this connection."
+      usePlannerStore.getState().armPoint("start")
+      setIntentSummary("Choose your start point on the map (or type it in the start field), then plan.")
+      setNotice({ kind: "warning", message: raw })
+    }
   }
 
   const handlePlan = async () => {
@@ -459,8 +517,52 @@ export function PlannerShell() {
       routes: [ride.route, actual],
       warnings: ["Actual ride replay loaded beside the planned route. Imported replay geometry is not silently re-routed."]
     })
+    // Attach the on-track comparison so the route details can show how much
+    // of the plan the recorded ride actually followed.
+    try {
+      setReplayComparison(comparePlannedVsActual(ride.route, ride))
+    } catch {
+      setReplayComparison(null)
+    }
     applyAppTab("plan", "replace")
     setNotice({ kind: "success", message: `Replay loaded: ${ride.points.length} recorded points, notes, and photo metadata remain on this device.` })
+  }
+
+  const handleResolveMustLock = (lockId: string, option: MustLockUnresolvedOption) => {
+    const store = usePlannerStore.getState()
+    const lock = store.roadLocks.find((candidate) => candidate.id === lockId)
+    switch (option) {
+      case "try-wider-match":
+        if (lock) {
+          store.updateRoadLock(lockId, {
+            fallbackToleranceMeters: Math.min(5_000, lock.fallbackToleranceMeters * 2)
+          })
+          setNotice({ kind: "warning", message: `Widened the match corridor for "${lock.displayName ?? lock.id}" — replanning.` })
+        }
+        void handlePlan()
+        break
+      case "convert-to-prefer":
+        store.convertRoadLock(lockId)
+        setNotice({ kind: "warning", message: "Converted the road lock to Prefer — it rewards the road without blocking reroutes. Replanning." })
+        void handlePlan()
+        break
+      case "remove-lock":
+        store.removeRoadLock(lockId)
+        setNotice({ kind: "warning", message: "Removed the road lock. Replanning without it." })
+        void handlePlan()
+        break
+      case "restore-previous-route":
+        if (previousRoute) {
+          routeRequestGate.invalidate()
+          store.applyPlan({
+            selectedRouteId: previousRoute.id,
+            routes: [previousRoute],
+            warnings: ["Restored the previous route. The road lock stays in place for future plans."]
+          })
+          setNotice({ kind: "success", message: "Previous route restored." })
+        }
+        break
+    }
   }
 
   const handleMapPick = async (point: Waypoint) => {
@@ -635,6 +737,7 @@ export function PlannerShell() {
         onReferenceMapChange={setReferenceMap}
         onWaypointDrag={handleWaypointDrag}
         onMapPick={(point) => void handleMapPick(point)}
+        onLocateMe={(point) => void handleUseCurrentLocation(point)}
         onRouteSketch={(trace) => void handleRouteSketch(trace)}
         onSketchModeChange={setSketching}
         avoidAreas={avoidAreas}
@@ -680,9 +783,9 @@ export function PlannerShell() {
             researchSources,
             selectedRoute,
             home,
-            planningPhase: usePlannerStore.getState().planningPhase,
-            planningStartedAt: usePlannerStore.getState().planningStartedAt,
-            isRecalculating: usePlannerStore.getState().isRecalculating
+            planningPhase,
+            planningStartedAt,
+            isRecalculating
           })}
           commands={{
             waypoint: {
@@ -737,6 +840,9 @@ export function PlannerShell() {
                 const point = current.via[index]
                 if (!point) return
                 current.updateVia(index, { ...point, locked: !point.locked })
+                // A lock changes how the route is shaped, so replan like every
+                // other via edit instead of leaving the route cleared.
+                void handlePlan()
               }
             },
             rideConfig: {
@@ -810,24 +916,35 @@ export function PlannerShell() {
               cancelRoutingRequest()
               usePlannerStore.getState().cancelPlanning()
             },
+            onUseCurrentLocation: () => void handleUseCurrentLocation(),
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
             onClearHome: clearHome,
             onOpenLibrary: () => handleAppTab("library"),
             onStartRide: (route) => void handleStartRide(route),
             onSaveOffline: (route, options) => {
-              void buildOfflinePackCorridor(route, options ?? {}).then(() => {
+              void buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
                 return offlinePackLibraryRef.current!.save({
                   route,
                   mapStyle,
                   routeVisibility,
                   activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
-                })
-              }).then(() => {
-                setNotice({
-                  kind: "success",
-                  message: "Offline route pack saved: route, cues, and active map setup are ready for recovery."
-                })
+                }).then(() => corridor)
+              }).then((corridor) => {
+                if (corridor.graph) {
+                  setNotice({
+                    kind: "success",
+                    message: "Offline route pack saved: route, cues, and an offline routing graph are ready for recovery."
+                  })
+                } else {
+                  // Never claim offline guidance is ready when no region data
+                  // was embedded — the rider should download regions or take
+                  // the GPX for a Garmin instead.
+                  setNotice({
+                    kind: "warning",
+                    message: `Offline route pack saved, but offline routing isn't available for it yet — ${corridor.warning ?? "no offline region data downloaded"}. Download regions, or export this route as GPX for a Garmin.`
+                  })
+                }
               }).catch((caught) => setNotice({
                 kind: "warning",
                 message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
@@ -877,6 +994,9 @@ export function PlannerShell() {
                 }).catch(() => setNotice({ kind: "warning", message: "This trip could not be saved on this device." }))
               }}
               showRideAction={false}
+              onResolveMustLock={handleResolveMustLock}
+              previousRoute={previousRoute}
+              replayComparison={replayComparison}
             />
           ) : null}
         </PlannerDeck>
@@ -1008,7 +1128,10 @@ export function PlannerShell() {
       {notice ? (
         <div className={`app-notice notice-${notice.kind}`} role="status">
           {notice.kind === "success" ? <CheckCircle weight="fill" aria-hidden="true" /> : <WarningCircle weight="fill" aria-hidden="true" />}
-          {notice.message}
+          <span>{notice.message}</span>
+          <button type="button" className="app-notice-dismiss" aria-label="Dismiss message" onClick={() => setNotice(null)}>
+            ×
+          </button>
         </div>
       ) : null}
     </main>

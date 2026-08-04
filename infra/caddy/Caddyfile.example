@@ -1,11 +1,16 @@
 {
-	# Local-only deployments do not need an ACME account.
-	# Set an email here if you replace `tls internal` with public ACME certificates.
+	# Public deployments: set an ACME email here and remove `tls internal`.
+	# Caddy will then provision real Let's Encrypt certificates automatically
+	# (DNS-01 for wildcard/edge hosts, HTTP-01 for direct A records).
 	admin 127.0.0.1:2019
 }
 
 {$SWITCHBACK_HOST:switchback.home.arpa} {
+	# Local-only deployments keep `tls internal` (self-signed). For public
+	# sharing, use real certificates — either delete this line and set an
+	# `email` in the global block, or point `tls` at your edge CA.
 	tls internal
+
 	encode zstd gzip
 
 	header {
@@ -14,10 +19,36 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		Permissions-Policy "geolocation=(self), screen-wake-lock=(self)"
 		X-Frame-Options DENY
+		# HSTS is only honored over HTTPS; safe to leave on for mixed
+		# LAN/edge topologies and required for a public origin.
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+	}
+
+	# Coarse edge rate limiting: protects the Next origin and the paid
+	# provider keys behind it from floods. Fine-grained per-endpoint limits
+	# are enforced by the app itself (src/lib/server/rate-limiter.ts).
+	rate_limit {
+		zone dynamic {
+			key {remote_host}
+			events 120
+			window 1m
+		}
 	}
 
 	# Next owns the browser/API boundary. GraphHopper is deliberately not proxied.
+	# The rate limiter in the app keys on the client IP, so this proxy must own
+	# the client-IP headers: strip client-supplied copies and rewrite them from
+	# the real TCP peer, otherwise anyone can spoof a fresh key per request.
+	# Behind Cloudflare instead, set TRUST_CF_CONNECTING_IP=1 on the app and
+	# let cf-connecting-ip through (firewall the origin to Cloudflare IPs).
 	reverse_proxy 127.0.0.1:3100 {
+		request_header {
+			-Cf-Connecting-Ip
+			-X-Forwarded-For
+			-X-Real-IP
+		}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
 		transport http {
 			dial_timeout 5s
 			response_header_timeout 95s

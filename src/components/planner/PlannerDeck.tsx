@@ -55,6 +55,8 @@ interface VoiceRecognition {
   interimResults: boolean
   maxAlternatives: number
   onresult: ((event: VoiceRecognitionResultEvent) => void) | null
+  onerror: ((event: unknown) => void) | null
+  onend: ((event: unknown) => void) | null
   start(): void
 }
 
@@ -138,6 +140,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onRidePrompt = ic.onRidePrompt
   const onChooseStopIdea = ic.onChooseStopIdea
   const onResearchRideIdea = ic.onResearchRideIdea
+  const onUseCurrentLocation = commands.onUseCurrentLocation
 
   const onClearRoute = commands.onClearRoute
   const onPlan = commands.onPlan
@@ -162,7 +165,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     ? `${targetMinutes / 60}-hour`
     : `${targetMinutes}-minute`
   const examples = [
-    "Costco",
+    "A scenic ride to a river overlook",
     "Two-hour twisty loop",
     "Scenic ride to New Hope with a coffee stop",
     "123 Market St, Philadelphia, PA",
@@ -221,7 +224,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     setRidePrompt(prompt)
     onRidePrompt(prompt)
   }
+  const voiceSessionRef = useRef(false)
   const startVoiceInput = () => {
+    if (voiceSessionRef.current) return
     const voiceWindow = window as typeof window & {
       SpeechRecognition?: VoiceRecognitionConstructor
       webkitSpeechRecognition?: VoiceRecognitionConstructor
@@ -236,7 +241,21 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     recognition.interimResults = false
     recognition.maxAlternatives = 1
     recognition.onresult = (event) => setRidePrompt(event.results[0]?.[0]?.transcript ?? "")
-    recognition.start()
+    recognition.onerror = () => {
+      // A denied or failed speech session leaves the typed input editable;
+      // there is no session state to clean up beyond the overlap guard.
+    }
+    recognition.onend = () => {
+      voiceSessionRef.current = false
+    }
+    try {
+      voiceSessionRef.current = true
+      recognition.start()
+    } catch {
+      // Some browsers throw synchronously when a session cannot start
+      // (e.g. permission denied); never leave the guard stuck.
+      voiceSessionRef.current = false
+    }
   }
 
   return (
@@ -288,9 +307,16 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           <div className="ride-intent-heading">
             <span>Ride</span>
             <h1>Where do you want to ride?</h1>
-            <p><MapPin weight="fill" aria-hidden="true" /> {start
-              ? `Starting from ${start.label ?? "selected start"}`
-              : "Current location requested when you plan"}</p>
+            <button
+              type="button"
+              className="ride-location-button"
+              aria-label={start ? "Update the route start to my current location" : "Use my current location as the route start"}
+              onClick={onUseCurrentLocation}
+            >
+              <MapPin weight="fill" aria-hidden="true" />
+              <span>{start ? `Starting from ${start.label ?? "selected start"}` : "Use my current location"}</span>
+              <ArrowRight weight="bold" aria-hidden="true" />
+            </button>
           </div>
           <form className="ride-omnibox" aria-label="Where do you want to ride?" onSubmit={submitRidePrompt}>
             <MapPin weight="fill" aria-hidden="true" />
@@ -322,6 +348,12 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <button type="button" className="planner-lifecycle-cancel" onClick={onCancelPlanning} aria-label="Cancel planning">
                 <X weight="bold" aria-hidden="true" /> Cancel
               </button>
+            </div>
+          ) : null}
+          {error ? (
+            <div className="planner-error" role="alert">
+              <strong>{error.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
+              <p>{error.message}</p>
             </div>
           ) : null}
           <div className="ride-quick-intents" aria-label="Quick ride ideas">
@@ -379,10 +411,19 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <ul aria-label="Web research sources">
                 {researchSources.map((source) => (
                   <li key={source.url}>
-                    <a href={source.url} target="_blank" rel="noreferrer">
-                      <b>{source.title}</b>
-                      <span>{source.summary}</span>
-                    </a>
+                    {/* Defense in depth: the server normalizes source URLs,
+                        but never hand an unchecked scheme to href. */}
+                    {/^https?:\/\//i.test(source.url) ? (
+                      <a href={source.url} target="_blank" rel="noopener noreferrer">
+                        <b>{source.title}</b>
+                        <span>{source.summary}</span>
+                      </a>
+                    ) : (
+                      <span>
+                        <b>{source.title}</b>
+                        <span>{source.summary}</span>
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -453,13 +494,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               {savedCount > 0 ? <span>{savedCount}</span> : null}
             </button>
           </div>
-
-          {error ? (
-            <div className="planner-error" role="alert">
-              <strong>{error.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
-              <p>{error.message}</p>
-            </div>
-          ) : null}
         </div>
 
         <div ref={routeEditorRef} className="deck-section waypoint-composer">
@@ -792,6 +826,9 @@ function OfflinePackModal({ route, value, onChange, onCancel, onSave }: OfflineP
           </header>
           <p className="offline-pack-modal-summary">
             Saving this route as an offline pack lets you resume guidance and turn-by-turn cues when you lose signal. Browser-stored data is not guaranteed permanent — saved-route packs remain recoverable from the server.
+          </p>
+          <p className="offline-pack-modal-alternative">
+            Prefer a file for your Garmin or another GPS device? Use <strong>Export GPX</strong> in the route actions instead — an offline pack stays in Switchback, a GPX goes to your device.
           </p>
           <DownloadModePicker value={value} onChange={onChange} id="offline-pack-download-mode" />
           <footer>

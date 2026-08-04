@@ -4,7 +4,7 @@
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #0d100f;
+  background: var(--raised);
 }
 
 .storage-quota-meter-row {
@@ -99,7 +99,7 @@
   padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #111513;
+  background: var(--machined);
 }
 
 .storage-quota-meter-projection[data-blocked="true"] {
@@ -163,7 +163,7 @@
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #111513;
+  background: var(--machined);
   color: var(--instrument);
   font-size: 9px;
   font-weight: 720;
@@ -175,7 +175,7 @@
 
 .storage-quota-meter-persist-cta:hover,
 .storage-quota-meter-persist-cta:focus-visible {
-  border-color: rgb(243 239 230 / 35%);
+  border-color: var(--line);
   color: var(--signal);
   outline: 0;
 }

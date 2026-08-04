@@ -3,10 +3,14 @@ import {
   readActiveManifest,
   readManifestTile
 } from "@/lib/server/offline-region-files"
+import { createRateLimiter } from "@/lib/server/rate-limiter"
 
 interface RouteContext {
   params: Promise<{ regionId: string; tileId: string }>
 }
+
+// Tiles can be large and are meant to be cached by the browser, not scraped.
+const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 120, label: "offline tile request" })
 
 function failure(error: unknown): Response {
   const status = error instanceof OfflineRegionFileError ? error.status : 500
@@ -76,9 +80,13 @@ async function serve(request: Request, context: RouteContext, includeBody: boole
 }
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
+  const blocked = requestLimiter.check(request)
+  if (blocked) return blocked
   return serve(request, context, true)
 }
 
 export async function HEAD(request: Request, context: RouteContext): Promise<Response> {
+  const blocked = requestLimiter.check(request)
+  if (blocked) return blocked
   return serve(request, context, false)
 }

@@ -2,11 +2,15 @@ import { number, enum_, object_, safeParse, string } from "@/lib/validate"
 import { adviseCorridors } from "@/lib/ai/corridor-adviser"
 import { createCorridorCache, corridorCacheKey } from "@/lib/server/corridor-cache"
 import { searchPlaces } from "@/lib/geocoding/photon"
+import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
+import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 import type { Waypoint } from "@/lib/routing/types"
 import path from "node:path"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
+
+const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 6, label: "corridor hint request" })
 
 const waypointSchema = object_({
   lat: number({ finite: true, min: -90, max: 90 }),
@@ -30,11 +34,14 @@ function geocodeAnchors(query: string) {
   return searchPlaces(query, { baseUrl: photonBaseUrl })
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function handleRideCorridorsPost(request: Request): Promise<Response> {
   let body: unknown
   try {
-    body = await request.json()
-  } catch {
+    body = await readBoundedJsonBody(request, 8 * 1024)
+  } catch (caught) {
+    if (caught instanceof BodyTooLargeError) {
+      return Response.json({ error: { code: "CORRIDOR_REQUEST_TOO_LARGE", message: "That corridor request is too large." } }, { status: 413 })
+    }
     return Response.json({ error: { code: "INVALID_CORRIDOR_REQUEST", message: "Provide a start, finish, and ride duration." } }, { status: 400 })
   }
   const parsed = safeParse(payloadSchema, body)
@@ -69,3 +76,5 @@ export async function POST(request: Request): Promise<Response> {
   if (result.hints.length > 0) cache.set(cacheKey, result.hints)
   return Response.json({ hints: result.hints, status: result.status })
 }
+
+export const POST = withRateLimit(requestLimiter, handleRideCorridorsPost)

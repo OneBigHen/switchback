@@ -541,7 +541,9 @@
 }
 
 /* The phone planner keeps primary actions in a bottom sheet and map tools on
-   the upper-left. A narrow upper-right rail leaves both interaction zones free. */
+   the upper-left. The upper-right player rail spans most of the top strip on
+   phones, so the map tools drop below the rail (responsive.css) to keep both
+   interaction zones free. */
 @media (max-width: 760px) {
   .player:not(.rideMode) {
     top: max(12px, env(safe-area-inset-top));
@@ -656,6 +658,18 @@
     bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
     left: max(10px, env(safe-area-inset-left));
     width: min(250px, calc(100vw - 140px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  }
+}
+
+/* The phone bottom nav bar (68px tall) owns the bottom strip, and the planner
+   deck sheet owns the bottom-right zone above it. The hidden-dock reveal
+   button moves to the free top-right corner (map tools sit top-left) instead
+   of covering Profile/Record. */
+@media (max-width: 760px) {
+  .reveal {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
   }
 }
 

@@ -244,7 +244,7 @@ export class OfflineRoutePackLibrary {
       activeLayerIds: [...new Set(input.activeLayerIds)],
       route: structuredClone(input.route),
       cues: structuredClone(input.route.instructions),
-      navigationMode: input.corridor ? "follow-saved-route" : "follow-saved-route",
+      navigationMode: "follow-saved-route",
       schemaVersion: OFFLINE_ROUTE_PACK_SCHEMA_VERSION,
       freshness: { ttlMillis, expiresAt },
       routingCapability: input.corridor ? "in-corridor-routing" : "follow-saved-route",

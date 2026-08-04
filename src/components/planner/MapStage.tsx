@@ -109,6 +109,8 @@ interface MapStageProps {
   onSketchModeChange(active: boolean): void
   avoidAreas: AvoidArea[]
   onAvoidArea(area: AvoidArea): void
+  /** A browser "locate me" fix was produced; the planner should adopt it as the start. */
+  onLocateMe?(point: { lat: number; lon: number }): void
 }
 
 type LiveMapProps = MapStageProps
@@ -123,6 +125,7 @@ export function MapStage(props: MapStageProps) {
   const navigationFrame = props.navigationFrame ?? storedNavigationFrame
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
+  const styleTimeoutRef = useRef<number | null>(null)
   const propsRef = useRef<LiveMapProps>(props)
   const navigationFollowingRef = useRef(true)
   const curvatureAbortRef = useRef<AbortController | null>(null)
@@ -395,6 +398,15 @@ export function MapStage(props: MapStageProps) {
           positionOptions: { enableHighAccuracy: true },
           trackUserLocation: false,
           fitBoundsOptions: { maxZoom: 16 }
+        })
+        // Adopt the browser fix as the planner start instead of leaving the
+        // control as a map-view-only button: clicking it seeds the route and,
+        // when a finish is already set, runs the plan.
+        geolocate.on("geolocate", (position) => {
+          const { latitude, longitude } = position.coords
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            propsRef.current.onLocateMe?.({ lat: latitude, lon: longitude })
+          }
         })
         map.addControl(geolocate, "bottom-right")
       }
@@ -782,12 +794,26 @@ export function MapStage(props: MapStageProps) {
           setMapError("The base map could not load. Routing controls remain available.")
         }
       })
+
+      // A hanging style endpoint (no "load", no "error" event) would leave
+      // the "Reading the map…" overlay up forever. Surface a timeout with a
+      // retry hint instead of an infinite spinner.
+      const styleTimeout = window.setTimeout(() => {
+        if (disposed) return
+        if (!initialStyleLoaded && !map?.isStyleLoaded()) {
+          setMapError("The map is taking too long to load. Check your connection, then reload to retry.")
+        }
+      }, 20_000)
+      map.on("load", () => window.clearTimeout(styleTimeout))
+      styleTimeoutRef.current = styleTimeout
     }).catch(() => {
       setMapError("The interactive map could not start in this browser.")
     })
 
     return () => {
       disposed = true
+      if (styleTimeoutRef.current != null) window.clearTimeout(styleTimeoutRef.current)
+      styleTimeoutRef.current = null
       curvatureAbortRef.current?.abort()
       unpavedAbortRef.current?.abort()
       riderFeaturesAbortRef.current?.abort()

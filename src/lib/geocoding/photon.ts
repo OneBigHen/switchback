@@ -43,28 +43,45 @@ const DEFAULT_ROUTING_REGIONS = new Set([
   "new jersey"
 ])
 
+/**
+ * Routing coverage bounds and region names are a server-side deployment
+ * concern. They are read lazily (and never on the client — this module is
+ * bundled into the browser for the local ride-prompt parser), so a future
+ * NEXT_PUBLIC_ misconfiguration or tree-shaking regression cannot leak them.
+ */
+let coverageBoundsCache: { south: number; west: number; north: number; east: number } | null = null
 function getCoverageBounds(): { south: number; west: number; north: number; east: number } {
-  const envBounds = typeof process !== "undefined"
-    ? process.env.SWITCHBACK_GEOCODER_BBOX
-    : undefined
-  if (!envBounds) return DEFAULT_ROUTING_BOUNDS
-  const parts = envBounds.split(",").map(Number)
-  if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
-    return { south: parts[0], west: parts[1], north: parts[2], east: parts[3] }
+  if (coverageBoundsCache) return coverageBoundsCache
+  if (typeof window !== "undefined") {
+    coverageBoundsCache = DEFAULT_ROUTING_BOUNDS
+    return coverageBoundsCache
   }
-  return DEFAULT_ROUTING_BOUNDS
+  const envBounds = process.env.SWITCHBACK_GEOCODER_BBOX
+  if (envBounds) {
+    const parts = envBounds.split(",").map(Number)
+    if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+      coverageBoundsCache = { south: parts[0], west: parts[1], north: parts[2], east: parts[3] }
+      return coverageBoundsCache
+    }
+  }
+  coverageBoundsCache = DEFAULT_ROUTING_BOUNDS
+  return coverageBoundsCache
 }
 
-const COVERAGE_BOUNDS = getCoverageBounds()
-const configuredRegions = typeof process !== "undefined"
-  ? process.env.SWITCHBACK_GEOCODER_REGION?.toLowerCase()
+let coverageRegionMatchesCache: ReadonlySet<string> | null = null
+function getCoverageRegionMatches(): ReadonlySet<string> {
+  if (coverageRegionMatchesCache) return coverageRegionMatchesCache
+  if (typeof window !== "undefined") {
+    coverageRegionMatchesCache = DEFAULT_ROUTING_REGIONS
+    return coverageRegionMatchesCache
+  }
+  const configured = process.env.SWITCHBACK_GEOCODER_REGION?.toLowerCase()
     .split(",")
     .map((region) => region.trim())
     .filter(Boolean)
-  : undefined
-const COVERAGE_REGION_MATCHES = configuredRegions?.length
-  ? new Set(configuredRegions)
-  : DEFAULT_ROUTING_REGIONS
+  coverageRegionMatchesCache = configured?.length ? new Set(configured) : DEFAULT_ROUTING_REGIONS
+  return coverageRegionMatchesCache
+}
 
 const FUN_STOP_FEATURE_KINDS: Record<FunStopKind, ReadonlySet<string>> = {
   brewery: new Set(["brewery", "pub", "bar", "biergarten"]),
@@ -247,16 +264,16 @@ export function selectFunStopCandidate(
 }
 
 function isCoordinateInRoutingCoverage(point: GeocoderBias): boolean {
-  return point.lat >= COVERAGE_BOUNDS.south &&
-    point.lat <= COVERAGE_BOUNDS.north &&
-    point.lon >= COVERAGE_BOUNDS.west &&
-    point.lon <= COVERAGE_BOUNDS.east
+  return point.lat >= getCoverageBounds().south &&
+    point.lat <= getCoverageBounds().north &&
+    point.lon >= getCoverageBounds().west &&
+    point.lon <= getCoverageBounds().east
 }
 
 function isPlaceInRoutingCoverage(place: PlaceResult): boolean {
   if (!isCoordinateInRoutingCoverage(place)) return false
   const region = place.region.trim().toLowerCase()
-  return COVERAGE_REGION_MATCHES.has(region)
+  return getCoverageRegionMatches().has(region)
 }
 
 function normalizeFeatureKind(value: string | undefined): string {

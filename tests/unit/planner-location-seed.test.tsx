@@ -24,6 +24,7 @@ const originalPermissions = Object.getOwnPropertyDescriptor(navigator, "permissi
 function planner(past: unknown[] = []) {
   return {
     routePointPast: past,
+    startQuery: "",
     seedCurrentLocation: vi.fn()
   }
 }
@@ -81,6 +82,23 @@ describe("planner location seed", () => {
     locationApi.createPlannerLocation.mockReturnValue(liveLocation)
     installGrantedLocation()
     const state = planner([{}])
+
+    renderHook(() => usePlannerLocationSeed({
+      gate: createLatestRequestGate(),
+      getPlanner: () => state,
+      onSeed: vi.fn()
+    }))
+
+    await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it("does not replace a start query the rider is still typing", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    const state = planner()
+    state.startQuery = "Phi"
 
     renderHook(() => usePlannerLocationSeed({
       gate: createLatestRequestGate(),

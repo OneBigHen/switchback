@@ -43,7 +43,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0b0e0d;
+  background: var(--raised);
   color: var(--metal);
   font-size: 10px;
   line-height: 1.5;
@@ -72,7 +72,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0b0e0d;
+  background: var(--raised);
 }
 
 .region-cadence-row {
@@ -105,7 +105,7 @@
   padding: 6px 9px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #111513;
+  background: var(--machined);
   color: var(--instrument);
   font-size: 9px;
   font-weight: 720;
@@ -117,7 +117,7 @@
 
 .region-cadence-btn:hover,
 .region-cadence-btn:focus-visible {
-  border-color: rgb(243 239 230 / 30%);
+  border-color: color-mix(in srgb, var(--signal) 45%, transparent);
   color: var(--signal);
   outline: 0;
 }
@@ -173,7 +173,7 @@
   padding: 2px 7px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #0d100f;
+  background: var(--raised);
   color: var(--instrument);
   font-family: "Sora Variable", Sora, sans-serif;
   font-size: 9px;
@@ -197,7 +197,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #111513;
+  background: var(--machined);
 }
 
 .region-item[data-suite-member="true"] {
@@ -206,7 +206,7 @@
 }
 
 .region-item[data-stale-tier="aging"] {
-  border-color: rgb(243 239 230 / 22%);
+  border-color: var(--line);
 }
 
 .region-item[data-stale-tier="stale"] {
@@ -298,7 +298,7 @@
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #0b0e0d;
+  background: var(--raised);
   color: var(--instrument);
   font-size: 9px;
   font-weight: 720;
@@ -349,7 +349,7 @@
   padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #0d100f;
+  background: var(--raised);
   color: var(--metal);
   font-size: 9px;
   font-weight: 700;

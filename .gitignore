@@ -8,6 +8,7 @@ test-results/
 dogfood-output/
 .env*
 !.env.example
+reasonix.toml
 *.log
 *.tsbuildinfo
 data/*.db

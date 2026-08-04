@@ -1,4 +1,5 @@
 import { number, object_, array, safeParse } from "@/lib/validate"
+import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 import type { RouteWeatherCoordinate, RouteWeatherResponse } from "@/lib/weather/types"
 
 export type RouteWeatherProvider = (
@@ -28,8 +29,13 @@ export async function handleRouteWeatherRequest(
 ): Promise<Response> {
   let body: unknown
   try {
-    body = await request.json()
-  } catch {
+    body = await readBoundedJsonBody(request, 4 * 1024)
+  } catch (caught) {
+    if (caught instanceof BodyTooLargeError) {
+      return json({
+        error: { code: "ROUTE_WEATHER_REQUEST_TOO_LARGE", message: "That weather request is too large." }
+      }, 413, "no-store")
+    }
     body = null
   }
   const parsed = safeParse(requestSchema, body)

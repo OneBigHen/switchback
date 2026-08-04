@@ -1,7 +1,10 @@
 import { filterFunStopCandidates, searchPlaces, type FunStopKind } from "@/lib/geocoding/photon"
 import { searchGooglePopularPlaces } from "@/lib/places/google-places"
+import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 
 export const dynamic = "force-dynamic"
+
+const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 20, label: "stop idea search" })
 
 function readKind(value: string | null): FunStopKind | null {
   return value === "brewery" || value === "coffee" || value === "food" || value === "fuel" ? value : null
@@ -36,7 +39,7 @@ function readRouteSamples(value: string | null): { lat: number; lon: number }[] 
   })
 }
 
-export async function GET(request: Request): Promise<Response> {
+export async function handlePlaceIdeasGet(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const kind = readKind(url.searchParams.get("kind"))
   const center = readCenter(url)
@@ -74,3 +77,5 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: { code: "PLACE_IDEAS_UNAVAILABLE", message: "Stop ideas are temporarily unavailable." } }, { status: 503 })
   }
 }
+
+export const GET = withRateLimit(requestLimiter, handlePlaceIdeasGet)

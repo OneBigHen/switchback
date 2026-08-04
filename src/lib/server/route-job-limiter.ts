@@ -10,6 +10,14 @@
  */
 export type JobPriority = "primary" | "alternatives"
 
+/** Thrown when the provider queue is already at capacity for this host. */
+export class RouteQueueFullError extends Error {
+  constructor() {
+    super("The routing service is busy. Try again in a moment.")
+    this.name = "RouteQueueFullError"
+  }
+}
+
 export interface RouteJobLimiter {
   run<T>(
     task: () => Promise<T>,
@@ -37,8 +45,15 @@ function abortError(): Error {
   return error
 }
 
-export function createRouteJobLimiter(limit = 2): RouteJobLimiter {
+export function createRouteJobLimiter(
+  limit = 2,
+  options: { maxQueue?: number } = {}
+): RouteJobLimiter {
   const tokens = limit
+  // A bounded queue keeps a public instance from growing memory without
+  // limit under sustained concurrent requests; overflow is rejected with a
+  // 429 instead of being buffered forever.
+  const maxQueue = options.maxQueue ?? 32
   let running = 0
   const primaryQueue: QueuedJob[] = []
   const alternativesQueue: QueuedJob[] = []
@@ -81,6 +96,10 @@ export function createRouteJobLimiter(limit = 2): RouteJobLimiter {
   }
 
   function enqueue(job: QueuedJob, queue: QueuedJob[]): void {
+    if (primaryQueue.length + alternativesQueue.length >= maxQueue) {
+      job.reject(new RouteQueueFullError())
+      return
+    }
     queue.push(job)
     if (!job.signal) {
       drain()

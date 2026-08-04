@@ -103,4 +103,28 @@ describe("route job limiter", () => {
       { priority: "alternatives", signal: controller.signal }
     )).rejects.toMatchObject({ name: "AbortError" })
   })
+
+  it("rejects with RouteQueueFullError when the queue is at capacity", async () => {
+    const limiter = createRouteJobLimiter(2, { maxQueue: 2 })
+    const blocker = deferred()
+    const holding = limiter.run(() => blocker.promise, { priority: "primary" })
+    await Promise.resolve()
+    expect(limiter.runningCount()).toBe(2)
+
+    const queued = limiter.run(() => Promise.resolve("queued"), { priority: "alternatives" })
+    const queued2 = limiter.run(() => Promise.resolve("queued2"), { priority: "alternatives" })
+    await Promise.resolve()
+    expect(limiter.queuedCount()).toBe(2)
+
+    await expect(limiter.run(
+      () => Promise.resolve("overflow"),
+      { priority: "alternatives" }
+    )).rejects.toMatchObject({ name: "RouteQueueFullError" })
+
+    blocker.resolve("done")
+    await expect(holding).resolves.toBe("done")
+    await expect(queued).resolves.toBe("queued")
+    await expect(queued2).resolves.toBe("queued2")
+    expect(limiter.queuedCount()).toBe(0)
+  })
 })

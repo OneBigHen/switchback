@@ -57,7 +57,7 @@
 
 .bike-profile-fields-toggle:hover,
 .bike-profile-fields-toggle:focus-visible {
-  border-color: rgb(243 239 230 / 32%);
+  border-color: var(--signal);
   color: var(--instrument);
 }
 
@@ -89,7 +89,7 @@
 
 .bike-profile-option:hover,
 .bike-profile-option:focus-visible {
-  border-color: rgb(243 239 230 / 22%);
+  border-color: color-mix(in srgb, var(--signal) 45%, transparent);
   color: var(--instrument);
 }
 
@@ -105,7 +105,7 @@
   height: 22px;
   place-items: center;
   border-radius: 7px;
-  background: rgb(243 239 230 / 6%);
+  background: var(--raised);
   color: var(--metal);
 }
 
@@ -216,7 +216,7 @@
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0d100f;
+  background: var(--raised);
   list-style: none;
 }
 

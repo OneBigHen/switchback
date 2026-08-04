@@ -90,6 +90,10 @@ export function createSpotifySdkLoader(
         script = targetDocument.createElement("script")
         script.src = SDK_URL
         script.async = true
+        // Cross-origin mode lets a future SRI `integrity` attribute be
+        // enforced; without it, an injected third-party script can't read
+        // window.Spotify state in anonymous mode anyway.
+        script.crossOrigin = "anonymous"
         script.setAttribute("async", "")
         targetDocument.head.append(script)
       }

@@ -26,6 +26,9 @@ import type { TripStagePlan } from "@/lib/trip/stage-planner"
 import type { TripStageConstraints } from "@/lib/trip/stage-planner"
 import type { TripPlan } from "@/lib/trip/trip-plan"
 import type { RoadLockSatisfaction } from "@/lib/roads/road-locks"
+import { MustLockUnresolvedPanel } from "./MustLockUnresolvedPanel"
+import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
+import type { ReplayComparisonResult } from "@/lib/client/replay-comparison"
 
 interface RouteComparisonProps {
   routes: PlannedRoute[]
@@ -40,6 +43,12 @@ interface RouteComparisonProps {
   onSaveTrip?(route: PlannedRoute, plan: TripStagePlan, constraints: TripStageConstraints): void
   showRideAction?: boolean
   sourceMapUpdated?: string | null
+  /** Recovery actions for a must road-lock the route could not satisfy. */
+  onResolveMustLock?(lockId: string, option: MustLockUnresolvedOption): void
+  /** The route that existed before the current plan; restored on demand. */
+  previousRoute?: PlannedRoute | null
+  /** On-track comparison for a recorded ride loaded beside its plan. */
+  replayComparison?: ReplayComparisonResult | null
 }
 
 function dominantMix(mix: Record<string, number>): string {
@@ -116,11 +125,15 @@ export function RouteComparison({
   onShareCreated,
   onSaveTrip,
   savedTrip,
-  sourceMapUpdated
+  sourceMapUpdated,
+  onResolveMustLock,
+  previousRoute,
+  replayComparison
 }: RouteComparisonProps) {
   const [directionsOpen, setDirectionsOpen] = useState(true)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [exportVariant, setExportVariant] = useState<GpxExportVariant>("track")
+  const [dismissedMustLockIds, setDismissedMustLockIds] = useState<string[]>([])
   const selectedRoute = routes.find((route) => route.id === selectedId) ?? routes[0]
   if (!selectedRoute) return null
 
@@ -261,6 +274,33 @@ export function RouteComparison({
                 displayName={selectedRoute.name}
               />
             ))}
+        </div>
+      ) : null}
+
+      {onResolveMustLock ? (
+        selectedRoute.lockSatisfaction
+          ?.filter((row) => row.mode === "must" && !row.satisfied && !dismissedMustLockIds.includes(row.lockId))
+          .slice(0, 1)
+          .map((row) => (
+            <MustLockUnresolvedPanel
+              key={row.lockId}
+              satisfaction={row}
+              displayName={selectedRoute.name}
+              previousRoute={previousRoute ?? null}
+              onResolve={(option) => onResolveMustLock(row.lockId, option)}
+              onDismiss={() => setDismissedMustLockIds((ids) => [...ids, row.lockId])}
+            />
+          ))
+      ) : null}
+
+      {replayComparison && selectedRoute.id === `${replayComparison.rideId}-actual` ? (
+        <div className="route-replay-comparison" role="note" aria-label="Recorded ride comparison">
+          <strong>Replay comparison</strong>
+          <span>
+            {replayComparison.onTrackPercent}% on track · avg offset{" "}
+            {replayComparison.averageOffsetMeters} m · max {replayComparison.maxOffsetMeters} m ·{" "}
+            {replayComparison.recordedDistanceMiles} mi ridden vs {replayComparison.plannedDistanceMiles} mi planned
+          </span>
         </div>
       ) : null}
 

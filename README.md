@@ -158,6 +158,34 @@ npm run data:bootstrap
 
 Do not expose GraphHopper or Valhalla directly to the LAN or internet. The browser only calls Next.js `/api/*` routes, and Next talks to routing providers over the server-side network boundary.
 
+## Public deployment notes
+
+Sharing the app publicly adds abuse and cost exposure; the code ships with
+defense in depth, but the proxy contract must be respected:
+
+- **Secrets stay server-only.** No API key reaches the browser bundle
+  (`NEXT_PUBLIC_*` is only the non-secret map style URL). Env files are
+  gitignored; provision them outside the repo (e.g. `/etc/switchback/`).
+- **Rate limiting.** Every public endpoint is limited per caller IP
+  (`src/lib/server/rate-limiter.ts`), with tighter windows on paid-key routes
+  (ride-intent/OpenRouter, ride-research + ride-corridors/You.com,
+  geocode + place-ideas/Google, route-weather/NWS, map-features/Overpass).
+  The routing provider queue is bounded and returns 429 when saturated.
+- **The proxy must own the client-IP headers.** Caddy's example strips
+  client-supplied `X-Forwarded-For`/`X-Real-IP`/`Cf-Connecting-Ip` and
+  rewrites them from the real socket peer; without that, per-IP limits are
+  spoofable. Behind Cloudflare, set `TRUST_CF_CONNECTING_IP=1` on the app
+  and keep the origin firewalled to Cloudflare's IP ranges.
+- **Firewall the origin.** Do not expose the Next port (or the router ports)
+  beyond your proxy; the Cloudflare host service that binds `0.0.0.0:3100`
+  is only safe when the edge/firewall is restricted to Cloudflare IPs.
+- **TLS.** Replace `tls internal` with a real ACME certificate and set an
+  email in the Caddy global block. The app sends HSTS, CSP, nosniff and
+  frame/object restrictions on every response in production.
+- **GPX library paths are scrubbed** from the public catalog response; the
+  project catalog under `GPX_LIBRARY_PATH` is still visible to anyone — only
+  publish routes you intend to share.
+
 ## Production on a LAN with HTTPS
 
 Geolocation, screen wake lock, service workers, and other installable-web-app capabilities require a [secure browser context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). `localhost` is a development exception; a phone connecting to a LAN IP over plain HTTP is not. The supplied Caddy example terminates HTTPS and proxies only the Next app.

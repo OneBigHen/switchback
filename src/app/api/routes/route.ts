@@ -4,6 +4,7 @@ import { requestGraphHopperRoutes } from "@/lib/routing/graphhopper"
 import { createHybridRouteProvider } from "@/lib/routing/hybrid"
 import { requestValhallaRoutes, enrichWithElevations } from "@/lib/routing/valhalla"
 import { createRouteJobLimiter } from "@/lib/server/route-job-limiter"
+import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { createRouteCache } from "@/lib/server/route-cache"
 import { CurvatureRepository } from "@/lib/curvature/repository"
 import { loadRouteGeometry } from "@/lib/gpx/route-geometry"
@@ -22,6 +23,10 @@ export const runtime = "nodejs"
 // bounded 10-minute primary-result cache. Health probes bypass both.
 const providerLimiter = createRouteJobLimiter(2)
 const routeCache = createRouteCache()
+// Request-level guard on top of the provider queue: the corridor resolver
+// and PASDA enrichment run outside the provider tokens, so a flood of
+// requests would still burn host CPU and external quota.
+const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 10, label: "route request" })
 // Phase 5 merge: the adviser endpoint writes here; the primary path reads it
 // locally so background research never blocks routing.
 const corridorCache = createCorridorCache(
@@ -87,7 +92,7 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
   return sources
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function handleRoutePost(request: Request): Promise<Response> {
   const routerBaseUrl = process.env.GRAPHHOPPER_URL ?? "http://127.0.0.1:8989"
   const valhallaUrl = process.env.VALHALLA_URL
   const elevationUrl = process.env.VALHALLA_ELEVATION_URL
@@ -130,3 +135,5 @@ export async function POST(request: Request): Promise<Response> {
     { cache: routeCache, resolveCorridors }
   )
 }
+
+export const POST = withRateLimit(requestLimiter, handleRoutePost)

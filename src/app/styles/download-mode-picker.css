@@ -4,7 +4,7 @@
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #0d100f;
+  background: var(--raised);
 }
 
 .download-mode-picker-label {
@@ -39,14 +39,14 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #111513;
+  background: var(--machined);
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;
 }
 
 .download-mode-option:hover,
 .download-mode-option:focus-within {
-  border-color: rgb(243 239 230 / 28%);
+  border-color: color-mix(in srgb, var(--signal) 45%, transparent);
 }
 
 .download-mode-option[data-selected="true"] {
@@ -68,7 +68,7 @@
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #0b0e0d;
+  background: var(--raised);
   color: transparent;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
@@ -125,7 +125,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0b0e0d;
+  background: var(--raised);
 }
 
 .download-mode-corridor-label {
@@ -148,7 +148,7 @@
   padding: 7px 6px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #111513;
+  background: var(--machined);
   color: var(--metal);
   text-align: center;
   cursor: pointer;

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit + component + integration tests
+        # The Playwright e2e suite needs live GraphHopper/Valhalla instances
+        # and is run separately on a deployed host.
+        run: npx vitest run
+
+      - name: Production build
+        run: npm run build
+
+      - name: Scan for accidentally committed secrets
+        run: |
+          if grep -rInE "AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY" src scripts infra public --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" --include="*.json" --include="*.sh" ; then
+            echo "Potential secret found in tracked source!" >&2
+            exit 1
+          fi

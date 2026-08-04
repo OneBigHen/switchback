@@ -273,7 +273,9 @@ export function createPortableShare(
 export function restorePortableShare(url: string): PlannedRoute | null {
   try {
     const token = new URL(url).hash.match(/^#route=([^&]+)$/)?.[1]
-    if (!token) return null
+    // Symmetric with the encode-side cap: reject oversized tokens before
+    // decoding instead of trusting the browser's URL-length limit.
+    if (!token || token.length > MAX_PORTABLE_SHARE_BYTES) return null
     const parsed = JSON.parse(decodeBase64Url(token)) as unknown
     const validated = validatePortableRouteShare(parsed)
     if (!validated) return null

@@ -29,10 +29,24 @@ export type AppNavigationAction =
   | { type: "open_overlay"; overlay: AppOverlay }
   | { type: "close_overlay"; overlay?: AppOverlay }
   | { type: "back" }
+  | { type: "restore_tab"; tab: AppTab }
   | { type: "set_theme"; theme: ThemePreference }
 
+const TABS_FROM_URL: ReadonlyArray<AppTab> = ["library", "record", "profile"]
+
+/** Derive the active tab from a ?tab= URL parameter (deep links, reloads). */
+export function tabFromLocation(url: string): AppTab {
+  try {
+    const tab = new URL(url).searchParams.get("tab")
+    return TABS_FROM_URL.includes(tab as AppTab) ? tab as AppTab : "plan"
+  } catch {
+    return "plan"
+  }
+}
+
 export function createInitialAppNavigationState(theme: ThemePreference): AppNavigationState {
-  return { activeTab: "plan", overlays: [], backStack: [], theme }
+  const tab = typeof window === "undefined" ? "plan" : tabFromLocation(window.location.href)
+  return { activeTab: tab, overlays: [], backStack: [], theme }
 }
 
 export function appNavigationReducer(
@@ -68,6 +82,12 @@ export function appNavigationReducer(
         backStack: state.backStack.slice(0, -1)
       }
     }
+    case "restore_tab":
+      // Browser Back / URL navigation: switch the tab without recording a new
+      // history entry or pushing to the back stack.
+      return action.tab === state.activeTab
+        ? { ...state, overlays: [] }
+        : { ...state, activeTab: action.tab, overlays: [] }
     case "set_theme":
       return action.theme === state.theme ? state : { ...state, theme: action.theme }
   }

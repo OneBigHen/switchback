@@ -2,6 +2,7 @@ import type { RouteCandidateEnricher, RouteProvider, TripPlanRequest } from "@/l
 import { planMotorcycleTrip } from "@/lib/routing/planner"
 import { GraphHopperProviderError } from "@/lib/routing/graphhopper"
 import { ValhallaProviderError } from "@/lib/routing/valhalla"
+import { RouteQueueFullError } from "@/lib/server/route-job-limiter"
 import type { RouteRequest } from "@/lib/routing/types"
 import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 import { routeCacheKey, type RouteCache } from "@/lib/server/route-cache"
@@ -264,11 +265,39 @@ export async function handleRouteRequest(
     }
     return Response.json(trip)
   } catch (error) {
+    if (error instanceof RouteQueueFullError) {
+      // The provider queue is saturated; 429 tells the client to back off
+      // instead of retrying a 5xx storm.
+      return errorResponse("ROUTING_QUEUE_FULL", error.message, 429)
+    }
     if (error instanceof GraphHopperProviderError || error instanceof ValhallaProviderError) {
-      return errorResponse(error.code, error.message, normalizeStatus(error.status))
+      return errorResponse(
+        error.code,
+        friendlyRoutingErrorMessage(error.code),
+        normalizeStatus(error.status),
+        { providerMessage: error.message }
+      )
     }
     const message = error instanceof Error ? error.message : "The route could not be planned."
     return errorResponse("ROUTE_PLANNING_FAILED", message, 500)
+  }
+}
+
+/**
+ * Rider-facing copy for provider failures: calm and actionable, with no
+ * engine names or status codes. The raw provider detail is preserved in the
+ * response's `details.providerMessage` for debugging.
+ */
+function friendlyRoutingErrorMessage(code: string): string {
+  switch (code) {
+    case "OUT_OF_COVERAGE":
+      return "That ride leaves the covered map area. Pick a start and destination inside the map, or zoom in to check the bounds."
+    case "PROVIDER_UNAVAILABLE":
+      return "The route service is temporarily unavailable. Nothing was lost — try again in a moment."
+    case "ROUTING_REJECTED":
+      return "That ride couldn't be routed. Try different start or finish points, or a different route style."
+    default:
+      return "The ride couldn't be routed right now. Try again in a moment."
   }
 }
 

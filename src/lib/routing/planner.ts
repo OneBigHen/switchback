@@ -863,39 +863,65 @@ async function planAlternativeRoutes(
     .map((profile) => profile.id)
     .filter((profile) => profile !== request.profile)
 
-  for (const profile of profiles) {
-    if (accepted.length >= MAX_ALTERNATIVES || deadline.aborted) break
-    try {
-      const result = await requestTimeboxedRoutes(
-        // Comparison profiles are NOT timeboxed: strip the destination time
-        // target so they run at the normal alternative weight (1.8x) instead
-        // of the heavy 4.0x corridor factor, keeping them quick.
-        { ...variedComparisonRequest(request, profile, 0), targetMinutes: undefined },
-        provider,
-        undefined,
-        { signal: deadline }
-      )
+  // Comparison profiles race two-at-a-time through a sliding window, but
+  // results are accepted strictly in profile order. The window only shifts
+  // after a full pair is processed, so the two-alternative cap stops
+  // launching sibling profiles at exactly the same point as the old serial
+  // loop — while overlapping two requests instead of queueing six.
+  const pending = new Map<number, Promise<TimeboxedProviderResult | null>>()
+  const launch = (index: number): void => {
+    if (index >= profiles.length || pending.has(index)) return
+    pending.set(index, requestTimeboxedRoutes(
+      // Comparison profiles are NOT timeboxed: strip the destination time
+      // target so they run at the normal alternative weight (1.8x) instead
+      // of the heavy 4.0x corridor factor, keeping them quick.
+      { ...variedComparisonRequest(request, profiles[index]!, 0), targetMinutes: undefined },
+      provider,
+      undefined,
+      { signal: deadline }
+    ).then(
+      (result) => result,
+      () => null
+    ))
+  }
+  launch(0)
+  launch(1)
+  for (let index = 0; index < profiles.length && accepted.length < MAX_ALTERNATIVES && !deadline.aborted; index += 1) {
+    const profile = profiles[index]!
+    const result = await pending.get(index)
+    if (result) {
       if (result.warning) warnings.push(result.warning)
-      const enrichedCandidates = await enrichCandidates(request, result.result.routes, enricher)
-      warnings.push(...enrichedCandidates.warnings)
       const distinct = chooseDistinctCandidate(
-        enrichedCandidates.routes,
+        result.result.routes,
         [...accepted, primaryAnchor],
         ALTERNATIVES_MAX_OVERLAP,
         true
       )
       if (!distinct) {
         warnings.push(`Dropped duplicate ${profile} route.`)
-        continue
-      }
-      accepted.push(
-        ensureLockSatisfaction(
-          { ...distinct.route, overlapPercent: distinct.overlapPercent },
-          partitioned.survivingLocks
+      } else {
+        // Enrichment (PASDA/elevation evidence) runs only on the candidate
+        // that actually made the cut, not on every comparison profile's full
+        // result set — it is background evidence, never the primary route.
+        const enriched = await enrichCandidates(request, [distinct.route], enricher)
+        warnings.push(...enriched.warnings)
+        accepted.push(
+          ensureLockSatisfaction(
+            { ...(enriched.routes[0] ?? distinct.route), overlapPercent: distinct.overlapPercent },
+            partitioned.survivingLocks
+          )
         )
-      )
-    } catch {
+      }
+    } else {
       warnings.push(`${profile} comparison unavailable.`)
+    }
+    // Shift the window only after the second profile of each pair has been
+    // fully processed, and only while the two-alternative cap is still open;
+    // acceptance for the current pair is what gates new launches. Both
+    // members of the next pair are launched so no profile is ever skipped.
+    if (index % 2 === 1 && accepted.length < MAX_ALTERNATIVES && !deadline.aborted) {
+      launch(index + 1)
+      launch(index + 2)
     }
   }
 

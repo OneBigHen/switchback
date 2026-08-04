@@ -3,6 +3,7 @@
 import { PencilLine, Stack, X } from "@phosphor-icons/react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type MapStyleId, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
+import { provenanceSummary } from "@/lib/client/map-data-provenance"
 import { useMapLayerMenu } from "./useMapLayerMenu"
 
 interface MapStageLayerControlProps {
@@ -154,6 +155,7 @@ export function MapStageLayerControl({
             </label>
           })}
         </div>
+        <div className="map-provenance-options"><strong>Data sources</strong><small className="map-provenance-summary">{provenanceSummary().authoritative} authoritative · {provenanceSummary().heuristic} heuristic · {provenanceSummary().live} live updates</small><ul>{catalogSettings.map(({ definition }) => <li key={definition.id}><b>{definition.name}</b><span>{definition.provenance}</span></li>)}</ul></div>
         <div className="route-visibility-options"><strong>Route visibility</strong><label><input type="checkbox" checked={routeVisibility === "high-contrast"} onChange={(event) => onRouteVisibilityChange(event.target.checked ? "high-contrast" : "standard")} />High contrast route line</label></div>
         <div className="map-pack-options"><strong>Rider Map Packs</strong><div className="map-pack-save"><input value={mapPackName} maxLength={80} placeholder="Name this setup" aria-label="New map pack name" onChange={(event) => setMapPackName(event.target.value)} /><button type="button" onClick={saveMapPack}>Save</button></div>{mapPacks.length > 0 ? <div className="map-pack-list">{mapPacks.slice(0, 5).map((pack) => <button key={pack.id} type="button" onClick={() => onApplyMapPack(pack.id)}>{pack.name}</button>)}</div> : <small>Saved only on this device.</small>}</div>
         <div className="reference-map-options"><strong>Reference map or screenshot</strong><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Add reference map image" onChange={(event) => { onReferenceFile(event.currentTarget.files?.[0]); event.currentTarget.value = "" }} />{referenceMap ? <div className="reference-map-actions"><span>{referenceMap.name}</span><label>Opacity<input type="range" min="0.1" max="1" step="0.05" value={referenceMap.opacity} aria-label="Reference map opacity" onChange={(event) => onReferenceMapChange({ ...referenceMap, opacity: Number(event.target.value) })} /></label><button type="button" onClick={onAlignReferenceToView}>Align to current view</button><button type="button" onClick={onRemoveReferenceMap}>Remove</button></div> : null}<small>{referenceMessage || "Kept on this device. Align it over the live map, then trace the intended line."}</small></div>

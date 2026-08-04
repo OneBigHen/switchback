@@ -50,4 +50,44 @@ describe("project GPX catalog API", () => {
 
     expect(response.status).toBe(404)
   })
+
+  it("strips host filesystem paths from the public catalog listing", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "switchback-gpx-"))
+    temporaryDirectories.push(root)
+    await writeFile(path.join(root, "manifest.json"), JSON.stringify({
+      routes: [{
+        id: "route-1",
+        name: "Ridge Run",
+        distanceMiles: 42,
+        sourceProject: "Titan",
+        sourceFile: "/root/Vibe/switchback/data/gpx-library/Titan/12-10/ridge.gpx",
+        sources: ["/root/Vibe/switchback/data/gpx-library/Titan/12-10/ridge.gpx"]
+      }]
+    }))
+
+    const response = await handleGpxCatalogRequest(new Request("http://switchback.test/api/gpx-library"), root)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.routes[0].sourceFile).toBeUndefined()
+    expect(body.routes[0].sources).toBeUndefined()
+    expect(body.routes[0].sourceProject).toBe("Titan")
+  })
+
+  it("rejects oversized or malformed route ids", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "switchback-gpx-"))
+    temporaryDirectories.push(root)
+    await writeFile(path.join(root, "manifest.json"), JSON.stringify({ routes: [{ id: "ok" }] }))
+
+    const oversized = await handleGpxCatalogRequest(
+      new Request(`http://switchback.test/api/gpx-library?id=${"a".repeat(300)}`),
+      root
+    )
+    expect(oversized.status).toBe(404)
+
+    const malformed = await handleGpxCatalogRequest(
+      new Request("http://switchback.test/api/gpx-library?id=bad%2F..%2Fname"),
+      root
+    )
+    expect(malformed.status).toBe(404)
+  })
 })

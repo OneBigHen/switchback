@@ -11,6 +11,8 @@ import type { Waypoint } from "@/lib/routing/types"
 
 interface PlannerLocationState {
   routePointPast: unknown[]
+  /** The current start-field text; non-empty means the rider is typing/editing. */
+  startQuery: string
   seedCurrentLocation(location: Waypoint): void
 }
 
@@ -26,7 +28,10 @@ export function usePlannerLocationSeed({ gate, getPlanner, onSeed }: UsePlannerL
     let cancelled = false
     const seedLocation = (location: Waypoint, source: "saved" | "live") => {
       const current = getPlanner()
-      if (current.routePointPast.length > 0) return
+      // Never clobber the rider's own work: an edited start (undo stack) or
+      // a start query they are still typing must win over a late passive GPS
+      // fix arriving from the initial mount.
+      if (current.routePointPast.length > 0 || current.startQuery.trim().length > 0) return
       gate.invalidate()
       current.seedCurrentLocation(location)
       onSeed(source)

@@ -191,7 +191,9 @@ describe("planner ride composer", () => {
   it("does not pretend a missing start or unsaved Home destination is already configured", () => {
     renderDeck({ vm: { waypoint: { start: null, startQuery: "" } } })
 
-    expect(screen.getByText(/location requested when you plan/i)).toBeInTheDocument()
+    // The location affordance is an explicit action, not a claim that the
+    // start is already set: it requests the browser location on click.
+    expect(screen.getByRole("button", { name: /use my current location/i })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Home" })).not.toBeInTheDocument()
   })
 

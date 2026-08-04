@@ -122,47 +122,64 @@ workerScope.addEventListener("message", async (event: MessageEvent) => {
     }
     case "route": {
       tracked.set(parsed.requestId, { cancelled: false, startedAt: Date.now() })
-      let result: OfflineRoutingWorkerResult
+      let result: OfflineRoutingWorkerResult = buildOfflineRoutingWorkerFailure(
+        parsed,
+        "unsupported",
+        "Offline routing is unavailable in this worker build."
+      )
+      let graphModule: GraphModuleShape | null = null
+      let aStarModule: AStarModuleShape | null = null
       try {
+        // The modules are intentionally fetched through a string-typed helper
+        // so the worker can compile before `@/lib/offline/graph` and
+        // `@/lib/offline/a-star` exist on disk.
         try {
-          // Best-effort dynamic import. Falls back to `unsupported` if the
-          // modules are not yet linked into the build (the lead wires these up
-          // after the worker protocol package is accepted).
-          //
-          // The modules are intentionally fetched through a string-typed helper
-          // so the worker can compile before `@/lib/offline/graph` and
-          // `@/lib/offline/a-star` exist on disk.
-          const graphModule = (await import(
+          graphModule = (await import(
             /* @vite-ignore */ "@/lib/offline/graph"
           )) as GraphModuleShape
-          const aStarModule = (await import(
+          aStarModule = (await import(
             /* @vite-ignore */ "@/lib/offline/a-star"
           )) as AStarModuleShape
-          graphModule.validateOfflineGraph(parsed.graph)
-          const found = aStarModule.findOfflinePath(
-            parsed.graph,
-            parsed.adjacency,
-            parsed.startNodeIndex,
-            parsed.goalNodeIndex,
-            {
-              atEpochMillis: parsed.atEpochMillis,
-              maxVisitedNodes: parsed.maxVisitedNodes ?? 50_000,
-              respectOneWay: parsed.respectOneWay ?? true
-            }
-          )
-          result = found.result
-            ? buildOfflineRoutingWorkerOk(parsed, found.result)
-            : buildOfflineRoutingWorkerFailure(
-                parsed,
-                found.failure?.kind ?? "no_path",
-                found.failure?.message ?? "No path found."
-              )
         } catch {
+          // The modules are not linked into this build — not a data problem.
           result = buildOfflineRoutingWorkerFailure(
             parsed,
             "unsupported",
-            "Routing payload validation is not available in this worker build."
+            "Offline routing modules are not available in this worker build."
           )
+        }
+        if (graphModule && aStarModule) {
+          try {
+            graphModule.validateOfflineGraph(parsed.graph)
+            const found = aStarModule.findOfflinePath(
+              parsed.graph,
+              parsed.adjacency,
+              parsed.startNodeIndex,
+              parsed.goalNodeIndex,
+              {
+                atEpochMillis: parsed.atEpochMillis,
+                maxVisitedNodes: parsed.maxVisitedNodes ?? 50_000,
+                respectOneWay: parsed.respectOneWay ?? true
+              }
+            )
+            result = found.result
+              ? buildOfflineRoutingWorkerOk(parsed, found.result)
+              : buildOfflineRoutingWorkerFailure(
+                  parsed,
+                  found.failure?.kind ?? "no_path",
+                  found.failure?.message ?? "No path found."
+                )
+          } catch (validationError) {
+            // A malformed/corrupt graph is a data problem, not an unsupported
+            // build — surface the real reason instead of a generic message.
+            result = buildOfflineRoutingWorkerFailure(
+              parsed,
+              "invalid_graph",
+              validationError instanceof Error
+                ? validationError.message
+                : "Offline graph data is invalid."
+            )
+          }
         }
       } finally {
         const tracker = tracked.get(parsed.requestId)

@@ -136,6 +136,8 @@ export interface PlannerDeckCommands {
   onStartRide?(route: PlannedRoute): void
   onSaveOffline?(route: PlannedRoute, options?: import("@/lib/client/offline-pack-coordinator").OfflinePackCorridorOptions): void
   onCancelPlanning(): void
+  /** Request the browser location and use it as the route start. */
+  onUseCurrentLocation?(): void
 }
 
 export function buildPlannerDeckViewModel(state: {

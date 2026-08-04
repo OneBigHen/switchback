@@ -1,0 +1,4 @@
+# Switchback is a public app: allow search engines to index it.
+# Remove or restrict these rules if you deploy a private instance.
+User-agent: *
+Allow: /
