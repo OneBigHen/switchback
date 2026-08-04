@@ -66,9 +66,10 @@ const NUMBER_WORDS: Record<string, number> = {
 }
 
 function targetMinutes(prompt: string): number | null {
-  const minutes = prompt.match(/\b(\d{1,3})\s*(?:minutes?|mins?)\b/i)
+  // Accept "90 minutes", "1 hour", "1-hour loop", "2-hr ride", "half hour".
+  const minutes = prompt.match(/\b(\d{1,3})\s*(?:-|\s)?(?:minutes?|mins?)\b/i)
   if (minutes) return Math.max(20, Math.min(480, Number(minutes[1])))
-  const hours = prompt.match(/\b(\d+(?:\.\d+)?|half|one|two|three|four|five|six)\s*(?:hours?|hrs?)\b/i)
+  const hours = prompt.match(/\b(\d+(?:\.\d+)?|half|one|two|three|four|five|six)\s*(?:-|\s)?(?:hours?|hrs?)\b/i)
   if (!hours) return null
   const value = NUMBER_WORDS[hours[1].toLowerCase()] ?? Number(hours[1])
   return Math.max(20, Math.min(480, Math.round(value * 60)))
@@ -115,7 +116,7 @@ function destinationQuery(prompt: string): string | null {
 function conciseDestinationQuery(prompt: string, duration: number | null): string | null {
   const candidate = prompt.trim().replace(/[.?!]+$/, "")
   if (candidate.length < 2 || candidate.length > 160 || duration !== null) return null
-  if (/\b(?:loop|round[ -]?trip|home|twisty|curvy|curves?|scenic|gravel|dirt|unpaved|highways?|interstates?|coffee|cafe|brewery|lunch|dinner|ride somewhere|surprise me)\b/i.test(candidate)) return null
+  if (/\b(?:loop|round[ -]?trip|home|twist(?:y|ies)|curvy|curves?|scenic|gravel|dirt|unpaved|highways?|interstates?|coffee|cafe|brewery|lunch|dinner|ride somewhere|surprise me)\b/i.test(candidate)) return null
   if (/;|\b(?:then|via|with|avoid|without)\b/i.test(candidate)) return null
   // Bare "X to Y" (no verb): the part after "to" is the destination and the
   // part before it is inferred as the origin by inferOriginFromTo.
@@ -154,7 +155,7 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
   const duration = targetMinutes(prompt)
   const preferGravel = /\b(?:gravel|dirt|unpaved|forest roads?|fire roads?|dual[ -]?sport)\b/.test(normalized)
   const adventureWord = /\b(?:adventure|adventurous)\b/.test(normalized)
-  const twisty = /\b(?:twisty|curvy|curves?|switchbacks?|winding)\b/.test(normalized)
+  const twisty = /\b(?:twist(?:y|ies)|curvy|curves?|switchbacks?|winding)\b/.test(normalized)
   const quick = /\b(?:quick|fastest|direct|shortest)\b/.test(normalized)
   const scenic = /\b(?:scenic|backroads?|rural|country roads?)\b/.test(normalized)
   const fun = /\bfun\b/.test(normalized)
@@ -186,7 +187,7 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
       : /\b(?:food|lunch|dinner|restaurant|meal)\b/.test(normalized)
         ? "food"
         : null
-  const hasStyleKeyword = /(?:quick|fastest|direct|shortest|scenic|backroads?|rural|country roads?|twisty|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun)\b/.test(normalized)
+  const hasStyleKeyword = /(?:quick|fastest|direct|shortest|scenic|backroads?|rural|country roads?|twist(?:y|ies)|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun)\b/.test(normalized)
   const hasLoopKeyword = /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)
   const ambiguous = !hasStyleKeyword || (destination === null && !hasLoopKeyword && !unresolvedSavedHome)
   const profile: RouteProfileId = preferGravel || adventureWord

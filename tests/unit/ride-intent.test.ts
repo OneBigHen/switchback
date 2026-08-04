@@ -327,4 +327,31 @@ describe("routing-intelligence intent contract", () => {
       startQuery: null
     })
   })
+
+  it("parses hyphenated durations like the '1-hour loop' suggestion", () => {
+    expect(parseRidePromptLocally("1-hour loop")).toMatchObject({
+      mode: "loop",
+      targetMinutes: 60
+    })
+    expect(parseRidePromptLocally("90-minute twisty ride")).toMatchObject({
+      targetMinutes: 90
+    })
+    expect(parseRidePromptLocally("2-hr scenic loop")).toMatchObject({
+      targetMinutes: 120,
+      mode: "loop"
+    })
+  })
+
+  it("treats style-only prompts like 'Twisties' as a twisty loop, not a destination", () => {
+    expect(parseRidePromptLocally("Twisties")).toMatchObject({
+      mode: "loop",
+      destinationQuery: null,
+      profile: "twisty"
+    })
+    expect(parseRidePromptLocally("Scenic")).toMatchObject({
+      mode: "loop",
+      destinationQuery: null,
+      profile: "scenic"
+    })
+  })
 })

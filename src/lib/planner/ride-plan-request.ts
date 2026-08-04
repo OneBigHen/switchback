@@ -124,10 +124,13 @@ export function buildRideTripRequest({
     ...progressive,
     ...bikeProfilePayload,
     ...roadLocksPayload,
+    // No `heading`: GraphHopper's round_trip + headings combination fails to
+    // find a valid point in some areas (its "after 3 tries ... NaN" error),
+    // surfacing as a generic "couldn't be routed" failure. The round_trip
+    // seed already varies loop topology, so the heading is redundant.
     roundTrip: {
       targetMinutes,
-      seed: normalizedSeed,
-      heading: normalizedSeed % 360
+      seed: normalizedSeed
     }
   }
 }

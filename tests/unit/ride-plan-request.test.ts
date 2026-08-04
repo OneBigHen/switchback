@@ -137,10 +137,10 @@ describe("ride trip request builder", () => {
       profile: "adventure",
       compare: true,
       points: [start],
+      // No heading: GraphHopper's round_trip + headings fails in some areas.
       roundTrip: {
         targetMinutes: 90,
-        seed: 37,
-        heading: 37
+        seed: 37
       }
     })
   })

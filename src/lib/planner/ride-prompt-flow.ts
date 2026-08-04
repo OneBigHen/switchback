@@ -14,14 +14,23 @@ export interface RidePromptWaypointOptions {
   finish: Waypoint | null
   home?: Waypoint | null
   search: (query: string, bias: GeocoderBias) => Promise<PlaceResult[]>
-  requestLocation: () => Promise<Waypoint>
+  requestLocation: () => Promise<RideStartLocation>
   defaultBias?: GeocoderBias
+}
+
+/** Where an inferred start came from. */
+export type RideStartLocationSource = "live" | "saved" | "home" | "region"
+
+export interface RideStartLocation {
+  waypoint: Waypoint
+  source: RideStartLocationSource
 }
 
 export interface ResolvedRidePromptWaypoints {
   start: Waypoint
   finish: Waypoint | null
-  acquiredLocation: boolean
+  /** How the start was obtained; null when the rider supplied an explicit start. */
+  locationSource: RideStartLocationSource | null
 }
 
 function asBias(point: Waypoint | null, fallback: GeocoderBias): GeocoderBias {
@@ -70,7 +79,7 @@ export async function resolveRidePromptWaypoints(
 
   const defaultBias = options.defaultBias ?? DEFAULT_SEARCH_BIAS
   let start = options.start
-  let acquiredLocation = false
+  let locationSource: RideStartLocationSource | null = null
 
   if (intent.startQuery) {
     start = isHomeQuery(intent.startQuery)
@@ -78,8 +87,9 @@ export async function resolveRidePromptWaypoints(
       : await resolvePlace(intent.startQuery, asBias(start, defaultBias), options.search)
   }
   if (!start) {
-    start = await options.requestLocation()
-    acquiredLocation = true
+    const resolved = await options.requestLocation()
+    start = resolved.waypoint
+    locationSource = resolved.source
   }
 
   let finish = options.finish
@@ -89,5 +99,5 @@ export async function resolveRidePromptWaypoints(
       : await resolvePlace(intent.destinationQuery, asBias(start, defaultBias), options.search)
   }
 
-  return { start, finish, acquiredLocation }
+  return { start, finish, locationSource }
 }

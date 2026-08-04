@@ -1,13 +1,13 @@
 "use client"
 
 import { useCallback } from "react"
-import { requestPlannerLocation, savePlannerLocation } from "@/lib/client/planner-location"
+import { readStoredPlannerLocation, requestPlannerLocation, savePlannerLocation } from "@/lib/client/planner-location"
 import { discoverPlaceIdeas, type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import { searchPlacesClient } from "@/lib/client/geocoding-client"
 import { requestRideIntent } from "@/lib/client/ride-intent-client"
 import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
-import { resolveRidePromptWaypoints } from "@/lib/planner/ride-prompt-flow"
+import { resolveRidePromptWaypoints, type RideStartLocation, type RideStartLocationSource } from "@/lib/planner/ride-prompt-flow"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { GeocoderBias } from "@/lib/geocoding/photon"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
@@ -16,6 +16,22 @@ import { usePlannerStore } from "@/stores/planner-store"
 import type { PlanMode, RideIntentStatus } from "./PlannerDeck"
 
 type PlannerNotice = { kind: "success" | "warning"; message: string }
+
+/** Last-resort inferred start when the browser cannot provide a location. */
+const REGION_DEFAULT_START: Waypoint = {
+  lat: 40.2732,
+  lon: -76.8867,
+  label: "Approximate start · Harrisburg area"
+}
+
+function startSourceLabel(source: RideStartLocationSource): string {
+  switch (source) {
+    case "saved": return "your last saved browser location"
+    case "home": return "your saved Home"
+    case "region": return "the Harrisburg area (approximate)"
+    default: return "your current location"
+  }
+}
 
 interface UsePlannerRideIntentOptions {
   gate: LatestRequestGate
@@ -79,7 +95,27 @@ export function usePlannerRideIntent({
         finish: current.finish,
         home,
         search: (query, bias) => searchPlacesClient(query, fetch, undefined, bias),
-        requestLocation: () => requestPlannerLocation(navigator.geolocation)
+        requestLocation: async (): Promise<RideStartLocation> => {
+          // Try the browser fix first; when it is unavailable or denied,
+          // infer a start from what the rider already gave us so the ride
+          // still plans: last saved location, saved Home, then the region
+          // default. Suggestions like "1-hour loop" should always map
+          // something instead of dead-ending on a missing start.
+          try {
+            const live = await requestPlannerLocation(navigator.geolocation)
+            return { waypoint: live, source: "live" }
+          } catch {
+            // Geolocation unavailable or denied — fall through to inference.
+          }
+          try {
+            const saved = readStoredPlannerLocation(window.localStorage)
+            if (saved) return { waypoint: saved, source: "saved" }
+          } catch {
+            // Private-mode or blocked storage; keep going.
+          }
+          if (home) return { waypoint: home, source: "home" }
+          return { waypoint: REGION_DEFAULT_START, source: "region" }
+        }
       })
 
       // A newer prompt or a manual point/profile edit invalidates this
@@ -97,13 +133,22 @@ export function usePlannerRideIntent({
       if (resolved.start !== current.start) {
         usePlannerStore.getState().setPoint("start", resolved.start)
       }
-      if (resolved.acquiredLocation) {
+      if (resolved.locationSource === "live") {
         try {
           savePlannerLocation(window.localStorage, resolved.start)
         } catch {
           // Routing can proceed from the fresh fix even when browser storage
           // is unavailable or private-mode restricted.
         }
+      } else if (resolved.locationSource) {
+        // Inferred start (saved / home / region): tell the rider where the
+        // route begins and how to get a precise one.
+        const sourceLabel = startSourceLabel(resolved.locationSource)
+        setIntentSummary(`Starting from ${sourceLabel}. Enable location access for a precise start.`)
+        onNotice({
+          kind: "warning",
+          message: `Couldn't get a live location, so this ride starts from ${sourceLabel}. Enable location access and plan again for an exact start.`
+        })
       }
       if (nextMode === "destination" && resolved.finish && resolved.finish !== current.finish) {
         usePlannerStore.getState().setPoint("finish", resolved.finish)

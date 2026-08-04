@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { RideIntent } from "@/lib/ai/ride-intent"
 import type { PlaceResult } from "@/lib/geocoding/photon"
-import { resolveRidePromptWaypoints } from "@/lib/planner/ride-prompt-flow"
+import { resolveRidePromptWaypoints, type RideStartLocation } from "@/lib/planner/ride-prompt-flow"
 import type { Waypoint } from "@/lib/routing/types"
 
 function intent(overrides: Partial<RideIntent> = {}): RideIntent {
@@ -47,7 +47,7 @@ describe("ride prompt waypoint resolution", () => {
   it("requests current location before biasing a destination search on a fresh browser", async () => {
     const current = waypoint("Current location", 40.27, -76.88)
     const destination = place("New Hope, PA", 40.36, -74.95)
-    const requestLocation = vi.fn(async () => current)
+    const requestLocation = vi.fn(async (): Promise<RideStartLocation> => ({ waypoint: current, source: "live" }))
     const search = vi.fn(async () => [destination])
 
     const resolved = await resolveRidePromptWaypoints({
@@ -66,7 +66,7 @@ describe("ride prompt waypoint resolution", () => {
     expect(resolved).toEqual({
       start: current,
       finish: placeWaypoint(destination),
-      acquiredLocation: true
+      locationSource: "live"
     })
   })
 
@@ -94,7 +94,7 @@ describe("ride prompt waypoint resolution", () => {
     expect(resolved).toEqual({
       start: placeWaypoint(origin),
       finish: placeWaypoint(destination),
-      acquiredLocation: false
+      locationSource: null
     })
   })
 
@@ -113,7 +113,7 @@ describe("ride prompt waypoint resolution", () => {
     })).resolves.toEqual({
       start,
       finish: placeWaypoint(destination),
-      acquiredLocation: false
+      locationSource: null
     })
 
     expect(requestLocation).not.toHaveBeenCalled()
@@ -133,7 +133,7 @@ describe("ride prompt waypoint resolution", () => {
       home,
       requestLocation,
       search
-    })).resolves.toEqual({ start, finish: home, acquiredLocation: false })
+    })).resolves.toEqual({ start, finish: home, locationSource: null })
 
     expect(search).not.toHaveBeenCalled()
     expect(requestLocation).not.toHaveBeenCalled()
@@ -183,7 +183,7 @@ describe("ride prompt waypoint resolution", () => {
       finish,
       requestLocation: vi.fn(),
       search
-    })).resolves.toEqual({ start, finish, acquiredLocation: false })
+    })).resolves.toEqual({ start, finish, locationSource: null })
     expect(search).not.toHaveBeenCalled()
   })
 })
