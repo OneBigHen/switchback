@@ -13,7 +13,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24: the app uses node:sqlite (unflagged in 23+) and the
+          # better-sqlite3 prebuilds target current LTS ABIs. Node 22 fails
+          # to bundle node:sqlite under Vite and cannot load the sqlite
+          # native binding.
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
