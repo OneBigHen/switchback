@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest"
-import catalogFixture from "../../data/gpx-library/manifest.json"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 
 function projectRoute(
@@ -20,6 +19,28 @@ function projectRoute(
     sourceFile,
     sources: [sourceFile],
     ...overrides
+  }
+}
+
+/**
+ * Builds a deterministic synthetic catalog with `entryCount` unique routes.
+ * The real production catalog lives under the gitignored `data/` directory
+ * and is not available in CI or on fresh clones, so the 419-entry grouping
+ * guarantee is asserted against an equivalent generated set instead.
+ */
+function buildCatalog(entryCount: number): ProjectGpxCatalog {
+  const projects = ["Titan", "LongWay", "Roost", "rideplanner"] as const
+  return {
+    routes: Array.from({ length: entryCount }, (_, index) => {
+      const number = String(index + 1).padStart(3, "0")
+      const project = projects[index % projects.length]!
+      return projectRoute(
+        `route-${number}`,
+        `Catalog Route ${number}`,
+        project,
+        `${project}/catalog/route-${number}.gpx`
+      )
+    })
   }
 }
 
@@ -281,9 +302,11 @@ describe("project GPX library view model", () => {
     })
   })
 
-  it("reports grouped totals without losing any of the 419 catalog entries", async () => {
+  it("reports grouped totals without losing any catalog entries", async () => {
     const { buildProjectRouteLibrary } = await import("@/lib/gpx/library-view-model")
-    const catalog = catalogFixture as ProjectGpxCatalog
+    // 419 mirrors the size of the production catalog; the assertion holds
+    // for any entry set because grouping must never drop or duplicate ids.
+    const catalog = buildCatalog(419)
 
     const library = buildProjectRouteLibrary(catalog.routes)
     const groupedIds = library.groups.flatMap((group) => group.memberIds)
