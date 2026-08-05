@@ -31,7 +31,8 @@ const suggestion = {
   },
   reasons: ["Strong curvature and sustained bends (94/100).", "Fewer traffic lights and less stop-and-go flow."],
   confidence: 0.9,
-  expiresAt: "2026-08-04T14:00:45.000Z"
+  // Always fresh: an expired suggestion is never shown (SB-030).
+  expiresAt: new Date(Date.now() + 45_000).toISOString()
 }
 
 const route = {

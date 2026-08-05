@@ -133,3 +133,62 @@ describe("Free Ride recommendation core (experimental)", () => {
     expect(ignored.cooldownUntil).toBeGreaterThan(Date.parse("2026-08-04T14:00:01.000Z"))
   })
 })
+
+describe("Free Ride directionality and expiry (SB-030)", () => {
+  it("rejects a candidate whose approach is behind the rider's heading", () => {
+    // Candidate approaches north-east (bearing ~45° from origin to entry);
+    // rider heading is due south (180°) → U-turn required.
+    const headingSouth = { ...baseContext, currentHeadingDegrees: 180 }
+    const result = rankFreeRideCandidates([candidate("road-ahead")], headingSouth)
+    expect(result.suggestion).toBeNull()
+    expect(result.suppressed).toBe(true)
+  })
+
+  it("accepts a candidate ahead of the rider's heading", () => {
+    // Rider heading east (90°); candidate approach is north-east (~45°):
+    // within the 100° threshold.
+    const headingEast = { ...baseContext, currentHeadingDegrees: 90 }
+    const result = rankFreeRideCandidates([candidate("road-ahead")], headingEast)
+    expect(result.suggestion).not.toBeNull()
+  })
+
+  it("ignores heading when it is unknown rather than guessing", () => {
+    const unknownHeading = { ...baseContext, currentHeadingDegrees: null }
+    const result = rankFreeRideCandidates([candidate("road-any")], unknownHeading)
+    expect(result.suggestion).not.toBeNull()
+  })
+
+  it("never surfaces an already-expired suggestion", () => {
+    const state: FreeRideRecommendationState = {
+      suggestion: null,
+      ignoredCandidateIds: [],
+      acceptedSuggestionId: null,
+      cooldownUntil: 0,
+      lastEvent: null
+    }
+    const expired = { ...candidate("expired"), id: "expired-1" }
+    const ranked = rankFreeRideCandidates([expired], baseContext)
+    expect(ranked.suggestion).not.toBeNull()
+    // Force an already-expired suggestion through the reducer: it must not show.
+    const suggestion = ranked.suggestion!
+    const withExpiredSuggestion = freeRideRecommendationReducer(state, { type: "show", suggestion: { ...suggestion, expiresAt: "2026-08-04T13:00:00.000Z" } })
+    expect(withExpiredSuggestion.suggestion).toBeNull()
+  })
+
+  it("expires a visible suggestion once its TTL passes", () => {
+    const suggestion = {
+      ...(rankFreeRideCandidates([candidate("road-ahead")], baseContext).suggestion)!,
+      expiresAt: "2026-08-04T14:00:44.000Z"
+    }
+    const state: FreeRideRecommendationState = {
+      suggestion,
+      ignoredCandidateIds: [],
+      acceptedSuggestionId: null,
+      cooldownUntil: 0,
+      lastEvent: null
+    }
+    const after = freeRideRecommendationReducer(state, { type: "expire", at: "2026-08-04T14:00:45.000Z" })
+    expect(after.suggestion).toBeNull()
+    expect(after.lastEvent?.type).toBe("suggestion-ignored")
+  })
+})

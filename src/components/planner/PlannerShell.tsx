@@ -759,7 +759,14 @@ export function PlannerShell() {
     const controller = new AbortController()
     const poll = async () => {
       const currentRecommendation = freeRideStateRef.current
-      if (currentRecommendation.suggestion) return
+      if (currentRecommendation.suggestion) {
+        // Polling continues while a suggestion is visible so it can be
+        // invalidated: an expired suggestion disappears on its own (SB-030).
+        if (Date.parse(currentRecommendation.suggestion.expiresAt) <= Date.now()) {
+          dispatchFreeRideRecommendation({ type: "expire", at: new Date().toISOString() })
+        }
+        return
+      }
       const point = recordingStateRef.current.points.at(-1)
       if (!point) return
       const accuracy = point.accuracyMeters

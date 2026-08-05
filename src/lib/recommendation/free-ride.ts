@@ -59,6 +59,7 @@ export type FreeRideRecommendationAction =
   | { type: "ignore"; at: string }
   | { type: "less-like-this"; at: string }
   | { type: "accept"; at: string }
+  | { type: "expire"; at: string }
   | { type: "reset" }
   | { type: "clear" }
 
@@ -66,9 +67,44 @@ const MIN_ACTION_DISTANCE_METERS = 400
 const DEFAULT_HORIZON_METERS = 16_000
 const SUGGESTION_TTL_MS = 45_000
 const SUGGESTION_COOLDOWN_MS = 30_000
+/** Heading difference beyond which a candidate requires a U-turn (SB-030). */
+const MAX_HEADING_DELTA_DEGREES = 100
 
 function clamp(value: number, minimum = 0, maximum = 1): number {
   return Math.max(minimum, Math.min(maximum, Number.isFinite(value) ? value : minimum))
+}
+
+/**
+ * Initial bearing in degrees (0–360) from `from` toward `to`.
+ */
+function bearingDegrees(from: [number, number], to: [number, number]): number {
+  const toRadians = (value: number) => value * Math.PI / 180
+  const toDegrees = (value: number) => value * 180 / Math.PI
+  const [fromLon, fromLat] = from
+  const [toLon, toLat] = to
+  const phi1 = toRadians(fromLat)
+  const phi2 = toRadians(toLat)
+  const deltaLambda = toRadians(toLon - fromLon)
+  const y = Math.sin(deltaLambda) * Math.cos(phi2)
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda)
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360
+}
+
+function headingDeltaDegrees(heading: number, bearing: number): number {
+  const delta = Math.abs(((bearing - heading) + 540) % 360 - 180)
+  return delta
+}
+
+/**
+ * A candidate is behind the rider when its approach direction diverges from
+ * the current heading beyond the U-turn threshold (SB-030): accepting it
+ * would force an unapproved U-turn or a road the rider has already passed.
+ */
+function isCandidateBehindRider(candidate: FreeRideCandidate, headingDegrees: number | null): boolean {
+  if (headingDegrees == null) return false
+  const entry = candidate.routeFragment[0] ?? candidate.origin
+  const approach = bearingDegrees(candidate.origin, entry)
+  return headingDeltaDegrees(headingDegrees, approach) > MAX_HEADING_DELTA_DEGREES
 }
 
 function formatDistance(meters: number): string {
@@ -123,6 +159,9 @@ export function rankFreeRideCandidates(
     if (context.rejectedCandidateIds.has(candidate.id)) return []
     if (context.recentCandidateIds.has(candidate.id)) return []
     if (candidate.triggerDistanceMeters < MIN_ACTION_DISTANCE_METERS || candidate.triggerDistanceMeters > horizon) return []
+    // Directionality (SB-030): never offer a road behind the rider or one
+    // that would force an unapproved U-turn.
+    if (isCandidateBehindRider(candidate, context.currentHeadingDegrees)) return []
     const score = scoreRoute(candidate.route, {
       profile: context.profile,
       baselineDurationSeconds: candidate.baselineDurationSeconds ?? candidate.route.durationSeconds,
@@ -215,9 +254,19 @@ export function freeRideRecommendationReducer(
 ): FreeRideRecommendationState {
   switch (action.type) {
     case "show":
-      return state.cooldownUntil > Date.now()
-        ? state
-        : { ...state, suggestion: action.suggestion, acceptedSuggestionId: null }
+      // Never surface an already-expired suggestion (SB-030).
+      if (state.cooldownUntil > Date.now()) return state
+      if (Date.parse(action.suggestion.expiresAt) <= Date.now()) return state
+      return { ...state, suggestion: action.suggestion, acceptedSuggestionId: null }
+    case "expire":
+      return state.suggestion && Date.parse(state.suggestion.expiresAt) <= Date.parse(action.at)
+        ? {
+            ...state,
+            suggestion: null,
+            cooldownUntil: Date.parse(action.at) + SUGGESTION_COOLDOWN_MS,
+            lastEvent: eventFor("suggestion-ignored", state.suggestion, action.at, state.privateMode ?? true)
+          }
+        : state
     case "ignore":
       return state.suggestion
         ? {

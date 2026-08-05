@@ -269,3 +269,33 @@ but new signals use the stable id, which is what future sessions read.
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Free Ride directionality and expiry (SB-030)
+
+**Goal**
+A suggestion must never sit behind the rider or outlive its decision point
+(SB-030): heading is enforced, expired suggestions disappear, and polling
+continues while a suggestion is visible.
+
+**Repository evidence**
+- `src/lib/recommendation/free-ride.ts`: initial-bearing math + heading-delta
+  check; `rankFreeRideCandidates` rejects candidates whose approach diverges
+  >100° from the current heading (unknown heading = no guess, candidate
+  still eligible); reducer gains an `expire` action and the `show` action
+  refuses already-expired suggestions.
+- `PlannerShell` Free Ride poll loop no longer stops while a suggestion is
+  visible — it expires stale suggestions on the next poll.
+
+**Verification**
+- 5 new SB-030 tests (behind rejected, ahead accepted, unknown heading,
+  expired never shown, visible suggestion expires) — 11 Free Ride tests
+  total pass; typecheck + lint clean; free-ride e2e passes with a
+  dynamic expiresAt fixture.
+
+**Remaining risk**
+- Graph-backed candidate generation (SB-029) and accepted-fragment traversal
+  validation (SB-031) remain; suggestions are still curvature-database
+  candidates labeled Experimental.
+
+**Commit**
+- Pending at phase close.
