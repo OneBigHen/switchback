@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { usePlannerLocationSeed } from "@/components/planner/usePlannerLocationSeed"
 import type { Waypoint } from "@/lib/routing/types"
+import type { PlanningPhase } from "@/stores/planner-store"
 
 const savedLocation: Waypoint = { lat: 40.1, lon: -76.9, label: "Saved location" }
 const liveLocation: Waypoint = { lat: 40.2, lon: -76.8, label: "Live location" }
@@ -25,6 +26,7 @@ function planner(past: unknown[] = []) {
   return {
     routePointPast: past,
     startQuery: "",
+    planningPhase: "idle" as PlanningPhase,
     seedCurrentLocation: vi.fn()
   }
 }
@@ -108,5 +110,30 @@ describe("planner location seed", () => {
 
     await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
     expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it("does not seed or invalidate the gate while a ride intent is in flight", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    const state = planner()
+    state.planningPhase = "interpreting"
+    const gate = createLatestRequestGate()
+    const invalidate = vi.spyOn(gate, "invalidate")
+    const onSeed = vi.fn()
+
+    renderHook(() => usePlannerLocationSeed({
+      gate,
+      getPlanner: () => state,
+      onSeed
+    }))
+
+    await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    // A passive GPS fix arriving mid-intent must not invalidate the in-flight
+    // request or overwrite the intent summary: that used to drop the rider's
+    // submitted prompt and leave the planner stuck on "interpreting".
+    expect(invalidate).not.toHaveBeenCalled()
+    expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+    expect(onSeed).not.toHaveBeenCalled()
   })
 })

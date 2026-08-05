@@ -8,11 +8,14 @@ import {
   savePlannerLocation
 } from "@/lib/client/planner-location"
 import type { Waypoint } from "@/lib/routing/types"
+import type { PlanningPhase } from "@/stores/planner-store"
 
 interface PlannerLocationState {
   routePointPast: unknown[]
   /** The current start-field text; non-empty means the rider is typing/editing. */
   startQuery: string
+  /** "idle" when no ride intent/planning session owns the request gate. */
+  planningPhase: PlanningPhase
   seedCurrentLocation(location: Waypoint): void
 }
 
@@ -32,6 +35,12 @@ export function usePlannerLocationSeed({ gate, getPlanner, onSeed }: UsePlannerL
       // a start query they are still typing must win over a late passive GPS
       // fix arriving from the initial mount.
       if (current.routePointPast.length > 0 || current.startQuery.trim().length > 0) return
+      // A ride intent or planning session is in flight: it resolves its own
+      // start through requestPlannerLocation and owns the request gate.
+      // Seeding now would invalidate that in-flight request — silently
+      // dropping the rider's just-submitted prompt and leaving the planner
+      // stuck in "interpreting" with no route request ever sent.
+      if (current.planningPhase !== "idle") return
       gate.invalidate()
       current.seedCurrentLocation(location)
       onSeed(source)
