@@ -307,9 +307,15 @@ export function RegionDownloadsPanel({
     void maybeDailyManifestCheck()
   }, [maybeDailyManifestCheck])
 
-  const downloadRegion = useCallback(async (region: OfflineRegion) => {
+  const downloadRegion = useCallback(async (
+    region: OfflineRegion,
+    options: { confirmed?: boolean } = {}
+  ) => {
     const client = clientRef.current!
-    if (region.estimatedDownloadBytes >= LARGE_DOWNLOAD_BYTES) {
+    // Large downloads always require an explicit confirmation (SB-009). The
+    // confirmed flag is passed by the confirm handler so the check cannot
+    // re-prompt forever after the rider already accepted.
+    if (!options.confirmed && region.estimatedDownloadBytes >= LARGE_DOWNLOAD_BYTES) {
       setLargeDownloadPrompt({ region, bytes: region.estimatedDownloadBytes })
       return
     }
@@ -345,7 +351,7 @@ export function RegionDownloadsPanel({
     const pending = largeDownloadPrompt
     if (!pending) return
     setLargeDownloadPrompt(null)
-    await downloadRegion(pending.region)
+    await downloadRegion(pending.region, { confirmed: true })
   }, [downloadRegion, largeDownloadPrompt])
 
   const cancelLargeDownload = useCallback(() => {
@@ -393,6 +399,34 @@ export function RegionDownloadsPanel({
       setUpdateAllRunning(false)
     }
   }, [onRegionDownloaded, state.regionStates])
+
+  /**
+   * Conservative Wi-Fi check (SB-009): only a provable Wi-Fi/Ethernet link
+   * proceeds without asking. Cellular or an unknown connection state
+   * confirms with the rider before a multi-region update starts.
+   */
+  const [wifiConfirmOpen, setWifiConfirmOpen] = useState(false)
+
+  const requestUpdateAll = useCallback(() => {
+    const connection = (navigator as { connection?: { type?: string; effectiveType?: string } }).connection
+    const provableWifi = connection
+      && (connection.type === "wifi" || connection.type === "ethernet")
+      && !/^(2g|3g|4g|5g)$/.test(connection.effectiveType ?? "")
+    if (provableWifi) {
+      void updateAllOnWifi()
+      return
+    }
+    setWifiConfirmOpen(true)
+  }, [updateAllOnWifi])
+
+  const confirmWifiUpdate = useCallback(() => {
+    setWifiConfirmOpen(false)
+    void updateAllOnWifi()
+  }, [updateAllOnWifi])
+
+  const cancelWifiUpdate = useCallback(() => {
+    setWifiConfirmOpen(false)
+  }, [])
 
   const handleDownloadModeChange = useCallback((next: DownloadModePickerValue) => {
     setDownloadMode(next)
@@ -491,7 +525,7 @@ export function RegionDownloadsPanel({
           <button
             type="button"
             className="region-cadence-btn region-cadence-wifi"
-            onClick={() => void updateAllOnWifi()}
+            onClick={requestUpdateAll}
             disabled={updateAllRunning}
             aria-label="Update all stale regions on Wi-Fi"
           >
@@ -500,6 +534,19 @@ export function RegionDownloadsPanel({
           </button>
         </div>
       </div>
+
+      {wifiConfirmOpen ? (
+        <div className="region-wifi-confirm" role="alertdialog" aria-label="Confirm update off Wi-Fi">
+          <p>
+            This update is not provably on Wi-Fi and may use cellular data.
+            Continue updating all stale regions?
+          </p>
+          <div className="region-wifi-confirm-actions">
+            <button type="button" onClick={confirmWifiUpdate}>Continue anyway</button>
+            <button type="button" onClick={cancelWifiUpdate}>Cancel</button>
+          </div>
+        </div>
+      ) : null}
 
       {suggested.length > 0 && activeWaypoints.length > 0 && (
         <div className="region-suggested">
@@ -573,7 +620,9 @@ export function RegionDownloadsPanel({
                   <button
                     type="button"
                     className="region-download-btn"
-                    onClick={() => downloadRegion(region)}
+                    // Resuming a paused download carries the earlier explicit
+                    // confirmation forward; it must not re-prompt (SB-009).
+                    onClick={() => downloadRegion(region, { confirmed: rs.status === "paused" })}
                     aria-label={`${rs.status === "paused" ? "Resume" : "Download"} offline data for ${region.name}`}
                     data-blocked={projBlocked ? "true" : "false"}
                     disabled={projBlocked}

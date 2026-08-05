@@ -26,7 +26,7 @@ async function establishServiceWorker(page: import("@playwright/test").Page): Pr
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   await expect.poll(
     () => page.evaluate(async () => {
-      const cache = await caches.open("switchback-route-shell-v2")
+      const cache = await caches.open("switchback-build-v3")
       const keys = await cache.keys()
       return keys.filter((request) => new URL(request.url).pathname.startsWith("/_next/static/")).length
     }),

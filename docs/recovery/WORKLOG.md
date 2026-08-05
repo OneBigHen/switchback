@@ -188,3 +188,44 @@ graph-backed foundation; the flag flips only when SB-014/015 land.
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Phase 3 offline and storage (part 1)
+
+**Goal**
+Large-download confirmation must start exactly one job (SB-009); Wi-Fi update
+must prove or confirm connection; region readiness must be honest (SB-020);
+service-worker caches must be bounded and separated (SB-019).
+
+**Repository evidence**
+- RegionDownloadsPanel: `downloadRegion` now takes an explicit `confirmed`
+  flag — the confirm handler passes it, so a large download can never
+  re-prompt forever; resuming a paused download carries the earlier
+  confirmation forward. "Update all on Wi-Fi" now uses a conservative
+  connection check and confirms when the link is not provably Wi-Fi
+  (cellular/unknown).
+- `src/lib/offline/readiness.ts` (new): OfflineReadiness model
+  (shell/route/routing/mapTiles + per-region status + warnings) and an honest
+  level label (Level 1/2/3). Unit tests cover all levels and warning paths.
+- `public/sw.js`: rewritten with four bounded, separated caches — shell
+  (network-first), build assets (cache-first, 200 cap), tiles (bounded
+  cache-first, 500 cap), images (stale-while-revalidate, 100 cap); same-origin
+  /api/* still never cached; activate prunes stale switchback-* caches and
+  trims all caches to their caps. PWA e2e updated to the build cache name.
+
+**Decision**
+Pause/resume and atomic activation already exist in the v2 download client and
+manifest flow (verified earlier); this pass fixes the confirmation loop, the
+unverified Wi-Fi claim, the missing readiness model, and the unbounded cache.
+
+**Verification**
+- Readiness tests + region-download + offline-recovery unit tests pass;
+  typecheck + lint clean; full suite running.
+
+**Remaining risk**
+- SB-017/018 already largely present; regional offline rerouting E2E and
+  low-quota/eviction qualification remain for the release phase.
+- The suite/rebuild no-op controls are still presentational; wiring or
+  removing them is tracked in the backlog (Phase 3 part 2).
+
+**Commit**
+- Pending at phase close.
