@@ -332,3 +332,22 @@ versioned export/restore).
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Diagnostics aggregation (SB-028)
+
+**Goal**
+One honest diagnostics snapshot: app version, offline readiness, storage
+usage/persistence, and provider health — no invented "all good" claims.
+
+**Repository evidence**
+- `src/lib/domain/diagnostics.ts`: DiagnosticsSnapshot + summarizeStorage +
+  providerLabel; 3 tests (storage honesty, provider labels, readiness
+  warnings).
+- UI panel wiring deferred to the Phase 5 UX pass; the aggregation layer is
+  testable without React.
+
+**Verification**
+- 1199 unit tests total; typecheck + lint clean.
+
+**Commit**
+- Pending.
