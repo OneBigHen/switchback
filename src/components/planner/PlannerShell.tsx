@@ -1299,7 +1299,7 @@ export function PlannerShell() {
               }}
               onShareCreated={() => setNotice({
                 kind: "success",
-                message: "Private editable route link created. Route geometry and waypoints inside privacy zones were removed; instruction redaction is pending the Phase 2 share-hardening pass."
+                message: "Private editable route link created. Geometry, waypoints, and directions inside privacy zones were removed before sharing."
               })}
               savedTrip={restoredTrip ?? undefined}
               onSaveTrip={(route, tripStages, constraints) => {

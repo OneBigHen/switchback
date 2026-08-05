@@ -65,19 +65,170 @@ function redactedWaypoints(waypoints: readonly Waypoint[], zones: readonly Priva
 }
 
 /**
+ * Where the segment a→b crosses a privacy-zone circle (a outside → b inside
+ * or vice versa), in geographic degrees. Uses an equirectangular meter
+ * approximation; returns null when the segment crosses no zone boundary.
+ */
+function circleBoundaryIntersection(
+  a: Coordinate,
+  b: Coordinate,
+  zones: readonly PrivacyZone[]
+): Coordinate | null {
+  for (const zone of zones) {
+    const crossing = crossingWithZone(a, b, zone)
+    if (crossing) return crossing
+  }
+  return null
+}
+
+function crossingWithZone(
+  a: Coordinate,
+  b: Coordinate,
+  zone: PrivacyZone
+): Coordinate | null {
+  const radiusMeters = zone.radiusMeters
+  if (!Number.isFinite(radiusMeters) || radiusMeters <= 0) return null
+  const [cx, cy] = zone.center
+  const cosLat = Math.cos((cy * Math.PI) / 180) || 1
+  const toMetersX = 111_320 * cosLat
+  const toMetersY = 111_320
+  const ax = (a[0] - cx) * toMetersX
+  const ay = (a[1] - cy) * toMetersY
+  const bx = (b[0] - cx) * toMetersX
+  const by = (b[1] - cy) * toMetersY
+  const dx = bx - ax
+  const dy = by - ay
+  const A = dx * dx + dy * dy
+  if (A === 0) return null
+  const B = 2 * (ax * dx + ay * dy)
+  const C = ax * ax + ay * ay - radiusMeters * radiusMeters
+  const discriminant = B * B - 4 * A * C
+  if (discriminant < 0) return null
+  const sqrt = Math.sqrt(discriminant)
+  const t1 = (-B - sqrt) / (2 * A)
+  const t2 = (-B + sqrt) / (2 * A)
+  const t = t1 >= 0 && t1 <= 1 ? t1 : t2 >= 0 && t2 <= 1 ? t2 : null
+  if (t === null) return null
+  return [
+    a[0] + t * (b[0] - a[0]),
+    a[1] + t * (b[1] - a[1])
+  ]
+}
+
+function geometryLengthMeters(geometry: readonly Coordinate[]): number {
+  let total = 0
+  for (let index = 1; index < geometry.length; index += 1) {
+    total += distanceMeters(geometry[index - 1]!, geometry[index]!)
+  }
+  return total
+}
+
+interface RedactionGeometry {
+  visible: Coordinate[]
+  /** Original indices of kept (non-boundary) points, in order. */
+  keptOriginalIndices: number[]
+  /** Contiguous original-index runs that were removed (inside zones). */
+  removedRanges: Array<[number, number]>
+}
+
+function redactGeometry(geometry: readonly Coordinate[], zones: readonly PrivacyZone[]): RedactionGeometry {
+  const visible: Coordinate[] = []
+  const keptOriginalIndices: number[] = []
+  const removedRanges: Array<[number, number]> = []
+  let runStart = -1
+
+  const closeRun = (index: number) => {
+    if (runStart >= 0) {
+      removedRanges.push([runStart, index - 1])
+      runStart = -1
+    }
+  }
+
+  for (let index = 0; index < geometry.length; index += 1) {
+    const point = geometry[index]!
+    const inside = insidePrivacyZone(point, zones)
+    const previousInside = index > 0 ? insidePrivacyZone(geometry[index - 1]!, zones) : false
+
+    if (inside) {
+      if (runStart < 0) runStart = index
+      // Leaving the zone: terminate the visible line exactly at the boundary
+      // so the shared route never jumps across protected geometry.
+      if (index > 0 && !previousInside) {
+        const crossing = circleBoundaryIntersection(geometry[index - 1]!, point, zones)
+        if (crossing) visible.push(crossing)
+      }
+      continue
+    }
+
+    closeRun(index)
+    // Entering from inside: resume the visible line at the boundary.
+    if (index > 0 && previousInside) {
+      const crossing = circleBoundaryIntersection(geometry[index - 1]!, point, zones)
+      if (crossing) visible.push(crossing)
+    }
+    visible.push(point)
+    keptOriginalIndices.push(index)
+  }
+  closeRun(geometry.length)
+
+  return { visible, keptOriginalIndices, removedRanges }
+}
+
+/**
  * Privacy zones are deliberately applied before a route is serialized or sent
- * to a Web Share target. We remove interior geometry instead of snapping it to
- * a home coordinate, so the boundary itself does not leak a precise address.
+ * to a Web Share target:
+ * - protected geometry is removed and boundary intersections become visible
+ *   endpoints (no straight jump across a zone);
+ * - protected waypoints are dropped;
+ * - instructions inside or spanning a zone are removed, street names that
+ *   would identify a hidden section never survive, and remaining intervals
+ *   are rebased onto the visible geometry;
+ * - distance/duration are recalculated from the visible geometry; elevation
+ *   evidence tied to hidden sections is dropped.
  */
 export function redactRouteForShare(route: PlannedRoute, zones: readonly PrivacyZone[]): PlannedRoute {
-  const geometry = route.geometry.filter((coordinate) => !insidePrivacyZone(coordinate, zones))
-  if (geometry.length < 2) {
+  const { visible, keptOriginalIndices, removedRanges } = redactGeometry(route.geometry, zones)
+  if (visible.length < 2) {
     throw new Error("Privacy zones remove too much of this route to create a useful share.")
   }
+
+  const newIndexForOriginal = new Map<number, number>()
+  keptOriginalIndices.forEach((originalIndex, newIndex) => {
+    newIndexForOriginal.set(originalIndex, newIndex)
+  })
+
+  const instructions = route.instructions
+    .filter((instruction) => (
+      // Drop any instruction whose segment touches a removed zone range; its
+      // text/street name could describe a protected location.
+      !removedRanges.some(([start, end]) =>
+        instruction.interval[0] <= end && instruction.interval[1] >= start
+      )
+    ))
+    .flatMap((instruction) => {
+      const start = newIndexForOriginal.get(instruction.interval[0])
+      const end = newIndexForOriginal.get(instruction.interval[1])
+      if (start === undefined || end === undefined) return []
+      return [{
+        ...instruction,
+        interval: [start, end] as [number, number]
+      }]
+    })
+
+  const originalLength = geometryLengthMeters(route.geometry)
+  const visibleLength = geometryLengthMeters(visible)
+  const ratio = originalLength > 0 ? visibleLength / originalLength : 0
+
   return {
     ...structuredClone(route),
-    geometry,
+    geometry: visible,
     waypoints: redactedWaypoints(route.waypoints, zones),
+    instructions,
+    distanceMiles: Number((route.distanceMiles * ratio).toFixed(2)),
+    durationMinutes: Number((route.durationMinutes * ratio).toFixed(2)),
+    // Elevation evidence cannot be attributed to only the visible portion.
+    ascentMeters: null,
+    descentMeters: null,
     // Share recipients receive a portable copy, never an implication that the
     // original provider's routing state or a private source route is theirs.
     routingSource: "imported"
@@ -89,6 +240,71 @@ function encodeBase64Url(value: string): string {
   let binary = ""
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")
+}
+
+/**
+ * Deterministic Douglas-Peucker simplification with a maximum deviation in
+ * meters, applied to a route before a portable link is declared too large.
+ * The same input always produces the same output.
+ */
+function simplifyGeometryMeters(
+  geometry: readonly Coordinate[],
+  maxDeviationMeters: number
+): Coordinate[] {
+  if (geometry.length <= 2) return [...geometry]
+  const metersBetween = (a: Coordinate, b: Coordinate): number => distanceMeters(a, b)
+  const perpendicularMeters = (point: Coordinate, a: Coordinate, b: Coordinate): number => {
+    const ab = metersBetween(a, b)
+    if (ab === 0) return metersBetween(point, a)
+    // Equirectangular projection for the perpendicular distance.
+    const cosLat = Math.cos(((a[1] + b[1]) / 2) * Math.PI / 180) || 1
+    const toX = 111_320 * cosLat
+    const toY = 111_320
+    const ax = a[0] * toX
+    const ay = a[1] * toY
+    const bx = b[0] * toX
+    const by = b[1] * toY
+    const px = point[0] * toX
+    const py = point[1] * toY
+    const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / (ab * ab)))
+    const projX = ax + t * (bx - ax)
+    const projY = ay + t * (by - ay)
+    return Math.hypot(px - projX, py - projY)
+  }
+
+  const keep = new Set<number>([0, geometry.length - 1])
+  const stack: Array<[number, number]> = [[0, geometry.length - 1]]
+  while (stack.length > 0) {
+    const [start, end] = stack.pop()!
+    if (end - start < 2) continue
+    let maxDistance = -1
+    let maxIndex = -1
+    for (let index = start + 1; index < end; index += 1) {
+      const d = perpendicularMeters(geometry[index]!, geometry[start]!, geometry[end]!)
+      if (d > maxDistance) {
+        maxDistance = d
+        maxIndex = index
+      }
+    }
+    if (maxIndex >= 0 && maxDistance > maxDeviationMeters) {
+      keep.add(maxIndex)
+      stack.push([start, maxIndex])
+      stack.push([maxIndex, end])
+    }
+  }
+  return geometry.filter((_, index) => keep.has(index))
+}
+
+/** One bounded simplification attempt for oversized portable links. */
+function simplifiedCopy(route: PlannedRoute): PlannedRoute {
+  return {
+    ...route,
+    geometry: simplifyGeometryMeters(route.geometry, 30),
+    // Instruction intervals index the original geometry and cannot survive
+    // point removal; dropping them is honest (directions are secondary to
+    // the visible line and would be misleading after simplification).
+    instructions: []
+  }
 }
 
 function decodeBase64Url(value: string): string {
@@ -266,7 +482,17 @@ export function createPortableShare(
   }
   const encoded = encodeBase64Url(JSON.stringify(payload))
   if (encoded.length > MAX_PORTABLE_SHARE_BYTES) {
-    throw new Error("This route is too detailed for a private portable link. Export GPX or simplify it first.")
+    // Deterministic simplification with bounded deviation before giving up
+    // (SB-008): shrink the line, drop instructions, and retry once.
+    const simplifiedRoute = simplifiedCopy(redacted)
+    const simplified = normalizeRouteForPortableShare(simplifiedRoute)
+    const retryPayload: PortableRouteShare = { version: 1, route: simplified }
+    const retryEncoded = encodeBase64Url(JSON.stringify(retryPayload))
+    if (retryEncoded.length > MAX_PORTABLE_SHARE_BYTES) {
+      throw new Error("This route is too detailed for a private portable link even after simplification. Export GPX or share it as a local file.")
+    }
+    const origin = baseUrl.replace(/\/$/, "")
+    return { url: `${origin}/#route=${retryEncoded}`, route: simplifiedRoute }
   }
   const origin = baseUrl.replace(/\/$/, "")
   return { url: `${origin}/#route=${encoded}`, route: redacted }

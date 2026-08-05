@@ -140,3 +140,51 @@ contract.
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Phase 2 (part 1): share redaction + graph road matching
+
+**Goal**
+Protected shares leak no protected metadata (SB-008); road requirements gain a
+graph-backed matching path (SB-013) so placeholders cannot claim exactness.
+
+**Repository evidence**
+- `src/lib/share/route-share.ts`: redaction now removes protected geometry AND
+  inserts zone-boundary intersection endpoints (no straight jump across a
+  zone), drops waypoints inside zones, removes instructions inside/spanning
+  zones, rebases surviving instruction intervals onto the visible geometry,
+  and recalculates distance/duration proportionally (elevation evidence
+  nulled). Oversized links get one deterministic Douglas-Peucker
+  simplification (≤30m deviation, instructions dropped) before failing.
+- `src/lib/roads/road-matching.ts` + `/api/road-matching` (handler/route):
+  entry/exit anchors are routed against the live GraphHopper graph with
+  edge_id/street/surface/toll details; returns real geometry, edge ids when
+  the graph exposes them, street names, access evidence, graph version; a
+  refusal is a typed error, never a straight-line placeholder. Live probe:
+  82-point real geometry + street names; honestly "unresolved" when the
+  deployed graph does not serve edge_id details.
+- The road-requirements feature flag stays OFF: ordered Must traversal
+  (SB-014) and bounded Prefer candidates (SB-015) are not yet implemented, so
+  the honest state is disabled, not half-honored.
+
+**Decision**
+Share redaction is the P0 privacy item and is complete. Matching ships as the
+graph-backed foundation; the flag flips only when SB-014/015 land.
+
+**Changes**
+- New: road-matching.ts, /api/road-matching, tests (22 share tests + 4
+  matching tests).
+- PlannerShell share notice now claims the true behavior.
+
+**Verification**
+- 170 files / 1170 unit tests pass; typecheck + lint clean.
+- Live `/api/road-matching` returns real geometry and street names against the
+  running router.
+
+**Remaining risk**
+- SB-014/015 (ordered Must traversal, bounded Prefer candidates) not yet
+  implemented; Must stays disabled behind the flag.
+- edge_id detail requires a graph that encodes it; until then matches report
+  "unresolved" honestly.
+
+**Commit**
+- Pending at phase close.
