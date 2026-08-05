@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { canTransitionPlannerPhase } from "@/lib/domain/planner-state-machine"
 import { persist, createJSONStorage } from "zustand/middleware"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
@@ -475,12 +476,17 @@ export const usePlannerStore = create<PlannerState>()(
         planningPhase: state.planningPhase === "idle" ? "routing-primary" as const : state.planningPhase,
         planningStartedAt: state.planningStartedAt ?? Date.now()
       })),
-      setPlanningPhase: (planningPhase) => set((state) => ({
-        planningPhase,
-        planningStartedAt: planningPhase === "ready" || planningPhase === "cancelled" || planningPhase === "error"
-          ? null
-          : state.planningStartedAt ?? Date.now()
-      })),
+      setPlanningPhase: (planningPhase) => set((state) => {
+        // Explicit state machine (SB-022): an illegal transition is ignored
+        // so no combination of unrelated booleans can fake a lifecycle state.
+        if (!canTransitionPlannerPhase(state.planningPhase, planningPhase)) return {}
+        return {
+          planningPhase,
+          planningStartedAt: planningPhase === "ready" || planningPhase === "cancelled" || planningPhase === "error"
+            ? null
+            : state.planningStartedAt ?? Date.now()
+        }
+      }),
       cancelPlanning: () => set({
         planningPhase: "cancelled" as const,
         planningStartedAt: null,

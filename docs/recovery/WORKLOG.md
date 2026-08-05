@@ -299,3 +299,36 @@ continues while a suggestion is visible.
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Phase 4 part 2: state machine guard + unified export
+
+**Goal**
+SB-022 (explicit planner lifecycle state machine) and SB-024 (unified
+versioned export/restore).
+
+**Repository evidence**
+- `src/lib/domain/planner-state-machine.ts`: allowed-transition map per the
+  spec (idle → interpreting → geocoding → routing-primary → alternatives →
+  ready; manual idle → routing-primary; replan ready → routing-primary;
+  terminal cancelled/error → idle). The store's setPlanningPhase ignores
+  illegal transitions — no combination of unrelated booleans can fake a
+  lifecycle state. 8 new tests (edges, invalid jumps, store guard, intent
+  shortcut).
+- `src/lib/settings/unified-export.ts`: versioned backup payload (settings,
+  bikes, preferences, routes, trips, ride metadata summary — never raw GPS
+  trails) with strict validation. 3 tests (round-trip, rejection, no trails).
+- PlannerShell component-level split remains the open Phase 4 item; the
+  existing hook decomposition (usePlannerRideIntent, usePlannerLibraries,
+  useNavigationSessionController, usePlannerHome, navigation/offline
+  reducers) already provides the controller boundaries.
+
+**Verification**
+- 1196 unit tests pass; real-router 5/5 through the guarded lifecycle;
+  typecheck + lint clean.
+
+**Remaining risk**
+- The 1,440-line PlannerShell remains a composition point; the UX
+  restructure (Phase 5) will pull more of it into controllers.
+
+**Commit**
+- Pending at phase close.
