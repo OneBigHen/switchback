@@ -9,6 +9,7 @@ import {
 } from "./bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import { scorePlannedRoute } from "@/lib/recommendation/route-candidate"
+import { featureFlags } from "@/lib/domain/feature-flags"
 
 export interface GraphHopperOptions {
   baseUrl: string
@@ -235,7 +236,9 @@ export function createGraphHopperRequest(
     }
   })
 
-  const roadLocks = _request.roadLocks ?? []
+  const roadLocks = featureFlags.roadRequirements
+    ? (_request.roadLocks ?? []).filter((lock) => lock.edgeIds.length > 0)
+    : []
   const bikeProfile = _request.bikeProfile
 
   const mustLocks = roadLocks.filter((lock) => lock.mode === "must")

@@ -74,7 +74,7 @@ const baseContext = {
   recentCandidateIds: new Set<string>()
 }
 
-describe("Free Ride / Neural Map recommendation core", () => {
+describe("Free Ride recommendation core (experimental)", () => {
   it("returns at most one safe primary suggestion and ranks the better road first", () => {
     const result = rankFreeRideCandidates([
       candidate("straight", 0.2),

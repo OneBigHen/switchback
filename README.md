@@ -6,7 +6,7 @@ The default deployable routing region is **Pennsylvania plus New Jersey**. The b
 
 ## What works
 
-- Quick, Twisty, Scenic, and Adventure routing profiles
+- Quick, Balanced, Twisty, Scenic, and Adventure routing profiles (Gravel is an Adventure surface policy, Avoid Highways is a per-ride option, and Neural is personalization over eligible candidates — not separate engine profiles)
 - Route comparison that rejects near-duplicates, preserves genuinely distinct same-profile alternatives, and explains why each option differs
 - Motorcycle-specific way/node access and turn restrictions, including explicit `motorcycle=no`
 - Free-form destination, address, and loop requests such as “Route me to 10 W Main St, New Hope, PA” or “two-hour gravel loop from Carlisle with a brewery stop,” with a deterministic local interpreter and optional OpenRouter enhancement

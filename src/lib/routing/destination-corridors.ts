@@ -22,7 +22,7 @@ export interface TimeboxBaseline {
   availableDetourMinutes: number
   /**
    * A direct route longer than 110% of the target cannot be improved by a
-   * scenic detour; return the closest safe route with a warning instead.
+   * scenic detour; return the direct route with feasibility wording instead.
    */
   feasible: boolean
 }

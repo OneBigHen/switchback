@@ -91,6 +91,27 @@ describe("road locks", () => {
     expect(lock.fallbackToleranceMeters).toBeGreaterThanOrEqual(10)
   })
 
+  it("never labels a manual lock without graph edge ids as exact (SB-007 regression)", () => {
+    const lock = baseManualLock({ edgeIds: [] })
+    expect(lock.confidence).toBe("approximate")
+    // The satisfaction path must not report an exact match for an unmatched lock.
+    expect(evaluateRoadLockSatisfaction(lock, baseLine).match.kind).not.toBe("exact")
+  })
+
+  it("never labels a gpx lock without graph edge ids as matched (SB-007 regression)", () => {
+    const lock = createGpxRoadLock({
+      mode: "prefer",
+      edgeIds: [],
+      geometry: baseLine,
+      orderedAnchors: baseAnchors,
+      accessSnapshot: accessibleSnapshot(),
+      sourceRegionId: "pennsylvania",
+      sourceGraphVersion: "gh-11-1"
+    })
+    expect(lock.source).toBe("gpx")
+    expect(lock.confidence).toBe("approximate")
+  })
+
   it("rejects locks with fewer than two ordered anchors", () => {
     expect(() =>
       createManualRoadLock({

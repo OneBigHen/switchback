@@ -99,17 +99,16 @@ describe("region policy reference data", () => {
     const priority = findPriority(body)
 
     const highwayIdx = priority.findIndex((rule) => rule.if === "road_class == MOTORWAY || road_class == TRUNK")
-    const mustIdx = priority.findIndex((rule) => rule.if === "!in_switchback_lock_0")
-    const preferIdx = priority.findIndex((rule) => rule.if === "!in_switchback_lock_1")
     const bikePathIdx = priority.findIndex((rule) => rule.if === "road_class == PATH")
 
     expect(highwayIdx).toBeGreaterThanOrEqual(0)
-    expect(mustIdx).toBeGreaterThan(highwayIdx)
-    expect(preferIdx).toBeGreaterThan(mustIdx)
-    expect(bikePathIdx).toBeGreaterThan(preferIdx)
+    // Phase 0 containment: placeholder lock corridors do not reach the
+    // provider model, so only highway + bike rules order here.
+    expect(priority.some((rule) => rule.if?.includes("switchback_lock"))).toBe(false)
+    expect(bikePathIdx).toBeGreaterThan(highwayIdx)
   })
 
-  it("retains rider avoid areas and lock corridors as the only custom-model areas", () => {
+  it("retains rider avoid areas as custom-model areas and keeps lock corridors out while experimental", () => {
     const lockLine: Coordinate[] = [
       [-76.7, 40.1],
       [-76.6, 40.12]
@@ -141,11 +140,11 @@ describe("region policy reference data", () => {
     })
     const ids = findAreaFeatures(body).map((feature) => feature.id)
     expect(ids).toContain("switchback_avoid_0")
-    expect(ids).toContain("switchback_lock_0")
+    expect(ids.some((id) => id.startsWith("switchback_lock_"))).toBe(false)
     expect(ids.some((id) => id.startsWith("switchback_region_"))).toBe(false)
   })
 
-  it("keeps a must-use lock rule even when no region overlay applies", () => {
+  it("keeps lock rules out of the provider model while road requirements are experimental", () => {
     const lockLine: Coordinate[] = [
       [-76.7, 40.1],
       [-76.6, 40.12]
@@ -166,7 +165,7 @@ describe("region policy reference data", () => {
       roadLocks: [mustLock]
     })
     const priority = findPriority(body)
-    expect(priority.some((rule) => rule.if === "!in_switchback_lock_0")).toBe(true)
+    expect(priority.some((rule) => rule.if === "!in_switchback_lock_0")).toBe(false)
   })
 
   it("emits a request-time zero-priority toll rule only when tolls are explicitly avoided", () => {

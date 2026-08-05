@@ -29,7 +29,7 @@ export function AppNavigation({ activeTab, onSelect }: AppNavigationProps) {
             <path d="m28 8 6 4-6 4M16 28l-6 4 6 4" />
           </svg>
         </span>
-        <span><strong>Switchback</strong><small>Premium motorcycle routing</small></span>
+        <span><strong>Switchback</strong><small>Motorcycle routing</small></span>
       </div>
       <div className="app-navigation-items">
         {items.map(({ tab, label, icon: Icon }) => (

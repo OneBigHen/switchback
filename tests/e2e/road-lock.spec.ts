@@ -138,7 +138,7 @@ async function openRouteEditor(page: import("@playwright/test").Page) {
   }).toPass()
 }
 
-test("tap a road, lock must-use, plan a route, and assert the lock is in the proposed route", async ({
+test("tap a road, save as Prefer (Must is disabled until graph matching), and confirm the lock is experimental and forwarded", async ({
   page,
   baseURL
 }) => {
@@ -179,15 +179,18 @@ test("tap a road, lock must-use, plan a route, and assert the lock is in the pro
   await expect(page.getByText(/Tap the end of the corridor/i)).toBeVisible()
 
   await page.mouse.click(box!.x + box!.width * 0.65, box!.y + box!.height * 0.55)
-  await expect(page.getByText(/Name.*save this lock/i)).toBeVisible()
+  await expect(page.getByText(/Name and save this lock/i)).toBeVisible()
 
-  await page.getByRole("radio", { name: /Must use/i }).check()
+  // Phase 0 containment (SB-006): Must mode is disabled until graph-matched
+  // road requirements ship. Prefer is the only mode and the draft states it
+  // is experimental and approximate.
+  await expect(page.getByRole("radio", { name: /Must use/i })).toHaveCount(0)
+  await expect(page.getByRole("radio", { name: /Prefer/i })).toBeChecked()
+  await expect(page.getByText(/Experimental: this road is matched approximately/i)).toBeVisible()
+
   await page.getByRole("textbox", { name: /Name.*optional/i }).fill("Best section of PA-125")
   await page.getByRole("button", { name: "Save road lock" }).click()
   await expect(page.getByRole("region", { name: "Road lock draft" })).toBeHidden()
-
-  const dockButton = page.getByRole("button", { name: /Open road locks.*1 must-use lock active/i })
-  await expect(dockButton).toBeVisible()
 
   await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
   await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
@@ -196,10 +199,12 @@ test("tap a road, lock must-use, plan a route, and assert the lock is in the pro
   expect(Array.isArray(routeRequest?.roadLocks)).toBe(true)
   const locks = routeRequest?.roadLocks as Array<Record<string, unknown>>
   expect(locks.length).toBe(1)
-  expect(locks[0]?.mode).toBe("must")
+  expect(locks[0]?.mode).toBe("prefer")
   expect(locks[0]?.displayName).toBe("Best section of PA-125")
+  // A manual tap has no graph edge ids, so the lock can never claim exact.
+  expect(locks[0]?.confidence).toBe("approximate")
 
-  await dockButton.click()
+  await page.getByRole("button", { name: /Open road locks/i }).click()
   await expect(page.getByRole("dialog", { name: "Road locks" })).toBeVisible()
   await expect(page.getByText("Best section of PA-125")).toBeVisible()
 })

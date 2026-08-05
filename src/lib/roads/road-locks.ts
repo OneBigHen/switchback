@@ -212,7 +212,10 @@ export function createManualRoadLock(input: {
     orderedAnchors: input.orderedAnchors.map((c) => [c[0], c[1]] as Coordinate),
     fallbackToleranceMeters: Math.max(10, input.fallbackToleranceMeters ?? 50),
     source: "manual",
-    confidence: "exact",
+    // A manual tap never yields graph edge ids today, so it can never claim
+    // an exact match. "exact" would mislabel a straight-line placeholder as
+    // a verified graph corridor (Phase 0 containment, SB-007).
+    confidence: input.edgeIds.length > 0 ? "exact" : "approximate",
     sourceRegionId: input.sourceRegionId,
     sourceGraphVersion: input.sourceGraphVersion,
     accessSnapshot: input.accessSnapshot,
@@ -238,7 +241,10 @@ export function createGpxRoadLock(input: {
   return {
     ...createManualRoadLock(input),
     source: "gpx",
-    confidence: "matched"
+    // GPX carries real coordinates but no graph match until the Phase 2
+    // matching endpoint runs; never claim "matched" against the live graph
+    // without edge ids (SB-007 containment).
+    confidence: input.edgeIds.length > 0 ? "matched" : "approximate"
   }
 }
 

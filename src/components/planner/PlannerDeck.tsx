@@ -29,6 +29,7 @@ import {
   type ReactNode
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
+import { featureFlags } from "@/lib/domain/feature-flags"
 import type { RouteProfileId } from "@/lib/routing/types"
 import { BikeProfilePicker } from "./BikeProfilePicker"
 import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
@@ -667,6 +668,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                         type="button"
                         aria-label={point.locked ? `Unlock ${label}` : `Lock ${label} as must-use`}
                         aria-pressed={Boolean(point.locked)}
+                        disabled={!featureFlags.roadRequirements}
+                        title={featureFlags.roadRequirements
+                          ? undefined
+                          : "Must-use road locks are disabled until graph-matched road requirements ship."}
                         onClick={() => onToggleViaLock(index)}
                       >
                         {point.locked ? "Locked" : "Lock"}

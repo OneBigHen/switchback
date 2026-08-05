@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { PlannerDeck } from "@/components/planner/PlannerDeck"
 import type { PlannerDeckViewModel, PlannerDeckCommands } from "@/components/planner/PlannerDeckViewModel"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
+import { featureFlags } from "@/lib/domain/feature-flags"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 
 const harrisburg: Waypoint = {
@@ -388,30 +389,38 @@ describe("planner ride composer", () => {
   })
 
   it("makes road character and must-use locks explicit for each shaping stop", async () => {
-    const user = userEvent.setup()
-    const onSegmentProfileChange = vi.fn()
-    const onToggleViaLock = vi.fn()
-    renderDeck({
-      vm: {
-        waypoint: {
-          finish: { lat: 39.8309, lon: -77.2311, label: "Gettysburg, Pennsylvania" },
-          via: [{ lat: 40.4, lon: -76.7, label: "Gravel connector" }]
+    // The per-stop must-use toggle is a graph-matched road-requirement
+    // surface (SB-006): it is disabled by default and only exercised here
+    // with the flag enabled.
+    featureFlags.roadRequirements = true
+    try {
+      const user = userEvent.setup()
+      const onSegmentProfileChange = vi.fn()
+      const onToggleViaLock = vi.fn()
+      renderDeck({
+        vm: {
+          waypoint: {
+            finish: { lat: 39.8309, lon: -77.2311, label: "Gettysburg, Pennsylvania" },
+            via: [{ lat: 40.4, lon: -76.7, label: "Gravel connector" }]
+          },
+          rideConfig: { segmentProfiles: ["twisty", "scenic"] }
         },
-        rideConfig: { segmentProfiles: ["twisty", "scenic"] }
-      },
-      cmds: {
-        rideConfig: { onSegmentProfileChange },
-        waypoint: { onToggleViaLock }
-      }
-    })
+        cmds: {
+          rideConfig: { onSegmentProfileChange },
+          waypoint: { onToggleViaLock }
+        }
+      })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
-    await user.selectOptions(screen.getByLabelText("Ride style to Gravel connector"), "adventure")
-    await user.click(screen.getByRole("button", { name: "Lock Gravel connector as must-use" }))
+      await user.click(screen.getByRole("button", { name: "Edit route" }))
+      await user.selectOptions(screen.getByLabelText("Ride style to Gravel connector"), "adventure")
+      await user.click(screen.getByRole("button", { name: "Lock Gravel connector as must-use" }))
 
-    expect(onSegmentProfileChange).toHaveBeenCalledWith(0, "adventure")
-    expect(onToggleViaLock).toHaveBeenCalledWith(0)
-    expect(screen.getByLabelText("Ride style to finish")).toHaveValue("scenic")
+      expect(onSegmentProfileChange).toHaveBeenCalledWith(0, "adventure")
+      expect(onToggleViaLock).toHaveBeenCalledWith(0)
+      expect(screen.getByLabelText("Ride style to finish")).toHaveValue("scenic")
+    } finally {
+      featureFlags.roadRequirements = false
+    }
   })
 
   it("keeps explicit highway avoidance visible and editable", async () => {

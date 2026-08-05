@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, afterEach } from "vitest"
 import { createGraphHopperRequest } from "@/lib/routing/graphhopper"
+import { featureFlags } from "@/lib/domain/feature-flags"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import { createGpxRoadLock, createManualRoadLock } from "@/lib/roads/road-locks"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
@@ -66,77 +67,68 @@ function findAreaFeature(body: Record<string, unknown>, id: string) {
   return customModel?.areas?.features.find((f) => f.id === id)
 }
 
-describe("GraphHopper road lock translation", () => {
-  it("zeros out edges outside a must-use corridor via custom_model.priority", () => {
-    const lock = mustLock()
-    const body = createGraphHopperRequest({
-      profile: "twisty",
-      points: [baltimore, bethesda],
-      roadLocks: [lock]
-    })
-
-    const priority = findPriority(body)
-    expect(priority).toContainEqual({
-      if: "!in_switchback_lock_0",
-      multiply_by: "0"
-    })
+describe("GraphHopper road lock translation (Phase 0 containment)", () => {
+  afterEach(() => {
+    featureFlags.roadRequirements = false
   })
 
-  it("prefers a corridor by penalizing edges outside it with a legal multiplier", () => {
-    const lock = preferLock()
-    const body = createGraphHopperRequest({
-      profile: "twisty",
-      points: [baltimore, bethesda],
-      roadLocks: [lock]
-    })
-
-    const priority = findPriority(body)
-    expect(priority).toContainEqual({
-      if: "!in_switchback_lock_0",
-      multiply_by: "0.625"
-    })
-  })
-
-  it("emits lock corridor polygons as GraphHopper area features", () => {
+  it("excludes placeholder road locks from the provider model while road requirements are experimental", () => {
     const body = createGraphHopperRequest({
       profile: "twisty",
       points: [baltimore, bethesda],
       roadLocks: [mustLock(), preferLock()]
     })
 
+    const priority = findPriority(body)
+    expect(priority.some((rule) => rule.if?.includes("switchback_lock"))).toBe(false)
+    expect(findAreaFeature(body, "switchback_lock_0")).toBeUndefined()
+    expect(findAreaFeature(body, "switchback_lock_1")).toBeUndefined()
+  })
+
+  it("emits must/prefer corridor rules only when the flag is enabled and locks carry graph edges", () => {
+    featureFlags.roadRequirements = true
+    const body = createGraphHopperRequest({
+      profile: "twisty",
+      points: [baltimore, bethesda],
+      roadLocks: [mustLock(), preferLock()]
+    })
+
+    const priority = findPriority(body)
+    expect(priority).toContainEqual({ if: "!in_switchback_lock_0", multiply_by: "0" })
+    expect(priority).toContainEqual({ if: "!in_switchback_lock_1", multiply_by: "0.625" })
     expect(findAreaFeature(body, "switchback_lock_0")).toBeDefined()
     expect(findAreaFeature(body, "switchback_lock_1")).toBeDefined()
-  })
-
-  it("orders must rules before prefer rules when both tiers are present", () => {
-    const body = createGraphHopperRequest({
-      profile: "twisty",
-      points: [baltimore, bethesda],
-      roadLocks: [mustLock(), preferLock()]
-    })
-
-    const priority = findPriority(body)
     const mustIndex = priority.findIndex((rule) => rule.if === "!in_switchback_lock_0")
     const preferIndex = priority.findIndex((rule) => rule.if === "!in_switchback_lock_1")
     expect(mustIndex).toBeGreaterThanOrEqual(0)
     expect(preferIndex).toBeGreaterThan(mustIndex)
   })
 
-  it("preserves the lock corridor polygon ring even when the source geometry is unclosed", () => {
+  it("keeps a manual lock without graph edge ids out of the provider model even when enabled", () => {
+    featureFlags.roadRequirements = true
+    const placeholder = createManualRoadLock({
+      mode: "must",
+      edgeIds: [], // browser cannot snap yet; empty is the placeholder state
+      geometry: lockLine,
+      orderedAnchors: [lockLine[0]!, lockLine[1]!],
+      accessSnapshot: accessibleSnapshot,
+      sourceRegionId: "maryland",
+      sourceGraphVersion: "gh-11-1"
+    })
+
     const body = createGraphHopperRequest({
       profile: "twisty",
       points: [baltimore, bethesda],
-      roadLocks: [mustLock()]
+      roadLocks: [placeholder]
     })
 
-    const feature = findAreaFeature(body, "switchback_lock_0")
-    expect(feature).toBeDefined()
-    const ring = feature!.geometry.coordinates[0]!
-    expect(ring.length).toBeGreaterThanOrEqual(4)
-    expect(ring[0]).toEqual(ring[ring.length - 1])
+    const priority = findPriority(body)
+    expect(priority.some((rule) => rule.if?.includes("switchback_lock"))).toBe(false)
+    expect(findAreaFeature(body, "switchback_lock_0")).toBeUndefined()
   })
 
   it("skips a lock whose LineString collapses to a single point with no length", () => {
+    featureFlags.roadRequirements = true
     const collapsed: Coordinate[] = [[-76.61, 39.29], [-76.61, 39.29]]
     const lock = createManualRoadLock({
       mode: "must",
@@ -187,7 +179,7 @@ describe("GraphHopper road lock translation", () => {
     expect(priority.some((rule) => rule.if === "road_class == PATH")).toBe(false)
   })
 
-  it("combines must locks, prefer locks, and bike profile rules into one custom_model", () => {
+  it("combines bike profile rules while excluding lock rules under Phase 0 containment", () => {
     const street = MOTORCYCLE_PROFILES.find((p) => p.category === "street")!
     const body = createGraphHopperRequest({
       profile: "twisty",
@@ -196,8 +188,9 @@ describe("GraphHopper road lock translation", () => {
       bikeProfile: { ...street }
     })
     const priority = findPriority(body)
-    expect(priority).toContainEqual({ if: "!in_switchback_lock_0", multiply_by: "0" })
-    expect(priority).toContainEqual({ if: "!in_switchback_lock_1", multiply_by: "0.625" })
+    // Bike safety exclusions always apply…
     expect(priority.some((rule) => rule.if === "road_class == PATH" && rule.multiply_by === "0")).toBe(true)
+    // …but placeholder lock corridors never reach the provider model yet.
+    expect(priority.some((rule) => rule.if?.includes("switchback_lock"))).toBe(false)
   })
 })

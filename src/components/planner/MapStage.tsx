@@ -25,6 +25,7 @@ import {
 } from "@/lib/client/map-layers"
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
 import { createManualRoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
+import { featureFlags } from "@/lib/domain/feature-flags"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 import type { PlannerPointId } from "@/stores/planner-store"
 import { usePlannerStore } from "@/stores/planner-store"
@@ -156,7 +157,7 @@ export function MapStage(props: MapStageProps) {
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
   const [lockDrawMode, setLockDrawMode] = useState(false)
   const [lockAnchors, setLockAnchors] = useState<Coordinate[]>([])
-  const [lockMode, setLockMode] = useState<RoadLockMode>("must")
+  const [lockMode, setLockMode] = useState<RoadLockMode>(featureFlags.roadRequirements ? "must" : "prefer")
   const [lockName, setLockName] = useState("")
   const [lockDraftStep, setLockDraftStep] = useState<"first" | "second" | "naming">("first")
   const [lockDraftMessage, setLockDraftMessage] = useState("")
@@ -176,7 +177,10 @@ export function MapStage(props: MapStageProps) {
       active: lockDrawMode,
       step: lockDraftStep,
       anchors: lockAnchors,
-      mode: lockMode,
+      // Must mode is disabled until graph-matched road requirements ship;
+      // clamp any legacy "must" draft so it cannot silently become a lock
+      // the provider model would misinterpret (SB-006 containment).
+      mode: featureFlags.roadRequirements ? lockMode : "prefer",
       name: lockName
     }
   }, [lockDrawMode, lockDraftStep, lockAnchors, lockMode, lockName])
@@ -1399,7 +1403,7 @@ export function MapStage(props: MapStageProps) {
           <span className="map-road-lock-status" aria-live="polite">
             {lockDraftMessage
               || (lockAnchors.length === 0
-                ? "Tap a road on the map. Switchback snaps to the nearest routable edge."
+                ? "Pick two points along the road you want to ride."
                 : `${lockAnchors.length} anchor${lockAnchors.length === 1 ? "" : "s"} placed`)}
           </span>
           {lockDraftStep === "naming" ? (
@@ -1409,16 +1413,18 @@ export function MapStage(props: MapStageProps) {
                 aria-label="Road lock mode"
                 role="radiogroup"
               >
-                <label className={`map-road-lock-mode-option${lockMode === "must" ? " is-selected" : ""}`}>
-                  <input
-                    type="radio"
-                    name="road-lock-mode"
-                    value="must"
-                    checked={lockMode === "must"}
-                    onChange={() => setLockMode("must")}
-                  />
-                  Must use
-                </label>
+                {featureFlags.roadRequirements ? (
+                  <label className={`map-road-lock-mode-option${lockMode === "must" ? " is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="road-lock-mode"
+                      value="must"
+                      checked={lockMode === "must"}
+                      onChange={() => setLockMode("must")}
+                    />
+                    Must use
+                  </label>
+                ) : null}
                 <label className={`map-road-lock-mode-option${lockMode === "prefer" ? " is-selected" : ""}`}>
                   <input
                     type="radio"
@@ -1430,6 +1436,12 @@ export function MapStage(props: MapStageProps) {
                   Prefer
                 </label>
               </fieldset>
+              {!featureFlags.roadRequirements ? (
+                <p className="map-road-lock-experimental-note">
+                  Experimental: this road is matched approximately to your saved corridor and
+                  cannot be honored exactly yet.
+                </p>
+              ) : null}
               <label className="map-road-lock-name">
                 <span>Name (optional)</span>
                 <input

@@ -77,7 +77,7 @@ describe("Free Ride HUD", () => {
     )
 
     expect(screen.getByRole("heading", { name: "Free Ride" })).toBeInTheDocument()
-    expect(screen.getByText("Neural Map")).toBeInTheDocument()
+    expect(screen.getByText("Experimental")).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Suggested fun road" })).toHaveTextContent("Fun road ahead")
 
     await user.click(screen.getByRole("button", { name: "Accept suggestion" }))

@@ -38,9 +38,9 @@ function suppressionLabel(reason: FreeRideHudProps["suppressionReason"]): string
     case "cooldown":
       return "Suggestion controls are cooling down. Keep your attention on the road."
     case "no-safe-candidate":
-      return "No safe, data-backed fun road is ready in the next few miles."
+      return "No experimental road suggestion is ready in the next few miles."
     default:
-      return "Keep riding; Switchback will look for one safe, data-backed road ahead."
+      return "Keep riding; Switchback will look for an experimental road idea ahead."
   }
 }
 
@@ -91,7 +91,7 @@ export function FreeRideHud({
           <span>
             <small>Free Ride</small>
             <h1>Free Ride</h1>
-            <strong>Neural Map</strong>
+            <strong>Experimental</strong>
           </span>
         </div>
         <div className="gps-status" role="status" aria-live="polite">
@@ -122,7 +122,7 @@ export function FreeRideHud({
         <section className="free-ride-suggestion" aria-label="Suggested fun road">
           <div className="free-ride-suggestion-heading">
             <div>
-              <span className="eyebrow">One safe idea ahead</span>
+              <span className="eyebrow">Experimental road idea ahead</span>
               <h2>{suggestion.title}</h2>
             </div>
             <strong className="free-ride-score" aria-label={`Suggestion score ${formatScore(suggestion.score.total)}`}>
@@ -144,9 +144,9 @@ export function FreeRideHud({
       ) : (
         <div className="free-ride-empty" role={error ? "alert" : "status"} aria-live="polite">
           {error ? <strong>{error}</strong> : null}
-          {!error && loading ? <strong>Looking for a safe road ahead…</strong> : null}
+          {!error && loading ? <strong>Looking for a road idea ahead…</strong> : null}
           {!error && !loading ? <strong>{suppressionLabel(suppressionReason)}</strong> : null}
-          <span>Switchback never invents an unverified suggestion.</span>
+          <span>Experimental suggestion: ride at your own judgment; it is not verified route guidance.</span>
         </div>
       )}
 

@@ -89,7 +89,7 @@ test("offers one bounded Free Ride suggestion and accepts it into live guidance"
   await page.goto(appUrl)
   await page.getByRole("button", { name: "Free Ride" }).click()
   await expect(page.getByRole("heading", { name: "Free Ride" })).toBeVisible()
-  await expect(page.getByText("Neural Map")).toBeVisible()
+  await expect(page.getByText("Experimental", { exact: true })).toBeVisible()
   await expect(page.getByRole("region", { name: "Suggested fun road" })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole("button", { name: "Accept suggestion" })).toBeVisible()
   const viewport = page.viewportSize()

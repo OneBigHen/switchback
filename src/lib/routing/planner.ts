@@ -722,20 +722,20 @@ async function planDestinationTimebox(
     }
   }
 
-  // No candidate passed every gate: return the closest safe route with an
-  // honest warning rather than an irrelevant fun-shaped route.
-  const closest = closestDurationCandidate(candidates.map(withLocks), targetMinutes) ?? baseline
-  const bestFailures = scored.length > 0 ? scored[0]!.report.failures : {}
-  const gateSummary = Object.values(bestFailures).join(" ")
+  // No candidate passed every gate: return the eligible direct baseline with
+  // honest feasibility wording. A shaped candidate that failed quality gates
+  // must never be selected or described as safe (SB-004).
+  const gateFailures = scored.length > 0 ? scored[0]!.report.failures : {}
+  const gateSummary = Object.values(gateFailures).join(" ")
   return {
     ...tripPlanMetadata(request),
-    selectedRouteId: closest.id,
-    routes: [closest],
+    selectedRouteId: baseline.id,
+    routes: [baseline],
     warnings: [
       ...partitioned.warnings,
       gateSummary
-        ? `No shaped route passed the safety gates (${gateSummary}); showing the closest safe route (${closest.durationMinutes} min).`
-        : `No shaped route met the ${targetMinutes}-minute target; showing the closest safe route (${closest.durationMinutes} min).`
+        ? `No shaped route passed the quality gates (${gateSummary}); returning the direct route (${baseline.durationMinutes} min).`
+        : `No shaped route met the ${targetMinutes}-minute target; returning the direct route (${baseline.durationMinutes} min).`
     ],
     timingMs: { primary: performance.now() - started }
   }

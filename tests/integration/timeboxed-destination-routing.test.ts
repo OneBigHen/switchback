@@ -54,7 +54,7 @@ describe("timeboxed destination routing (mock provider)", () => {
     expect(plan.warnings).toEqual([])
   })
 
-  it("warns and returns the closest safe route when the direct route exceeds 110% of target", async () => {
+  it("warns and returns the direct route when it exceeds 110% of target", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
@@ -122,7 +122,7 @@ describe("timeboxed destination routing (mock provider)", () => {
     expect(plan.routes[0].durationMinutes).toBeLessThanOrEqual(132)
   })
 
-  it("falls back to the closest safe route with a warning when no corridor passes the gates", async () => {
+  it("falls back to the direct route with a warning when no corridor passes the gates", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
@@ -146,7 +146,7 @@ describe("timeboxed destination routing (mock provider)", () => {
       })
     })
 
-    expect(plan.warnings.join(" ")).toMatch(/closest safe route/)
+    expect(plan.warnings.join(" ")).toMatch(/returning the direct route/)
     expect(plan.routes).toHaveLength(1)
   })
 })

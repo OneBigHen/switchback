@@ -1,0 +1,24 @@
+Bring the current `OneBigHen/switchback` repository up to date and make it fully working, cohesive, modular, and trustworthy after its recent major rework.
+
+The complete implementation specification is in the `switchback_full_recovery_spec` directory. Read every file before making architectural decisions. Treat those documents as authoritative unless the live repository proves an assumption obsolete; when that happens, document the discrepancy and choose the simpler, safer implementation.
+
+Execute the work phase by phase from `00_EXECUTION_ORDER.md` and `15_PHASED_IMPLEMENTATION_PLAN.md`. Start with a fresh repository audit and a traceability matrix. Fix correctness before adding features. Preserve the single-user, self-hosted, local-first product direction. Optimize planning and ride use for mobile, and build a deliberate desktop three-pane editing experience.
+
+Critical priorities:
+
+1. Replace or disable placeholder road-lock behavior.
+2. Enforce the same legal, bike, toll, access, closure, and avoidance constraints in every routing mode.
+3. Separate hard route eligibility from soft ranking; never describe a failed candidate as safe.
+4. Make Free Ride graph-backed and directional, or keep it explicitly experimental and reduced.
+5. Fix privacy-zone sharing so geometry, waypoints, instructions, and street names cannot leak protected locations.
+6. Complete offline region download, update, storage, recovery, and real offline routing behavior.
+7. Correct preference learning, use stable bike identities, and never override an explicit route selection.
+8. Replace fragmented settings with one versioned operational settings model.
+9. Break the planner god component into modular controllers and explicit state machines.
+10. Implement the mobile and desktop UX specifications and remove disconnected, misleading, redundant, or nonfunctional surfaces.
+11. Add semantic tests and physical-device release gates, not only happy-path browser tests.
+12. Update documentation, migrations, diagnostics, and operational runbooks.
+
+Do not preserve features that cannot be made coherent within the architecture. Remove or feature-flag them instead of creating fake data or incomplete compatibility layers. Do not claim completion until every item in `16_DEFINITION_OF_DONE.md` is satisfied, all required tests pass, the production build succeeds, and repository documentation matches actual behavior.
+
+Work autonomously. Keep a running work log using `17_AGENT_WORKLOG_TEMPLATE.md`. Commit at coherent phase boundaries with clear messages. Do not cut corners, weaken tests, or replace real validation with mocks where live graph behavior is required.
