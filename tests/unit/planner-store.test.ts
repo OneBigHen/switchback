@@ -58,10 +58,41 @@ describe("planner store", () => {
     usePlannerStore.getState().applyPlan(plan)
     usePlannerStore.getState().setSurface("ride")
 
+
     expect(usePlannerStore.getState()).toMatchObject({
       status: "ready",
       selectedRouteId: "twisty-1",
       surface: "ride"
+    })
+  })
+
+  it("never lets automatic selection replace an explicit user selection (SB-005)", () => {
+    usePlannerStore.getState().applyPlan(plan)
+    expect(usePlannerStore.getState().selectionSource).toBe("automatic")
+
+    // The rider taps a route: source flips to user.
+    usePlannerStore.getState().selectRoute("twisty-1")
+    expect(usePlannerStore.getState().selectionSource).toBe("user")
+
+    // Late alternatives / learned re-ranking must not overwrite it.
+    usePlannerStore.getState().applyAutomaticRouteSelection("other-route")
+    expect(usePlannerStore.getState()).toMatchObject({
+      selectedRouteId: "twisty-1",
+      selectionSource: "user"
+    })
+  })
+
+  it("treats a new plan's provider-chosen route as automatic again", () => {
+    usePlannerStore.getState().selectRoute("twisty-1")
+    const nextPlan = {
+      selectedRouteId: "scenic-1",
+      routes: [{ ...route, id: "scenic-1", profile: "scenic" as const }],
+      warnings: []
+    }
+    usePlannerStore.getState().applyPlan(nextPlan)
+    expect(usePlannerStore.getState()).toMatchObject({
+      selectedRouteId: "scenic-1",
+      selectionSource: "automatic"
     })
   })
 

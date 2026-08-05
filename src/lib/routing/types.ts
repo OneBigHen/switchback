@@ -26,6 +26,14 @@ export type TollPolicy = "allow-with-warning" | "avoid"
 /** Which progressive API call this request/response belongs to. */
 export type CandidateSet = "primary" | "alternatives"
 
+/** Where a planning request came from; every source shares one pipeline (SB-001). */
+export type RouteRequestSource =
+  | "manual"
+  | "intent"
+  | "replan"
+  | "offline-recovery"
+  | "free-ride"
+
 export interface Waypoint {
   lat: number
   lon: number
@@ -42,6 +50,10 @@ export interface AvoidArea {
 export interface RouteRequest {
   profile: RouteProfileId
   points: Waypoint[]
+  /** Client-generated unique id for this exact request. */
+  requestId?: string
+  /** Provenance; defaults to "manual" when normalized (SB-001). */
+  source?: RouteRequestSource
   avoidHighways?: boolean
   avoidAreas?: AvoidArea[]
   segmentProfiles?: RouteProfileId[]

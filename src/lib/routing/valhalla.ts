@@ -1,4 +1,5 @@
-import type { Coordinate, PlannedRoute, RouteProfileId, RouteRequest, RouteInstruction } from "./types"
+import type { Coordinate, PlannedRoute, RouteProfileId, RouteInstruction, RouteRequest } from "./types"
+import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { getProfile } from "./profiles"
 import { analyzeGeometry } from "./scoring"
 import { scorePlannedRoute } from "@/lib/recommendation/route-candidate"
@@ -53,7 +54,8 @@ const PROFILE_COSTING_OPTIONS: Record<RouteProfileId, Record<string, number>> = 
   neural: { use_highways: 0.15 }
 }
 
-export function createValhallaRequest(request: RouteRequest): Record<string, unknown> {
+export function createValhallaRequest(_input: RouteRequest): Record<string, unknown> {
+  const request = normalizeRouteRequest(_input)
   const profile = getProfile(request.profile)
   if (request.roundTrip) {
     throw new ValhallaProviderError(
@@ -408,7 +410,7 @@ function sameCoordinate(first: Coordinate | undefined, second: Coordinate | unde
 
 function normalizeTrip(
   trip: ValhallaTrip,
-  request: RouteRequest,
+  request: NormalizedRouteRequest,
   index: number
 ): PlannedRoute {
   if (!trip.legs?.length) {
@@ -529,7 +531,7 @@ function normalizeTrip(
   }
 }
 
-function normalizeTrips(response: ValhallaResponse, request: RouteRequest): PlannedRoute[] {
+function normalizeTrips(response: ValhallaResponse, request: NormalizedRouteRequest): PlannedRoute[] {
   if (!response.trip?.legs?.length) {
     throw providerError(422, response.trip?.status_message ?? "No route was found")
   }
@@ -543,9 +545,10 @@ function normalizeTrips(response: ValhallaResponse, request: RouteRequest): Plan
 }
 
 export async function requestValhallaRoutes(
-  request: RouteRequest,
+  _input: RouteRequest,
   options: ValhallaOptions
 ): Promise<ValhallaResult> {
+  const request = normalizeRouteRequest(_input)
   const fetcher = options.fetcher ?? fetch
   const requestBody = createValhallaRequest(request)
   let response: Response

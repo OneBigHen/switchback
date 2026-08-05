@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { createHybridRouteProvider } from "@/lib/routing/hybrid"
 import type { RoutingResult } from "@/lib/routing/planner"
+import { normalizeRouteRequest } from "@/lib/domain/routing/normalized-request"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 function candidate(id: string, latitudeOffset = 0): PlannedRoute {
@@ -39,7 +40,7 @@ describe("hybrid route provider", () => {
     const valhalla = vi.fn(async () => result("valhalla", [candidate("vh", 0.05)]))
     const provider = createHybridRouteProvider({ graphHopper, valhalla })
 
-    await expect(provider(request)).resolves.toMatchObject({
+    await expect(provider(normalizeRouteRequest(request))).resolves.toMatchObject({
       engine: "graphhopper",
       routes: [
         expect.objectContaining({ id: "gh", provider: "graphhopper" })
@@ -53,7 +54,7 @@ describe("hybrid route provider", () => {
     const valhalla = vi.fn(async () => { throw new Error("Valhalla unavailable") })
     const provider = createHybridRouteProvider({ graphHopper, valhalla })
 
-    const response = await provider(request)
+    const response = await provider(normalizeRouteRequest(request))
     expect(response.routes.map((route) => route.id)).toEqual(["gh"])
     expect(response.warnings).toBeUndefined()
     expect(valhalla).not.toHaveBeenCalled()
@@ -65,7 +66,7 @@ describe("hybrid route provider", () => {
       valhalla: async () => result("valhalla", [candidate("vh")])
     })
 
-    const response = await provider(request)
+    const response = await provider(normalizeRouteRequest(request))
     expect(response.routes[0]).toMatchObject({ id: "vh", provider: "valhalla" })
     expect(response.warnings?.join(" ")).toMatch(/GraphHopper.*fallback/i)
   })
@@ -75,12 +76,12 @@ describe("hybrid route provider", () => {
     const valhalla = vi.fn(async () => result("valhalla", [candidate("vh-loop")]))
     const provider = createHybridRouteProvider({ graphHopper, valhalla })
 
-    await provider({
+    await provider(normalizeRouteRequest({
       profile: "twisty",
       points: [{ lat: 40.2, lon: -76.9 }],
       roundTrip: { targetMinutes: 90, seed: 17, heading: 40 }
-    })
-    await provider({ ...request, profile: "adventure" })
+    }))
+    await provider(normalizeRouteRequest({ ...request, profile: "adventure" }))
 
     expect(graphHopper).toHaveBeenCalledTimes(2)
     expect(valhalla).not.toHaveBeenCalled()
@@ -97,12 +98,12 @@ describe("hybrid route provider", () => {
     })
 
     // Primary: no elevation enrichment on the critical path.
-    const primary = await provider(request)
+    const primary = await provider(normalizeRouteRequest(request))
     expect(enrich).not.toHaveBeenCalled()
     expect(primary.routes[0].ascentMeters).toBeNull()
 
     // Alternatives: enrichment runs as background evidence.
-    const alternatives = await provider({ ...request, candidateSet: "alternatives" })
+    const alternatives = await provider(normalizeRouteRequest({ ...request, candidateSet: "alternatives" }))
     expect(enrich).toHaveBeenCalledOnce()
     expect(alternatives.routes.every((route) => route.ascentMeters === 321)).toBe(true)
   })

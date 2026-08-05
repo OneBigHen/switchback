@@ -4,6 +4,8 @@ import {
   partitionLocksByPrecedence
 } from "@/lib/roads/lock-precedence"
 import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
+import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
+import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import {
   buildAnchorSets,
@@ -46,7 +48,7 @@ export interface TripPlan {
  * (2/3/4) fill the response contract; Phase 1 only guarantees the fields
  * are present on the wire when the request carries them.
  */
-function tripPlanMetadata(request: TripPlanRequest): Pick<TripPlan, "planningId" | "candidateSet" | "targetMinutes"> {
+function tripPlanMetadata(request: NormalizedRouteRequest): Pick<TripPlan, "planningId" | "candidateSet" | "targetMinutes"> {
   return {
     ...(request.planningId ? { planningId: request.planningId } : {}),
     ...(request.candidateSet ? { candidateSet: request.candidateSet } : {}),
@@ -74,7 +76,7 @@ export interface PlanningOptions {
 }
 
 export type RouteProvider = (
-  request: RouteRequest,
+  request: NormalizedRouteRequest,
   options?: PlanningOptions
 ) => Promise<RoutingResult>
 
@@ -193,7 +195,7 @@ function mergeDistribution(
 }
 
 async function planSegmentedTrip(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   enricher?: RouteCandidateEnricher,
   options: PlanningOptions = {}
@@ -207,11 +209,13 @@ async function planSegmentedTrip(
   }
 
   const legs = await Promise.all(segmentProfiles.map(async (profile, index) => {
+    // Every leg inherits the full normalized constraint set: bike profile,
+    // surface/rough-track policy, toll policy, avoid areas, and surviving
+    // road requirements — never just the profile and points (SB-003).
     const result = await provider({
+      ...request,
       profile,
-      points: [request.points[index]!, request.points[index + 1]!],
-      avoidHighways: request.avoidHighways,
-      avoidAreas: request.avoidAreas
+      points: [request.points[index]!, request.points[index + 1]!]
     }, options)
     const selected = chooseSelectedCandidate(result.routes)
     if (!selected) throw new Error(`The ${profile} leg returned no route.`)
@@ -344,7 +348,7 @@ async function enrichCandidates(
 }
 
 async function requestInitialTimeboxedRoute(
-  request: RouteRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   options: PlanningOptions = {}
 ): Promise<RoutingResult> {
@@ -378,7 +382,7 @@ async function requestInitialTimeboxedRoute(
 }
 
 async function requestTimeboxedRoutes(
-  request: RouteRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   enricher?: RouteCandidateEnricher,
   options: PlanningOptions = {}
@@ -516,10 +520,10 @@ async function requestTimeboxedRoutes(
 }
 
 function variedComparisonRequest(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   profile: RouteRequest["profile"],
   index: number
-): RouteRequest {
+): NormalizedRouteRequest {
   if (!request.roundTrip) return { ...request, profile }
   return {
     ...request,
@@ -534,7 +538,7 @@ function variedComparisonRequest(
 
 interface RoadLockPartitionResult {
   /** Request carrying only the locks that survived precedence. */
-  request: TripPlanRequest
+  request: NormalizedRouteRequest
   /** Surviving locks, used by the planner to attach per-candidate satisfaction. */
   survivingLocks: RoadLock[]
   /** Warnings explaining why each blocked lock was skipped. */
@@ -548,7 +552,7 @@ interface RoadLockPartitionResult {
  * on the submission request so GraphHopper still translates it into
  * custom_model rules.
  */
-function partitionLocksForRequest(request: TripPlanRequest): RoadLockPartitionResult {
+function partitionLocksForRequest(request: NormalizedRouteRequest): RoadLockPartitionResult {
   const initialLocks = request.roadLocks ?? []
   if (initialLocks.length === 0) {
     return { request, survivingLocks: [], warnings: [] }
@@ -564,10 +568,7 @@ function partitionLocksForRequest(request: TripPlanRequest): RoadLockPartitionRe
   const { roadLocks: _omittedLocks, ...requestWithoutLocks } = request
   void _omittedLocks
   return {
-    request: {
-      ...requestWithoutLocks,
-      ...(partition.surviving.length > 0 ? { roadLocks: partition.surviving } : {})
-    },
+    request: { ...requestWithoutLocks, roadLocks: partition.surviving },
     survivingLocks: partition.surviving,
     warnings
   }
@@ -599,14 +600,17 @@ export async function planMotorcycleTrip(
   enricher?: RouteCandidateEnricher,
   options: PlanningOptions = {}
 ): Promise<TripPlan> {
-  if (request.candidateSet === "alternatives") {
-    return planAlternativeRoutes(request, provider, enricher, options)
+  // Every provider call below receives the single normalized contract: all
+  // constraint fields are explicit and every mode shares one pipeline (SB-001).
+  const normalized = normalizeRouteRequest(request)
+  if (normalized.candidateSet === "alternatives") {
+    return planAlternativeRoutes(normalized, provider, enricher, options)
   }
-  if (request.targetMinutes != null && !request.roundTrip && !request.loopTargetMinutes
-    && !request.segmentProfiles?.length && request.points.length >= 2) {
-    return planDestinationTimebox(request, provider, options)
+  if (normalized.targetMinutes != null && !normalized.roundTrip && !normalized.loopTargetMinutes
+    && !normalized.segmentProfiles?.length && normalized.points.length >= 2) {
+    return planDestinationTimebox(normalized, provider, options)
   }
-  return planPrimaryRoute(request, provider, options)
+  return planPrimaryRoute(normalized, provider, options)
 }
 
 /**
@@ -617,7 +621,7 @@ export async function planMotorcycleTrip(
  * score. A direct route already inside ±10% is returned as-is.
  */
 async function planDestinationTimebox(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   options: PlanningOptions = {}
 ): Promise<TripPlan> {
@@ -745,7 +749,7 @@ const PRIMARY_CORRIDOR_DEADLINE_MS = 6_000
 const MAX_CONCURRENT_CORRIDOR_ROUTES = 2
 
 async function resolveAnchorSets(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   options: PlanningOptions,
   start: Coordinate,
   finish: Coordinate,
@@ -762,7 +766,7 @@ function emptyCorridorSources(): CorridorSourceCandidates {
 }
 
 async function routeAnchorSets(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   anchorSets: AnchorSet[],
   options: PlanningOptions
@@ -801,7 +805,7 @@ async function routeAnchorSets(
  * usable route — they belong to the separate alternatives/evidence call.
  */
 async function planPrimaryRoute(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   options: PlanningOptions = {}
 ): Promise<TripPlan> {
@@ -850,7 +854,7 @@ async function planPrimaryRoute(
  * here as background evidence and never changes the selected primary.
  */
 async function planAlternativeRoutes(
-  request: TripPlanRequest,
+  request: NormalizedRouteRequest,
   provider: RouteProvider,
   enricher?: RouteCandidateEnricher,
   options: PlanningOptions = {}
@@ -924,8 +928,18 @@ async function planAlternativeRoutes(
     const result = await pending.get(index)
     if (result) {
       if (result.warning) warnings.push(result.warning)
+      // Hard eligibility first (SB-002): an ineligible candidate — preview
+      // geometry, no real geometry, or an unresolved must road — never
+      // reaches the comparison set, no matter how close it matches.
+      const eligible = result.result.routes.filter((route) => {
+        const report = evaluateEligibility(route)
+        if (!report.eligible) {
+          warnings.push(`${profile} comparison skipped: ${report.failures[0]?.message}`)
+        }
+        return report.eligible
+      })
       const distinct = chooseDistinctCandidate(
-        result.result.routes,
+        eligible,
         [...accepted, primaryAnchor],
         ALTERNATIVES_MAX_OVERLAP,
         true

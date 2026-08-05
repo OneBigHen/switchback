@@ -1,4 +1,5 @@
 import type { Coordinate, PlannedRoute, RouteProfileId, RouteRequest } from "./types"
+import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import type { BikeProfile } from "./bike-profiles"
 import { getProfile } from "./profiles"
 import { analyzeGeometry, calculateDetailDistribution, curvedDistanceShare, type DetailInterval } from "./scoring"
@@ -211,9 +212,13 @@ function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule
 }
 
 export function createGraphHopperRequest(
-  _request: RouteRequest,
+  _input: RouteRequest,
   details: string[] = REQUESTED_DETAILS
 ): Record<string, unknown> {
+  // The adapter boundary normalizes every request so its internals always see
+  // the full explicit constraint contract (SB-001); idempotent for inputs
+  // that were already normalized by the planner.
+  const _request = normalizeRouteRequest(_input)
   const profile = getProfile(_request.profile)
   if (_request.roundTrip && _request.points.length !== 1) {
     throw new Error("A round trip requires exactly one start point")
@@ -442,7 +447,7 @@ export function createRouteId(
 
 function normalizePath(
   path: GraphHopperPath,
-  request: RouteRequest,
+  request: NormalizedRouteRequest,
   index: number
 ): PlannedRoute {
   const geometry = path.points?.coordinates
@@ -518,7 +523,7 @@ interface RouteFetchResult {
 }
 
 async function fetchRouteOnce(
-  request: RouteRequest,
+  request: NormalizedRouteRequest,
   options: GraphHopperOptions,
   details: string[]
 ): Promise<RouteFetchResult> {
@@ -566,9 +571,12 @@ async function fetchRouteOnce(
 }
 
 export async function requestGraphHopperRoutes(
-  request: RouteRequest,
+  _input: RouteRequest,
   options: GraphHopperOptions
 ): Promise<GraphHopperResult> {
+  // Adapter boundary normalization (SB-001): even direct callers get the full
+  // explicit constraint contract before any provider request is built.
+  const request = normalizeRouteRequest(_input)
   // The active graph may predate an encoded-value change (e.g. the Phase 3
   // `toll` value). Retry once without the unsupported detail so a rolled-back
   // or not-yet-reimported graph degrades to missing evidence instead of

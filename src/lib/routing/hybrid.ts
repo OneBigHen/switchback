@@ -1,6 +1,7 @@
 import type { RouteProvider, RoutingResult } from "./planner"
 import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
-import type { PlannedRoute, RouteRequest } from "./types"
+import type { PlannedRoute } from "./types"
+import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 
 export interface HybridRouteProviderOptions {
   graphHopper: RouteProvider
@@ -8,7 +9,7 @@ export interface HybridRouteProviderOptions {
   enrich?: (result: RoutingResult) => Promise<RoutingResult>
 }
 
-function supportsValhallaCandidate(request: RouteRequest): boolean {
+function supportsValhallaCandidate(request: NormalizedRouteRequest): boolean {
   return !request.roundTrip && request.profile !== "adventure" && request.points.length >= 2
 }
 
@@ -32,7 +33,7 @@ function withProvenance(
  */
 function attachRoadLockSatisfaction(
   routes: PlannedRoute[],
-  roadLocks: RouteRequest["roadLocks"]
+  roadLocks: NormalizedRouteRequest["roadLocks"]
 ): PlannedRoute[] {
   if (!roadLocks || roadLocks.length === 0) return routes
   return routes.map((route) => ({

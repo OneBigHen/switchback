@@ -179,6 +179,10 @@ interface PlannerState {
   status: PlannerStatus
   plan: TripPlan | null
   selectedRouteId: string | null
+  /** Who picked the current route: a user tap (never auto-replaced) or the
+   *  planner's automatic choice. Late alternatives and learned re-ranking
+   *  must not silently replace a user selection (SB-005). */
+  selectionSource: "user" | "automatic"
   error: PlannerError | null
   curvatureVisible: boolean
   surface: PlannerSurface
@@ -225,6 +229,9 @@ interface PlannerState {
   setPlanningPhase(phase: PlanningPhase): void
   cancelPlanning(): void
   selectRoute(id: string): void
+  /** Automatic selection (planner defaults, late alternatives, learned
+   *  re-ranking). Never overrides an explicit user selection. */
+  applyAutomaticRouteSelection(id: string): void
   setCurvatureVisible(visible: boolean): void
   setSurface(surface: PlannerSurface): void
   addRoadLock(lock: RoadLock): void
@@ -252,6 +259,7 @@ export const initialPlannerState = {
   status: "idle" as const,
   plan: null,
   selectedRouteId: null,
+  selectionSource: "automatic" as const,
   error: null,
   planningPhase: "idle" as const,
   planningStartedAt: null,
@@ -275,6 +283,7 @@ export const usePlannerStore = create<PlannerState>()(
         startQuery: point.label,
         plan: null,
         selectedRouteId: null,
+        selectionSource: "automatic" as const,
         error: null,
         status: "idle"
       }),
@@ -288,6 +297,7 @@ export const usePlannerStore = create<PlannerState>()(
         startQuery: query,
         plan: null,
         selectedRouteId: null,
+        selectionSource: "automatic" as const,
         error: null,
         status: "idle"
       } : {
@@ -295,6 +305,7 @@ export const usePlannerStore = create<PlannerState>()(
         finishQuery: query,
         plan: null,
         selectedRouteId: null,
+        selectionSource: "automatic" as const,
         error: null,
         status: "idle"
       }),
@@ -433,6 +444,7 @@ export const usePlannerStore = create<PlannerState>()(
       applyPlan: (plan) => set({
         plan,
         selectedRouteId: plan.selectedRouteId,
+        selectionSource: "automatic" as const,
         status: "ready",
         isRecalculating: false,
         error: null
@@ -475,7 +487,11 @@ export const usePlannerStore = create<PlannerState>()(
         isRecalculating: false,
         status: "idle"
       }),
-      selectRoute: (selectedRouteId) => set({ selectedRouteId }),
+      selectRoute: (selectedRouteId) => set({ selectedRouteId, selectionSource: "user" as const }),
+      // Automatic selection must never replace an explicit user pick (SB-005);
+      // enforced here so every call site is safe by construction.
+      applyAutomaticRouteSelection: (selectedRouteId) => set((state) =>
+        state.selectionSource === "user" ? {} : { selectedRouteId, selectionSource: "automatic" as const }),
       setCurvatureVisible: (curvatureVisible) => set({ curvatureVisible }),
       setSurface: (surface) => set({ surface }),
       addSavedPlace: (place) => set((state) => {

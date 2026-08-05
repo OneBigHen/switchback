@@ -260,6 +260,7 @@ export function PlannerShell() {
   // Progressive alternatives arrive after the primary route. Once there are
   // multiple candidates, apply the rider's explicit local history to the
   // selection while leaving the provider's legality and hard gates intact.
+  // A route the rider explicitly picked is never silently replaced (SB-005).
   const rankedPlanKeyRef = useRef<string | null>(null)
   useEffect(() => {
     if (routes.length < 2 || !plan) return
@@ -270,9 +271,11 @@ export function PlannerShell() {
     rankedPlanKeyRef.current = key
     void riderPreferenceLibraryRef.current!.get(settings.motorcycleId, profile).then((preference) => {
       if (!preference) return
+      const store = usePlannerStore.getState()
+      if (store.selectionSource === "user") return
       const best = rankRoutesForRider(routes, preference)[0]
-      if (best && usePlannerStore.getState().selectedRouteId !== best.route.id) {
-        usePlannerStore.getState().selectRoute(best.route.id)
+      if (best && store.selectedRouteId !== best.route.id) {
+        store.applyAutomaticRouteSelection(best.route.id)
       }
     }).catch(() => undefined)
   }, [plan, profile, routes])

@@ -2,6 +2,31 @@ import { describe, expect, it, vi } from "vitest"
 import { planMotorcycleTrip, type RoutingResult } from "@/lib/routing/planner"
 import type { GraphHopperResult } from "@/lib/routing/graphhopper"
 import type { PlannedRoute, RouteProfileId, RouteRequest } from "@/lib/routing/types"
+import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
+import { createManualRoadLock } from "@/lib/roads/road-locks"
+import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
+
+const accessibleSnapshot: RoadAccessSnapshot = {
+  highwayClass: "secondary",
+  motorcycleAccess: "yes",
+  generalAccess: "yes",
+  surface: "asphalt",
+  smoothness: "good",
+  tracktype: "unknown",
+  maxweightTonnes: null,
+  seasonalUndated: false,
+  activeConditions: [],
+  routable: true
+}
+const roadLock = createManualRoadLock({
+  mode: "prefer",
+  edgeIds: ["e1"],
+  geometry: [[-76.8, 40.2], [-76.78, 40.21]],
+  orderedAnchors: [[-76.8, 40.2], [-76.78, 40.21]],
+  accessSnapshot: accessibleSnapshot,
+  sourceRegionId: "pennsylvania",
+  sourceGraphVersion: "gh-11-1"
+})
 
 function route(profile: RouteProfileId, latitudeOffset = 0, id = `${profile}-route`): PlannedRoute {
   return {
@@ -55,11 +80,25 @@ describe("trip planner", () => {
       profile: "twisty",
       compare: true,
       points: [start, overlook, finish],
-      segmentProfiles: ["twisty", "adventure"]
+      segmentProfiles: ["twisty", "adventure"],
+      bikeProfile: { ...MOTORCYCLE_PROFILES.find((p) => p.category === "street")! },
+      avoidHighways: true,
+      tollPolicy: "avoid",
+      avoidAreas: [{ id: "a1", name: "Construction", polygon: [[-76.85, 40.2], [-76.83, 40.2], [-76.83, 40.22], [-76.85, 40.22]] }],
+      roadLocks: [roadLock]
     } as RouteRequest, provider)
 
     expect(provider).toHaveBeenCalledTimes(2)
     expect(provider.mock.calls.map(([request]) => request.profile)).toEqual(["twisty", "adventure"])
+    // SB-003: every leg inherits the full normalized constraint set — bike
+    // profile, highway/toll policy, avoid areas, and road requirements.
+    for (const [request] of provider.mock.calls) {
+      expect(request.bikeProfile?.category).toBe("street")
+      expect(request.avoidHighways).toBe(true)
+      expect(request.tollPolicy).toBe("avoid")
+      expect(request.avoidAreas).toHaveLength(1)
+      expect(request.roadLocks).toEqual([roadLock])
+    }
     expect(plan.routes).toHaveLength(1)
     expect(plan.routes[0]).toMatchObject({
       profile: "twisty",

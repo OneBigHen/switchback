@@ -92,3 +92,51 @@ but disable its untrustworthy plumbing until graph matching (Phase 2) ships.
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Phase 1 routing correctness
+
+**Goal**
+Every shown candidate is eligible and every mode applies the same normalized
+constraints (SB-001..005).
+
+**Repository evidence**
+- `src/lib/domain/routing/normalized-request.ts` (new): `NormalizedRouteRequest`
+  (requestId, shape, source, explicit avoidHighways/avoidAreas/tollPolicy/
+  roadLocks) + `normalizeRouteRequest()` (idempotent).
+- `RouteProvider` now consumes `NormalizedRouteRequest`; adapters
+  (`createGraphHopperRequest`, `requestGraphHopperRoutes`,
+  `createValhallaRequest`, `requestValhallaRoutes`) normalize at their
+  boundary so direct callers also get the full contract.
+- SB-003: `planSegmentedTrip` legs inherit the full request (was profile +
+  points + two options).
+- SB-005: store `selectionSource` ("user" | "automatic"); `selectRoute` marks
+  user; `applyAutomaticRouteSelection` refuses to override a user pick;
+  applyPlan resets to automatic; PlannerShell re-rank uses it.
+- SB-002: `src/lib/domain/routing/eligibility.ts` — hard failures
+  (invalid-geometry, preview-only, must-road-unresolved) never become ranking
+  penalties; alternatives path filters ineligible candidates with warnings.
+- SB-004 (from Phase 0): timebox fallback returns the eligible baseline.
+
+**Decision**
+Keep `TripPlanRequest` as the API input; the planner normalizes once at
+`planMotorcycleTrip` and threads the normalized contract everywhere. Adapter
+boundaries normalize defensively (idempotent) so no call site can bypass the
+contract.
+
+**Changes**
+- New: normalized-request.ts, eligibility.ts, tests/unit/routing-semantics.test.ts.
+- planner.ts, graphhopper.ts, valhalla.ts, hybrid.ts, types.ts,
+  planner-store.ts, PlannerShell.tsx; test files updated to the contract.
+
+**Verification**
+- 102 routing-focused unit tests pass; new semantic tests (10) pass.
+- typecheck + lint clean. Full suite + real-router running.
+
+**Remaining risk**
+- Eligibility module is route-derived; provider/coverage hard rules (e.g.
+  graph-version staleness) are future extension points.
+- Profile simplification (Gravel/Avoid-Highways/Neural as policies) still
+  deferred.
+
+**Commit**
+- Pending at phase close.

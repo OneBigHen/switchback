@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { createHybridRouteProvider } from "@/lib/routing/hybrid"
 import type { RoutingResult } from "@/lib/routing/planner"
+import { normalizeRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { createManualRoadLock } from "@/lib/roads/road-locks"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
@@ -93,7 +94,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       graphHopper: vi.fn(async () => result("graphhopper", [candidate("gh-1"), candidate("gh-2", 0.02)]))
     })
     const lock = mustLock()
-    const response = await provider({ ...request, roadLocks: [lock] })
+    const response = await provider(normalizeRouteRequest({ ...request, roadLocks: [lock] }))
 
     expect(response.routes).toHaveLength(2)
     for (const route of response.routes) {
@@ -112,7 +113,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       valhalla
     })
     const lock = preferLock()
-    const response = await provider({ ...request, roadLocks: [lock] })
+    const response = await provider(normalizeRouteRequest({ ...request, roadLocks: [lock] }))
 
     expect(response.routes.map((r) => r.provider)).toEqual(["graphhopper"])
     expect(valhalla).not.toHaveBeenCalled()
@@ -132,7 +133,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       valhalla
     })
     const lock = mustLock()
-    const response = await provider({ ...request, roadLocks: [lock] })
+    const response = await provider(normalizeRouteRequest({ ...request, roadLocks: [lock] }))
 
     expect(response.routes).toHaveLength(1)
     expect(response.routes[0]!.lockSatisfaction).toBeDefined()
@@ -146,7 +147,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       graphHopper: vi.fn(async () => result("graphhopper", [candidate("gh")])),
       valhalla: vi.fn(async () => result("valhalla", [candidate("vh", 0.06)]))
     })
-    const response = await provider(request)
+    const response = await provider(normalizeRouteRequest(request))
 
     expect(response.routes[0]!.lockSatisfaction).toBeUndefined()
   })
@@ -171,7 +172,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       valhalla: vi.fn(async () => result("valhalla", [candidate("vh", 0.06)]))
     })
 
-    const response = await provider({ ...request, roadLocks: [lock] })
+    const response = await provider(normalizeRouteRequest({ ...request, roadLocks: [lock] }))
 
     for (const route of response.routes) {
       const row = findRouteSatisfaction(route, lock.id)
@@ -188,7 +189,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       valhalla: vi.fn(async () => result("valhalla", [candidate("vh", 0.06)]))
     })
     const lock = mustLock()
-    const response = await provider({ ...request, roadLocks: [lock] })
+    const response = await provider(normalizeRouteRequest({ ...request, roadLocks: [lock] }))
 
     const ghRow = findRouteSatisfaction(response.routes[0]!, lock.id)
     expect(response.routes).toHaveLength(1)
@@ -206,7 +207,7 @@ describe("hybrid route provider — lock satisfaction", () => {
       graphHopper: vi.fn(async () => result("graphhopper", [onRoute, offRoute]))
     })
     const lock = mustLock()
-    const response = await provider({ ...request, roadLocks: [lock] })
+    const response = await provider(normalizeRouteRequest({ ...request, roadLocks: [lock] }))
 
     const onRow = findRouteSatisfaction(response.routes[0]!, lock.id)
     const offRow = findRouteSatisfaction(response.routes[1]!, lock.id)
