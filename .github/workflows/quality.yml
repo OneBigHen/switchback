@@ -166,6 +166,7 @@ jobs:
           node-version: 24
       - name: Download live-provider report
         if: always()
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: quality-live-smoke

@@ -53,7 +53,10 @@ function liveSmokeStatus() {
       const checks = Array.isArray(report.checks) ? report.checks : []
       const attempted = checks.filter((check) => check.status !== "NOT CONFIGURED")
       if (attempted.length === 0) return "NOT RUN"
-      return attempted.some((check) => check.status === "FAIL") ? "FAIL" : "PASS"
+      if (attempted.some((check) => check.status === "FAIL")) return "FAIL"
+      // Pass only when every attempted check reported a real result; an
+      // unknown status must never be read as a pass.
+      return attempted.every((check) => check.status === "PASS" || check.status === "DEGRADED") ? "PASS" : "NOT RUN"
     } catch {
       // Unreadable artifact: report what the job itself did.
     }
