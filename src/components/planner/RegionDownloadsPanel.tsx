@@ -359,6 +359,9 @@ export function RegionDownloadsPanel({
   }, [])
 
   const removeRegion = useCallback(async (regionId: string) => {
+    // Destructive: deleting installed offline data needs confirmation
+    // (SB-027 / SB-018).
+    if (!window.confirm("Delete this offline region? Downloaded data will be removed and must be re-downloaded.")) return
     await clientRef.current!.remove(regionId)
     dispatch({ type: "set_removed", regionId })
     setInstalledBytes(await clientRef.current!.getTotalBytes())

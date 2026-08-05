@@ -1222,6 +1222,9 @@ export function PlannerShell() {
                 usePlannerStore.getState().convertRoadLock(id)
               },
               onClearRoadLocks: () => {
+                // Destructive: clearing every road requirement needs a
+                // confirmation (SB-027).
+                if (!window.confirm("Clear all saved road locks? This cannot be undone.")) return
                 routeRequestGate.invalidate()
                 usePlannerStore.getState().clearRoadLocks()
               }
@@ -1365,7 +1368,12 @@ export function PlannerShell() {
           theme={navigation.theme}
           onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
           onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}
-            onResetLearning={() => riderPreferenceLibraryRef.current!.clear()}
+            onResetLearning={() => {
+              // Destructive: wiping every learned preference needs a
+              // confirmation (SB-027).
+              if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
+              void riderPreferenceLibraryRef.current!.clear()
+            }}
             onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
           />
       ) : null}
@@ -1396,6 +1404,9 @@ export function PlannerShell() {
         <RideRecordingHud
           controller={recording}
           onDiscard={() => {
+            // Destructive: discarding an unsaved recording needs a
+            // confirmation (SB-027).
+            if (!window.confirm("Discard this recording? It has not been saved.")) return
             recording.discard()
             usePlannerStore.getState().setSurface("planner")
           }}
