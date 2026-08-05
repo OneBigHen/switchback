@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <osm version="0.6" generator="Switchback quality fixture">
-  <bounds minlat="40.245" minlon="-76.925" maxlat="40.315" maxlon="-76.810"/>
+  <bounds minlat="40.245" minlon="-76.925" maxlat="40.315" maxlon="-76.800"/>
 
   <node id="1" version="1" lat="40.2700" lon="-76.9000"/>
   <node id="2" version="1" lat="40.2700" lon="-76.8900"/>

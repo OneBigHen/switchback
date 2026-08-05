@@ -209,6 +209,25 @@ describe("GraphHopper provider", () => {
       roundTrip: { targetMinutes: 120, seed: 17, heading: 80 }
     })
     expect(Object.hasOwn(roundTripBody, "round_trip.distance")).toBe(true)
+    // A timeboxed corridor widens the alternatives ceiling to 4.0 so a swung
+    // detour can reach the requested duration; a plain destination request
+    // keeps the default 1.8 ceiling.
+    const corridorBody = createGraphHopperRequest({
+      profile: "twisty",
+      points: [
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.28, lon: -76.84 }
+      ],
+      targetMinutes: 120
+    })
+    expect(corridorBody["alternative_route.max_weight_factor"]).toBe(4.0)
+    expect(createGraphHopperRequest({
+      profile: "twisty",
+      points: [
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.28, lon: -76.84 }
+      ]
+    })["alternative_route.max_weight_factor"]).toBe(1.8)
   })
 
   it("normalizes live geometry, instructions, road details, and rider metrics", async () => {
