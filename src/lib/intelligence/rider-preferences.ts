@@ -9,17 +9,30 @@ export type PreferenceSignalSource =
 
 export interface RiderPreferenceSignal {
   route: PlannedRoute
-  motorcycleId: string
+  /** Stable bike identity (bike.id), never the mutable display name (SB-011). */
+  bikeId: string
   rating: 1 | 2 | 3 | 4 | 5
   source: PreferenceSignalSource
 }
 
+/** Feature centroid of the rider's liked (positive) or disliked (negative) routes. */
+export interface FeatureCentroid {
+  twistiness: number
+  unpavedPercent: number
+  durationMinutes: number
+  /** Total weight of the signals that shaped this centroid. */
+  weight: number
+}
+
 export interface RiderPreference {
-  motorcycleId: string
+  bikeId: string
   profile: RouteProfileId
   sampleCount: number
   weightedSamples: number
   meanRating: number
+  positive: FeatureCentroid
+  negative: FeatureCentroid
+  /** Derived from the positive centroid only — dislikes never pull these. */
   preferredTwistiness: number
   preferredUnpavedPercent: number
   preferredDurationMinutes: number
@@ -43,16 +56,45 @@ function unpavedPercent(route: PlannedRoute): number {
   )
 }
 
-function sourceWeight(source: PreferenceSignalSource): number {
-  if (source === "manual-edit") return 1.5
-  if (source === "completed-ride") return 1.25
-  if (source === "skipped-road") return 0.75
-  if (source === "suggestion-accepted") return 1
-  return 1
+/**
+ * Signed signal weights (SB-010): a dislike moves the NEGATIVE centroid, so
+ * it can never increase affinity for the disliked features.
+ *   rating:  5★ +2 · 4★ +1 · 3★ 0 · 2★ −1 · 1★ −2
+ *   suggestion accepted +1 · ignored −0.5 · less-like-this −2
+ *   manual edit toward road +1 · completed ride weak positive +0.5
+ */
+export function signalWeight(signal: RiderPreferenceSignal): number {
+  switch (signal.source) {
+    case "rating":
+      return signal.rating - 3
+    case "suggestion-accepted":
+      return 1
+    case "skipped-road":
+      return -0.5
+    case "manual-edit":
+      return 1
+    case "completed-ride":
+      return 0.5
+  }
 }
 
-function weightedAverage(previous: number, previousWeight: number, next: number, nextWeight: number): number {
-  return Number(((previous * previousWeight + next * nextWeight) / (previousWeight + nextWeight)).toFixed(2))
+function emptyCentroid(): FeatureCentroid {
+  return { twistiness: 0, unpavedPercent: 0, durationMinutes: 0, weight: 0 }
+}
+
+function mergeCentroid(centroid: FeatureCentroid, route: PlannedRoute, weight: number): FeatureCentroid {
+  const totalWeight = centroid.weight + weight
+  if (totalWeight <= 0) return centroid
+  return {
+    twistiness: (centroid.twistiness * centroid.weight + route.twistiness * weight) / totalWeight,
+    unpavedPercent: (centroid.unpavedPercent * centroid.weight + unpavedPercent(route) * weight) / totalWeight,
+    durationMinutes: (centroid.durationMinutes * centroid.weight + route.durationMinutes * weight) / totalWeight,
+    weight: totalWeight
+  }
+}
+
+function round(value: number): number {
+  return Number(value.toFixed(2))
 }
 
 export function updateRiderPreference(
@@ -60,35 +102,39 @@ export function updateRiderPreference(
   signal: RiderPreferenceSignal,
   now = new Date().toISOString()
 ): RiderPreference {
-  const motorcycleId = signal.motorcycleId.trim().slice(0, 80) || "default"
-  if (current && (current.motorcycleId !== motorcycleId || current.profile !== signal.route.profile)) {
-    throw new Error("Preferences must be updated within the same motorcycle and routing profile.")
+  const bikeId = signal.bikeId.trim().slice(0, 80) || "default"
+  if (current && (current.bikeId !== bikeId || current.profile !== signal.route.profile)) {
+    throw new Error("Preferences must be updated within the same bike and routing profile.")
   }
-  const weight = sourceWeight(signal.source)
-  const twistiness = signal.route.twistiness
-  const unpaved = unpavedPercent(signal.route)
-  const duration = signal.route.durationMinutes
-  if (!current) {
-    return {
-      motorcycleId,
-      profile: signal.route.profile,
-      sampleCount: 1,
-      weightedSamples: weight,
-      meanRating: signal.rating,
-      preferredTwistiness: twistiness,
-      preferredUnpavedPercent: unpaved,
-      preferredDurationMinutes: duration,
-      updatedAt: now
-    }
-  }
+  const weight = signalWeight(signal)
+  const positive = current?.positive ?? emptyCentroid()
+  const negative = current?.negative ?? emptyCentroid()
+
+  // A zero-weight (3★) signal still counts as a sample but changes nothing.
+  const nextPositive = weight > 0 ? mergeCentroid(positive, signal.route, weight) : positive
+  const nextNegative = weight < 0 ? mergeCentroid(negative, signal.route, -weight) : negative
+
+  const preferredTwistiness = nextPositive.weight > 0 ? nextPositive.twistiness : 0
+  const preferredUnpavedPercent = nextPositive.weight > 0 ? nextPositive.unpavedPercent : 0
+  const preferredDurationMinutes = nextPositive.weight > 0 ? nextPositive.durationMinutes : 0
+
+  const previousSamples = current?.weightedSamples ?? 0
+  const nextWeighted = Number((previousSamples + Math.abs(weight)).toFixed(2))
+  const meanRating = current
+    ? round((current.meanRating * previousSamples + signal.rating * Math.abs(weight)) / Math.max(1, nextWeighted))
+    : signal.rating
+
   return {
-    ...current,
-    sampleCount: current.sampleCount + 1,
-    weightedSamples: Number((current.weightedSamples + weight).toFixed(2)),
-    meanRating: weightedAverage(current.meanRating, current.weightedSamples, signal.rating, weight),
-    preferredTwistiness: weightedAverage(current.preferredTwistiness, current.weightedSamples, twistiness, weight),
-    preferredUnpavedPercent: weightedAverage(current.preferredUnpavedPercent, current.weightedSamples, unpaved, weight),
-    preferredDurationMinutes: weightedAverage(current.preferredDurationMinutes, current.weightedSamples, duration, weight),
+    bikeId,
+    profile: signal.route.profile,
+    sampleCount: (current?.sampleCount ?? 0) + 1,
+    weightedSamples: nextWeighted,
+    meanRating,
+    positive: nextPositive,
+    negative: nextNegative,
+    preferredTwistiness: round(preferredTwistiness),
+    preferredUnpavedPercent: round(preferredUnpavedPercent),
+    preferredDurationMinutes: round(preferredDurationMinutes),
     updatedAt: now
   }
 }
@@ -102,18 +148,30 @@ export function explainRouteFit(preference: RiderPreference | null, route: Plann
     return {
       score: 50,
       confidence: "low",
-      reasons: ["No explicit preference history exists for this motorcycle and ride style yet."]
+      reasons: ["No explicit preference history exists for this bike and ride style yet."]
     }
   }
   const twistinessFit = closeness(route.twistiness, preference.preferredTwistiness, 45)
   const unpavedFit = closeness(unpavedPercent(route), preference.preferredUnpavedPercent, 60)
   const durationFit = closeness(route.durationMinutes, preference.preferredDurationMinutes, Math.max(60, preference.preferredDurationMinutes))
-  const score = Math.round((twistinessFit * 0.5 + unpavedFit * 0.25 + durationFit * 0.25) * 100)
+  // Disliked features reduce the fit: if this route resembles the negative
+  // centroid, the score drops even when it matches the positive one.
+  const negativePenalty = preference.negative.weight > 0
+    ? 0.5 * (
+        closeness(route.twistiness, preference.negative.twistiness, 45)
+        + closeness(unpavedPercent(route), preference.negative.unpavedPercent, 60)
+      ) / 2
+    : 0
+  const raw = (twistinessFit * 0.5 + unpavedFit * 0.25 + durationFit * 0.25)
+  const score = Math.round(Math.max(0, Math.min(100, (raw - negativePenalty) * 100)))
   const confidence = preference.sampleCount >= 12 ? "high" : preference.sampleCount >= 5 ? "medium" : "low"
   const reasons = [
     `Twistiness is ${Math.round(twistinessFit * 100)}% aligned with your explicit preference.`,
-    `Surface mix is ${Math.round(unpavedFit * 100)}% aligned with your ${preference.motorcycleId} history.`,
+    `Surface mix is ${Math.round(unpavedFit * 100)}% aligned with your ${preference.bikeId} history.`,
     `Ride duration is ${Math.round(durationFit * 100)}% aligned with your saved trips.`
   ]
+  if (negativePenalty > 0.05) {
+    reasons.push("This route also resembles roads you rated low; fit is reduced accordingly.")
+  }
   return { score, confidence, reasons }
 }

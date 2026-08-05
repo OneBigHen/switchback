@@ -4,14 +4,21 @@ import { Star } from "@phosphor-icons/react"
 import { useState } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { explainRouteFit, type RiderPreference } from "@/lib/intelligence/rider-preferences"
+import { getActiveBike, loadRiderSettings } from "@/lib/settings/rider-settings"
 
 interface RouteRatingProps {
   route: PlannedRoute
-  onRate?(route: PlannedRoute, motorcycleId: string, rating: 1 | 2 | 3 | 4 | 5): Promise<RiderPreference> | void
+  onRate?(route: PlannedRoute, bikeId: string, rating: 1 | 2 | 3 | 4 | 5): Promise<RiderPreference> | void
 }
 
 export function RouteRating({ route, onRate }: RouteRatingProps) {
-  const [motorcycleId, setMotorcycleId] = useState("My motorcycle")
+  // The bike identity comes from the one settings source (SB-011): the
+  // display name is never the learning key, so renaming a bike cannot
+  // reset or cross-wire its preferences.
+  const [bike] = useState(() => {
+    const settings = loadRiderSettings()
+    return getActiveBike(settings)
+  })
   const [rating, setRating] = useState<number | null>(null)
   const [fit, setFit] = useState<ReturnType<typeof explainRouteFit> | null>(null)
   if (!onRate) return null
@@ -21,10 +28,9 @@ export function RouteRating({ route, onRate }: RouteRatingProps) {
         <span className="eyebrow">Your road taste</span>
         <strong>Rate this route for this bike</strong>
       </div>
-      <label>
-        Motorcycle
-        <input aria-label="Motorcycle name" value={motorcycleId} maxLength={80} onChange={(event) => setMotorcycleId(event.target.value)} />
-      </label>
+      <p className="route-rating-bike">
+        Bike: <strong>{bike.name}</strong>
+      </p>
       <div className="route-rating-buttons" role="group" aria-label="Route rating">
         {[1, 2, 3, 4, 5].map((value) => (
           <button
@@ -34,7 +40,7 @@ export function RouteRating({ route, onRate }: RouteRatingProps) {
             aria-pressed={rating === value}
             onClick={() => {
               setRating(value)
-              void Promise.resolve(onRate(route, motorcycleId, value as 1 | 2 | 3 | 4 | 5)).then((preference) => {
+              void Promise.resolve(onRate(route, bike.id, value as 1 | 2 | 3 | 4 | 5)).then((preference) => {
                 if (preference) setFit(explainRouteFit(preference, route))
               }).catch(() => undefined)
             }}

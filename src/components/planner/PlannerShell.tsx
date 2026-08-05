@@ -36,6 +36,8 @@ import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { AvoidArea, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
+import { loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
+
 import { TripPlanLibrary } from "@/lib/storage/trip-plan-library"
 import { createTripPlan } from "@/lib/trip/trip-plan"
 import type { TripPlan as SavedTripPlan } from "@/lib/trip/trip-plan"
@@ -88,22 +90,16 @@ function initialThemePreference(): ThemePreference {
   return stored === "light" || stored === "dark" ? stored : "auto"
 }
 
-function localPreferenceLearningSettings(fallbackMotorcycle: string): { enabled: boolean; motorcycleId: string } {
-  if (typeof window === "undefined") return { enabled: true, motorcycleId: fallbackMotorcycle }
-  try {
-    const raw = JSON.parse(window.localStorage.getItem("switchback:rider-profile") ?? "{}") as {
-      learningEnabled?: unknown
-      motorcycleName?: unknown
-    }
-    return {
-      enabled: raw.learningEnabled !== false,
-      motorcycleId: typeof raw.motorcycleName === "string" && raw.motorcycleName.trim()
-        ? raw.motorcycleName.trim().slice(0, 80)
-        : fallbackMotorcycle
-    }
-  } catch {
-    return { enabled: true, motorcycleId: fallbackMotorcycle }
-  }
+/**
+ * Preference-learning settings from the one versioned rider-settings source
+ * (SB-011/SB-023): learning is keyed by the stable bike record id, never the
+ * mutable display name.
+ */
+function localPreferenceLearningSettings(): { enabled: boolean; bikeId: string } {
+  if (typeof window === "undefined") return { enabled: true, bikeId: "bike-default-street" }
+  const settings = loadRiderSettings()
+  const bike = getActiveBike(settings)
+  return { enabled: settings.learningEnabled, bikeId: bike.id }
 }
 
 function recordedDistanceMiles(points: Array<{ coordinate: [number, number] }>): number {
@@ -264,12 +260,12 @@ export function PlannerShell() {
   const rankedPlanKeyRef = useRef<string | null>(null)
   useEffect(() => {
     if (routes.length < 2 || !plan) return
-    const settings = localPreferenceLearningSettings(usePlannerStore.getState().bikeProfile.name)
+    const settings = localPreferenceLearningSettings()
     if (!settings.enabled) return
-    const key = `${plan.planningId ?? "plan"}:${routes.map((route) => route.id).join(",")}:${settings.motorcycleId}`
+    const key = `${plan.planningId ?? "plan"}:${routes.map((route) => route.id).join(",")}:${settings.bikeId}`
     if (rankedPlanKeyRef.current === key) return
     rankedPlanKeyRef.current = key
-    void riderPreferenceLibraryRef.current!.get(settings.motorcycleId, profile).then((preference) => {
+    void riderPreferenceLibraryRef.current!.get(settings.bikeId, profile).then((preference) => {
       if (!preference) return
       const store = usePlannerStore.getState()
       if (store.selectionSource === "user") return
@@ -679,12 +675,11 @@ export function PlannerShell() {
     rating: 1 | 2 | 4,
     source: "skipped-road" | "suggestion-accepted"
   ) => {
-    const currentBike = usePlannerStore.getState().bikeProfile
-    const settings = localPreferenceLearningSettings(currentBike.name)
+    const settings = localPreferenceLearningSettings()
     if (!settings.enabled) return
     void riderPreferenceLibraryRef.current!.record({
       route: freeRideSuggestionAsPlannedRoute(suggestion),
-      motorcycleId: settings.motorcycleId,
+      bikeId: settings.bikeId,
       rating,
       source
     }).catch(() => {
@@ -1280,16 +1275,16 @@ export function PlannerShell() {
               onSave={(route) => void handleSave(route)}
               onExport={handleExport}
               onRide={(route) => void handleStartRide(route)}
-              onRate={(route, motorcycleId, rating) => {
+              onRate={(route, bikeId, rating) => {
                 return riderPreferenceLibraryRef.current!.record({
                   route,
-                  motorcycleId,
+                  bikeId,
                   rating,
                   source: "rating"
                 }).then((preference) => {
                   setNotice({
                     kind: "success",
-                    message: `Saved your ${rating}/5 rating for ${preference.motorcycleId} · ${preference.profile}.`
+                    message: `Saved your ${rating}/5 rating for ${preference.bikeId} · ${preference.profile}.`
                   })
                   return preference
                 }).catch((error) => {

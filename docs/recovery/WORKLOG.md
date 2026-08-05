@@ -229,3 +229,43 @@ unverified Wi-Fi claim, the missing readiness model, and the unbounded cache.
 
 **Commit**
 - Pending at phase close.
+
+## 2026-08-05 — Phase 4 part 1: unified settings, stable bike identity, signed learning
+
+**Goal**
+P0 SB-010 (negative learning) and SB-011 (stable bike identity), plus the
+versioned settings foundation of SB-023.
+
+**Repository evidence**
+- `src/lib/settings/rider-settings.ts` (new): versioned RiderSettings with
+  stable RiderBike records (id/name/category/fuel/gravel/rough/unknown
+  surface), migrateLegacySettings from the old "switchback:rider-profile"
+  fields, load/save with an automatic one-time migration, getActiveBike.
+- `src/lib/intelligence/rider-preferences.ts`: signed model — positive and
+  negative feature centroids; signal weights 5★+2/4★+1/3★0/2★−1/1★−2,
+  accepted +1, ignored −0.5, less-like-this −2, manual-edit +1,
+  completed-ride +0.5. preferred* values derive from the positive centroid
+  only, so a dislike can never raise affinity; fit scoring subtracts a
+  negative-centroid resemblance penalty.
+- `rider-preference-library.ts`: keys preferences by the stable bike id
+  (schema field renamed motorcycleId→bikeId); PlannerShell and RouteRating
+  read the active bike from settings — RouteRating's free-text "Motorcycle
+  name" identity input is gone (display name is never the learning key).
+
+**Decision**
+Settings is the single source for bike identity and learning enablement;
+legacy name-keyed preferences are not silently re-keyed (unprovable mapping)
+but new signals use the stable id, which is what future sessions read.
+
+**Verification**
+- New/updated tests: rider-settings migration (4), signed preference
+  regressions (5), route-comparison rating identity (6); all pass.
+- typecheck + lint clean; full suite running.
+
+**Remaining risk**
+- ProfilePanel still stores legacy fields; the UI rewrite to the settings
+  model is Phase 5. PlannerShell component split and explicit state-machine
+  controllers remain Phase 4 part 2.
+
+**Commit**
+- Pending at phase close.

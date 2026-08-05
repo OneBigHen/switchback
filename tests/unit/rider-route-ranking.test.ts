@@ -43,11 +43,13 @@ function route(id: string, twistiness: number, durationMinutes: number, total: n
 }
 
 const preference: RiderPreference = {
-  motorcycleId: "scrambler",
+  bikeId: "bike-scrambler",
   profile: "twisty",
   sampleCount: 8,
   weightedSamples: 8,
   meanRating: 4.5,
+  positive: { twistiness: 90, unpavedPercent: 0, durationMinutes: 90, weight: 8 },
+  negative: { twistiness: 0, unpavedPercent: 0, durationMinutes: 0, weight: 0 },
   preferredTwistiness: 90,
   preferredUnpavedPercent: 0,
   preferredDurationMinutes: 90,

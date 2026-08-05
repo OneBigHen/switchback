@@ -179,10 +179,12 @@ describe("route comparison rack", () => {
     )
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
-    await user.clear(screen.getByLabelText("Motorcycle name"))
-    await user.type(screen.getByLabelText("Motorcycle name"), "Scrambler")
+    // The bike identity comes from settings (SB-011): the rating passes the
+    // stable default bike id, and the UI shows the bike name read-only.
+    expect(screen.getByText(/Bike:/)).toBeInTheDocument()
+    expect(screen.queryByLabelText("Motorcycle name")).toBeNull()
     await user.click(screen.getByRole("button", { name: "Rate route 5 out of 5" }))
-    expect(onRate).toHaveBeenCalledWith(routes[0], "Scrambler", 5)
+    expect(onRate).toHaveBeenCalledWith(routes[0], "bike-default-street", 5)
   })
 
   it("shows rider metrics and sends actions the actively selected route", async () => {
