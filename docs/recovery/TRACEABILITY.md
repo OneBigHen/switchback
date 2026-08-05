@@ -1,49 +1,43 @@
 # Traceability Matrix
 
-**Updated:** 2026-08-05 (baseline)
+**Updated:** 2026-08-05 (Phases 0–3 part 1 complete)
 
 | Requirement | Current files | New/changed files | Unit test | Integration/E2E | Status | Evidence |
 |---|---|---|---|---|---|---|
-| Normalized route request | `src/lib/routing/types.ts`, `planner.ts` | `src/domain/...` | pending | pending | Not started | |
-| Eligibility before ranking | `src/lib/routing/route-quality.ts` (gates) | `src/domain/routing/eligibility.ts` | pending | pending | Not started | |
-| Segmented propagation | `src/lib/routing/planner.ts:209-219` (drops bike/locks/toll) | same | pending | pending | Not started | |
-| Timebox fallback wording | `planner.ts:727-738` ("closest safe route") | same | pending | pending | Not started | |
-| Sticky explicit selection | `PlannerShell.tsx:264-278` (re-ranks on routes change) | `PlannerSessionController` | pending | pending | Not started | |
-| Must-road traversal | `graphhopper.ts:165-170` (zero priority), `road-locks.ts` | Phase 2 rewrite | pending | pending | Not started | |
-| Prefer bounded bonus | `graphhopper.ts:172-177` (0.625 penalty) | Phase 2 rewrite | pending | pending | Not started | |
-| Road graph matching | missing (`road-match-request.ts` client-side) | `/api/road-matching` | pending | pending | Not started | |
-| Rematch/drift review | `road-locks.ts:356-405` (rematch exists) | wire UI + graph version | pending | pending | Partial | |
-| Free Ride direction | `free-ride.ts:104-149` (heading unused) | Phase 6 | pending | pending | Not started | |
-| Free Ride synthetic claims | `handler.ts:67-92` | Phase 0 flag/labels; Phase 6 rewrite | pending | pending | Not started | |
-| Share redaction | `route-share.ts:72-85` (geometry+waypoints only) | Phase 2 | pending | pending | Not started | |
-| Offline large download | `RegionDownloadsPanel.tsx:310-349` (recursive confirm) | Phase 3 | pending | pending | Not started | |
-| Offline reroute | `src/lib/offline/v2-router.ts` | Phase 3 E2E | pending | pending | Partial (unit only) | |
-| Signed learning | `rider-preferences.ts:84-93` (averages dislikes) | Phase 6 | pending | pending | Not started | |
-| Stable bike identity | `rider-preference-library.ts:22-46` (name key) | `RiderSettings` | pending | pending | Not started | |
-| Mobile flow (Search→Choose→Edit→Prepare) | `PlannerDeck.tsx` | Phase 5 | pending | pending | Not started | |
-| Desktop editor (three-pane) | `MapStage.tsx` | Phase 5 | pending | pending | Not started | |
-| Migration (versioned storage) | `trip-plan-migration.ts` (partial) | Phase 4 | pending | pending | Partial | |
-| Physical iPhone | none | `PHYSICAL_DEVICE_RESULTS.md` | — | manual | Not started | |
+| Normalized constraints | `src/lib/routing/*` | `src/lib/domain/routing/normalized-request.ts` | routing-semantics | real-router 5/5 | Done (Phase 1) | fc77562 |
+| Eligibility before ranking | `planner.ts`, `route-quality.ts` | `src/lib/domain/routing/eligibility.ts` | routing-semantics | real-router | Done (Phase 1) | fc77562 |
+| Segmented propagation | `planner.ts` | same | planner.test (constraints) | — | Done (Phase 1) | fc77562 |
+| Timebox fallback wording | `planner.ts` | same | timeboxed-destination | live golden 3/3 | Done (Phase 0/1) | 0d67d9a |
+| Sticky explicit selection | `planner-store.ts`, `PlannerShell.tsx` | same | planner-store (SB-005) | — | Done (Phase 1) | fc77562 |
+| Must-road traversal | — | — | — | — | Not started (SB-014, flagged off) | feature-flags |
+| Prefer bounded bonus | — | — | — | — | Not started (SB-015, flagged off) | feature-flags |
+| Road graph matching | — | `src/lib/roads/road-matching.ts`, `/api/road-matching` | road-matching (4) | live probe | Done (SB-013) | 01cef8f |
+| Rematch/drift review | `road-locks.ts` (rematch exists) | UI wiring pending | road-locks | — | Partial (SB-016) | |
+| Free Ride direction | `free-ride.ts` | Phase 6 | — | — | Not started | |
+| Free Ride synthetic claims | `handler.ts` | Phase 0 labels | free-ride tests | e2e | Contained (SB-012 copy) | 0d67d9a |
+| Share redaction | `route-share.ts` | same | route-share (22) | — | Done (SB-008) | 01cef8f |
+| Offline large download | `RegionDownloadsPanel.tsx` | same | — | — | Done (SB-009) | 1927a13 |
+| Offline reroute | `src/lib/offline/v2-router.ts` | — | offline tests | regional E2E pending | Partial | |
+| Signed learning | `rider-preferences.ts` | Phase 6 | — | — | Not started (SB-010) | |
+| Stable bike identity | `rider-preference-library.ts` | Phase 4 | — | — | Not started (SB-011) | |
+| Mobile flow | `PlannerDeck.tsx` | Phase 5 | — | — | Not started (SB-025) | |
+| Desktop editor | `MapStage.tsx` | Phase 5 | — | — | Not started (SB-026) | |
+| Migration | `trip-plan-migration.ts` | Phase 4 | — | — | Partial | |
+| Bounded SW caches | `public/sw.js` | same | service-worker (3) | PWA 2/2 | Done (SB-019) | 1927a13 |
+| Offline readiness | — | `src/lib/offline/readiness.ts` | offline-readiness (4) | — | Done (SB-020) | 1927a13 |
+| Physical iPhone | none | — | — | manual | Not started (SB-035) | |
 
-## P0 backlog items → phase mapping
+## Phase status
 
-| Backlog | Phase | Disposition |
-|---|---|---|
-| SB-001 Normalize route requests | 1 | |
-| SB-002 Eligibility before ranking | 1 | |
-| SB-003 Segmented propagation | 1 | |
-| SB-004 Timebox fallback/wording | 1 | |
-| SB-005 Preserve explicit selection | 1 | |
-| SB-006 Disable placeholder Must | 0 | In progress |
-| SB-007 Replace manual snapping placeholder | 0 (label) / 2 (matching) | |
-| SB-008 Fix share instruction leakage | 2 | |
-| SB-009 Fix large-download confirmation | 3 | |
-| SB-010 Correct negative learning | 6 | |
-| SB-011 Stable bike identity | 4 | |
-| SB-012 Remove misleading Free Ride claims | 0 | In progress |
-| SB-013..016 Road matching/traversal/prefer/rematch | 2 | |
-| SB-017..020 Offline downloads/activation/caches/readiness | 3 | |
-| SB-021..024 Modularization/settings/migrations | 4 | |
-| SB-025..028 Mobile flow/desktop/confirmations/diagnostics | 5 | |
-| SB-029..034 Free Ride graph-backed/learning/calibration/fuel | 6 | |
-| SB-035..036 Physical iPhone/release evidence | 7 | |
+| Phase | Status |
+|---|---|
+| 0 — Baseline/containment | Complete (0d67d9a) |
+| 1 — Routing correctness | Complete (fc77562) |
+| 2 — Road requirements + sharing | Part 1 complete (01cef8f); SB-014/015 open |
+| 3 — Offline/storage | Part 1 complete (1927a13); suite/rebuild wiring + regional E2E open |
+| 4 — Modularization | Not started |
+| 5 — UX | Not started |
+| 6 — Learning + Free Ride | Not started |
+| 7 — Qualification | Not started |
+
+**Commits:** `0d67d9a` → `fc77562` → `01cef8f` → `1927a13` (on top of `1a7fba6`).
