@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { getProfile, listProfiles } from "@/lib/routing/profiles"
 
 describe("motorcycle profiles", () => {
-  it("maps the four product presets to pinned GraphHopper profiles", () => {
+  it("maps the product presets to pinned GraphHopper profiles", () => {
     expect(getProfile("quick").engineProfile).toBe("motorcycle_fastest")
     expect(getProfile("twisty").engineProfile).toBe("motorcycle_twisty")
     expect(getProfile("scenic").engineProfile).toBe("motorcycle_scenic")
@@ -10,7 +10,7 @@ describe("motorcycle profiles", () => {
   })
 
   it("exposes one primary tradeoff for every preset", () => {
-    expect(listProfiles()).toHaveLength(4)
+    expect(listProfiles()).toHaveLength(8)
     expect(listProfiles().every((profile) => profile.description.length > 10)).toBe(true)
   })
 

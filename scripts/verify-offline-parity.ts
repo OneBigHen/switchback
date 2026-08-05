@@ -81,9 +81,13 @@ function selectCorridorTileIds(tileBounds: Array<{ tileId: string; bounds: Bound
 async function routeGraphHopper(points: number[][], profile: string): Promise<{ ok: boolean; distanceMeters: number | null; error?: string }> {
   const ghProfile: Record<string, string> = {
     quick: "motorcycle_fastest",
+    balanced: "motorcycle_fastest",
     twisty: "motorcycle_twisty",
     scenic: "motorcycle_scenic",
-    adventure: "motorcycle_adventure"
+    adventure: "motorcycle_adventure",
+    gravel: "motorcycle_adventure",
+    "avoid-highways": "motorcycle_fastest",
+    neural: "motorcycle_twisty"
   }
   const body = {
     profile: ghProfile[profile] ?? "motorcycle_fastest",
@@ -169,7 +173,9 @@ function pickPairs(
   rng: () => number
 ): Pair[] {
   const pairs: Pair[] = []
-  const profiles: OfflineRouteProfile[] = ["quick", "twisty", "scenic", "adventure"]
+  const profiles: OfflineRouteProfile[] = [
+    "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
+  ]
   for (let i = 0; i < count; i += 1) {
     // Pick a random tile from a random region, then pick two points
     // within that tile's bounds. This guarantees the corridor selection
@@ -184,7 +190,7 @@ function pickPairs(
     // Second point in the same tile, within ~8-10km
     const lon2 = lon1 + (rng() - 0.5) * 0.08
     const lat2 = lat1 + (rng() - 0.5) * 0.08
-    const profile = profiles[i % 4]
+    const profile = profiles[i % profiles.length]
     const regions = manifestsWithTiles.length > 1 && i % 8 === 0 ?
       [manifestsWithTiles[0].regionId, manifestsWithTiles[1].regionId] : [region.regionId]
     pairs.push({ idx: i, start: [lon1, lat1], finish: [lon2, lat2], profile, regions })
@@ -257,7 +263,7 @@ async function run(): Promise<void> {
     const ghRes = await routeGraphHopper(points, pair.profile).catch((e) => ({ ok: false, distanceMeters: null, error: String(e) }))
 
     // Offline router — all pairs use 200k search budget (corridor-scoped)
-    const bikeCompat = pair.profile === "adventure" ? "dual-sport" : "street"
+    const bikeCompat = pair.profile === "adventure" || pair.profile === "gravel" ? "dual-sport" : "street"
     const offlineRes = routeOfflineV2(corridorTiles, {
       start: pair.start,
       finish: pair.finish,

@@ -2769,6 +2769,10 @@
   color: #d95629;
 }
 
+.route-quality-meter strong {
+  color: #3b6f9e;
+}
+
 .route-actions {
   gap: 8px;
 }

@@ -1,6 +1,5 @@
-import type { CandidateSet, Coordinate, PlannedRoute, RouteRequest, Waypoint } from "./types"
+import type { CandidateSet, Coordinate, PlannedRoute, RouteProfileId, RouteRequest, Waypoint } from "./types"
 import { calculateGeometryOverlap } from "./scoring"
-import { listProfiles } from "./profiles"
 import {
   partitionLocksByPrecedence
 } from "@/lib/roads/lock-precedence"
@@ -102,6 +101,20 @@ const MAX_ALTERNATIVES = 2
 const ALTERNATIVES_DEADLINE_MS = 12_000
 /** Meaningfully different means at most 85% sampled-geometry overlap. */
 const ALTERNATIVES_MAX_OVERLAP = 85
+/**
+ * Stable comparison order. The first four preserve the original product
+ * comparison contract; the newer profiles remain available after them.
+ */
+const COMPARISON_PROFILE_ORDER: readonly RouteProfileId[] = [
+  "quick",
+  "twisty",
+  "scenic",
+  "adventure",
+  "balanced",
+  "gravel",
+  "avoid-highways",
+  "neural"
+]
 // Native round trips can select an unroutable synthetic waypoint for a given
 // seed. These spread-out fallbacks keep a rider's requested seed first, while
 // giving the engine several independent loop shapes before we drop an option.
@@ -132,6 +145,8 @@ function selectedCandidateScore(route: PlannedRoute): number {
   switch (route.profile) {
     case "quick":
       return -route.durationMinutes
+    case "balanced":
+      return route.twistiness * 0.8 + (road.secondary ?? 0) * 0.5 - route.durationMinutes * 0.2
     case "twisty":
       return route.twistiness * 2 + (route.turnCount / Math.max(1, route.distanceMiles)) * 20
     case "scenic":
@@ -143,6 +158,15 @@ function selectedCandidateScore(route: PlannedRoute): number {
       return unpavedShare(route) * 6 +
         (route.officialUnpavedEvidence?.sharePercent ?? 0) * 8 +
         route.twistiness * 0.25 - route.durationMinutes * 0.08
+    case "gravel":
+      return unpavedShare(route) * 8 +
+        (route.officialUnpavedEvidence?.sharePercent ?? 0) * 10 +
+        route.twistiness * 0.2 - route.durationMinutes * 0.06
+    case "avoid-highways":
+      return (100 - (road.motorway ?? 0) - (road.trunk ?? 0)) * 2 - route.durationMinutes * 0.1
+    case "neural":
+      return route.twistiness * 1.2 + (road.secondary ?? 0) * 0.6 +
+        (road.tertiary ?? 0) * 0.4 - route.durationMinutes * 0.05
   }
 }
 
@@ -870,9 +894,7 @@ async function planAlternativeRoutes(
   }
   const accepted: PlannedRoute[] = []
   const warnings: string[] = [...partitioned.warnings]
-  const profiles = listProfiles()
-    .map((profile) => profile.id)
-    .filter((profile) => profile !== request.profile)
+  const profiles = COMPARISON_PROFILE_ORDER.filter((profile) => profile !== request.profile)
 
   // Comparison profiles race two-at-a-time through a sliding window, but
   // results are accepted strictly in profile order. The window only shifts

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { OfflineGraphTileV2 } from "@/lib/offline/v2-contracts"
-import { routeOfflineV2 } from "@/lib/offline/v2-router"
+import { offlineProfileWeight, routeOfflineV2 } from "@/lib/offline/v2-router"
 
 function edge(id: string, from: string, to: string, way: string, quick = 100, scenic = quick) {
   const coordinates: Record<string, [number, number]> = {
@@ -88,6 +88,27 @@ describe("offline v2 router", () => {
       roadLocks: [{ osmWayId: "11", mode: "avoid" }]
     })
     expect(avoid.ok && avoid.edgeIds).toEqual(["ab", "bd", "dc"])
+  })
+
+  it("resolves all eight product profiles onto stable offline primitives", () => {
+    const candidate = tile().edges.find((item) => item.id === "bc")!
+    candidate.surface = "gravel"
+    candidate.profileWeights = { quick: 10, twisty: 50, scenic: 60, adventure: 70 }
+    expect(offlineProfileWeight(candidate, "quick")).toBe(10)
+    expect(offlineProfileWeight(candidate, "balanced")).toBe(30)
+    expect(offlineProfileWeight(candidate, "twisty")).toBe(50)
+    expect(offlineProfileWeight(candidate, "scenic")).toBe(60)
+    expect(offlineProfileWeight(candidate, "adventure")).toBe(70)
+    expect(offlineProfileWeight(candidate, "gravel")).toBe(57.4)
+    expect(offlineProfileWeight(candidate, "avoid-highways")).toBe(10)
+    expect(offlineProfileWeight(candidate, "neural")).toBe(53.5)
+  })
+
+  it("treats the Avoid Highways profile as a hard motorway/trunk penalty", () => {
+    const graph = tile()
+    graph.edges.find((item) => item.id === "bc")!.roadClass = "motorway"
+    const result = routeOfflineV2([graph], { ...request, profile: "avoid-highways" })
+    expect(result.ok && result.edgeIds).toEqual(["ab", "bd", "dc"])
   })
 
   it("supports shaping points in order", () => {

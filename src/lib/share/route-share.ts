@@ -3,7 +3,9 @@ import type { Coordinate, PlannedRoute, RouteInstruction, RouteProfileId, Waypoi
 const EARTH_RADIUS_METERS = 6_371_008.8
 const MAX_PORTABLE_SHARE_BYTES = 7_500
 
-const SUPPORTED_PROFILES: ReadonlySet<RouteProfileId> = new Set(["quick", "twisty", "scenic", "adventure"])
+const SUPPORTED_PROFILES: ReadonlySet<RouteProfileId> = new Set([
+  "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
+])
 
 const ALLOWED_ROUTE_KEYS: ReadonlySet<string> = new Set([
   "name",

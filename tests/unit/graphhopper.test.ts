@@ -216,6 +216,8 @@ describe("GraphHopper provider", () => {
     expect(result.routes[0].urbanDensityMix).toEqual({})
     expect(result.routes[0].routingSource).toBe("live")
     expect(result.routes[0].previewOnly).toBe(false)
+    expect(result.routes[0].routeScore?.total).toBeGreaterThan(0)
+    expect(result.routes[0].routeScore?.explanation.length).toBeGreaterThan(0)
   })
 
   it("normalizes toll, road-environment, and urban-density evidence from route details", async () => {

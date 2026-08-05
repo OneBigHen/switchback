@@ -87,6 +87,30 @@
   color: var(--signal);
 }
 
+.route-quality-meter strong {
+  color: var(--accent, var(--signal));
+}
+
+.route-score-explanation {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+  padding: 11px 12px;
+  border: 1px solid rgb(243 106 45 / 25%);
+  border-radius: 9px;
+  background: rgb(243 106 45 / 6%);
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.route-score-explanation strong {
+  color: var(--instrument);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .route-overlap {
   position: absolute;
   right: 4px;

@@ -1,7 +1,16 @@
 import type { RouteProfileId, TollPolicy } from "@/lib/routing/types"
 import { string, number, boolean, nullable, enum_, object_, safeParse, type Infer } from "@/lib/validate"
 
-export type RideCharacter = "fun" | "quick" | "twisty" | "scenic" | "adventure" | "balanced"
+export type RideCharacter =
+  | "fun"
+  | "quick"
+  | "balanced"
+  | "twisty"
+  | "scenic"
+  | "adventure"
+  | "gravel"
+  | "avoid-highways"
+  | "neural"
 
 export interface RideIntent {
   mode: "loop" | "destination"
@@ -33,8 +42,12 @@ export interface RideIntentInterpreterOptions {
 
 const rideIntentSchema = object_({
   mode: enum_(["loop", "destination"] as const),
-  profile: enum_(["quick", "twisty", "scenic", "adventure"] as const),
-  rideCharacter: enum_(["fun", "quick", "twisty", "scenic", "adventure", "balanced"] as const),
+  profile: enum_(
+    ["quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"] as const
+  ),
+  rideCharacter: enum_([
+    "fun", "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
+  ] as const),
   targetMinutes: nullable(number({ int: true, min: 20, max: 480 })),
   tollPolicy: enum_(["allow-with-warning", "avoid"] as const),
   ambiguous: boolean(),
@@ -154,22 +167,35 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
   const normalized = prompt.trim().toLowerCase()
   const duration = targetMinutes(prompt)
   const preferGravel = /\b(?:gravel|dirt|unpaved|forest roads?|fire roads?|dual[ -]?sport)\b/.test(normalized)
+  const explicitGravel = /\b(?:gravel\s+(?:mode|profile|route)|gravel-focused)\b/.test(normalized)
   const adventureWord = /\b(?:adventure|adventurous)\b/.test(normalized)
   const twisty = /\b(?:twist(?:y|ies)|curvy|curves?|switchbacks?|winding)\b/.test(normalized)
   const quick = /\b(?:quick|fastest|direct|shortest)\b/.test(normalized)
   const scenic = /\b(?:scenic|backroads?|rural|country roads?)\b/.test(normalized)
+  const balanced = /\b(?:balanced|practical|standard|normal)\b/.test(normalized)
+  const neural = /\b(?:neural|personalized|personalised|learned|my usual)\b/.test(normalized)
   const fun = /\bfun\b/.test(normalized)
-  const rideCharacter: RideCharacter = quick
-    ? "quick"
-    : scenic
-      ? "scenic"
-      : preferGravel || adventureWord
-        ? "adventure"
-        : twisty
-          ? "twisty"
-          : fun
-            ? "fun"
-            : "balanced"
+  const avoidHighways = /\b(?:(?:avoid(?:ing)?|no|skip)\s+(?:the\s+)?|stay\s+off\s+(?:the\s+)?|without\s+(?:the\s+)?)(?:highways?|interstates?|motorways?|freeways?|expressways?)\b/.test(normalized)
+  const explicitAvoidHighways = /\b(?:avoid[- ]highways?|highway[- ]free)\b/.test(normalized)
+  const rideCharacter: RideCharacter = neural
+    ? "neural"
+    : explicitGravel
+      ? "gravel"
+      : explicitAvoidHighways && !quick && !scenic && !twisty && !preferGravel && !adventureWord
+        ? "avoid-highways"
+        : quick
+          ? "quick"
+          : scenic
+            ? "scenic"
+            : preferGravel || adventureWord
+              ? "adventure"
+              : twisty
+                ? "twisty"
+                : fun
+                  ? "fun"
+                  : balanced
+                    ? "balanced"
+                    : "balanced"
   const avoidTolls = /\b(?:(?:avoid(?:ing)?|no|skip|without|stay\s+off)\s+(?:the\s+)?(?:tolls?|toll\s+roads?|tollways?|turnpikes?)|toll[ -]?free)\b/i.test(normalized)
   const tollPolicy: TollPolicy = avoidTolls ? "avoid" : "allow-with-warning"
   const unresolvedSavedHome = /^(?:home|(?:take|navigate|route|guide|get|bring)\s+me\s+home)[.!?]*$/i.test(prompt.trim())
@@ -179,7 +205,6 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
   const origin = startQuery(prompt) ?? inferOriginFromTo(prompt)
   const loop = (!unresolvedSavedHome && /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)) ||
     (destination === null && !unresolvedSavedHome)
-  const avoidHighways = /\b(?:(?:avoid(?:ing)?|no|skip)\s+(?:the\s+)?|stay\s+off\s+(?:the\s+)?|without\s+(?:the\s+)?)(?:highways?|interstates?|motorways?|freeways?|expressways?)\b/.test(normalized)
   const stopQuery = /\b(?:brewery|beer|brewpub)\b/.test(normalized)
     ? "brewery"
     : /\b(?:coffee|cafe|café)\b/.test(normalized)
@@ -187,20 +212,28 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
       : /\b(?:food|lunch|dinner|restaurant|meal)\b/.test(normalized)
         ? "food"
         : null
-  const hasStyleKeyword = /(?:quick|fastest|direct|shortest|scenic|backroads?|rural|country roads?|twist(?:y|ies)|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun)\b/.test(normalized)
+  const hasStyleKeyword = /(?:quick|fastest|direct|shortest|balanced|practical|scenic|backroads?|rural|country roads?|twist(?:y|ies)|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun|neural|personalized|learned|avoid(?:ing)?\s+(?:the\s+)?highways?|stay\s+off\s+(?:the\s+)?interstates?)\b/.test(normalized)
   const hasLoopKeyword = /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)
   const ambiguous = !hasStyleKeyword || (destination === null && !hasLoopKeyword && !unresolvedSavedHome)
-  const profile: RouteProfileId = preferGravel || adventureWord
-    ? "adventure"
-    : twisty
-      ? "twisty"
-      : quick
-        ? "quick"
-        : scenic
-          ? "scenic"
-          : fun
-            ? "twisty"
-            : "scenic"
+  const profile: RouteProfileId = neural
+    ? "neural"
+    : explicitGravel
+      ? "gravel"
+      : preferGravel || adventureWord
+        ? "adventure"
+        : twisty
+          ? "twisty"
+          : quick
+            ? "quick"
+            : scenic
+              ? "scenic"
+              : fun
+                ? "twisty"
+                : balanced
+                  ? "balanced"
+                  : explicitAvoidHighways
+                    ? "avoid-highways"
+                    : "scenic"
 
   return {
     mode: loop ? "loop" : "destination",
@@ -252,7 +285,7 @@ export async function interpretRidePrompt(
           messages: [
             {
               role: "system",
-              content: "Translate a rider's request into route-planning intent. Prefer adventure for gravel, twisty for curves, scenic for rural touring, and quick only when speed is explicit. Unqualified 'fun' means maximum twisties on paved roads and must set rideCharacter to 'fun'. A duration without a destination means a loop. 'Avoid tolls', 'no tolls', or 'toll-free' sets tollPolicy to 'avoid'; otherwise use 'allow-with-warning'. Set ambiguous when the request lacks an explicit riding style or a clear destination/loop signal. Extract a fuzzy starting place when supplied, but do not invent an origin or destination."
+              content: "Translate a rider's request into route-planning intent. Use Quick for explicit speed, Balanced for practical all-round riding, Twisty for curves, Scenic for rural touring, Adventure for mixed-surface exploration, Gravel for an explicitly gravel-focused request, Avoid Highways when highway avoidance is the primary style, and Neural for a personalized/learned style. Prefer adventure for ordinary gravel mentions unless the rider explicitly asks for a gravel profile or mode. Unqualified 'fun' means maximum twisties on paved roads and must set rideCharacter to 'fun'. A duration without a destination means a loop. 'Avoid tolls', 'no tolls', or 'toll-free' sets tollPolicy to 'avoid'; otherwise use 'allow-with-warning'. Set ambiguous when the request lacks an explicit riding style or a clear destination/loop signal. Extract a fuzzy starting place when supplied, but do not invent an origin or destination."
             },
             { role: "user", content: prompt }
           ],
@@ -280,8 +313,8 @@ export async function interpretRidePrompt(
                 ],
                 properties: {
                   mode: { type: "string", enum: ["loop", "destination"] },
-                  profile: { type: "string", enum: ["quick", "twisty", "scenic", "adventure"] },
-                  rideCharacter: { type: "string", enum: ["fun", "quick", "twisty", "scenic", "adventure", "balanced"] },
+                  profile: { type: "string", enum: ["quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"] },
+                  rideCharacter: { type: "string", enum: ["fun", "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"] },
                   targetMinutes: { type: ["integer", "null"], minimum: 20, maximum: 480 },
                   tollPolicy: { type: "string", enum: ["allow-with-warning", "avoid"] },
                   ambiguous: { type: "boolean" },

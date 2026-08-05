@@ -10,6 +10,7 @@ import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather, sampleRouteWeatherPoints } from "@/lib/client/weather-client"
 import { buildRideRecoveryCheckpoint } from "@/lib/client/ride-recovery-checkpoint"
 import { buildReroutePoints, type RideRerouteMode } from "@/lib/client/ride-reroute"
+import { recoverRouteFromOfflinePack } from "@/lib/client/offline-route-recovery"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 import type { RouteWeatherAlert } from "@/lib/weather/types"
@@ -28,6 +29,7 @@ import {
   type NavigationSessionViewModel
 } from "@/lib/client/navigation-session"
 import { navigationStore } from "@/stores/navigation-store"
+import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 
 export type GpsState = "acquiring" | "ready" | "weak" | "error"
 export type RejoinPolicy = "nearest-safe" | "next-shaping-point" | "skip-point" | "preserve-original" | "fuel-detour"
@@ -332,27 +334,45 @@ export function useNavigationSessionController({
       const rerouteDeadline = AbortSignal.timeout(30_000)
       const rerouteSignal = AbortSignal.any([requestController.signal, rerouteDeadline])
 
-      void requestTripPlan(
-        {
-          profile: route.profile,
-          compare: false,
-          avoidHighways: route.avoidHighways,
-          avoidAreas: route.avoidAreas,
-          points
-        },
-        fetch,
-        rerouteSignal
-      ).then((plan) => {
+      let usedOfflineRecovery = false
+      const recoverOffline = async (): Promise<PlannedRoute> => {
+        usedOfflineRecovery = true
+        const pack = await new OfflineRoutePackLibrary().get(`${route.id}-offline`)
+        if (!pack) throw new Error("No saved offline corridor is available for this route.")
+        const recovered = recoverRouteFromOfflinePack(pack, points)
+        if (!recovered.route) throw new Error(recovered.error ?? "Offline corridor recovery failed.")
+        return recovered.route
+      }
+      const resolveReroute = async (): Promise<PlannedRoute> => {
+        if (navigator.onLine === false) return recoverOffline()
+        try {
+          const plan = await requestTripPlan(
+            {
+              profile: route.profile,
+              compare: false,
+              avoidHighways: route.avoidHighways,
+              avoidAreas: route.avoidAreas,
+              points
+            },
+            fetch,
+            rerouteSignal
+          )
+          const rerouted = plan.routes.find((c) => c.id === plan.selectedRouteId) ?? plan.routes[0]
+          if (!rerouted) throw new Error("The routing service returned no recovery line.")
+          return rerouted
+        } catch (caught) {
+          if (requestVersion !== rerouteVersionRef.current || requestController.signal.aborted) throw caught
+          return recoverOffline()
+        }
+      }
+
+      void resolveReroute().then((rerouted) => {
         if (requestVersion !== rerouteVersionRef.current) return
         if (rerouteAbortRef.current === requestController) rerouteAbortRef.current = null
-        const rerouted = plan.routes.find((c) => c.id === plan.selectedRouteId) ?? plan.routes[0]
         rerouteInFlightRef.current = false
-        if (!rerouted) {
-          setRerouteStatus("error")
-          return
-        }
         dispatch({ type: "cancelReroute" })
         setRerouteStatus("idle")
+        if (usedOfflineRecovery) setGpsMessage("Offline corridor recovery · guidance continues")
         rerouteHandlerRef.current?.(rerouted)
       }).catch(() => {
         if (requestVersion !== rerouteVersionRef.current) return

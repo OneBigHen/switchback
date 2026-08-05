@@ -7,7 +7,15 @@ import {
   type OfflineTurnRestriction
 } from "./v2-contracts"
 
-export type OfflineRouteProfile = "quick" | "twisty" | "scenic" | "adventure"
+export type OfflineRouteProfile =
+  | "quick"
+  | "balanced"
+  | "twisty"
+  | "scenic"
+  | "adventure"
+  | "gravel"
+  | "avoid-highways"
+  | "neural"
 export type OfflineBikeCompatibility = "street" | "adventure" | "dual-sport"
 
 export interface OfflineRoadLockV2 {
@@ -153,8 +161,9 @@ export function routeOfflineV2(
         lockMask: current.lockMask | (mustBit.get(edge.osmWayId) ?? 0)
       }
       const key = stateKey(next)
-      const weight = edge.profileWeights[request.profile]
-      const highwayPenalty = request.avoidHighways && (edge.roadClass === "motorway" || edge.roadClass === "trunk") ? 8 : 1
+      const weight = offlineProfileWeight(edge, request.profile)
+      const highwayPenalty = (request.avoidHighways || request.profile === "avoid-highways") &&
+        (edge.roadClass === "motorway" || edge.roadClass === "trunk") ? 8 : 1
       const preference = preferWays.has(edge.osmWayId) ? 0.7 : 1
       const tentative = currentEntry.cost + weight * highwayPenalty * preference
       if (tentative >= (scores.get(key) ?? Number.POSITIVE_INFINITY)) continue
@@ -166,6 +175,38 @@ export function routeOfflineV2(
   }
 
   return { ok: false, kind: "no_path", message: "No legal offline road path connects these points" }
+}
+
+/**
+ * Resolve the eight product profiles onto the four primitive weights stored
+ * in graph schema v2. Keeping the wire shape stable lets already-downloaded
+ * regions remain usable while the product surface gains first-class profiles.
+ */
+export function offlineProfileWeight(
+  edge: Pick<OfflineGraphEdgeV2, "profileWeights" | "surface">,
+  profile: OfflineRouteProfile
+): number {
+  const weights = edge.profileWeights
+  switch (profile) {
+    case "quick":
+      return weights.quick
+    case "balanced":
+      return (weights.quick + weights.twisty) / 2
+    case "twisty":
+      return weights.twisty
+    case "scenic":
+      return weights.scenic
+    case "adventure":
+      return weights.adventure
+    case "gravel":
+      return ["gravel", "dirt", "unpaved", "ground"].includes(edge.surface)
+        ? weights.adventure * 0.82
+        : weights.adventure * 1.12
+    case "avoid-highways":
+      return weights.quick
+    case "neural":
+      return weights.twisty * 0.65 + weights.scenic * 0.35
+  }
 }
 
 function mergeTiles(tiles: OfflineGraphTileV2[]): MergedGraph {

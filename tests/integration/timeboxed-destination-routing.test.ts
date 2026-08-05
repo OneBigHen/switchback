@@ -152,7 +152,7 @@ describe("timeboxed destination routing (mock provider)", () => {
 })
 
 describe("live golden route (Hatboro → Stockton)", () => {
-  it("produces a 108–132 minute non-Philadelphia Upper Bucks route on a live router", async (ctx) => {
+  it("produces a 108–132 minute non-Philadelphia Upper Bucks route on a live router", { timeout: 45_000 }, async (ctx) => {
     // Live gate: the router must be up AND expose the Phase 3 toll detail
     // (i.e. serve the re-imported candidate graph), and the app must be
     // reachable. Until the Phase 7 host deploys those, this test skips.

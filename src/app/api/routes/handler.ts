@@ -85,7 +85,9 @@ const bikeProfileSchema = object_({
   avoidUnknownSurface: boolean()
 }, { passthrough: true })
 
-const PROFILES = ["quick", "twisty", "scenic", "adventure"] as const
+const PROFILES = [
+  "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
+] as const
 
 const routeRequestSchema = object_({
   profile: enum_(PROFILES),

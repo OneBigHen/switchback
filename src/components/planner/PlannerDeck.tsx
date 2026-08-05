@@ -15,6 +15,7 @@ import {
   Path,
   Plus,
   SpinnerGap,
+  Sparkle,
   WaveSine,
   WarningCircle,
   X
@@ -149,6 +150,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onSaveHome = commands.onSaveHome
   const onClearHome = commands.onClearHome
   const onStartRide = commands.onStartRide
+  const onStartFreeRide = commands.onStartFreeRide
   const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
   const [minimized, setMinimized] = useState(false)
@@ -704,6 +706,12 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       </>
       )}
       <div className="planner-action-dock" aria-label="Route actions">
+        {!minimized && onStartFreeRide ? (
+          <button type="button" className="free-ride-button" onClick={onStartFreeRide}>
+            <Sparkle weight="fill" aria-hidden="true" />
+            <span>Free Ride</span>
+          </button>
+        ) : null}
         {!minimized ? <button
           type="button"
           className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
@@ -750,7 +758,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             ) : null}
             <button type="button" className="ride-button dock-ride-button" onClick={() => onStartRide(selectedRoute)}>
               <NavigationArrow weight="fill" aria-hidden="true" />
-              <span>Start {selectedRoute.profile === "twisty" ? "Twisty" : selectedRoute.profile === "quick" ? "Quick" : selectedRoute.profile === "scenic" ? "Scenic" : "Adventure"} route</span>
+              <span>Start {listProfiles().find((profile) => profile.id === selectedRoute.profile)?.label ?? "Ride"} route</span>
             </button>
           </>
         ) : editing ? (

@@ -4,14 +4,18 @@ import { createHash } from "node:crypto"
 
 const baseUrl = (process.env.SWITCHBACK_URL ?? "http://127.0.0.1:3100").replace(/\/$/, "")
 const routerUrl = (process.env.GRAPHHOPPER_URL ?? "http://127.0.0.1:8989").replace(/\/$/, "")
-const profiles = ["quick", "twisty", "scenic", "adventure"]
+const profiles = ["quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"]
 const requireValhalla = process.env.REQUIRE_VALHALLA === "1"
 const requireElevation = process.env.REQUIRE_ELEVATION === "1"
 const graphHopperProfiles = {
   quick: "motorcycle_fastest",
+  balanced: "motorcycle_fastest",
   twisty: "motorcycle_twisty",
   scenic: "motorcycle_scenic",
-  adventure: "motorcycle_adventure"
+  adventure: "motorcycle_adventure",
+  gravel: "motorcycle_adventure",
+  "avoid-highways": "motorcycle_fastest",
+  neural: "motorcycle_twisty"
 }
 const points = [
   { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
@@ -135,7 +139,7 @@ for (const profile of profiles) {
 }
 
 if (new Set(results.map((result) => result.shape)).size !== profiles.length) {
-  throw new Error("Motorcycle profiles did not produce four distinct route shapes")
+  throw new Error("Motorcycle profiles did not produce eight distinct route shapes")
 }
 
 // OSM way 969576184 is an 82.33 m service road explicitly tagged

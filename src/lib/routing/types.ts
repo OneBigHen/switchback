@@ -1,10 +1,24 @@
 import type { PaUnpavedRoadEvidence } from "@/lib/roads/types"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
+import type { RouteScore as NormalizedRouteScore } from "@/lib/domain/contracts"
 
 export type Coordinate = [longitude: number, latitude: number]
 
-export type RouteProfileId = "quick" | "twisty" | "scenic" | "adventure"
+/**
+ * Product-facing motorcycle profiles. Some profiles intentionally reuse an
+ * existing GraphHopper primitive; their route-quality weights and hard
+ * request rules remain distinct at the Switchback boundary.
+ */
+export type RouteProfileId =
+  | "quick"
+  | "balanced"
+  | "twisty"
+  | "scenic"
+  | "adventure"
+  | "gravel"
+  | "avoid-highways"
+  | "neural"
 
 /** Toll exposure policy: disclose on the route by default, or hard-avoid. */
 export type TollPolicy = "allow-with-warning" | "avoid"
@@ -111,6 +125,8 @@ export interface PlannedRoute {
   provider?: "graphhopper" | "valhalla"
   providerVersion?: string
   previewOnly: boolean
+  /** Provider-neutral route intelligence score, when feature data permits it. */
+  routeScore?: NormalizedRouteScore
   overlapPercent?: number
   loopTargetMinutes?: number
   avoidHighways?: boolean

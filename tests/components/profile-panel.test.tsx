@@ -28,4 +28,11 @@ describe("ProfilePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Manage offline downloads" }))
     expect(onOpenDownloads).toHaveBeenCalledOnce()
   })
+
+  it("resets learned preferences without requiring an account", () => {
+    const onResetLearning = vi.fn()
+    render(<ProfilePanel theme="light" onThemeChange={vi.fn()} onOpenDownloads={vi.fn()} onResetLearning={onResetLearning} />)
+    fireEvent.click(screen.getByRole("button", { name: "Reset learned route preferences" }))
+    expect(onResetLearning).toHaveBeenCalledOnce()
+  })
 })

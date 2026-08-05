@@ -1,6 +1,11 @@
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
 
-export type PreferenceSignalSource = "rating" | "manual-edit" | "completed-ride" | "skipped-road"
+export type PreferenceSignalSource =
+  | "rating"
+  | "manual-edit"
+  | "completed-ride"
+  | "skipped-road"
+  | "suggestion-accepted"
 
 export interface RiderPreferenceSignal {
   route: PlannedRoute
@@ -42,6 +47,7 @@ function sourceWeight(source: PreferenceSignalSource): number {
   if (source === "manual-edit") return 1.5
   if (source === "completed-ride") return 1.25
   if (source === "skipped-road") return 0.75
+  if (source === "suggestion-accepted") return 1
   return 1
 }
 

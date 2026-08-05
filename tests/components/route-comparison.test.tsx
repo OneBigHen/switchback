@@ -24,6 +24,23 @@ const routes: PlannedRoute[] = [
     surfaceMix: { asphalt: 56, gravel: 32, dirt: 12 },
     routingSource: "live",
     previewOnly: false,
+    routeScore: {
+      total: 87,
+      fun: 90,
+      twistiness: 92,
+      scenic: 72,
+      elevation: 64,
+      gravel: 18,
+      traffic: 84,
+      simplicity: 78,
+      safety: 96,
+      novelty: 68,
+      confidence: 90,
+      preferenceFit: 83,
+      etaPenalty: 8,
+      explanations: ["Strong curvature and sustained bends."],
+      explanation: ["Strong curvature and sustained bends."]
+    },
     overlapPercent: 100,
     officialUnpavedEvidence: {
       source: "Pennsylvania Department of Environmental Protection",
@@ -59,6 +76,21 @@ const routes: PlannedRoute[] = [
 afterEach(cleanup)
 
 describe("route comparison rack", () => {
+  it("shows the normalized route-quality score beside route comparison metrics", () => {
+    render(
+      <RouteComparison
+        routes={[routes[0]]}
+        selectedId="twisty-1"
+        onSelect={vi.fn()}
+        onSave={vi.fn()}
+        onExport={vi.fn()}
+        onRide={vi.fn()}
+      />
+    )
+
+    expect(screen.getByLabelText("Route quality score 87")).toBeInTheDocument()
+  })
+
   it("shows route choices first and keeps long-form telemetry behind an explicit details action", async () => {
     const user = userEvent.setup()
     render(

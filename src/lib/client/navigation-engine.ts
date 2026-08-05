@@ -8,7 +8,10 @@ const MANEUVER_PASS_METERS = 20
 const ARRIVAL_RADIUS_METERS = 35
 const AMBIGUOUS_ROUTE_SEPARATION_METERS = 100
 const AMBIGUOUS_SCORE_MARGIN = 30
-const SPATIAL_CELL_DEGREES = 0.005
+// Smaller cells keep long, detailed tracks from putting thousands of
+// neighboring segments into one lookup window while retaining a generous
+// two-cell search radius for normal GPS uncertainty.
+const SPATIAL_CELL_DEGREES = 0.001
 const SPATIAL_MATCH_RADIUS_CELLS = 2
 const MAX_INDEX_CELLS_PER_SEGMENT = 256
 const CONTINUITY_SEGMENT_WINDOW = 160

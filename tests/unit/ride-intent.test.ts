@@ -74,6 +74,15 @@ describe("ride intent parser", () => {
     })
   })
 
+  it.each([
+    ["Plan a balanced ride to Lancaster", "balanced"],
+    ["Take me on a gravel route to Wellsboro", "gravel"],
+    ["Use my usual personalized route to Jim Thorpe", "neural"],
+    ["Plan an avoid-highways route to Gettysburg", "avoid-highways"]
+  ] as const)("resolves first-class profile language in %s", (prompt, profile) => {
+    expect(parseRidePromptLocally(prompt)).toMatchObject({ profile })
+  })
+
   it("recognizes natural alternatives to saying avoid highways", () => {
     expect(parseRidePromptLocally(
       "Take me to Lancaster, fastest route but stay off interstates"

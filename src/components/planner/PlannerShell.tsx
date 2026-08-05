@@ -1,7 +1,7 @@
 "use client"
 
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react"
-import { useCallback, useEffect, useReducer, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import {
   appNavigationReducer,
   createInitialAppNavigationState,
@@ -40,8 +40,16 @@ import { TripPlanLibrary } from "@/lib/storage/trip-plan-library"
 import { createTripPlan } from "@/lib/trip/trip-plan"
 import type { TripPlan as SavedTripPlan } from "@/lib/trip/trip-plan"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
+import {
+  acceptFreeRideSuggestion,
+  freeRideRecommendationReducer,
+  freeRideSuggestionAsPlannedRoute,
+  type FreeRideRecommendationState
+} from "@/lib/recommendation/free-ride"
+import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { buildOfflinePackCorridor } from "@/lib/client/offline-pack-coordinator"
 import { comparePlannedVsActual, type ReplayComparisonResult } from "@/lib/client/replay-comparison"
+import { rankRoutesForRider } from "@/lib/client/rider-route-ranking"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
@@ -63,6 +71,7 @@ import { AppNavigation } from "@/components/shell/AppNavigation"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
 import { RecordPanel } from "@/components/shell/RecordPanel"
 import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
+import { FreeRideHud } from "@/components/shell/FreeRideHud"
 import { useRecordingSession } from "@/components/shell/useRecordingSession"
 
 function normalizedSegmentProfiles(
@@ -77,6 +86,24 @@ function initialThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "auto"
   const stored = localStorage.getItem("switchback:theme")
   return stored === "light" || stored === "dark" ? stored : "auto"
+}
+
+function localPreferenceLearningSettings(fallbackMotorcycle: string): { enabled: boolean; motorcycleId: string } {
+  if (typeof window === "undefined") return { enabled: true, motorcycleId: fallbackMotorcycle }
+  try {
+    const raw = JSON.parse(window.localStorage.getItem("switchback:rider-profile") ?? "{}") as {
+      learningEnabled?: unknown
+      motorcycleName?: unknown
+    }
+    return {
+      enabled: raw.learningEnabled !== false,
+      motorcycleId: typeof raw.motorcycleName === "string" && raw.motorcycleName.trim()
+        ? raw.motorcycleName.trim().slice(0, 80)
+        : fallbackMotorcycle
+    }
+  } catch {
+    return { enabled: true, motorcycleId: fallbackMotorcycle }
+  }
 }
 
 function recordedDistanceMiles(points: Array<{ coordinate: [number, number] }>): number {
@@ -122,6 +149,32 @@ export function PlannerShell() {
   const [previousRoute, setPreviousRoute] = useState<PlannedRoute | null>(null)
   const [replayComparison, setReplayComparison] = useState<ReplayComparisonResult | null>(null)
   const recording = useRecordingSession()
+  const [freeRideRecommendation, dispatchFreeRideRecommendation] = useReducer(
+    freeRideRecommendationReducer,
+    {
+      suggestion: null,
+      ignoredCandidateIds: [],
+      acceptedSuggestionId: null,
+      cooldownUntil: 0,
+      lastEvent: null,
+      privateMode: true
+    } satisfies FreeRideRecommendationState
+  )
+  const [freeRideLoading, setFreeRideLoading] = useState(false)
+  const [freeRideError, setFreeRideError] = useState<string | null>(null)
+  const [freeRideSuppression, setFreeRideSuppression] = useState<
+    "gps-uncertain" | "high-workload" | "cooldown" | "no-safe-candidate" | undefined
+  >(undefined)
+  const freeRideStateRef = useRef(freeRideRecommendation)
+  const recordingStateRef = useRef(recording.state)
+  const freeRideSessionRef = useRef(false)
+  const freeRideTransitionRef = useRef(false)
+  useEffect(() => {
+    freeRideStateRef.current = freeRideRecommendation
+  }, [freeRideRecommendation])
+  useEffect(() => {
+    recordingStateRef.current = recording.state
+  }, [recording.state])
 
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [planMode, setPlanMode] = useState<PlanMode>("destination")
@@ -200,17 +253,38 @@ export function PlannerShell() {
     refreshRideJournal
   } = usePlannerLibraries({ onWarning: showStorageWarning })
 
-  const routes = plan?.routes ?? []
+  const planRoutes = plan?.routes
+  const routes = useMemo(() => planRoutes ?? [], [planRoutes])
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null
+
+  // Progressive alternatives arrive after the primary route. Once there are
+  // multiple candidates, apply the rider's explicit local history to the
+  // selection while leaving the provider's legality and hard gates intact.
+  const rankedPlanKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (routes.length < 2 || !plan) return
+    const settings = localPreferenceLearningSettings(usePlannerStore.getState().bikeProfile.name)
+    if (!settings.enabled) return
+    const key = `${plan.planningId ?? "plan"}:${routes.map((route) => route.id).join(",")}:${settings.motorcycleId}`
+    if (rankedPlanKeyRef.current === key) return
+    rankedPlanKeyRef.current = key
+    void riderPreferenceLibraryRef.current!.get(settings.motorcycleId, profile).then((preference) => {
+      if (!preference) return
+      const best = rankRoutesForRider(routes, preference)[0]
+      if (best && usePlannerStore.getState().selectedRouteId !== best.route.id) {
+        usePlannerStore.getState().selectRoute(best.route.id)
+      }
+    }).catch(() => undefined)
+  }, [plan, profile, routes])
   // Enter riding mode the moment a recording starts — or is recovered from
   // an interrupted session on reload — so the app opens straight into the
   // recording HUD ("passively turn the app on to see everything"). Deferred
   // so the store update never runs synchronously inside the effect.
   useEffect(() => {
-    if (!recording.isActive) return
+    if (!recording.isActive || surface === "free-ride") return
     const id = window.setTimeout(() => usePlannerStore.getState().setSurface("ride"), 0)
     return () => window.clearTimeout(id)
-  }, [recording.isActive])
+  }, [recording.isActive, surface])
 
   // A finished recording is saved to the local ride journal, then the
   // session resets and the app returns to the Record tab. Deferred so the
@@ -219,19 +293,23 @@ export function PlannerShell() {
     if (recording.state.status !== "finished") return
     const id = window.setTimeout(() => {
       const points = recording.state.points
+      const wasFreeRide = freeRideSessionRef.current
+      const preserveSurface = freeRideTransitionRef.current
       if (points.length < 2) {
         setNotice({ kind: "warning", message: "Record at least two GPS points before finishing." })
+        freeRideSessionRef.current = false
         recording.discard()
-        usePlannerStore.getState().setSurface("planner")
+        if (!preserveSurface) usePlannerStore.getState().setSurface("planner")
+        else freeRideTransitionRef.current = false
         return
       }
       const first = points[0]!.coordinate
       const last = points.at(-1)!.coordinate
       const durationMinutes = Math.max(0, (Date.parse(points.at(-1)!.recordedAt) - Date.parse(points[0]!.recordedAt)) / 60_000)
-      const recordedRoute: PlannedRoute = selectedRoute ?? {
+      const recordedRoute: PlannedRoute = !wasFreeRide && selectedRoute ? selectedRoute : {
         id: `recording-${Date.now()}`,
-        name: `Recorded ride · ${new Date().toLocaleDateString()}`,
-        profile: "quick",
+        name: `${wasFreeRide ? "Free Ride" : "Recorded ride"} · ${new Date().toLocaleDateString()}`,
+        profile: wasFreeRide ? "neural" : "quick",
         geometry: points.map((point) => point.coordinate),
         waypoints: [
           { lat: first[1], lon: first[0], label: "Recording start" },
@@ -256,8 +334,10 @@ export function PlannerShell() {
         kind: "warning",
         message: caught instanceof Error ? caught.message : "Recorded ride could not be saved."
       })).finally(() => {
+        freeRideSessionRef.current = false
         recording.discard()
-        usePlannerStore.getState().setSurface("planner")
+        if (preserveSurface) freeRideTransitionRef.current = false
+        else usePlannerStore.getState().setSurface("planner")
       })
     }, 0)
     return () => window.clearTimeout(id)
@@ -568,6 +648,172 @@ export function PlannerShell() {
     onNotice: setNotice
   })
 
+  const handleStartFreeRide = () => {
+    routeRequestGate.invalidate()
+    if (recording.isActive) recording.discard()
+    freeRideSessionRef.current = true
+    freeRideTransitionRef.current = false
+    dispatchFreeRideRecommendation({ type: "reset" })
+    setFreeRideError(null)
+    setFreeRideSuppression(undefined)
+    setFreeRideLoading(false)
+    usePlannerStore.getState().setSurface("free-ride")
+    recording.start()
+  }
+
+  const handleExitFreeRide = () => {
+    freeRideTransitionRef.current = false
+    freeRideSessionRef.current = false
+    recording.discard()
+    dispatchFreeRideRecommendation({ type: "clear" })
+    setFreeRideError(null)
+    setFreeRideLoading(false)
+    usePlannerStore.getState().setSurface("planner")
+  }
+
+  const recordFreeRideSignal = (
+    suggestion: FreeRideSuggestion,
+    rating: 1 | 2 | 4,
+    source: "skipped-road" | "suggestion-accepted"
+  ) => {
+    const currentBike = usePlannerStore.getState().bikeProfile
+    const settings = localPreferenceLearningSettings(currentBike.name)
+    if (!settings.enabled) return
+    void riderPreferenceLibraryRef.current!.record({
+      route: freeRideSuggestionAsPlannedRoute(suggestion),
+      motorcycleId: settings.motorcycleId,
+      rating,
+      source
+    }).catch(() => {
+      // Preference learning is optional local enrichment; never interrupt a
+      // live ride when IndexedDB is unavailable or storage is full.
+    })
+  }
+
+  const handleFreeRideIgnore = () => {
+    const suggestion = freeRideStateRef.current.suggestion
+    if (suggestion) recordFreeRideSignal(suggestion, 2, "skipped-road")
+    dispatchFreeRideRecommendation({ type: "ignore", at: new Date().toISOString() })
+  }
+
+  const handleFreeRideLessLikeThis = () => {
+    const suggestion = freeRideStateRef.current.suggestion
+    if (suggestion) recordFreeRideSignal(suggestion, 1, "skipped-road")
+    dispatchFreeRideRecommendation({ type: "less-like-this", at: new Date().toISOString() })
+  }
+
+  const handleFreeRideAccept = async (suggestion: FreeRideSuggestion) => {
+    const accepted = acceptFreeRideSuggestion(suggestion)
+    const store = usePlannerStore.getState()
+    const nextStart: Waypoint = {
+      lat: accepted.origin[1],
+      lon: accepted.origin[0],
+      label: "Current position"
+    }
+    const nextFinish: Waypoint = {
+      lat: suggestion.destination[1],
+      lon: suggestion.destination[0],
+      label: "Accepted fun road"
+    }
+    dispatchFreeRideRecommendation({ type: "accept", at: new Date().toISOString() })
+    recordFreeRideSignal(suggestion, 4, "suggestion-accepted")
+    freeRideTransitionRef.current = true
+    recording.finish()
+    routeRequestGate.invalidate()
+    store.replaceRoutePoints({ start: nextStart, finish: nextFinish, via: [] })
+    store.setProfile("neural")
+    setPlanMode("destination")
+    setAvoidHighways(false)
+    setAvoidAreas([])
+    setSegmentProfiles([])
+    setFreeRideLoading(true)
+    setFreeRideError(null)
+    try {
+      const planned = await runTripPlan(buildRideTripRequest({
+        mode: "destination",
+        start: nextStart,
+        finish: nextFinish,
+        profile: "neural",
+        bikeProfile: store.bikeProfile,
+        roadLocks: store.roadLocks,
+        targetMinutes: 120,
+        seed: ++loopSeed.current,
+        planningId: createPlanningId()
+      }))
+      const route = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
+      if (!route) throw new Error("The accepted road could not be turned into a navigable route.")
+      await handleStartRide(route)
+      setNotice({ kind: "success", message: "Free Ride suggestion accepted. Live guidance is ready." })
+    } catch (caught) {
+      freeRideTransitionRef.current = false
+      usePlannerStore.getState().setSurface("planner")
+      setNotice({
+        kind: "warning",
+        message: caught instanceof Error ? caught.message : "The accepted road could not be routed."
+      })
+    } finally {
+      setFreeRideLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (surface !== "free-ride" || !recording.isActive) return
+    const controller = new AbortController()
+    const poll = async () => {
+      const currentRecommendation = freeRideStateRef.current
+      if (currentRecommendation.suggestion) return
+      const point = recordingStateRef.current.points.at(-1)
+      if (!point) return
+      const accuracy = point.accuracyMeters
+      const gpsConfidence = accuracy == null
+        ? 0
+        : Math.max(0, Math.min(1, 1 - accuracy / 100))
+      setFreeRideLoading(true)
+      try {
+        const response = await fetch("/api/free-ride/suggestions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            position: point.coordinate,
+            headingDegrees: point.headingDegrees,
+            gpsConfidence,
+            workload: "normal",
+            profile: "neural",
+            rejectedCandidateIds: currentRecommendation.ignoredCandidateIds
+          })
+        })
+        const body = await response.json() as {
+          suggestion?: FreeRideSuggestion | null
+          suppressed?: boolean
+          suppressionReason?: "gps-uncertain" | "high-workload" | "cooldown" | "no-safe-candidate"
+          error?: { message?: string }
+        }
+        if (!response.ok) {
+          setFreeRideError(body.error?.message ?? "Free Ride data is unavailable right now.")
+          return
+        }
+        setFreeRideError(null)
+        setFreeRideSuppression(body.suppressionReason)
+        if (body.suggestion) dispatchFreeRideRecommendation({ type: "show", suggestion: body.suggestion })
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === "AbortError") return
+        setFreeRideError("Free Ride data is unavailable right now.")
+      } finally {
+        if (!controller.signal.aborted) setFreeRideLoading(false)
+      }
+    }
+    // The first GPS sample arrives asynchronously after watchPosition starts;
+    // defer the first query so Free Ride does not miss that initial fix.
+    const firstPoll = window.setTimeout(() => void poll(), 1_000)
+    const interval = window.setInterval(() => void poll(), 15_000)
+    return () => {
+      controller.abort()
+      window.clearTimeout(firstPoll)
+      window.clearInterval(interval)
+    }
+  }, [recording.isActive, surface])
+
   const handleLoadRecordedRide = (ride: RecordedRide) => {
     routeRequestGate.invalidate()
     const actual: PlannedRoute = {
@@ -751,7 +997,7 @@ export function PlannerShell() {
         routeVisibility={routeVisibility}
         mapPacks={mapPacks}
         referenceMap={referenceMap}
-        rideMode={surface === "ride"}
+        rideMode={surface === "ride" || surface === "free-ride"}
         onCurvatureChange={(visible) => {
           usePlannerStore.getState().setCurvatureVisible(visible)
           setRiderLayers((layers) => layers.map((layer) => layer.id === "curvature" ? { ...layer, visible } : layer))
@@ -818,11 +1064,11 @@ export function PlannerShell() {
         }}
       />
 
-      {surface !== "ride" ? (
+      {surface !== "ride" && surface !== "free-ride" ? (
         <AppNavigation activeTab={navigation.activeTab} onSelect={handleAppTab} />
       ) : null}
 
-      {surface !== "ride" && navigation.activeTab === "plan" && !sketching ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
         <PlannerDeck
           viewModel={buildPlannerDeckViewModel({
             start,
@@ -992,6 +1238,7 @@ export function PlannerShell() {
             onClearHome: clearHome,
             onOpenLibrary: () => handleAppTab("library"),
             onStartRide: (route) => void handleStartRide(route),
+            onStartFreeRide: handleStartFreeRide,
             onSaveOffline: (route, options) => {
               void buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
                 return offlinePackLibraryRef.current!.save({
@@ -1105,17 +1352,19 @@ export function PlannerShell() {
           onImport={(file) => void handleImport(file)}
         />
       ) : null}
-      {surface !== "ride" && navigation.activeTab === "record" ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "record" ? (
         <RecordPanel controller={recording} />
       ) : null}
-      {surface !== "ride" && navigation.activeTab === "profile" ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "profile" ? (
         <ProfilePanel
           theme={navigation.theme}
           onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
           onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}
-        />
+            onResetLearning={() => riderPreferenceLibraryRef.current!.clear()}
+            onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
+          />
       ) : null}
-      {surface !== "ride" && navigation.overlays.includes("downloads") ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("downloads") ? (
         <div className="app-overlay-scrim" role="dialog" aria-modal="true" aria-labelledby="downloads-overlay-title">
           <section className="app-overlay-panel">
             <header><h2 id="downloads-overlay-title">Region downloads</h2><button type="button" aria-label="Close region downloads" onClick={() => dispatchNavigation({ type: "close_overlay", overlay: "downloads" })}>×</button></header>
@@ -1126,7 +1375,19 @@ export function PlannerShell() {
           </section>
         </div>
       ) : null}
-      {surface === "ride" && recording.isActive ? (
+      {surface === "free-ride" ? (
+        <FreeRideHud
+          controller={recording}
+          suggestion={freeRideRecommendation.suggestion}
+          loading={freeRideLoading}
+          error={freeRideError}
+          suppressionReason={freeRideSuppression}
+          onAccept={(suggestion) => void handleFreeRideAccept(suggestion)}
+          onIgnore={handleFreeRideIgnore}
+          onLessLikeThis={handleFreeRideLessLikeThis}
+          onExit={handleExitFreeRide}
+        />
+      ) : surface === "ride" && recording.isActive ? (
         <RideRecordingHud
           controller={recording}
           onDiscard={() => {

@@ -96,12 +96,20 @@ function routeReason(route: PlannedRoute): string {
   switch (route.profile) {
     case "quick":
       return "Lowest travel time"
+    case "balanced":
+      return "Practical balance of pace and road quality"
     case "twisty":
       return "Most curves and direction changes"
     case "scenic":
       return "Balanced for back roads and views"
     case "adventure":
       return "Targets gravel and unpaved roads"
+    case "gravel":
+      return "Maximizes legal, rideable gravel"
+    case "avoid-highways":
+      return "Hard-avoids motorways and trunk roads"
+    case "neural":
+      return "Ranked from your local riding history"
   }
 }
 
@@ -184,6 +192,15 @@ export function RouteComparison({
                 ) : null}
               </span>
               <span className="route-slip-stats">
+                {route.routeScore ? (
+                  <span
+                    className="route-slip-metric route-quality-meter"
+                    aria-label={`Route quality score ${Math.round(route.routeScore.total)}`}
+                  >
+                    <strong>{Math.round(route.routeScore.total)}</strong>
+                    <small>score</small>
+                  </span>
+                ) : null}
                 <span className="route-slip-metric">
                   <strong>{route.distanceMiles.toFixed(1)}</strong>
                   <small>miles</small>
@@ -262,6 +279,13 @@ export function RouteComparison({
         <Image src="/assets/scenic/roadside-coffee.webp" alt="Roadside motorcycle coffee stop" width={720} height={480} />
       </div>
       <RouteDataQualityPanel route={selectedRoute} sourceMapUpdated={sourceMapUpdated ?? null} />
+
+      {selectedRoute.routeScore ? (
+        <div className="route-score-explanation" role="note" aria-label="Why this route scored well">
+          <strong>Why this route</strong>
+          <span>{(selectedRoute.routeScore.explanations ?? selectedRoute.routeScore.explanation ?? []).slice(0, 3).join(" ")}</span>
+        </div>
+      ) : null}
 
       {selectedRoute.lockSatisfaction?.length ? (
         <div className="route-lock-satisfaction-list" aria-label="Road lock satisfaction for this route">

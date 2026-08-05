@@ -34,6 +34,10 @@ export class RiderPreferenceLibrary {
     return this.database.preferences.get(preferenceId(motorcycleId, profile))
   }
 
+  async list(): Promise<RiderPreference[]> {
+    return this.database.preferences.toArray()
+  }
+
   async record(signal: RiderPreferenceSignal): Promise<RiderPreference> {
     const motorcycleId = signal.motorcycleId.trim().slice(0, 80) || "default"
     const id = preferenceId(motorcycleId, signal.route.profile)
@@ -41,6 +45,10 @@ export class RiderPreferenceLibrary {
     const preference = updateRiderPreference(current ?? null, { ...signal, motorcycleId })
     await this.database.preferences.put({ ...preference, id })
     return preference
+  }
+
+  async clear(): Promise<void> {
+    await this.database.preferences.clear()
   }
 
   async destroy(): Promise<void> {

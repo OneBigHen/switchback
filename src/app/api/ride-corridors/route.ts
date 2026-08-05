@@ -22,7 +22,7 @@ const payloadSchema = object_({
   start: waypointSchema,
   finish: waypointSchema,
   targetMinutes: number({ int: true, min: 20, max: 480 }),
-  character: enum_(["fun", "quick", "twisty", "scenic", "adventure", "balanced"] as const)
+  character: enum_(["fun", "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"] as const)
 })
 
 const cache = createCorridorCache(

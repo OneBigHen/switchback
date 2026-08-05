@@ -1,6 +1,7 @@
 import type { Coordinate, PlannedRoute, RouteProfileId, RouteRequest, RouteInstruction } from "./types"
 import { getProfile } from "./profiles"
 import { analyzeGeometry } from "./scoring"
+import { scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 
 export interface ValhallaOptions {
   baseUrl: string
@@ -33,6 +34,7 @@ function isAbortError(caught: unknown): boolean {
 
 const PROFILE_COSTING_OPTIONS: Record<RouteProfileId, Record<string, number>> = {
   quick: { use_highways: 0.8 },
+  balanced: { use_highways: 0.55 },
   twisty: { use_highways: 0.1 },
   scenic: { use_highways: 0.2 },
   adventure: {
@@ -40,7 +42,15 @@ const PROFILE_COSTING_OPTIONS: Record<RouteProfileId, Record<string, number>> = 
     use_tracks: 0.8,
     use_trails: 0.8,
     use_living_streets: 0.5
-  }
+  },
+  gravel: {
+    use_highways: 0.1,
+    use_tracks: 0.9,
+    use_trails: 0.9,
+    use_living_streets: 0.5
+  },
+  "avoid-highways": { use_highways: 0 },
+  neural: { use_highways: 0.15 }
 }
 
 export function createValhallaRequest(request: RouteRequest): Record<string, unknown> {
@@ -69,7 +79,7 @@ export function createValhallaRequest(request: RouteRequest): Record<string, unk
 
   const costingOptions: Record<string, number> = { ...PROFILE_COSTING_OPTIONS[profile.id] }
 
-  if (request.avoidHighways) {
+  if (request.avoidHighways || request.profile === "avoid-highways") {
     costingOptions.use_highways = 0
   }
 
@@ -491,7 +501,7 @@ function normalizeTrip(
   }, null)
   const elevationMultiplier = units === "miles" ? 0.3048 : 1
 
-  return {
+  const normalized: PlannedRoute = {
     id: createRouteIdValhalla(request.profile, geometry, index),
     name: index === 0 ? `${profile.label} route` : `${profile.label} alternative ${index + 1}`,
     profile: request.profile,
@@ -512,6 +522,10 @@ function normalizeTrip(
     avoidHighways: request.avoidHighways,
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: request.segmentProfiles ? [...request.segmentProfiles] : undefined
+  }
+  return {
+    ...normalized,
+    routeScore: scorePlannedRoute(normalized, { profile: request.profile })
   }
 }
 

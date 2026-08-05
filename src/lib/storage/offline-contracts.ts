@@ -1,5 +1,4 @@
-import type { Coordinate } from "@/lib/routing/types"
-import type { RouteInstruction, Waypoint } from "@/lib/routing/types"
+import type { Coordinate, RouteInstruction, RouteProfileId, Waypoint } from "@/lib/routing/types"
 
 export const OFFLINE_GRAPH_FORMAT_VERSION = 1 as const
 
@@ -61,7 +60,7 @@ export interface OfflineRoutingRequest {
   readonly origin: Coordinate
   readonly destination: Coordinate
   readonly waypoints: readonly Coordinate[]
-  readonly profile: "quick" | "twisty" | "scenic" | "adventure"
+  readonly profile: RouteProfileId
   readonly corridorWidthMeters: number
   readonly restrictions: readonly OfflineRoutingRestriction[]
   readonly shapingPoints: readonly Coordinate[]

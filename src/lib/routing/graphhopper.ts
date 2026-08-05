@@ -8,6 +8,7 @@ import {
   disallowedTracktypes
 } from "./bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
+import { scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 
 export interface GraphHopperOptions {
   baseUrl: string
@@ -40,9 +41,13 @@ function isAbortError(caught: unknown): boolean {
 
 const ROUND_TRIP_SPEED_MPH: Record<RouteProfileId, number> = {
   quick: 48,
+  balanced: 44,
   twisty: 38,
   scenic: 34,
-  adventure: 28
+  adventure: 28,
+  gravel: 24,
+  "avoid-highways": 40,
+  neural: 36
 }
 
 export function estimateRoundTripDistanceMeters(
@@ -249,7 +254,7 @@ export function createGraphHopperRequest(
     ? [{ if: "toll == ALL", multiply_by: "0" }]
     : []
 
-  const highwayAvoidanceRule: GraphHopperCustomModelRule[] = _request.avoidHighways
+  const highwayAvoidanceRule: GraphHopperCustomModelRule[] = (_request.avoidHighways || _request.profile === "avoid-highways")
     ? [{ if: "road_class == MOTORWAY || road_class == TRUNK", multiply_by: "0" }]
     : []
 
@@ -450,7 +455,7 @@ function normalizePath(
 
   const maxSpeedDetails = path.details?.max_speed ?? []
 
-  return {
+  const normalized: PlannedRoute = {
     id: createRouteId(request.profile, geometry, index),
     name: index === 0 ? `${profile.label} route` : `${profile.label} alternative ${index + 1}`,
     profile: request.profile,
@@ -483,6 +488,10 @@ function normalizePath(
     avoidHighways: request.avoidHighways,
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: request.segmentProfiles ? [...request.segmentProfiles] : undefined
+  }
+  return {
+    ...normalized,
+    routeScore: scorePlannedRoute(normalized, { profile: request.profile })
   }
 }
 

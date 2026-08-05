@@ -8,7 +8,7 @@ import type { TripPlan } from "@/lib/routing/planner"
 import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 
 export type PlannerPointId = "start" | "finish"
-export type PlannerSurface = "planner" | "library" | "ride"
+export type PlannerSurface = "planner" | "library" | "ride" | "free-ride"
 export type PlannerStatus = "idle" | "routing" | "ready" | "error"
 
 /**
@@ -70,7 +70,9 @@ const SAVED_PLACES_LIMIT = 100
 const SEARCH_HISTORY_LIMIT = 50
 const ROUTE_POINT_HISTORY_LIMIT = 50
 
-const ROUTE_PROFILE_IDS = new Set<RouteProfileId>(["quick", "twisty", "scenic", "adventure"])
+const ROUTE_PROFILE_IDS = new Set<RouteProfileId>([
+  "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
+])
 
 /**
  * Defensively validate the shape of localStorage-persisted planner state.
