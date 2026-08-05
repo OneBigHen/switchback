@@ -35,9 +35,9 @@
 | 1 — Routing correctness | Complete (fc77562) |
 | 2 — Road requirements + sharing | Part 1 complete (01cef8f); SB-014/015 open |
 | 3 — Offline/storage | Part 1 complete (1927a13); suite/rebuild wiring + regional E2E open |
-| 4 — Modularization | Part 1 complete (08c7639); PlannerShell split + export/restore open |
-| 5 — UX | Not started |
+| 4 — Modularization | Part 1 (08c7639) + state machine/export (a59d427) complete; PlannerShell component split open |
+| 5 — UX | SB-027 confirmations + SB-028 diagnostics done; mobile flow + desktop editor open |
 | 6 — Learning + Free Ride | SB-010 done (08c7639); SB-030 done (537e2f3); graph-backed candidates (SB-029/031) open |
 | 7 — Qualification | Not started |
 
-**Commits:** `0d67d9a` → `fc77562` → `01cef8f` → `1927a13` → `d2b16f1` → `08c7639` → `537e2f3` → `6c833ca` (on top of `1a7fba6`).
+**Commits:** `0d67d9a` → `fc77562` → `01cef8f` → `1927a13` → `d2b16f1` → `08c7639` → `537e2f3` → `6c833ca` → `30c897e` → `a59d427` → `f5e7a87` (on top of `1a7fba6`).
