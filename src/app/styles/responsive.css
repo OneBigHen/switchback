@@ -856,6 +856,14 @@
     padding-top: 28px;
   }
 
+  /* The home-state action dock stacks Free Ride + Road locks and is taller
+     than the flat reservation above (dock ≈134px vs 82px reserved), so the
+     bottom of the ride-prompt card ("Edit route") can sit beneath the fixed
+     bar on phones. Reserve the real stacked height for that state. */
+  .planner-deck:not(.is-minimized):has(.free-ride-button):not(:has(.dock-ride-button)) .planner-scroll {
+    height: calc(100% - 134px);
+  }
+
   .planner-deck::after {
     display: none;
   }

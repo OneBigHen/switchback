@@ -157,6 +157,29 @@ describe("GraphHopper provider", () => {
     expect(body).not.toHaveProperty("custom_model")
   })
 
+  it("uses GraphHopper's OTHER enum for OSM surfaces without enum members", () => {
+    const body = createGraphHopperRequest({
+      profile: "twisty",
+      points: [
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.28, lon: -76.84 }
+      ],
+      bikeProfile: {
+        name: "Street",
+        category: "street",
+        fuelRangeMiles: 180,
+        reserveMiles: 35,
+        allowMaintainedGravel: false,
+        allowRoughTracks: false,
+        avoidUnknownSurface: true
+      }
+    })
+
+    const serialized = JSON.stringify(body)
+    expect(serialized).toContain("surface == OTHER")
+    expect(serialized).not.toContain("surface == EARTH")
+  })
+
   it("builds native timeboxed GraphHopper round trips from one fuzzy start", () => {
     expect(estimateRoundTripDistanceMeters("twisty", 120)).toBe(122_310)
     expect(createGraphHopperRequest({

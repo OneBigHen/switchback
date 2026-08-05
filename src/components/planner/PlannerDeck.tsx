@@ -202,7 +202,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   }, [editing])
   const submitRidePrompt = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const prompt = ridePrompt.trim()
+    // Read the live field value rather than possibly-unflushed state: a
+    // submit racing the controlled-input update (e.g. Enter immediately
+    // after typing) used to send an empty prompt to the intent API.
+    const prompt = (new FormData(event.currentTarget).get("ride-prompt") as string | null ?? ridePrompt).trim()
     if (prompt.length >= 3 && intentStatus !== "interpreting") onRidePrompt(prompt)
   }
   const planDisabled = !start || (planMode === "destination" && !finish) || status === "routing" || intentStatus === "interpreting"
@@ -325,6 +328,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <label className="sr-only" htmlFor="ride-prompt">Where do you want to ride?</label>
             <input
               id="ride-prompt"
+              name="ride-prompt"
               value={ridePrompt}
               onChange={(event) => setRidePrompt(event.target.value)}
               placeholder={examples[exampleIndex]}

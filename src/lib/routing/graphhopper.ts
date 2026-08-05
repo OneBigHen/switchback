@@ -184,7 +184,15 @@ function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule
   const tracktypes = disallowedTracktypes(profile)
 
   if (surfaces.size > 0) {
-    const condition = [...surfaces].map((s) => `surface == ${String(s).toUpperCase()}`).join(" || ")
+    // GraphHopper 11's Surface enum has no EARTH or MUD members; its OSM
+    // parser preserves those unknown materials as OTHER. Sending the OSM
+    // spellings directly makes the request-time custom model fail to compile.
+    const condition = [...surfaces].map((surface) => {
+      const graphHopperSurface = surface === "earth" || surface === "mud"
+        ? "OTHER"
+        : String(surface).toUpperCase()
+      return `surface == ${graphHopperSurface}`
+    }).join(" || ")
     rules.push({ if: condition, multiply_by: "0" })
   }
   if (smoothness.size > 0) {

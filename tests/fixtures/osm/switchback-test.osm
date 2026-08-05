@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Switchback quality fixture">
+  <bounds minlat="40.245" minlon="-76.925" maxlat="40.315" maxlon="-76.810"/>
+
+  <node id="1" version="1" lat="40.2700" lon="-76.9000"/>
+  <node id="2" version="1" lat="40.2700" lon="-76.8900"/>
+  <node id="3" version="1" lat="40.2700" lon="-76.8800">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="4" version="1" lat="40.2700" lon="-76.8700">
+    <tag k="highway" v="stop"/>
+  </node>
+  <node id="5" version="1" lat="40.2700" lon="-76.8600"/>
+  <node id="6" version="1" lat="40.2700" lon="-76.8500"/>
+  <node id="7" version="1" lat="40.2700" lon="-76.8400"/>
+
+  <node id="8" version="1" lat="40.2800" lon="-76.9000"/>
+  <node id="9" version="1" lat="40.2880" lon="-76.8920"/>
+  <node id="10" version="1" lat="40.2940" lon="-76.8820"/>
+  <node id="11" version="1" lat="40.2920" lon="-76.8700"/>
+  <node id="12" version="1" lat="40.2860" lon="-76.8580"/>
+  <node id="13" version="1" lat="40.2780" lon="-76.8480"/>
+  <node id="14" version="1" lat="40.2800" lon="-76.8400"/>
+
+  <node id="15" version="1" lat="40.2620" lon="-76.8660"/>
+  <node id="16" version="1" lat="40.2550" lon="-76.8640"/>
+  <node id="17" version="1" lat="40.2620" lon="-76.8840"/>
+  <node id="18" version="1" lat="40.2550" lon="-76.8840"/>
+  <node id="19" version="1" lat="40.2620" lon="-76.8520"/>
+  <node id="20" version="1" lat="40.2550" lon="-76.8480"/>
+
+  <node id="21" version="1" lat="40.2760" lon="-76.8820"/>
+  <node id="22" version="1" lat="40.2780" lon="-76.8790"/>
+  <node id="23" version="1" lat="40.2750" lon="-76.8760"/>
+  <node id="24" version="1" lat="40.2720" lon="-76.8780"/>
+  <node id="25" version="1" lat="40.2770" lon="-76.8720"/>
+
+  <node id="501" version="1" lat="40.3050" lon="-76.8250"/>
+  <node id="502" version="1" lat="40.3100" lon="-76.8150"/>
+  <node id="503" version="1" lat="40.3150" lon="-76.8050"/>
+
+  <way id="1001" version="1">
+    <nd ref="1"/><nd ref="2"/><nd ref="3"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Fixture Main Street"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1002" version="1">
+    <nd ref="3"/><nd ref="4"/><nd ref="5"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Fixture Main Street"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1003" version="1">
+    <nd ref="5"/><nd ref="6"/><nd ref="7"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="name" v="Fixture Toll Road"/>
+    <tag k="surface" v="asphalt"/>
+    <tag k="toll" v="yes"/>
+  </way>
+
+  <way id="1010" version="1">
+    <nd ref="1"/><nd ref="8"/><nd ref="9"/><nd ref="10"/><nd ref="11"/><nd ref="12"/><nd ref="13"/><nd ref="14"/><nd ref="7"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="name" v="Fixture Scenic Ridge"/>
+    <tag k="surface" v="asphalt"/>
+    <tag k="lanes" v="2"/>
+  </way>
+  <way id="1011" version="1">
+    <nd ref="10"/><nd ref="3"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Fixture Valley Connector"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1012" version="1">
+    <nd ref="12"/><nd ref="5"/>
+    <tag k="highway" v="unclassified"/>
+    <tag k="name" v="Fixture Gravel Cut"/>
+    <tag k="surface" v="gravel"/>
+    <tag k="tracktype" v="grade2"/>
+  </way>
+
+  <way id="1020" version="1">
+    <nd ref="4"/><nd ref="15"/><nd ref="16"/>
+    <tag k="highway" v="service"/>
+    <tag k="name" v="Private Yard Road"/>
+    <tag k="access" v="private"/>
+    <tag k="motor_vehicle" v="private"/>
+  </way>
+  <way id="1021" version="1">
+    <nd ref="2"/><nd ref="17"/><nd ref="18"/>
+    <tag k="highway" v="service"/>
+    <tag k="name" v="Motorcycle Closed Spur"/>
+    <tag k="motorcycle" v="no"/>
+  </way>
+  <way id="1022" version="1">
+    <nd ref="5"/><nd ref="19"/><nd ref="20"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="One Way Test Spur"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+
+  <way id="1030" version="1">
+    <nd ref="3"/><nd ref="21"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Roundabout Approach"/>
+  </way>
+  <way id="1031" version="1">
+    <nd ref="21"/><nd ref="22"/><nd ref="23"/><nd ref="24"/><nd ref="21"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="junction" v="roundabout"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="name" v="Fixture Circle"/>
+  </way>
+  <way id="1032" version="1">
+    <nd ref="23"/><nd ref="25"/><nd ref="11"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Roundabout Exit"/>
+  </way>
+
+  <way id="1099" version="1">
+    <nd ref="501"/><nd ref="502"/><nd ref="503"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Disconnected Test Road"/>
+  </way>
+</osm>
