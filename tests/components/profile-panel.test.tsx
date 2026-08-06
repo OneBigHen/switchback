@@ -3,36 +3,41 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
 
 describe("ProfilePanel", () => {
+  let confirmSpy: ReturnType<typeof vi.fn>
+
   beforeEach(() => {
     cleanup()
     localStorage.clear()
+    confirmSpy = vi.fn(() => true)
+    vi.stubGlobal("confirm", confirmSpy)
   })
 
-  it("edits a local rider profile and theme without an account", () => {
+  it("edits the rider profile into the versioned settings store without an account", () => {
     const onThemeChange = vi.fn()
     render(<ProfilePanel theme="auto" onThemeChange={onThemeChange} onOpenDownloads={vi.fn()} />)
 
-    expect(screen.getByRole("heading", { name: "Rider profile" })).toBeVisible()
-    expect(screen.getByText(/No account required/i)).toBeVisible()
+    expect(screen.getByRole("region", { name: "Profile and settings" })).toBeVisible()
     fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), { target: { value: "dark" } })
     expect(onThemeChange).toHaveBeenCalledWith("dark")
 
     fireEvent.change(screen.getByRole("textbox", { name: "Rider name" }), { target: { value: "Alex" } })
-    fireEvent.click(screen.getByRole("button", { name: "Save profile" }))
-    expect(localStorage.getItem("switchback:rider-profile")).toContain("Alex")
+    // Edits persist immediately into the one versioned settings source (SB-023).
+    expect(localStorage.getItem("switchback:rider-settings")).toContain("Alex")
+    expect(localStorage.getItem("switchback:rider-settings")).toContain('"version":1')
   })
 
-  it("opens offline download management from storage settings", () => {
+  it("opens offline download management from profile settings", () => {
     const onOpenDownloads = vi.fn()
     render(<ProfilePanel theme="light" onThemeChange={vi.fn()} onOpenDownloads={onOpenDownloads} />)
-    fireEvent.click(screen.getByRole("button", { name: "Manage offline downloads" }))
+    fireEvent.click(screen.getByRole("button", { name: "Offline regions" }))
     expect(onOpenDownloads).toHaveBeenCalledOnce()
   })
 
-  it("resets learned preferences without requiring an account", () => {
+  it("resets learned preferences after an explicit confirmation", () => {
     const onResetLearning = vi.fn()
     render(<ProfilePanel theme="light" onThemeChange={vi.fn()} onOpenDownloads={vi.fn()} onResetLearning={onResetLearning} />)
-    fireEvent.click(screen.getByRole("button", { name: "Reset learned route preferences" }))
+    fireEvent.click(screen.getByRole("button", { name: "Reset learning" }))
+    expect(confirmSpy).toHaveBeenCalledOnce()
     expect(onResetLearning).toHaveBeenCalledOnce()
   })
 })
