@@ -57,9 +57,9 @@ Classifies each major surface per `00_EXECUTION_ORDER.md` Step 2. Every cut reco
 | Separate Gravel / Avoid Highways top-level profiles | Policies, not profiles | Fold into Adventure surface policy + option |
 | Separate Neural top-level profile | Personalization over eligible candidates | Keep `neural` as ranking policy on eligible routes |
 | Static scenic gallery / generic route imagery | Implies unsupported evidence | Remove or label "illustrative" |
-| No-op suite controls (`RegionSuitePicker`) | Presentational only | Wire or remove (Phase 3) |
-| No-op "Rebuild now" corridor control | `onBuildCorridor` never passed | Wire or remove (Phase 3) |
-| No-op download-mode picker | `onDownloadModeChange` never passed | Wire or remove (Phase 3) |
+| No-op suite controls (`RegionSuitePicker`) | Presentational only | Wired: suite is a region-selection preset (Phase 3) |
+| No-op "Rebuild now" corridor control | `onBuildCorridor` never passed | Wired to PlannerShell `handleBuildCorridor` (Phase 3) |
+| No-op download-mode picker | `onDownloadModeChange` never passed | Removed — OfflinePackModal owns download mode (Phase 3) |
 | Duplicate bike config (ProfilePanel vs BikeProfilePicker) | Two sources of truth | One `RiderSettings.bikes[]` (Phase 4) |
 | Unsupported "exact"/"safe"/"verified" labels | False claims | Remove until evidence-backed (Phase 0) |
 | Accounts, cloud sync, community, public backend, subscriptions | Out of scope | Deferred permanently |

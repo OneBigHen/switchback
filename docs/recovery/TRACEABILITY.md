@@ -17,6 +17,7 @@
 | Free Ride synthetic claims | `handler.ts` | Phase 0 labels | free-ride tests | e2e | Contained (SB-012 copy) | 0d67d9a |
 | Share redaction | `route-share.ts` | same | route-share (22) | — | Done (SB-008) | 01cef8f |
 | Offline large download | `RegionDownloadsPanel.tsx` | same | — | — | Done (SB-009) | 1927a13 |
+| Corridor rebuild / download controls | `RegionDownloadsPanel.tsx`, `PlannerShell.tsx` | `saveOfflinePack`, `handleBuildCorridor`; removed duplicate `DownloadModePicker` | region-downloads-panel (2) | — | Done (Phase 3 part 2) | |
 | Offline reroute | `src/lib/offline/v2-router.ts` | — | offline tests | regional E2E pending | Partial | |
 | Signed learning | `rider-preferences.ts` | same | rider-preferences (5) | — | Done (SB-010) | 08c7639 |
 | Stable bike identity | `rider-settings.ts`, `rider-preference-library.ts` | same | rider-settings (4), route-comparison | — | Done (SB-011) | 08c7639 |
@@ -39,7 +40,7 @@
 | 0 — Baseline/containment | Complete (0d67d9a) |
 | 1 — Routing correctness | Complete (fc77562) |
 | 2 — Road requirements + sharing | Complete (01cef8f + SB-014/015) |
-| 3 — Offline/storage | Part 1 complete (1927a13); suite/rebuild wiring + regional E2E open |
+| 3 — Offline/storage | Part 1 complete (1927a13); rebuild/suite wiring done (Phase 3 part 2); regional E2E open |
 | 4 — Modularization | Part 1 (08c7639) + state machine/export (a59d427) complete; PlannerShell component split open |
 | 5 — UX | SB-027 confirmations + SB-028 diagnostics done; mobile flow (65deafb) done; desktop editor open |
 | 6 — Learning + Free Ride | SB-010 done (08c7639); SB-030 done (537e2f3); SB-031 done (d6d9046); graph-backed candidates (SB-029) open |

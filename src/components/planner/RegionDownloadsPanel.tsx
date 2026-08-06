@@ -30,11 +30,6 @@ import {
 import type { StorageQuotaProjection } from "@/lib/offline/storage-quota"
 import { RegionSuitePicker } from "@/components/planner/RegionSuitePicker"
 import { StorageQuotaMeter } from "@/components/planner/StorageQuotaMeter"
-import {
-  DOWNLOAD_MODE_PICKER_DEFAULT,
-  DownloadModePicker,
-  type DownloadModePickerValue
-} from "@/components/planner/DownloadModePicker"
 import { AriaLiveRegion } from "@/components/planner/a11y"
 
 const DAILY_MANIFEST_CHECK_KEY = "switchback:region-manifest-last-check"
@@ -151,7 +146,6 @@ function downloadReducer(
 export interface RegionDownloadsPanelProps {
   activeWaypoints: Coordinate[]
   onRegionDownloaded?(regionId: string): void
-  onDownloadModeChange?(value: DownloadModePickerValue): void
   onBuildCorridor?(route: { id: string; waypoints: { lat: number; lon: number }[] }): void
   pendingRoute?: { id: string; waypoints: { lat: number; lon: number }[] } | null
 }
@@ -223,7 +217,6 @@ function findCorridorRebuildCandidate(
 export function RegionDownloadsPanel({
   activeWaypoints,
   onRegionDownloaded,
-  onDownloadModeChange,
   onBuildCorridor,
   pendingRoute = null
 }: RegionDownloadsPanelProps) {
@@ -232,7 +225,6 @@ export function RegionDownloadsPanel({
     downloadedIds: new Set<string>()
   })
   const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(HOME_TERRITORY_SUITE_ID)
-  const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
   const [installedBytes, setInstalledBytes] = useState(0)
   const [projection, setProjection] = useState<StorageQuotaProjection | null>(null)
   const [lastManifestCheck, setLastManifestCheck] = useState<Date | null>(null)
@@ -431,11 +423,6 @@ export function RegionDownloadsPanel({
     setWifiConfirmOpen(false)
   }, [])
 
-  const handleDownloadModeChange = useCallback((next: DownloadModePickerValue) => {
-    setDownloadMode(next)
-    onDownloadModeChange?.(next)
-  }, [onDownloadModeChange])
-
   const suggested = useMemo(() => suggestRegionsForRoute(activeWaypoints), [activeWaypoints])
 
   const statusIcon = (rs: RegionUIState) => {
@@ -503,8 +490,6 @@ export function RegionDownloadsPanel({
         selectedSuiteId={selectedSuiteId}
         onSelectSuite={(next) => setSelectedSuiteId(next?.id ?? null)}
       />
-
-      <DownloadModePicker value={downloadMode} onChange={handleDownloadModeChange} />
 
       <div className="region-cadence">
         <div className="region-cadence-row">

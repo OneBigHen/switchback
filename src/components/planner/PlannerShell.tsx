@@ -50,7 +50,7 @@ import {
   type FreeRideRecommendationState
 } from "@/lib/recommendation/free-ride"
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
-import { buildOfflinePackCorridor } from "@/lib/client/offline-pack-coordinator"
+import { buildOfflinePackCorridor, type OfflinePackCorridorOptions } from "@/lib/client/offline-pack-coordinator"
 import { comparePlannedVsActual, type ReplayComparisonResult } from "@/lib/client/replay-comparison"
 import { rankRoutesForRider } from "@/lib/client/rider-route-ranking"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
@@ -647,6 +647,44 @@ export function PlannerShell() {
     setRideOriginalRoute,
     onNotice: setNotice
   })
+
+  const saveOfflinePack = useCallback((route: PlannedRoute, options?: OfflinePackCorridorOptions) => {
+    return buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
+      return offlinePackLibraryRef.current!.save({
+        route,
+        mapStyle,
+        routeVisibility,
+        activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
+      }).then(() => corridor)
+    }).then((corridor) => {
+      if (corridor.graph) {
+        setNotice({
+          kind: "success",
+          message: "Offline route pack saved: route, cues, and an offline routing graph are ready for recovery."
+        })
+      } else {
+        // Never claim offline guidance is ready when no region data
+        // was embedded — the rider should download regions or take
+        // the GPX for a Garmin instead.
+        setNotice({
+          kind: "warning",
+          message: `Offline route pack saved, but offline routing isn't available for it yet — ${corridor.warning ?? "no offline region data downloaded"}. Download regions, or export this route as GPX for a Garmin.`
+        })
+      }
+    }).catch((caught) => setNotice({
+      kind: "warning",
+      message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
+    }))
+  }, [mapStyle, routeVisibility, riderLayers])
+
+  const handleBuildCorridor = useCallback((pending: { id: string; waypoints: { lat: number; lon: number }[] }) => {
+    const route = routes.find((candidate) => candidate.id === pending.id) ?? selectedRoute
+    if (!route) {
+      setNotice({ kind: "warning", message: "Rebuild needs a saved route; start a ride and save the route pack first." })
+      return
+    }
+    void saveOfflinePack(route)
+  }, [routes, selectedRoute, saveOfflinePack])
 
   const handleStartFreeRide = () => {
     routeRequestGate.invalidate()
@@ -1258,34 +1296,7 @@ export function PlannerShell() {
             onOpenLibrary: () => handleAppTab("library"),
             onStartRide: (route) => void handleStartRide(route),
             onStartFreeRide: handleStartFreeRide,
-            onSaveOffline: (route, options) => {
-              void buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
-                return offlinePackLibraryRef.current!.save({
-                  route,
-                  mapStyle,
-                  routeVisibility,
-                  activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
-                }).then(() => corridor)
-              }).then((corridor) => {
-                if (corridor.graph) {
-                  setNotice({
-                    kind: "success",
-                    message: "Offline route pack saved: route, cues, and an offline routing graph are ready for recovery."
-                  })
-                } else {
-                  // Never claim offline guidance is ready when no region data
-                  // was embedded — the rider should download regions or take
-                  // the GPX for a Garmin instead.
-                  setNotice({
-                    kind: "warning",
-                    message: `Offline route pack saved, but offline routing isn't available for it yet — ${corridor.warning ?? "no offline region data downloaded"}. Download regions, or export this route as GPX for a Garmin.`
-                  })
-                }
-              }).catch((caught) => setNotice({
-                kind: "warning",
-                message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
-              }))
-            }
+            onSaveOffline: (route, options) => void saveOfflinePack(route, options),
           }}
         >
           {routes.length > 0 && selectedRouteId ? (
@@ -1395,6 +1406,7 @@ export function PlannerShell() {
             <RegionDownloadsPanel
               activeWaypoints={[start, ...via, finish].filter((point): point is Waypoint => point != null).map((point) => [point.lon, point.lat])}
               pendingRoute={selectedRoute ? { id: selectedRoute.id, waypoints: selectedRoute.waypoints } : null}
+              onBuildCorridor={handleBuildCorridor}
             />
           </section>
         </div>

@@ -454,3 +454,34 @@ conversion is surfaced honestly instead of claiming success (SB-031).
 
 **Commit**
 - Pending.
+
+## 2026-08-06 — Phase 3 part 2: corridor rebuild + download-control wiring
+
+**Goal**
+The "Rebuild now" corridor control in RegionDownloadsPanel was a no-op
+(`onBuildCorridor` never passed), and the panel duplicated the
+download-mode picker that PlannerDeck's OfflinePackModal already owns.
+Per the disposition ("wire or remove"), wire the rebuild and remove the
+redundant picker.
+
+**Repository evidence**
+- `RegionDownloadsPanel.tsx`: dropped `onDownloadModeChange` prop, local
+  `downloadMode` state, and the duplicate `DownloadModePicker` render; the
+  corridor-rebuild prompt now calls `onBuildCorridor` (already stubbed via
+  `handleCorridorRebuild`).
+- `PlannerShell.tsx`: extracted the offline-pack save into
+  `saveOfflinePack(route, options)` (shared by `onSaveOffline`), added
+  `handleBuildCorridor` (resolves the pending route stub against the current
+  route list and re-runs the pack save), and passed `onBuildCorridor` to the
+  panel.
+
+**Verification**
+- 2 new region-downloads-panel tests (prompt appears when a downloaded
+  region is newer; "Rebuild now" passes the pending route); full suite
+  176 files / 1209 passed | 1 skipped; typecheck + lint clean.
+
+**Deferred**
+- Phase 3 regional offline E2E still open; Phases 4–7 pending.
+
+**Commit**
+- Pending.
