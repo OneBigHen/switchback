@@ -1,4 +1,5 @@
 import type { Coordinate } from "@/lib/routing/types"
+import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 
 /**
  * Result of graph-matching two anchor points onto the live routing graph
@@ -93,5 +94,33 @@ export function roadMatchFromGraphHopperPayload(
       // the anchors when the caller validates them against a corridor.
       maximumDriftMeters: 0
     }
+  }
+}
+
+/**
+ * Convert a successful graph match's access evidence into a road-access
+ * snapshot a road lock can persist. A match that routed a legal motorcycle
+ * path is treated as permitted-but-unconfirmed (no tag-level claim), with the
+ * surfaced surface carried through so the precedence model still evaluates
+ * bike compatibility honestly. Never asserts a value the match did not carry.
+ */
+export function roadMatchToAccessSnapshot(
+  access: RoadMatchResult["access"]
+): RoadAccessSnapshot {
+  const surface = access.surface ?? "unknown"
+  const KNOWN_SURFACES = ["asphalt", "concrete", "gravel", "dirt", "earth", "sand", "mud", "unknown"] as const
+  return {
+    highwayClass: "unknown",
+    motorcycleAccess: access.motorcycle === "permitted" ? "permissive" : "unknown",
+    generalAccess: "unknown",
+    surface: (KNOWN_SURFACES as readonly string[]).includes(surface)
+      ? surface as RoadAccessSnapshot["surface"]
+      : "unknown",
+    smoothness: "unknown",
+    tracktype: "unknown",
+    maxweightTonnes: null,
+    seasonalUndated: false,
+    activeConditions: [],
+    routable: true
   }
 }

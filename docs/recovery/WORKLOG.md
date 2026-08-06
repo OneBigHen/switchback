@@ -1,5 +1,56 @@
 # Switchback Recovery Work Log
 
+## 2026-08-06 — Phase 2 part 2: ordered Must traversal + bounded Prefer (SB-014/015)
+
+**Goal**
+Must-use locks force ordered traversal of the corridor instead of zeroing every
+edge outside a thin polygon (the Phase 0 defect); Prefer locks reward the
+corridor without globally penalizing unrelated route sections; manual locks
+graph-match against the live router before saving (SB-013 wiring); the
+`roadRequirements` flag flips on.
+
+**Repository evidence**
+- `graphhopper.ts`: `expandMustLockWaypoints` expands a request's wire points
+  with each must lock's entry/exit anchors (in lock order) so GraphHopper
+  routes through them in sequence; the request carries `lockViaWireToOriginal`
+  so the parsed route keeps only the rider's original waypoints. Must rules are
+  now `in_<area> → 1.8` and Prefer `in_<area> → 1.6` — bounded inside rewards,
+  never a global `!in_<area> → 0`.
+- `road-matching.ts`: `roadMatchToAccessSnapshot` converts matched access
+  evidence into a persisted snapshot.
+- `src/lib/client/road-match-client.ts` (new): `requestRoadMatch` calls
+  `/api/road-matching` and throws typed refusals.
+- `MapStage.tsx`: `commitLockDraft` graph-matches the two anchors when the flag
+  is on and builds the lock from real edge ids + geometry; a matching refusal
+  falls back to an approximate lock that never claims exact.
+- `road-locks.ts`: `evaluateRoadLockSatisfaction` now requires anchors in
+  order for a satisfied must lock (rejects parallel-road substitution).
+- `feature-flags.ts`: `roadRequirements: true`.
+
+**Decision**
+Ordered traversal belongs at the adapter boundary (wire waypoints), not in the
+planner: every mode (destination, segmented, timebox) inherits it. Round trips
+cannot inject anchors (single point), so they keep the bounded reward and the
+existing satisfaction/unresolved flow.
+
+**Changes**
+- New: `road-match-client.ts`; tests updated in graphhopper-lock-request,
+  region-policy-overlay, road-locks (+3 regressions: ordered traversal accept,
+  out-of-order reject, wire expansion).
+
+**Verification**
+- 175 files / 1207 unit tests pass (+3 new); lint + typecheck clean.
+- road-lock e2e rewritten to the enabled flow (Must radio, graph-matched edge
+  ids, exact confidence).
+
+**Remaining risk**
+- SB-016 rematch UI wiring still partial (rematch logic exists).
+- Round-trip must locks cannot force anchor traversal; the bounded reward +
+  unresolved flow covers them honestly.
+
+**Commit**
+- Pending at phase close.
+
 ## 2026-08-05 — Phase 0 baseline and containment
 
 **Goal**

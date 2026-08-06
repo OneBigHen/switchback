@@ -11,16 +11,18 @@
  */
 export const featureFlags = {
   /**
-   * Graph-matched road requirements (SB-006/SB-013).
+   * Graph-matched road requirements (SB-006/SB-013/SB-014/SB-015).
    *
-   * Until the graph-matching endpoint ships, manual road locks carry no edge
-   * IDs and cannot be honored honestly:
-   * - Must-mode priority-zero rules are DISABLED (they trapped the whole
-   *   route inside a thin buffered corridor).
-   * - Manual locks with no graph evidence never reach the provider model.
-   * - The UI labels the feature experimental and disables "Must use".
+   * - Manual locks are graph-matched against the live router before saving
+   *   (SB-013); a refusal falls back to an approximate lock that never claims
+   *   an exact match.
+   * - Must-use locks force ordered traversal via injected via-waypoints at
+   *   their entry/exit anchors (SB-014) and reward the corridor — never a
+   *   global outside zero that traps the route inside a thin buffer.
+   * - Prefer locks apply a bounded inside-corridor reward (SB-015) without
+   *   penalizing unrelated route sections.
    */
-  roadRequirements: false,
+  roadRequirements: true,
 
   /**
    * Free Ride suggestions (SB-012/SB-029).

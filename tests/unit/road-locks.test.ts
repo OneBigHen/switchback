@@ -264,6 +264,35 @@ describe("road locks", () => {
     expect(result.skippedReason).toBeTruthy()
   })
 
+  it("rejects a must lock whose anchors are traversed out of order (parallel-road substitution, SB-014)", () => {
+    // The route passes within tolerance of both anchors but visits the exit
+    // before the entry — a parallel road sneaking past the corridor.
+    const lock = baseManualLock({ fallbackToleranceMeters: 250 })
+    const reversed: Coordinate[] = [
+      [-76.4, 40.22],
+      [-76.43, 40.21],
+      [-76.5, 40.2]
+    ]
+    const result = evaluateRoadLockSatisfaction(lock, reversed)
+    expect(result.satisfied).toBe(false)
+    expect(result.match.kind).toBe("unresolved")
+    if (result.match.kind === "unresolved") {
+      expect(result.match.reason).toContain("out of order")
+    }
+  })
+
+  it("accepts a must lock whose anchors are traversed in order", () => {
+    const lock = baseManualLock({ fallbackToleranceMeters: 250 })
+    const ordered: Coordinate[] = [
+      [-76.5, 40.2],
+      [-76.46, 40.205],
+      [-76.43, 40.21],
+      [-76.4, 40.22]
+    ]
+    const result = evaluateRoadLockSatisfaction(lock, ordered)
+    expect(result.satisfied).toBe(true)
+  })
+
   it("converts a must lock to a prefer lock while preserving provenance", () => {
     const lock = baseManualLock()
     const converted = convertMustLockToPrefer(lock)

@@ -102,9 +102,10 @@ describe("region policy reference data", () => {
     const bikePathIdx = priority.findIndex((rule) => rule.if === "road_class == PATH")
 
     expect(highwayIdx).toBeGreaterThanOrEqual(0)
-    // Phase 0 containment: placeholder lock corridors do not reach the
-    // provider model, so only highway + bike rules order here.
-    expect(priority.some((rule) => rule.if?.includes("switchback_lock"))).toBe(false)
+    // SB-014/015: graph-edged locks now reach the provider model as bounded
+    // inside-corridor rewards (never a global outside zero).
+    expect(priority.some((rule) => rule.if === "in_switchback_lock_0" && rule.multiply_by === "1.8")).toBe(true)
+    expect(priority.some((rule) => rule.if === "in_switchback_lock_1" && rule.multiply_by === "1.6")).toBe(true)
     expect(bikePathIdx).toBeGreaterThan(highwayIdx)
   })
 
@@ -140,7 +141,8 @@ describe("region policy reference data", () => {
     })
     const ids = findAreaFeatures(body).map((feature) => feature.id)
     expect(ids).toContain("switchback_avoid_0")
-    expect(ids.some((id) => id.startsWith("switchback_lock_"))).toBe(false)
+    // Graph-edged lock corridors contribute their area feature for the reward.
+    expect(ids.some((id) => id.startsWith("switchback_lock_"))).toBe(true)
     expect(ids.some((id) => id.startsWith("switchback_region_"))).toBe(false)
   })
 
@@ -165,7 +167,9 @@ describe("region policy reference data", () => {
       roadLocks: [mustLock]
     })
     const priority = findPriority(body)
+    // The old zero-outside rule is gone; the corridor is a bounded inside reward.
     expect(priority.some((rule) => rule.if === "!in_switchback_lock_0")).toBe(false)
+    expect(priority.some((rule) => rule.if === "in_switchback_lock_0" && rule.multiply_by === "1.8")).toBe(true)
   })
 
   it("emits a request-time zero-priority toll rule only when tolls are explicitly avoided", () => {

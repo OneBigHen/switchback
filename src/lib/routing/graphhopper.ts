@@ -92,11 +92,13 @@ interface GraphHopperCustomModel {
   }
 }
 
-const MUST_LOCK_PRIORITY_ZERO = "0"
-// This GraphHopper deployment caps custom-model priority multipliers at 1.
-// Penalizing edges outside the corridor by the inverse of the old 1.6 reward
-// preserves the same relative preference without producing an invalid model.
-const PREFER_LOCK_OUTSIDE_PENALTY = "0.625"
+// SB-014/015 road requirements. The corridor is a bounded inside reward, never
+// a global outside zero: zeroing everything outside a thin polygon trapped the
+// whole route inside the corridor (the Phase 0 defect). A must lock instead
+// forces ordered traversal via injected via-waypoints at its entry/exit anchors
+// and rewards the locked edges; a prefer lock only nudges the corridor.
+const MUST_LOCK_INSIDE_REWARD = "1.8"
+const PREFER_LOCK_INSIDE_REWARD = "1.6"
 
 /** A lock's geometry corridor rendered as a GraphHopper polygon feature. */
 interface RoadLockAreaFeature {
@@ -166,16 +168,64 @@ function buildRoadLockAreaFeatures(locks: readonly RoadLock[], idOffset = 0): {
 
 function buildMustLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
   return features.map((feature) => ({
-    if: `!in_${feature.id}`,
-    multiply_by: MUST_LOCK_PRIORITY_ZERO
+    if: `in_${feature.id}`,
+    multiply_by: MUST_LOCK_INSIDE_REWARD
   }))
 }
 
 function buildPreferLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
   return features.map((feature) => ({
-    if: `!in_${feature.id}`,
-    multiply_by: PREFER_LOCK_OUTSIDE_PENALTY
+    if: `in_${feature.id}`,
+    multiply_by: PREFER_LOCK_INSIDE_REWARD
   }))
+}
+
+/**
+ * SB-014 ordered Must traversal. Must-use locks (with graph edge ids) expand
+ * the request into ordered wire waypoints: start → lock entry → lock exit →
+ * next lock entry → exit → remaining stops/finish. GraphHopper routes through
+ * these in sequence, forcing the route to traverse each corridor in the rider's
+ * lock order — instead of the Phase 0 defect of zeroing every edge outside a
+ * thin polygon. `wireToOriginal[i]` is the original request point index, or -1
+ * for an injected anchor; the response parser drops injected anchors so the
+ * returned route keeps only the rider's own waypoints.
+ */
+export function expandMustLockWaypoints(input: RouteRequest): {
+  points: Array<{ lat: number; lon: number; label?: string }>
+  wireToOriginal: number[]
+} {
+  const request = normalizeRouteRequest(input)
+  const plain = {
+    points: request.points.map((point) => ({ ...point })),
+    wireToOriginal: request.points.map((_, index) => index)
+  }
+  if (!featureFlags.roadRequirements || request.roundTrip) return plain
+  const mustLocks = (request.roadLocks ?? []).filter(
+    (lock) => lock.mode === "must" && lock.edgeIds.length > 0
+  )
+  if (mustLocks.length === 0) return plain
+
+  const points: Array<{ lat: number; lon: number; label?: string }> = []
+  const wireToOriginal: number[] = []
+  const start = request.points[0]
+  if (!start) return plain
+  points.push({ ...start })
+  wireToOriginal.push(0)
+  for (const lock of mustLocks) {
+    const entry = lock.orderedAnchors[0]
+    const exit = lock.orderedAnchors.at(-1)
+    if (!entry || !exit) continue
+    const name = lock.displayName?.trim() || "road"
+    points.push({ lat: entry[1], lon: entry[0], label: `Must-use ${name}: entry` })
+    wireToOriginal.push(-1)
+    points.push({ lat: exit[1], lon: exit[0], label: `Must-use ${name}: exit` })
+    wireToOriginal.push(-1)
+  }
+  for (let index = 1; index < request.points.length; index += 1) {
+    points.push({ ...request.points[index]! })
+    wireToOriginal.push(index)
+  }
+  return { points, wireToOriginal }
 }
 
 /** Bike-profile rules per §3: surface/smoothness/tracktype exclusions and penalties. */
@@ -461,11 +511,28 @@ function normalizePath(
 
   const analysis = analyzeGeometry(geometry)
   const snapped = path.snapped_waypoints?.coordinates
-  const waypoints = request.points.map((point, waypointIndex) => ({
-    lat: snapped?.[waypointIndex]?.[1] ?? point.lat,
-    lon: snapped?.[waypointIndex]?.[0] ?? point.lon,
-    label: point.label
-  }))
+  // SB-014: when must-use locks expanded the wire points, drop the injected
+  // anchors so the route carries only the rider's original waypoints (mapped
+  // to the correct snapped position via the wire index).
+  const viaMap = request.lockViaWireToOriginal
+  const waypoints = (viaMap && viaMap.length > 0
+    ? viaMap
+        .map((originalIndex, wireIndex) => ({ originalIndex, wireIndex }))
+        .filter((entry) => entry.originalIndex >= 0)
+        .sort((a, b) => a.originalIndex - b.originalIndex)
+        .map(({ wireIndex }) => {
+          const point = request.points[wireIndex]!
+          return {
+            lat: snapped?.[wireIndex]?.[1] ?? point.lat,
+            lon: snapped?.[wireIndex]?.[0] ?? point.lon,
+            label: point.label
+          }
+        })
+    : request.points.map((point, waypointIndex) => ({
+        lat: snapped?.[waypointIndex]?.[1] ?? point.lat,
+        lon: snapped?.[waypointIndex]?.[0] ?? point.lon,
+        label: point.label
+      })))
   if (request.roundTrip && waypoints[0]) waypoints.push({ ...waypoints[0] })
   const profile = getProfile(request.profile)
 
@@ -576,7 +643,14 @@ export async function requestGraphHopperRoutes(
 ): Promise<GraphHopperResult> {
   // Adapter boundary normalization (SB-001): even direct callers get the full
   // explicit constraint contract before any provider request is built.
-  const request = normalizeRouteRequest(_input)
+  let request = normalizeRouteRequest(_input)
+  // SB-014 ordered Must traversal: expand the wire points with must-lock
+  // entry/exit anchors (in lock order) and remember the mapping so the parsed
+  // route keeps only the rider's own waypoints.
+  const expansion = expandMustLockWaypoints(request)
+  if (expansion.wireToOriginal.some((index) => index === -1)) {
+    request = { ...request, points: expansion.points, lockViaWireToOriginal: expansion.wireToOriginal }
+  }
   // The active graph may predate an encoded-value change (e.g. the Phase 3
   // `toll` value). Retry once without the unsupported detail so a rolled-back
   // or not-yet-reimported graph degrades to missing evidence instead of

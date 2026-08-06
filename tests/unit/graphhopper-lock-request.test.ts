@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest"
-import { createGraphHopperRequest } from "@/lib/routing/graphhopper"
+import { createGraphHopperRequest, expandMustLockWaypoints } from "@/lib/routing/graphhopper"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import { createGpxRoadLock, createManualRoadLock } from "@/lib/roads/road-locks"
@@ -67,12 +67,13 @@ function findAreaFeature(body: Record<string, unknown>, id: string) {
   return customModel?.areas?.features.find((f) => f.id === id)
 }
 
-describe("GraphHopper road lock translation (Phase 0 containment)", () => {
+describe("GraphHopper road lock translation", () => {
   afterEach(() => {
-    featureFlags.roadRequirements = false
+    featureFlags.roadRequirements = true
   })
 
-  it("excludes placeholder road locks from the provider model while road requirements are experimental", () => {
+  it("excludes every road lock from the provider model while the flag is off", () => {
+    featureFlags.roadRequirements = false
     const body = createGraphHopperRequest({
       profile: "twisty",
       points: [baltimore, bethesda],
@@ -85,7 +86,7 @@ describe("GraphHopper road lock translation (Phase 0 containment)", () => {
     expect(findAreaFeature(body, "switchback_lock_1")).toBeUndefined()
   })
 
-  it("emits must/prefer corridor rules only when the flag is enabled and locks carry graph edges", () => {
+  it("emits bounded inside-corridor rewards when the flag is enabled and locks carry graph edges", () => {
     featureFlags.roadRequirements = true
     const body = createGraphHopperRequest({
       profile: "twisty",
@@ -94,14 +95,51 @@ describe("GraphHopper road lock translation (Phase 0 containment)", () => {
     })
 
     const priority = findPriority(body)
-    expect(priority).toContainEqual({ if: "!in_switchback_lock_0", multiply_by: "0" })
-    expect(priority).toContainEqual({ if: "!in_switchback_lock_1", multiply_by: "0.625" })
+    // SB-014/015: the corridor is a bounded reward, never a global outside zero.
+    expect(priority).toContainEqual({ if: "in_switchback_lock_0", multiply_by: "1.8" })
+    expect(priority).toContainEqual({ if: "in_switchback_lock_1", multiply_by: "1.6" })
     expect(findAreaFeature(body, "switchback_lock_0")).toBeDefined()
     expect(findAreaFeature(body, "switchback_lock_1")).toBeDefined()
-    const mustIndex = priority.findIndex((rule) => rule.if === "!in_switchback_lock_0")
-    const preferIndex = priority.findIndex((rule) => rule.if === "!in_switchback_lock_1")
+    const mustIndex = priority.findIndex((rule) => rule.if === "in_switchback_lock_0")
+    const preferIndex = priority.findIndex((rule) => rule.if === "in_switchback_lock_1")
     expect(mustIndex).toBeGreaterThanOrEqual(0)
     expect(preferIndex).toBeGreaterThan(mustIndex)
+  })
+
+  it("expands must-lock entry/exit anchors into ordered wire via-waypoints (SB-014)", () => {
+    featureFlags.roadRequirements = true
+    const request = {
+      profile: "twisty" as const,
+      points: [baltimore, bethesda],
+      roadLocks: [mustLock("PA-125")]
+    }
+    const expanded = expandMustLockWaypoints(request)
+
+    // start → must entry → must exit → finish, in lock order
+    expect(expanded.points.map((point) => point.label)).toEqual([
+      "Baltimore",
+      "Must-use PA-125: entry",
+      "Must-use PA-125: exit",
+      "Bethesda"
+    ])
+    expect(expanded.wireToOriginal).toEqual([0, -1, -1, 1])
+
+    // The injected anchors map back to -1 so the parsed route drops them.
+    const wirePoints = expanded.points.map((point) => [point.lon, point.lat] as Coordinate)
+    expect(wirePoints.length).toBe(4)
+    expect(expanded.wireToOriginal).toContain(-1)
+  })
+
+  it("does not expand wire waypoints while the flag is off", () => {
+    featureFlags.roadRequirements = false
+    const request = {
+      profile: "twisty" as const,
+      points: [baltimore, bethesda],
+      roadLocks: [mustLock("PA-125")]
+    }
+    const expanded = expandMustLockWaypoints(request)
+    expect(expanded.points.map((point) => point.label)).toEqual(["Baltimore", "Bethesda"])
+    expect(expanded.wireToOriginal).toEqual([0, 1])
   })
 
   it("keeps a manual lock without graph edge ids out of the provider model even when enabled", () => {
@@ -179,7 +217,7 @@ describe("GraphHopper road lock translation (Phase 0 containment)", () => {
     expect(priority.some((rule) => rule.if === "road_class == PATH")).toBe(false)
   })
 
-  it("combines bike profile rules while excluding lock rules under Phase 0 containment", () => {
+  it("combines bike profile safety rules with bounded lock rewards", () => {
     const street = MOTORCYCLE_PROFILES.find((p) => p.category === "street")!
     const body = createGraphHopperRequest({
       profile: "twisty",
@@ -190,7 +228,8 @@ describe("GraphHopper road lock translation (Phase 0 containment)", () => {
     const priority = findPriority(body)
     // Bike safety exclusions always apply…
     expect(priority.some((rule) => rule.if === "road_class == PATH" && rule.multiply_by === "0")).toBe(true)
-    // …but placeholder lock corridors never reach the provider model yet.
-    expect(priority.some((rule) => rule.if?.includes("switchback_lock"))).toBe(false)
+    // …and graph-edged locks now contribute their bounded inside rewards.
+    expect(priority.some((rule) => rule.if === "in_switchback_lock_0" && rule.multiply_by === "1.8")).toBe(true)
+    expect(priority.some((rule) => rule.if === "in_switchback_lock_1" && rule.multiply_by === "1.6")).toBe(true)
   })
 })

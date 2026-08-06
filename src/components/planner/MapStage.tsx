@@ -25,6 +25,8 @@ import {
 } from "@/lib/client/map-layers"
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
 import { createManualRoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
+import { requestRoadMatch } from "@/lib/client/road-match-client"
+import { roadMatchToAccessSnapshot } from "@/lib/roads/road-matching"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 import type { PlannerPointId } from "@/stores/planner-store"
@@ -218,17 +220,47 @@ export function MapStage(props: MapStageProps) {
     })
   }, [])
 
-  const commitLockDraft = useCallback(() => {
+  const commitLockDraft = useCallback(async () => {
     const draft = lockDrawRef.current
     if (draft.anchors.length < 2) {
       setLockDraftMessage("Place two corridor anchors before saving the lock.")
       return
     }
+    const displayName = draft.name.trim() || undefined
+    const [entry, exit] = draft.anchors
+    if (!entry || !exit) {
+      setLockDraftMessage("Place two corridor anchors before saving the lock.")
+      return
+    }
     try {
+      // SB-013/014: when road requirements are enabled, the browser graph-matches
+      // the two anchors against the live router so the lock carries real edge ids
+      // and ordered geometry. Matching is best-effort: a refusal (router down, no
+      // legal path) falls back to an approximate manual lock that never claims a
+      // verified graph match.
+      if (featureFlags.roadRequirements) {
+        const matched = await requestRoadMatch({
+          start: { lat: entry[1], lon: entry[0], label: "Lock entry" },
+          end: { lat: exit[1], lon: exit[0], label: "Lock exit" }
+        })
+        const lock = createManualRoadLock({
+          mode: draft.mode,
+          displayName,
+          edgeIds: matched.edgeIds,
+          geometry: matched.geometry,
+          orderedAnchors: draft.anchors,
+          accessSnapshot: roadMatchToAccessSnapshot(matched.access),
+          sourceRegionId: "matched",
+          sourceGraphVersion: matched.graphVersion
+        })
+        addRoadLock(lock)
+        resetLockDraft()
+        return
+      }
       const geometry: Coordinate[] = draft.anchors.map(([lon, lat]) => [lon, lat] as Coordinate)
       const lock = createManualRoadLock({
         mode: draft.mode,
-        displayName: draft.name.trim() || undefined,
+        displayName,
         edgeIds: [],
         geometry,
         orderedAnchors: draft.anchors,

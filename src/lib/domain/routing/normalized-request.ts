@@ -34,6 +34,14 @@ export interface NormalizedRouteRequest extends RouteRequest {
   roadLocks: RoadLock[]
   compare?: boolean
   primaryRoute?: { id: string; geometry: Coordinate[] }
+  /**
+   * SB-014 ordered Must traversal: when must-use locks expand the request
+   * points into wire via-waypoints (entry → exit per lock, in lock order),
+   * this maps each wire point index back to the original request point
+   * index, or -1 for an injected lock anchor. The response parser uses it
+   * so the returned route carries the rider's original waypoints only.
+   */
+  lockViaWireToOriginal?: number[]
 }
 
 function randomRequestId(): string {

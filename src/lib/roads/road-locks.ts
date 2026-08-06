@@ -452,13 +452,26 @@ export function evaluateRoadLockSatisfaction(
   }
 
   const tolerance = lock.fallbackToleranceMeters
-  const matched = lock.orderedAnchors.every((anchor) => distanceToLineMeters(anchor, routeGeometry) <= tolerance)
-  if (matched) {
+  const withinTolerance = lock.orderedAnchors.every((anchor) => distanceToLineMeters(anchor, routeGeometry) <= tolerance)
+  // SB-014: a must lock is only satisfied when its anchors are traversed in
+  // the rider's original order. A parallel-road substitution that happens to
+  // pass near both anchors is rejected, not rewarded.
+  const ordered = withinTolerance && anchorsInOrder(lock.orderedAnchors, routeGeometry)
+  if (ordered) {
     return {
       lockId: lock.id,
       mode: lock.mode,
       satisfied: true,
       match: lock.confidence === "exact" ? { kind: "exact", edgeIds: lock.edgeIds } : { kind: "approximate" }
+    }
+  }
+  if (withinTolerance && lock.mode === "must") {
+    const reason = "Must-use road traversed out of order; refusing a parallel-road substitution."
+    return {
+      lockId: lock.id,
+      mode: lock.mode,
+      satisfied: false,
+      match: { kind: "unresolved", reason }
     }
   }
 
