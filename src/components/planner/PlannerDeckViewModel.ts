@@ -1,4 +1,5 @@
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
+import type { TripPlan } from "@/lib/routing/planner"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
@@ -46,6 +47,8 @@ export interface PlannerUiViewModel {
   savedCount: number
   selectedRoute: PlannedRoute | null | undefined
   home: Waypoint | null | undefined
+  /** Candidate count for the Choose/Prepare stage (SB-025). */
+  routesCount: number
 }
 
 export interface PlannerLifecycleViewModel {
@@ -142,6 +145,7 @@ export interface PlannerDeckCommands {
 }
 
 export function buildPlannerDeckViewModel(state: {
+  plan: TripPlan | null
   start: Waypoint | null
   finish: Waypoint | null
   startQuery: string
@@ -209,7 +213,8 @@ export function buildPlannerDeckViewModel(state: {
       error: state.error,
       savedCount: state.savedCount,
       selectedRoute: state.selectedRoute,
-      home: state.home
+      home: state.home,
+      routesCount: state.plan?.routes.length ?? 0
     },
     lifecycle: {
       phase: state.planningPhase,

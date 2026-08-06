@@ -351,3 +351,33 @@ usage/persistence, and provider health — no invented "all good" claims.
 
 **Commit**
 - Pending.
+
+## 2026-08-05 — Phase 5 UX (bounded slices)
+
+**Goal**
+SB-025 (mobile flow stages), SB-028 (diagnostics panel wired), with the
+desktop three-pane editor (SB-026) deferred per the spec's cut rule — the
+existing map + route-rack + profile surfaces stay coherent, and the stage
+indicator makes the flow explicit without a risky mid-session rebuild.
+
+**Repository evidence**
+- PlannerDeck now labels the mobile planning stage explicitly
+  (Search → Choose → Edit → Prepare) in both the expanded header and the
+  minimized header; the view model exposes routesCount to distinguish Choose
+  from Prepare. Component tests cover Search and Prepare.
+- ProfilePanel reads/writes the versioned RiderSettings store (earlier
+  commit) and gained a Diagnostics toggle that collects the live snapshot
+  (readiness + storage + provider health) and renders DiagnosticsPanel.
+- `src/lib/client/diagnostics.ts` collector never fabricates values;
+  `DiagnosticsPanel` states exactly what is known.
+
+**Verification**
+- 1201 unit tests pass; critical e2e 30/30 (the Free Ride journey fixture's
+  expiresAt is now dynamic after the SB-030 guard); typecheck + lint clean.
+
+**Deferred (recorded, not dropped)**
+- SB-026 desktop three-pane workspace (Builder | Map | Inspect) — the largest
+  remaining UI item; existing surfaces already provide the content.
+
+**Commit**
+- Pending.

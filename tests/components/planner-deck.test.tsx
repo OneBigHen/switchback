@@ -70,6 +70,7 @@ function defaultViewModel(): PlannerDeckViewModel {
       error: null,
       savedCount: 419,
       selectedRoute: null,
+      routesCount: 0,
       home: null
     },
     lifecycle: {
@@ -592,5 +593,26 @@ describe("planner lifecycle progress (Phase 6)", () => {
   it("hides the progress status once the lifecycle is ready", () => {
     renderDeck({ vm: { lifecycle: { phase: "ready", startedAt: null, label: "Ride ready" } } })
     expect(screen.queryByRole("status", { name: "Ride planning progress" })).not.toBeInTheDocument()
+  })
+})
+
+describe("planner mobile flow stages (SB-025)", () => {
+  it("labels the intent home as Search", () => {
+    renderDeck()
+    expect(screen.getByLabelText("Planning stage: Search")).toBeInTheDocument()
+  })
+
+  it("labels a ready single route as Prepare", () => {
+    const route: PlannedRoute = {
+      id: "r1", name: "Ride", profile: "twisty",
+      geometry: [[-76.9, 40.2], [-76.8, 40.3]], waypoints: [], instructions: [],
+      distanceMiles: 12, durationMinutes: 25, ascentMeters: null, descentMeters: null,
+      twistiness: 70, turnCount: 12, roadMix: {}, surfaceMix: {},
+      routingSource: "live", previewOnly: false
+    }
+    renderDeck({
+      vm: { ui: { status: "ready", error: null, savedCount: 1, selectedRoute: route, home: null, routesCount: 1 } }
+    })
+    expect(screen.getByLabelText("Planning stage: Prepare")).toBeInTheDocument()
   })
 })

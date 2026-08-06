@@ -296,7 +296,8 @@ test("Free Ride accepts one suggestion into a normal guided Ride", async ({ page
     },
     reasons: ["Strong curvature and sustained bends (94/100)."],
     confidence: 0.9,
-    expiresAt: "2026-08-04T14:00:45.000Z"
+    // Always fresh: an expired suggestion is never shown (SB-030).
+    expiresAt: new Date(Date.now() + 45_000).toISOString()
   }
   const guidedRoute = makeRoute("neural", {
     id: "guided-neural-route",

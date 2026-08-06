@@ -1076,6 +1076,7 @@ export function PlannerShell() {
       {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
         <PlannerDeck
           viewModel={buildPlannerDeckViewModel({
+            plan,
             start,
             finish,
             startQuery,

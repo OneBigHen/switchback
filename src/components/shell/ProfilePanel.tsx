@@ -11,6 +11,10 @@ import {
   type RiderSettings,
   type UnknownSurfacePolicy
 } from "@/lib/settings/rider-settings"
+import { collectDiagnostics } from "@/lib/client/diagnostics"
+import { RegionDownloadClient } from "@/lib/storage/region-download-client"
+import type { DiagnosticsSnapshot } from "@/lib/domain/diagnostics"
+import { DiagnosticsPanel } from "./DiagnosticsPanel"
 
 interface ProfilePanelProps {
   theme: ThemePreference
@@ -29,6 +33,22 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
     return loaded
   })
   const [notice, setNotice] = useState<string | null>(null)
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsSnapshot | null>(null)
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
+
+  const openDiagnostics = async () => {
+    setDiagnosticsOpen(true)
+    if (diagnostics) return
+    const snapshot = await collectDiagnostics({
+      regionClient: new RegionDownloadClient(),
+      hasSavedRoutes: true,
+      serviceWorkerRegistered: typeof navigator !== "undefined" && "serviceWorker" in navigator
+        ? Boolean(navigator.serviceWorker.controller)
+        : false,
+      fetchHealth: (signal) => fetch("/api/health", { signal }).then((response) => response.json())
+    }).catch(() => null)
+    if (snapshot) setDiagnostics(snapshot)
+  }
 
   const update = (patch: Partial<RiderSettings> | ((current: RiderSettings) => RiderSettings)) => {
     setSettings((current) => {
@@ -193,6 +213,12 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
           <option value="dark">Dark</option>
         </select>
       </label>
+
+      <button type="button" className="profile-diagnostics-toggle" onClick={() => void openDiagnostics()}>
+        Diagnostics
+      </button>
+
+      {diagnosticsOpen ? (diagnostics ? <DiagnosticsPanel snapshot={diagnostics} /> : <p role="status">Gathering diagnostics…</p>) : null}
 
       {notice ? <p className="profile-notice" role="status">{notice}</p> : null}
     </section>

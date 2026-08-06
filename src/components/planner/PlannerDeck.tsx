@@ -156,6 +156,14 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [ridePrompt, setRidePrompt] = useState("")
   const [minimized, setMinimized] = useState(false)
   const [editing, setEditing] = useState(false)
+  // Mobile planning flow stages (SB-025): Search → Choose → Edit → Prepare.
+  // Multi-route comparison is "Choose"; a ready single route is "Prepare";
+  // the editor is "Edit"; the intent home is "Search".
+  const planningStage: "Search" | "Choose" | "Edit" | "Prepare" = editing
+    ? "Edit"
+    : lifecycle.phase === "ready" && ui.routesCount > 1 ? "Choose"
+    : selectedRoute ? "Prepare"
+    : "Search"
   const [exampleIndex, setExampleIndex] = useState(0)
   const [roadLocksOpen, setRoadLocksOpen] = useState(false)
   const [offlinePackOpen, setOfflinePackOpen] = useState(false)
@@ -276,6 +284,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <span>
               <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
               <strong>{selectedRoute?.name ?? "Switchback"}</strong>
+              <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+                {planningStage}
+              </span>
             </span>
             <CaretUp aria-hidden="true" />
           </button>
@@ -303,6 +314,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             </span>
           </a>
           <div className="deck-header-tools">
+            <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+              {planningStage}
+            </span>
             <button type="button" className="planner-minimize" aria-label="Minimize planner" onClick={() => setMinimized(true)}>
               <CaretDown aria-hidden="true" />
             </button>
