@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   acceptFreeRideSuggestion,
+  fragmentTraversalRatio,
   rankFreeRideCandidates,
   freeRideRecommendationReducer,
   type FreeRideCandidate,
@@ -190,5 +191,24 @@ describe("Free Ride directionality and expiry (SB-030)", () => {
     const after = freeRideRecommendationReducer(state, { type: "expire", at: "2026-08-04T14:00:45.000Z" })
     expect(after.suggestion).toBeNull()
     expect(after.lastEvent?.type).toBe("suggestion-ignored")
+  })
+})
+
+describe("accepted-fragment traversal validation (SB-031)", () => {
+  it("reports full traversal when the route covers the suggested road", () => {
+    const route = [[-77.1, 40.1], [-77.08, 40.12], [-77.05, 40.15]] as [number, number][]
+    const fragment = [[-77.1, 40.1], [-77.08, 40.12], [-77.05, 40.15]] as [number, number][]
+    expect(fragmentTraversalRatio(route, fragment)).toBeGreaterThan(0.9)
+  })
+
+  it("reports low traversal when the route ignores the suggested road", () => {
+    const route = [[-77.1, 40.1], [-77.2, 40.2], [-77.3, 40.3]] as [number, number][]
+    const fragment = [[-77.1, 40.1], [-77.08, 40.12], [-77.05, 40.15]] as [number, number][]
+    expect(fragmentTraversalRatio(route, fragment)).toBeLessThan(0.5)
+  })
+
+  it("returns zero for degenerate inputs", () => {
+    expect(fragmentTraversalRatio([[-77.1, 40.1]], [[-77.1, 40.1], [-77.05, 40.15]])).toBe(0)
+    expect(fragmentTraversalRatio([[-77.1, 40.1], [-77.05, 40.15]], [[-77.1, 40.1]])).toBe(0)
   })
 })

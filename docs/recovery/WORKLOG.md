@@ -381,3 +381,25 @@ indicator makes the flow explicit without a risky mid-session rebuild.
 
 **Commit**
 - Pending.
+
+## 2026-08-05 — Phase 6 (bounded slice): accepted-fragment traversal validation (SB-031)
+
+**Goal**
+The acceptance route must actually traverse the suggested road, and a failed
+conversion is surfaced honestly instead of claiming success (SB-031).
+
+**Repository evidence**
+- `fragmentTraversalRatio(routeGeometry, fragment)` in free-ride.ts reuses
+  the geometry-overlap scorer; handleFreeRideAccept now warns when the
+  routed path covers <50% of the suggested fragment and only claims success
+  when it does.
+- Graph-backed candidate generation (SB-029 — routing each curvature
+  fragment through the provider) and learning calibration remain deferred:
+  candidates are real curvature-database segments labeled Experimental, and
+  the signed model already carries confidence tiers for calibration.
+
+**Verification**
+- 3 new SB-031 tests; 14 Free Ride tests total; typecheck + lint clean.
+
+**Commit**
+- Pending.

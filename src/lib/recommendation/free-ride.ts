@@ -6,6 +6,7 @@ import type {
 } from "@/lib/domain/contracts"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { scoreRoute, type ScoreableRoute } from "./route-score"
+import { calculateGeometryOverlap } from "@/lib/routing/scoring"
 
 export interface FreeRideCandidate {
   id: string
@@ -23,6 +24,19 @@ export interface FreeRideCandidate {
    */
   baselineDurationSeconds?: number
   route: ScoreableRoute
+}
+
+/**
+ * Fraction (0–1) of the proposed road fragment that the routed geometry
+ * actually covers (SB-031): the acceptance route must traverse the suggested
+ * road, otherwise the suggestion was not honored.
+ */
+export function fragmentTraversalRatio(
+  routeGeometry: [number, number][],
+  fragment: [number, number][]
+): number {
+  if (fragment.length < 2 || routeGeometry.length < 2) return 0
+  return Math.max(0, Math.min(1, calculateGeometryOverlap(routeGeometry, fragment) / 100))
 }
 
 export interface FreeRideContext {

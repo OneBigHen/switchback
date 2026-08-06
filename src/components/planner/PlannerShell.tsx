@@ -44,6 +44,7 @@ import type { TripPlan as SavedTripPlan } from "@/lib/trip/trip-plan"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import {
   acceptFreeRideSuggestion,
+  fragmentTraversalRatio,
   freeRideRecommendationReducer,
   freeRideSuggestionAsPlannedRoute,
   type FreeRideRecommendationState
@@ -740,8 +741,17 @@ export function PlannerShell() {
       }))
       const route = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
       if (!route) throw new Error("The accepted road could not be turned into a navigable route.")
+      // SB-031: the routed path must actually traverse the suggested road.
+      const traversal = fragmentTraversalRatio(route.geometry, suggestion.routeFragment)
+      if (traversal < 0.5) {
+        setNotice({
+          kind: "warning",
+          message: `The routed path only follows about ${Math.round(traversal * 100)}% of the suggested road. Verify the route before riding.`
+        })
+      } else {
+        setNotice({ kind: "success", message: "Free Ride suggestion accepted. Live guidance is ready." })
+      }
       await handleStartRide(route)
-      setNotice({ kind: "success", message: "Free Ride suggestion accepted. Live guidance is ready." })
     } catch (caught) {
       freeRideTransitionRef.current = false
       usePlannerStore.getState().setSurface("planner")
