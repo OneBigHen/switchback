@@ -1,10 +1,10 @@
 # Implementation status
 
-**State: AGENT WORKING**
+**State: READY TO MERGE**
 
 The requested practical-quality work is implemented in the current checkout.
 The final automated gates are green; independent standards/spec review is
-complete and delivery remains.
+complete and PR #2 is open.
 
 ## Completed
 
@@ -46,7 +46,6 @@ until the graph is safely reimported and swapped.
 
 ## Remaining before handoff
 
-- Commit, push, and open/update the pull request without absorbing unrelated
-  uncommitted offline work.
-- The owner must run the physical iPhone airplane-mode drill; automation does
-  not substitute for that device proof.
+- The owner must run the physical iPhone airplane-mode drill and record it in
+  `PHYSICAL_DEVICE_RESULTS.md`; automation does not substitute for that proof.
+- Merge PR #2 after that physical-only check is reviewed.
