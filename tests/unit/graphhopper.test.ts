@@ -180,6 +180,44 @@ describe("GraphHopper provider", () => {
     expect(serialized).not.toContain("surface == EARTH")
   })
 
+  it("retries an older graph without the unsupported smoothness condition", async () => {
+    const bodies: Record<string, unknown>[] = []
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>)
+      if (bodies.length === 1) {
+        return new Response(JSON.stringify({
+          message: "Cannot compile expression: 'smoothness' not available"
+        }), { status: 400 })
+      }
+      return new Response(JSON.stringify(responseFixture), { status: 200 })
+    })
+
+    const result = await requestGraphHopperRoutes({
+      profile: "twisty",
+      points: [
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.28, lon: -76.84 }
+      ],
+      bikeProfile: {
+        name: "Street",
+        category: "street",
+        fuelRangeMiles: 180,
+        reserveMiles: 35,
+        allowMaintainedGravel: false,
+        allowRoughTracks: false,
+        avoidUnknownSurface: true
+      }
+    }, { baseUrl: "http://router.test", fetcher })
+
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(bodies[0])).toContain("smoothness ==")
+    const degradedBody = JSON.stringify(bodies[1])
+    expect(degradedBody).not.toContain("smoothness ==")
+    expect(degradedBody).toContain("surface == OTHER")
+    expect(degradedBody).toContain("road_class == PATH")
+    expect(result.warnings).toContain("The active routing graph lacks smoothness data; this route was served without that condition.")
+  })
+
   it("builds native timeboxed GraphHopper round trips from one fuzzy start", () => {
     expect(estimateRoundTripDistanceMeters("twisty", 120)).toBe(122_310)
     expect(createGraphHopperRequest({
@@ -349,6 +387,23 @@ describe("GraphHopper provider", () => {
     ).rejects.toMatchObject({
       code: "OUT_OF_COVERAGE",
       status: 400
+    })
+  })
+
+  it("rejects a successful provider response with unusable geometry", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      paths: [{ points: { coordinates: [[-76.9, 40.2]] } }]
+    }), { status: 200 }))
+
+    await expect(requestGraphHopperRoutes({
+      profile: "quick",
+      points: [
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.28, lon: -76.84 }
+      ]
+    }, { baseUrl: "http://router.test", fetcher })).rejects.toMatchObject({
+      code: "INVALID_PROVIDER_RESPONSE",
+      status: 502
     })
   })
 

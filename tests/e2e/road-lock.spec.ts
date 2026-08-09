@@ -194,13 +194,13 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
 
   await page.getByRole("button", { name: "Lock a road corridor" }).click()
   await expect(page.getByRole("region", { name: "Road lock draft" })).toBeVisible()
-  await expect(page.getByText(/Pick two points along the road/i)).toBeVisible()
+  await expect(page.getByText(/Tap the start of the corridor/i)).toBeVisible()
 
   const mapStage = page.locator(".map-stage")
   const box = await mapStage.boundingBox()
   expect(box).not.toBeNull()
   await page.mouse.click(box!.x + box!.width * 0.35, box!.y + box!.height * 0.4)
-  await expect(page.getByText(/1 anchor placed/i)).toBeVisible()
+  await expect(page.getByText(/First anchor set\. Choose the corridor end\./i)).toBeVisible()
 
   await page.mouse.click(box!.x + box!.width * 0.65, box!.y + box!.height * 0.55)
   await expect(page.getByText(/Name and save this lock/i)).toBeVisible()
@@ -230,7 +230,9 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   expect(locks[0]?.edgeIds).toEqual(["edge-1", "edge-2", "edge-3"])
   expect(locks[0]?.confidence).toBe("exact")
 
-  await page.getByRole("button", { name: /Open road locks/i }).click()
+  const dockButton = page.getByRole("button", { name: /Open road locks.*1 must-use lock active/i })
+  await expect(dockButton).toBeVisible()
+  await dockButton.click()
   await expect(page.getByRole("dialog", { name: "Road locks" })).toBeVisible()
   await expect(page.getByText("Best section of PA-125")).toBeVisible()
 })

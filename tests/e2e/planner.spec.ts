@@ -560,7 +560,10 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
   })
 
   await page.goto(appUrl)
-  await page.locator("#ride-prompt").fill("I want to ride from Harrisburg to Gettysburg via some twisty roads")
+  const prompt = page.locator("#ride-prompt")
+  await prompt.click()
+  await page.keyboard.type("I want to ride from Harrisburg to Gettysburg via some twisty roads")
+  await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
   await page.getByRole("button", { name: "Find ride options" }).click()
 
   await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
@@ -618,11 +621,17 @@ test("draws a rough route on the map and snaps it into editable route points", a
   const box = await surface.boundingBox()
   expect(box).not.toBeNull()
 
-  await page.mouse.move(box!.x + 70, box!.y + 84)
+  const sketchPath = [
+    [0.2, 0.45],
+    [0.4, 0.58],
+    [0.62, 0.42],
+    [0.82, 0.58]
+  ].map(([x, y]) => ({ x: box!.x + box!.width * x, y: box!.y + box!.height * y }))
+  await page.mouse.move(sketchPath[0].x, sketchPath[0].y)
   await page.mouse.down()
-  await page.mouse.move(box!.x + 145, box!.y + 126, { steps: 8 })
-  await page.mouse.move(box!.x + 235, box!.y + 78, { steps: 8 })
-  await page.mouse.move(box!.x + 320, box!.y + 132, { steps: 8 })
+  await page.mouse.move(sketchPath[1].x, sketchPath[1].y, { steps: 8 })
+  await page.mouse.move(sketchPath[2].x, sketchPath[2].y, { steps: 8 })
+  await page.mouse.move(sketchPath[3].x, sketchPath[3].y, { steps: 8 })
   await page.mouse.up()
 
   await expect(surface).toBeHidden()

@@ -920,10 +920,10 @@
 }
 
 @media (max-width: 390px) {
-  /* At iPhone width, the three post-plan actions wrap to two rows. Reserve
-     their real height so the comparison actions never scroll beneath them. */
+  /* At iPhone width, Free Ride + Road locks join the three post-plan action
+     rows. Reserve the real four-row dock so comparison cards remain tappable. */
   .planner-deck.has-expanded-route-dock:not(.is-minimized) .planner-scroll {
-    height: calc(100% - 154px);
+    height: calc(100% - 206px);
   }
 
   .planner-action-dock:has(.dock-ride-button) {

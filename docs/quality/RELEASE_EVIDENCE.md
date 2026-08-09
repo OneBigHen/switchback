@@ -8,13 +8,15 @@ or configured live environment was not available.
 |---|---|---|---|---|---|---|
 | Twisties / scenic suggestions | `PlannerDeck`, ride-intent flow | route intent tests | critical suggestions and prompts | normal route | live smoke PASS | Automated; device pending |
 | Profiles and access safety | `src/lib/routing/graphhopper.ts`, bike profiles | GraphHopper request tests | provider-error journey | private and motorcycle-closed fixture cases | live smoke PASS | Automated; device pending |
-| Loops | round-trip planner and GraphHopper provider | loop request tests | fixed-start loop | closed 20-minute fixture loop | device drill | Automated; device pending |
+| Loops | round-trip planner and GraphHopper provider | loop request tests | fixed-start loop | closed 20-minute fixture loop | live smoke PASS; device drill | Automated; device pending |
 | Destination routing | `/api/routes`, planner | destination timebox tests | destination journey | normal point-to-point | live smoke PASS | Automated; device pending |
 | Alternatives | planner comparison path | alternatives tests | alternative selection | N/A | N/A | Automated |
 | Save and GPX library | IndexedDB libraries and import worker | library/import tests | save/reload and import | N/A | device drill | Automated; device pending |
 | Free Ride | suggestion API and guided Ride transition | Free Ride tests | accept-to-Ride journey | N/A | device drill | Automated; device pending |
+| Rider Profile | versioned preference/settings store | profile component tests | responsive planner matrix | N/A | profile screenshot; device drill | Automated; device pending |
 | PWA shell and offline library | `public/sw.js`, IndexedDB | service-worker tests | production PWA project | N/A | physical drill | Automated; device pending |
 | Provider degradation | typed route errors and hybrid provider | hybrid/error tests | provider failure journey | impossible route fixture | live smoke PASS | Automated; live depends on config |
+| Degraded/offline UI | typed unavailable state and offline recovery | lifecycle/offline tests | provider failure and PWA journeys | impossible fixture path | physical drill | Automated; device pending |
 | Responsive plan/ride surfaces | existing responsive CSS and Playwright projects | component tests | responsive critical journey and broad matrix | N/A | iPhone drill | Automated; device pending |
 | Privacy/local data | local libraries and profile storage | storage/privacy tests | save/reload behavior | N/A | device drill | Automated; device pending |
 

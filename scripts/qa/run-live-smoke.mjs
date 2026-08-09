@@ -71,15 +71,33 @@ async function runChecks() {
         && route.body.routes[0]?.distanceMiles > 0
         && route.body.routes[0]?.durationMinutes > 0
     })
+    const loop = await fetchJson(`${appBase}/api/routes`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        profile: "scenic",
+        compare: false,
+        points: [publicPoints[0]],
+        roundTrip: { targetMinutes: 60, seed: 18 }
+      })
+    })
+    addCheck("App 1-hour loop outcome", true, {
+      ...loop,
+      ok: loop.ok && Array.isArray(loop.body?.routes)
+        && loop.body.routes[0]?.geometry?.length >= 3
+        && loop.body.routes[0]?.distanceMiles > 0
+        && loop.body.routes[0]?.durationMinutes > 0
+    })
   } else {
     addCheck("Switchback app health", false, {})
     addCheck("App geocode", false, {})
     addCheck("App route outcome", false, {})
+    addCheck("App 1-hour loop outcome", false, {})
   }
 
   if (graphHopperBase) {
     addCheck("GraphHopper health", true, await fetchJson(`${graphHopperBase}/health`))
-    addCheck("GraphHopper route", true, await fetchJson(`${graphHopperBase}/route`, {
+    const graphHopperRoute = await fetchJson(`${graphHopperBase}/route`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -88,7 +106,11 @@ async function runChecks() {
         points_encoded: false,
         details: ["road_class", "surface", "toll"]
       })
-    }))
+    })
+    addCheck("GraphHopper route", true, {
+      ...graphHopperRoute,
+      ok: graphHopperRoute.ok && graphHopperRoute.body?.paths?.[0]?.points?.coordinates?.length >= 2
+    })
   } else {
     addCheck("GraphHopper health", false, {})
     addCheck("GraphHopper route", false, {})

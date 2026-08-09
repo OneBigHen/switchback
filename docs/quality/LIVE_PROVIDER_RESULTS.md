@@ -1,6 +1,6 @@
 # Live provider results
 
-Generated: 2026-08-05T13:54:03.284Z
+Generated: 2026-08-09T14:38:39.472Z
 
 This report contains only bounded public-coordinate smoke checks. Credentials and endpoint URLs are intentionally omitted.
 
@@ -9,6 +9,7 @@ This report contains only bounded public-coordinate smoke checks. Credentials an
 | Switchback app health | PASS | HTTP 200 |
 | App geocode | PASS | HTTP 200 |
 | App route outcome | PASS | HTTP 200 |
+| App 1-hour loop outcome | PASS | HTTP 200 |
 | GraphHopper health | PASS | HTTP 200 |
 | GraphHopper route | PASS | HTTP 200 |
 | Valhalla status | PASS | HTTP 200 |

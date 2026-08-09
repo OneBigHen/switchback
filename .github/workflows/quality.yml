@@ -26,6 +26,12 @@ jobs:
       - name: Install fixture tools
         run: sudo apt-get update && sudo apt-get install --yes osmium-tool
       - run: npm ci
+      - name: Scan for accidentally committed secrets
+        run: |
+          if grep -rInE "AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY" src scripts infra public --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" --include="*.json" --include="*.sh" ; then
+            echo "Potential secret found in tracked source!" >&2
+            exit 1
+          fi
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --reporter=dot

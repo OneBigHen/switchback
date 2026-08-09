@@ -44,6 +44,8 @@ boundary against the tiny GraphHopper 11 fixture:
 - a closed twisty loop using the supported 20-minute sparse-fixture timebox;
 - private, `motorcycle=no`, and disconnected destinations rejected with typed
   errors.
+- provider refusal and malformed/short geometry never become synthetic routes
+  (`tests/unit/graphhopper.test.ts`, `tests/unit/routing-client.test.ts`).
 
 The fixture contains a two-way main road, scenic curve, gravel cut, one-way
 spur, private branch, motorcycle-closed branch, toll road, roundabout, signal,

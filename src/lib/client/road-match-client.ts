@@ -54,18 +54,24 @@ export async function requestRoadMatch(
     clearTimeout(timer)
   }
 
-  let payload: RoadMatchResult | RoadMatchingErrorPayload
+  let payload: unknown
   try {
-    payload = (await response.json()) as RoadMatchResult | RoadMatchingErrorPayload
+    payload = await response.json()
   } catch {
     throw new Error("Road matching returned an unreadable response.")
   }
 
-  if (!response.ok || !("edgeIds" in payload)) {
-    const message = "error" in payload && payload.error?.message
-      ? payload.error.message
+  const result = payload && typeof payload === "object" && "matched" in payload
+    ? (payload as { matched?: unknown }).matched
+    : payload
+  if (!response.ok || !result || typeof result !== "object" || !("edgeIds" in result)) {
+    const errorPayload = payload && typeof payload === "object"
+      ? payload as RoadMatchingErrorPayload
+      : null
+    const message = errorPayload && "error" in errorPayload && errorPayload.error?.message
+      ? errorPayload.error.message
       : "No legal motorcycle path could be matched between these points."
     throw new Error(message)
   }
-  return payload as RoadMatchResult
+  return result as RoadMatchResult
 }
