@@ -1,7 +1,5 @@
 import Dexie, { type Table } from "dexie"
 
-import type { OfflineGraph } from "@/lib/offline/graph"
-import { validateOfflineGraph } from "@/lib/offline/graph"
 import type { OfflineRegion } from "@/lib/offline/region-catalog"
 import {
   validateOfflineGraphTileV2,
@@ -57,13 +55,6 @@ interface StoredTile {
   bytes: Uint8Array
 }
 
-interface LegacyGraphEntry {
-  id: string
-  kind?: string
-  graph?: OfflineGraph
-  downloadedAt?: string
-}
-
 const BUNDLE_TTL_MILLIS = 1000 * 60 * 60 * 24 * 7
 const BUNDLE_EXPIRY_MILLIS = 1000 * 60 * 60 * 24 * 30
 
@@ -106,14 +97,11 @@ export class RegionDownloadClient {
   private readonly regions: Table<RegionPointer, string>
   private readonly versions: Table<StoredVersion, string>
   private readonly tiles: Table<StoredTile, string>
-  private readonly graphs: Table<LegacyGraphEntry, string>
   private abortControllers = new Map<string, AbortController>()
 
   constructor(readonly name = "switchback-region-downloads") {
     this.db = new Dexie(name)
-    this.db.version(1).stores({ graphs: "&id, downloadedAt" })
     this.db.version(2).stores({
-      graphs: "&id, downloadedAt",
       regions: "&id, downloadedAt",
       versions: "&id, regionId, status, downloadedAt",
       tiles: "&id, regionId, versionKey"
@@ -121,7 +109,6 @@ export class RegionDownloadClient {
     this.regions = this.db.table("regions")
     this.versions = this.db.table("versions")
     this.tiles = this.db.table("tiles")
-    this.graphs = this.db.table("graphs")
   }
 
   private now(): number {
@@ -282,18 +269,6 @@ export class RegionDownloadClient {
     return result
   }
 
-  /** v1 corridor packs remain readable; v1 regional prototypes are never treated as regional routing. */
-  async getGraph(regionId: string): Promise<OfflineGraph | null> {
-    try {
-      const entry = await this.graphs.get(regionId)
-      if (entry?.kind !== "corridor" || !entry.graph) return null
-      validateOfflineGraph(entry.graph)
-      return entry.graph
-    } catch {
-      return null
-    }
-  }
-
   async getEntry(regionId: string): Promise<{
     id: string
     bundleVersion: string
@@ -316,11 +291,10 @@ export class RegionDownloadClient {
 
   async remove(regionId: string): Promise<void> {
     this.cancel(regionId)
-    await this.db.transaction("rw", this.regions, this.versions, this.tiles, this.graphs, async () => {
+    await this.db.transaction("rw", this.regions, this.versions, this.tiles, async () => {
       await this.tiles.where("regionId").equals(regionId).delete()
       await this.versions.where("regionId").equals(regionId).delete()
       await this.regions.delete(regionId)
-      await this.graphs.delete(regionId)
     })
   }
 

@@ -51,6 +51,10 @@ import {
 } from "@/lib/recommendation/free-ride"
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { buildOfflinePackCorridor, type OfflinePackCorridorOptions } from "@/lib/client/offline-pack-coordinator"
+import {
+  corridorMilesToHalfWidthMeters,
+  SAVED_RIDE_CORRIDOR_DEFAULT_MILES
+} from "@/lib/offline/download-mode"
 import { comparePlannedVsActual, type ReplayComparisonResult } from "@/lib/client/replay-comparison"
 import { rankRoutesForRider } from "@/lib/client/rider-route-ranking"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
@@ -650,17 +654,31 @@ export function PlannerShell() {
 
   const saveOfflinePack = useCallback((route: PlannedRoute, options?: OfflinePackCorridorOptions) => {
     return buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
+      const hasTiles = corridor.tiles != null && corridor.tiles.length > 0
       return offlinePackLibraryRef.current!.save({
         route,
         mapStyle,
         routeVisibility,
-        activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
+        activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id),
+        corridor: hasTiles ? {
+          // v2 pack: embed the installed regional tiles so the pack stays
+          // self-contained and can rejoin the ride without a live router.
+          graph: [],
+          corridorWidthMeters: options?.level === "saved-ride-corridor"
+            ? corridorMilesToHalfWidthMeters(options.corridorMiles ?? SAVED_RIDE_CORRIDOR_DEFAULT_MILES.street)
+            : 0,
+          maxGraphBudgetBytes: 0,
+          graphManifestVersion: "2",
+          legalAccessProvenance: [],
+          segmentsCount: corridor.tiles!.length,
+          serializedGraph: JSON.stringify(corridor.tiles)
+        } : undefined
       }).then(() => corridor)
     }).then((corridor) => {
-      if (corridor.graph) {
+      if (corridor.tiles != null && corridor.tiles.length > 0) {
         setNotice({
           kind: "success",
-          message: "Offline route pack saved: route, cues, and an offline routing graph are ready for recovery."
+          message: "Offline route pack saved: route, cues, and regional offline routing are ready for recovery."
         })
       } else {
         // Never claim offline guidance is ready when no region data

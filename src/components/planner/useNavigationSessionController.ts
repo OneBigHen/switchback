@@ -10,7 +10,8 @@ import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather, sampleRouteWeatherPoints } from "@/lib/client/weather-client"
 import { buildRideRecoveryCheckpoint } from "@/lib/client/ride-recovery-checkpoint"
 import { buildReroutePoints, type RideRerouteMode } from "@/lib/client/ride-reroute"
-import { recoverRouteFromOfflinePack } from "@/lib/client/offline-route-recovery"
+import { recoverRouteFromInstalledRegions, recoverRouteFromOfflinePack } from "@/lib/client/offline-route-recovery"
+import { RegionDownloadClient } from "@/lib/storage/region-download-client"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 import type { RouteWeatherAlert } from "@/lib/weather/types"
@@ -337,8 +338,19 @@ export function useNavigationSessionController({
       let usedOfflineRecovery = false
       const recoverOffline = async (): Promise<PlannedRoute> => {
         usedOfflineRecovery = true
+        // Level 3 first: an installed regional graph can rejoin the ride
+        // without a saved pack, and covers deviation beyond the corridor.
+        const regional = await recoverRouteFromInstalledRegions({
+          route,
+          points,
+          regions: new RegionDownloadClient(),
+          signal: rerouteSignal
+        })
+        if (regional.route) return regional.route
+        // Level 2: fall back to the saved corridor pack when no regional graph
+        // covers the current position.
         const pack = await new OfflineRoutePackLibrary().get(`${route.id}-offline`)
-        if (!pack) throw new Error("No saved offline corridor is available for this route.")
+        if (!pack) throw new Error(regional.error ?? "No saved offline corridor is available for this route.")
         const recovered = recoverRouteFromOfflinePack(pack, points)
         if (!recovered.route) throw new Error(recovered.error ?? "Offline corridor recovery failed.")
         return recovered.route
@@ -372,7 +384,7 @@ export function useNavigationSessionController({
         rerouteInFlightRef.current = false
         dispatch({ type: "cancelReroute" })
         setRerouteStatus("idle")
-        if (usedOfflineRecovery) setGpsMessage("Offline corridor recovery · guidance continues")
+        if (usedOfflineRecovery) setGpsMessage("Offline regional reroute · guidance continues")
         rerouteHandlerRef.current?.(rerouted)
       }).catch(() => {
         if (requestVersion !== rerouteVersionRef.current) return
