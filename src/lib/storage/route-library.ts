@@ -72,6 +72,11 @@ export class RouteLibrary {
     return this.database.routes.get(id)
   }
 
+  async upsertSynced(route: SavedRoute): Promise<void> {
+    if (route.previewOnly) throw new Error("Preview-only geometry cannot enter the saved route library")
+    await this.database.routes.put(structuredClone(route))
+  }
+
   async list(filter: RouteListFilter = {}): Promise<SavedRoute[]> {
     const routes = await this.database.routes.orderBy("updatedAt").reverse().toArray()
     return routes.filter((route) => {
