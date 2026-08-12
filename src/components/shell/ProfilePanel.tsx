@@ -1,7 +1,8 @@
 "use client"
 
 import { DownloadSimple, HardDrives, Trash, UserCircle } from "@phosphor-icons/react"
-import { useState } from "react"
+import { QRCodeSVG } from "qrcode.react"
+import { useEffect, useMemo, useState } from "react"
 import type { ThemePreference } from "@/lib/client/app-navigation"
 import {
   getActiveBike,
@@ -16,6 +17,9 @@ import { RegionDownloadClient } from "@/lib/storage/region-download-client"
 import type { DiagnosticsSnapshot } from "@/lib/domain/diagnostics"
 import { DiagnosticsPanel } from "./DiagnosticsPanel"
 import { authenticatePasskey, registerPasskey } from "@/lib/client/passkey"
+import { createSyncController } from "@/lib/client/sync-controller"
+import type { RecoveryKit } from "@/lib/sync/recovery-kit"
+import type { SyncStateRecord } from "@/lib/sync/client-store"
 
 interface ProfilePanelProps {
   theme: ThemePreference
@@ -37,6 +41,15 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
   const [identityBusy, setIdentityBusy] = useState<"register" | "authenticate" | null>(null)
   const [diagnostics, setDiagnostics] = useState<DiagnosticsSnapshot | null>(null)
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
+  const syncController = useMemo(() => createSyncController(), [])
+  const [syncState, setSyncState] = useState<SyncStateRecord | null>(null)
+  const [recoveryKit, setRecoveryKit] = useState<RecoveryKit | null>(null)
+  const [recoverySeed, setRecoverySeed] = useState("")
+  const [syncBusy, setSyncBusy] = useState<"export" | "import" | "link" | "sync" | null>(null)
+
+  useEffect(() => {
+    void syncController.ensureState().then(setSyncState).catch(() => undefined)
+  }, [syncController])
 
   const openDiagnostics = async () => {
     setDiagnosticsOpen(true)
@@ -76,10 +89,75 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
       if (kind === "register") await registerPasskey(settings.riderName || undefined)
       else await authenticatePasskey()
       setNotice(kind === "register" ? "Switchback ID ready for publishing and sync." : "Signed in with Switchback ID.")
+      try {
+        setSyncState(await syncController.linkCurrentSession())
+      } catch {
+        setNotice(kind === "register"
+          ? "Switchback ID ready. Link this device below to enable encrypted sync."
+          : "Signed in with Switchback ID. Link this device below to enable encrypted sync.")
+      }
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Passkey identity could not be completed.")
     } finally {
       setIdentityBusy(null)
+    }
+  }
+
+  const exportSyncKit = async () => {
+    setSyncBusy("export")
+    try {
+      const kit = await syncController.exportRecoveryKit()
+      setRecoveryKit(kit)
+      setRecoverySeed(kit.seed)
+      const blob = new Blob([JSON.stringify(kit, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = "switchback-sync-recovery.json"
+      anchor.click()
+      URL.revokeObjectURL(url)
+      setNotice("Recovery kit exported. Keep the QR code and seed offline.")
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : "Recovery kit export failed.")
+    } finally {
+      setSyncBusy(null)
+    }
+  }
+
+  const importSyncKit = async () => {
+    setSyncBusy("import")
+    try {
+      setSyncState(await syncController.store.importRecoveryKit(recoverySeed))
+      setRecoveryKit(null)
+      setNotice("Recovery kit installed. Authenticate below to link this device before syncing.")
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : "Recovery seed could not be imported.")
+    } finally {
+      setSyncBusy(null)
+    }
+  }
+
+  const linkSync = async () => {
+    setSyncBusy("link")
+    try {
+      setSyncState(await syncController.linkWithPasskey())
+      setNotice("This device is linked. Encrypted sync is ready.")
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : "This device could not be linked for sync.")
+    } finally {
+      setSyncBusy(null)
+    }
+  }
+
+  const runSync = async () => {
+    setSyncBusy("sync")
+    try {
+      const result = await syncController.sync()
+      setNotice(`Encrypted sync complete: ${result.pushed} sent, ${result.pulled} received${result.conflicts ? `, ${result.conflicts} conflict copy created` : ""}.`)
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : "Encrypted sync could not complete.")
+    } finally {
+      setSyncBusy(null)
     }
   }
 
@@ -229,6 +307,43 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
             {identityBusy === "authenticate" ? "Checking…" : "Use existing passkey"}
           </button>
         </div>
+      </section>
+
+      <section className="profile-identity" aria-labelledby="sync-title">
+        <span className="eyebrow">Encrypted device sync</span>
+        <h3 id="sync-title">Saved routes and rider settings</h3>
+        <p>The recovery kit decrypts your local data. A verified Switchback ID still must link this device before the sync service can be used.</p>
+        <div className="profile-actions">
+          <button type="button" onClick={() => void exportSyncKit()} disabled={syncBusy !== null}>
+            {syncBusy === "export" ? "Preparing…" : "Export recovery kit"}
+          </button>
+          <button type="button" onClick={() => void linkSync()} disabled={syncBusy !== null}>
+            {syncBusy === "link" ? "Linking…" : syncState?.linked ? "Relink with passkey" : "Authenticate and link device"}
+          </button>
+          <button type="button" className="primary-action" onClick={() => void runSync()} disabled={syncBusy !== null || !syncState?.linked}>
+            {syncBusy === "sync" ? "Syncing…" : "Sync now"}
+          </button>
+        </div>
+        <label>
+          Recovery seed
+          <input
+            aria-label="Recovery seed"
+            value={recoverySeed}
+            onChange={(event) => setRecoverySeed(event.currentTarget.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+        <button type="button" onClick={() => void importSyncKit()} disabled={syncBusy !== null || recoverySeed.trim().length === 0}>
+          {syncBusy === "import" ? "Importing…" : "Import recovery seed"}
+        </button>
+        {recoveryKit ? (
+          <div className="profile-recovery-kit" aria-label="Recovery kit">
+            <QRCodeSVG value={recoveryKit.qrPayload} size={192} level="M" marginSize={2} title="Switchback encrypted sync recovery QR code" />
+            <code>{recoveryKit.seed}</code>
+          </div>
+        ) : null}
+        {syncState?.linked ? <p>Device linked for encrypted sync.</p> : <p>Device not linked. Sync remains disabled until passkey authentication succeeds.</p>}
       </section>
 
       <label className="profile-theme">
