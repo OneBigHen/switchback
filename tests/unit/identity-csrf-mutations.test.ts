@@ -34,7 +34,13 @@ function routeBody(): string {
     routeFingerprint: "fingerprint-csrf-1",
     stats: { distanceMiles: 42 },
     provenanceClass: "rider-recorded",
-    visibility: "public"
+    visibility: "public",
+    preview: {
+      geometry: [[[ -76.9, 40.2 ], [ -76.7, 40.4 ]]],
+      distanceMiles: 25,
+      durationMinutes: 40,
+      exactPreviewRequired: true
+    }
   })
 }
 

@@ -29,3 +29,23 @@ export function requireMutationIdentity(request: Request): string {
   if (!hasValidMutationCsrf(request)) throw new Error("CSRF_REQUIRED")
   return identityId
 }
+
+export function isCommunityOperator(identityId: string): boolean {
+  const configured = (process.env.SWITCHBACK_COMMUNITY_OPERATOR_IDS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+  return configured.includes(identityId)
+}
+
+export function requireOperatorIdentity(request: Request): string {
+  const identityId = requireIdentity(request)
+  if (!isCommunityOperator(identityId)) throw new Error("OPERATOR_REQUIRED")
+  return identityId
+}
+
+export function requireOperatorMutationIdentity(request: Request): string {
+  const identityId = requireMutationIdentity(request)
+  if (!isCommunityOperator(identityId)) throw new Error("OPERATOR_REQUIRED")
+  return identityId
+}

@@ -1,3 +1,5 @@
+import type { Coordinate } from "@/lib/routing/types"
+
 export const COMMUNITY_PROVENANCE = [
   "rider-recorded",
   "built-and-verified",
@@ -8,6 +10,13 @@ export const COMMUNITY_PROVENANCE = [
 export type CommunityProvenance = (typeof COMMUNITY_PROVENANCE)[number]
 export type CommunityVisibility = "public" | "unlisted"
 
+export interface CommunityPreviewArtifact {
+  geometry: Coordinate[][]
+  distanceMiles: number
+  durationMinutes: number
+  exactPreviewRequired: true
+}
+
 export interface CommunityRouteDraft {
   title: string
   description: string | null
@@ -15,10 +24,11 @@ export interface CommunityRouteDraft {
   stats: Record<string, number | string | null>
   provenanceClass: CommunityProvenance
   visibility: CommunityVisibility
+  preview: CommunityPreviewArtifact
 }
 
 export interface CommunityArtifactDraft {
-  kind: "gpx" | "preview" | "recorded-ride"
+  kind: "preview"
   sha256: string
   bytes: number
 }
@@ -35,6 +45,8 @@ export interface RigContributionDraft {
 const MAX_STATS_KEYS = 32
 const MAX_TEXT = 4_000
 const HASH = /^[a-f0-9]{64}$/i
+const MAX_PREVIEW_SEGMENTS = 64
+const MAX_PREVIEW_POINTS = 5_000
 
 export function sanitizePlainText(value: string, maxLength = MAX_TEXT): string {
   return value
@@ -70,6 +82,34 @@ function safeStats(value: unknown): Record<string, number | string | null> {
   return result
 }
 
+function safeCoordinate(value: unknown): Coordinate {
+  if (!Array.isArray(value) || value.length !== 2) throw new Error("preview geometry has an invalid coordinate")
+  const [longitude, latitude] = value
+  if (typeof longitude !== "number" || typeof latitude !== "number" || !Number.isFinite(longitude) || !Number.isFinite(latitude) || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+    throw new Error("preview geometry has an invalid coordinate")
+  }
+  return [longitude, latitude]
+}
+
+function parseCommunityPreviewArtifact(input: unknown): CommunityPreviewArtifact {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("preview must be an object")
+  const value = input as Record<string, unknown>
+  if (value.exactPreviewRequired !== true) throw new Error("preview must be explicitly confirmed")
+  if (!Array.isArray(value.geometry) || value.geometry.length === 0 || value.geometry.length > MAX_PREVIEW_SEGMENTS) throw new Error("preview geometry has too many segments")
+  let pointCount = 0
+  const geometry = value.geometry.map((segment) => {
+    if (!Array.isArray(segment) || segment.length < 2) throw new Error("preview geometry has an invalid segment")
+    pointCount += segment.length
+    if (pointCount > MAX_PREVIEW_POINTS) throw new Error("preview geometry is too large")
+    return segment.map(safeCoordinate)
+  })
+  const distanceMiles = value.distanceMiles
+  const durationMinutes = value.durationMinutes
+  if (typeof distanceMiles !== "number" || !Number.isFinite(distanceMiles) || distanceMiles < 0 || distanceMiles > 100_000) throw new Error("preview distance is invalid")
+  if (typeof durationMinutes !== "number" || !Number.isFinite(durationMinutes) || durationMinutes < 0 || durationMinutes > 10_000_000) throw new Error("preview duration is invalid")
+  return { geometry, distanceMiles, durationMinutes, exactPreviewRequired: true }
+}
+
 export function parseCommunityRouteDraft(input: unknown): CommunityRouteDraft {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("route must be an object")
   const value = input as Record<string, unknown>
@@ -88,14 +128,17 @@ export function parseCommunityRouteDraft(input: unknown): CommunityRouteDraft {
     routeFingerprint: plainText(value.routeFingerprint, "routeFingerprint", 180),
     stats: safeStats(value.stats),
     provenanceClass: provenanceClass as CommunityProvenance,
-    visibility
+    visibility,
+    preview: parseCommunityPreviewArtifact(value.preview)
   }
 }
+
+export { parseCommunityPreviewArtifact }
 
 export function parseCommunityArtifactDraft(input: unknown): CommunityArtifactDraft {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("artifact must be an object")
   const value = input as Record<string, unknown>
-  if (value.kind !== "gpx" && value.kind !== "preview" && value.kind !== "recorded-ride") throw new Error("artifact kind is invalid")
+  if (value.kind !== "preview") throw new Error("Only sanitized preview artifacts may be published")
   if (typeof value.sha256 !== "string" || !HASH.test(value.sha256)) throw new Error("artifact hash is invalid")
   if (typeof value.bytes !== "number" || !Number.isInteger(value.bytes) || value.bytes < 1 || value.bytes > 50 * 1024 * 1024) {
     throw new Error("artifact size is invalid")
