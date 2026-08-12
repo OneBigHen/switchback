@@ -5,6 +5,7 @@ const testMode = process.env.SWITCHBACK_E2E_MODE ?? "existing"
 const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111" : "3110")
 const localBaseUrl = `http://127.0.0.1:${testPort}`
 const qualitySuites = /\/(critical|real-router|pwa)\//
+const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const criticalMatch = /\/critical\/.*\.spec\.ts$/
 const realRouterMatch = /\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/pwa\/.*\.spec\.ts$/
@@ -34,17 +35,17 @@ export default defineConfig({
   projects: [
     {
       name: "desktop-chromium",
-      testIgnore: qualitySuites,
+      testIgnore: [qualitySuites, memorySoakSpec],
       use: { ...devices["Desktop Chrome"] }
     },
     {
       name: "mobile-safari",
-      testIgnore: qualitySuites,
+      testIgnore: [qualitySuites, memorySoakSpec],
       use: { ...devices["iPhone 14"] }
     },
     {
       name: "mobile-landscape-wide",
-      testIgnore: qualitySuites,
+      testIgnore: [qualitySuites, memorySoakSpec],
       use: {
         ...devices["iPhone 14 landscape"],
         viewport: { width: 844, height: 390 },
@@ -53,8 +54,13 @@ export default defineConfig({
     },
     {
       name: "mobile-landscape-narrow",
-      testIgnore: qualitySuites,
+      testIgnore: [qualitySuites, memorySoakSpec],
       use: { ...devices["iPhone SE landscape"] }
+    },
+    {
+      name: "memory-soak",
+      testMatch: memorySoakSpec,
+      use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     },
     {
       name: "critical-chromium",

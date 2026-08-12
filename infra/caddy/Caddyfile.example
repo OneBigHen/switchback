@@ -13,15 +13,18 @@
 
 	encode zstd gzip
 
+	@https protocol https
+
+	header @https {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+	}
+
 	header {
 		-Server
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		Permissions-Policy "geolocation=(self), screen-wake-lock=(self)"
 		X-Frame-Options DENY
-		# HSTS is only honored over HTTPS; safe to leave on for mixed
-		# LAN/edge topologies and required for a public origin.
-		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 	}
 
 	# Coarse edge rate limiting: protects the Next origin and the paid

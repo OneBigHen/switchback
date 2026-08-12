@@ -14,6 +14,7 @@ or configured live environment was not available.
 | Save and GPX library | IndexedDB libraries and import worker | library/import tests | save/reload and import | N/A | device drill | Automated; device pending |
 | Free Ride | suggestion API and guided Ride transition | Free Ride tests | accept-to-Ride journey | N/A | device drill | Automated; device pending |
 | PWA shell and offline library | `public/sw.js`, IndexedDB | service-worker tests | production PWA project | N/A | physical drill | Automated; device pending |
+| Regional offline reroute | `OfflineGeoWorkerClient`, v2 tiles, `regional-offline-route.ts` | offline worker/router suites | regional E2E pending | generated PA/NJ parity: 187/208 (89.9%), legality clean; 0 oracle errors; gate failed | physical drill | Parity open; device pending |
 | Provider degradation | typed route errors and hybrid provider | hybrid/error tests | provider failure journey | impossible route fixture | live smoke PASS | Automated; live depends on config |
 | Responsive plan/ride surfaces | existing responsive CSS and Playwright projects | component tests | responsive critical journey and broad matrix | N/A | iPhone drill | Automated; device pending |
 | Privacy/local data | local libraries and profile storage | storage/privacy tests | save/reload behavior | N/A | device drill | Automated; device pending |

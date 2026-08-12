@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+data
+artifacts
+playwright-report
+test-results
+.env
+.env.*
+*.sqlite
+*.sqlite-*

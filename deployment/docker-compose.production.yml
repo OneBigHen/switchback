@@ -1,0 +1,62 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "${SWITCHBACK_HTTP_PORT:-80}:80"
+      - "${SWITCHBACK_HTTPS_PORT:-443}:443"
+    environment:
+      SWITCHBACK_DOMAIN: ${SWITCHBACK_DOMAIN:?set SWITCHBACK_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+
+  web:
+    image: ghcr.io/onebighen/switchback:${SWITCHBACK_TAG:?set an immutable release tag}
+    restart: unless-stopped
+    env_file: ${SWITCHBACK_ENV_FILE:-.env}
+    environment:
+      GRAPHHOPPER_URL: http://graphhopper:8989
+      COMMUNITY_DB_PATH: /data/app/community.sqlite
+      SYNC_DB_PATH: /data/app/sync.sqlite
+    volumes:
+      - switchback_data:/data
+    expose: ["3000"]
+    depends_on:
+      graphhopper:
+        condition: service_healthy
+
+  worker:
+    image: ghcr.io/onebighen/switchback:${SWITCHBACK_TAG:?set an immutable release tag}
+    command: ["node", "scripts/region-worker.mjs"]
+    restart: unless-stopped
+    env_file: ${SWITCHBACK_ENV_FILE:-.env}
+    environment:
+      SWITCHBACK_REGION_QUEUE: /data/region-queue
+    volumes:
+      - switchback_data:/data
+    depends_on:
+      graphhopper:
+        condition: service_healthy
+
+  graphhopper:
+    build:
+      context: ..
+      dockerfile: deployment/graphhopper.Dockerfile
+    restart: unless-stopped
+    mem_limit: 6g
+    volumes:
+      - ${SWITCHBACK_GRAPH_DATA_ROOT:?set SWITCHBACK_GRAPH_DATA_ROOT}:/data
+    expose: ["8989"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8989/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  switchback_data:
+  caddy_data:
+  caddy_config:

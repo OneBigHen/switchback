@@ -68,6 +68,13 @@ function validateIntent(data: RideIntentData): RideIntentData {
   return data
 }
 
+/** Validate model output at the boundary; callers never route on raw JSON. */
+export function parseStrictRideIntent(input: unknown, source: RideIntent["source"] = "local"): RideIntent {
+  const parsed = safeParse(rideIntentSchema, input)
+  if (!parsed.success) throw new Error("Ride intent does not match the strict schema")
+  return { ...validateIntent(parsed.data), source }
+}
+
 const NUMBER_WORDS: Record<string, number> = {
   half: 0.5,
   one: 1,

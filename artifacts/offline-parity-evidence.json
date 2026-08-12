@@ -1,27 +1,27 @@
 {
-  "runId": "e6df13fcc22d",
-  "generatedAt": "2026-07-22T12:45:43.285Z",
+  "runId": "fd3649fd8f4e",
+  "generatedAt": "2026-08-12T20:06:30.182Z",
   "graphHopperUrl": "http://127.0.0.1:8989",
-  "totalPairs": 204,
-  "successCount": 171,
-  "successRatePct": 83.82,
+  "totalPairs": 208,
+  "successCount": 187,
+  "successRatePct": 89.9,
   "successGatePct": 98,
   "successGatePassed": false,
+  "graphHopperOracleErrors": 0,
+  "randomSampleTilePoolSize": 8,
   "failureKinds": {
-    "out_of_coverage": 33,
-    "no_path": 30,
-    "search_budget": 1
+    "no_path": 15
   },
   "parityBuckets": {
-    "under5pct": 71,
-    "under10pct": 13,
-    "under25pct": 13,
-    "over25pct": 26
+    "under5pct": 136,
+    "under10pct": 24,
+    "under25pct": 17,
+    "over25pct": 12
   },
-  "parityUnder5pct": 71,
-  "parityUnder10pct": 84,
+  "parityUnder5pct": 136,
+  "parityUnder10pct": 160,
   "legalityAudit": {
-    "totalReturnedEdges": 18892,
+    "totalReturnedEdges": 45769,
     "pairsContainingIllegalEdges": 0,
     "totalTurnRestrictionViolations": 0,
     "pairsContainingTurnViolations": 0,
@@ -66,16 +66,17 @@
         -77.7736,
         40.9136
       ],
-      "corridorTiles": 1,
+      "corridorTiles": 2,
       "offline": {
         "ok": true,
         "distanceMeters": 17326.81766888055,
-        "visitedStates": 101702,
+        "visitedStates": 106269,
         "edgeCount": 527
       },
       "graphhopper": {
         "ok": true,
-        "distanceMeters": 18809
+        "distanceMeters": 18809,
+        "outcome": "route"
       },
       "parity": {
         "ghMeters": 18809,
@@ -106,12 +107,13 @@
       "offline": {
         "ok": true,
         "distanceMeters": 41918.84946604718,
-        "visitedStates": 48361,
+        "visitedStates": 50477,
         "edgeCount": 983
       },
       "graphhopper": {
         "ok": true,
-        "distanceMeters": 44766
+        "distanceMeters": 44766,
+        "outcome": "route"
       },
       "parity": {
         "ghMeters": 44766,
@@ -139,16 +141,17 @@
         -74.9421,
         40.3659
       ],
-      "corridorTiles": 2,
+      "corridorTiles": 4,
       "offline": {
         "ok": true,
         "distanceMeters": 496.04222035382105,
-        "visitedStates": 355,
+        "visitedStates": 423,
         "edgeCount": 17
       },
       "graphhopper": {
         "ok": true,
-        "distanceMeters": 626
+        "distanceMeters": 626,
+        "outcome": "route"
       },
       "parity": {
         "ghMeters": 626,
@@ -176,16 +179,17 @@
         -75.1836,
         40.6892
       ],
-      "corridorTiles": 2,
+      "corridorTiles": 3,
       "offline": {
         "ok": true,
         "distanceMeters": 2186.4097410120016,
-        "visitedStates": 13666,
+        "visitedStates": 13862,
         "edgeCount": 85
       },
       "graphhopper": {
         "ok": true,
-        "distanceMeters": 2259
+        "distanceMeters": 2259,
+        "outcome": "route"
       },
       "parity": {
         "ghMeters": 2259,
@@ -201,101 +205,68 @@
   ],
   "randomFailureSample": [
     {
-      "idx": 9,
+      "idx": 2,
       "profile": "twisty",
       "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -78.8405763,
+        41.8166953
+      ],
+      "finish": [
+        -78.794836,
+        41.859757
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": false,
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 8,
+      "profile": "quick",
+      "regions": [
+        "pennsylvania",
         "new-jersey"
       ],
       "start": [
-        -75.5557588,
-        39.4129428
+        -78.7716522,
+        41.7549517
       ],
       "finish": [
-        -75.54461224,
-        39.38519904
+        -78.771855,
+        41.8118327
       ],
-      "corridorTiles": 1,
+      "corridorTiles": 4,
       "offline": {
         "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
       },
       "graphhopper": {
         "ok": false,
         "distanceMeters": null,
-        "error": "Cannot find point 0: 39.4129428,-75.5557588"
-      },
-      "parity": {
-        "ghMeters": null,
-        "offlineMeters": null,
-        "pct": null,
-        "note": "both_agree_no_route"
-      },
-      "legality": {
-        "illegalEdgeCount": 0,
-        "turnViolationCount": 0
-      }
-    },
-    {
-      "idx": 10,
-      "profile": "scenic",
-      "regions": [
-        "pennsylvania"
-      ],
-      "start": [
-        -76.11621507000001,
-        39.58516762
-      ],
-      "finish": [
-        -76.14936371,
-        39.55516306
-      ],
-      "corridorTiles": 1,
-      "offline": {
-        "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
-      },
-      "graphhopper": {
-        "ok": false,
-        "distanceMeters": null,
-        "error": "Cannot find point 0: 39.58516762,-76.11621507000001"
-      },
-      "parity": {
-        "ghMeters": null,
-        "offlineMeters": null,
-        "pct": null,
-        "note": "both_agree_no_route"
-      },
-      "legality": {
-        "illegalEdgeCount": 0,
-        "turnViolationCount": 0
-      }
-    },
-    {
-      "idx": 12,
-      "profile": "quick",
-      "regions": [
-        "pennsylvania"
-      ],
-      "start": [
-        -75.88341281000001,
-        42.16841687
-      ],
-      "finish": [
-        -75.88695513,
-        42.14628991
-      ],
-      "corridorTiles": 1,
-      "offline": {
-        "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
-      },
-      "graphhopper": {
-        "ok": false,
-        "distanceMeters": null,
-        "error": "Cannot find point 0: 42.16841687,-75.88341281000001"
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
       },
       "parity": {
         "ghMeters": null,
@@ -310,28 +281,29 @@
     },
     {
       "idx": 14,
-      "profile": "scenic",
+      "profile": "avoid-highways",
       "regions": [
         "pennsylvania"
       ],
       "start": [
-        -78.40134849,
-        42.143184530000006
+        -78.8008603,
+        41.8147137
       ],
       "finish": [
-        -78.37092521000001,
-        42.15067253000001
+        -78.8425844,
+        41.8346875
       ],
-      "corridorTiles": 1,
+      "corridorTiles": 2,
       "offline": {
         "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
       },
       "graphhopper": {
         "ok": false,
         "distanceMeters": null,
-        "error": "Cannot find point 0: 42.143184530000006,-78.40134849"
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
       },
       "parity": {
         "ghMeters": null,
@@ -345,30 +317,68 @@
       }
     },
     {
-      "idx": 16,
+      "idx": 26,
+      "profile": "twisty",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -78.782619,
+        41.86433
+      ],
+      "finish": [
+        -78.8135996,
+        41.8104536
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": false,
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 32,
       "profile": "quick",
       "regions": [
         "pennsylvania",
         "new-jersey"
       ],
       "start": [
-        -78.30004701,
-        42.147128540000004
+        -78.8329197,
+        41.8214509
       ],
       "finish": [
-        -78.33073085,
-        42.130904060000006
+        -78.919721,
+        41.796112
       ],
       "corridorTiles": 1,
       "offline": {
         "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
       },
       "graphhopper": {
         "ok": false,
         "distanceMeters": null,
-        "error": "Cannot find point 0: 42.147128540000004,-78.30004701"
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
       },
       "parity": {
         "ghMeters": null,
@@ -382,59 +392,69 @@
       }
     },
     {
-      "idx": 17,
-      "profile": "twisty",
+      "idx": 40,
+      "profile": "quick",
+      "regions": [
+        "pennsylvania",
+        "new-jersey"
+      ],
+      "start": [
+        -80.0463013,
+        41.821957
+      ],
+      "finish": [
+        -80.103072,
+        41.8053664
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": true,
+        "distanceMeters": 6065.308277453364,
+        "visitedStates": 5858,
+        "edgeCount": 125
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": 6065.308277453364,
+        "pct": null,
+        "note": "route_outcome_mismatch"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 65,
+      "profile": "balanced",
       "regions": [
         "new-jersey"
       ],
       "start": [
-        -74.78089081,
-        41.474080310000005
+        -74.1301614,
+        40.0494092
       ],
       "finish": [
-        -74.74304153,
-        41.45880967000001
+        -74.173651,
+        40.041832
       ],
       "corridorTiles": 2,
       "offline": {
         "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
-      },
-      "graphhopper": {
-        "ok": true,
-        "distanceMeters": 8620
-      },
-      "parity": null,
-      "legality": {
-        "illegalEdgeCount": 0,
-        "turnViolationCount": 0
-      }
-    },
-    {
-      "idx": 18,
-      "profile": "scenic",
-      "regions": [
-        "pennsylvania"
-      ],
-      "start": [
-        -76.66783622,
-        40.44354862
-      ],
-      "finish": [
-        -76.66084646,
-        40.48102318
-      ],
-      "corridorTiles": 1,
-      "offline": {
-        "ok": false,
         "kind": "no_path",
         "message": "No legal offline road path connects these points"
       },
       "graphhopper": {
         "ok": false,
         "distanceMeters": null,
-        "error": "Cannot find point 0: 40.44354862,-76.66783622"
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
       },
       "parity": {
         "ghMeters": null,
@@ -448,95 +468,112 @@
       }
     },
     {
-      "idx": 19,
-      "profile": "adventure",
+      "idx": 66,
+      "profile": "twisty",
       "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -79.4770136,
+        40.0612086
+      ],
+      "finish": [
+        -79.4550676,
+        40.0848438
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": true,
+        "distanceMeters": 5492.445381450363,
+        "visitedStates": 2834,
+        "edgeCount": 152
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": 5492.445381450363,
+        "pct": null,
+        "note": "route_outcome_mismatch"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 70,
+      "profile": "avoid-highways",
+      "regions": [
+        "pennsylvania"
+      ],
+      "start": [
+        -78.8687011,
+        41.8109277
+      ],
+      "finish": [
+        -78.7934023,
+        41.8214561
+      ],
+      "corridorTiles": 2,
+      "offline": {
+        "ok": false,
+        "kind": "no_path",
+        "message": "No legal offline road path connects these points"
+      },
+      "graphhopper": {
+        "ok": false,
+        "distanceMeters": null,
+        "outcome": "no_route",
+        "error": "Connection between locations not found"
+      },
+      "parity": {
+        "ghMeters": null,
+        "offlineMeters": null,
+        "pct": null,
+        "note": "both_agree_no_route"
+      },
+      "legality": {
+        "illegalEdgeCount": 0,
+        "turnViolationCount": 0
+      }
+    },
+    {
+      "idx": 72,
+      "profile": "quick",
+      "regions": [
+        "pennsylvania",
         "new-jersey"
       ],
       "start": [
-        -75.09030926,
-        40.52789327
+        -77.531475,
+        41.051327
       ],
       "finish": [
-        -75.0798123,
-        40.51838183
+        -77.5213574,
+        41.0281078
       ],
-      "corridorTiles": 1,
+      "corridorTiles": 4,
       "offline": {
-        "ok": false,
-        "kind": "no_path",
-        "message": "No legal offline road path connects these points"
+        "ok": true,
+        "distanceMeters": 3748.4361798232644,
+        "visitedStates": 1546,
+        "edgeCount": 93
       },
       "graphhopper": {
         "ok": true,
-        "distanceMeters": 1616
-      },
-      "parity": null,
-      "legality": {
-        "illegalEdgeCount": 0,
-        "turnViolationCount": 0
-      }
-    },
-    {
-      "idx": 22,
-      "profile": "scenic",
-      "regions": [
-        "pennsylvania"
-      ],
-      "start": [
-        -78.02122976,
-        40.94908317
-      ],
-      "finish": [
-        -78.04098488,
-        40.91985245
-      ],
-      "corridorTiles": 1,
-      "offline": {
-        "ok": false,
-        "kind": "no_path",
-        "message": "No legal offline road path connects these points"
-      },
-      "graphhopper": {
-        "ok": true,
-        "distanceMeters": 10246
-      },
-      "parity": null,
-      "legality": {
-        "illegalEdgeCount": 0,
-        "turnViolationCount": 0
-      }
-    },
-    {
-      "idx": 30,
-      "profile": "scenic",
-      "regions": [
-        "pennsylvania"
-      ],
-      "start": [
-        -78.82940228000001,
-        39.562386610000004
-      ],
-      "finish": [
-        -78.80190220000001,
-        39.59342045
-      ],
-      "corridorTiles": 1,
-      "offline": {
-        "ok": false,
-        "kind": "out_of_coverage",
-        "message": "A route point is outside installed road coverage"
-      },
-      "graphhopper": {
-        "ok": false,
-        "distanceMeters": null,
-        "error": "Cannot find point 0: 39.562386610000004,-78.82940228000001"
+        "distanceMeters": 5606,
+        "outcome": "route"
       },
       "parity": {
-        "ghMeters": null,
-        "offlineMeters": null,
-        "pct": null,
-        "note": "both_agree_no_route"
+        "ghMeters": 5606,
+        "offlineMeters": 3748.4361798232644,
+        "diffMeters": 1858,
+        "pct": 33.14
       },
       "legality": {
         "illegalEdgeCount": 0,

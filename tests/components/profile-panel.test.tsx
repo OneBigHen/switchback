@@ -1,5 +1,12 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+
+const passkey = vi.hoisted(() => ({
+  registerPasskey: vi.fn(async () => ({ identityId: "rider-12345678901234567890" })),
+  authenticatePasskey: vi.fn(async () => ({ identityId: "rider-12345678901234567890" }))
+}))
+
+vi.mock("@/lib/client/passkey", () => passkey)
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
 
 describe("ProfilePanel", () => {
@@ -39,5 +46,17 @@ describe("ProfilePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reset learning" }))
     expect(confirmSpy).toHaveBeenCalledOnce()
     expect(onResetLearning).toHaveBeenCalledOnce()
+  })
+
+  it("offers optional passkey identity without changing local rider settings", async () => {
+    render(<ProfilePanel theme="light" onThemeChange={vi.fn()} onOpenDownloads={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Switchback ID" }))
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Switchback ID ready/i))
+    expect(passkey.registerPasskey).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole("button", { name: "Use existing passkey" }))
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Signed in with Switchback ID/i))
+    expect(passkey.authenticatePasskey).toHaveBeenCalledOnce()
   })
 })

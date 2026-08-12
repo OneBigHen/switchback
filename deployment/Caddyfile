@@ -1,0 +1,18 @@
+{$SWITCHBACK_DOMAIN} {
+  encode zstd gzip
+
+  @https protocol https
+
+  header @https {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  }
+
+  header {
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(), microphone=(self), geolocation=(self), screen-wake-lock=(self)"
+    -Server
+  }
+
+  reverse_proxy web:3000
+}

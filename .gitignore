@@ -12,6 +12,7 @@ reasonix.toml
 *.log
 *.tsbuildinfo
 data/*.db
+data/*.sqlite
 data/*.pbf
 data/graph-cache
 data/offline-regions/

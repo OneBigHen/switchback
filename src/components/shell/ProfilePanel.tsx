@@ -15,6 +15,7 @@ import { collectDiagnostics } from "@/lib/client/diagnostics"
 import { RegionDownloadClient } from "@/lib/storage/region-download-client"
 import type { DiagnosticsSnapshot } from "@/lib/domain/diagnostics"
 import { DiagnosticsPanel } from "./DiagnosticsPanel"
+import { authenticatePasskey, registerPasskey } from "@/lib/client/passkey"
 
 interface ProfilePanelProps {
   theme: ThemePreference
@@ -33,6 +34,7 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
     return loaded
   })
   const [notice, setNotice] = useState<string | null>(null)
+  const [identityBusy, setIdentityBusy] = useState<"register" | "authenticate" | null>(null)
   const [diagnostics, setDiagnostics] = useState<DiagnosticsSnapshot | null>(null)
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
 
@@ -66,6 +68,20 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
   }
 
   const bike = getActiveBike(settings)
+
+  const runIdentity = async (kind: "register" | "authenticate") => {
+    setIdentityBusy(kind)
+    setNotice(null)
+    try {
+      if (kind === "register") await registerPasskey(settings.riderName || undefined)
+      else await authenticatePasskey()
+      setNotice(kind === "register" ? "Switchback ID ready for publishing and sync." : "Signed in with Switchback ID.")
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : "Passkey identity could not be completed.")
+    } finally {
+      setIdentityBusy(null)
+    }
+  }
 
   const gravelLabel: Record<BikeCategory, string> = {
     street: "none",
@@ -200,6 +216,20 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
           Reset learning
         </button>
       </div>
+
+      <section className="profile-identity" aria-labelledby="switchback-id-title">
+        <span className="eyebrow">Optional account</span>
+        <h3 id="switchback-id-title">Switchback ID</h3>
+        <p>Use a passkey for publishing and encrypted sync. Planning and riding stay on this device without an account.</p>
+        <div className="profile-actions">
+          <button type="button" className="primary-action" disabled={identityBusy !== null} onClick={() => void runIdentity("register")}>
+            {identityBusy === "register" ? "Creating…" : "Create Switchback ID"}
+          </button>
+          <button type="button" disabled={identityBusy !== null} onClick={() => void runIdentity("authenticate")}>
+            {identityBusy === "authenticate" ? "Checking…" : "Use existing passkey"}
+          </button>
+        </div>
+      </section>
 
       <label className="profile-theme">
         Theme
