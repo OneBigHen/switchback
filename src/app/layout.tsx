@@ -13,6 +13,7 @@ import "./styles/region-suite-picker.css"
 import "./styles/region-downloads.css"
 import "./styles/responsive.css"
 import "./styles/switchback-v1.css"
+import "./styles/community.css"
 
 export const metadata: Metadata = {
   title: "Switchback — Ride the better road",

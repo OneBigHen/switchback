@@ -19,6 +19,7 @@ import { RouteWeatherPanel } from "./RouteWeatherPanel"
 import { TripStagePanel } from "./TripStagePanel"
 import { RouteRating } from "./RouteRating"
 import { RouteSharePanel } from "./RouteSharePanel"
+import { CommunityPublishPanel } from "./CommunityPublishPanel"
 import { RouteEvidencePanel } from "./RouteEvidencePanel"
 import type { GpxExportVariant } from "@/lib/routing/gpx"
 import type { RiderPreference } from "@/lib/intelligence/rider-preferences"
@@ -337,6 +338,7 @@ export function RouteComparison({
       <RouteRating route={selectedRoute} onRate={onRate} />
 
       <RouteSharePanel route={selectedRoute} onShareCreated={onShareCreated} />
+      <CommunityPublishPanel route={selectedRoute} />
 
       <div className="route-actions" aria-label="Selected route actions">
         <button type="button" className="tool-button" onClick={() => onSave(selectedRoute)}>
