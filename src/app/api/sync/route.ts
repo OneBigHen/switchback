@@ -13,7 +13,7 @@ export const runtime = "nodejs"
 const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 60, label: "sync request" })
 let repository: SyncRepository | null = null
 
-function syncRepository(): SyncRepository {
+export function syncRepository(): SyncRepository {
   if (!repository) repository = new SyncRepository(process.env.SYNC_DB_PATH ?? path.join(process.cwd(), "data/sync.sqlite"))
   return repository
 }
@@ -34,9 +34,19 @@ export async function handleSyncGet(request: Request, store = syncRepository()):
     const params = new URL(request.url).searchParams
     const namespaceId = params.get("namespaceId") ?? ""
     if (!namespaceId) throw new Error("namespace")
-    return jsonWithRequestId({ envelopes: store.list(identityId, namespaceId, params.get("collection") ?? undefined, params.get("objectId") ?? undefined) }, requestId)
-  } catch {
-    return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required for sync.", 401, requestId)
+    const rawLimit = params.get("limit")
+    const limit = rawLimit === null ? undefined : Number(rawLimit)
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 100)) throw new Error("limit")
+    return jsonWithRequestId(store.list(identityId, namespaceId, {
+      collection: params.get("collection") ?? undefined,
+      objectId: params.get("objectId") ?? undefined,
+      limit,
+      cursor: params.get("cursor")
+    }), requestId)
+  } catch (caught) {
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required for sync.", 401, requestId)
+    if (caught instanceof Error && /cursor|namespace|limit|invalid/i.test(caught.message)) return apiErrorResponse("INVALID_SYNC_REQUEST", "The sync page request is invalid.", 400, requestId)
+    return apiErrorResponse("SYNC_UNAVAILABLE", "Encrypted sync is temporarily unavailable.", 503, requestId)
   }
 }
 

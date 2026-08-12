@@ -4,6 +4,7 @@ export interface SyncEnvelopeV1 {
   collection: string
   objectId: string
   revision: string
+  updatedAt: string
   nonce: string
   ciphertext: string
   tombstone?: boolean
@@ -14,6 +15,7 @@ export interface SyncObjectMetadata {
   collection: string
   objectId: string
   revision: string
+  updatedAt: string
   tombstone?: boolean
 }
 
@@ -47,12 +49,22 @@ function metadataBytes(metadata: SyncObjectMetadata): Uint8Array {
     collection: metadata.collection,
     objectId: metadata.objectId,
     revision: metadata.revision,
+    updatedAt: metadata.updatedAt,
     tombstone: metadata.tombstone === true
   }))
 }
 
 function validateIdentifier(value: string, field: string): void {
   if (!/^[A-Za-z0-9._:-]{1,160}$/.test(value)) throw new Error(`${field} is invalid`)
+}
+
+export function validateSyncNamespaceId(value: string): void {
+  validateIdentifier(value, "namespaceId")
+  if (!value.startsWith("ns-")) throw new Error("namespaceId is invalid")
+}
+
+function validateUpdatedAt(value: string): void {
+  if (new Date(value).toISOString() !== value) throw new Error("updatedAt is invalid")
 }
 
 async function objectKey(root: Uint8Array, metadata: SyncObjectMetadata): Promise<CryptoKey> {
@@ -92,6 +104,9 @@ export function parseSyncEnvelope(input: unknown): SyncEnvelopeV1 {
     if (typeof item !== "string") throw new Error(`Sync ${field} is invalid`)
     validateIdentifier(item, field)
   }
+  validateSyncNamespaceId(identifiers.namespaceId as string)
+  if (typeof value.updatedAt !== "string") throw new Error("Sync updatedAt is invalid")
+  validateUpdatedAt(value.updatedAt)
   if (typeof value.nonce !== "string" || typeof value.ciphertext !== "string") throw new Error("Sync ciphertext is invalid")
   const nonce = base64ToBytes(value.nonce)
   const ciphertext = base64ToBytes(value.ciphertext)
@@ -105,6 +120,7 @@ export function parseSyncEnvelope(input: unknown): SyncEnvelopeV1 {
     collection: identifiers.collection as string,
     objectId: identifiers.objectId as string,
     revision: identifiers.revision as string,
+    updatedAt: value.updatedAt,
     nonce: value.nonce,
     ciphertext: value.ciphertext,
     ...(value.tombstone === true ? { tombstone: true } : {})
@@ -119,6 +135,8 @@ export async function encryptSyncObject(
   for (const [field, value] of Object.entries(metadata)) {
     if (field !== "tombstone") validateIdentifier(value as string, field)
   }
+  validateSyncNamespaceId(metadata.namespaceId)
+  validateUpdatedAt(metadata.updatedAt)
   if (plaintext.byteLength > MAX_SYNC_BYTES) throw new Error("Sync object is too large")
   const normalized: SyncObjectMetadata = { ...metadata, tombstone: metadata.tombstone === true }
   const nonce = new Uint8Array(NONCE_BYTES)

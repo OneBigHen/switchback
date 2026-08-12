@@ -13,7 +13,7 @@ describe("encrypted sync", () => {
   it("encrypts metadata as authenticated AAD and rejects tampering", async () => {
     vi.stubGlobal("crypto", webcrypto)
     const root = createSyncRoot()
-    const metadata = { namespaceId: "ns-1", collection: "settings", objectId: "map", revision: "2" }
+    const metadata = { namespaceId: "ns-1", collection: "settings", objectId: "map", revision: "2", updatedAt: "2026-08-12T10:00:00.000Z" }
     const envelope = await encryptJsonSyncObject(root, metadata, { theme: "night" })
     await expect(decryptJsonSyncObject(root, envelope)).resolves.toEqual({ theme: "night" })
     const tampered = { ...envelope, revision: "3" as const }
