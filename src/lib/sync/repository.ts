@@ -69,6 +69,7 @@ export class SyncRepository {
         primary key(namespace_id, collection, object_id, revision)
       );
       create index if not exists sync_object_lookup_idx on sync_object(namespace_id, collection, object_id, updated_at);
+      create index if not exists sync_object_cursor_idx on sync_object(namespace_id, updated_at, collection, object_id, revision);
     `)
   }
 
@@ -98,7 +99,9 @@ export class SyncRepository {
   list(identityId: string, namespaceId: string, options: SyncListOptions = {}): SyncListResult {
     const owner = this.database.prepare("select owner_identity_id from sync_namespace where id = ?").get(namespaceId) as { owner_identity_id: string } | undefined
     if (!owner || owner.owner_identity_id !== identityId) throw new Error("Sync namespace is not owned by this identity")
-    const limit = Math.max(1, Math.min(Math.floor(options.limit ?? 50), MAX_PAGE_SIZE))
+    const requestedLimit = options.limit ?? 50
+    if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > MAX_PAGE_SIZE) throw new Error("Sync page limit is invalid")
+    const limit = requestedLimit
     const cursor = decodeCursor(options.cursor)
     const clauses = ["namespace_id = ?"]
     const parameters: Array<string | number | Uint8Array> = [namespaceId]
