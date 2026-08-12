@@ -25,8 +25,7 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
       "font-src 'self' data:",
       "connect-src 'self' https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com",
       "worker-src 'self' blob:",
-      "media-src 'self' blob:",
-      "upgrade-insecure-requests"
+      "media-src 'self' blob:"
     ].join("; ")
   }
 ]
