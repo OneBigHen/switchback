@@ -25,10 +25,32 @@ describe("sync client recovery", () => {
     expect(parsed.namespaceId).toBe(original.namespaceId)
     expect(Array.from(parsed.root)).toEqual(Array.from(original.root))
 
+    // ProfilePanel may have initialized an empty local root before the user imports.
+    await second.ensureState()
     await second.importRecoveryKit(kit.seed)
     const restored = await second.getState()
     expect(restored).toMatchObject({ namespaceId: original.namespaceId, linked: false })
     expect(Array.from(restored?.root ?? [])).toEqual(Array.from(original.root))
+  })
+
+  it("does not replace a different root after local sync state exists", async () => {
+    const first = new SyncClientStore(`switchback-sync-test-${crypto.randomUUID()}`)
+    const second = new SyncClientStore(`switchback-sync-test-${crypto.randomUUID()}`)
+    stores.push(first, second)
+
+    const kit = await createRecoveryKit(await first.ensureState())
+    await second.ensureState()
+    await second.putObject({
+      id: "routes:local-route",
+      collection: "routes",
+      objectId: "local-route",
+      revision: "rev-local",
+      updatedAt: "2026-08-12T10:00:00.000Z",
+      fingerprint: "local",
+      tombstone: false
+    })
+
+    await expect(second.importRecoveryKit(kit.seed)).rejects.toThrow(/different sync root/i)
   })
 
   it("rejects a damaged human-entered seed before changing local state", async () => {

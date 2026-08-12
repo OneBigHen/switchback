@@ -108,7 +108,16 @@ export class SyncClientStore {
   async importRecoveryKit(seed: string): Promise<SyncStateRecord> {
     const parsed = await parseRecoveryKit(seed)
     const current = await this.getState()
-    if (current && current.namespaceId !== parsed.namespaceId) throw new Error("A different sync root is already installed on this device.")
+    if (current && current.namespaceId !== parsed.namespaceId) {
+      const [objectCount, outboxCount, inboxCount] = await Promise.all([
+        this.database.objects.count(),
+        this.database.outbox.count(),
+        this.database.inbox.count()
+      ])
+      if (current.linked || objectCount > 0 || outboxCount > 0 || inboxCount > 0) {
+        throw new Error("A different sync root is already installed on this device.")
+      }
+    }
     const state: SyncStateRecord = {
       id: "state",
       namespaceId: parsed.namespaceId,
