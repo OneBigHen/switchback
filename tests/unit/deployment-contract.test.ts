@@ -31,6 +31,7 @@ describe("self-host deployment contract", () => {
     expect(env).toContain("SWITCHBACK_WEBAUTHN_RP_ID=")
     expect(env).toContain("SWITCHBACK_WEBAUTHN_ORIGIN=")
     expect(env).toContain("SWITCHBACK_WEBAUTHN_RP_NAME=")
+    expect(env).toContain("SWITCHBACK_COMMUNITY_OPERATOR_IDS=")
     expect(caddy).toContain("@https protocol https")
     expect(caddy).toContain("header @https")
     expect(lanCaddy).toContain("@https protocol https")

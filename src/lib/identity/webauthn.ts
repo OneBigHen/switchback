@@ -9,6 +9,7 @@ import {
   type RegistrationResponseJSON,
   type WebAuthnCredential
 } from "@simplewebauthn/server"
+import { Buffer } from "node:buffer"
 
 export class WebAuthnConfigError extends Error {
   constructor(message: string) {
@@ -66,9 +67,15 @@ export interface WebAuthnVerifier {
 }
 
 export function getWebAuthnVerifier(): WebAuthnVerifier {
+  const decodeChallenge = (challenge: string): Uint8Array<ArrayBuffer> => {
+    const decoded = Buffer.from(challenge, "base64url")
+    const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(decoded.byteLength))
+    bytes.set(decoded)
+    return bytes
+  }
   return {
-    generateRegistrationOptions: (input) => simpleGenerateRegistrationOptions(input),
-    generateAuthenticationOptions: (input) => simpleGenerateAuthenticationOptions(input),
+    generateRegistrationOptions: (input) => simpleGenerateRegistrationOptions({ ...input, challenge: decodeChallenge(input.challenge) }),
+    generateAuthenticationOptions: (input) => simpleGenerateAuthenticationOptions({ ...input, challenge: decodeChallenge(input.challenge) }),
     verifyRegistrationResponse: async (input) => {
       const result = await simpleVerifyRegistrationResponse(input)
       return result.verified

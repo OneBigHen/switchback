@@ -1,8 +1,18 @@
 .community-page {
   min-height: 100dvh;
   padding: 32px max(20px, 5vw) 64px;
-  background: var(--sb-canvas);
-  color: var(--sb-text);
+  overflow-y: auto;
+  background: var(--sb-canvas, var(--oled));
+  color: var(--sb-text, var(--instrument));
+}
+
+body:has(.community-page) {
+  overflow: auto;
+}
+
+.community-page :where(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid var(--sb-action, var(--signal));
+  outline-offset: 3px;
 }
 
 .community-page-header,
@@ -29,12 +39,12 @@
 .community-route-card p,
 .community-report p {
   margin: 0;
-  color: var(--sb-text-muted);
+  color: var(--sb-text-muted, var(--metal));
   line-height: 1.5;
 }
 
 .community-eyebrow {
-  color: var(--sb-action) !important;
+  color: var(--sb-action, var(--signal)) !important;
   font-size: 11px;
   font-weight: 750;
   letter-spacing: .08em;
@@ -44,7 +54,7 @@
 .community-back-link,
 .community-route-actions a,
 .community-route-card a {
-  color: var(--sb-action);
+  color: var(--sb-action, var(--signal));
   font-weight: 700;
   text-decoration: none;
 }
@@ -61,10 +71,10 @@
   grid-template-columns: 1fr auto;
   gap: 18px;
   padding: 20px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-card);
-  background: var(--sb-surface);
-  box-shadow: var(--sb-shadow);
+  border: 1px solid var(--sb-border, var(--line));
+  border-radius: var(--sb-radius-card, 20px);
+  background: var(--sb-surface, var(--machined));
+  box-shadow: var(--sb-shadow, 0 8px 28px rgb(16 37 61 / 12%));
 }
 
 .community-route-card h2 {
@@ -79,7 +89,7 @@
   gap: 4px 12px;
   align-content: start;
   margin: 0;
-  color: var(--sb-text-muted);
+  color: var(--sb-text-muted, var(--metal));
   font-size: 12px;
 }
 
@@ -91,35 +101,35 @@
 .community-route-card dd,
 .community-route-facts dd {
   margin: 0;
-  color: var(--sb-text);
+  color: var(--sb-text, var(--instrument));
 }
 
 .community-preview-map {
   display: grid;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-card);
-  background: var(--sb-surface-raised);
-  color: var(--sb-action);
+  border: 1px solid var(--sb-border, var(--line));
+  border-radius: var(--sb-radius-card, 20px);
+  background: var(--sb-surface-raised, var(--raised));
+  color: var(--sb-action, var(--signal));
 }
 
 .community-preview-map svg {
   display: block;
   width: 100%;
   min-height: 180px;
-  color: var(--sb-action);
+  color: var(--sb-action, var(--signal));
 }
 
 .community-preview-map small {
-  color: var(--sb-text-muted);
+  color: var(--sb-text-muted, var(--metal));
   font-size: 11px;
 }
 
 .community-route-facts {
   margin-top: 16px;
   padding: 16px 0;
-  border-block: 1px solid var(--sb-border);
+  border-block: 1px solid var(--sb-border, var(--line));
 }
 
 .community-route-actions {
@@ -134,9 +144,9 @@
 .community-report button {
   min-height: 44px;
   padding: 11px 14px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-control);
-  background: var(--sb-surface);
+  border: 1px solid var(--sb-border, var(--line));
+  border-radius: var(--sb-radius-control, 12px);
+  background: var(--sb-surface, var(--machined));
 }
 
 .community-report {
@@ -144,7 +154,7 @@
   gap: 10px;
   margin-top: 32px;
   padding-top: 20px;
-  border-top: 1px solid var(--sb-border);
+  border-top: 1px solid var(--sb-border, var(--line));
 }
 
 .community-report h2 {
@@ -161,23 +171,23 @@
 .community-report textarea {
   min-height: 96px;
   padding: 10px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-control);
-  background: var(--sb-surface);
-  color: var(--sb-text);
+  border: 1px solid var(--sb-border, var(--line));
+  border-radius: var(--sb-radius-control, 12px);
+  background: var(--sb-surface, var(--machined));
+  color: var(--sb-text, var(--instrument));
   resize: vertical;
 }
 
 .community-report button {
   justify-self: start;
-  color: var(--sb-action);
+  color: var(--sb-action, var(--signal));
   font-weight: 750;
 }
 
 .community-empty {
   width: min(760px, 100%);
   margin: 0 auto;
-  color: var(--sb-text-muted);
+  color: var(--sb-text-muted, var(--metal));
 }
 
 @media (max-width: 560px) {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { getWebAuthnConfig, WebAuthnConfigError } from "@/lib/identity/webauthn"
+import { getWebAuthnConfig, getWebAuthnVerifier, WebAuthnConfigError } from "@/lib/identity/webauthn"
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -47,5 +47,18 @@ describe("WebAuthn configuration", () => {
     vi.stubEnv("SWITCHBACK_WEBAUTHN_ORIGIN", "https://rides.example.com")
 
     expect(() => getWebAuthnConfig()).toThrow(WebAuthnConfigError)
+  })
+
+  it("preserves the stored base64url challenge for browser ceremonies", async () => {
+    const challenge = Buffer.from("challenge-bytes").toString("base64url")
+    const verifier = getWebAuthnVerifier()
+
+    await expect(verifier.generateRegistrationOptions({
+      rpName: "Switchback",
+      rpID: "localhost",
+      userName: "rider-test",
+      challenge
+    })).resolves.toMatchObject({ challenge })
+    await expect(verifier.generateAuthenticationOptions({ rpID: "localhost", challenge })).resolves.toMatchObject({ challenge })
   })
 })

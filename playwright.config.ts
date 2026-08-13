@@ -3,7 +3,8 @@ import { defineConfig, devices } from "@playwright/test"
 const externalBaseUrl = process.env.SWITCHBACK_E2E_URL
 const testMode = process.env.SWITCHBACK_E2E_MODE ?? "existing"
 const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111" : "3110")
-const localBaseUrl = `http://127.0.0.1:${testPort}`
+const localBaseUrl = `http://localhost:${testPort}`
+const localSessionSecret = "switchback-playwright-local-session-secret"
 const qualitySuites = /\/(critical|real-router|pwa)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const criticalMatch = /\/critical\/.*\.spec\.ts$/
@@ -84,9 +85,9 @@ export default defineConfig({
     }
   ],
   webServer: externalBaseUrl ? undefined : {
-    command: testMode === "pwa"
+    command: `SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
       ? `npx next start --hostname 127.0.0.1 --port ${testPort}`
-      : `npx next dev --hostname 127.0.0.1 --port ${testPort}`,
+      : `npx next dev --hostname 127.0.0.1 --port ${testPort}`}`,
     url: localBaseUrl,
     // A dedicated port plus no reuse prevents a stale production process from
     // turning an HTTP WebKit run into an HTTPS asset-loading failure.
