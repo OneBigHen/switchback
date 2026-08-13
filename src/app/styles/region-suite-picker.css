@@ -112,7 +112,7 @@
   align-items: center;
   gap: 8px;
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 680;
 }
@@ -123,7 +123,7 @@
   border-radius: 999px;
   background: rgb(128 185 154 / 12%);
   color: var(--success);
-  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-size: 8px;
   font-weight: 750;
   letter-spacing: 0.1em;
@@ -145,7 +145,7 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--metal);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;

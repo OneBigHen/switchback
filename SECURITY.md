@@ -34,7 +34,7 @@ Out of scope:
   belong in the repo — see below).
 - The browser's geolocation / device permissions model.
 - Third-party services the app calls (OpenFreeMap, Photon, NWS, Overpass,
-  Google Places, OpenRouter, You.com, Spotify).
+  Google Places, OpenRouter, You.com).
 
 ## Security model notes
 
@@ -42,5 +42,9 @@ Out of scope:
   non-secret map style URL.
 - Every public endpoint is rate-limited per caller IP; the reverse proxy must
   strip and rewrite client-IP headers (see `infra/caddy/Caddyfile.example`).
+- Optional Switchback ID uses real WebAuthn verification with explicit
+  production origin/RP-ID configuration. Only credential id, public key, and
+  counter are stored; private keys stay with the authenticator. Cookie-backed
+  community and sync mutations require the matching CSRF header.
 - Operators should keep the Next origin and router ports firewalled behind
   their proxy and use real TLS certificates for public deployments.

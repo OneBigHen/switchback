@@ -2,8 +2,7 @@ import type { NextConfig } from "next"
 
 // Production-only security headers. Dev keeps HMR websockets and inline
 // styles working without a CSP. The CSP intentionally allows 'unsafe-inline'
-// scripts (Next.js inlines the RSC bootstrap; the Spotify SDK is loaded from
-// sdk.scdn.co); the restrictive directives (connect-src, img-src,
+// scripts (Next.js inlines the RSC bootstrap); the restrictive directives (connect-src, img-src,
 // object-src 'none', frame-ancestors 'none') still block the main
 // data-exfiltration and clickjacking vectors.
 const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
@@ -19,11 +18,11 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
       "form-action 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline' https://sdk.scdn.co",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov https://i.scdn.co",
+      "img-src 'self' data: blob: https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline https://basemap.nationalmap.gov",
       "font-src 'self' data:",
-      "connect-src 'self' https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com",
+      "connect-src 'self' https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov",
       "worker-src 'self' blob:",
       "media-src 'self' blob:"
     ].join("; ")

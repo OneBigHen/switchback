@@ -3,7 +3,7 @@
 import { Info } from "@phosphor-icons/react"
 import type { DiagnosticsSnapshot } from "@/lib/domain/diagnostics"
 import { offlineLevelLabel } from "@/lib/offline/readiness"
-import { providerLabel, summarizeStorage } from "@/lib/domain/diagnostics"
+import { formatBytes, providerLabel, summarizeStorage } from "@/lib/domain/diagnostics"
 
 interface DiagnosticsPanelProps {
   snapshot: DiagnosticsSnapshot
@@ -57,6 +57,30 @@ export function DiagnosticsPanel({ snapshot }: DiagnosticsPanelProps) {
         <div>
           <dt>Saved routes / trips</dt>
           <dd>{snapshot.storage.routeCount} / {snapshot.storage.tripCount}</dd>
+        </div>
+        <div>
+          <dt>Browser heap</dt>
+          <dd>{formatBytes(snapshot.runtime.jsHeapUsedBytes)} used · {formatBytes(snapshot.runtime.jsHeapLimitBytes)} limit</dd>
+        </div>
+        <div>
+          <dt>Tracked resources</dt>
+          <dd>{snapshot.runtime.timerCount} timers · {snapshot.runtime.gpsWatchCount} GPS watches · {snapshot.runtime.workerCount} workers</dd>
+        </div>
+        <div>
+          <dt>Map resources</dt>
+          <dd>{snapshot.runtime.mapSourceCount == null || snapshot.runtime.mapLayerCount == null
+            ? "not measurable"
+            : `${snapshot.runtime.mapSourceCount} sources · ${snapshot.runtime.mapLayerCount} layers`}</dd>
+        </div>
+        <div>
+          <dt>Server memory</dt>
+          <dd>{formatBytes(snapshot.server.rssBytes)} RSS · {formatBytes(snapshot.server.heapUsedBytes)} heap</dd>
+        </div>
+        <div>
+          <dt>Route queue / cache</dt>
+          <dd>{snapshot.server.routeRunningJobs == null || snapshot.server.routeQueuedJobs == null || snapshot.server.routeCacheEntries == null
+            ? "not measurable"
+            : `${snapshot.server.routeRunningJobs} running · ${snapshot.server.routeQueuedJobs} queued · ${snapshot.server.routeCacheEntries} cached`}</dd>
         </div>
       </dl>
 

@@ -74,11 +74,11 @@ case "${1:-start}" in
         echo "Candidate healthy on :8988"
         for profile in motorcycle_fastest motorcycle_twisty motorcycle_scenic motorcycle_adventure; do
           echo "-- profile $profile --"
-          curl --fail --silent \
+          response="$(curl --fail --silent \
             --request POST http://127.0.0.1:8988/route \
             --header 'content-type: application/json' \
-            --data "{\"profile\":\"$profile\",\"points\":[[-76.8867,40.2732],[-76.3055,40.0379]],\"points_encoded\":false,\"details\":[\"toll\",\"road_environment\",\"urban_density\"]}" \
-            | head -c 400
+            --data "{\"profile\":\"$profile\",\"points\":[[-76.8867,40.2732],[-76.3055,40.0379]],\"points_encoded\":false,\"details\":[\"toll\",\"road_environment\",\"urban_density\"]}")"
+          printf '%s\n' "${response:0:400}"
           echo
         done
         exit 0

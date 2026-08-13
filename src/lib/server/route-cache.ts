@@ -12,6 +12,7 @@ import type { TripPlan } from "@/lib/routing/planner"
 export interface RouteCache {
   get(key: string): TripPlan | undefined
   set(key: string, plan: TripPlan): void
+  size(): number
 }
 
 interface CacheEntry {
@@ -52,6 +53,10 @@ export function createRouteCache(
     set(key, plan) {
       entries.set(key, { plan, expiresAt: Date.now() + ttlMs })
       prune()
+    },
+    size() {
+      prune()
+      return entries.size
     }
   }
 }

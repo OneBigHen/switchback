@@ -35,6 +35,13 @@ async function jsonRequest(path, init) {
   return payload
 }
 
+function sampleGeometry(geometry, limit = 128) {
+  if (geometry.length <= limit) return geometry
+  return Array.from({ length: limit }, (_, index) =>
+    geometry[Math.round(index * (geometry.length - 1) / (limit - 1))]
+  )
+}
+
 async function graphHopperRequest(body) {
   const response = await fetch(`${routerUrl}/route`, {
     method: "POST",
@@ -75,12 +82,12 @@ if (!Number.isFinite(freeformDestination?.lat) || !Number.isFinite(freeformDesti
   throw new Error("Free-form destination search did not return a routable place")
 }
 
-const freeformPlan = await jsonRequest("/api/routes", {
+const freeformPrimaryPlan = await jsonRequest("/api/routes", {
   method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify({
     profile: rideIntent.profile,
-    compare: true,
+    compare: false,
     avoidHighways: rideIntent.avoidHighways,
     points: [points[0], {
       lat: freeformDestination.lat,
@@ -89,7 +96,33 @@ const freeformPlan = await jsonRequest("/api/routes", {
     }]
   })
 })
-const freeformRoutes = freeformPlan?.routes ?? []
+const freeformPrimary = freeformPrimaryPlan?.routes?.[0]
+if (!freeformPrimary?.id || !Array.isArray(freeformPrimary.geometry) || freeformPrimary.geometry.length < 2) {
+  throw new Error("Free-form destination routing did not return a live primary route")
+}
+
+// The production API is progressive: the primary route returns first, then
+// the client sends its bounded geometry sample to the alternatives endpoint.
+const freeformAlternativesPlan = await jsonRequest("/api/routes", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    profile: rideIntent.profile,
+    compare: false,
+    candidateSet: "alternatives",
+    avoidHighways: rideIntent.avoidHighways,
+    points: [points[0], {
+      lat: freeformDestination.lat,
+      lon: freeformDestination.lon,
+      label: freeformDestination.label
+    }],
+    primaryRoute: {
+      id: freeformPrimary.id,
+      geometry: sampleGeometry(freeformPrimary.geometry)
+    }
+  })
+})
+const freeformRoutes = [freeformPrimary, ...(freeformAlternativesPlan?.routes ?? [])]
 const freeformShapes = new Set(freeformRoutes.map((route) =>
   createHash("sha256").update(JSON.stringify(route.geometry)).digest("hex")
 ))
@@ -138,8 +171,12 @@ for (const profile of profiles) {
   })
 }
 
-if (new Set(results.map((result) => result.shape)).size !== profiles.length) {
-  throw new Error("Motorcycle profiles did not produce eight distinct route shapes")
+// Rider-visible profiles include deliberate policy aliases: Gravel shares the
+// Adventure engine, Neural shares Twisty, and the fastest policies may share a
+// legal road choice. Prove the four GraphHopper base models, not eight IDs.
+const distinctProfileShapes = new Set(results.map((result) => result.shape)).size
+if (distinctProfileShapes < 4) {
+  throw new Error(`Motorcycle base profiles produced only ${distinctProfileShapes} distinct route shapes`)
 }
 
 // OSM way 969576184 is an 82.33 m service road explicitly tagged

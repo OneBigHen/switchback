@@ -1,12 +1,23 @@
 export type AppTab = "plan" | "library" | "record" | "profile"
 
+export type AppMode = "explore" | "plan" | "ride" | "library"
+
+export function appModeForState(input: {
+  surface: "planner" | "library" | "ride" | "free-ride"
+  activeTab: AppTab
+  hasPlan: boolean
+}): AppMode {
+  if (input.surface === "ride" || input.surface === "free-ride") return "ride"
+  if (input.surface === "library" || input.activeTab === "library") return "library"
+  return input.activeTab === "plan" && input.hasPlan ? "plan" : "explore"
+}
+
 export type AppOverlay =
   | "route-details"
   | "weather"
   | "trip-stages"
   | "downloads"
   | "waypoint-search"
-  | "spotify"
   | "road-locks"
   | "recovery"
 

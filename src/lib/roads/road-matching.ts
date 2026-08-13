@@ -16,6 +16,7 @@ export interface RoadMatchAccessEvidence {
 
 export interface RoadMatchResult {
   displayName: string | null
+  /** Ephemeral provider matching data; never persisted as canonical segment identity. */
   edgeIds: string[]
   geometry: Coordinate[]
   entry: Coordinate

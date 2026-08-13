@@ -19,7 +19,7 @@ describe("routing fixtures — golden intent contract", () => {
     expect(parseRidePromptLocally(GOLDEN_PROMPT)).toMatchObject(GOLDEN_INTENT_CONTRACT)
   })
 
-  it("records future quality expectations as metadata only, not assertions", () => {
+  it("keeps the locked golden intent metadata stable", () => {
     expect(GOLDEN_EVALUATOR.targetBandMinutes).toEqual([108, 132])
     expect(GOLDEN_EVALUATOR.corridorFamily).toBe("upper-bucks-delaware")
   })

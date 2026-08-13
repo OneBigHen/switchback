@@ -169,7 +169,7 @@
 .route-slip-name strong,
 .planner-expand strong {
   color: var(--instrument);
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-family: var(--font-display);
 }
 
 .planner-action-dock {
@@ -191,7 +191,7 @@
   border-radius: 14px;
   background: color-mix(in srgb, var(--signal) 9%, var(--machined));
   color: var(--signal);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
 }
@@ -217,6 +217,15 @@
   left: 50%;
   width: min(430px, calc(100vw - 48px));
   transform: translateX(-50%);
+}
+
+.free-ride-controls.has-home {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.free-ride-controls .free-ride-home {
+  border-color: rgb(109 165 222 / 65%);
+  color: #b9d8f5;
 }
 
 @media (max-height: 520px) and (min-width: 761px) {
@@ -286,11 +295,15 @@
     width: auto;
     transform: none;
   }
+
+  .free-ride-controls.has-home {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
   /* This late visual layer wins over the generic ride HUD telemetry rail;
-     Free Ride has its own three-button control row and must leave a clear
+     Free Ride has its own control row and must leave a clear
      gap between the suggestion, telemetry, and controls. */
   .free-ride-telemetry {
     right: 8px;
@@ -309,6 +322,10 @@
     width: auto;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     transform: none;
+  }
+
+  .free-ride-controls.has-home {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .free-ride-controls .recording-finish {
@@ -363,7 +380,7 @@
 }
 
 .maplibregl-map {
-  font-family: "Inter Variable", Inter, sans-serif;
+  font-family: var(--font-body);
 }
 
 .maplibregl-ctrl-group,
@@ -589,6 +606,18 @@
 .profile-actions .primary-action { border-color: var(--signal); background: var(--signal); color: #fff; }
 .profile-actions .danger-action { color: var(--danger); }
 .profile-notice { color: var(--success); }
+.profile-identity {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--machined);
+}
+.profile-identity h3 { margin: 0; font-size: 18px; }
+.profile-identity p { margin: 0; color: var(--metal); font-size: 13px; line-height: 1.45; }
+.profile-identity button:disabled { cursor: progress; opacity: .62; }
 
 .app-overlay-scrim {
   position: absolute;

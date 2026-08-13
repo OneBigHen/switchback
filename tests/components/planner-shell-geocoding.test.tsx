@@ -528,11 +528,8 @@ describe("free-form planner place resolution", () => {
         interval: [0, 1]
       }]
     }
-    usePlannerStore.setState({
-      ...plannerTestState,
-      plan: { selectedRouteId: imported.id, routes: [imported], warnings: [] },
-      selectedRouteId: imported.id
-    })
+    usePlannerStore.setState({ ...plannerTestState, selectedRouteId: imported.id })
+    usePlannerStore.getState().applyPlan({ selectedRouteId: imported.id, routes: [imported], warnings: [] })
     vi.mocked(requestTripPlan).mockResolvedValue({
       selectedRouteId: matched.id,
       routes: [matched],

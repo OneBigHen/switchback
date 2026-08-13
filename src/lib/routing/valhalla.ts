@@ -2,7 +2,7 @@ import type { Coordinate, PlannedRoute, RouteProfileId, RouteInstruction, RouteR
 import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { getProfile } from "./profiles"
 import { analyzeGeometry } from "./scoring"
-import { scorePlannedRoute } from "@/lib/recommendation/route-candidate"
+import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 
 export interface ValhallaOptions {
   baseUrl: string
@@ -520,14 +520,21 @@ function normalizeTrip(
     surfaceMix: {},
     routingSource: "live",
     previewOnly: false,
+    candidateSource: request.points.length === 2
+      ? index === 0 ? "direct" : "native"
+      : undefined,
     loopTargetMinutes: request.loopTargetMinutes,
     avoidHighways: request.avoidHighways,
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: request.segmentProfiles ? [...request.segmentProfiles] : undefined
   }
+  normalized.featureProvenance = featureProvenanceForPlannedRoute(normalized)
   return {
     ...normalized,
-    routeScore: scorePlannedRoute(normalized, { profile: request.profile })
+    routeScore: scorePlannedRoute(normalized, {
+      profile: request.profile,
+      bikeProfile: request.bikeProfile
+    })
   }
 }
 

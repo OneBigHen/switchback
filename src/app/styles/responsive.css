@@ -288,7 +288,7 @@
 .planner-action-dock .clear-route-button {
   min-height: 58px;
   border-radius: 14px;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
 }
 
@@ -385,7 +385,7 @@
 .offline-pack-button {
   min-height: 58px;
   border-radius: 14px;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 720;
 }
@@ -477,7 +477,7 @@
 .planner-expand strong {
   overflow: hidden;
   color: #242321;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1059,7 +1059,7 @@
   outline: 0;
   background-color: #fff;
   color: #5d5953;
-  font: 600 11px/1.2 "DM Sans Variable", "DM Sans", sans-serif;
+  font: 600 11px/1.2 var(--font-body);
   cursor: pointer;
   transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -1292,7 +1292,7 @@
   border: 1px solid #e1dcd4;
   border-radius: 7px;
   color: #2c2a27;
-  font: 600 11px/1.2 "DM Sans Variable", "DM Sans", sans-serif;
+  font: 600 11px/1.2 var(--font-body);
 }
 
 .route-visibility-toggle {
@@ -1396,7 +1396,7 @@
   border: 1px solid #ded8cf;
   border-radius: 7px;
   color: #2c2a27;
-  font: 650 11px/1 "DM Sans Variable", "DM Sans", sans-serif;
+  font: 650 11px/1 var(--font-body);
 }
 
 .route-share-controls small {
@@ -1453,7 +1453,7 @@
   border-radius: 8px;
   background: #fff;
   color: #4d4943;
-  font: 650 10px/1.2 "DM Sans Variable", "DM Sans", sans-serif;
+  font: 650 10px/1.2 var(--font-body);
 }
 
 .ride-record-toggle {
@@ -2819,7 +2819,7 @@
 
 .route-weather h3 {
   margin: 0;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   letter-spacing: -0.02em;
 }
@@ -3072,7 +3072,7 @@
 }
 
 .weather-samples strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 610;
 }
@@ -4455,7 +4455,7 @@
   border-radius: 12px;
   background: var(--machined);
   color: var(--metal);
-  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -4491,7 +4491,7 @@
   border-radius: 9px;
   background: var(--metal);
   color: var(--oled);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
   font-weight: 720;
   letter-spacing: 0;
@@ -4555,7 +4555,7 @@
 
 .offline-pack-modal h2 {
   margin: 0;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 720;
 }
@@ -4635,7 +4635,7 @@
   border-radius: 10px;
   background: var(--signal);
   color: var(--oled);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
   cursor: pointer;
@@ -4709,7 +4709,7 @@
 
 .ride-hud-status-bike strong,
 .ride-hud-status-quality strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
   font-variant-numeric: tabular-nums;
@@ -4787,7 +4787,7 @@
 }
 
 .ride-hud-corridor-badge strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
   overflow: hidden;
@@ -4822,7 +4822,7 @@
 }
 
 .ride-hud-corridor-exit-alert strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
 }

@@ -23,7 +23,7 @@ function nearestNode(graph: OfflineGraph, point: Waypoint): number | null {
   return best && best.distance <= MAX_SNAP_METERS ? best.index : null
 }
 
-function offlineInstruction(geometry: PlannedRoute["geometry"]): RouteInstruction {
+export function offlineInstruction(geometry: PlannedRoute["geometry"]): RouteInstruction {
   return {
     distanceMeters: geometry.reduce((total, point, index) => {
       const next = geometry[index + 1]

@@ -55,8 +55,13 @@ export function usePlannerRideActions({
       onNotice({ kind: "warning", message: "Create a routed line before starting live guidance." })
       return
     }
-    if (route.instructions.length > 0) {
+    const trackOnly = route.navigationMode === "track-only" ||
+      (route.gpxIntelligence != null && route.instructions.length === 0)
+    if (route.instructions.length > 0 || trackOnly || route.navigationMode === "continuous-track") {
       activateRide(route)
+      if (trackOnly) {
+        onNotice({ kind: "success", message: "Track-only guidance ready. Road data is unavailable; the GPX line will not be silently re-routed." })
+      }
       return
     }
     onNotice({ kind: "warning", message: "Building turn-by-turn directions from this track…" })

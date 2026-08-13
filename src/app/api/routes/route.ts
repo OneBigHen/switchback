@@ -11,6 +11,7 @@ import { loadRouteGeometry } from "@/lib/gpx/route-geometry"
 import { hintsFromAdviser } from "@/lib/routing/destination-corridors"
 import { corridorCacheKey, createCorridorCache } from "@/lib/server/corridor-cache"
 import { characterForProfile } from "@/lib/client/corridor-hints-client"
+import { setRouteRuntimeProbe } from "@/lib/server/runtime-diagnostics"
 import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 import type { RouteRequest } from "@/lib/routing/types"
 import { readFile } from "node:fs/promises"
@@ -23,6 +24,11 @@ export const runtime = "nodejs"
 // bounded 10-minute primary-result cache. Health probes bypass both.
 const providerLimiter = createRouteJobLimiter(2)
 const routeCache = createRouteCache()
+setRouteRuntimeProbe(() => ({
+  routeRunningJobs: providerLimiter.runningCount(),
+  routeQueuedJobs: providerLimiter.queuedCount(),
+  routeCacheEntries: routeCache.size()
+}))
 // Request-level guard on top of the provider queue: the corridor resolver
 // and PASDA enrichment run outside the provider tokens, so a flood of
 // requests would still burn host CPU and external quota.

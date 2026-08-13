@@ -43,6 +43,7 @@ export type OfflineRouteFailureV2 =
   | { ok: false; kind: "corrupt_data"; message: string }
   | { ok: false; kind: "no_path"; message: string }
   | { ok: false; kind: "search_budget"; visitedStates: number; message: string }
+  | { ok: false; kind: "cancelled"; message: string }
 
 export interface OfflineRouteSuccessV2 {
   ok: true
@@ -65,19 +66,36 @@ interface SearchState {
   incomingEdgeId: string
   targetIndex: number
   lockMask: number
+  waypointNodeIds: string[]
 }
 
 interface QueueEntry {
   key: string
-  cost: number
+  score: SearchScore
+}
+
+interface SearchScore {
+  snapDistance: number
+  routeCost: number
 }
 
 const MAX_MUST_LOCKS = 20
+const MAX_SNAP_CANDIDATES = 16
+const SNAP_ALTERNATIVE_RADIUS_METERS = 1_000
+const MAX_SEARCH_RETRY_STATES = 500_000
+
+interface SnapCandidate {
+  distance: number
+  nodeId: string
+  edgeId: string
+}
 
 export function routeOfflineV2(
   tiles: OfflineGraphTileV2[],
-  request: OfflineRouteRequestV2
+  request: OfflineRouteRequestV2,
+  options: { isCancelled?: () => boolean } = {}
 ): OfflineRouteSuccessV2 | OfflineRouteFailureV2 {
+  if (options.isCancelled?.()) return { ok: false, kind: "cancelled", message: "Offline route was cancelled" }
   const installed = new Set(request.installedRegionIds)
   const missingRegionIds = [...new Set(request.requiredRegionIds)].filter((id) => !installed.has(id))
   if (missingRegionIds.length > 0) {
@@ -94,12 +112,10 @@ export function routeOfflineV2(
 
   const graph = mergeTiles(tiles)
   const requestedCoordinates = [request.start, ...(request.shapingPoints ?? []), request.finish]
-  const snapped = requestedCoordinates.map((coordinate) => snapToLegalEdge(graph, coordinate, request))
-  if (snapped.some((value) => value === null)) {
+  const snapCandidates = requestedCoordinates.map((coordinate) => snapToLegalEdges(graph, coordinate, request))
+  if (snapCandidates.some((candidates) => candidates.length === 0)) {
     return { ok: false, kind: "out_of_coverage", message: "A route point is outside installed road coverage" }
   }
-  const snappedWaypoints = snapped.filter((value): value is NonNullable<typeof value> => value !== null)
-  const targetNodeIds = snappedWaypoints.map((value) => value.nodeId)
 
   const mustLocks = [...new Set((request.roadLocks ?? []).filter((lock) => lock.mode === "must").map((lock) => lock.osmWayId))]
   if (mustLocks.length > MAX_MUST_LOCKS) {
@@ -110,71 +126,144 @@ export function routeOfflineV2(
   const avoidWays = new Set((request.roadLocks ?? []).filter((lock) => lock.mode === "avoid").map((lock) => lock.osmWayId))
   const preferWays = new Set((request.roadLocks ?? []).filter((lock) => lock.mode === "prefer").map((lock) => lock.osmWayId))
 
-  let initialTargetIndex = 1
-  while (initialTargetIndex < targetNodeIds.length && targetNodeIds[initialTargetIndex] === targetNodeIds[0]) {
-    initialTargetIndex += 1
-  }
-  const initial: SearchState = {
-    nodeId: targetNodeIds[0],
-    incomingEdgeId: "",
-    targetIndex: initialTargetIndex,
-    lockMask: 0
-  }
-  const initialKey = stateKey(initial)
-  const queue = new MinQueue()
-  queue.push(initialKey, 0)
-  const scores = new Map([[initialKey, 0]])
-  const states = new Map([[initialKey, initial]])
-  const previous = new Map<string, { key: string; edge: OfflineGraphEdgeV2 }>()
-  let visitedStates = 0
-  const maxVisited = request.maxVisitedStates ?? 200_000
+  const maxVisitedStates = request.maxVisitedStates ?? 200_000
+  const retryVisitedStates = Math.min(MAX_SEARCH_RETRY_STATES, Math.floor(maxVisitedStates * 2.5))
 
-  while (queue.size > 0) {
-    const currentEntry = queue.pop()!
-    if (currentEntry.cost !== scores.get(currentEntry.key)) continue
-    const current = states.get(currentEntry.key)!
-    visitedStates += 1
-    if (visitedStates > maxVisited) {
-      return {
-        ok: false,
-        kind: "search_budget",
-        visitedStates,
-        message: `Offline search exceeded ${maxVisited} states`
+  // ponytail: retry only budget exhaustion, with a bounded 500k ceiling; a
+  // permanently disconnected graph must stay a cheap no_path result.
+  const search = (candidates: SnapCandidate[][], budget = maxVisitedStates): OfflineRouteSuccessV2 | OfflineRouteFailureV2 => {
+    const queue = new MinQueue()
+    const scores = new Map<string, SearchScore>()
+    const states = new Map<string, SearchState>()
+    for (const candidate of candidates[0]!) {
+      let initialTargetIndex = 1
+      const waypointNodeIds = [candidate.nodeId]
+      while (initialTargetIndex < candidates.length &&
+        requestedCoordinates[initialTargetIndex]![0] === requestedCoordinates[initialTargetIndex - 1]![0] &&
+        requestedCoordinates[initialTargetIndex]![1] === requestedCoordinates[initialTargetIndex - 1]![1] &&
+        candidates[initialTargetIndex]!.some((value) => value.nodeId === candidate.nodeId)) {
+        waypointNodeIds.push(candidate.nodeId)
+        initialTargetIndex += 1
+      }
+      const initial: SearchState = {
+        nodeId: candidate.nodeId,
+        incomingEdgeId: "",
+        targetIndex: initialTargetIndex,
+        lockMask: 0,
+        waypointNodeIds
+      }
+      const initialKey = stateKey(initial)
+      if (scores.has(initialKey)) continue
+      const initialScore = { snapDistance: candidate.distance, routeCost: candidate.distance }
+      queue.push(initialKey, initialScore)
+      scores.set(initialKey, initialScore)
+      states.set(initialKey, initial)
+    }
+    const previous = new Map<string, { key: string; edge: OfflineGraphEdgeV2 }>()
+    let visitedStates = 0
+    const maxVisited = budget
+
+    while (queue.size > 0) {
+      if (options.isCancelled?.()) return { ok: false, kind: "cancelled", message: "Offline route was cancelled" }
+      const currentEntry = queue.pop()!
+      if (currentEntry.score !== scores.get(currentEntry.key)) continue
+      const current = states.get(currentEntry.key)!
+      visitedStates += 1
+      if (visitedStates > maxVisited) {
+        return {
+          ok: false,
+          kind: "search_budget",
+          visitedStates,
+          message: `Offline search exceeded ${maxVisited} states`
+        }
+      }
+      if (current.targetIndex >= candidates.length && current.lockMask === requiredMask) {
+        const snappedWaypoints = current.waypointNodeIds.map((nodeId, index) => {
+          const candidate = candidates[index]!.find((value) => value.nodeId === nodeId) ?? candidates[index]![0]!
+          return { coordinate: requestedCoordinates[index]!, nodeId, edgeId: candidate.edgeId }
+        })
+        return buildSuccess(currentEntry.key, previous, snappedWaypoints, visitedStates)
+      }
+
+      for (const edge of graph.outgoing.get(current.nodeId) ?? []) {
+        if (!edgeIsCompatible(edge, request) || avoidWays.has(edge.osmWayId)) continue
+        if (turnIsRestricted(graph, current, edge)) continue
+
+        let nextTargetIndex = current.targetIndex
+        const waypointNodeIds = [...current.waypointNodeIds]
+        let snapPenalty = 0
+        let matchedCandidate: SnapCandidate | undefined
+        while (nextTargetIndex < candidates.length && candidates[nextTargetIndex]!.some((value) => value.nodeId === edge.toNodeId)) {
+          matchedCandidate = candidates[nextTargetIndex]!.find((value) => value.nodeId === edge.toNodeId)!
+          snapPenalty += matchedCandidate.distance
+          waypointNodeIds.push(edge.toNodeId)
+          nextTargetIndex += 1
+        }
+        const next: SearchState = {
+          nodeId: edge.toNodeId,
+          incomingEdgeId: edge.id,
+          targetIndex: nextTargetIndex,
+          lockMask: current.lockMask | (mustBit.get(edge.osmWayId) ?? 0),
+          waypointNodeIds
+        }
+        const key = stateKey(next)
+        const weight = offlineProfileWeight(edge, request.profile)
+        const highwayPenalty = (request.avoidHighways || request.profile === "avoid-highways") &&
+          (edge.roadClass === "motorway" || edge.roadClass === "trunk") ? 8 : 1
+        const preference = preferWays.has(edge.osmWayId) ? 0.7 : 1
+        const nextScore = {
+          snapDistance: currentEntry.score.snapDistance + snapPenalty,
+          routeCost: currentEntry.score.routeCost + weight * highwayPenalty * preference + snapPenalty
+        }
+        if (matchedCandidate && nextTargetIndex === current.targetIndex + 1 &&
+          matchedCandidate.nodeId !== candidates[current.targetIndex]![0]!.nodeId) {
+          const passThrough: SearchState = {
+            ...next,
+            targetIndex: current.targetIndex,
+            waypointNodeIds: [...current.waypointNodeIds]
+          }
+          const passThroughKey = stateKey(passThrough)
+          const passThroughScore = {
+            snapDistance: currentEntry.score.snapDistance,
+            routeCost: currentEntry.score.routeCost + weight * highwayPenalty * preference
+          }
+          const previousPassThroughScore = scores.get(passThroughKey)
+          if (!previousPassThroughScore || compareSearchScores(passThroughScore, previousPassThroughScore) < 0) {
+            scores.set(passThroughKey, passThroughScore)
+            states.set(passThroughKey, passThrough)
+            previous.set(passThroughKey, { key: currentEntry.key, edge })
+            queue.push(passThroughKey, passThroughScore)
+          }
+        }
+        const previousScore = scores.get(key)
+        if (previousScore && compareSearchScores(nextScore, previousScore) >= 0) continue
+        scores.set(key, nextScore)
+        states.set(key, next)
+        previous.set(key, { key: currentEntry.key, edge })
+        queue.push(key, nextScore)
       }
     }
-    if (current.targetIndex >= targetNodeIds.length && current.lockMask === requiredMask) {
-      return buildSuccess(currentEntry.key, previous, snappedWaypoints, visitedStates)
-    }
 
-    for (const edge of graph.outgoing.get(current.nodeId) ?? []) {
-      if (!edgeIsCompatible(edge, request) || avoidWays.has(edge.osmWayId)) continue
-      if (turnIsRestricted(graph, current, edge)) continue
-
-      let nextTargetIndex = current.targetIndex
-      while (nextTargetIndex < targetNodeIds.length && edge.toNodeId === targetNodeIds[nextTargetIndex]) {
-        nextTargetIndex += 1
-      }
-      const next: SearchState = {
-        nodeId: edge.toNodeId,
-        incomingEdgeId: edge.id,
-        targetIndex: nextTargetIndex,
-        lockMask: current.lockMask | (mustBit.get(edge.osmWayId) ?? 0)
-      }
-      const key = stateKey(next)
-      const weight = offlineProfileWeight(edge, request.profile)
-      const highwayPenalty = (request.avoidHighways || request.profile === "avoid-highways") &&
-        (edge.roadClass === "motorway" || edge.roadClass === "trunk") ? 8 : 1
-      const preference = preferWays.has(edge.osmWayId) ? 0.7 : 1
-      const tentative = currentEntry.cost + weight * highwayPenalty * preference
-      if (tentative >= (scores.get(key) ?? Number.POSITIVE_INFINITY)) continue
-      scores.set(key, tentative)
-      states.set(key, next)
-      previous.set(key, { key: currentEntry.key, edge })
-      queue.push(key, tentative)
-    }
+    return { ok: false, kind: "no_path", message: "No legal offline road path connects these points" }
   }
 
-  return { ok: false, kind: "no_path", message: "No legal offline road path connects these points" }
+  const primaryCandidates = snapCandidates.map((candidates) => candidates.slice(0, 1))
+  const primaryResult = search(primaryCandidates)
+  if (primaryResult.ok) return primaryResult
+  if (primaryResult.kind === "cancelled" || primaryResult.kind === "out_of_coverage" || primaryResult.kind === "missing_region" || primaryResult.kind === "corrupt_data") {
+    return primaryResult
+  }
+  if (snapCandidates.every((candidates) => candidates.length === 1)) {
+    return primaryResult.kind === "search_budget" && retryVisitedStates > maxVisitedStates
+      ? search(primaryCandidates, retryVisitedStates)
+      : primaryResult
+  }
+
+  const expandedResult = search(snapCandidates)
+  if (expandedResult.ok) return expandedResult
+  return expandedResult.kind === "search_budget" && retryVisitedStates > maxVisitedStates
+    ? search(snapCandidates, retryVisitedStates)
+    : expandedResult
 }
 
 /**
@@ -183,10 +272,11 @@ export function routeOfflineV2(
  * regions remain usable while the product surface gains first-class profiles.
  */
 export function offlineProfileWeight(
-  edge: Pick<OfflineGraphEdgeV2, "profileWeights" | "surface">,
+  edge: Pick<OfflineGraphEdgeV2, "profileWeights" | "surface" | "roadClass">,
   profile: OfflineRouteProfile
 ): number {
   const weights = edge.profileWeights
+  const adventureMajorRoadPenalty = edge.roadClass === "motorway" || edge.roadClass === "trunk" ? 8 : 1
   switch (profile) {
     case "quick":
       return weights.quick
@@ -197,11 +287,11 @@ export function offlineProfileWeight(
     case "scenic":
       return weights.scenic
     case "adventure":
-      return weights.adventure
+      return weights.adventure * adventureMajorRoadPenalty
     case "gravel":
-      return ["gravel", "dirt", "unpaved", "ground"].includes(edge.surface)
+      return (["gravel", "dirt", "unpaved", "ground"].includes(edge.surface)
         ? weights.adventure * 0.82
-        : weights.adventure * 1.12
+        : weights.adventure * 1.12) * adventureMajorRoadPenalty
     case "avoid-highways":
       return weights.quick
     case "neural":
@@ -237,8 +327,10 @@ function mergeTiles(tiles: OfflineGraphTileV2[]): MergedGraph {
 function edgeIsCompatible(edge: OfflineGraphEdgeV2, request: OfflineRouteRequestV2): boolean {
   if (edge.access === "forbidden" || edge.motorcycleAccess === "forbidden") return false
   if (request.bikeCompatibility === "street") {
-    if (["track", "path"].includes(edge.roadClass)) return false
+    if (edge.roadClass === "path") return false
     if (["gravel", "dirt", "unpaved", "ground"].includes(edge.surface)) return false
+    if (edge.trackType) return false
+    if (["bad", "very_bad", "horrible"].includes(edge.smoothness ?? "")) return false
   }
   return true
 }
@@ -253,29 +345,41 @@ function turnIsRestricted(graph: MergedGraph, current: SearchState, outgoing: Of
   return onlyTurns.length > 0 && !onlyTurns.some((restriction) => restriction.outgoingEdgeId === outgoing.id)
 }
 
-function snapToLegalEdge(
+function snapToLegalEdges(
   graph: MergedGraph,
   coordinate: Coordinate,
   request: OfflineRouteRequestV2
-): { coordinate: Coordinate; nodeId: string; edgeId: string } | null {
-  let best: { distance: number; nodeId: string; edgeId: string } | null = null
+): SnapCandidate[] {
+  const bestByNode = new Map<string, SnapCandidate>()
   for (const edge of graph.edges.values()) {
     if (!edgeIsCompatible(edge, request)) continue
     for (let index = 0; index < edge.geometry.length - 1; index += 1) {
       const distance = pointSegmentDistanceMeters(coordinate, edge.geometry[index], edge.geometry[index + 1])
-      if (best && distance >= best.distance) continue
       const from = graph.nodes.get(edge.fromNodeId)?.coordinate
       const to = graph.nodes.get(edge.toNodeId)?.coordinate
       if (!from || !to) continue
-      best = {
+      const nodeId = haversineMeters(coordinate, from) <= haversineMeters(coordinate, to) ? edge.fromNodeId : edge.toNodeId
+      const candidate = {
         distance,
-        nodeId: haversineMeters(coordinate, from) <= haversineMeters(coordinate, to) ? edge.fromNodeId : edge.toNodeId,
+        nodeId,
         edgeId: edge.id
       }
+      const previous = bestByNode.get(nodeId)
+      if (!previous || candidate.distance < previous.distance) bestByNode.set(nodeId, candidate)
     }
   }
-  if (!best || best.distance > (request.maxSnapMeters ?? 5_000)) return null
-  return { coordinate, nodeId: best.nodeId, edgeId: best.edgeId }
+  const nearestDistance = [...bestByNode.values()].reduce(
+    (minimum, candidate) => Math.min(minimum, candidate.distance),
+    Number.POSITIVE_INFINITY
+  )
+  const maxSnapDistance = Math.min(
+    request.maxSnapMeters ?? 5_000,
+    nearestDistance + SNAP_ALTERNATIVE_RADIUS_METERS
+  )
+  return [...bestByNode.values()]
+    .filter((candidate) => candidate.distance <= maxSnapDistance)
+    .sort((left, right) => left.distance - right.distance)
+    .slice(0, MAX_SNAP_CANDIDATES)
 }
 
 function pointSegmentDistanceMeters(point: Coordinate, start: Coordinate, finish: Coordinate): number {
@@ -294,6 +398,11 @@ function pointSegmentDistanceMeters(point: Coordinate, start: Coordinate, finish
 
 function stateKey(state: SearchState): string {
   return `${state.nodeId}|${state.incomingEdgeId}|${state.targetIndex}|${state.lockMask}`
+}
+
+function compareSearchScores(left: SearchScore, right: SearchScore): number {
+  if (left.snapDistance !== right.snapDistance) return left.snapDistance - right.snapDistance
+  return left.routeCost - right.routeCost
 }
 
 function buildSuccess(
@@ -347,16 +456,16 @@ class MinQueue {
     return this.values.length
   }
 
-  push(key: string, cost: number): void {
-    this.values.push({ key, cost })
+  push(key: string, score: SearchScore): void {
+    this.values.push({ key, score })
     let index = this.values.length - 1
     while (index > 0) {
       const parent = Math.floor((index - 1) / 2)
-      if (this.values[parent].cost <= cost) break
+      if (compareSearchScores(this.values[parent]!.score, score) <= 0) break
       this.values[index] = this.values[parent]
       index = parent
     }
-    this.values[index] = { key, cost }
+    this.values[index] = { key, score }
   }
 
   pop(): QueueEntry | undefined {
@@ -369,8 +478,9 @@ class MinQueue {
       const left = index * 2 + 1
       const right = left + 1
       if (left >= this.values.length) break
-      const child = right < this.values.length && this.values[right].cost < this.values[left].cost ? right : left
-      if (this.values[child].cost >= last.cost) break
+      const child = right < this.values.length &&
+        compareSearchScores(this.values[right]!.score, this.values[left]!.score) < 0 ? right : left
+      if (compareSearchScores(this.values[child]!.score, last.score) >= 0) break
       this.values[index] = this.values[child]
       index = child
     }

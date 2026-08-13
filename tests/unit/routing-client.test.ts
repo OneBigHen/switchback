@@ -31,13 +31,17 @@ describe("same-origin routing client", () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
       error: {
         code: "OUT_OF_COVERAGE",
-        message: "The destination is outside Pennsylvania."
+        message: "The destination is outside Pennsylvania.",
+        action: "Choose different start or finish points.",
+        requestId: "req-client-1"
       }
     }), { status: 400 }))
 
     await expect(requestTripPlan(request, fetcher)).rejects.toMatchObject({
       code: "OUT_OF_COVERAGE",
-      message: "The destination is outside Pennsylvania."
+      message: "The destination is outside Pennsylvania.",
+      action: "Choose different start or finish points.",
+      requestId: "req-client-1"
     })
   })
 

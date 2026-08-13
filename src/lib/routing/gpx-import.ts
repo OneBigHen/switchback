@@ -1,4 +1,6 @@
 import { analyzeGeometry } from "./scoring"
+import { analyzeGpxIntelligence } from "../gpx/intelligence"
+import type { GpxMapMatchResult } from "../gpx/map-matching"
 import type { Coordinate, PlannedRoute, Waypoint } from "./types"
 
 export const MAX_GPX_IMPORT_BYTES = 5 * 1024 * 1024
@@ -169,6 +171,32 @@ export function parseGpxRoute(xml: string, options: GpxImportOptions): PlannedRo
   const routeName = document.querySelector("rte > name")?.textContent?.trim()
   const fallbackName = options.fileName.replace(/\.gpx$/i, "").replaceAll(/[-_]+/g, " ").trim()
   const analysis = analyzeGeometry(geometry)
+  const durationMinutes = times.length >= 2
+    ? Number(((Math.max(...times) - Math.min(...times)) / 60_000).toFixed(2))
+    : 0
+  const intelligenceSegments = parsedSegments.map((segment, index) => index === 0
+    ? segment
+    : distanceMeters(parsedSegments[index - 1]!.at(-1)!.coordinate, segment[0]!.coordinate) < 2
+      ? segment.slice(1)
+      : segment
+  ).filter((segment) => segment.length > 0)
+  const intelligenceSegmentStarts: number[] = []
+  let intelligenceOffset = 0
+  for (const segment of intelligenceSegments) {
+    intelligenceSegmentStarts.push(intelligenceOffset)
+    intelligenceOffset += segment.length
+  }
+  const gpxIntelligence = analyzeGpxIntelligence({
+    geometry,
+    segments: intelligenceSegments.map((segment) => segment.map((point) => point.coordinate)),
+    segmentStarts: intelligenceSegmentStarts,
+    distanceMeters: distance,
+    durationMinutes,
+    ascentMeters: elevations.some((value) => value !== null) ? Number(ascentMeters.toFixed(1)) : null,
+    descentMeters: elevations.some((value) => value !== null) ? Number(descentMeters.toFixed(1)) : null,
+    invalidPointCount: pointElements.length - parsedPoints.length,
+    creatorNotes: document.querySelector("metadata > desc")?.textContent
+  }, { status: "not-configured", provider: null, profile: null } satisfies GpxMapMatchResult)
 
   return {
     id: options.id ?? routeId(),
@@ -178,15 +206,15 @@ export function parseGpxRoute(xml: string, options: GpxImportOptions): PlannedRo
     waypoints,
     instructions: [],
     distanceMiles: Number((distance / 1609.344).toFixed(2)),
-    durationMinutes: times.length >= 2
-      ? Number(((Math.max(...times) - Math.min(...times)) / 60_000).toFixed(2))
-      : 0,
+    durationMinutes,
     ascentMeters: elevations.some((value) => value !== null) ? Number(ascentMeters.toFixed(1)) : null,
     descentMeters: elevations.some((value) => value !== null) ? Number(descentMeters.toFixed(1)) : null,
     twistiness: analysis.twistiness,
     turnCount: analysis.turnCount,
     roadMix: {},
     surfaceMix: {},
+    gpxIntelligence,
+    navigationMode: "track-only",
     routingSource: "imported",
     previewOnly: false
   }
@@ -277,6 +305,7 @@ export function parseKmlRoute(xml: string, options: GpxImportOptions): PlannedRo
     turnCount: analysis.turnCount,
     roadMix: {},
     surfaceMix: {},
+    navigationMode: "track-only",
     routingSource: "imported",
     previewOnly: false
   }

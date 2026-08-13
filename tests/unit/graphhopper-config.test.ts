@@ -26,7 +26,7 @@ describe("GraphHopper graph configuration (Phase 3)", () => {
   it("registers the toll encoded value alongside the evidence values scoring needs", () => {
     const encoded = readConfig().match(/graph\.encoded_values:\s*(.+)/)?.[1] ?? ""
     expect(encoded.split(",").map((value) => value.trim())).toEqual(
-      expect.arrayContaining(["toll", "road_environment", "urban_density", "curvature"])
+      expect.arrayContaining(["toll", "road_environment", "urban_density", "curvature", "smoothness"])
     )
   })
 

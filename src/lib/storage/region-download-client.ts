@@ -2,6 +2,7 @@ import Dexie, { type Table } from "dexie"
 
 import type { OfflineGraph } from "@/lib/offline/graph"
 import { validateOfflineGraph } from "@/lib/offline/graph"
+import type { OfflineGraphTileReference } from "@/lib/offline/geo-tile-source"
 import type { OfflineRegion } from "@/lib/offline/region-catalog"
 import {
   validateOfflineGraphTileV2,
@@ -262,23 +263,48 @@ export class RegionDownloadClient {
     return tile?.bytes ?? null
   }
 
-  async getActiveGraphTiles(
+  /** Return only manifest metadata for a bounded lazy-load window. */
+  async listActiveTileReferences(
     regionId: string,
     searchBounds?: OfflineBounds
-  ): Promise<OfflineGraphTileV2[]> {
+  ): Promise<OfflineGraphTileReference[]> {
     const pointer = await this.regions.get(regionId)
     if (!pointer) return []
     const storedVersion = await this.versions.get(versionKey(regionId, pointer.activeVersion))
     if (!storedVersion) throw new Error("Active offline region metadata is missing")
-    const entries = searchBounds
-      ? storedVersion.manifest.tiles.filter((tile) => intersects(tile.bounds, searchBounds))
-      : storedVersion.manifest.tiles
-    const result: OfflineGraphTileV2[] = []
-    for (const entry of entries) {
-      const stored = await this.tiles.get(tileKey(regionId, pointer.activeVersion, entry.tileId))
-      if (!stored || stored.sha256 !== entry.sha256) throw new Error(`Installed offline tile ${entry.tileId} is missing`)
-      result.push(await decompressGraphTile(stored.bytes))
+    return storedVersion.manifest.tiles
+      .filter((entry) => !searchBounds || intersects(entry.bounds, searchBounds))
+      .map((entry) => ({
+        regionId,
+        version: pointer.activeVersion,
+        tileId: entry.tileId,
+        bounds: entry.bounds,
+        bytes: entry.bytes,
+        sha256: entry.sha256
+      }))
+  }
+
+  /** Load and validate one active tile; callers decide how long to cache it. */
+  async loadActiveTile(regionId: string, tileId: string): Promise<OfflineGraphTileV2> {
+    const pointer = await this.regions.get(regionId)
+    if (!pointer) throw new Error(`Offline region ${regionId} is not installed`)
+    const stored = await this.tiles.get(tileKey(regionId, pointer.activeVersion, tileId))
+    if (!stored) throw new Error(`Installed offline tile ${tileId} is missing`)
+    const manifest = await this.versions.get(versionKey(regionId, pointer.activeVersion))
+    const entry = manifest?.manifest.tiles.find((candidate) => candidate.tileId === tileId)
+    if (!entry || stored.sha256 !== entry.sha256 || stored.byteSize !== entry.bytes) {
+      throw new Error(`Installed offline tile ${tileId} failed manifest validation`)
     }
+    return decompressGraphTile(stored.bytes)
+  }
+
+  async getActiveGraphTiles(
+    regionId: string,
+    searchBounds?: OfflineBounds
+  ): Promise<OfflineGraphTileV2[]> {
+    const entries = await this.listActiveTileReferences(regionId, searchBounds)
+    const result: OfflineGraphTileV2[] = []
+    for (const entry of entries) result.push(await this.loadActiveTile(regionId, entry.tileId))
     return result
   }
 
@@ -337,5 +363,11 @@ export class RegionDownloadClient {
     for (const regionId of this.abortControllers.keys()) this.cancel(regionId)
     this.db.close()
     await Dexie.delete(this.name)
+  }
+
+  /** Close the connection without deleting downloaded region data. */
+  close(): void {
+    for (const regionId of this.abortControllers.keys()) this.cancel(regionId)
+    this.db.close()
   }
 }

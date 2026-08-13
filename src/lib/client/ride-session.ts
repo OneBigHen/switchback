@@ -1,3 +1,5 @@
+import { trackRuntimeResource } from "@/lib/client/runtime-diagnostics"
+
 export interface WakeLockHandle {
   release(): Promise<void>
 }
@@ -43,6 +45,7 @@ export async function startRideSession(options: RideSessionOptions): Promise<Rid
     maximumAge: 1_000,
     timeout: 12_000
   })
+  const releaseGpsWatchMetric = trackRuntimeResource("gps-watch")
 
   let wakeLock: WakeLockHandle | undefined
   try {
@@ -57,6 +60,7 @@ export async function startRideSession(options: RideSessionOptions): Promise<Rid
       if (stopped) return
       stopped = true
       environment.clearWatch(watchId)
+      releaseGpsWatchMetric()
       await wakeLock?.release()
     }
   }

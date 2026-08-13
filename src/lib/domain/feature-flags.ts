@@ -25,15 +25,6 @@ export const featureFlags = {
   roadRequirements: true,
 
   /**
-   * Free Ride suggestions (SB-012/SB-029).
-   *
-   * The current endpoint synthesizes road class, scenic, traffic, novelty,
-   * and legal-access values. Until it is graph-backed and directional it
-   * stays Experimental: labeled in the UI, no safety/verification claims.
-   */
-  freeRideSuggestions: true,
-
-  /**
    * Personalized / neural ranking (SB-033).
    *
    * May only re-rank ELIGIBLE candidates and must never silently replace an

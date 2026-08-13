@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { installPlannerServices, installRouteApi, makeRoute, tripPlan } from "./helpers/planner-fixtures"
 
 const appUrl = process.env.SWITCHBACK_E2E_URL ?? "/"
 
@@ -109,4 +110,34 @@ test("offers one bounded Free Ride suggestion and accepts it into live guidance"
   await page.getByRole("button", { name: "Accept suggestion" }).click()
   await expect(page.getByRole("region", { name: /Ride mode|Ride preview/ })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText("Live guidance", { exact: true })).toBeVisible()
+})
+
+test("offers a saved local Home escape from Free Ride and routes to it", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.addInitScript(() => {
+    localStorage.setItem("switchback.planner-home.v1", JSON.stringify({
+      lat: 40.28,
+      lon: -76.84,
+      label: "Home"
+    }))
+  })
+  await page.route("**/api/free-ride/suggestions", (routeRequest) => routeRequest.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ suggestion: null, suppressed: true, suppressionReason: "no-safe-candidate" })
+  }))
+  const capture = await installRouteApi(page, tripPlan([makeRoute("balanced", { name: "Home route" })]))
+
+  await page.goto(appUrl)
+  await page.getByRole("button", { name: "Free Ride" }).click()
+  await expect(page.getByRole("heading", { name: "Free Ride" })).toBeVisible()
+  await expect(page.getByText(/GPS \d+ m/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("button", { name: "Head Home" })).toBeVisible()
+  await page.getByRole("button", { name: "Head Home" }).click()
+  await expect(page.getByRole("region", { name: /Ride mode|Ride preview/ })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText("Live guidance", { exact: true })).toBeVisible()
+  expect(capture.requests[0]?.points).toEqual([
+    { lat: 40.2732, lon: -76.8867, label: "Current position" },
+    { lat: 40.28, lon: -76.84, label: "Home" }
+  ])
 })

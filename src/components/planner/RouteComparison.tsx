@@ -30,6 +30,10 @@ import type { RoadLockSatisfaction } from "@/lib/roads/road-locks"
 import { MustLockUnresolvedPanel } from "./MustLockUnresolvedPanel"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import type { ReplayComparisonResult } from "@/lib/client/replay-comparison"
+import type { RecordedRide } from "@/lib/storage/ride-journal"
+import type { GpxJoinChoice, GpxJoinPreview } from "@/lib/gpx/join"
+import { explainRouteFacts } from "@/lib/recommendation/route-explanations"
+import { GpxIntelligencePanel } from "./GpxIntelligencePanel"
 
 interface RouteComparisonProps {
   routes: PlannedRoute[]
@@ -50,6 +54,10 @@ interface RouteComparisonProps {
   previousRoute?: PlannedRoute | null
   /** On-track comparison for a recorded ride loaded beside its plan. */
   replayComparison?: ReplayComparisonResult | null
+  recordedRide?: RecordedRide | null
+  onExportRecordedRide?(ride: RecordedRide): void
+  onPrepareJoin?(route: PlannedRoute): Promise<GpxJoinPreview | null>
+  onJoin?(route: PlannedRoute, preview: GpxJoinPreview, choice: GpxJoinChoice): Promise<void>
 }
 
 function dominantMix(mix: Record<string, number>): string {
@@ -137,14 +145,49 @@ export function RouteComparison({
   sourceMapUpdated,
   onResolveMustLock,
   previousRoute,
-  replayComparison
+  replayComparison,
+  recordedRide,
+  onExportRecordedRide,
+  onPrepareJoin,
+  onJoin
 }: RouteComparisonProps) {
   const [directionsOpen, setDirectionsOpen] = useState(true)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [exportVariant, setExportVariant] = useState<GpxExportVariant>("track")
+  const [joinPreview, setJoinPreview] = useState<GpxJoinPreview | null>(null)
+  const [joinPreviewRouteId, setJoinPreviewRouteId] = useState<string | null>(null)
+  const [joinBusy, setJoinBusy] = useState(false)
   const [dismissedMustLockIds, setDismissedMustLockIds] = useState<string[]>([])
   const selectedRoute = routes.find((route) => route.id === selectedId) ?? routes[0]
+  const selectedRecordedRide = selectedRoute && recordedRide && selectedRoute.id === `${recordedRide.id}-actual` ? recordedRide : null
+  const activeJoinPreview = selectedRoute?.id === joinPreviewRouteId ? joinPreview : null
+  const activeExportVariant = exportVariant === "recorded" && !selectedRecordedRide ? "track" : exportVariant
+
   if (!selectedRoute) return null
+  const routeFacts = explainRouteFacts(selectedRoute, routes)
+
+  const prepareJoin = async () => {
+    if (!onPrepareJoin) return
+    setJoinBusy(true)
+    try {
+      setJoinPreview(await onPrepareJoin(selectedRoute))
+      setJoinPreviewRouteId(selectedRoute.id)
+    } finally {
+      setJoinBusy(false)
+    }
+  }
+
+  const chooseJoin = async (choice: GpxJoinChoice) => {
+    if (!activeJoinPreview || !onJoin) return
+    setJoinBusy(true)
+    try {
+      await onJoin(selectedRoute, activeJoinPreview, choice)
+      setJoinPreview(null)
+      setJoinPreviewRouteId(null)
+    } finally {
+      setJoinBusy(false)
+    }
+  }
 
   return (
     <section className="route-rack" aria-labelledby="route-rack-title">
@@ -281,6 +324,44 @@ export function RouteComparison({
       </div>
       <RouteDataQualityPanel route={selectedRoute} sourceMapUpdated={sourceMapUpdated ?? null} />
 
+      {selectedRoute.gpxIntelligence ? <GpxIntelligencePanel report={selectedRoute.gpxIntelligence} /> : null}
+
+      {selectedRoute.navigationMode === "track-only" && !selectedRoute.gpxParentRouteId && onPrepareJoin && onJoin ? (
+        <div className="gpx-join-panel" role="region" aria-label="Join GPX track">
+          <strong>Join GPX track</strong>
+          <p>Route to a safe entry, then switch to track-only guidance. The GPX line is never silently snapped to a road.</p>
+          {!activeJoinPreview ? (
+            <button type="button" className="tool-button" disabled={joinBusy} onClick={() => void prepareJoin()}>
+              {joinBusy ? "Finding entries…" : "Find entries from current location"}
+            </button>
+          ) : (
+            <div className="gpx-join-options">
+              <button type="button" className="tool-button" disabled={joinBusy || activeJoinPreview.bestIndex == null} onClick={() => void chooseJoin("best")}>
+                Best join
+              </button>
+              <button type="button" className="tool-button" disabled={joinBusy || activeJoinPreview.candidates.find((candidate) => candidate.index === 0)?.rejectedReason != null} onClick={() => void chooseJoin("original-start")}>
+                Original start
+              </button>
+              <span>Choose entry</span>
+              {activeJoinPreview.candidates.filter((candidate) => !candidate.rejectedReason).slice(0, 8).map((candidate) => (
+                <button type="button" className="tool-button" disabled={joinBusy} key={`${candidate.index}-${candidate.kind}`} onClick={() => void chooseJoin(candidate.index)}>
+                  {candidate.label} · {Math.round(candidate.approachDistanceMeters / 100) / 10} km approach · {Math.round(candidate.remainingDistanceMeters / 1609.344)} mi left
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {routeFacts.length > 0 ? (
+        <div className="route-fact-list" role="note" aria-label="Measured route facts">
+          <strong>Measured route facts</strong>
+          <ul>
+            {routeFacts.map((fact) => <li key={fact}>{fact}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
       {selectedRoute.routeScore ? (
         <div className="route-score-explanation" role="note" aria-label="Why this route scored well">
           <strong>Why this route</strong>
@@ -338,6 +419,7 @@ export function RouteComparison({
       <RouteRating route={selectedRoute} onRate={onRate} />
 
       <RouteSharePanel route={selectedRoute} onShareCreated={onShareCreated} />
+
       <CommunityPublishPanel route={selectedRoute} />
 
       <div className="route-actions" aria-label="Selected route actions">
@@ -347,13 +429,18 @@ export function RouteComparison({
         </button>
         <label className="gpx-export-variant">
           <span>GPX format</span>
-          <select aria-label="GPX export format" value={exportVariant} onChange={(event) => setExportVariant(event.currentTarget.value as GpxExportVariant)}>
+          <select aria-label="GPX export format" value={activeExportVariant} onChange={(event) => setExportVariant(event.currentTarget.value as GpxExportVariant)}>
             <option value="track">Track</option>
+            <option value="track-waypoints">Track + waypoints</option>
             <option value="route">Route</option>
-            <option value="cues">Cues</option>
+            <option value="original">Original</option>
+            {selectedRecordedRide && onExportRecordedRide ? <option value="recorded">Recorded ride</option> : null}
           </select>
         </label>
-        <button type="button" className="tool-button" onClick={() => onExport(selectedRoute, exportVariant)}>
+        <button type="button" className="tool-button" onClick={() => {
+          if (activeExportVariant === "recorded" && selectedRecordedRide) onExportRecordedRide?.(selectedRecordedRide)
+          else onExport(selectedRoute, activeExportVariant)
+        }}>
           <DownloadSimple aria-hidden="true" />
           <span>Export GPX</span>
         </button>

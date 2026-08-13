@@ -38,6 +38,26 @@ an explainable score with hard safety/legal/confidence gates. The existing
 planner still owns timeboxing, locks, overlap rejection, provider warnings,
 and final selection.
 
+## GPX intelligence, join, and export boundary
+
+The project GPX importer uses `src/lib/gpx/streaming-parser.ts` and
+`corpus-ingest.ts` to preserve original track/route segments, timestamps,
+elevation, waypoints, duplicate counts, gaps, and fingerprints. P27 attaches a
+bounded `gpxIntelligence` report to imported routes. It stores scalar facts and
+point-index spans rather than copying geometry, keeps provider path coverage
+distinct from route-distance coverage, and leaves surface, road class, access,
+MVUM, community, and fuel facts unknown without provenance-backed data.
+`GpxIntelligencePanel` exposes the report in route details. A no-path result is
+track-only with no invented turns or highway snap. P28 extends the same route
+detail and exchange path: `src/lib/gpx/join.ts` scores a bounded set of nearby
+forward/original/waypoint entries, uses the existing planner for the approach,
+and appends one GPX tail as a private `continuous-track` derivative. The Ride
+HUD keeps provider instructions on the approach, then switches to explicit
+track guidance without auto-reroute or fabricated GPX turns. Track,
+track-plus-waypoints, route, original, and recorded-ride exports remain one
+serialization boundary; anchor-preserving simplification never mutates the
+stored source geometry.
+
 ## Profiles and providers
 
 The product exposes eight profiles: `quick`, `balanced`, `twisty`, `scenic`,
@@ -60,9 +80,14 @@ claims.
   and reroute/rejoin behavior.
 - Record uses `useRecordingSession` and `RideRecordingHud`; finished rides are
   local `RideJournalLibrary` entries.
-- Free Ride uses `FreeRideHud` and the recommendation reducer. The API reads
-  bounded curvature candidates, suppresses unsafe/overloaded situations, shows
-  one suggestion, and turns acceptance into the existing Ride flow.
+- Free Ride uses `FreeRideHud` and the recommendation reducer. The API loads an
+  optional bounded canonical-segment/RIG graph, finds one directed ahead
+  opportunity, verifies baseline versus corridor detour routing, suppresses
+  unsafe/overloaded situations, applies a bounded quiet/prompt budget, and
+  turns acceptance or a saved-local-Home request into the existing Ride flow.
+  Accept/Ignore/Less like this use the stable-bike local preference seam.
+  Without `FREE_RIDE_RIG_PATH`, it returns an explicit unavailable response
+  rather than falling back to curvature rows or straight-line geometry.
 - `rider-preferences.ts` and `rider-route-ranking.ts` keep preference learning
   local, interpretable, resettable, exportable, and subordinate to route
   safety/legal gates.
@@ -71,15 +96,25 @@ claims.
 
 ## Offline and privacy posture
 
-`src/lib/offline/v2-router.ts` and the region download client provide validated
-local graph data. `offline-route-recovery.ts` can recover a route from a valid
-saved corridor pack after provider failure or network loss; it rejects missing,
-expired, corrupt, or out-of-corridor packs and never substitutes a straight
-line. Full device airplane-mode proof remains a release gate.
+`src/lib/offline/v2-router.ts`, `OfflineGeoWorkerClient`, and the region
+download client provide validated local graph data. Active region manifests are
+selected spatially and loaded through a byte-bounded worker LRU; the existing
+`offline-route-recovery.ts` corridor path remains the smaller fallback. Both
+paths reject missing, expired, corrupt, or out-of-corridor packs and never
+substitute a straight line. Full device airplane-mode proof remains a release
+gate.
 
 Precise history stays local by default. Profile controls expose local learning,
-reset, export, and deletion. Portable sharing retains its redaction behavior;
-home/work redaction and future sync remain explicit product boundaries.
+reset, export, and deletion. `src/lib/community` owns bounded route-centered
+public objects and plain-text moderation boundaries. The optional identity path
+uses real WebAuthn registration/authentication through
+`src/app/api/identity/*`, stores only credential id/public key/counter, and
+issues a signed pseudonymous session only after exact origin/RP-ID verification.
+Cookie-authenticated community and sync mutations also require CSRF. The core
+planner, local saving, GPX, riding, and offline paths remain account-free.
+`privacy-preview.ts` produces exact public geometry before upload.
+`src/lib/sync` stores only authenticated ciphertext envelopes server-side; the
+server does not decrypt them.
 
 ## PWA and evidence
 
@@ -92,7 +127,11 @@ documented in ADR 0006.
 
 ## Validation posture
 
-Focused routing/profile/navigation checks are green. The full lint, typecheck,
-Vitest, build, browser, live-provider, accessibility, security, and physical
-iPhone matrix is intentionally the next quality pass. A passing local test does
-not imply that GraphHopper, Valhalla, or iOS services were live during the run.
+The latest Megaplex acceptance run is green through unit (202 files / 1,285
+passed / 1 skipped), lint, typecheck, and production build. The self-hosted
+Compose/Caddy stack is stable with non-degraded `/api/health`, live routes for
+all eight profiles, and a valid Caddy configuration; final container gates are
+standard browser (32/32 broad), critical browser (30/30), PWA (2/2), memory
+soak (10/10 cycles), and real-router (5/5). Automated evidence still does not
+imply authenticated-browser/passkey, physical iPhone, outdoor GPX-transfer,
+production Valhalla, public-edge, or field behavior.

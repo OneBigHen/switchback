@@ -6,6 +6,26 @@ import type {
   RideProfile,
   TemporalContext
 } from "@/lib/domain/contracts"
+import { evaluateFeatureEligibility } from "@/lib/domain/routing/eligibility"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
+import { backtrackingShare, selfOverlapShare } from "@/lib/routing/destination-corridors"
+import { haversine } from "@/lib/routing/scoring"
+import { isRoutePolicy, PA_NJ_ROUTE_POLICY_V1, type RoutePolicy } from "./route-policy"
+
+export interface RouteUtilityBreakdown {
+  segmentUtility: number
+  contiguousQuality: number
+  contiguousQualityBonus: number
+  corridorCoherenceBonus: number
+  personalPreferenceFit: number
+  uncertaintyPenalty: number
+  backtrackPenalty: number
+  selfOverlapShare: number
+  selfOverlapPenalty: number
+  fragmentationPenalty: number
+  detourPenalty: number
+  total: number
+}
 
 export interface ScoreableRoute {
   id: string
@@ -18,10 +38,12 @@ export interface ScoreableRoute {
 
 export interface RouteScoringContext {
   profile: RideProfile
+  bikeProfile?: BikeProfile
   baselineDurationSeconds?: number
   maxDetourPct?: number
   temporal?: TemporalContext
   rider?: RiderPreferenceModel
+  policy?: RoutePolicy
 }
 
 export interface RouteScoreResult extends RouteScore {
@@ -29,33 +51,9 @@ export interface RouteScoreResult extends RouteScore {
   accepted: boolean
   rejectionReasons: string[]
   detourPct: number
+  utility?: RouteUtilityBreakdown
 }
 
-interface ProfileWeights {
-  twistiness: number
-  scenic: number
-  elevation: number
-  gravel: number
-  traffic: number
-  simplicity: number
-  novelty: number
-  safety: number
-  confidence: number
-  eta: number
-}
-
-const PROFILE_WEIGHTS: Record<RideProfile, ProfileWeights> = {
-  quick: { twistiness: 0.05, scenic: 0.05, elevation: 0.02, gravel: 0, traffic: 0.2, simplicity: 0.18, novelty: 0.02, safety: 0.2, confidence: 0.12, eta: 0.16 },
-  balanced: { twistiness: 0.14, scenic: 0.12, elevation: 0.08, gravel: 0.03, traffic: 0.14, simplicity: 0.13, novelty: 0.06, safety: 0.16, confidence: 0.1, eta: 0.04 },
-  twisty: { twistiness: 0.28, scenic: 0.1, elevation: 0.08, gravel: 0.03, traffic: 0.12, simplicity: 0.05, novelty: 0.1, safety: 0.12, confidence: 0.08, eta: 0.04 },
-  scenic: { twistiness: 0.12, scenic: 0.24, elevation: 0.12, gravel: 0.04, traffic: 0.12, simplicity: 0.07, novelty: 0.1, safety: 0.1, confidence: 0.07, eta: 0.02 },
-  adventure: { twistiness: 0.12, scenic: 0.1, elevation: 0.16, gravel: 0.22, traffic: 0.08, simplicity: 0.04, novelty: 0.1, safety: 0.1, confidence: 0.06, eta: 0.02 },
-  gravel: { twistiness: 0.08, scenic: 0.08, elevation: 0.12, gravel: 0.32, traffic: 0.08, simplicity: 0.04, novelty: 0.12, safety: 0.09, confidence: 0.05, eta: 0.02 },
-  "avoid-highways": { twistiness: 0.18, scenic: 0.16, elevation: 0.08, gravel: 0.04, traffic: 0.14, simplicity: 0.06, novelty: 0.08, safety: 0.12, confidence: 0.1, eta: 0.04 },
-  neural: { twistiness: 0.16, scenic: 0.14, elevation: 0.1, gravel: 0.08, traffic: 0.12, simplicity: 0.08, novelty: 0.12, safety: 0.1, confidence: 0.08, eta: 0.02 }
-}
-
-const BLOCKING_FLAGS = /(?:private|illegal|closure|closed|unsafe|invalid|impassable)/i
 const UNPAVED_SURFACES = new Set(["dirt", "earth", "gravel", "fine_gravel", "grass", "ground", "mud", "sand", "unpaved"])
 
 function clamp(value: number, minimum = 0, maximum = 100): number {
@@ -69,15 +67,182 @@ function average(segments: RoadSegmentFeature[], value: (segment: RoadSegmentFea
   return segments.reduce((sum, segment) => sum + value(segment) * Math.max(0, segment.distanceMeters), 0) / totalDistance
 }
 
-function normalized(value: number): number {
-  return clamp(Number.isFinite(value) ? value : 0, 0, 1)
+function normalized(value: number | undefined, fallback = 0): number {
+  return clamp(Number.isFinite(value) ? value! : fallback, 0, 1)
 }
 
-function routeGeometryIsValid(route: ScoreableRoute): boolean {
-  return route.geometry.length >= 2 && route.geometry.every(([longitude, latitude]) =>
-    Number.isFinite(longitude) && Number.isFinite(latitude) &&
-    Math.abs(longitude) <= 180 && Math.abs(latitude) <= 90
+function piecewiseDetourPenalty(detourPct: number, maxDetourPct: number, preferredDetourPct: number): number {
+  const preferredBand = Math.min(preferredDetourPct, maxDetourPct)
+  if (detourPct <= preferredBand) return clamp(detourPct * 20)
+  const ramp = Math.max(0.05, maxDetourPct - preferredBand)
+  const progress = clamp((detourPct - preferredBand) / ramp, 0, 1)
+  return clamp(preferredBand * 20 + progress ** 2 * 48)
+}
+
+function segmentUtility(segment: RoadSegmentFeature, profile: RideProfile, policy: RoutePolicy): number {
+  const weights = policy.profileWeights[profile]
+  const twistiness = normalized(segment.curvature) * 0.45 +
+    normalized(segment.curveDensity) * 0.35 + normalized(segment.curveSeverity) * 0.2
+  const scenic = normalized(segment.scenicProxy)
+  const elevation = normalized(segment.elevationInterest, 0.5)
+  const gravel = normalized(segment.gravelSuitability ?? (
+    segment.surface && UNPAVED_SURFACES.has(segment.surface.toLowerCase()) ? 0.7 : 0
+  ))
+  const traffic = 1 - normalized(segment.trafficPenalty, 0.5)
+  const simplicity = 1 - Math.max(
+    normalized(segment.signalDensity, 0.5) * 0.45,
+    normalized(segment.stopDensity, 0.5) * 0.35,
+    normalized(segment.urbanDensityPenalty, 0.5) * 0.2
   )
+  const novelty = normalized(segment.novelty, 0.5)
+  const safety = Math.max(
+    0,
+    1 - normalized(segment.incidentPenalty, 0.5) -
+      (segment.legalAccess === "discouraged" ? 0.2 : 0) -
+      (segment.seasonalAccess === "conditional" ? 0.1 : 0)
+  )
+  const confidence = normalized(segment.dataConfidence, 0.5)
+  const weightTotal = weights.twistiness + weights.scenic + weights.elevation + weights.gravel +
+    weights.traffic + weights.simplicity + weights.novelty + weights.safety + weights.confidence
+  return clamp((
+    twistiness * weights.twistiness +
+    scenic * weights.scenic +
+    elevation * weights.elevation +
+    gravel * weights.gravel +
+    traffic * weights.traffic +
+    simplicity * weights.simplicity +
+    novelty * weights.novelty +
+    safety * weights.safety +
+    confidence * weights.confidence
+  ) / Math.max(0.01, weightTotal))
+}
+
+function contiguousUtility(
+  segments: RoadSegmentFeature[],
+  profile: RideProfile,
+  policy: RoutePolicy
+): Pick<RouteUtilityBreakdown, "segmentUtility" | "contiguousQuality" | "contiguousQualityBonus" | "corridorCoherenceBonus" | "fragmentationPenalty"> {
+  if (segments.length === 0) {
+    return {
+      segmentUtility: 0,
+      contiguousQuality: 0,
+      contiguousQualityBonus: 0,
+      corridorCoherenceBonus: 0,
+      fragmentationPenalty: 0
+    }
+  }
+
+  const values = segments.map((segment) => ({
+    distanceMeters: Math.max(0, segment.distanceMeters),
+    quality: segmentUtility(segment, profile, policy)
+  }))
+  const totalDistance = values.reduce((sum, value) => sum + value.distanceMeters, 0)
+  const weightedUtility = totalDistance > 0
+    ? values.reduce((sum, value) => sum + value.quality * value.distanceMeters, 0) / totalDistance
+    : values.reduce((sum, value) => sum + value.quality, 0) / values.length
+
+  const runs: Array<{ distanceMeters: number; qualities: number[] }> = []
+  let current = { distanceMeters: values[0]!.distanceMeters, qualities: [values[0]!.quality] }
+  for (let index = 1; index < values.length; index += 1) {
+    const previous = segments[index - 1]!
+    const next = segments[index]!
+    const previousEnd = previous.geometry[previous.geometry.length - 1]
+    const nextStart = next.geometry[0]
+    // ponytail: endpoint proximity is a bounded topology proxy until canonical segment linkage is attached.
+    const connected = previousEnd !== undefined && nextStart !== undefined &&
+      haversine(previousEnd, nextStart) <= 100
+    if (connected) {
+      current = {
+        distanceMeters: current.distanceMeters + values[index]!.distanceMeters,
+        qualities: [...current.qualities, values[index]!.quality]
+      }
+    } else {
+      runs.push(current)
+      current = { distanceMeters: values[index]!.distanceMeters, qualities: [values[index]!.quality] }
+    }
+  }
+  runs.push(current)
+
+  const qualifyingRuns = runs
+    .filter((run) => run.qualities.length > 1 && run.distanceMeters >= 1_000)
+    .map((run) => {
+      const mean = run.qualities.reduce((sum, value) => sum + value, 0) / run.qualities.length
+      const variance = run.qualities.reduce((sum, value) => sum + (value - mean) ** 2, 0) / run.qualities.length
+      return {
+        ...run,
+        mean,
+        coherence: clamp(1 - Math.sqrt(variance) / 0.5)
+      }
+    })
+  const contiguousMeters = qualifyingRuns.reduce((sum, run) => sum + run.distanceMeters, 0)
+  const contiguousQuality = totalDistance > 0 ? contiguousMeters / totalDistance : 0
+  const coherence = qualifyingRuns.length > 0
+    ? qualifyingRuns.reduce((sum, run) => sum + run.coherence * run.distanceMeters, 0) / contiguousMeters
+    : 0
+  const contiguousQualityBonus = qualifyingRuns.reduce(
+    (sum, run) => sum + run.mean * Math.log1p(run.distanceMeters / 1_000) * run.coherence * 3,
+    0
+  )
+
+  return {
+    segmentUtility: weightedUtility,
+    contiguousQuality,
+    contiguousQualityBonus,
+    corridorCoherenceBonus: contiguousQuality * coherence * 2,
+    fragmentationPenalty: Math.max(0, runs.length - 1) * 0.5
+  }
+}
+
+function uncertaintyPenalty(route: ScoreableRoute): number {
+  if (route.segments.length === 0) return 6
+  let unknownFacts = 0
+  for (const segment of route.segments) {
+    if (!segment.surface || segment.surface.toLowerCase() === "unknown") unknownFacts += 1
+    if (segment.legalAccess === "unknown") unknownFacts += 1
+    if (segment.seasonalAccess === "unknown") unknownFacts += 1
+    if (segment.dataConfidence === undefined) unknownFacts += 1
+  }
+  const featureConfidence = average(route.segments, (segment) => normalized(segment.dataConfidence, 0.5))
+  const routeConfidence = Math.min(normalized(route.confidence, 0.5), featureConfidence)
+  const unknownRate = unknownFacts / (route.segments.length * 4)
+  return clamp((1 - routeConfidence) * 6 + unknownRate * 6, 0, 15)
+}
+
+function buildUtility(
+  route: ScoreableRoute,
+  context: RouteScoringContext,
+  detourPct: number,
+  baseTotal: number,
+  preference: number,
+  maxDetourPct: number,
+  policy: RoutePolicy
+): RouteUtilityBreakdown {
+  const contiguous = contiguousUtility(route.segments, context.profile, policy)
+  const backtrack = backtrackingShare(route.geometry)
+  const overlap = selfOverlapShare(route.geometry)
+  const uncertainty = uncertaintyPenalty(route)
+  const detourPenalty = piecewiseDetourPenalty(detourPct, maxDetourPct, policy.preferredDetourPct)
+  const backtrackPenalty = backtrack * 20
+  const selfOverlapPenalty = overlap * 20
+  const total = clamp(
+    baseTotal +
+    contiguous.contiguousQualityBonus +
+    contiguous.corridorCoherenceBonus -
+    uncertainty -
+    backtrackPenalty -
+    selfOverlapPenalty -
+    contiguous.fragmentationPenalty
+  )
+  return {
+    ...contiguous,
+    personalPreferenceFit: preference * 0.12,
+    uncertaintyPenalty: uncertainty,
+    backtrackPenalty,
+    selfOverlapShare: overlap,
+    selfOverlapPenalty,
+    detourPenalty,
+    total
+  }
 }
 
 interface PreferenceMetrics {
@@ -110,9 +275,10 @@ function preferenceFit(
   return clamp((fit / total) * 100)
 }
 
-function emptyScore(explanations: string[] = []): RouteScore {
+function emptyScore(explanations: string[] = [], policyVersion?: string): RouteScore {
   return {
     total: 0,
+    policyVersion,
     fun: 0,
     twistiness: 0,
     scenic: 0,
@@ -135,6 +301,8 @@ function round(value: number): number {
 }
 
 export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext): RouteScoreResult {
+  const policy = context.policy ?? PA_NJ_ROUTE_POLICY_V1
+  if (!isRoutePolicy(policy)) throw new Error("Invalid route policy")
   const rejectionReasons: string[] = []
   const maxDetourPct = context.maxDetourPct ?? 0.25
   const baseline = context.baselineDurationSeconds && context.baselineDurationSeconds > 0
@@ -142,33 +310,17 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     : route.durationSeconds
   const detourPct = Math.max(0, (route.durationSeconds - baseline) / baseline)
 
-  if (!routeGeometryIsValid(route)) rejectionReasons.push("The route geometry is invalid.")
-  if (route.segments.length === 0) rejectionReasons.push("The route has no road-feature data.")
-  if (route.confidence < 0.25) rejectionReasons.push("Routing confidence is too low for a recommendation.")
+  const eligibility = evaluateFeatureEligibility(route, {
+    profile: context.profile,
+    bikeProfile: context.bikeProfile
+  })
+  rejectionReasons.push(...eligibility.failures.map((failure) => failure.message))
   if (detourPct > maxDetourPct) {
     rejectionReasons.push(`The route detour is ${Math.round(detourPct * 100)}%, above the ${Math.round(maxDetourPct * 100)}% limit.`)
   }
 
-  for (const segment of route.segments) {
-    if (segment.legalAccess === "private" || segment.legalAccess === "forbidden") {
-      rejectionReasons.push(`Road segment ${segment.segmentId} has no legal motorcycle access.`)
-    }
-    if (segment.seasonalAccess === "closed") {
-      rejectionReasons.push(`Road segment ${segment.segmentId} is closed.`)
-    }
-    if (segment.dataConfidence < 0.25) {
-      rejectionReasons.push(`Road segment ${segment.segmentId} has low-confidence data.`)
-    }
-    if (segment.safetyFlags.some((flag) => BLOCKING_FLAGS.test(flag))) {
-      rejectionReasons.push(`Road segment ${segment.segmentId} has a blocking safety or access flag.`)
-    }
-    if (segment.profileCompatibility?.[context.profile] === "incompatible") {
-      rejectionReasons.push(`Road segment ${segment.segmentId} is incompatible with the ${context.profile} profile.`)
-    }
-  }
-
   if (rejectionReasons.length > 0) {
-    const score = emptyScore(rejectionReasons)
+    const score = emptyScore(rejectionReasons, policy.version)
     return { ...score, routeId: route.id, accepted: false, rejectionReasons, detourPct }
   }
 
@@ -176,27 +328,30 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     normalized(segment.curvature) * 0.45 + normalized(segment.curveDensity) * 0.35 + normalized(segment.curveSeverity) * 0.2
   ))
   const scenic = clamp(100 * average(route.segments, (segment) => normalized(segment.scenicProxy)))
-  const elevation = clamp(100 * average(route.segments, (segment) => normalized(segment.elevationInterest)))
+  const elevation = clamp(100 * average(route.segments, (segment) => normalized(segment.elevationInterest, 0.5)))
   const gravel = clamp(100 * average(route.segments, (segment) =>
-    normalized(segment.gravelSuitability || (segment.surface && UNPAVED_SURFACES.has(segment.surface.toLowerCase()) ? 0.7 : 0))
+    normalized(segment.gravelSuitability ?? (segment.surface && UNPAVED_SURFACES.has(segment.surface.toLowerCase()) ? 0.7 : 0))
   ))
-  const traffic = clamp(100 * average(route.segments, (segment) => 1 - normalized(segment.trafficPenalty)))
+  const traffic = clamp(100 * average(route.segments, (segment) => 1 - normalized(segment.trafficPenalty, 0.5)))
   const simplicity = clamp(100 * average(route.segments, (segment) =>
     1 - Math.max(
-      normalized(segment.signalDensity) * 0.45,
-      normalized(segment.stopDensity) * 0.35,
-      normalized(segment.urbanDensityPenalty) * 0.2
+      normalized(segment.signalDensity, 0.5) * 0.45,
+      normalized(segment.stopDensity, 0.5) * 0.35,
+      normalized(segment.urbanDensityPenalty, 0.5) * 0.2
     )
   ))
-  const novelty = clamp(100 * average(route.segments, (segment) => normalized(segment.novelty)))
-  const confidence = clamp(100 * Math.min(normalized(route.confidence), average(route.segments, (segment) => normalized(segment.dataConfidence))))
+  const novelty = clamp(100 * average(route.segments, (segment) => normalized(segment.novelty, 0.5)))
+  const confidence = clamp(100 * Math.min(
+    normalized(route.confidence, 0.5),
+    average(route.segments, (segment) => normalized(segment.dataConfidence, 0.5))
+  ))
   const safety = clamp(100 * average(route.segments, (segment) => {
-    const incidentRisk = normalized(segment.incidentPenalty ?? 0)
+    const incidentRisk = normalized(segment.incidentPenalty, 0.5)
     const discouraged = segment.legalAccess === "discouraged" ? 0.2 : 0
     const conditional = segment.seasonalAccess === "conditional" ? 0.1 : 0
     return Math.max(0, 1 - incidentRisk - discouraged - conditional)
   }))
-  const etaPenalty = clamp(detourPct * 100)
+  const etaPenalty = piecewiseDetourPenalty(detourPct, maxDetourPct, policy.preferredDetourPct)
   const lowTraffic = traffic / 100
   const preference = preferenceFit({
     twistiness: twistiness / 100,
@@ -208,12 +363,12 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     simplicity: simplicity / 100,
     etaPenalty: etaPenalty / 100
   }, context.rider)
-  const weights = PROFILE_WEIGHTS[context.profile]
+  const weights = policy.profileWeights[context.profile]
   const etaQuality = 100 - etaPenalty
   const fun = clamp(
     twistiness * 0.35 + scenic * 0.25 + elevation * 0.15 + gravel * 0.1 + novelty * 0.15
   )
-  const total = clamp(
+  const baseTotal = clamp(
     twistiness * weights.twistiness +
     scenic * weights.scenic +
     elevation * weights.elevation +
@@ -226,21 +381,29 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     etaQuality * weights.eta +
     preference * 0.12
   )
+  const utility = buildUtility(route, context, detourPct, baseTotal, preference, maxDetourPct, policy)
 
-  const explanations: string[] = []
+  const explanations: string[] = eligibility.warnings.map((warning) => warning.message)
   if (twistiness >= 65) explanations.push(`Strong curvature and sustained bends (${Math.round(twistiness)}/100).`)
   if (scenic >= 60) explanations.push(`Scenic road character measures ${Math.round(scenic)}/100.`)
   if (traffic >= 65 && simplicity >= 65) explanations.push("Fewer traffic lights and less stop-and-go flow.")
   if (gravel >= 45) explanations.push(`Includes mapped gravel or adventure surface (${Math.round(gravel)}%).`)
   if (novelty >= 60) explanations.push(`Uses roads with high novelty for this rider (${Math.round(novelty)}/100).`)
   if (detourPct > 0.02) explanations.push(`Adds about ${Math.max(1, Math.round((route.durationSeconds - baseline) / 60))} minutes within the detour limit.`)
+  if (utility.contiguousQualityBonus > 0) explanations.push("Sustained connected road quality earns a diminishing-continuity bonus.")
+  if (utility.uncertaintyPenalty >= 4) explanations.push("Unknown road-feature coverage adds an explicit uncertainty penalty.")
+  if (utility.backtrackPenalty > 0) explanations.push("Immediate backtracking reduces route utility.")
+  if (utility.selfOverlapPenalty > 0) explanations.push("Repeated corridor overlap reduces route utility.")
+  if (utility.fragmentationPenalty > 0) explanations.push("Disconnected feature runs reduce corridor coherence.")
+  if (utility.detourPenalty > 2) explanations.push("Detour cost rises after the preferred time band.")
   if (confidence < 70) explanations.push(`Provider data confidence is ${Math.round(confidence)}/100.`)
   if (context.temporal?.traffic?.status === "unavailable") explanations.push("Live traffic is unavailable; traffic quality uses road-feature data only.")
   if (context.rider) explanations.push(`Rider preference fit is ${Math.round(preference)}/100.`)
   if (explanations.length === 0) explanations.push("Fastest valid route for the selected riding profile.")
 
   const score: RouteScore = {
-    total: round(total),
+    total: round(utility.total),
+    policyVersion: policy.version,
     fun: round(fun),
     twistiness: round(twistiness),
     scenic: round(scenic),
@@ -256,5 +419,5 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     explanations,
     explanation: explanations
   }
-  return { ...score, routeId: route.id, accepted: true, rejectionReasons, detourPct }
+  return { ...score, routeId: route.id, accepted: true, rejectionReasons, detourPct, utility }
 }

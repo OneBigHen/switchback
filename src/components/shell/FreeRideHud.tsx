@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, GpsFix, GpsSlash, Pause, Play, Record, Sparkle, X } from "@phosphor-icons/react"
+import { Check, GpsFix, GpsSlash, House, Pause, Play, Record, Sparkle, X } from "@phosphor-icons/react"
 import { useEffect } from "react"
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { recordingTelemetry } from "@/lib/client/recording-session"
@@ -15,6 +15,8 @@ interface FreeRideHudProps {
   onAccept(suggestion: FreeRideSuggestion): void
   onIgnore(): void
   onLessLikeThis(): void
+  homeAvailable?: boolean
+  onHeadHome?(): void
   onExit(): void
 }
 
@@ -62,6 +64,8 @@ export function FreeRideHud({
   onAccept,
   onIgnore,
   onLessLikeThis,
+  homeAvailable = false,
+  onHeadHome,
   onExit
 }: FreeRideHudProps) {
   const { state, clock, pause, resume, finish } = controller
@@ -84,7 +88,7 @@ export function FreeRideHud({
   }, [])
 
   return (
-    <section className="ride-hud free-ride-hud" aria-label="Free Ride neural map">
+    <section className="ride-hud free-ride-hud" aria-label="Free Ride">
       <header className="ride-topbar free-ride-topbar">
         <div className="ride-route-name">
           <span className="live-dot" aria-hidden="true" />
@@ -159,7 +163,7 @@ export function FreeRideHud({
 
       {state.error ? <div className="recording-error" role="alert">{state.error}</div> : null}
 
-      <div className="recording-controls free-ride-controls" aria-label="Free Ride controls">
+      <div className={`recording-controls free-ride-controls${homeAvailable ? " has-home" : ""}`} aria-label="Free Ride controls">
         {paused ? (
           <button type="button" className="recording-resume" onClick={resume}>
             <Play weight="fill" aria-hidden="true" /> Resume
@@ -172,6 +176,11 @@ export function FreeRideHud({
         <button type="button" className="recording-finish" onClick={finish}>
           <Check weight="bold" aria-hidden="true" /> Finish &amp; save
         </button>
+        {homeAvailable && onHeadHome ? (
+          <button type="button" className="free-ride-home" onClick={onHeadHome}>
+            <House weight="fill" aria-hidden="true" /> Head Home
+          </button>
+        ) : null}
         <button type="button" className="recording-discard" onClick={onExit}>
           <Record weight="fill" aria-hidden="true" /> Exit
         </button>

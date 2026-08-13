@@ -7,6 +7,10 @@
   background: rgb(243 106 45 / 7%);
 }
 
+.ride-hud.is-track-guidance .maneuver-icon {
+  color: var(--signal);
+}
+
 .ride-reroute-loading {
   display: flex;
   align-items: center;
@@ -164,7 +168,7 @@
   border: 3px solid #f4f1ec;
   background: #fff;
   color: #1a1a1a;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 750;
   letter-spacing: 0;

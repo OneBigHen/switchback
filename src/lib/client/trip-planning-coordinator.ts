@@ -5,7 +5,7 @@ import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { Coordinate } from "@/lib/routing/types"
 import type { PlanningPhase } from "@/stores/planner-store"
 
-interface PlannerRouteLifecycle {
+export interface PlannerRouteLifecycle {
   beginRouting(): void
   applyPlan(plan: TripPlan): void
   mergeAlternatives(plan: TripPlan): void

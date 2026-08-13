@@ -11,6 +11,8 @@
  * shared store (Redis/Cloudflare rate limiting).
  */
 
+import { readRequestId, withRequestId } from "@/lib/server/api-contract"
+
 export interface RateLimiter {
   /** Returns a 429 Response when the caller exceeded the window, else null. */
   check(request: Request): Response | null
@@ -103,7 +105,7 @@ export function withRateLimit(
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     const blocked = limiter.check(request)
-    if (blocked) return blocked
-    return handler(request)
+    if (blocked) return withRequestId(blocked, readRequestId(request))
+    return withRequestId(await handler(request), readRequestId(request))
   }
 }

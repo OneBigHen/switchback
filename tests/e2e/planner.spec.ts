@@ -288,14 +288,6 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expect(page.getByRole("heading", { name: /Pick two points/i })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Start" })).toHaveValue("Current location")
   await expect(page.getByRole("combobox", { name: "Finish" })).toHaveValue("")
-  const plannerSpotifyDock = page.getByRole("complementary", { name: "Spotify player" })
-  await expect(plannerSpotifyDock).toBeVisible()
-  await expectInsideViewport(page, plannerSpotifyDock)
-  await expectNoOverlap(plannerSpotifyDock, page.locator(".planner-action-dock"))
-  await expectNoOverlap(
-    plannerSpotifyDock,
-    page.getByRole("button", { name: "Find my location" })
-  )
   if (testInfo.project.name.includes("landscape")) {
     await expectInsideViewport(page, page.locator(".planner-deck"))
   }
@@ -380,11 +372,6 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await page.context().setGeolocation({ latitude: 40.04, longitude: -77.0 })
   await expect(page.getByRole("heading", { name: "Turn left onto Valley Road" })).toBeVisible()
 
-  const spotifyDock = page.getByRole("complementary", { name: "Spotify player" })
-  if (await spotifyDock.isVisible().catch(() => false)) {
-    await expectInsideViewport(page, spotifyDock)
-    await expectNoOverlap(spotifyDock, page.locator(".ride-telemetry"))
-  }
   await page.screenshot({
     path: `artifacts/screenshots/e2e-ride-${testInfo.project.name}.png`,
     fullPage: false
@@ -560,8 +547,12 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
   })
 
   await page.goto(appUrl)
-  await page.locator("#ride-prompt").fill("I want to ride from Harrisburg to Gettysburg via some twisty roads")
-  await page.getByRole("button", { name: "Find ride options" }).click()
+  const prompt = page.locator("#ride-prompt")
+  await prompt.click()
+  await page.keyboard.type("I want to ride from Harrisburg to Gettysburg via some twisty roads")
+  const submit = page.getByRole("button", { name: "Find ride options" })
+  await expect(submit).toBeEnabled()
+  await submit.click()
 
   await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
   expect(intentRequest).toEqual({

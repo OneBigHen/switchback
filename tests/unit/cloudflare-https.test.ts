@@ -24,18 +24,18 @@ describe("Cloudflare HTTPS enforcement", () => {
   })
 
   it("redirects only the HTTP public request to its HTTPS equivalent", () => {
-    const response = proxy(new NextRequest("http://ride.henning.rodeo/api/spotify/login?returnTo=%2F", {
+    const response = proxy(new NextRequest("http://ride.henning.rodeo/api/health?probe=1", {
       headers: { "cf-visitor": '{"scheme":"http"}' }
     }))
 
     expect(response.status).toBe(308)
     expect(response.headers.get("location")).toBe(
-      "https://ride.henning.rodeo/api/spotify/login?returnTo=%2F"
+      "https://ride.henning.rodeo/api/health?probe=1"
     )
   })
 
   it("uses the reverse proxy's forwarded hostname for the public upgrade", () => {
-    const response = proxy(new NextRequest("http://0.0.0.0/api/spotify/login?returnTo=%2F", {
+    const response = proxy(new NextRequest("http://0.0.0.0/api/health?probe=1", {
       headers: {
         "cf-visitor": '{"scheme":"http"}',
         "x-forwarded-host": "ride.henning.rodeo"
@@ -44,7 +44,7 @@ describe("Cloudflare HTTPS enforcement", () => {
 
     expect(response.status).toBe(308)
     expect(response.headers.get("location")).toBe(
-      "https://ride.henning.rodeo/api/spotify/login?returnTo=%2F"
+      "https://ride.henning.rodeo/api/health?probe=1"
     )
   })
 })

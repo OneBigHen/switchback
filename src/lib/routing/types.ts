@@ -1,7 +1,10 @@
 import type { PaUnpavedRoadEvidence } from "@/lib/roads/types"
+import type { IntrinsicFeatureProvenanceMap } from "@/lib/roads/intrinsic-features"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { RouteScore as NormalizedRouteScore } from "@/lib/domain/contracts"
+import type { RouteUtilityBreakdown } from "@/lib/recommendation/route-score"
+import type { GpxIntelligenceReport } from "@/lib/gpx/intelligence"
 
 export type Coordinate = [longitude: number, latitude: number]
 
@@ -25,6 +28,21 @@ export type TollPolicy = "allow-with-warning" | "avoid"
 
 /** Which progressive API call this request/response belongs to. */
 export type CandidateSet = "primary" | "alternatives"
+
+/** How a route candidate entered the bounded search. */
+export type RouteCandidateSource =
+  | "direct"
+  | "native"
+  | "rig"
+  | "loop-seed"
+  | "heading-sector"
+  | "community"
+  | "road-character"
+
+export interface CanonicalRouteSegmentRef {
+  canonicalSegmentUid: string
+  lengthMeters: number
+}
 
 /** Where a planning request came from; every source shares one pipeline (SB-001). */
 export type RouteRequestSource =
@@ -136,15 +154,47 @@ export interface PlannedRoute {
   routingSource: "live" | "imported" | "preview"
   provider?: "graphhopper" | "valhalla"
   providerVersion?: string
+  candidateSource?: RouteCandidateSource
+  /** Compact directed-segment refs; geometry remains owned by the route cache. */
+  canonicalSegmentRefs?: CanonicalRouteSegmentRef[]
+  /** Explicit provider/version evidence, including a real fallback decision. */
+  provenance?: {
+    provider: "graphhopper" | "valhalla"
+    version: string
+    fallback: boolean
+    fallbackFrom?: "graphhopper"
+  }
   previewOnly: boolean
-  /** Provider-neutral route intelligence score, when feature data permits it. */
-  routeScore?: NormalizedRouteScore
+  /** Provider-neutral score plus its pre-utility gate result. */
+  routeScore?: NormalizedRouteScore & {
+    accepted?: boolean
+    rejectionReasons?: string[]
+    utility?: RouteUtilityBreakdown
+  }
   overlapPercent?: number
   loopTargetMinutes?: number
   avoidHighways?: boolean
   avoidAreas?: AvoidArea[]
   segmentProfiles?: RouteProfileId[]
   officialUnpavedEvidence?: PaUnpavedRoadEvidence
+  /** Provenance for normalized intrinsic road features; unknown stays explicit. */
+  featureProvenance?: IntrinsicFeatureProvenanceMap
+  /** Bounded analysis attached to imported GPX geometry; no geometry is duplicated. */
+  gpxIntelligence?: GpxIntelligenceReport
+  /** Imported tracks stay breadcrumb-only until the rider explicitly matches them. */
+  navigationMode?: "turn-by-turn" | "track-only" | "continuous-track"
+  /** First geometry index belonging to the GPX leg of a joined approach. */
+  gpxLegStartIndex?: number
+  /** Parent/source identity for a joined GPX derivative; source geometry is not copied. */
+  gpxParentRouteId?: string
+  derivativeProvenance?: {
+    parentRouteId: string
+    parentRevision: string
+    changedSegmentPercent: number
+    creator: "rider"
+    modifiedAt: string
+    visibility: "private"
+  }
   /**
    * Per-lock satisfaction results for this candidate, computed after the
    * engines return. A must-use lock that is not satisfied surfaces a

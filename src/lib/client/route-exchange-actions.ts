@@ -1,9 +1,10 @@
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
-import { routeToGpx, type GpxExportVariant } from "@/lib/routing/gpx"
+import { recordedRideToGpx, routeToGpx, type GpxExportVariant } from "@/lib/routing/gpx"
 import { MAX_GPX_IMPORT_BYTES } from "@/lib/routing/gpx-import"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { parseRouteFileInWorker } from "@/lib/client/route-import-client"
 import type { SavedRoute } from "@/lib/storage/route-library"
+import type { RecordedRide } from "@/lib/storage/ride-journal"
 import {
   createGpxRoadLock,
   type RoadLock,
@@ -46,6 +47,23 @@ interface RouteExchangeActionsOptions {
 function downloadName(route: PlannedRoute, variant: GpxExportVariant): string {
   const base = route.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "switchback-route"
   return `${base}${variant === "track" ? "" : `-${variant}`}.gpx`
+}
+
+function isCoordinate(value: unknown): value is Coordinate {
+  return Array.isArray(value) && value.length === 2 &&
+    typeof value[0] === "number" && Number.isFinite(value[0]) && value[0] >= -180 && value[0] <= 180 &&
+    typeof value[1] === "number" && Number.isFinite(value[1]) && value[1] >= -90 && value[1] <= 90
+}
+
+function isPlannedRoute(value: unknown, id: string): value is PlannedRoute {
+  if (!value || typeof value !== "object") return false
+  const route = value as Partial<PlannedRoute>
+  return route.id === id && typeof route.name === "string" &&
+    Array.isArray(route.geometry) && route.geometry.length >= 2 && route.geometry.every(isCoordinate) &&
+    Array.isArray(route.waypoints) && Array.isArray(route.instructions) &&
+    typeof route.distanceMiles === "number" && Number.isFinite(route.distanceMiles) &&
+    typeof route.durationMinutes === "number" && Number.isFinite(route.durationMinutes) &&
+    typeof route.previewOnly === "boolean"
 }
 
 /** Permissive snapshot for GPX-imported road locks until a rematch fills it in. */
@@ -95,16 +113,37 @@ export function createRouteExchangeActions({
     },
 
     exportRoute(route: PlannedRoute, variant: GpxExportVariant = "track") {
-      const blob = new Blob([routeToGpx(route, { variant })], { type: "application/gpx+xml;charset=utf-8" })
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement("a")
-      anchor.href = url
-      anchor.download = downloadName(route, variant)
-      document.body.append(anchor)
-      anchor.click()
-      anchor.remove()
-      window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
-      onNotice({ kind: "success", message: `GPX ${variant} exported.` })
+      try {
+        const blob = new Blob([routeToGpx({ ...route, creatorNotes: route.gpxIntelligence?.creatorNotes }, { variant })], { type: "application/gpx+xml;charset=utf-8" })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement("a")
+        anchor.href = url
+        anchor.download = downloadName(route, variant)
+        document.body.append(anchor)
+        anchor.click()
+        anchor.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
+        onNotice({ kind: "success", message: `GPX ${variant} exported.` })
+      } catch (caught) {
+        onNotice({ kind: "warning", message: caught instanceof Error ? caught.message : "GPX export failed." })
+      }
+    },
+
+    exportRecordedRide(ride: RecordedRide) {
+      try {
+        const blob = new Blob([recordedRideToGpx(ride)], { type: "application/gpx+xml;charset=utf-8" })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement("a")
+        anchor.href = url
+        anchor.download = downloadName({ ...ride.route, name: ride.routeName }, "recorded")
+        document.body.append(anchor)
+        anchor.click()
+        anchor.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
+        onNotice({ kind: "success", message: "GPX recorded ride exported." })
+      } catch (caught) {
+        onNotice({ kind: "warning", message: caught instanceof Error ? caught.message : "Recorded ride export failed." })
+      }
     },
 
     async deleteRoute(route: SavedRoute) {
@@ -127,7 +166,7 @@ export function createRouteExchangeActions({
         const response = await fetcher(`/api/gpx-library?id=${encodeURIComponent(summary.id)}`)
         if (!response.ok) throw new Error("The imported GPX route could not be loaded.")
         const imported = await response.json() as PlannedRoute
-        if (imported.id !== summary.id || !Array.isArray(imported.geometry) || imported.geometry.length < 2) {
+        if (!isPlannedRoute(imported, summary.id)) {
           throw new Error("The imported GPX route is invalid.")
         }
         onLoad(imported)

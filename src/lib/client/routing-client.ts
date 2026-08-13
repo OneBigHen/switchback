@@ -4,6 +4,8 @@ interface ApiErrorPayload {
   error?: {
     code?: string
     message?: string
+    action?: string
+    requestId?: string
   }
 }
 
@@ -11,7 +13,9 @@ export class RoutingClientError extends Error {
   constructor(
     message: string,
     readonly code: string,
-    readonly status: number
+    readonly status: number,
+    readonly action?: string,
+    readonly requestId?: string
   ) {
     super(message)
   }
@@ -55,13 +59,16 @@ export async function requestTripPlan(
   }
 
   let payload: TripPlan | ApiErrorPayload
+  const responseRequestId = response.headers.get("x-request-id") ?? undefined
   try {
     payload = await response.json() as TripPlan | ApiErrorPayload
   } catch {
     throw new RoutingClientError(
       "The routing service returned an unreadable response.",
       "INVALID_ROUTE_RESPONSE",
-      502
+      502,
+      undefined,
+      responseRequestId
     )
   }
 
@@ -70,7 +77,9 @@ export async function requestTripPlan(
     throw new RoutingClientError(
       apiError?.message ?? "This trip could not be routed.",
       apiError?.code ?? "ROUTE_PLANNING_FAILED",
-      response.status
+      response.status,
+      apiError?.action,
+      apiError?.requestId ?? responseRequestId
     )
   }
 

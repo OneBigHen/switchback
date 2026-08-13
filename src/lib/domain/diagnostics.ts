@@ -22,13 +22,54 @@ export interface ProviderDiagnostics {
   checkedAt: string
 }
 
+export interface RuntimeDiagnostics {
+  jsHeapUsedBytes: number | null
+  jsHeapTotalBytes: number | null
+  jsHeapLimitBytes: number | null
+  storageUsageBytes: number | null
+  storageQuotaBytes: number | null
+  cacheCount: number | null
+  cacheEntryCount: number | null
+  serviceWorkerCount: number | null
+  timerCount: number
+  gpsWatchCount: number
+  workerCount: number
+  routeEntityCount: number | null
+  routeGeometryBytesEstimate: number | null
+  mapSourceCount: number | null
+  mapLayerCount: number | null
+  geoWorkerLoadedTiles: number | null
+  geoWorkerBytes: number | null
+}
+
+export interface ServerRuntimeDiagnostics {
+  rssBytes: number | null
+  heapUsedBytes: number | null
+  heapTotalBytes: number | null
+  externalBytes: number | null
+  arrayBuffersBytes: number | null
+  routeRunningJobs: number | null
+  routeQueuedJobs: number | null
+  routeCacheEntries: number | null
+}
+
 export interface DiagnosticsSnapshot {
   appVersion: string
   buildId: string
   readiness: OfflineReadiness
   storage: StorageDiagnostics
   providers: ProviderDiagnostics
+  runtime: RuntimeDiagnostics
+  server: ServerRuntimeDiagnostics
   warnings: string[]
+}
+
+export function formatBytes(bytes: number | null): string {
+  if (bytes == null || !Number.isFinite(bytes)) return "not measurable"
+  if (bytes < 1024) return `${Math.round(bytes)} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
 export function summarizeStorage(storage: StorageDiagnostics): string {

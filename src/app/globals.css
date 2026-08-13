@@ -1,5 +1,5 @@
-@import "@fontsource-variable/inter/index.css";
-@import "@fontsource-variable/space-grotesk/index.css";
+@import "@fontsource-variable/dm-sans/index.css";
+@import "@fontsource-variable/sora/index.css";
 
 :root {
   --background: 207 47% 97%;
@@ -92,7 +92,7 @@ body,
 button,
 input,
 select {
-  font-family: "Inter Variable", Inter, sans-serif;
+  font-family: var(--font-body);
 }
 
 button,
@@ -123,7 +123,7 @@ h1,
 h2,
 h3,
 .brand-lockup strong {
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-family: var(--font-display);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -8,6 +8,7 @@ import {
   type RecordingSessionSnapshot,
   type RecordingSessionState
 } from "@/lib/client/recording-session"
+import { trackRuntimeResource } from "@/lib/client/runtime-diagnostics"
 import type { RecordedRidePoint } from "@/lib/storage/ride-journal"
 
 const RECOVERY_KEY = "switchback:active-recording"
@@ -33,12 +34,15 @@ export function useRecordingSession() {
   const [state, dispatch] = useReducer(recordingSessionReducer, undefined, createRecordingState)
   const [clock, setClock] = useState(() => Date.now())
   const watchIdRef = useRef<number | null>(null)
+  const releaseWatchMetricRef = useRef<(() => void) | null>(null)
 
   const stopWatch = useCallback(() => {
     if (watchIdRef.current != null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current)
     }
     watchIdRef.current = null
+    releaseWatchMetricRef.current?.()
+    releaseWatchMetricRef.current = null
   }, [])
 
   const watch = useCallback((): boolean => {
@@ -66,6 +70,7 @@ export function useRecordingSession() {
       }),
       { enableHighAccuracy: true, maximumAge: 1_000, timeout: 12_000 }
     )
+    releaseWatchMetricRef.current = trackRuntimeResource("gps-watch")
     return true
   }, [])
 
@@ -92,8 +97,12 @@ export function useRecordingSession() {
   // Tick the elapsed-time clock once per second while recording.
   useEffect(() => {
     if (state.status !== "recording") return
+    const releaseTimerMetric = trackRuntimeResource("timer")
     const timer = window.setInterval(() => setClock(Date.now()), 1_000)
-    return () => window.clearInterval(timer)
+    return () => {
+      window.clearInterval(timer)
+      releaseTimerMetric()
+    }
   }, [state.status])
 
   useEffect(() => stopWatch, [stopWatch])

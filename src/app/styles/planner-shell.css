@@ -153,7 +153,7 @@
 }
 
 .maplibregl-map {
-  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+  font-family: var(--font-body);
 }
 
 .maplibregl-ctrl-group {
@@ -287,7 +287,7 @@
 }
 
 .brand-lockup strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 17px;
   font-weight: 680;
   letter-spacing: -0.035em;
@@ -373,7 +373,7 @@ h2,
 .route-slip-metric strong,
 .route-count,
 .ride-telemetry strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
 }
 

@@ -202,7 +202,8 @@ workerScope.addEventListener("message", async (event: MessageEvent) => {
         const router = await import(/* @vite-ignore */ "@/lib/offline/v2-router")
         const found = router.routeOfflineV2(
           parsed.tiles as Parameters<typeof router.routeOfflineV2>[0],
-          parsed.routeRequest as Parameters<typeof router.routeOfflineV2>[1]
+          parsed.routeRequest as Parameters<typeof router.routeOfflineV2>[1],
+          { isCancelled: () => tracked.get(parsed.requestId)?.cancelled === true }
         )
         result = found.ok
           ? buildOfflineRoutingWorkerOk(parsed, found)

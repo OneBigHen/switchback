@@ -1,14 +1,17 @@
 import { MAX_GPX_IMPORT_BYTES } from "@/lib/routing/gpx-import"
 import {
+  parseImportWorkerResult,
   ROUTE_IMPORT_WORKER_VERSION,
   type ImportWorkerRequest,
   type ImportWorkerResult
 } from "@/lib/routing/import-worker-protocol"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { trackRuntimeResource } from "@/lib/client/runtime-diagnostics"
 
 export interface RouteImportWorker {
   onmessage: ((event: MessageEvent<ImportWorkerResult>) => void) | null
   onerror: ((event: ErrorEvent) => void) | null
+  onmessageerror?: ((event: MessageEvent) => void) | null
   postMessage(message: ImportWorkerRequest, transfer: Transferable[]): void
   terminate(): void
 }
@@ -26,41 +29,136 @@ function createRouteImportWorker(): RouteImportWorker {
   )
 }
 
+let nextGeneration = 0
+let activeImportWorkers = 0
+const MAX_ACTIVE_IMPORT_WORKERS = 1
+
+function createGeneration(): number {
+  nextGeneration = nextGeneration === Number.MAX_SAFE_INTEGER ? 1 : nextGeneration + 1
+  return nextGeneration
+}
+
+function abortError(): Error {
+  const error = new Error("Route import was cancelled.")
+  error.name = "AbortError"
+  return error
+}
+
 export async function parseRouteFileInWorker(
   file: File,
-  createWorker: RouteImportWorkerFactory = createRouteImportWorker
+  createWorker: RouteImportWorkerFactory = createRouteImportWorker,
+  signal?: AbortSignal
 ): Promise<PlannedRoute> {
   if (file.size > MAX_GPX_IMPORT_BYTES) {
     throw new Error("Route imports must be 5 MB or smaller.")
   }
+  if (signal?.aborted) throw abortError()
 
-  const worker = createWorker()
-  const requestId = createRequestId()
   const contents = await file.arrayBuffer()
+  if (signal?.aborted) throw abortError()
+  if (activeImportWorkers >= MAX_ACTIVE_IMPORT_WORKERS) {
+    throw new Error("Another route import is already in progress.")
+  }
+  activeImportWorkers += 1
+  let worker: RouteImportWorker
+  try {
+    worker = createWorker()
+  } catch (caught) {
+    activeImportWorkers -= 1
+    throw caught
+  }
+  const releaseWorkerMetric = trackRuntimeResource("worker")
+  const requestId = createRequestId()
+  const generation = createGeneration()
+  const request: ImportWorkerRequest = {
+    version: ROUTE_IMPORT_WORKER_VERSION,
+    kind: "parse-route",
+    requestId,
+    generation,
+    fileName: file.name,
+    byteLength: file.size,
+    contents
+  }
 
   return new Promise<PlannedRoute>((resolve, reject) => {
-    const finish = () => worker.terminate()
+    let settled = false
+    const onAbort = () => {
+      if (settled) return
+      try {
+        worker.postMessage({
+          version: ROUTE_IMPORT_WORKER_VERSION,
+          kind: "cancel",
+          requestId,
+          generation,
+          cancelRequestId: requestId
+        }, [])
+      } catch {
+        // Terminating the worker below is the authoritative cancellation path.
+      }
+      finish()
+      reject(abortError())
+    }
+    const finish = () => {
+      if (settled) return
+      settled = true
+      signal?.removeEventListener("abort", onAbort)
+      worker.onmessage = null
+      worker.onerror = null
+      if (worker.onmessageerror) worker.onmessageerror = null
+      releaseWorkerMetric()
+      activeImportWorkers -= 1
+      worker.terminate()
+    }
     worker.onerror = () => {
+      if (settled) return
       finish()
       reject(new Error("The route import worker stopped unexpectedly."))
     }
+    if (worker.onmessageerror !== undefined) {
+      worker.onmessageerror = () => {
+        if (settled) return
+        finish()
+        reject(new Error("The route import worker returned an unreadable response."))
+      }
+    }
     worker.onmessage = ({ data }) => {
-      if (data.version !== ROUTE_IMPORT_WORKER_VERSION || data.requestId !== requestId) return
-      finish()
-      if (data.kind === "import-error") {
-        reject(new Error(data.message))
+      const metadata = typeof data === "object" && data !== null
+        ? data as { requestId?: unknown; generation?: unknown }
+        : null
+      if (
+        metadata &&
+        ((metadata.requestId !== undefined && metadata.requestId !== requestId) ||
+          (metadata.generation !== undefined && metadata.generation !== generation))
+      ) return
+      if (!metadata || metadata.requestId !== requestId || metadata.generation !== generation) {
+        finish()
+        reject(new Error("The route import worker returned an invalid response."))
         return
       }
-      resolve(data.route)
+      const result = parseImportWorkerResult(data)
+      if (!result) {
+        finish()
+        reject(new Error("The route import worker returned an invalid response."))
+        return
+      }
+      finish()
+      if (result.kind === "import-error") {
+        reject(new Error(result.message))
+        return
+      }
+      resolve(result.route)
     }
-    const request: ImportWorkerRequest = {
-      version: ROUTE_IMPORT_WORKER_VERSION,
-      kind: "parse-route",
-      requestId,
-      fileName: file.name,
-      byteLength: file.size,
-      contents
+    signal?.addEventListener("abort", onAbort, { once: true })
+    if (signal?.aborted) {
+      onAbort()
+      return
     }
-    worker.postMessage(request, [contents])
+    try {
+      worker.postMessage(request, [contents])
+    } catch (caught) {
+      if (settled) return
+      finish()
+      reject(caught instanceof Error ? caught : new Error("The route import worker could not start."))
+    }
   })
 }

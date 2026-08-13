@@ -62,6 +62,7 @@ describe("Free Ride HUD", () => {
     const onAccept = vi.fn()
     const onIgnore = vi.fn()
     const onLessLikeThis = vi.fn()
+    const onHeadHome = vi.fn()
 
     render(
       <FreeRideHud
@@ -72,6 +73,8 @@ describe("Free Ride HUD", () => {
         onAccept={onAccept}
         onIgnore={onIgnore}
         onLessLikeThis={onLessLikeThis}
+        homeAvailable
+        onHeadHome={onHeadHome}
         onExit={vi.fn()}
       />
     )
@@ -83,10 +86,12 @@ describe("Free Ride HUD", () => {
     await user.click(screen.getByRole("button", { name: "Accept suggestion" }))
     await user.click(screen.getByRole("button", { name: "Ignore suggestion" }))
     await user.click(screen.getByRole("button", { name: "Less like this" }))
+    await user.click(screen.getByRole("button", { name: "Head Home" }))
 
     expect(onAccept).toHaveBeenCalledWith(suggestion)
     expect(onIgnore).toHaveBeenCalledTimes(1)
     expect(onLessLikeThis).toHaveBeenCalledTimes(1)
+    expect(onHeadHome).toHaveBeenCalledTimes(1)
   })
 
   it("keeps the rider informed when GPS or curvature data cannot support a suggestion", () => {

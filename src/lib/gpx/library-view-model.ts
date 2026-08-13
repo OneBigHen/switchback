@@ -200,7 +200,9 @@ export function buildProjectRouteLibrary(
 
   for (const route of routes) {
     const normalizedName = normalizeProjectRouteName(route.name)
-    const groupKey = GENERIC_ROUTE_NAMES.has(normalizedName)
+    const groupKey = route.duplicateFamilyId
+      ? `family:${route.duplicateFamilyId}`
+      : GENERIC_ROUTE_NAMES.has(normalizedName)
       ? `${normalizedName}::${route.id}`
       : normalizedName
     const members = grouped.get(groupKey)

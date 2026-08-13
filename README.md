@@ -118,32 +118,21 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 | `OPENROUTER_MODEL` | `openrouter/free` | OpenRouter model/router used when a key is configured |
 | `NWS_USER_AGENT` | built-in Switchback identifier | Deployment identifier sent to `api.weather.gov`; configure a contact-bearing value for your instance |
 | `CURVATURE_DB_PATH` | `<repo>/data/segments.db` | Absolute or repo-relative path to the optional curvature SQLite database |
+| `FREE_RIDE_RIG_PATH` | unset | Optional server-only verified canonical-segment/RIG corridor document; without it Free Ride returns an honest unavailable response |
 | `CORRIDOR_CACHE_PATH` | `<repo>/data/route-research-cache.sqlite` | Server-side 7-day cache of validated corridor hints for `/api/ride-corridors` and the timeboxed destination planner |
 | `GPX_LIBRARY_PATH` | `<repo>/data/gpx-library` | Server-side catalog scanned by `/api/gpx-library`; separate from each browser's IndexedDB routes |
+| `COMMUNITY_DB_PATH` / `SYNC_DB_PATH` | `data/*.sqlite` | Server-side route-centered community and opaque encrypted-sync stores; keep outside the web root |
+| `SWITCHBACK_SESSION_SECRET` | unset | At least 32 characters; signs pseudonymous identity sessions |
+| `SWITCHBACK_WEBAUTHN_RP_ID` | `localhost` outside production | Production HTTPS relying-party hostname; must match the configured origin or a parent domain |
+| `SWITCHBACK_WEBAUTHN_ORIGIN` | `http://localhost:3000` outside production | Exact production HTTPS origin accepted by WebAuthn verification |
+| `SWITCHBACK_WEBAUTHN_RP_NAME` | `Switchback` | Display name shown by passkey providers |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | OpenFreeMap Positron | Browser-visible MapLibre style URL for the Clean map; set this before building |
-| `SPOTIFY_CLIENT_ID` | unset | Public Spotify application ID used by the optional remote player controls |
-| `SPOTIFY_REDIRECT_URI` | unset | Exact registered callback URL, normally `https://your-switchback-host/callback` |
-| `SPOTIFY_SESSION_SECRET` | unset | Server-only, 32+ character key used to encrypt Spotify PKCE and refresh-token cookies |
 
 When `GOOGLE_MAPS_API_KEY` is configured, deliberate destination searches use Google Places Text Search with a location bias from the resolved start. Empty results and provider errors fall back to Photon. The public Photon endpoint is convenient for a personal deployment; for heavier or multi-user traffic, run a Photon instance you control and set `PHOTON_URL` rather than treating the public service as an unlimited production API.
 
 Valhalla is optional. The pinned [Valhalla Compose contract](infra/valhalla/README.md) builds Pennsylvania/New Jersey tiles from the same normalized extract and binds the service to `127.0.0.1:8002`; it is not required by the default GraphHopper startup. Enable `VALHALLA_URL` and/or `VALHALLA_ELEVATION_URL` only after the documented local route, status, and elevation checks pass. When `VALHALLA_URL` is configured, `/api/health` reports that routing provider independently; a Valhalla outage marks the app degraded while GraphHopper readiness remains authoritative. An elevation-only endpoint is not currently a separate health probe.
 
 `OPENROUTER_API_KEY` is optional. When it is absent, invalid, rate-limited, or returns unusable structured output, Switchback falls back to its local ride-intent parser. Keep the key only in `.env.local`, `.env.production`, or your service manager's protected environment; never use a `NEXT_PUBLIC_` name for it. The default `openrouter/free` router may choose different free models over time, so set `OPENROUTER_MODEL` to a specific compatible model if reproducibility matters.
-
-### Spotify mini-player
-
-The optional player uses Spotify's Authorization Code with PKCE flow and Web API playback controls. It never needs `SPOTIFY_CLIENT_SECRET`; do not add or deploy one. Register the exact value of `SPOTIFY_REDIRECT_URI` in the Spotify Developer Dashboard, set the three variables above, rebuild/restart Next, and choose **Connect Spotify** in the player dock. Generate `SPOTIFY_SESSION_SECRET` independently from any Spotify credential:
-
-```bash
-openssl rand -base64 32
-```
-
-Production callbacks must use HTTPS. For local development, Spotify requires an explicit loopback IP such as `http://127.0.0.1:3000/callback`; `localhost` is not accepted. The configured URI, including path, case, port, and trailing slash, must match the dashboard entry exactly.
-
-Switchback keeps the PKCE verifier and Spotify refresh token in encrypted `httpOnly`, `SameSite=Lax` cookies. The OAuth return uses a short-lived, one-time handoff so the same browser can establish the encrypted session without putting Spotify credentials in the URL. Token and playback responses are private and `no-store`. Access tokens refresh silently before expiry, refresh-token rotation is retained when Spotify supplies it, and an expired or revoked refresh token returns the player to the connect prompt. Spotify currently documents a six-month refresh-token lifetime, so eventual reauthorization is expected.
-
-Switchback controls the Spotify app or Connect device that is already active; it does not transfer protected audio into the browser. Open Spotify and start a song once if no active device is shown. Spotify's playback-control endpoints require an eligible Premium account, and Development Mode limits who can use the registered app. Review the current [playback-state API](https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback), [PKCE flow](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow), and [Development Mode limits](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) before sharing the deployment.
 
 The weather and Pennsylvania unpaved-road adapters use fixed public provider endpoints. They need no API keys. Set `NWS_USER_AGENT` to an application identifier with a real contact before relying on the public NWS service, and expect both external overlays to degrade gracefully when their providers are unavailable.
 
@@ -157,6 +146,11 @@ npm run data:bootstrap
 ```
 
 Do not expose GraphHopper or Valhalla directly to the LAN or internet. The browser only calls Next.js `/api/*` routes, and Next talks to routing providers over the server-side network boundary.
+
+The optional Switchback ID uses a platform passkey for publishing and opaque
+encrypted sync. Local planning, route saving, GPX work, riding, and offline use
+remain account-free. Production deployments must set both WebAuthn trust
+variables explicitly; the server does not derive them from a request host.
 
 ## Public deployment notes
 
@@ -180,8 +174,8 @@ defense in depth, but the proxy contract must be respected:
   beyond your proxy; the Cloudflare host service that binds `0.0.0.0:3100`
   is only safe when the edge/firewall is restricted to Cloudflare IPs.
 - **TLS.** Replace `tls internal` with a real ACME certificate and set an
-  email in the Caddy global block. The app sends HSTS, CSP, nosniff and
-  frame/object restrictions on every response in production.
+  email in the Caddy global block. The HTTPS edge sends HSTS; the app sends
+  CSP, nosniff and frame/object restrictions in production.
 - **GPX library paths are scrubbed** from the public catalog response; the
   project catalog under `GPX_LIBRARY_PATH` is still visible to anyone — only
   publish routes you intend to share.
@@ -347,7 +341,6 @@ Graph caches are coupled to the pinned engine and profile/encoded-value configur
 - Ride descriptions pass through the Next server to OpenRouter only when `OPENROUTER_API_KEY` is configured; otherwise interpretation stays in the app's local parser.
 - Selected route sample coordinates pass through the Next server to the National Weather Service for forecasts and active alerts.
 - Pennsylvania unpaved-road viewport and planned-route corridor queries pass through the Next server to PASDA and are cached. They contain map bounds or simplified candidate geometry, not a stored GPS history.
-- Spotify PKCE and refresh credentials stay in encrypted server-readable cookies; only the SDK's short-lived access token enters browser memory, and it is never persisted by Switchback.
 - Map style and tile requests go to the configured browser-visible map provider.
 
 Clearing site data removes the local route library. Export important rides as GPX before clearing browser storage or moving to another device.
@@ -357,13 +350,11 @@ Clearing site data removes the local route library. Export important rides as GP
 ```text
 src/app/api/             Next server boundary for routing, geocoding, ride intent, weather, GPX, and map overlays
 src/components/planner/ Planner, map, library, comparison, and ride surfaces
-src/components/spotify/ Persistent Web Playback SDK mini-player
 src/lib/ai/              Local and optional OpenRouter ride-intent interpretation
 src/lib/geocoding/       Google-first destination-provider chain, Photon normalization, bias, and result selection
 src/lib/planner/         Modular free-form waypoint resolution plus destination and timeboxed-loop request construction
 src/lib/roads/           Pennsylvania unpaved-road provider and validation
 src/lib/routing/         Profiles, GraphHopper/Valhalla adapters, hybrid orchestration, comparison/scoring, and GPX import/export
-src/lib/spotify/         PKCE, encrypted sessions, token refresh, and browser SDK adapter
 src/lib/storage/         IndexedDB route library
 src/lib/weather/         National Weather Service forecast and alert adapter
 infra/graphhopper/       Pinned profiles, custom models, and GraphHopper config

@@ -1,5 +1,5 @@
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
-import type { TripPlan } from "@/lib/routing/planner"
+import type { RoutePlanSummary } from "@/lib/client/route-entity-cache"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
@@ -145,7 +145,7 @@ export interface PlannerDeckCommands {
 }
 
 export function buildPlannerDeckViewModel(state: {
-  plan: TripPlan | null
+  plan: RoutePlanSummary | null
   start: Waypoint | null
   finish: Waypoint | null
   startQuery: string

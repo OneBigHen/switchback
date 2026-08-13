@@ -97,6 +97,27 @@ describe("project GPX library view model", () => {
     expect(library.groups[0].members).toEqual(routes)
   })
 
+  it("uses measured duplicate families even when names differ", async () => {
+    const { buildProjectRouteLibrary } = await import("@/lib/gpx/library-view-model")
+    const routes = [
+      projectRoute("family-a", "Imported GPX", "Roost", "Roost/a.gpx", {
+        duplicateFamilyId: "family-1",
+        duplicateFamilySize: 2,
+        duplicateFamilyRole: "canonical"
+      }),
+      projectRoute("family-b", "Different export name", "LongWay", "LongWay/b.gpx", {
+        duplicateFamilyId: "family-1",
+        duplicateFamilySize: 2,
+        duplicateFamilyRole: "near-duplicate"
+      })
+    ]
+
+    const library = buildProjectRouteLibrary(routes)
+
+    expect(library.groups).toHaveLength(1)
+    expect(library.groups[0]?.memberIds).toEqual(["family-a", "family-b"])
+  })
+
   it("keeps unrelated routes with generic imported names in separate groups", async () => {
     const { buildProjectRouteLibrary } = await import("@/lib/gpx/library-view-model")
     const routes = [

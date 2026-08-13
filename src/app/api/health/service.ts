@@ -1,3 +1,5 @@
+import { readServerRuntimeDiagnostics } from "@/lib/server/runtime-diagnostics"
+
 export interface HealthOptions {
   routerBaseUrl: string
   valhallaBaseUrl?: string
@@ -46,12 +48,17 @@ export async function getSystemHealth(options: HealthOptions) {
     graphhopper: router,
     ...(valhalla ? { valhalla } : {})
   }
+  const degradedProviders = Object.entries(providers)
+    .filter(([, provider]) => !provider.ok)
+    .map(([name]) => name)
 
   return {
     ok: router.ok,
     degraded: Boolean(valhalla && !valhalla.ok),
     app: { ok: true },
     router,
-    providers
+    providers,
+    degradedProviders,
+    runtime: readServerRuntimeDiagnostics()
   }
 }

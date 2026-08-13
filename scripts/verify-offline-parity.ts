@@ -18,12 +18,17 @@ import { createHash } from "node:crypto"
 import { gunzipSync } from "node:zlib"
 import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { routeOfflineV2, type OfflineRouteProfile } from "../src/lib/offline/v2-router"
+import { routeOfflineV2, type OfflineBikeCompatibility, type OfflineRouteProfile } from "../src/lib/offline/v2-router"
+import { getBikeProfile } from "../src/lib/routing/bike-profiles"
+import { createGraphHopperRequest } from "../src/lib/routing/graphhopper"
+import type { RouteProfileId } from "../src/lib/routing/types"
 import type { OfflineGraphTileV2 } from "../src/lib/offline/v2-contracts"
 
 const PAIR_COUNT = Number(process.argv[2] ?? 200)
 const GRAPH_HOPPER_URL = process.env.GRAPHHOPPER_URL ?? "http://127.0.0.1:8989"
 const DATA_ROOT = "data/offline-regions"
+const RANDOM_SAMPLE_TILE_POOL_SIZE = 8
+const EVIDENCE_PATH = process.env.OFFLINE_PARITY_EVIDENCE_PATH ?? "artifacts/offline-parity-evidence.json"
 
 // Deterministic PRNG (seeded) so every run reproduces the same 200 pairs.
 function makeRng(seed: number): () => number {
@@ -65,20 +70,25 @@ function decompressTile(tilesDir: string, tileId: string): OfflineGraphTileV2 {
   return JSON.parse(gunzipSync(readFileSync(join(tilesDir, `${tileId}.json.gz`))).toString("utf8")) as OfflineGraphTileV2
 }
 
-function selectCorridorTileIds(tileBounds: Array<{ tileId: string; bounds: Bounds }>, points: number[][], padDeg = 0.01): string[] {
+function selectCorridorTileIds(tileBounds: Array<{ tileId: string; bounds: Bounds }>, points: number[][], paddingMeters = 5_000): string[] {
   let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity
+  const latitude = points.reduce((sum, point) => sum + point[1], 0) / points.length
+  const paddingLat = paddingMeters / 111_320
+  const paddingLon = paddingMeters / Math.max(1, 111_320 * Math.cos(latitude * Math.PI / 180))
   for (const [lon, lat] of points) {
     minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon)
     minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat)
   }
-  minLon -= padDeg; minLat -= padDeg; maxLon += padDeg; maxLat += padDeg
+  minLon -= paddingLon; minLat -= paddingLat; maxLon += paddingLon; maxLat += paddingLat
   return tileBounds.filter((t) => {
     const b = t.bounds
     return !(b.minLon > maxLon || b.maxLon < minLon || b.minLat > maxLat || b.maxLat < minLat)
   }).map((t) => t.tileId)
 }
 
-async function routeGraphHopper(points: number[][], profile: string): Promise<{ ok: boolean; distanceMeters: number | null; error?: string }> {
+type GraphHopperOutcome = "route" | "no_route" | "oracle_error"
+
+async function routeGraphHopper(points: number[][], profile: OfflineRouteProfile, bikeCompatibility: OfflineBikeCompatibility): Promise<{ ok: boolean; distanceMeters: number | null; outcome: GraphHopperOutcome; error?: string }> {
   const ghProfile: Record<string, string> = {
     quick: "motorcycle_fastest",
     balanced: "motorcycle_fastest",
@@ -89,23 +99,45 @@ async function routeGraphHopper(points: number[][], profile: string): Promise<{ 
     "avoid-highways": "motorcycle_fastest",
     neural: "motorcycle_twisty"
   }
+  const bikeProfile = getBikeProfile(bikeCompatibility === "street" ? "Street" : "Dual-Sport")
+  if (!bikeProfile) throw new Error(`Missing parity bike profile for ${bikeCompatibility}`)
   const body = {
+    ...createGraphHopperRequest({
+      profile: profile as RouteProfileId,
+      points: points.map(([lon, lat]) => ({ lon, lat })),
+      bikeProfile
+    }),
     profile: ghProfile[profile] ?? "motorcycle_fastest",
     points_encoded: false,
     "ch.disable": true,
     calc_points: true,
     points: points.map(([lon, lat]) => [lon, lat])
   }
-  const res = await fetch(`${GRAPH_HOPPER_URL}/route`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body)
-  })
+  let res: Response | null = null
+  let transportError: string | undefined
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      res = await fetch(`${GRAPH_HOPPER_URL}/route`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      })
+      break
+    } catch (error) {
+      transportError = error instanceof Error ? error.message : String(error)
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+  if (!res) return { ok: false, distanceMeters: null, outcome: "oracle_error", error: transportError ?? "GraphHopper request failed" }
   const json = await res.json() as { paths?: Array<{ distance: number; time: number }>; message?: string }
   if (!res.ok || !json.paths?.length) {
-    return { ok: false, distanceMeters: null, error: json.message ?? `HTTP ${res.status}` }
+    const error = json.message ?? `HTTP ${res.status}`
+    const outcome: GraphHopperOutcome = /cannot find (?:a )?route|connection between locations not found|point(?:s)? not found|no path|unreachable/i.test(error)
+      ? "no_route"
+      : "oracle_error"
+    return { ok: false, distanceMeters: null, outcome, error }
   }
-  return { ok: true, distanceMeters: Math.round(json.paths[0].distance) }
+  return { ok: true, distanceMeters: Math.round(json.paths[0].distance), outcome: "route" }
 }
 
 function auditLegality(edgeIds: string[], tiles: OfflineGraphTileV2[]): { illegalEdges: unknown[]; turnViolations: unknown[] } {
@@ -167,33 +199,96 @@ interface Pair {
   regions: string[]
 }
 
+interface RandomRegionSource {
+  regionId: string
+  tilesDir: string
+  tiles: Array<{ tileId: string; bounds: Bounds }>
+}
+
+function intersects(a: Bounds, b: Bounds): boolean {
+  return !(a.minLon > b.maxLon || a.maxLon < b.minLon || a.minLat > b.maxLat || a.maxLat < b.minLat)
+}
+
+function haversineMeters(a: [number, number], b: [number, number]): number {
+  const radians = (degrees: number) => degrees * Math.PI / 180
+  const dLat = radians(b[1] - a[1])
+  const dLon = radians(b[0] - a[0])
+  const latA = radians(a[1])
+  const latB = radians(b[1])
+  const value = Math.sin(dLat / 2) ** 2 + Math.cos(latA) * Math.cos(latB) * Math.sin(dLon / 2) ** 2
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))
+}
+
+function sampleableNodes(tile: OfflineGraphTileV2, oracleBounds: Bounds): Array<[number, number]> {
+  const eligibleNodeIds = new Set<string>()
+  for (const edge of tile.edges) {
+    if (edge.access === "forbidden" || edge.motorcycleAccess === "forbidden") continue
+    // GraphHopper's production import excludes paths. Keep random samples on
+    // shared routable road classes so a point-not-found response is evidence,
+    // not an artifact of sampling an offline-only feature.
+    if (edge.roadClass === "path" || edge.roadClass === "track") continue
+    if (["gravel", "dirt", "unpaved", "ground"].includes(edge.surface)) continue
+    eligibleNodeIds.add(edge.fromNodeId)
+    eligibleNodeIds.add(edge.toNodeId)
+  }
+  return tile.nodes
+    .filter((node) => eligibleNodeIds.has(node.id))
+    .map((node) => node.coordinate)
+    .filter(([lon, lat]) => lon >= oracleBounds.minLon && lon <= oracleBounds.maxLon && lat >= oracleBounds.minLat && lat <= oracleBounds.maxLat)
+}
+
 function pickPairs(
-  manifestsWithTiles: Array<{ regionId: string; tiles: Array<{ bounds: Bounds }> }>,
+  manifestsWithTiles: RandomRegionSource[],
   count: number,
-  rng: () => number
+  rng: () => number,
+  oracleBounds: Bounds
 ): Pair[] {
   const pairs: Pair[] = []
   const profiles: OfflineRouteProfile[] = [
     "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
   ]
+  const sampleCache = new Map<string, Array<[number, number]>>()
   for (let i = 0; i < count; i += 1) {
     // Pick a random tile from a random region, then pick two points
-    // within that tile's bounds. This guarantees the corridor selection
-    // will include at least 1 tile with coverage for both endpoints.
+    // on actual routable tile nodes. Sampling arbitrary coordinates inside a
+    // tile bbox makes GraphHopper reject valid offline-only test points.
     const regionIdx = i % manifestsWithTiles.length
     const region = manifestsWithTiles[regionIdx]
-    const tile = region.tiles[Math.floor(rng() * region.tiles.length)]
-    const b = tile.bounds
-    // Points within the tile, offset from the edges to avoid snap gaps.
-    const lon1 = b.minLon + 0.02 + rng() * (b.maxLon - b.minLon - 0.04)
-    const lat1 = b.minLat + 0.02 + rng() * (b.maxLat - b.minLat - 0.04)
-    // Second point in the same tile, within ~8-10km
-    const lon2 = lon1 + (rng() - 0.5) * 0.08
-    const lat2 = lat1 + (rng() - 0.5) * 0.08
     const profile = profiles[i % profiles.length]
+    const candidateTiles = region.tiles.filter((tile) => intersects(tile.bounds, oracleBounds))
+    if (candidateTiles.length === 0) throw new Error(`No ${region.regionId} tiles overlap the GraphHopper oracle bounds`)
+    const poolSize = Math.min(RANDOM_SAMPLE_TILE_POOL_SIZE, candidateTiles.length)
+    const sampleTiles = Array.from({ length: poolSize }, (_, index) => candidateTiles[Math.floor(index * candidateTiles.length / poolSize)]!)
+
+    let start: [number, number] | undefined
+    let finish: [number, number] | undefined
+    for (let attempt = 0; attempt < 40 && (!start || !finish); attempt += 1) {
+      const tile = sampleTiles[Math.floor(rng() * sampleTiles.length)]!
+      const cacheKey = `${region.regionId}:${tile.tileId}`
+      let candidates = sampleCache.get(cacheKey)
+      if (!candidates) {
+        candidates = sampleableNodes(decompressTile(region.tilesDir, tile.tileId), oracleBounds)
+        sampleCache.set(cacheKey, candidates)
+      }
+      if (candidates.length < 2) continue
+      const first = candidates[Math.floor(rng() * candidates.length)]!
+      let second: [number, number] | undefined
+      for (let pick = 0; pick < 30; pick += 1) {
+        const candidate = candidates[Math.floor(rng() * candidates.length)]!
+        const distance = haversineMeters(first, candidate)
+        if (distance >= 500 && distance <= 10_000) {
+          second = candidate
+          break
+        }
+      }
+      if (!second) continue
+      start = first
+      finish = second
+    }
+    if (!start || !finish) throw new Error(`Could not find two routable ${profile} nodes for random pair ${i}`)
     const regions = manifestsWithTiles.length > 1 && i % 8 === 0 ?
       [manifestsWithTiles[0].regionId, manifestsWithTiles[1].regionId] : [region.regionId]
-    pairs.push({ idx: i, start: [lon1, lat1], finish: [lon2, lat2], profile, regions })
+    pairs.push({ idx: i, start, finish, profile, regions })
   }
   return pairs
 }
@@ -218,11 +313,22 @@ async function run(): Promise<void> {
   const nj = loadRegion("new-jersey")
   console.log(`[verify-offline-parity] loaded PA=${pa.tileBounds.length} tiles, NJ=${nj.tileBounds.length} tiles (on-demand decompression)`)
 
+  const infoResponse = await fetch(`${GRAPH_HOPPER_URL}/info`)
+  if (!infoResponse.ok) throw new Error(`GraphHopper /info failed: HTTP ${infoResponse.status}`)
+  const info = await infoResponse.json() as { bbox?: number[] }
+  if (!info.bbox || info.bbox.length !== 4 || info.bbox.some((value) => !Number.isFinite(value))) {
+    throw new Error("GraphHopper /info did not provide a valid bbox")
+  }
+  const oracleBounds: Bounds = { minLon: info.bbox[0]!, minLat: info.bbox[1]!, maxLon: info.bbox[2]!, maxLat: info.bbox[3]! }
+  console.log(`[verify-offline-parity] oracle bbox=${JSON.stringify(oracleBounds)}`)
+
   const rng = makeRng(20260722)
   const randPairs = pickPairs(
-    [{ regionId: pa.manifest.regionId, tiles: pa.manifest.tiles },
-     { regionId: nj.manifest.regionId, tiles: nj.manifest.tiles }],
-    PAIR_COUNT, rng
+    [{ regionId: pa.manifest.regionId, tilesDir: pa.tilesDir, tiles: pa.manifest.tiles },
+     { regionId: nj.manifest.regionId, tilesDir: nj.tilesDir, tiles: nj.manifest.tiles }],
+    PAIR_COUNT,
+    rng,
+    oracleBounds
   )
   const allPairs = [...GOLDEN_PAIRS, ...randPairs]
   console.log(`[verify-offline-parity] total pairs=${allPairs.length} (golden=${GOLDEN_PAIRS.length} + random=${randPairs.length})`)
@@ -237,6 +343,7 @@ async function run(): Promise<void> {
   let turnViolPairCount = 0
   let totalReturnedEdges = 0
   let totalTurnViolations = 0
+  let graphHopperOracleErrors = 0
   const parityBuckets = { under5pct: 0, under10pct: 0, under25pct: 0, over25pct: 0 }
   const failKinds: Record<string, number> = {}
   const goldenResults: unknown[] = []
@@ -259,11 +366,13 @@ async function run(): Promise<void> {
     // No redundant merged index — routeOfflineV2 merges internally,
     // and auditLegality scans tiles directly for returned edge IDs only.
 
-    // GraphHopper oracle
-    const ghRes = await routeGraphHopper(points, pair.profile).catch((e) => ({ ok: false, distanceMeters: null, error: String(e) }))
-
     // Offline router — all pairs use 200k search budget (corridor-scoped)
     const bikeCompat = pair.profile === "adventure" || pair.profile === "gravel" ? "dual-sport" : "street"
+    // GraphHopper oracle uses the same bike compatibility rules as the offline
+    // request. Without this request-time custom model, the oracle can choose
+    // gravel/dirt connectors that the street offline profile must reject.
+    const ghRes = await routeGraphHopper(points, pair.profile, bikeCompat).catch((e) => ({ ok: false, distanceMeters: null, outcome: "oracle_error" as const, error: String(e) }))
+
     const offlineRes = routeOfflineV2(corridorTiles, {
       start: pair.start,
       finish: pair.finish,
@@ -307,14 +416,15 @@ async function run(): Promise<void> {
         parityBuckets.over25pct += 1
         successCount -= 1 // divergent distances = disagreement
       }
-    } else if (offlineRes.ok && !ghRes.ok) {
-      // Offline found a path GH couldn't — count as success if legal.
-      successCount += 1
-      parity = { ghMeters: null, offlineMeters: offlineRes.distanceMeters, pct: null, note: "gh_failed_offline_succeeded" }
-    } else if (!offlineRes.ok && !ghRes.ok) {
-      // Both agree no route exists — this is a parity agreement, not a failure.
+    } else if (!ghRes.ok && ghRes.outcome === "oracle_error") {
+      graphHopperOracleErrors += 1
+      parity = { ghMeters: null, offlineMeters: offlineRes.ok ? offlineRes.distanceMeters : null, pct: null, note: "graphhopper_oracle_error" }
+    } else if (!offlineRes.ok && !ghRes.ok && ghRes.outcome === "no_route" && offlineRes.kind === "no_path") {
+      // Both authoritative routers agree that no legal route exists.
       successCount += 1
       parity = { ghMeters: null, offlineMeters: null, pct: null, note: "both_agree_no_route" }
+    } else {
+      parity = { ghMeters: ghRes.ok ? ghRes.distanceMeters : null, offlineMeters: offlineRes.ok ? offlineRes.distanceMeters : null, pct: null, note: "route_outcome_mismatch" }
     }
 
     const resultEntry = {
@@ -332,9 +442,13 @@ async function run(): Promise<void> {
       legality: { illegalEdgeCount: legality.illegalEdges.length, turnViolationCount: legality.turnViolations.length }
     }
 
+    const parityRecord = parity as { note?: string; pct?: number | null }
+    const parityDiverged = parityRecord.note === "route_outcome_mismatch" ||
+      parityRecord.note === "graphhopper_oracle_error" ||
+      (typeof parityRecord.pct === "number" && parityRecord.pct >= 25)
     if (typeof pair.idx === "string") {
       goldenResults.push(resultEntry)
-    } else if (!offlineRes.ok || legality.illegalEdges.length > 0 || legality.turnViolations.length > 0) {
+    } else if (!offlineRes.ok || !ghRes.ok || parityDiverged || legality.illegalEdges.length > 0 || legality.turnViolations.length > 0) {
       randomFailures.push(resultEntry)
     }
 
@@ -361,6 +475,8 @@ async function run(): Promise<void> {
     successRatePct: Math.round(successRate * 100) / 100,
     successGatePct: 98,
     successGatePassed: successRate >= 98,
+    graphHopperOracleErrors,
+    randomSampleTilePoolSize: RANDOM_SAMPLE_TILE_POOL_SIZE,
     failureKinds: failKinds,
     parityBuckets,
     parityUnder5pct: parityBuckets.under5pct,
@@ -380,19 +496,23 @@ async function run(): Promise<void> {
     randomFailureSample: randomFailures.slice(0, 10)
   }
 
-  const outPath = "artifacts/offline-parity-evidence.json"
-  writeFileSync(outPath, JSON.stringify(evidence, null, 2) + "\n")
+  writeFileSync(EVIDENCE_PATH, JSON.stringify(evidence, null, 2) + "\n")
 
   console.log(`[verify-offline-parity] DONE in ${Math.round((Date.now() - startedAt) / 1000)}s`)
   console.log(`[verify-offline-parity] success=${successCount}/${total} (${evidence.successRatePct}%) gate>=98%=${evidence.successGatePassed}`)
   console.log(`[verify-offline-parity] legality=${evidence.legalityAudit.verdict} illegalPairs=${illegalPairCount} turnViolPairs=${turnViolPairCount}`)
+  console.log(`[verify-offline-parity] GraphHopper oracle errors=${graphHopperOracleErrors}`)
   console.log(`[verify-offline-parity] parity: <5%=${parityBuckets.under5pct} <10%=${parityBuckets.under10pct} <25%=${parityBuckets.under25pct} >=25%=${parityBuckets.over25pct}`)
 
   // Print golden route details
   for (const g of goldenResults as Array<{ idx: string; offline: { ok: boolean; distanceMeters?: number; kind?: string }; graphhopper: { ok: boolean; distanceMeters: number | null } }>) {
     console.log(`[verify-offline-parity] golden ${g.idx}: offline=${g.offline.ok ? Math.round(g.offline.distanceMeters!) + 'm' : g.offline.kind} gh=${g.graphhopper.ok ? g.graphhopper.distanceMeters + 'm' : 'failed'}`)
   }
-  console.log(`[verify-offline-parity] evidence -> ${outPath}`)
+  console.log(`[verify-offline-parity] evidence -> ${EVIDENCE_PATH}`)
+
+  if (!evidence.successGatePassed || evidence.legalityAudit.verdict !== "clean" || graphHopperOracleErrors > 0) {
+    process.exitCode = 1
+  }
 }
 
 run().catch((err) => {

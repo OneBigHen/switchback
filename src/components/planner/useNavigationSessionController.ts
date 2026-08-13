@@ -6,11 +6,13 @@ import {
   updateNavigation
 } from "@/lib/client/navigation-engine"
 import { startRideSession, type RideSession } from "@/lib/client/ride-session"
+import { trackRuntimeResource } from "@/lib/client/runtime-diagnostics"
 import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather, sampleRouteWeatherPoints } from "@/lib/client/weather-client"
 import { buildRideRecoveryCheckpoint } from "@/lib/client/ride-recovery-checkpoint"
 import { buildReroutePoints, type RideRerouteMode } from "@/lib/client/ride-reroute"
 import { recoverRouteFromOfflinePack } from "@/lib/client/offline-route-recovery"
+import { recoverRouteFromInstalledRegions } from "@/lib/client/regional-offline-route"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 import type { RouteWeatherAlert } from "@/lib/weather/types"
@@ -56,6 +58,7 @@ export interface NavigationSessionController {
   guidancePaused: boolean
   recording: boolean
   location: Coordinate | null
+  trackGuidance: boolean
   toggleVoice(): void
   toggleGuidancePause(): void
   pauseForOvernightStop(): void
@@ -76,6 +79,13 @@ export function instructionDistance(meters: number): string {
 }
 
 type RecoveryMode = RejoinPolicy | "automatic"
+
+function isTrackGuidanceFrame(route: PlannedRoute, frame: NavigationFrame): boolean {
+  return route.navigationMode === "track-only" ||
+    (route.navigationMode === "continuous-track" &&
+      route.gpxLegStartIndex != null &&
+      frame.segmentIndex >= route.gpxLegStartIndex)
+}
 
 const DISMISSED_RIDE_ALERTS_KEY = "switchback.dismissed-ride-alerts.v1"
 
@@ -285,6 +295,12 @@ export function useNavigationSessionController({
       mode: RecoveryMode,
       fuelStop?: PlaceResult
     ) => {
+      if (isTrackGuidanceFrame(route, navFrame)) {
+        setRerouteStatus("idle")
+        setRejoinPolicy(null)
+        setGpsMessage("Track guidance · road data unavailable")
+        return
+      }
       if (mode === "preserve-original") {
         // The rider explicitly chose to keep the planned route: cancel any
         // in-flight reroute and suppress the automatic reroute. Previously
@@ -336,11 +352,17 @@ export function useNavigationSessionController({
 
       let usedOfflineRecovery = false
       const recoverOffline = async (): Promise<PlannedRoute> => {
-        usedOfflineRecovery = true
+        const regional = await recoverRouteFromInstalledRegions(route, points, { signal: rerouteSignal })
+        if (regional.route) {
+          usedOfflineRecovery = true
+          return regional.route
+        }
+        if (rerouteSignal.aborted) throw new Error("Offline reroute was cancelled")
         const pack = await new OfflineRoutePackLibrary().get(`${route.id}-offline`)
         if (!pack) throw new Error("No saved offline corridor is available for this route.")
         const recovered = recoverRouteFromOfflinePack(pack, points)
         if (!recovered.route) throw new Error(recovered.error ?? "Offline corridor recovery failed.")
+        usedOfflineRecovery = true
         return recovered.route
       }
       const resolveReroute = async (): Promise<PlannedRoute> => {
@@ -391,16 +413,18 @@ export function useNavigationSessionController({
 
   const requestRejoin = useCallback(
     (policy: RejoinPolicy) => {
+      if (isTrackGuidanceFrame(route, lastFrameRef.current ?? frame)) return
       executeReroute(lastFrameRef.current ?? frame, policy)
     },
-    [frame, executeReroute]
+    [frame, executeReroute, route]
   )
 
   const selectFuelStop = useCallback(
     (fuelStop: PlaceResult) => {
+      if (isTrackGuidanceFrame(route, lastFrameRef.current ?? frame)) return
       executeReroute(lastFrameRef.current ?? frame, "fuel-detour", fuelStop)
     },
-    [frame, executeReroute]
+    [frame, executeReroute, route]
   )
 
   const speakInstruction = useCallback(
@@ -531,6 +555,7 @@ export function useNavigationSessionController({
       setGpsState("weak")
       setGpsMessage("GPS signal stale · waiting for a fresh location")
     }, 5_000)
+    const releaseTimerMetric = trackRuntimeResource("timer")
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- startRideSession must begin on every route change
     dispatch({ type: "start", routeId: route.id })
@@ -659,7 +684,8 @@ export function useNavigationSessionController({
           nextFrame.offRouteSince != null &&
           nextFrame.timestamp - nextFrame.offRouteSince >= AUTOMATIC_REROUTE_DELAY_MS &&
           !automaticRerouteStartedRef.current &&
-          !guidancePausedRef.current
+          !guidancePausedRef.current &&
+          !isTrackGuidanceFrame(route, nextFrame)
         ) {
           automaticRerouteStartedRef.current = true
           executeReroute(nextFrame, "automatic")
@@ -702,6 +728,7 @@ export function useNavigationSessionController({
       if (recoveryTimeout != null) window.clearTimeout(recoveryTimeout)
       window.clearTimeout(pauseResetTimeout)
       window.clearInterval(staleGpsInterval)
+      releaseTimerMetric()
       void sessionRef.current?.stop()
       sessionRef.current = null
       navigationStore.clear()
@@ -721,6 +748,7 @@ export function useNavigationSessionController({
     guidancePaused,
     recording,
     location,
+    trackGuidance: isTrackGuidanceFrame(route, frame),
     toggleVoice,
     toggleGuidancePause,
     pauseForOvernightStop,

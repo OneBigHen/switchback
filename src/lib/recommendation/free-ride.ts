@@ -1,12 +1,20 @@
 import type {
+  Coordinate,
   FreeRideSuggestion,
   RideEvent,
   RideProfile,
   RouteRequest
 } from "@/lib/domain/contracts"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { haversine } from "@/lib/routing/scoring"
 import { scoreRoute, type ScoreableRoute } from "./route-score"
-import { calculateGeometryOverlap } from "@/lib/routing/scoring"
+import {
+  findFreeRideOpportunities,
+  fragmentTraversalRatio,
+  type FreeRideGraphIndex
+} from "./free-ride-graph"
+
+export { fragmentTraversalRatio }
 
 export interface FreeRideCandidate {
   id: string
@@ -15,6 +23,7 @@ export interface FreeRideCandidate {
   actionLabel: string
   origin: [number, number]
   destination: [number, number]
+  via?: Coordinate[]
   routeFragment: [number, number][]
   triggerDistanceMeters: number
   addedDurationSeconds: number
@@ -24,6 +33,7 @@ export interface FreeRideCandidate {
    */
   baselineDurationSeconds?: number
   route: ScoreableRoute
+  provenance?: FreeRideSuggestion["provenance"]
 }
 
 /**
@@ -31,14 +41,6 @@ export interface FreeRideCandidate {
  * actually covers (SB-031): the acceptance route must traverse the suggested
  * road, otherwise the suggestion was not honored.
  */
-export function fragmentTraversalRatio(
-  routeGeometry: [number, number][],
-  fragment: [number, number][]
-): number {
-  if (fragment.length < 2 || routeGeometry.length < 2) return 0
-  return Math.max(0, Math.min(1, calculateGeometryOverlap(routeGeometry, fragment) / 100))
-}
-
 export interface FreeRideContext {
   now: string
   profile: RideProfile
@@ -46,6 +48,8 @@ export interface FreeRideContext {
   workload: "low" | "normal" | "high"
   currentCoordinate: [number, number]
   currentHeadingDegrees: number | null
+  speedMph?: number
+  recentSegmentUids?: ReadonlySet<string>
   rejectedCandidateIds: ReadonlySet<string>
   recentCandidateIds: ReadonlySet<string>
   cooldownUntil?: number
@@ -66,10 +70,14 @@ export interface FreeRideRecommendationState {
   cooldownUntil: number
   lastEvent: RideEvent | null
   privateMode?: boolean
+  /** Bounded local prompt history for sparse in-session interruptions. */
+  promptedAt?: number[]
+  /** Bounded local ignore history for escalating quiet periods. */
+  ignoredAt?: number[]
 }
 
 export type FreeRideRecommendationAction =
-  | { type: "show"; suggestion: FreeRideSuggestion }
+  | { type: "show"; suggestion: FreeRideSuggestion; at?: string }
   | { type: "ignore"; at: string }
   | { type: "less-like-this"; at: string }
   | { type: "accept"; at: string }
@@ -80,9 +88,99 @@ export type FreeRideRecommendationAction =
 const MIN_ACTION_DISTANCE_METERS = 400
 const DEFAULT_HORIZON_METERS = 16_000
 const SUGGESTION_TTL_MS = 45_000
-const SUGGESTION_COOLDOWN_MS = 30_000
+const SUGGESTION_COOLDOWN_MS = 5 * 60_000
+const TWO_IGNORE_QUIET_MS = 20 * 60_000
+const PROMPT_WINDOW_MS = 60 * 60_000
+const MAX_PROMPTS_PER_WINDOW = 3
+const MAX_IGNORED_CANDIDATES = 32
+const MAX_HISTORY = 8
 /** Heading difference beyond which a candidate requires a U-turn (SB-030). */
 const MAX_HEADING_DELTA_DEGREES = 100
+const MIN_CORRIDOR_TRAVERSAL_RATIO = 0.8
+
+export interface FreeRideRouteProviderOptions {
+  signal?: AbortSignal
+}
+
+export type FreeRideRouteProvider = (
+  request: RouteRequest,
+  options?: FreeRideRouteProviderOptions
+) => Promise<ScoreableRoute>
+
+export interface FreeRideCandidateBuildResult {
+  candidates: FreeRideCandidate[]
+  opportunityCount: number
+  providerFailures: number
+}
+
+/**
+ * Route each directed RIG opportunity against the same rejoin baseline. A
+ * failed provider call or an unhonoured corridor is discarded, never dressed
+ * up as a suggestion.
+ */
+export async function buildGraphBackedFreeRideCandidates(
+  context: FreeRideContext,
+  graph: FreeRideGraphIndex,
+  routeProvider: FreeRideRouteProvider,
+  options: FreeRideRouteProviderOptions = {}
+): Promise<FreeRideCandidateBuildResult> {
+  const opportunities = findFreeRideOpportunities(
+    graph,
+    context.currentCoordinate,
+    context.currentHeadingDegrees,
+    context.speedMph,
+    context.recentSegmentUids
+  )
+  const candidates: FreeRideCandidate[] = []
+  let providerFailures = 0
+  for (const opportunity of opportunities) {
+    if (options.signal?.aborted) break
+    const request = {
+      origin: opportunity.origin,
+      destination: opportunity.destination,
+      profile: context.profile
+    } satisfies RouteRequest
+    try {
+      const baseline = await routeProvider(request, options)
+      const detour = await routeProvider({ ...request, via: opportunity.via }, options)
+      if (!Number.isFinite(baseline.durationSeconds) || !Number.isFinite(detour.durationSeconds) ||
+        fragmentTraversalRatio(detour.geometry, opportunity.routeFragment) < MIN_CORRIDOR_TRAVERSAL_RATIO) {
+        continue
+      }
+      const corridor = opportunity.corridor
+      candidates.push({
+        id: opportunity.id,
+        kind: corridor.dominantRole === "highlight" ? "fun-road" : "scenic-detour",
+        title: corridor.dominantRole === "highlight" ? "Verified road corridor ahead" : "Interesting road corridor ahead",
+        actionLabel: "Take corridor",
+        origin: opportunity.origin,
+        destination: opportunity.destination,
+        via: opportunity.via,
+        routeFragment: opportunity.routeFragment,
+        triggerDistanceMeters: opportunity.triggerDistanceMeters,
+        addedDurationSeconds: Math.max(0, detour.durationSeconds - baseline.durationSeconds),
+        baselineDurationSeconds: baseline.durationSeconds,
+        route: detour,
+        provenance: {
+          source: "rig",
+          sourceBuild: graph.sourceBuild,
+          graphVersion: graph.graphVersion,
+          builtAt: graph.builtAt,
+          corridorId: corridor.corridorId,
+          segmentUids: [...corridor.segmentUids],
+          expectedUtility: corridor.expectedUtility,
+          confidence: corridor.confidence,
+          lengthMeters: corridor.lengthMeters
+        }
+      })
+    } catch (error) {
+      if (options.signal?.aborted) break
+      providerFailures += 1
+      if (!(error instanceof Error)) continue
+    }
+  }
+  return { candidates, opportunityCount: opportunities.length, providerFailures }
+}
 
 function clamp(value: number, minimum = 0, maximum = 1): number {
   return Math.max(minimum, Math.min(maximum, Number.isFinite(value) ? value : minimum))
@@ -131,8 +229,11 @@ function buildSuggestion(
   score: ReturnType<typeof scoreRoute>,
   now: string
 ): FreeRideSuggestion {
-  const addedMinutes = Math.max(1, Math.round(candidate.addedDurationSeconds / 60))
+  const addedMinutes = Math.max(0, Math.round(candidate.addedDurationSeconds / 60))
   const reasons = score.explanations.slice(0, 3)
+  if (candidate.provenance) {
+    reasons.push(`Verified RIG corridor evidence covers about ${Math.round(candidate.provenance.lengthMeters)} meters.`)
+  }
   reasons.push(`${candidate.actionLabel} in ${formatDistance(candidate.triggerDistanceMeters)}; adds about ${addedMinutes} minutes.`)
   return {
     id: candidate.id,
@@ -141,12 +242,17 @@ function buildSuggestion(
     actionLabel: "Accept suggestion",
     origin: candidate.origin,
     destination: candidate.destination,
+    ...(candidate.via ? { via: candidate.via } : {}),
     routeFragment: candidate.routeFragment,
     triggerDistanceMeters: candidate.triggerDistanceMeters,
     addedDurationSeconds: candidate.addedDurationSeconds,
     score,
     reasons,
-    confidence: clamp(score.confidence / 100),
+    confidence: clamp(Math.min(
+      score.confidence / 100,
+      candidate.provenance?.confidence ?? 1
+    )),
+    ...(candidate.provenance ? { provenance: candidate.provenance } : {}),
     expiresAt: new Date(Date.parse(now) + SUGGESTION_TTL_MS).toISOString()
   }
 }
@@ -183,7 +289,11 @@ export function rankFreeRideCandidates(
     })
     if (!score.accepted || score.total < 35) return []
     return [{ candidate, score }]
-  }).sort((left, right) => right.score.total - left.score.total || left.candidate.triggerDistanceMeters - right.candidate.triggerDistanceMeters)
+  }).sort((left, right) => {
+    const leftRank = left.score.total + (left.candidate.provenance?.expectedUtility ?? 0) * 10
+    const rightRank = right.score.total + (right.candidate.provenance?.expectedUtility ?? 0) * 10
+    return rightRank - leftRank || left.candidate.triggerDistanceMeters - right.candidate.triggerDistanceMeters
+  })
 
   const primary = ranked[0]
   if (!primary) {
@@ -205,6 +315,7 @@ export function acceptFreeRideSuggestion(suggestion: FreeRideSuggestion): RouteR
   return {
     origin: suggestion.origin,
     destination: suggestion.destination,
+    ...(suggestion.via ? { via: suggestion.via } : {}),
     profile: "neural",
     desired: {
       maxDetourPct: 0.3,
@@ -222,6 +333,10 @@ export function acceptFreeRideSuggestion(suggestion: FreeRideSuggestion): RouteR
  * provider route.
  */
 export function freeRideSuggestionAsPlannedRoute(suggestion: FreeRideSuggestion): PlannedRoute {
+  const fragmentMeters = suggestion.routeFragment.slice(1).reduce(
+    (total, point, index) => total + haversine(suggestion.routeFragment[index]!, point),
+    0
+  )
   return {
     id: `suggestion-${suggestion.id}`,
     name: suggestion.title,
@@ -229,17 +344,20 @@ export function freeRideSuggestionAsPlannedRoute(suggestion: FreeRideSuggestion)
     geometry: suggestion.routeFragment,
     waypoints: [
       { lat: suggestion.origin[1], lon: suggestion.origin[0], label: "Suggestion origin" },
-      { lat: suggestion.destination[1], lon: suggestion.destination[0], label: "Suggestion road" }
+      ...((suggestion.via ?? []).map(([lon, lat], index) => ({ lat, lon, label: `Suggestion anchor ${index + 1}` }))),
+      { lat: suggestion.destination[1], lon: suggestion.destination[0], label: "Suggestion rejoin" }
     ],
     instructions: [],
-    distanceMiles: Math.max(0.1, suggestion.triggerDistanceMeters / 1609.344),
+    distanceMiles: Math.max(0.1, fragmentMeters / 1609.344),
     durationMinutes: Math.max(1, suggestion.addedDurationSeconds / 60),
     ascentMeters: null,
     descentMeters: null,
     twistiness: suggestion.score.twistiness,
-    turnCount: Math.max(1, Math.round(suggestion.score.twistiness / 4)),
-    roadMix: { secondary: 100 },
-    surfaceMix: suggestion.score.gravel >= 45 ? { gravel: 100 } : { asphalt: 100 },
+    turnCount: 0,
+    // Preference learning receives the score and provenance separately. An
+    // advisory fragment has no provider detail distribution to copy here.
+    roadMix: {},
+    surfaceMix: {},
     routingSource: "preview",
     previewOnly: true,
     routeScore: suggestion.score
@@ -257,9 +375,22 @@ function eventFor(
     type,
     at,
     suggestionId: suggestion.id,
-    segmentIds: [],
+    segmentIds: suggestion.provenance?.segmentUids ?? [],
     privateMode
   }
+}
+
+function actionTime(at: string | undefined, fallback = Date.now()): number {
+  const parsed = at ? Date.parse(at) : fallback
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function recentHistory(values: readonly number[] | undefined, now: number, windowMs: number): number[] {
+  return (values ?? []).filter((value) => Number.isFinite(value) && value <= now && now - value < windowMs)
+}
+
+function boundedCandidateIds(ids: readonly string[], id: string): string[] {
+  return [...new Set([...ids, id])].slice(-MAX_IGNORED_CANDIDATES)
 }
 
 export function freeRideRecommendationReducer(
@@ -267,57 +398,88 @@ export function freeRideRecommendationReducer(
   action: FreeRideRecommendationAction
 ): FreeRideRecommendationState {
   switch (action.type) {
-    case "show":
-      // Never surface an already-expired suggestion (SB-030).
-      if (state.cooldownUntil > Date.now()) return state
-      if (Date.parse(action.suggestion.expiresAt) <= Date.now()) return state
-      return { ...state, suggestion: action.suggestion, acceptedSuggestionId: null }
-    case "expire":
-      return state.suggestion && Date.parse(state.suggestion.expiresAt) <= Date.parse(action.at)
+    case "show": {
+      const at = actionTime(action.at)
+      const promptedAt = recentHistory(state.promptedAt, at, PROMPT_WINDOW_MS)
+      // Never surface an already-expired or quiet-period suggestion (SB-030).
+      if (state.cooldownUntil > at || Date.parse(action.suggestion.expiresAt) <= at) {
+        return { ...state, promptedAt }
+      }
+      if (promptedAt.length >= MAX_PROMPTS_PER_WINDOW) {
+        return {
+          ...state,
+          suggestion: null,
+          promptedAt,
+          cooldownUntil: Math.max(state.cooldownUntil, promptedAt[0]! + PROMPT_WINDOW_MS)
+        }
+      }
+      return {
+        ...state,
+        suggestion: action.suggestion,
+        acceptedSuggestionId: null,
+        promptedAt: [...promptedAt, at].slice(-MAX_PROMPTS_PER_WINDOW)
+      }
+    }
+    case "expire": {
+      const at = actionTime(action.at)
+      return state.suggestion && Date.parse(state.suggestion.expiresAt) <= at
         ? {
             ...state,
             suggestion: null,
-            cooldownUntil: Date.parse(action.at) + SUGGESTION_COOLDOWN_MS,
+            cooldownUntil: at + SUGGESTION_COOLDOWN_MS,
             lastEvent: eventFor("suggestion-ignored", state.suggestion, action.at, state.privateMode ?? true)
           }
         : state
-    case "ignore":
+    }
+    case "ignore": {
+      const at = actionTime(action.at)
+      const ignoredAt = [...recentHistory(state.ignoredAt, at, PROMPT_WINDOW_MS), at].slice(-MAX_HISTORY)
       return state.suggestion
         ? {
             ...state,
             suggestion: null,
-            ignoredCandidateIds: [...new Set([...state.ignoredCandidateIds, state.suggestion.id])],
-            cooldownUntil: Date.parse(action.at) + SUGGESTION_COOLDOWN_MS,
+            ignoredCandidateIds: boundedCandidateIds(state.ignoredCandidateIds, state.suggestion.id),
+            ignoredAt,
+            cooldownUntil: at + (ignoredAt.length >= 2 ? TWO_IGNORE_QUIET_MS : SUGGESTION_COOLDOWN_MS),
             lastEvent: eventFor("suggestion-ignored", state.suggestion, action.at, state.privateMode ?? true)
           }
         : state
-    case "less-like-this":
+    }
+    case "less-like-this": {
+      const at = actionTime(action.at)
+      const ignoredAt = [...recentHistory(state.ignoredAt, at, PROMPT_WINDOW_MS), at].slice(-MAX_HISTORY)
       return state.suggestion
         ? {
             ...state,
             suggestion: null,
-            ignoredCandidateIds: [...new Set([...state.ignoredCandidateIds, state.suggestion.id])],
-            cooldownUntil: Date.parse(action.at) + SUGGESTION_COOLDOWN_MS,
+            ignoredCandidateIds: boundedCandidateIds(state.ignoredCandidateIds, state.suggestion.id),
+            ignoredAt,
+            cooldownUntil: at + TWO_IGNORE_QUIET_MS,
             lastEvent: eventFor("less-like-this", state.suggestion, action.at, state.privateMode ?? true)
           }
         : state
-    case "accept":
+    }
+    case "accept": {
+      const at = actionTime(action.at)
       return state.suggestion
         ? {
             ...state,
             suggestion: null,
             acceptedSuggestionId: state.suggestion.id,
-            cooldownUntil: Date.parse(action.at) + SUGGESTION_COOLDOWN_MS,
+            cooldownUntil: at + SUGGESTION_COOLDOWN_MS,
             lastEvent: eventFor("suggestion-accepted", state.suggestion, action.at, state.privateMode ?? true)
           }
         : state
+    }
     case "reset":
       return {
         ...state,
         suggestion: null,
         acceptedSuggestionId: null,
         cooldownUntil: 0,
-        lastEvent: null
+        lastEvent: null,
+        promptedAt: [],
+        ignoredAt: []
       }
     case "clear":
       return { ...state, suggestion: null }

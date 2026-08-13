@@ -83,6 +83,7 @@ describe("route HTTP contract", () => {
         body: JSON.stringify({
           profile: "twisty",
           compare: false,
+          requestId: "req-route-contract-1",
           points: [
             { lat: 40.2, lon: -76.9, label: "Start" },
             { lat: 40.3, lon: -76.8, label: "Finish" }
@@ -93,7 +94,9 @@ describe("route HTTP contract", () => {
     )
 
     expect(response.status).toBe(200)
+    expect(response.headers.get("x-request-id")).toBe("req-route-contract-1")
     expect(await response.json()).toMatchObject({
+      requestId: "req-route-contract-1",
       selectedRouteId: "twisty-live",
       routes: [{ id: "twisty-live", routingSource: "live", previewOnly: false }]
     })
@@ -536,13 +539,15 @@ describe("supporting HTTP contracts", () => {
       ok: true,
       degraded: false,
       router: { ok: true },
-      providers: { graphhopper: { ok: true } }
+      providers: { graphhopper: { ok: true } },
+      degradedProviders: []
     })
     expect(degraded).toMatchObject({
       ok: false,
       degraded: false,
       router: { ok: false },
-      providers: { graphhopper: { ok: false } }
+      providers: { graphhopper: { ok: false } },
+      degradedProviders: ["graphhopper"]
     })
   })
 
@@ -572,7 +577,8 @@ describe("supporting HTTP contracts", () => {
       providers: {
         graphhopper: { ok: true, status: 200 },
         valhalla: { ok: false, status: 503 }
-      }
+      },
+      degradedProviders: ["valhalla"]
     })
   })
 

@@ -26,6 +26,7 @@ import {
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
 import { createManualRoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
 import { requestRoadMatch } from "@/lib/client/road-match-client"
+import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime-diagnostics"
 import { roadMatchToAccessSnapshot } from "@/lib/roads/road-matching"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
@@ -401,6 +402,7 @@ export function MapStage(props: MapStageProps) {
   useEffect(() => {
     let disposed = false
     let map: MapLibreMap | null = null
+    let releaseMapProbe: (() => void) | null = null
     let initialStyleLoaded = false
     void import("maplibre-gl").then((maplibre) => {
       if (disposed || !containerRef.current) return
@@ -417,6 +419,13 @@ export function MapStage(props: MapStageProps) {
         attributionControl: false
       })
       mapRef.current = map
+      releaseMapProbe = setMapRuntimeProbe(() => {
+        const style = map?.getStyle()
+        return {
+          sourceCount: style ? Object.keys(style.sources ?? {}).length : 0,
+          layerCount: style?.layers?.length ?? 0
+        }
+      })
       map.addControl(
         new maplibre.AttributionControl({ compact: true }),
         window.innerWidth <= 760 ? "bottom-left" : "bottom-right"
@@ -855,11 +864,24 @@ export function MapStage(props: MapStageProps) {
       curvatureAbortRef.current?.abort()
       unpavedAbortRef.current?.abort()
       riderFeaturesAbortRef.current?.abort()
+      releaseMapProbe?.()
+      setReadyStyle(null)
       map?.remove()
       mapRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mapStyle])
+
+  useEffect(() => {
+    setRouteRuntimeMetrics({
+      entityCount: props.routes.length,
+      geometryBytesEstimate: props.routes.reduce(
+        (total, route) => total + route.geometry.length * 2 * Float64Array.BYTES_PER_ELEMENT,
+        0
+      )
+    })
+    return () => setRouteRuntimeMetrics(null)
+  }, [props.routes])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1005,9 +1027,16 @@ export function MapStage(props: MapStageProps) {
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
+    let disposed = false
+    let requestVersion = 0
+    const isCurrent = (version: number) => !disposed && mapRef.current === map && version === requestVersion
 
     const refreshCurvature = async () => {
+      if (disposed || mapRef.current !== map) return
+      const version = ++requestVersion
+      curvatureAbortRef.current?.abort()
       if (!propsRef.current.curvatureVisible || map.getZoom() < 7) {
+        if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-curvature")?.setData(emptyFeatureCollection())
         setCurvatureStatus(propsRef.current.curvatureVisible ? "zoom" : "hidden")
         return
@@ -1018,11 +1047,11 @@ export function MapStage(props: MapStageProps) {
       const north = bounds.getNorth()
       const east = bounds.getEast()
       if (north - south > 5 || east - west > 5) {
+        if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-curvature")?.setData(emptyFeatureCollection())
         setCurvatureStatus("zoom")
         return
       }
-      curvatureAbortRef.current?.abort()
       const controller = new AbortController()
       curvatureAbortRef.current = controller
       const query = new URLSearchParams({
@@ -1034,20 +1063,23 @@ export function MapStage(props: MapStageProps) {
         limit: "1200"
       })
       try {
+        if (!isCurrent(version)) return
         setCurvatureStatus("loading")
         const response = await fetch(`/api/curvature?${query}`, {
           headers: { accept: "application/geo+json, application/json" },
           signal: controller.signal
         })
+        if (!isCurrent(version)) return
         if (!response.ok) {
           setCurvatureStatus("error")
           return
         }
         const collection = await response.json() as FeatureCollection
+        if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-curvature")?.setData(collection)
         setCurvatureStatus("ready")
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") return
+        if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
         setCurvatureStatus("error")
       }
     }
@@ -1058,6 +1090,8 @@ export function MapStage(props: MapStageProps) {
     map.on("moveend", onMoveEnd)
     void refreshCurvature()
     return () => {
+      disposed = true
+      requestVersion += 1
       map.off("moveend", onMoveEnd)
       curvatureAbortRef.current?.abort()
     }
@@ -1066,10 +1100,17 @@ export function MapStage(props: MapStageProps) {
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
+    let disposed = false
+    let requestVersion = 0
+    const isCurrent = (version: number) => !disposed && mapRef.current === map && version === requestVersion
 
     const refreshUnpavedRoads = async () => {
+      if (disposed || mapRef.current !== map) return
+      const version = ++requestVersion
+      unpavedAbortRef.current?.abort()
       const current = propsRef.current
       if (!current.unpavedVisible) {
+        if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-unpaved")?.setData(emptyFeatureCollection())
         setUnpavedStatus("hidden")
         setUnpavedCount(0)
@@ -1083,30 +1124,33 @@ export function MapStage(props: MapStageProps) {
         north: bounds.getNorth()
       }, map.getZoom())
       if (!query) {
+        if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-unpaved")?.setData(emptyFeatureCollection())
         setUnpavedStatus("zoom")
         setUnpavedCount(0)
         return
       }
-      unpavedAbortRef.current?.abort()
       const controller = new AbortController()
       unpavedAbortRef.current = controller
       try {
+        if (!isCurrent(version)) return
         setUnpavedStatus("loading")
         const response = await fetch(`/api/pa-unpaved-roads?${query}`, {
           headers: { accept: "application/geo+json, application/json" },
           signal: controller.signal
         })
+        if (!isCurrent(version)) return
         if (!response.ok) {
           setUnpavedStatus("error")
           return
         }
         const collection = await response.json() as FeatureCollection & { metadata?: { count?: number } }
+        if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-unpaved")?.setData(collection)
         setUnpavedCount(collection.metadata?.count ?? collection.features.length)
         setUnpavedStatus("ready")
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") return
+        if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
         setUnpavedStatus("error")
       }
     }
@@ -1117,6 +1161,8 @@ export function MapStage(props: MapStageProps) {
     map.on("moveend", onMoveEnd)
     void refreshUnpavedRoads()
     return () => {
+      disposed = true
+      requestVersion += 1
       map.off("moveend", onMoveEnd)
       unpavedAbortRef.current?.abort()
     }
@@ -1125,10 +1171,16 @@ export function MapStage(props: MapStageProps) {
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
+    let disposed = false
+    let requestVersion = 0
+    const isCurrent = (version: number) => !disposed && mapRef.current === map && version === requestVersion
 
     const FEATURE_LAYER_SET = new Set<RiderLayerId>(featureMapLayerIds)
 
     const refreshRiderFeatures = async () => {
+      if (disposed || mapRef.current !== map) return
+      const version = ++requestVersion
+      riderFeaturesAbortRef.current?.abort()
       const current = propsRef.current
       const bounds = map.getBounds()
       const zoom = map.getZoom()
@@ -1148,6 +1200,7 @@ export function MapStage(props: MapStageProps) {
       // enabled at all). Mark the visible-but-below-zoom layers so the panel
       // can tell the user *why* nothing is showing.
       if (!query) {
+        if (!isCurrent(version)) return
         if (selectedLayers.length === 0 && visibleFeatureLayers.length === 0) {
           setRiderLayerStates({})
           setRiderLayerCounts({})
@@ -1164,13 +1217,13 @@ export function MapStage(props: MapStageProps) {
         return
       }
 
-      riderFeaturesAbortRef.current?.abort()
       const controller = new AbortController()
       riderFeaturesAbortRef.current = controller
 
       // Preserve prior ready/empty states while a refetch is in flight so
       // panning around with already-loaded data does not flash "loading"
       // back onto the screen. Only newly-enabled layers show loading.
+      if (!isCurrent(version)) return
       setRiderLayerStates((prev) => {
         const next: Record<string, FeatureLayerState> = {}
         for (const id of visibleFeatureLayers) {
@@ -1186,13 +1239,16 @@ export function MapStage(props: MapStageProps) {
       // The aggregate banner only flips to loading if there is no prior
       // successful data — otherwise keep "ready" so the corner banner
       // stays calm during panning.
+      if (!isCurrent(version)) return
       setRiderFeaturesStatus((prev) => (prev === "ready" ? "ready" : "loading"))
 
       try {
+        if (!isCurrent(version)) return
         const response = await fetch(`/api/map-features?${query}`, {
           headers: { accept: "application/geo+json, application/json" },
           signal: controller.signal
         })
+        if (!isCurrent(version)) return
         if (!response.ok) {
           geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
           setRiderLayerStates((prev) => {
@@ -1205,6 +1261,7 @@ export function MapStage(props: MapStageProps) {
           return
         }
         const collection = await response.json() as FeatureCollection
+        if (!isCurrent(version)) return
         geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(collection)
         // Tally per-layer counts so the Layers panel can answer "did this
         // layer load but find nothing in view?" — a very common case for
@@ -1229,7 +1286,7 @@ export function MapStage(props: MapStageProps) {
         })
         setRiderFeaturesStatus("ready")
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") return
+        if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
         geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
         setRiderLayerStates((prev) => {
           const next: Record<string, FeatureLayerState> = { ...prev }
@@ -1247,6 +1304,8 @@ export function MapStage(props: MapStageProps) {
     map.on("moveend", onMoveEnd)
     void refreshRiderFeatures()
     return () => {
+      disposed = true
+      requestVersion += 1
       map.off("moveend", onMoveEnd)
       riderFeaturesAbortRef.current?.abort()
     }

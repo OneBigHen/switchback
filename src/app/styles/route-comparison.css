@@ -42,7 +42,7 @@
 
 .route-slip-index {
   color: var(--metal);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 9px;
 }
 
@@ -109,6 +109,163 @@
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.gpx-intelligence-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--oled);
+}
+
+.gpx-intelligence-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gpx-intelligence-panel > header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.gpx-intelligence-panel h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.gpx-confidence {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--metal);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gpx-confidence[data-level="high"] { color: var(--success); }
+.gpx-confidence[data-level="medium"] { color: var(--signal); }
+.gpx-confidence[data-level="low"] { color: var(--warning); }
+
+.gpx-intelligence-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.gpx-intelligence-metrics > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.gpx-intelligence-metrics strong {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gpx-intelligence-metrics small,
+.gpx-intelligence-facts strong {
+  color: var(--metal);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gpx-intelligence-description,
+.gpx-intelligence-notes {
+  margin: 0;
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.gpx-intelligence-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.gpx-intelligence-facts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--instrument);
+  font-size: 10px;
+}
+
+.gpx-intelligence-facts li span {
+  color: var(--metal);
+  text-align: right;
+}
+
+.gpx-intelligence-notes {
+  display: grid;
+  gap: 3px;
+}
+
+.gpx-intelligence-notes strong {
+  color: var(--instrument);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gpx-join-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgb(243 106 45 / 28%);
+  border-radius: 12px;
+  background: rgb(243 106 45 / 6%);
+}
+
+.gpx-join-panel > strong,
+.gpx-join-options > span {
+  color: var(--instrument);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gpx-join-panel > p {
+  margin: 0;
+  color: var(--metal);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.gpx-join-options {
+  display: grid;
+  gap: 6px;
+}
+
+.gpx-join-options .tool-button {
+  min-height: 38px;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .gpx-intelligence-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .route-overlap {

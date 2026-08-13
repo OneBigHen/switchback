@@ -111,6 +111,30 @@ describe("Free Ride recommendation core (experimental)", () => {
     })
   })
 
+  it("preserves verified corridor anchors when a rider accepts", () => {
+    const ranked = rankFreeRideCandidates([candidate("ridge", 0.95, {
+      via: [[-77.08, 40.12], [-77.06, 40.14]],
+      provenance: {
+        source: "rig",
+        sourceBuild: "test-build",
+        builtAt: "2026-08-04T14:00:00.000Z",
+        corridorId: "corridor-1",
+        segmentUids: ["a".repeat(64)],
+        expectedUtility: 0.9,
+        confidence: 0.85,
+        lengthMeters: 4_000
+      }
+    })], baseContext)
+    const suggestion = ranked.suggestion
+    expect(suggestion).not.toBeNull()
+    if (!suggestion) return
+
+    expect(acceptFreeRideSuggestion(suggestion).via).toEqual([
+      [-77.08, 40.12],
+      [-77.06, 40.14]
+    ])
+  })
+
   it("clears and suppresses an ignored suggestion until the cooldown expires", () => {
     const ranked = rankFreeRideCandidates([candidate("ridge", 0.95)], baseContext)
     const suggestion = ranked.suggestion
@@ -132,6 +156,46 @@ describe("Free Ride recommendation core (experimental)", () => {
     expect(ignored.ignoredCandidateIds).toContain("ridge")
     expect(ignored.lastEvent?.type).toBe("suggestion-ignored")
     expect(ignored.cooldownUntil).toBeGreaterThan(Date.parse("2026-08-04T14:00:01.000Z"))
+  })
+
+  it("keeps prompts sparse and escalates quiet time after repeated ignores", () => {
+    const first = rankFreeRideCandidates([candidate("ridge-1", 0.95)], baseContext).suggestion!
+    const ignoredOnce = freeRideRecommendationReducer({
+      suggestion: first,
+      ignoredCandidateIds: [],
+      acceptedSuggestionId: null,
+      cooldownUntil: 0,
+      lastEvent: null
+    }, { type: "ignore", at: "2026-08-04T14:00:00.000Z" })
+    expect(ignoredOnce.cooldownUntil).toBe(Date.parse("2026-08-04T14:05:00.000Z"))
+
+    const ignoredTwice = freeRideRecommendationReducer({
+      ...ignoredOnce,
+      suggestion: { ...first, id: "ridge-2" }
+    }, { type: "ignore", at: "2026-08-04T14:01:00.000Z" })
+    expect(ignoredTwice.cooldownUntil).toBe(Date.parse("2026-08-04T14:21:00.000Z"))
+
+    let prompted: FreeRideRecommendationState = {
+      ...ignoredTwice,
+      suggestion: null,
+      cooldownUntil: 0
+    }
+    for (const [index, minutes] of [30, 40, 50].entries()) {
+      const next = { ...first, id: `prompt-${index}`, expiresAt: `2026-08-04T14:${String(minutes + 1).padStart(2, "0")}:00.000Z` }
+      prompted = freeRideRecommendationReducer(prompted, {
+        type: "show",
+        suggestion: next,
+        at: `2026-08-04T14:${String(minutes).padStart(2, "0")}:00.000Z`
+      })
+      prompted = { ...prompted, suggestion: null, cooldownUntil: 0 }
+    }
+    const blocked = freeRideRecommendationReducer(prompted, {
+      type: "show",
+      suggestion: { ...first, id: "prompt-4", expiresAt: "2026-08-04T15:01:00.000Z" },
+      at: "2026-08-04T15:00:00.000Z"
+    })
+    expect(blocked.suggestion).toBeNull()
+    expect(blocked.cooldownUntil).toBe(Date.parse("2026-08-04T15:30:00.000Z"))
   })
 })
 

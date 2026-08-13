@@ -2,6 +2,7 @@ import type { RouteProvider, RoutingResult } from "./planner"
 import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { PlannedRoute } from "./types"
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
+import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 
 export interface HybridRouteProviderOptions {
   graphHopper: RouteProvider
@@ -15,13 +16,29 @@ function supportsValhallaCandidate(request: NormalizedRouteRequest): boolean {
 
 function withProvenance(
   result: RoutingResult,
-  provider: "graphhopper" | "valhalla"
+  provider: "graphhopper" | "valhalla",
+  fallback = false,
+  bikeProfile?: NormalizedRouteRequest["bikeProfile"]
 ): PlannedRoute[] {
-  return result.routes.map((route) => ({
-    ...route,
-    provider,
-    providerVersion: result.engineVersion
-  }))
+  return result.routes.map((route) => {
+    const enriched: PlannedRoute = {
+      ...route,
+      provider,
+      providerVersion: result.engineVersion,
+      provenance: {
+        provider,
+        version: result.engineVersion,
+        fallback,
+        ...(fallback ? { fallbackFrom: "graphhopper" as const } : {})
+      }
+    }
+    enriched.featureProvenance = featureProvenanceForPlannedRoute(enriched)
+    enriched.routeScore = scorePlannedRoute(enriched, {
+      profile: enriched.profile,
+      bikeProfile
+    })
+    return enriched
+  })
 }
 
 /**
@@ -61,7 +78,7 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
       if (!valhallaEligible) throw graphHopperReason
       try {
         const valhallaFallback = await options.valhalla!(request, providerOptions)
-        const routes = withProvenance(valhallaFallback, "valhalla")
+        const routes = withProvenance(valhallaFallback, "valhalla", true, request.bikeProfile)
         const warnings = [
           ...(valhallaFallback.warnings ?? []),
           `GraphHopper unavailable; Valhalla fallback preserved this supported route: ${rejectionMessage(graphHopperReason)}.`
@@ -83,7 +100,7 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
       engine: "graphhopper",
       engineVersion: graphHopperResult.engineVersion,
       routes: attachRoadLockSatisfaction(
-        withProvenance(graphHopperResult, "graphhopper"),
+        withProvenance(graphHopperResult, "graphhopper", false, request.bikeProfile),
         request.roadLocks
       ),
       ...(warnings.length > 0 ? { warnings } : {})

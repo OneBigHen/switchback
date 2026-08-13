@@ -32,7 +32,7 @@ graphhopper:
     - profile: motorcycle_scenic
     - profile: motorcycle_adventure
 
-  graph.encoded_values: car_access,car_average_speed,road_access,road_class,road_environment,curvature,toll,max_speed,surface,track_type,urban_density,country
+  graph.encoded_values: car_access,car_average_speed,road_access,road_class,road_environment,curvature,toll,max_speed,surface,smoothness,track_type,urban_density,country
   graph.urban_density.threads: 4
   max_speed_calculator.enabled: true
   prepare.lm.threads: 2

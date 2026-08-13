@@ -260,27 +260,7 @@
 
 ---
 
-## 16. SpotifyPlayerDock — Music player
-
-**What:** Draggable Spotify mini-player, auth via OAuth.
-
-**States:**
-- **Disconnected:** "Connect Spotify" link card
-- **Auth in progress:** "Check sign-in" button
-- **Checking:** "Checking Spotify" label
-- **Ready:** Album art, track name/artist, play/pause, seek bar, prev/next, volume, disconnect
-- **No active device:** "Open Spotify and start a song"
-- **Error:** Error message + retry
-- **Compact (ride mode):** Header-only (cover + summary + play/pause)
-- **Collapsed (manual):** Header-only
-- **Hidden:** Floating "Music" reveal button
-- **Draggable:** Can be repositioned
-
-**Key elements:** Album art, track info, transport controls, seek bar, volume slider, connect/disconnect
-
----
-
-## 17–19. Utility components
+## 16–18. Utility components
 
 | Component | What |
 |---|---|

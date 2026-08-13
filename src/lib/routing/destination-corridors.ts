@@ -205,7 +205,7 @@ export interface AnchorSet {
   /** Shaping anchors between start and finish (endpoints excluded). */
   anchors: Coordinate[]
   /** Where the corridor came from: curvature DB, known-good GPX, research hint. */
-  source: "curvature" | "gpx" | "hint"
+  source: "curvature" | "gpx" | "hint" | "rig"
   /** Evidence strength used by scoring (validated corridor miles). */
   evidenceMiles: number
 }
@@ -232,6 +232,8 @@ export interface CorridorSourceCandidates {
   gpxRoutes: Array<{ id: string; label: string; geometry: Coordinate[] }>
   /** Phase 5 hints; empty until the adviser lands. */
   hints: Array<{ id: string; label: string; anchor: Coordinate }>
+  /** Optional graph-backed RIG anchors; empty until canonical geometry is attached. */
+  rigCorridors?: Array<{ id: string; label: string; anchors: Coordinate[]; evidenceMiles: number }>
 }
 
 const MAX_ANCHOR_SETS = 4
@@ -317,6 +319,26 @@ export function buildAnchorSets(
         distanceMiles(existing, anchor) > ANCHOR_MERGE_MILES
       )
     )
+
+  // RIG anchors are highest-value optional evidence, but only their verified
+  // graph-backed anchors are accepted here; corridor bounds alone are not a
+  // route topology claim.
+  for (const corridor of sources.rigCorridors ?? []) {
+    if (candidates.length >= MAX_ANCHOR_SETS) break
+    const anchors = corridor.anchors
+      .slice(0, MAX_ANCHORS_PER_SET)
+      .filter((coordinate) => coordinate.every(Number.isFinite))
+      .filter((coordinate) => anchorWithinEnvelope(start, finish, coordinate, envelope))
+    const midpoint = anchors[Math.floor(anchors.length / 2)]
+    if (!midpoint || !distinct(midpoint)) continue
+    candidates.push({
+      id: `rig-${corridor.id}`,
+      label: corridor.label,
+      anchors,
+      source: "rig",
+      evidenceMiles: Math.max(0, corridor.evidenceMiles)
+    })
+  }
 
   // Curvature segments, best-scoring first.
   const curvature = [...sources.curvatureSegments]

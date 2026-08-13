@@ -7,6 +7,8 @@
  * code can share without leaking engine response shapes into the UI.
  */
 
+import type { IntrinsicFeatureProvenanceMap } from "@/lib/roads/intrinsic-features"
+
 export type Coordinate = [longitude: number, latitude: number]
 
 export type RideProfile =
@@ -76,11 +78,13 @@ export interface RouteRequest {
   temporal?: TemporalContext
 }
 
-export type RoadAccess = "permitted" | "designated" | "discouraged" | "private" | "forbidden"
+export type RoadAccess = "permitted" | "designated" | "discouraged" | "private" | "forbidden" | "unknown"
 export type SeasonalAccess = "open" | "conditional" | "closed" | "unknown"
 
 export interface RoadSegmentFeature {
   segmentId: string
+  /** Stable OSM/RIG identity when an OSM-backed matcher supplied one; never a provider edge id. */
+  canonicalSegmentUid?: string
   geometry: Coordinate[]
   roadClass?: string
   surface?: string
@@ -94,25 +98,29 @@ export interface RoadSegmentFeature {
   headingChangePerKilometer: number
   elevationGainMeters?: number
   elevationLossMeters?: number
-  elevationInterest: number
+  elevationInterest?: number
   scenicProxy: number
   proximityToWater?: number
   proximityToPark?: number
   proximityToMountain?: number
-  trafficPenalty: number
-  signalDensity: number
-  stopDensity: number
+  trafficPenalty?: number
+  signalDensity?: number
+  stopDensity?: number
   intersectionDensity?: number
-  urbanDensityPenalty: number
-  highwayPenalty: number
+  urbanDensityPenalty?: number
+  highwayPenalty?: number
   incidentPenalty?: number
-  gravelSuitability: number
+  gravelSuitability?: number
   legalAccess: RoadAccess
   seasonalAccess: SeasonalAccess
-  familiarity: number
-  novelty: number
-  dataConfidence: number
+  familiarity?: number
+  novelty?: number
+  /** Measured feature coverage proxy; not a calibrated confidence probability. */
+  dataConfidence?: number
+  featureProvenance?: IntrinsicFeatureProvenanceMap
   safetyFlags: string[]
+  /** Current rider reports remain warnings; they are not legal authority. */
+  softCurrentReports?: string[]
   distanceMeters: number
   /** Optional provider/profile-specific hard compatibility result. */
   profileCompatibility?: Partial<Record<RideProfile, "compatible" | "discouraged" | "incompatible">>
@@ -163,6 +171,7 @@ export interface RouteWarning {
 
 export interface RouteScore {
   total: number
+  policyVersion?: string
   fun: number
   twistiness: number
   scenic: number
@@ -262,6 +271,8 @@ export interface FreeRideSuggestion {
   actionLabel: string
   origin: Coordinate
   destination: Coordinate
+  /** Shaping anchors the acceptance route must honor before the rejoin. */
+  via?: Coordinate[]
   routeFragment: Coordinate[]
   triggerDistanceMeters: number
   addedDurationSeconds: number
@@ -269,6 +280,18 @@ export interface FreeRideSuggestion {
   reasons: string[]
   confidence: number
   expiresAt: string
+  /** Evidence identity only; the graph remains the owner of route geometry. */
+  provenance?: {
+    source: "rig"
+    sourceBuild: string
+    graphVersion?: string
+    builtAt: string
+    corridorId: string
+    segmentUids: string[]
+    expectedUtility: number
+    confidence: number
+    lengthMeters: number
+  }
 }
 
 export interface TrafficProvider {

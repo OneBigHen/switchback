@@ -4,8 +4,9 @@ import type { OfflineGraphTileV2 } from "@/lib/offline/v2-contracts"
 import { offlineProfileWeight, routeOfflineV2 } from "@/lib/offline/v2-router"
 
 function edge(id: string, from: string, to: string, way: string, quick = 100, scenic = quick) {
-  const coordinates: Record<string, [number, number]> = {
-    a: [-76, 40], b: [-75.99, 40], c: [-75.98, 40], d: [-75.99, 40.01]
+    const coordinates: Record<string, [number, number]> = {
+      a: [-76, 40], b: [-75.99, 40], c: [-75.98, 40], d: [-75.99, 40.01],
+      e: [-76.0005, 40.0005], f: [-76.001, 40.0005], g: [-75.9805, 40.0005]
   }
   return {
     id,
@@ -102,6 +103,10 @@ describe("offline v2 router", () => {
     expect(offlineProfileWeight(candidate, "gravel")).toBe(57.4)
     expect(offlineProfileWeight(candidate, "avoid-highways")).toBe(10)
     expect(offlineProfileWeight(candidate, "neural")).toBe(53.5)
+
+    candidate.roadClass = "trunk"
+    expect(offlineProfileWeight(candidate, "adventure")).toBe(560)
+    expect(offlineProfileWeight(candidate, "gravel")).toBe(459.2)
   })
 
   it("treats the Avoid Highways profile as a hard motorway/trunk penalty", () => {
@@ -132,6 +137,57 @@ describe("offline v2 router", () => {
 
     const graph = tile()
     graph.edges = graph.edges.filter((candidate) => candidate.fromNodeId !== "b")
-    expect(routeOfflineV2([graph], request)).toMatchObject({ ok: false, kind: "no_path" })
+    expect(routeOfflineV2([graph], { ...request, maxSnapMeters: 100 })).toMatchObject({ ok: false, kind: "no_path" })
   })
+
+  it("tries a farther legal snap when the nearest component cannot reach the finish", () => {
+    const graph = tile()
+    graph.nodes.push(
+      { id: "e", coordinate: [-76.0005, 40.0005] },
+      { id: "f", coordinate: [-76.001, 40.0005] }
+    )
+    graph.edges.push(
+      edge("ef", "e", "f", "20"),
+      edge("fe", "f", "e", "20")
+    )
+    const result = routeOfflineV2([graph], {
+      ...request,
+      start: [-76.0005, 40.0005],
+      maxSnapMeters: 800
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.edgeIds).toEqual(["ab", "bc"])
+  })
+
+  it("prefers the nearest viable snap over a cheaper farther snap", () => {
+    const graph = tile()
+    graph.edges = graph.edges.filter((item) => !["bc", "bd", "dc", "cd", "db"].includes(item.id))
+    graph.nodes.push(
+      { id: "e", coordinate: [-76.0005, 40.0005] },
+      { id: "f", coordinate: [-76.001, 40.0005] },
+      { id: "g", coordinate: [-75.9805, 40.0005] }
+    )
+    graph.edges.push(
+      edge("bg", "b", "g", "21", 1_000),
+      edge("ef", "e", "f", "20", 1),
+      edge("fg", "f", "g", "21", 1)
+    )
+    const result = routeOfflineV2([graph], {
+      ...request,
+      maxSnapMeters: 800
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.edgeIds).toEqual(["ab", "bg"])
+  })
+
+  it("keeps Street routes off tagged rough-surface edges", () => {
+    const graph = tile()
+    graph.edges.find((item) => item.id === "bc")!.surface = "gravel"
+    const result = routeOfflineV2([graph], {
+      ...request,
+      bikeCompatibility: "street"
+    })
+    expect(result.ok && result.edgeIds).toEqual(["ab", "bd", "dc"])
+  })
+
 })

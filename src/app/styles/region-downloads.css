@@ -13,7 +13,7 @@
   gap: 8px;
   margin: 0;
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -53,7 +53,7 @@
   display: block;
   margin-bottom: 3px;
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
   font-weight: 720;
   letter-spacing: 0.05em;
@@ -87,7 +87,7 @@
 
 .region-cadence-row strong {
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -175,7 +175,7 @@
   border-radius: 999px;
   background: var(--raised);
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -233,7 +233,7 @@
   align-items: center;
   gap: 6px;
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 680;
 }

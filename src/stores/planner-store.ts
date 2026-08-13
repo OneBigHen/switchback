@@ -3,6 +3,7 @@ import { canTransitionPlannerPhase } from "@/lib/domain/planner-state-machine"
 import { persist, createJSONStorage } from "zustand/middleware"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
+import { routeEntityCache, type RoutePlanSummary } from "@/lib/client/route-entity-cache"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import { convertMustLockToPrefer } from "@/lib/roads/road-locks"
 import type { TripPlan } from "@/lib/routing/planner"
@@ -137,6 +138,7 @@ function routePointSnapshot(state: Pick<PlannerState, "start" | "finish" | "via"
 }
 
 function invalidateRouteResult() {
+  routeEntityCache.invalidate()
   return {
     plan: null,
     selectedRouteId: null,
@@ -178,7 +180,7 @@ interface PlannerState {
   bikeProfile: BikeProfile
   roadLocks: RoadLock[]
   status: PlannerStatus
-  plan: TripPlan | null
+  plan: RoutePlanSummary | null
   selectedRouteId: string | null
   /** Who picked the current route: a user tap (never auto-replaced) or the
    *  planner's automatic choice. Late alternatives and learned re-ranking
@@ -279,37 +281,43 @@ export const usePlannerStore = create<PlannerState>()(
   persist(
     (set) => ({
       ...initialPlannerState,
-      seedCurrentLocation: (point) => set({
-        start: cloneWaypoint(point),
-        startQuery: point.label,
-        plan: null,
-        selectedRouteId: null,
-        selectionSource: "automatic" as const,
-        error: null,
-        status: "idle"
-      }),
+      seedCurrentLocation: (point) => {
+        routeEntityCache.invalidate()
+        set({
+          start: cloneWaypoint(point),
+          startQuery: point.label,
+          plan: null,
+          selectedRouteId: null,
+          selectionSource: "automatic" as const,
+          error: null,
+          status: "idle"
+        })
+      },
       setPoint: (id, point) => set((state) => applyRoutePointEdit(state, {
         start: id === "start" ? point : state.start,
         finish: id === "finish" ? point : state.finish,
         via: state.via
       })),
-      setPointQuery: (id, query) => set(id === "start" ? {
-        start: null,
-        startQuery: query,
-        plan: null,
-        selectedRouteId: null,
-        selectionSource: "automatic" as const,
-        error: null,
-        status: "idle"
-      } : {
-        finish: null,
-        finishQuery: query,
-        plan: null,
-        selectedRouteId: null,
-        selectionSource: "automatic" as const,
-        error: null,
-        status: "idle"
-      }),
+      setPointQuery: (id, query) => {
+        routeEntityCache.invalidate()
+        set(id === "start" ? {
+          start: null,
+          startQuery: query,
+          plan: null,
+          selectedRouteId: null,
+          selectionSource: "automatic" as const,
+          error: null,
+          status: "idle"
+        } : {
+          finish: null,
+          finishQuery: query,
+          plan: null,
+          selectedRouteId: null,
+          selectionSource: "automatic" as const,
+          error: null,
+          status: "idle"
+        })
+      },
       replaceRoutePoints: (points) => set((state) => applyRoutePointEdit(state, points)),
       addVia: (point) => set((state) => applyRoutePointEdit(state, {
         start: state.start,
@@ -348,19 +356,22 @@ export const usePlannerStore = create<PlannerState>()(
         finish: state.finish,
         via: []
       })),
-      clearRoute: () => set({
-        start: null,
-        finish: null,
-        via: [],
-        startQuery: "",
-        finishQuery: "",
-        armedPoint: null,
-        routePointPast: [],
-        routePointFuture: [],
-        canUndoRoutePoints: false,
-        canRedoRoutePoints: false,
-        ...invalidateRouteResult()
-      }),
+      clearRoute: () => {
+        routeEntityCache.clear()
+        set({
+          start: null,
+          finish: null,
+          via: [],
+          startQuery: "",
+          finishQuery: "",
+          armedPoint: null,
+          routePointPast: [],
+          routePointFuture: [],
+          canUndoRoutePoints: false,
+          canRedoRoutePoints: false,
+          ...invalidateRouteResult()
+        })
+      },
       reverseRoutePoints: (mode) => set((state) => {
         if (mode === "destination" && (!state.start || !state.finish)) return {}
         return applyRoutePointEdit(state, {
@@ -410,14 +421,13 @@ export const usePlannerStore = create<PlannerState>()(
         }
       }),
       armPoint: (armedPoint) => set({ armedPoint }),
-      setProfile: (profile) => set((state) => state.profile === profile ? {} : {
-        profile,
-        plan: null,
-        selectedRouteId: null,
-        status: "idle",
-        error: null
-      }),
-      setBikeProfile: (bikeProfile) => set((state) => {
+      setProfile: (profile) => {
+        if (usePlannerStore.getState().profile === profile) return
+        routeEntityCache.invalidate()
+        set({ profile, plan: null, selectedRouteId: null, status: "idle", error: null })
+      },
+      setBikeProfile: (bikeProfile) => {
+        const state = usePlannerStore.getState()
         if (
           state.bikeProfile.name === bikeProfile.name &&
           state.bikeProfile.category === bikeProfile.category &&
@@ -427,14 +437,15 @@ export const usePlannerStore = create<PlannerState>()(
           state.bikeProfile.allowRoughTracks === bikeProfile.allowRoughTracks &&
           state.bikeProfile.avoidUnknownSurface === bikeProfile.avoidUnknownSurface
         ) return {}
-        return {
+        routeEntityCache.invalidate()
+        set({
           bikeProfile,
           plan: null,
           selectedRouteId: null,
           status: "idle",
           error: null
-        }
-      }),
+        })
+      },
       beginRouting: () => set((state) => ({
         status: "routing",
         // Phase 6: keep the previous route visible (dimmed) while replanning
@@ -442,23 +453,30 @@ export const usePlannerStore = create<PlannerState>()(
         isRecalculating: Boolean(state.plan),
         error: null
       })),
-      applyPlan: (plan) => set({
-        plan,
-        selectedRouteId: plan.selectedRouteId,
-        selectionSource: "automatic" as const,
-        status: "ready",
-        isRecalculating: false,
-        error: null
-      }),
+      applyPlan: (plan) => {
+        const summary: RoutePlanSummary = {
+          ...plan,
+          routes: routeEntityCache.replace(plan.routes)
+        }
+        set({
+          plan: summary,
+          selectedRouteId: plan.selectedRouteId,
+          selectionSource: "automatic" as const,
+          status: "ready",
+          isRecalculating: false,
+          error: null
+        })
+      },
       mergeAlternatives: (alternatives) => set((state) => {
         if (!state.plan) return {}
         const existingIds = new Set(state.plan.routes.map((route) => route.id))
         const fresh = alternatives.routes.filter((route) => !existingIds.has(route.id))
         if (fresh.length === 0 && alternatives.warnings.length === 0) return {}
+        const freshSummaries = routeEntityCache.merge(fresh)
         return {
           plan: {
             ...state.plan,
-            routes: [...state.plan.routes, ...fresh],
+            routes: [...state.plan.routes, ...freshSummaries],
             warnings: Array.from(new Set([...state.plan.warnings, ...alternatives.warnings]))
           },
           status: "ready",
@@ -535,6 +553,7 @@ export const usePlannerStore = create<PlannerState>()(
       addRoadLock: (lock) => set((state) => {
         const existing = state.roadLocks.some((existingLock) => existingLock.id === lock.id)
         if (existing) return {}
+        routeEntityCache.invalidate()
         return {
           roadLocks: [...state.roadLocks, lock],
           plan: null,
@@ -556,10 +575,12 @@ export const usePlannerStore = create<PlannerState>()(
           next.fallbackToleranceMeters === current.fallbackToleranceMeters
         ) return {}
         const roadLocks = state.roadLocks.map((lock) => lock.id === id ? next : lock)
+        routeEntityCache.invalidate()
         return { roadLocks, plan: null, selectedRouteId: null, status: "idle", error: null }
       }),
       removeRoadLock: (id) => set((state) => {
         if (!state.roadLocks.some((lock) => lock.id === id)) return {}
+        routeEntityCache.invalidate()
         return {
           roadLocks: state.roadLocks.filter((lock) => lock.id !== id),
           plan: null,
@@ -575,15 +596,14 @@ export const usePlannerStore = create<PlannerState>()(
         if (current.mode !== "must") return {}
         const next = convertMustLockToPrefer(current)
         const roadLocks = state.roadLocks.map((lock) => lock.id === id ? next : lock)
+        routeEntityCache.invalidate()
         return { roadLocks, plan: null, selectedRouteId: null, status: "idle", error: null }
       }),
-      clearRoadLocks: () => set((state) => state.roadLocks.length === 0 ? {} : {
-        roadLocks: [],
-        plan: null,
-        selectedRouteId: null,
-        status: "idle",
-        error: null
-      })
+      clearRoadLocks: () => {
+        if (usePlannerStore.getState().roadLocks.length === 0) return
+        routeEntityCache.invalidate()
+        set({ roadLocks: [], plan: null, selectedRouteId: null, status: "idle", error: null })
+      }
     }),
     {
       name: "switchback.planner.v1",

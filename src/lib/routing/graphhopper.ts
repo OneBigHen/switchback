@@ -9,7 +9,7 @@ import {
   disallowedTracktypes
 } from "./bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
-import { scorePlannedRoute } from "@/lib/recommendation/route-candidate"
+import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 import { featureFlags } from "@/lib/domain/feature-flags"
 
 export interface GraphHopperOptions {
@@ -567,14 +567,23 @@ function normalizePath(
     tollEvidence: tollEvidence(geometry, path.details?.toll),
     routingSource: "live",
     previewOnly: false,
+    candidateSource: request.roundTrip
+      ? "loop-seed"
+      : request.points.length === 2
+        ? index === 0 ? "direct" : "native"
+        : undefined,
     loopTargetMinutes: request.roundTrip?.targetMinutes ?? request.loopTargetMinutes,
     avoidHighways: request.avoidHighways,
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: request.segmentProfiles ? [...request.segmentProfiles] : undefined
   }
+  normalized.featureProvenance = featureProvenanceForPlannedRoute(normalized)
   return {
     ...normalized,
-    routeScore: scorePlannedRoute(normalized, { profile: request.profile })
+    routeScore: scorePlannedRoute(normalized, {
+      profile: request.profile,
+      bikeProfile: request.bikeProfile
+    })
   }
 }
 

@@ -1,5 +1,6 @@
 import type { CandidateSet, Coordinate, PlannedRoute, RouteProfileId, RouteRequest, Waypoint } from "./types"
-import { calculateGeometryOverlap } from "./scoring"
+import { rankDiverseCandidates, routeSimilarity } from "@/lib/recommendation/route-diversity"
+import { PA_NJ_ROUTE_POLICY_V1 } from "@/lib/recommendation/route-policy"
 import {
   partitionLocksByPrecedence
 } from "@/lib/roads/lock-precedence"
@@ -14,6 +15,7 @@ import {
   type AnchorSet,
   type CorridorSourceCandidates
 } from "./destination-corridors"
+import { generateCorridorCandidates, generateLoopCandidates } from "./candidate-generator"
 import {
   countStateTransitions,
   minimumStateTransitions,
@@ -32,6 +34,7 @@ export interface TripPlanRequest extends RouteRequest {
 
 export interface TripPlan {
   /** Echoed from the request so the client can merge only matching lifecycles. */
+  requestId?: string
   planningId?: string
   candidateSet?: CandidateSet
   selectedRouteId: string
@@ -98,11 +101,11 @@ interface TimeboxedProviderResult {
 const ROUND_TRIP_DURATION_TOLERANCE = 0.15
 const MAX_COMPARISON_OVERLAP = 90
 /** Alternatives endpoint: at most two meaningfully different routes. */
-const MAX_ALTERNATIVES = 2
+const MAX_ALTERNATIVES = PA_NJ_ROUTE_POLICY_V1.maxAlternatives
 /** Alternatives endpoint: shared 12-second total deadline. */
 const ALTERNATIVES_DEADLINE_MS = 12_000
 /** Meaningfully different means at most 85% sampled-geometry overlap. */
-const ALTERNATIVES_MAX_OVERLAP = 85
+const ALTERNATIVES_MAX_OVERLAP = PA_NJ_ROUTE_POLICY_V1.duplicateSimilarityThreshold * 100
 /**
  * Stable comparison order. The first four preserve the original product
  * comparison contract; the newer profiles remain available after them.
@@ -117,11 +120,6 @@ const COMPARISON_PROFILE_ORDER: readonly RouteProfileId[] = [
   "avoid-highways",
   "neural"
 ]
-// Native round trips can select an unroutable synthetic waypoint for a given
-// seed. These spread-out fallbacks keep a rider's requested seed first, while
-// giving the engine several independent loop shapes before we drop an option.
-const ROUND_TRIP_FALLBACK_SEEDS = [341, 1_523, 7_919, 19_937, 65_537, 131_071]
-
 const UNPAVED_SURFACES = new Set([
   "compacted",
   "dirt",
@@ -143,37 +141,25 @@ function unpavedShare(route: PlannedRoute): number {
 }
 
 function selectedCandidateScore(route: PlannedRoute): number {
-  const road = route.roadMix
-  switch (route.profile) {
-    case "quick":
-      return -route.durationMinutes
-    case "balanced":
-      return route.twistiness * 0.8 + (road.secondary ?? 0) * 0.5 - route.durationMinutes * 0.2
-    case "twisty":
-      return route.twistiness * 2 + (route.turnCount / Math.max(1, route.distanceMiles)) * 20
-    case "scenic":
-      return (road.secondary ?? 0) * 1.2 + (road.tertiary ?? 0) +
-        (road.unclassified ?? 0) * 0.7 - (road.motorway ?? 0) * 4 - (road.trunk ?? 0) * 3
-    case "adventure":
-      // Surface data comes from GraphHopper's OSM details. Give mapped gravel
-      // enough influence to win even when it adds meaningful ride time.
-      return unpavedShare(route) * 6 +
-        (route.officialUnpavedEvidence?.sharePercent ?? 0) * 8 +
-        route.twistiness * 0.25 - route.durationMinutes * 0.08
-    case "gravel":
-      return unpavedShare(route) * 8 +
-        (route.officialUnpavedEvidence?.sharePercent ?? 0) * 10 +
-        route.twistiness * 0.2 - route.durationMinutes * 0.06
-    case "avoid-highways":
-      return (100 - (road.motorway ?? 0) - (road.trunk ?? 0)) * 2 - route.durationMinutes * 0.1
-    case "neural":
-      return route.twistiness * 1.2 + (road.secondary ?? 0) * 0.6 +
-        (road.tertiary ?? 0) * 0.4 - route.durationMinutes * 0.05
-  }
+  if (route.routeScore) return route.routeScore.total
+
+  // Compatibility for injected providers and old cached routes that predate
+  // provider-side score attachment. Live GraphHopper/Valhalla routes use the
+  // single provider-neutral utility above.
+  const offroadProfile = route.profile === "adventure" || route.profile === "gravel"
+  const mappedSurface = unpavedShare(route)
+  const surfaceFit = offroadProfile ? mappedSurface : 100 - mappedSurface
+  const highwayShare = (route.roadMix.motorway ?? 0) + (route.roadMix.trunk ?? 0)
+  const evidence = route.officialUnpavedEvidence?.sharePercent ?? 0
+  return route.twistiness * (offroadProfile ? 0.25 : 0.5) +
+    surfaceFit * (offroadProfile ? 5 : 0.1) +
+    evidence * (offroadProfile ? 8 : 0.1) +
+    (100 - highwayShare) * 0.1 -
+    route.durationMinutes * (route.profile === "quick" ? 1 : 0.08)
 }
 
 function chooseSelectedCandidate(routes: PlannedRoute[]): PlannedRoute | null {
-  return routes.reduce<PlannedRoute | null>((best, candidate) => {
+  return routes.filter(route => route.routeScore?.accepted !== false).reduce<PlannedRoute | null>((best, candidate) => {
     if (!best) return candidate
     return selectedCandidateScore(candidate) > selectedCandidateScore(best) ? candidate : best
   }, null)
@@ -279,30 +265,22 @@ function chooseDistinctCandidate(
   maxOverlap = MAX_COMPARISON_OVERLAP,
   strict = false
 ): { route: PlannedRoute; overlapPercent: number; worstOverlap: number } | null {
-  if (candidates.length === 0) return null
-  const ranked = candidates.map((route) => {
-      const overlaps = existing.map((current) =>
-        calculateGeometryOverlap(current.geometry, route.geometry)
-      )
-      return {
-        route,
-        overlapPercent: overlaps[0] ?? 0,
-        worstOverlap: Math.max(0, ...overlaps)
-      }
-    })
-  const differentiated = ranked.filter((candidate) => candidate.worstOverlap <= maxOverlap)
-  const pool = strict
-    ? differentiated
-    : differentiated.length > 0 ? differentiated : ranked
-  if (pool.length === 0) return null
-  return pool.sort((left, right) =>
-      left.route.profile === "adventure" && right.route.profile === "adventure"
-        ? selectedCandidateScore(right.route) - selectedCandidateScore(left.route) ||
-          left.worstOverlap - right.worstOverlap
-        :
-      left.worstOverlap - right.worstOverlap ||
-      left.route.durationMinutes - right.route.durationMinutes
-    )[0]
+  const eligibleCandidates = candidates.filter(route => route.routeScore?.accepted !== false)
+  if (eligibleCandidates.length === 0) return null
+  const ranked = rankDiverseCandidates(eligibleCandidates, existing, {
+    maxSimilarity: maxOverlap / 100,
+    strict,
+    utility: selectedCandidateScore
+  })
+  const best = ranked[0]
+  if (!best) return null
+  const similarities = existing.map((current) => routeSimilarity(best.route, current))
+  const worstOverlap = Math.max(0, ...similarities.map((similarity) => similarity.overlapShare * 100))
+  return {
+    route: best.route,
+    overlapPercent: Math.round(similarities[0]?.overlapShare ? similarities[0].overlapShare * 100 : 0),
+    worstOverlap
+  }
 }
 
 function durationDifference(route: PlannedRoute, targetMinutes: number): number {
@@ -313,7 +291,7 @@ function closestDurationCandidate(
   routes: PlannedRoute[],
   targetMinutes: number
 ): PlannedRoute | null {
-  return [...routes].sort((left, right) =>
+  return routes.filter(route => route.routeScore?.accepted !== false).sort((left, right) =>
     durationDifference(left, targetMinutes) - durationDifference(right, targetMinutes) ||
     selectedCandidateScore(right) - selectedCandidateScore(left)
   )[0] ?? null
@@ -365,14 +343,13 @@ async function requestInitialTimeboxedRoute(
   let lastError: unknown
   for (const step of distanceSteps) {
     const minutes = Math.max(20, Math.round(originalMinutes * step))
-    const seedCandidates = [originalSeed, ...ROUND_TRIP_FALLBACK_SEEDS]
-      .filter((seed, index, seeds) => seeds.indexOf(seed) === index)
-    for (const seed of seedCandidates) {
+    const loopCandidates = generateLoopCandidates({
+      ...request,
+      roundTrip: { ...request.roundTrip, targetMinutes: minutes, seed: originalSeed }
+    }, { maxCandidates: 7 })
+    for (const candidate of loopCandidates) {
       try {
-        return await provider({
-          ...request,
-          roundTrip: { ...request.roundTrip, targetMinutes: minutes, seed }
-        }, options)
+        return await provider(candidate.request, options)
       } catch (caught) {
         lastError = caught
       }
@@ -772,24 +749,18 @@ async function routeAnchorSets(
   options: PlanningOptions
 ): Promise<PlannedRoute[]> {
   const results: PlannedRoute[] = []
+  const candidates = generateCorridorCandidates(request, anchorSets, { maxCandidates: 4 })
   let cursor = 0
   // Concurrency at most two provider calls at once.
-  const workers = Array.from({ length: Math.min(MAX_CONCURRENT_CORRIDOR_ROUTES, anchorSets.length) }, async () => {
-    while (cursor < anchorSets.length) {
-      const set = anchorSets[cursor]!
+  const workers = Array.from({ length: Math.min(MAX_CONCURRENT_CORRIDOR_ROUTES, candidates.length) }, async () => {
+    while (cursor < candidates.length) {
+      const candidate = candidates[cursor]!
       cursor += 1
       if (options.signal?.aborted) return
       try {
-        const attempt = await requestTimeboxedRoutes({
-          ...request,
-          points: [
-            request.points[0]!,
-            ...set.anchors.map(([lon, lat]) => ({ lat, lon, label: set.label })),
-            request.points[request.points.length - 1]!
-          ]
-        }, provider, undefined, options)
+        const attempt = await requestTimeboxedRoutes(candidate.request, provider, undefined, options)
         const selected = chooseSelectedCandidate(attempt.result.routes)
-        if (selected) results.push({ ...selected, name: `${selected.name} · ${set.label}` })
+        if (selected) results.push({ ...selected, name: `${selected.name} · ${candidate.id}`, candidateSource: candidate.source })
       } catch {
         // A corridor that cannot be routed is skipped; the others still compete.
       }

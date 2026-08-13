@@ -30,7 +30,7 @@
 
 .bike-profile-picker-header h3 {
   margin: 0;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 720;
 }
@@ -125,7 +125,7 @@
 }
 
 .bike-profile-option-text strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
 }
@@ -181,7 +181,7 @@
   border-radius: 8px;
   background: var(--oled);
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   font-weight: 620;
 }
@@ -242,7 +242,7 @@
 
 .bike-profile-summary strong {
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
   font-variant-numeric: tabular-nums;

@@ -6,6 +6,7 @@ import { RouteQueueFullError } from "@/lib/server/route-job-limiter"
 import type { RouteRequest } from "@/lib/routing/types"
 import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 import { routeCacheKey, type RouteCache } from "@/lib/server/route-cache"
+import { apiErrorResponse, jsonWithRequestId, readRequestId } from "@/lib/server/api-contract"
 import {
   number, string, boolean, enum_, literal, object_, tuple, array,
   optional, nullable, withDefault, safeParse, ValidationError
@@ -91,6 +92,8 @@ const PROFILES = [
 
 const routeRequestSchema = object_({
   profile: enum_(PROFILES),
+  requestId: optional(string({ trim: true, min: 8, max: 128 })),
+  source: optional(enum_(["manual", "intent", "replan", "offline-recovery", "free-ride"] as const)),
   compare: withDefault(optional(boolean()), true),
   avoidHighways: optional(boolean()),
   avoidAreas: optional(array(avoidAreaSchema, { max: 3 })),
@@ -201,19 +204,22 @@ export async function handleRouteRequest(
   enricher?: RouteCandidateEnricher,
   context: RoutePlanningContext = {}
 ): Promise<Response> {
+  let responseRequestId = readRequestId(request)
   const body = await readRoutePayload(request)
   if ("tooLarge" in body) {
     return errorResponse(
       "ROUTE_REQUEST_TOO_LARGE",
       "The route request is too large.",
-      413
+      413,
+      responseRequestId
     )
   }
   if ("invalid" in body) {
     return errorResponse(
       "INVALID_ROUTE_REQUEST",
       "The route request must be valid JSON.",
-      400
+      400,
+      responseRequestId
     )
   }
 
@@ -223,9 +229,11 @@ export async function handleRouteRequest(
       "INVALID_ROUTE_REQUEST",
       "Choose a motorcycle profile and provide valid waypoints or one timeboxed loop start.",
       400,
+      responseRequestId,
       { message: parsed.error.message, path: parsed.error.path }
     )
   }
+  responseRequestId = parsed.data.requestId ?? responseRequestId
 
   try {
     validateRouteRequest(parsed.data)
@@ -235,6 +243,7 @@ export async function handleRouteRequest(
         "INVALID_ROUTE_REQUEST",
         e.message,
         400,
+        responseRequestId,
         { path: e.path }
       )
     }
@@ -254,8 +263,9 @@ export async function handleRouteRequest(
         return Response.json({
           ...cached,
           ...echoedMetadata(parsed.data),
+          requestId: responseRequestId,
           timingMs: { cache: "hit" }
-        })
+        }, { headers: { "x-request-id": responseRequestId } })
       }
     }
     const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher, {
@@ -265,23 +275,24 @@ export async function handleRouteRequest(
     if (cacheKey && cache) {
       cache.set(cacheKey, trip)
     }
-    return Response.json(trip)
+    return jsonWithRequestId({ ...trip, requestId: responseRequestId }, responseRequestId)
   } catch (error) {
     if (error instanceof RouteQueueFullError) {
       // The provider queue is saturated; 429 tells the client to back off
       // instead of retrying a 5xx storm.
-      return errorResponse("ROUTING_QUEUE_FULL", error.message, 429)
+      return errorResponse("ROUTING_QUEUE_FULL", error.message, 429, responseRequestId)
     }
     if (error instanceof GraphHopperProviderError || error instanceof ValhallaProviderError) {
       return errorResponse(
         error.code,
         friendlyRoutingErrorMessage(error.code),
         normalizeStatus(error.status),
+        responseRequestId,
         { providerMessage: error.message }
       )
     }
     const message = error instanceof Error ? error.message : "The route could not be planned."
-    return errorResponse("ROUTE_PLANNING_FAILED", message, 500)
+    return errorResponse("ROUTE_PLANNING_FAILED", message, 500, responseRequestId)
   }
 }
 
@@ -324,10 +335,8 @@ function errorResponse(
   code: string,
   message: string,
   status: number,
+  requestId: string,
   details?: unknown
 ): Response {
-  return Response.json(
-    { error: { code, message, ...(details ? { details } : {}) } },
-    { status }
-  )
+  return apiErrorResponse(code, message, status, requestId, details)
 }

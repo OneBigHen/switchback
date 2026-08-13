@@ -6,6 +6,7 @@ import {
   GpsFix,
   GpsSlash,
   LockSimple,
+  NavigationArrow,
   Pause,
   Play,
   SpinnerGap,
@@ -53,20 +54,22 @@ export function RideHud(input: NavigationSessionControllerInput) {
   }, [])
 
   const frame = controller.viewModel.frame
+  const route = input.route
+  const trackGuidance = controller.trackGuidance
   const guidanceReady =
     controller.gpsState === "ready" && controller.location !== null
   const instruction =
-    guidanceReady && frame ? (frame.instruction ?? input.route.instructions[0]) : input.route.instructions[0]
+    trackGuidance
+      ? null
+      : guidanceReady && frame ? (frame.instruction ?? route.instructions[0]) : route.instructions[0]
   const offRoute = guidanceReady && frame?.status === "off-route"
   const deviating = guidanceReady && frame?.status === "deviating"
   const arrived = guidanceReady && frame?.status === "arrived"
   const matchAmbiguous = guidanceReady && frame?.status === "uncertain"
-  const progressReady = guidanceReady && !matchAmbiguous && !offRoute && !deviating
+  const progressReady = guidanceReady && !matchAmbiguous && (trackGuidance || (!offRoute && !deviating))
   const displayFrame = progressReady ? frame : null
   const currentInstruction = guidanceReady && frame ? frame.instruction : null
   const currentSpeedLimit = currentInstruction?.speedLimitKmh ?? null
-  const route = input.route
-
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const bikeProfile = usePlannerStore((state) => state.bikeProfile)
   const routeDataQuality = useMemo(
@@ -98,16 +101,20 @@ export function RideHud(input: NavigationSessionControllerInput) {
       ? "Arrived"
       : matchAmbiguous
         ? "Guidance paused"
+        : trackGuidance
+          ? "Track guidance"
         : deviating
           ? "Checking position"
           : guidanceReady
             ? "Live guidance"
             : "Route preview"
 
-  const instructionEyebrow = offRoute
-    ? "Off route"
-    : arrived
+  const instructionEyebrow = arrived
       ? "Destination"
+      : trackGuidance
+        ? offRoute ? "Track guidance · off track" : "Track guidance"
+        : offRoute
+          ? "Off route"
       : deviating
         ? "Verifying position"
         : matchAmbiguous
@@ -118,13 +125,19 @@ export function RideHud(input: NavigationSessionControllerInput) {
 
   const instructionHeading = controller.guidancePaused
     ? "Guidance paused"
-    : offRoute
-      ? controller.rerouteStatus === "routing"
-        ? "Finding a safe way back…"
-        : "Return to the highlighted route"
-      : arrived
+    : arrived
         ? "You have arrived"
-        : deviating
+        : trackGuidance
+          ? offRoute
+            ? "Return to the highlighted track"
+            : guidanceReady
+              ? "Follow the GPX track"
+              : "GPS fix required"
+          : offRoute
+            ? controller.rerouteStatus === "routing"
+              ? "Finding a safe way back…"
+              : "Return to the highlighted route"
+            : deviating
           ? "Checking your route position"
           : matchAmbiguous
             ? "Route match unclear"
@@ -134,17 +147,21 @@ export function RideHud(input: NavigationSessionControllerInput) {
 
   const instructionDetail = controller.guidancePaused
     ? "Resume when you are ready for route cues and automatic recovery."
-    : offRoute
-      ? controller.rerouteStatus === "routing"
-        ? "Switchback is rebuilding the line from your current location."
-        : controller.rerouteStatus === "error"
-          ? "The requested rejoin route failed. Stop safely before trying again."
-          : controller.rejoinPolicy === "preserve-original"
-            ? "Your original route is preserved. Choose a rejoin point when it is safe."
-            : "Choose a recovery option, or keep moving and Switchback will recalculate automatically."
-      : arrived
+    : arrived
         ? route.waypoints.at(-1)?.label || "Destination reached"
-        : deviating
+        : trackGuidance
+          ? offRoute
+            ? `Track guidance — road data unavailable. ${frame ? Math.round(frame.distanceFromRouteMeters) : "—"} m off track; no automatic reroute.`
+            : "Track guidance — road data unavailable. Follow the breadcrumb and direction arrow; no turn instructions are invented."
+          : offRoute
+            ? controller.rerouteStatus === "routing"
+              ? "Switchback is rebuilding the line from your current location."
+              : controller.rerouteStatus === "error"
+                ? "The requested rejoin route failed. Stop safely before trying again."
+                : controller.rejoinPolicy === "preserve-original"
+                  ? "Your original route is preserved. Choose a rejoin point when it is safe."
+                  : "Choose a recovery option, or keep moving and Switchback will recalculate automatically."
+            : deviating
           ? "GPS is outside the route corridor. Guidance will only reroute if the deviation continues."
           : matchAmbiguous
             ? "Guidance is paused until your direction and route position can be matched."
@@ -154,7 +171,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
 
   return (
     <section
-      className={`ride-hud gps-${controller.gpsState}${offRoute ? " is-off-route" : ""}${deviating ? " is-deviating" : ""}${arrived ? " is-arrived" : ""}${matchAmbiguous ? " is-match-ambiguous" : ""}`}
+      className={`ride-hud gps-${controller.gpsState}${offRoute ? " is-off-route" : ""}${deviating ? " is-deviating" : ""}${arrived ? " is-arrived" : ""}${matchAmbiguous ? " is-match-ambiguous" : ""}${trackGuidance ? " is-track-guidance" : ""}`}
       aria-label={`${guidanceReady ? "Ride mode" : "Ride preview"} for ${route.name}`}
     >
       <header className="ride-topbar">
@@ -246,7 +263,17 @@ export function RideHud(input: NavigationSessionControllerInput) {
 
       <div className="ride-instruction">
         <div className="maneuver-icon" aria-hidden="true">
-          {guidanceReady && !matchAmbiguous ? (
+          {trackGuidance ? (
+            guidanceReady ? (
+              <NavigationArrow
+                weight="fill"
+                aria-label="Track direction"
+                style={{ transform: `rotate(${frame?.routeBearingDegrees ?? frame?.headingDegrees ?? 0}deg)` }}
+              />
+            ) : (
+              <GpsSlash weight="bold" />
+            )
+          ) : guidanceReady && !matchAmbiguous ? (
             arrived ? (
               <ManeuverGlyph kind="finish" />
             ) : controller.rerouteStatus === "routing" ? (
@@ -277,7 +304,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               </span>
             </div>
           ) : null}
-          {exitedCorridorUnexpectedly ? (
+          {exitedCorridorUnexpectedly && !trackGuidance ? (
             <div className="ride-hud-corridor-exit-alert" role="alert">
               <WarningCircle weight="fill" aria-hidden="true" />
               <span>
@@ -286,7 +313,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               </span>
             </div>
           ) : null}
-          {guidanceReady &&
+          {!trackGuidance && guidanceReady &&
           !offRoute &&
           !deviating &&
           !arrived &&
@@ -301,7 +328,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               {(frame.distanceToInstructionMeters / 1609.344).toFixed(1)} mi
             </small>
           ) : null}
-          {guidanceReady &&
+          {!trackGuidance && guidanceReady &&
           !offRoute &&
           !deviating &&
           !arrived &&
@@ -314,7 +341,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
                 : ""}
             </small>
           ) : null}
-          {offRoute ? (
+          {offRoute && !trackGuidance ? (
             <div
               className="ride-reroute-card"
               role="group"
@@ -406,6 +433,8 @@ export function RideHud(input: NavigationSessionControllerInput) {
           <span>
             {arrived
               ? "ride complete"
+              : trackGuidance
+                ? arrived ? "track complete" : guidanceReady ? "track progress" : "waiting for GPS"
               : matchAmbiguous
                 ? "route match pending"
                 : guidanceReady

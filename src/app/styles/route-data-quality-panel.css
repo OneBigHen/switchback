@@ -34,14 +34,14 @@
   align-items: baseline;
   gap: 8px;
   margin: 0;
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 720;
 }
 
 .route-data-quality-header h3 small {
   color: var(--metal);
-  font-family: "DM Sans Variable", "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -109,7 +109,7 @@
 }
 
 .route-data-quality-bar-row strong {
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 720;
   font-variant-numeric: tabular-nums;
@@ -209,7 +209,7 @@
 
 .route-data-quality-footer strong {
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
 }
 

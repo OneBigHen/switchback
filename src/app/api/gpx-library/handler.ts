@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
+import { isGpxIntelligenceReport } from "@/lib/gpx/intelligence"
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, {
@@ -22,6 +23,14 @@ function publicCatalogRoutes(routes: ProjectGpxRouteSummary[]): Array<{
   twistiness: number
   turnCount: number
   sourceProject: string
+  duplicateFamilyId?: string
+  duplicateFamilySize?: number
+  duplicateFamilyRole?: "canonical" | "near-duplicate"
+  mapMatchStatus?: ProjectGpxRouteSummary["mapMatchStatus"]
+  matchPercent?: ProjectGpxRouteSummary["matchPercent"]
+  unmatchedPercent?: ProjectGpxRouteSummary["unmatchedPercent"]
+  unmatchedSpanCount?: number
+  dataConfidenceLevel?: ProjectGpxRouteSummary["dataConfidenceLevel"]
 }> {
   return routes.map((route) => ({
     id: route.id,
@@ -30,7 +39,17 @@ function publicCatalogRoutes(routes: ProjectGpxRouteSummary[]): Array<{
     durationMinutes: route.durationMinutes,
     twistiness: route.twistiness,
     turnCount: route.turnCount,
-    sourceProject: route.sourceProject
+    sourceProject: route.sourceProject,
+    ...(route.duplicateFamilyId ? {
+      duplicateFamilyId: route.duplicateFamilyId,
+      duplicateFamilySize: route.duplicateFamilySize,
+      duplicateFamilyRole: route.duplicateFamilyRole
+    } : {}),
+    ...(route.mapMatchStatus ? { mapMatchStatus: route.mapMatchStatus } : {}),
+    ...(route.matchPercent !== undefined ? { matchPercent: route.matchPercent } : {}),
+    ...(route.unmatchedPercent !== undefined ? { unmatchedPercent: route.unmatchedPercent } : {}),
+    ...(route.unmatchedSpanCount !== undefined ? { unmatchedSpanCount: route.unmatchedSpanCount } : {}),
+    ...(route.dataConfidenceLevel ? { dataConfidenceLevel: route.dataConfidenceLevel } : {})
   }))
 }
 
@@ -48,6 +67,9 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
         uniqueFiles: manifest.uniqueFiles ?? manifest.routes.length,
         importedRoutes: manifest.importedRoutes ?? manifest.routes.length,
         rejectedFiles: manifest.rejectedFiles ?? 0,
+        duplicateFamilies: manifest.duplicateFamilies ?? 0,
+        nearDuplicateFamilies: manifest.nearDuplicateFamilies ?? 0,
+        nearDuplicateRoutes: manifest.nearDuplicateRoutes ?? 0,
         routes: publicCatalogRoutes(manifest.routes)
       })
     }
@@ -60,6 +82,9 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
     const route = JSON.parse(
       await readFile(path.join(catalogRoot, "routes", `${requestedId}.json`), "utf8")
     ) as unknown
+    if (typeof route === "object" && route !== null && "gpxIntelligence" in route && !isGpxIntelligenceReport(route.gpxIntelligence)) {
+      return json({ error: { code: "GPX_CATALOG_UNAVAILABLE", message: "The imported GPX intelligence report is invalid." } }, 503)
+    }
     return json(route)
   } catch {
     return json({

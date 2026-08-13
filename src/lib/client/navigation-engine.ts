@@ -79,6 +79,8 @@ export interface NavigationFrame {
   offRouteFixCount: number
   offRouteSince: number | null
   matchAmbiguous: boolean
+  /** Bearing of the matched track segment for breadcrumb direction cues. */
+  routeBearingDegrees?: number
 }
 
 interface SegmentProjection {
@@ -326,8 +328,16 @@ function matchRoute(
 
 function instructionAt(
   model: NavigationModel,
-  routeDistanceMeters: number
+  routeDistanceMeters: number,
+  segmentIndex: number
 ): { index: number; instruction: RouteInstruction | null; then: RouteInstruction | null; distance: number } {
+  if (
+    model.route.navigationMode === "continuous-track" &&
+    model.route.gpxLegStartIndex != null &&
+    segmentIndex >= model.route.gpxLegStartIndex
+  ) {
+    return { index: -1, instruction: null, then: null, distance: 0 }
+  }
   const instruction = model.instructions.find((candidate) =>
     candidate.distanceFromStartMeters >= routeDistanceMeters - MANEUVER_PASS_METERS
   ) ?? model.instructions.at(-1)
@@ -381,7 +391,7 @@ export function updateNavigation(
   const deviating = match.distanceMeters > offRouteThreshold
   const offRouteFixCount = deviating ? (previous?.offRouteFixCount ?? 0) + 1 : 0
   const offRouteSince = deviating ? previous?.offRouteSince ?? fix.timestamp : null
-  const instruction = instructionAt(model, match.routeDistanceMeters)
+  const instruction = instructionAt(model, match.routeDistanceMeters, match.segment.index)
   const status: NavigationStatus = fix.accuracyMeters > MAX_GUIDANCE_ACCURACY_METERS
     ? "weak-signal"
     : reachedEndpoint
@@ -417,7 +427,8 @@ export function updateNavigation(
     distanceToInstructionMeters: instruction.distance,
     offRouteFixCount,
     offRouteSince,
-    matchAmbiguous: ambiguous
+    matchAmbiguous: ambiguous,
+    routeBearingDegrees: match.segment.bearingDegrees
   }
 }
 

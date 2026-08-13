@@ -274,12 +274,14 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
 
   return (
     <aside
-      className={`planner-deck${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
+      id="planner-sheet"
+      className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
+      data-sheet-state={minimized ? "collapsed" : "expanded"}
       aria-label="Motorcycle route planner"
     >
       {minimized ? (
         <div className="planner-mini-header">
-          <button type="button" className="planner-expand" aria-label="Expand planner" onClick={() => setMinimized(false)}>
+          <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setMinimized(false)}>
             <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
             <span>
               <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
@@ -294,9 +296,11 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       ) : (
         <>
         <button
-          type="button"
-          className="planner-sheet-handle"
+        type="button"
+        className="planner-sheet-handle"
         aria-label="Collapse planner sheet by dragging down or tapping"
+        aria-controls="planner-sheet"
+        aria-expanded={true}
           onClick={() => setMinimized(true)}
           onPointerDown={handleSheetPointerDown}
           onPointerUp={handleSheetPointerUp}
@@ -317,7 +321,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
               {planningStage}
             </span>
-            <button type="button" className="planner-minimize" aria-label="Minimize planner" onClick={() => setMinimized(true)}>
+            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setMinimized(true)}>
               <CaretDown aria-hidden="true" />
             </button>
           </div>

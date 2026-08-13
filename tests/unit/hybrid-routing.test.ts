@@ -43,7 +43,11 @@ describe("hybrid route provider", () => {
     await expect(provider(normalizeRouteRequest(request))).resolves.toMatchObject({
       engine: "graphhopper",
       routes: [
-        expect.objectContaining({ id: "gh", provider: "graphhopper" })
+        expect.objectContaining({
+          id: "gh",
+          provider: "graphhopper",
+          provenance: { provider: "graphhopper", version: "11.0", fallback: false }
+        })
       ]
     })
     expect(valhalla).not.toHaveBeenCalled()
@@ -67,7 +71,16 @@ describe("hybrid route provider", () => {
     })
 
     const response = await provider(normalizeRouteRequest(request))
-    expect(response.routes[0]).toMatchObject({ id: "vh", provider: "valhalla" })
+    expect(response.routes[0]).toMatchObject({
+      id: "vh",
+      provider: "valhalla",
+      provenance: {
+        provider: "valhalla",
+        version: "3.8.2",
+        fallback: true,
+        fallbackFrom: "graphhopper"
+      }
+    })
     expect(response.warnings?.join(" ")).toMatch(/GraphHopper.*fallback/i)
   })
 

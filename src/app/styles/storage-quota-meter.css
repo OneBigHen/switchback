@@ -19,7 +19,7 @@
 
 .storage-quota-meter-row strong {
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   font-weight: 680;
@@ -117,7 +117,7 @@
 
 .storage-quota-meter-projection-usage {
   color: var(--instrument);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -194,7 +194,7 @@
 
 .storage-quota-meter-packages {
   color: var(--metal);
-  font-family: "Sora Variable", Sora, sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
