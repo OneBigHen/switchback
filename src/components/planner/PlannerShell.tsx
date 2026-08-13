@@ -60,9 +60,9 @@ import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
 import { LibraryDrawer } from "./LibraryDrawer"
 import { MapStage } from "./MapStage"
-import { PlannerDeck, type PlanMode, type RideIntentStatus } from "./PlannerDeck"
+import { type PlanMode, type RideIntentStatus } from "./PlannerDeck"
 import { RideHud } from "./RideHud"
-import { RouteComparison } from "./RouteComparison"
+import { PlannerComposition } from "./PlannerComposition"
 import { usePlannerLibraries } from "./usePlannerLibraries"
 import { usePlannerHome } from "./usePlannerHome"
 import { usePlannerRideIntent } from "./usePlannerRideIntent"
@@ -1244,7 +1244,7 @@ export function PlannerShell() {
       ) : null}
 
       {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
-        <PlannerDeck
+        <PlannerComposition
           viewModel={buildPlannerDeckViewModel({
             plan,
             start,
@@ -1417,20 +1417,18 @@ export function PlannerShell() {
             onStartFreeRide: handleStartFreeRide,
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
           }}
-        >
-          {routes.length > 0 && selectedRouteId ? (
-            <RouteComparison
-              routes={routes}
-              selectedId={selectedRouteId}
-              onSelect={(id) => usePlannerStore.getState().selectRoute(id)}
-              onSave={(route) => void handleSave(route)}
-              onExport={handleExport}
-              recordedRide={activeRecordedRide}
-              onExportRecordedRide={handleExportRecordedRide}
-              onPrepareJoin={handlePrepareGpxJoin}
-              onJoin={handleJoinGpx}
-              onRide={(route) => void handleStartRide(route)}
-              onRate={(route, bikeId, rating) => {
+          comparison={routes.length > 0 && selectedRouteId ? {
+              routes: routes,
+              selectedId: selectedRouteId,
+              onSelect: (id) => usePlannerStore.getState().selectRoute(id),
+              onSave: (route) => void handleSave(route),
+              onExport: handleExport,
+              recordedRide: activeRecordedRide,
+              onExportRecordedRide: handleExportRecordedRide,
+              onPrepareJoin: handlePrepareGpxJoin,
+              onJoin: handleJoinGpx,
+              onRide: (route) => void handleStartRide(route),
+              onRate: (route, bikeId, rating) => {
                 return riderPreferenceLibraryRef.current!.record({
                   route,
                   bikeId,
@@ -1446,13 +1444,13 @@ export function PlannerShell() {
                   setNotice({ kind: "warning", message: "Your route rating could not be saved on this device." })
                   throw error
                 })
-              }}
-              onShareCreated={() => setNotice({
+              },
+              onShareCreated: () => setNotice({
                 kind: "success",
                 message: "Private editable route link created. Geometry, waypoints, and directions inside privacy zones were removed before sharing."
-              })}
-              savedTrip={restoredTrip ?? undefined}
-              onSaveTrip={(route, tripStages, constraints) => {
+              }),
+              savedTrip: restoredTrip ?? undefined,
+              onSaveTrip: (route, tripStages, constraints) => {
                 const created = createTripPlan(route, tripStages, constraints)
                 const trip = restoredTrip?.routeId === route.id
                   ? { ...created, id: restoredTrip.id, createdAt: restoredTrip.createdAt }
@@ -1462,14 +1460,13 @@ export function PlannerShell() {
                   setNotice({ kind: "success", message: `${savedTrip.stages.length}-day trip saved on this device.` })
                   void tripPlanLibraryRef.current!.list().then(setSavedTrips)
                 }).catch(() => setNotice({ kind: "warning", message: "This trip could not be saved on this device." }))
-              }}
-              showRideAction={false}
-              onResolveMustLock={handleResolveMustLock}
-              previousRoute={previousRoute}
-              replayComparison={replayComparison}
-            />
-          ) : null}
-        </PlannerDeck>
+              },
+              showRideAction: false,
+              onResolveMustLock: handleResolveMustLock,
+              previousRoute,
+              replayComparison
+          } : null}
+        />
       ) : null}
       {surface === "library" && navigation.activeTab === "library" ? (
         <LibraryDrawer

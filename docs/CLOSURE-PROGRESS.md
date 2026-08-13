@@ -32,9 +32,9 @@ These are explicitly **not** GLM's to run autonomously, or depend on completed p
 
 | Package | Why not done | Required owner / dependency |
 | --- | --- | --- |
-| **B1b** — Move geolocation/session effects out of `RideHud.tsx` | Depends on B1a (controller exists) | GLM, after B1a integrate |
-| **B1c** — Recovery/recording/voice handoff behind controller commands | Depends on B1a + B1b | GLM, sequential |
-| **B2** — Planner composition boundary (extraction only) | Independent extraction work | GLM |
+| **B1b** — Move geolocation/session effects out of `RideHud.tsx` | **Already present on main** — `useNavigationSessionController` owns GPS/session effects; the HUD remains presentation-first. | Verified in P2 |
+| **B1c** — Recovery/recording/voice handoff behind controller commands | **LANDED locally in P2** — HUD consumes the grouped controller command boundary. | Verified in P2 |
+| **B2** — Planner composition boundary (extraction only) | **LANDED locally in P2** — `PlannerComposition` owns PlannerDeck/RouteComparison composition; no behavior or UX change. | GLM |
 | **D2** — Library and timeline integration | Depends on D1 contract | GLM |
 | **D3** — Planned vs actual replay | Depends on D1 + privacy contract | GLM |
 | **C2** — Data acquisition + worker integration | **LEAD-OWNED** — licensing, provenance, budgets, cache policy | Lead |
@@ -53,6 +53,12 @@ These are explicitly **not** GLM's to run autonomously, or depend on completed p
 4. **Lead-only items** (A1, C2, E2, E3, E4, D4) must be closed or explicitly deferred by the user before the reskin handoff gate; they cannot be smuggled into autonomous packages.
 
 ## Known caveats
+
+### B2 UX boundary
+
+The destination-only builder remains disabled until the rider supplies an
+explicit start or grants browser GPS. The Free Ride prompt remains the
+supported start-free entry path.
 
 - E2E suite (`test:e2e`) could not execute in this sandbox because Turbopack refuses the symlinked `node_modules`. The spec compiles under `tsc` and should be run on a real machine against `npm run dev` before the A1 gate.
 - The `service-worker.test.ts` unit test needs a gitignored `public/sw.js` to exist; the worktree copy was seeded from the main repo. Same applies to `data/gpx-library/` fixtures.
