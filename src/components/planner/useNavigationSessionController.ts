@@ -47,6 +47,18 @@ export interface NavigationSessionControllerInput {
   onNavigationFrame?(frame: NavigationFrame | null): void
 }
 
+export interface NavigationSessionControllerCommands {
+  toggleVoice(): void
+  toggleGuidancePause(): void
+  pauseForOvernightStop(): void
+  retryGps(): void
+  toggleRecording(): void
+  exitRide(): void
+  dismissRideAlert(): void
+  requestRejoin(policy: RejoinPolicy): void
+  selectFuelStop(fuelStop: PlaceResult): void
+}
+
 export interface NavigationSessionController {
   viewModel: NavigationSessionViewModel
   gpsState: GpsState
@@ -59,15 +71,7 @@ export interface NavigationSessionController {
   recording: boolean
   location: Coordinate | null
   trackGuidance: boolean
-  toggleVoice(): void
-  toggleGuidancePause(): void
-  pauseForOvernightStop(): void
-  retryGps(): void
-  toggleRecording(): void
-  exitRide(): void
-  dismissRideAlert(): void
-  requestRejoin(policy: RejoinPolicy): void
-  selectFuelStop(fuelStop: PlaceResult): void
+  commands: NavigationSessionControllerCommands
 }
 
 export function instructionDistance(meters: number): string {
@@ -427,6 +431,31 @@ export function useNavigationSessionController({
     [frame, executeReroute, route]
   )
 
+  const commands = useMemo<NavigationSessionControllerCommands>(
+    () => ({
+      toggleVoice,
+      toggleGuidancePause,
+      pauseForOvernightStop,
+      retryGps,
+      toggleRecording,
+      exitRide,
+      dismissRideAlert,
+      requestRejoin,
+      selectFuelStop
+    }),
+    [
+      toggleVoice,
+      toggleGuidancePause,
+      pauseForOvernightStop,
+      retryGps,
+      toggleRecording,
+      exitRide,
+      dismissRideAlert,
+      requestRejoin,
+      selectFuelStop
+    ]
+  )
+
   const speakInstruction = useCallback(
     (
       navFrame: NavigationFrame,
@@ -749,14 +778,6 @@ export function useNavigationSessionController({
     recording,
     location,
     trackGuidance: isTrackGuidanceFrame(route, frame),
-    toggleVoice,
-    toggleGuidancePause,
-    pauseForOvernightStop,
-    retryGps,
-    toggleRecording,
-    exitRide,
-    dismissRideAlert,
-    requestRejoin,
-    selectFuelStop
+    commands
   }
 }

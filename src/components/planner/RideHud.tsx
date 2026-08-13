@@ -32,10 +32,11 @@ import {
 
 export function RideHud(input: NavigationSessionControllerInput) {
   const controller = useNavigationSessionController(input)
+  const { commands } = controller
   const { fuelStops, findFuel: findFuelStops, selectFuelStop: chooseFuelStop } = useRideFuelDetour({
     routeId: input.route.id,
     onChooseFuelStop(_frame, fuelStop) {
-      controller.selectFuelStop(fuelStop)
+      commands.selectFuelStop(fuelStop)
     }
   })
 
@@ -197,7 +198,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               : "Enable voice guidance"
           }
           aria-pressed={controller.voiceEnabled}
-          onClick={controller.toggleVoice}
+          onClick={commands.toggleVoice}
         >
           {controller.voiceEnabled ? (
             <SpeakerHigh aria-hidden="true" />
@@ -214,7 +215,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               : "Pause guidance"
           }
           aria-pressed={controller.guidancePaused}
-          onClick={controller.toggleGuidancePause}
+          onClick={commands.toggleGuidancePause}
         >
           {controller.guidancePaused ? (
             <Play aria-hidden="true" />
@@ -227,7 +228,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
           className="ride-voice-toggle"
           aria-label="Pause for overnight stop"
           disabled={controller.guidancePaused}
-          onClick={controller.pauseForOvernightStop}
+          onClick={commands.pauseForOvernightStop}
         >
           <Bookmarks aria-hidden="true" />
         </button>
@@ -240,7 +241,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               : "Start ride recording"
           }
           aria-pressed={controller.recording}
-          onClick={controller.toggleRecording}
+          onClick={commands.toggleRecording}
         >
           {controller.recording ? "REC" : "Record"}
         </button>
@@ -248,7 +249,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
           type="button"
           className="ride-exit"
           aria-label="Exit ride mode"
-          onClick={controller.exitRide}
+          onClick={commands.exitRide}
         >
           <X aria-hidden="true" />
         </button>
@@ -257,7 +258,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
       {controller.rideAlert ? (
         <RideWeatherAlert
           alert={controller.rideAlert}
-          onDismiss={controller.dismissRideAlert}
+          onDismiss={commands.dismissRideAlert}
         />
       ) : null}
 
@@ -351,7 +352,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
                 rerouteStatus={controller.rerouteStatus}
                 rejoinPolicy={controller.rejoinPolicy}
                 fuelStops={fuelStops}
-                onRequestRejoin={controller.requestRejoin}
+                onRequestRejoin={commands.requestRejoin}
                 onFindFuel={() => {
                   const activeFrame = frame
                   if (activeFrame) findFuelStops(activeFrame)
@@ -368,7 +369,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
             <button
               type="button"
               className="gps-retry-button"
-              onClick={controller.retryGps}
+              onClick={commands.retryGps}
             >
               <ArrowClockwise aria-hidden="true" />
               Try GPS again
