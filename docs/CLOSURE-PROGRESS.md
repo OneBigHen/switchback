@@ -24,7 +24,7 @@
 
 | Package | Status | What's needed |
 | --- | --- | --- |
-| **E1** — Map/data provenance | **NOT STARTED** (subagent task cancelled before work began; no files left behind) | Add `provenance` + `dataCategory` fields to `RiderLayerDefinition`, populate every `layerCatalog` entry, new `src/lib/client/map-data-provenance.ts` with summary/verification helpers, + unit tests. |
+| **E1** — Map/data provenance | **LANDED on main** (`f979ea8`) | `RiderLayerDefinition` carries `provenance` + `dataCategory`; every `layerCatalog` entry is populated; `src/lib/client/map-data-provenance.ts` provides summary/verification helpers; unit tests cover the contract. |
 
 ## Not yet started — blocked / lead-owned / downstream
 
@@ -47,8 +47,8 @@ These are explicitly **not** GLM's to run autonomously, or depend on completed p
 
 ## Recommended next steps
 
-1. **Finish E1** (self-contained, mechanical like the others) — clears the last Wave-1 item.
-2. **Integrate Wave 1**: commit each package separately on `closure/glm-wave-1`, then run the full release gate (`npm run lint && npm run typecheck && npm test && npm run build`).
+1. **Verify E1 on current main** against its helper and unit-test contract; do not reimplement it.
+2. **Integrate Wave 1**: commit each remaining package separately on `closure/glm-wave-1`, then run the full release gate (`npm run lint && npm run typecheck && npm test && npm run build`).
 3. **Wave 2** (GLM-delegatable, after integration): B1b → B1c (sequential), then B2, D2, D3 in parallel.
 4. **Lead-only items** (A1, C2, E2, E3, E4, D4) must be closed or explicitly deferred by the user before the reskin handoff gate; they cannot be smuggled into autonomous packages.
 
