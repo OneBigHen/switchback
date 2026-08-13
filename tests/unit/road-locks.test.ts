@@ -98,6 +98,16 @@ describe("road locks", () => {
     expect(evaluateRoadLockSatisfaction(lock, baseLine).match.kind).not.toBe("exact")
   })
 
+  it("keeps an unmatched must lock unresolved even when the route passes its anchors", () => {
+    const lock = baseManualLock({ edgeIds: [] })
+    const result = evaluateRoadLockSatisfaction(lock, baseLine)
+    expect(result.satisfied).toBe(false)
+    expect(result.match).toEqual({
+      kind: "unresolved",
+      reason: "Must-use road has not been matched to the current routing graph."
+    })
+  })
+
   it("never labels a gpx lock without graph edge ids as matched (SB-007 regression)", () => {
     const lock = createGpxRoadLock({
       mode: "prefer",

@@ -451,6 +451,15 @@ export function evaluateRoadLockSatisfaction(
     }
   }
 
+  if (lock.mode === "must" && lock.edgeIds.length === 0) {
+    return {
+      lockId: lock.id,
+      mode: lock.mode,
+      satisfied: false,
+      match: { kind: "unresolved", reason: "Must-use road has not been matched to the current routing graph." }
+    }
+  }
+
   const tolerance = lock.fallbackToleranceMeters
   const withinTolerance = lock.orderedAnchors.every((anchor) => distanceToLineMeters(anchor, routeGeometry) <= tolerance)
   // SB-014: a must lock is only satisfied when its anchors are traversed in

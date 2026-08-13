@@ -39,7 +39,7 @@ These are explicitly **not** GLM's to run autonomously, or depend on completed p
 | **D3** — Planned vs actual replay | Depends on D1 + privacy contract | GLM |
 | **C2** — Data acquisition + worker integration | **LEAD-OWNED** — licensing, provenance, budgets, cache policy | Lead |
 | **C3** — Offline UX / recovery drills | Depends on C1 + C2 | GLM after C2 |
-| **E2** — Must-use road locks + reference-image line extraction | Signature product gap; requires judgment | Lead / product |
+| **E2** — Must-use road locks + reference-image line extraction | **SHAPE-06 delta landed locally in P4** — existing road-lock/avoid-area drawing and provider enforcement retained; unmatched `must` locks now remain explicitly unresolved instead of passing geometry-only satisfaction. Reference-image line extraction remains SHAPE-07 and is out of scope. | Lead / product |
 | **E3** — Rider learning + community reports | Policy-heavy (consent, moderation, legal) | Lead / product |
 | **E4** — Region manifests + expansion | Needs real graph data + region suites | Lead / product |
 | **A1** — Refresh public-browser evidence | **LEAD-OWNED** — requires deployed `ride.henning.rodeo` + physical-device checks | Lead |
