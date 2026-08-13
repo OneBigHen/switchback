@@ -194,13 +194,13 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
 
   await page.getByRole("button", { name: "Lock a road corridor" }).click()
   await expect(page.getByRole("region", { name: "Road lock draft" })).toBeVisible()
-  await expect(page.getByText(/Pick two points along the road/i)).toBeVisible()
+  await expect(page.getByText(/Choose the first road point/i)).toBeVisible()
 
   const mapStage = page.locator(".map-stage")
   const box = await mapStage.boundingBox()
   expect(box).not.toBeNull()
   await page.mouse.click(box!.x + box!.width * 0.35, box!.y + box!.height * 0.4)
-  await expect(page.getByText(/1 anchor placed/i)).toBeVisible()
+  await expect(page.getByText(/First anchor set/i)).toBeVisible()
 
   await page.mouse.click(box!.x + box!.width * 0.65, box!.y + box!.height * 0.55)
   await expect(page.getByText(/Name and save this lock/i)).toBeVisible()

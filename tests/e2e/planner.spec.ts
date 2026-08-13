@@ -618,11 +618,11 @@ test("draws a rough route on the map and snaps it into editable route points", a
   const box = await surface.boundingBox()
   expect(box).not.toBeNull()
 
-  await page.mouse.move(box!.x + 70, box!.y + 84)
+  await page.mouse.move(box!.x + box!.width * 0.2, box!.y + box!.height * 0.55)
   await page.mouse.down()
-  await page.mouse.move(box!.x + 145, box!.y + 126, { steps: 8 })
-  await page.mouse.move(box!.x + 235, box!.y + 78, { steps: 8 })
-  await page.mouse.move(box!.x + 320, box!.y + 132, { steps: 8 })
+  await page.mouse.move(box!.x + box!.width * 0.35, box!.y + box!.height * 0.65, { steps: 8 })
+  await page.mouse.move(box!.x + box!.width * 0.55, box!.y + box!.height * 0.5, { steps: 8 })
+  await page.mouse.move(box!.x + box!.width * 0.75, box!.y + box!.height * 0.62, { steps: 8 })
   await page.mouse.up()
 
   await expect(surface).toBeHidden()
