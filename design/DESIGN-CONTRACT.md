@@ -1,7 +1,7 @@
 # Switchback design contract
 
 Status: implementation source of truth  
-Version: `1.0.0`  
+Version: `1.1.0`
 Reference baseline: `design/reference/v1/FBD6D355-D01E-41E5-98D4-9E5FFA6E2C91.PNG`
 
 ## Product character
@@ -13,9 +13,9 @@ never turn the app into a generic dashboard.
 
 ## Type
 
-- Display and headers: Space Grotesk, weight 600.
-- Body and controls: Inter, weight 400 or 500.
-- Telemetry: Inter with `font-variant-numeric: tabular-nums lining-nums`.
+- Display and headers: Sora, weight 600.
+- Body and controls: DM Sans, weight 400 or 500.
+- Telemetry: DM Sans with `font-variant-numeric: tabular-nums lining-nums`.
 - Mobile display sizes: 24/30, 20/26, 16/22. Body: 14/20 and 12/17.
 - Desktop display sizes: 28/34 and 22/28. Body remains 14/20.
 
