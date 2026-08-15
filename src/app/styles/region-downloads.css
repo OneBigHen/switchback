@@ -137,6 +137,46 @@
   color: var(--signal);
 }
 
+.region-wifi-confirm {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  color: var(--instrument);
+}
+
+.region-wifi-confirm p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.region-wifi-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.region-wifi-confirm-actions button {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--machined);
+  color: var(--instrument);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.region-wifi-confirm-actions button:first-child {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: #fff;
+}
+
 .region-suggested {
   display: grid;
   gap: 4px;

@@ -100,6 +100,68 @@
   font-size: 12px;
 }
 
+.diagnostics-panel > header {
+  display: flex;
+  align-items: center;
+  gap: var(--sb-space-3);
+}
+
+.diagnostics-panel > header svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--sb-action);
+}
+
+.diagnostics-panel > header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.diagnostics-list {
+  display: grid;
+  gap: var(--sb-space-2);
+  margin: 0;
+}
+
+.diagnostics-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sb-space-4);
+  padding: var(--sb-space-2) 0;
+  border-bottom: 1px solid var(--sb-border);
+  font-size: 12px;
+}
+
+.diagnostics-list dt {
+  color: var(--sb-text-muted);
+}
+
+.diagnostics-list dd {
+  margin: 0;
+  color: var(--sb-text);
+  text-align: right;
+}
+
+.diagnostics-warnings {
+  display: grid;
+  gap: var(--sb-space-2);
+  margin: 0;
+  padding: var(--sb-space-3) var(--sb-space-4);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  font-size: 12px;
+  list-style: none;
+}
+
+.diagnostics-ok {
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+}
+
 @media (max-width: 760px) {
   .profile-panel {
     left: 8px;

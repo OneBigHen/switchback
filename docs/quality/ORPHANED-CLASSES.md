@@ -80,7 +80,17 @@ one-off rule could be added later if it ever needs separate treatment.
 `app-shell`, `community-publish-panel`, `free-ride-hud`, `record-panel`,
 `highway-toggle`, `map-avoid-surface`
 
-### Genuine unstyled elements (18) — real gaps, flagged for follow-up
+### Styled via a parent + tag selector, not the class itself (2) — no visual outage
+
+`recording-pause` and `recording-resume` (`FreeRideHud.tsx`,
+`RideRecordingHud.tsx`) looked orphaned by the class-selector check, but both
+render as `<button>` inside `.recording-controls`, and
+`.recording-controls button` (`library-drawer.css:895`) already gives every
+button in that group full dark-theme styling, hover, and disabled states.
+Verified by reading the compiled rule, not just the selector list — this
+was the script's methodology gap, not a real gap in the app. No fix needed.
+
+### Genuine unstyled elements (16) — real gaps, flagged for follow-up
 
 No sibling class provides fallback styling. Severity ranked by how much of
 the element is affected.
@@ -98,11 +108,6 @@ the element is affected.
   gap from the now-fixed `.profile-panel` parent (TASK-1.1), so it is not
   invisible like the pre-fix Profile bug, but the `<dl>` renders with
   default browser spacing and the warnings list has no visual treatment.
-- `recording-pause` / `recording-resume` — bare `<button>` in both
-  `FreeRideHud.tsx` and `RideRecordingHud.tsx`, no `tool-button`/`ride-button`
-  class alongside. Renders as an unstyled plain button next to fully-styled
-  siblings in the ride HUD control row.
-
 **Lower severity — a single label, chip, or small-text element:**
 
 `route-fact-list` (`RouteComparison.tsx:357`), `route-rating-bike`
@@ -117,33 +122,17 @@ blank one), `map-road-lock-experimental-note` (`MapStage.tsx:1531`),
 
 ## Follow-up
 
-- `region-wifi-confirm` and the `DiagnosticsPanel` group are visible-enough
-  to warrant a dedicated fix, similar in kind (if not severity) to TASK-1.1 —
-  tracked as new follow-up tasks below rather than fixed inline here, to keep
-  this task's scope to investigation as specified.
+- `region-wifi-confirm` and the `DiagnosticsPanel` group were visible-enough
+  to warrant a dedicated fix, similar in kind (if not severity) to TASK-1.1.
+  Fixed in the same commit as this report:
+  - **TASK-1.4a** — `.region-wifi-confirm`/`.region-wifi-confirm-actions` in
+    `region-downloads.css`: card treatment matching the sibling
+    `.region-downloads-panel` (border/radius/background via the file's
+    existing token convention), real button styling for the two actions.
+  - **TASK-1.4b** — `.diagnostics-panel`/`.diagnostics-list`/
+    `.diagnostics-warnings`/`.diagnostics-ok` added to `profile-panel.css`:
+    header layout, a dt/dd row grid, and a bordered warnings list, using the
+    same `--sb-*` tokens as the rest of the Profile panel.
 - The "lower severity" single-element gaps are candidates to sweep up during
   Phase 7 (screen-by-screen polish), where each screen gets a dedicated pass
   anyway.
-
-### TASK-1.4a — Style the offline-region Wi-Fi confirm dialog
-- **Files:** `src/app/styles/region-downloads.css`,
-  `src/components/planner/RegionDownloadsPanel.tsx:531`
-- **Do:** Give `.region-wifi-confirm` a card treatment consistent with sibling
-  alertdialogs (surface/border/radius/shadow via `--sb-*` tokens) and give its
-  two buttons real button styling.
-- **Risk:** Low.
-
-### TASK-1.4b — Style the Diagnostics panel
-- **Files:** `src/app/styles/profile-panel.css` (or a new
-  `diagnostics-panel.css`), `src/components/shell/DiagnosticsPanel.tsx`
-- **Do:** Add rules for `.diagnostics-panel`, `.diagnostics-list` (dt/dd
-  grid), `.diagnostics-warnings`, `.diagnostics-ok` consistent with the
-  Profile panel's token-based treatment.
-- **Risk:** Low.
-
-### TASK-1.4c — Style the recording pause/resume buttons
-- **Files:** `src/app/styles/ride-hud.css`,
-  `src/components/shell/FreeRideHud.tsx`, `src/components/shell/RideRecordingHud.tsx`
-- **Do:** Add `.tool-button`/`.ride-button` (or equivalent) treatment to
-  `.recording-pause`/`.recording-resume` so they match their sibling controls.
-- **Risk:** Low — safety-relevant surface, keep touch targets ≥44px.
