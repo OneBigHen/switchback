@@ -273,6 +273,20 @@ regression.
 **Order matters.** Do not start until Phase 0 is green — this phase is only safe with
 visual baselines in place.
 
+### TASK-2.1 — Map dead rules in `responsive.css` [DONE 2026-08-15, commit 2095966]
+
+**Execution note (material divergence from plan assumption):** coverage-based
+bulk classification (the plan's suggested method) proved unreliable on this
+codebase -- see docs/quality/CSS-DEAD-RULES.md. Replaced with a static
+CSS<->JSX cross-reference, manually verified. Result: only 2 of ~550
+top-level rules in responsive.css are genuinely dead. The document's
+assumption that most of responsive.css's 5,113 lines are an inert Era A
+layer waiting to be bulk-deleted does not hold -- the bulk of it is real,
+active styling, just organized as a god-file. Confirmed with the user:
+Phase 2 pivots from "delete the dead layer" to "reorganize the live one"
+(TASK-2.3/2.4) rather than continuing to hunt for a large dead-code set
+that the evidence says isn't there.
+
 ### TASK-2.1 — Map dead rules in `responsive.css`
 - **Files:** `src/app/styles/responsive.css` (5,113 lines)
 - **Do:** For each rule, determine whether it currently wins for any element on any of the 6
@@ -285,7 +299,7 @@ visual baselines in place.
 - **Verify:** Paste the coverage summary.
 - **Risk:** Low (analysis only). **Do not delete anything in this task.**
 
-### TASK-2.2 — Delete confirmed-dead Era A rules in batches
+### TASK-2.2 — Delete confirmed-dead Era A rules in batches [DONE 2026-08-15, commit f07ea57 -- 2 rules, not the anticipated ~200-line batches; see TASK-2.1's note]
 - **Files:** `src/app/styles/responsive.css`
 - **Do:** Delete only rules marked DEAD in TASK-2.1, in batches of ~200 lines. After **each
   batch**: run the visual suite. If any diff appears, restore that batch and re-mark the rule
