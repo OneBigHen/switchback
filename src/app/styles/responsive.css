@@ -3143,8 +3143,8 @@
 
 .map-layer-control {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
   z-index: 6;
   display: grid;
   justify-items: end;

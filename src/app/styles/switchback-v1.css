@@ -42,7 +42,7 @@
 @media (min-width: 761px) {
   .planner-shell .map-road-lock-toggle {
     top: 88px;
-    right: 20px;
+    right: max(16px, env(safe-area-inset-right));
     z-index: 7;
   }
 
