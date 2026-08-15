@@ -359,7 +359,7 @@ visual baselines in place.
 These are cheap, high-signal, and independent — good candidates for the cheapest agents.
 Each can be its own commit.
 
-### TASK-4.1 — Delete all 20 decorative eyebrows
+### TASK-4.1 — Delete all 20 decorative eyebrows [DONE 2026-08-15, commit e4f740e]
 - **Severity:** The design skill calls this an outright ban: *"no brief earns it back. The
   heading carries its own weight; delete the label and let the heading speak."*
 - **Do:** **Delete** the `<span className="eyebrow">` element (do not restyle, do not
@@ -400,7 +400,7 @@ Each can be its own commit.
 - **Verify:** Paste the grep; screenshots of 3 affected panels; visual suite.
 - **Risk:** Low-medium — headings may need rewording. Update any test asserting eyebrow text.
 
-### TASK-4.2 — Kill the serif display font
+### TASK-4.2 — Kill the serif display font [DONE 2026-08-15, commit 3f6d500]
 - **Files:** `src/app/styles/responsive.css:3895, 4146, 4168`
 - **Do:** Remove `font-family: Georgia, "Times New Roman", serif`. These elements should use
   `var(--font-display)` (Sora) per the design contract. (Likely dies with Phase 2 anyway —
@@ -408,14 +408,14 @@ Each can be its own commit.
 - **Accept:** `grep -rn "Georgia" src/app/styles/` returns nothing.
 - **Risk:** Low.
 
-### TASK-4.3 — Remove italic input text
+### TASK-4.3 — Remove italic input text [DONE 2026-08-15, commit c7c26c2]
 - **Files:** `src/app/styles/responsive.css:3977` (`.ride-omnibox input { font-style: italic }`)
 - **Do:** Delete. Italic body/input text is an AI tell and hurts legibility — especially for
   the single most important input in the app.
 - **Accept:** `grep -rn "font-style: italic" src/app/styles/` returns nothing.
 - **Risk:** Low.
 
-### TASK-4.4 — Fix the double "01" confusion
+### TASK-4.4 — Fix the double "01" confusion [DONE 2026-08-15, commit 8a5b8a3]
 - **Files:** `src/components/planner/RouteComparison.tsx:199` (`route-count`),
   `:217` (`route-slip-index`)
 - **Do:** Two different zero-padded numbers sit inches apart meaning different things — a
