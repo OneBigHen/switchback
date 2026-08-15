@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, GpsFix, GpsSlash, House, Pause, Play, Record, Sparkle, X } from "@phosphor-icons/react"
+import { Check, GpsFix, GpsSlash, House, Pause, Play, Record, Sparkle, Warning, X } from "@phosphor-icons/react"
 import { useEffect } from "react"
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { recordingTelemetry } from "@/lib/client/recording-session"
@@ -126,7 +126,9 @@ export function FreeRideHud({
         <section className="free-ride-suggestion" aria-label="Suggested fun road">
           <div className="free-ride-suggestion-heading">
             <div>
-              <span className="eyebrow">Experimental road idea ahead</span>
+              <span className="free-ride-suggestion-warning">
+                <Warning weight="fill" aria-hidden="true" /> Experimental road idea ahead
+              </span>
               <h2>{suggestion.title}</h2>
             </div>
             <strong className="free-ride-score" aria-label={`Suggestion score ${formatScore(suggestion.score.total)}`}>

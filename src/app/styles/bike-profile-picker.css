@@ -20,14 +20,6 @@
   gap: 2px;
 }
 
-.bike-profile-picker-header .eyebrow {
-  color: var(--metal);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .bike-profile-picker-header h3 {
   margin: 0;
   font-family: var(--font-display);

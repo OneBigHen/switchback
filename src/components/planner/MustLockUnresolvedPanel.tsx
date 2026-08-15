@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowCounterClockwise, ArrowsOutSimple, Eraser, Signpost } from "@phosphor-icons/react"
+import { ArrowCounterClockwise, ArrowsOutSimple, Eraser, Signpost, Warning } from "@phosphor-icons/react"
 import { useEffect, useRef, useState } from "react"
 import {
   MUST_LOCK_UNRESOLVED_OPTIONS,
@@ -80,7 +80,9 @@ export function MustLockUnresolvedPanel({
         tabIndex={-1}
       >
       <header>
-        <span className="eyebrow">Must-use road lock could not be included</span>
+        <span className="must-lock-warning">
+          <Warning weight="fill" aria-hidden="true" /> Must-use road lock could not be included
+        </span>
         <h2 id="must-lock-unresolved-title">{name} could not be included.</h2>
         {reason ? <p id="must-lock-unresolved-reason">{reason}</p> : null}
       </header>

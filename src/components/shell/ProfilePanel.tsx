@@ -180,7 +180,6 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
       <header>
         <UserCircle aria-hidden="true" weight="fill" />
         <div>
-          <span className="eyebrow">Rider profile</span>
           <h2>You and your bike</h2>
         </div>
       </header>
@@ -296,7 +295,6 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
       </div>
 
       <section className="profile-identity" aria-labelledby="switchback-id-title">
-        <span className="eyebrow">Optional account</span>
         <h3 id="switchback-id-title">Switchback ID</h3>
         <p>Use a passkey for publishing and encrypted sync. Planning and riding stay on this device without an account.</p>
         <div className="profile-actions">
@@ -310,7 +308,6 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
       </section>
 
       <section className="profile-identity" aria-labelledby="sync-title">
-        <span className="eyebrow">Encrypted device sync</span>
         <h3 id="sync-title">Saved routes and rider settings</h3>
         <p>The recovery kit decrypts your local data. A verified Switchback ID still must link this device before the sync service can be used.</p>
         <div className="profile-actions">

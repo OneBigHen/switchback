@@ -1,6 +1,6 @@
 "use client"
 
-import { LockKey, ShieldCheck, UploadSimple } from "@phosphor-icons/react"
+import { LockKey, UploadSimple } from "@phosphor-icons/react"
 import { useMemo, useState } from "react"
 import { authenticatePasskey, csrfHeaders } from "@/lib/client/passkey"
 import { createPublishPrivacyPreview, type PrivacyZone } from "@/lib/community/privacy-preview"
@@ -135,7 +135,6 @@ export function CommunityPublishPanel({ route }: CommunityPublishPanelProps) {
   return (
     <section className="route-share-panel community-publish-panel" aria-label="Publish route to community">
       <div>
-        <span className="eyebrow"><ShieldCheck aria-hidden="true" /> Privacy preview first</span>
         <strong>Publish a sanitized route</strong>
         <p>The server receives only the exact preview below. Your private route, original geometry, and protected start/finish sections never enter the community store.</p>
       </div>

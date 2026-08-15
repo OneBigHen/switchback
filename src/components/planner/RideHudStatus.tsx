@@ -12,7 +12,7 @@ export function RideHudStatus({ eyebrow, heading, detail, bikeProfileLabel, head
   const showStrip = bikeProfileLabel != null || headlinePercent != null
   return (
     <>
-      <span className="eyebrow">{eyebrow}</span>
+      <span className="ride-hud-status-line">{eyebrow}</span>
       <h2>{heading}</h2>
       <p>{detail}</p>
       {showStrip ? (

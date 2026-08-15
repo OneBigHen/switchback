@@ -32,7 +32,6 @@ export function GpxIntelligencePanel({ report }: { report: GpxIntelligenceReport
     <section className="gpx-intelligence-panel" aria-label="GPX intelligence">
       <header>
         <div>
-          <span className="eyebrow">GPX intelligence</span>
           <h3>Measured track report</h3>
         </div>
         <span className="gpx-confidence" data-level={report.dataConfidence.level}>

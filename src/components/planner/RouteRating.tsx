@@ -25,7 +25,6 @@ export function RouteRating({ route, onRate }: RouteRatingProps) {
   return (
     <section className="route-rating" aria-label="Teach Switchback your road taste">
       <div>
-        <span className="eyebrow">Your road taste</span>
         <strong>Rate this route for this bike</strong>
       </div>
       <p className="route-rating-bike">

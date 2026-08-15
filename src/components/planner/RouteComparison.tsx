@@ -193,7 +193,6 @@ export function RouteComparison({
     <section className="route-rack" aria-labelledby="route-rack-title">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Your options</span>
           <h2 id="route-rack-title">Choose a route</h2>
         </div>
         <span className="route-count">{routes.length.toString().padStart(2, "0")}</span>

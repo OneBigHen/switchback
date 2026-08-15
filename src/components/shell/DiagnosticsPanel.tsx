@@ -20,7 +20,6 @@ export function DiagnosticsPanel({ snapshot }: DiagnosticsPanelProps) {
       <header>
         <Info aria-hidden="true" weight="fill" />
         <div>
-          <span className="eyebrow">Diagnostics</span>
           <h2>App, storage, and provider health</h2>
         </div>
       </header>

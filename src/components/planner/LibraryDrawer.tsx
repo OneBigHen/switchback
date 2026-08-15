@@ -334,7 +334,6 @@ export function LibraryDrawer({
       >
         <header>
           <div>
-            <span className="eyebrow">Saved on this device</span>
             <h2 id="library-title">Ride library</h2>
           </div>
           <div className="drawer-header-actions">

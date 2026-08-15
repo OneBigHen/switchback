@@ -15,7 +15,6 @@ export function RouteEvidencePanel({ route }: { route: PlannedRoute }) {
     <section className="route-evidence" aria-label="Why this route was chosen">
       <div className="section-heading compact">
         <div>
-          <span className="eyebrow">Decision evidence</span>
           <h3>Why this line</h3>
         </div>
         <Info aria-hidden="true" />

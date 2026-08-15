@@ -972,12 +972,6 @@
   letter-spacing: -0.04em;
 }
 
-.library-drawer > header .eyebrow {
-  margin-bottom: 3px;
-  color: #d95629;
-  letter-spacing: 0.12em;
-}
-
 .library-drawer .drawer-header-actions {
   flex: 0 0 auto;
 }
@@ -1341,17 +1335,6 @@
   border: 1px solid var(--sb-border);
   border-radius: 14px;
   background: var(--sb-surface);
-}
-
-.route-share-panel .eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.route-share-panel .eyebrow svg {
-  width: 14px;
-  height: 14px;
 }
 
 .route-share-panel strong {
@@ -2222,13 +2205,6 @@
 
 .section-heading.compact {
   margin-bottom: 16px;
-}
-
-.eyebrow {
-  margin-bottom: 6px;
-  color: #d95629;
-  font-size: 10px;
-  letter-spacing: 0.11em;
 }
 
 .planner-deck h1 {
@@ -4150,7 +4126,6 @@
   font-size: 24px;
 }
 
-.route-rack .eyebrow,
 .route-count {
   color: #a56030;
 }
@@ -4548,14 +4523,6 @@
   gap: 10px;
 }
 
-.offline-pack-modal .eyebrow {
-  color: var(--metal);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .offline-pack-modal h2 {
   margin: 0;
   font-family: var(--font-display);
@@ -4689,6 +4656,16 @@
     padding: 14px;
     gap: 8px;
   }
+}
+
+.ride-hud-status-line {
+  display: block;
+  margin-bottom: 5px;
+  color: #d95629;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 .ride-hud-status-strip {
@@ -4954,9 +4931,6 @@
     width: 100%;
     max-width: none;
     padding: 12px;
-  }
-  .road-lock-library-drawer .eyebrow {
-    font-size: 9px;
   }
   .road-lock-row {
     grid-template-columns: 28px minmax(0, 1fr);

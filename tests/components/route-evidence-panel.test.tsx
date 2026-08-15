@@ -66,7 +66,6 @@ describe("route evidence panel", () => {
       render(<RouteEvidencePanel route={routeWithOfficialEvidence} />)
 
       const panel = screen.getByRole("region", { name: "Why this route was chosen" })
-      expect(panel).toHaveTextContent("Decision evidence")
       expect(panel).toHaveTextContent("Why this line")
       expect(panel).toHaveTextContent("Road character")
       // twistiness 82.4 must be rounded to 82; turnCount stays the integer 33

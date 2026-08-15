@@ -26,7 +26,6 @@ export function RecordPanel({ controller }: RecordPanelProps) {
   return (
     <section className="destination-panel record-panel" aria-labelledby="record-title">
       <header>
-        <span className="destination-kicker">Private by default</span>
         <h1 id="record-title">Record a ride</h1>
         <p>Capture a breadcrumb ride locally. Nothing leaves this device.</p>
       </header>

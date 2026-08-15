@@ -248,7 +248,7 @@ describe("planner ride composer", () => {
     await user.click(screen.getByRole("button", { name: "Edit route" }))
     await user.click(screen.getByRole("button", { name: "Offline pack" }))
 
-    const dialog = await screen.findByRole("dialog", { name: plannedRoute.name })
+    const dialog = await screen.findByRole("dialog", { name: `Offline pack for ${plannedRoute.name}` })
     expect(dialog).toBeInTheDocument()
     expect(screen.getByText("Saved ride corridor")).toBeInTheDocument()
 

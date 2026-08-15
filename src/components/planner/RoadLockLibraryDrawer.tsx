@@ -168,7 +168,6 @@ export function RoadLockLibraryDrawer({
         >
         <header>
           <div>
-            <span className="eyebrow">Saved on this device</span>
             <h2 id="road-lock-library-title">Road locks</h2>
           </div>
           <button

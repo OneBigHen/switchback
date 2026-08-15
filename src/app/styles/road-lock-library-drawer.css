@@ -39,15 +39,6 @@
   border-bottom: 1px solid var(--line);
 }
 
-.road-lock-library-drawer .eyebrow {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--metal);
-}
-
 .road-lock-library-drawer > header h2 {
   margin: 4px 0 0;
   font-size: 20px;

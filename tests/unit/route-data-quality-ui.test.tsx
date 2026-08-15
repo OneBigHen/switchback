@@ -42,7 +42,7 @@ describe("RouteDataQualityPanel §9 contract", () => {
       expect(percent).toBeLessThanOrEqual(100)
     })
     const numbers = bars.map((bar) => Number(bar.getAttribute("aria-valuenow")))
-    const headline = screen.getByText("lowest coverage")
+    const headline = screen.getByText("data quality · lowest coverage")
     const headlineValue = Number(headline.previousElementSibling?.textContent?.replace("%", ""))
     expect(headlineValue).toBe(Math.min(...numbers))
   })

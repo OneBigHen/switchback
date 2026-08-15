@@ -18,12 +18,21 @@
   border-bottom: 1px solid var(--line);
 }
 
-.must-lock-unresolved-panel .eyebrow {
+.must-lock-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--danger);
+}
+
+.must-lock-warning svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
 }
 
 .must-lock-unresolved-panel > header > h2 {

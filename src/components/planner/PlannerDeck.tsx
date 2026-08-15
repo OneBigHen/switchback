@@ -466,7 +466,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
         <div className="deck-section profile-section">
           <div className="section-heading compact">
             <div>
-              <span className="eyebrow">Road character</span>
               <h2>{activeProfile.label}</h2>
             </div>
             <span className="profile-glyph"><WaveSine aria-hidden="true" /></span>
@@ -540,7 +539,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           </div>
           <div className="section-heading compact">
             <div>
-              <span className="eyebrow">{planMode === "loop" ? "Time-boxed explorer" : "Route builder"}</span>
               <h1>{planMode === "loop" ? <>Start here.<br />Come home happier.</> : <>Pick two points.<br />Find the fun part.</>}</h1>
             </div>
             {planMode === "destination" ? (
@@ -847,8 +845,7 @@ function OfflinePackModal({ route, value, onChange, onCancel, onSave }: OfflineP
         >
           <header>
             <div>
-              <span className="eyebrow">Offline pack</span>
-              <h2 id="offline-pack-modal-title">{route.name}</h2>
+              <h2 id="offline-pack-modal-title">Offline pack for {route.name}</h2>
             </div>
             <button
               type="button"

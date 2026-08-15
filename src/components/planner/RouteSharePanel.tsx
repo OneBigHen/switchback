@@ -1,6 +1,6 @@
 "use client"
 
-import { Copy, EyeSlash, ShareNetwork } from "@phosphor-icons/react"
+import { Copy, ShareNetwork } from "@phosphor-icons/react"
 import { useMemo, useState } from "react"
 import { createPortableShare, type PrivacyZone } from "@/lib/share/route-share"
 import type { PlannedRoute } from "@/lib/routing/types"
@@ -46,7 +46,6 @@ export function RouteSharePanel({ route, onShareCreated }: RouteSharePanelProps)
   return (
     <section className="route-share-panel" aria-label="Private route sharing">
       <div>
-        <span className="eyebrow"><EyeSlash aria-hidden="true" /> Privacy before sharing</span>
         <strong>Share an editable copy</strong>
         <p>Switchback removes the selected start/end zones before creating a portable link. It does not expose live location or your saved original.</p>
       </div>

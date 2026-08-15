@@ -72,7 +72,6 @@ export function BikeProfilePicker({ value, onChange, routingProfile, id }: BikeP
     <section className="bike-profile-picker" id={id} aria-label="Motorcycle bike profile">
       <header className="bike-profile-picker-header">
         <div>
-          <span className="eyebrow">Bike profile</span>
           <h3>{value.name}</h3>
         </div>
         <button

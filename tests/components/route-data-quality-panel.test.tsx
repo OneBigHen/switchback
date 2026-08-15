@@ -34,7 +34,7 @@ describe("RouteDataQualityPanel", () => {
     expect(screen.getByText("Surface")).toBeInTheDocument()
     expect(screen.getByText("Condition")).toBeInTheDocument()
     expect(screen.getAllByText(/\d+%/).length).toBeGreaterThan(0)
-    expect(screen.getByText("lowest coverage")).toBeInTheDocument()
+    expect(screen.getByText("data quality · lowest coverage")).toBeInTheDocument()
   })
 
   it("shows the unknown-surface mileage caveat when surfaceMix carries an unknown bucket", () => {
@@ -88,7 +88,7 @@ describe("RouteDataQualityPanel", () => {
   it("still renders the panel headline as the lowest coverage when surface coverage is the weakest", () => {
     const route = plannedRoute({ distanceMiles: 50, surfaceMix: { asphalt: 30, unknown: 70 } })
     render(<RouteDataQualityPanel route={route} />)
-    const headline = screen.getByText("lowest coverage")
+    const headline = screen.getByText("data quality · lowest coverage")
     const headlineValue = headline.previousElementSibling
     expect(headlineValue).not.toBeNull()
     expect(Number(headlineValue!.textContent!.replace("%", ""))).toBeLessThanOrEqual(30)

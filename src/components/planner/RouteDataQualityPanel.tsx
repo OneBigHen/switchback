@@ -60,10 +60,9 @@ export function RouteDataQualityPanel({ route, segments, sourceMapUpdated }: Rou
     >
       <header className="route-data-quality-header">
         <div>
-          <span className="eyebrow">Data quality</span>
           <h3>
             <span data-tier={headlineTier}>{result.headlinePercent}%</span>
-            <small>lowest coverage</small>
+            <small>data quality · lowest coverage</small>
           </h3>
         </div>
         {result.seasonalUncertainty ? (
