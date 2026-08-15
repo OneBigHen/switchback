@@ -5,11 +5,12 @@ const testMode = process.env.SWITCHBACK_E2E_MODE ?? "existing"
 const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111" : "3110")
 const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
-const qualitySuites = /\/(critical|real-router|pwa)\//
+const qualitySuites = /\/(critical|real-router|pwa|visual)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const criticalMatch = /\/critical\/.*\.spec\.ts$/
 const realRouterMatch = /\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/pwa\/.*\.spec\.ts$/
+const visualMatch = /\/visual\/.*\.spec\.ts$/
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -82,6 +83,11 @@ export default defineConfig({
       name: "pwa",
       testMatch: pwaMatch,
       use: { ...devices["Desktop Chrome"], serviceWorkers: "allow" }
+    },
+    {
+      name: "visual",
+      testMatch: visualMatch,
+      use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     }
   ],
   webServer: externalBaseUrl ? undefined : {
