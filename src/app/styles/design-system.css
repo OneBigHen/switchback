@@ -32,6 +32,7 @@
   --sb-action: #246bce;
   --sb-focus-fill: #e7f1ff;
   --sb-shadow: 0 8px 28px rgb(16 37 61 / 12%);
+  --sb-warning: #c87808;
 }
 
 :root[data-theme="dark"] {
@@ -48,6 +49,7 @@
   --sb-action: #4d91f2;
   --sb-focus-fill: #173b61;
   --sb-shadow: 0 12px 32px rgb(0 0 0 / 32%);
+  --sb-warning: #f0a52c;
 }
 
 html,

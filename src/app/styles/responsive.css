@@ -2792,10 +2792,10 @@
   gap: 12px;
   margin-top: 16px;
   padding: 14px;
-  border: 1px solid #e3ded5;
+  border: 1px solid var(--sb-border);
   border-radius: 15px;
-  background: #fff;
-  color: #242321;
+  background: var(--sb-surface);
+  color: var(--sb-text);
 }
 
 .route-weather > header {
@@ -2810,8 +2810,8 @@
   height: 38px;
   place-items: center;
   border-radius: 11px;
-  background: #fff1df;
-  color: #d66a1e;
+  background: color-mix(in srgb, var(--sb-warning) 16%, var(--sb-surface));
+  color: var(--sb-warning);
 }
 
 .route-weather > header svg {
@@ -2828,7 +2828,7 @@
 
 .route-weather header p {
   margin-top: 2px;
-  color: #7e7971;
+  color: var(--sb-text-muted);
   font-size: 10px;
 }
 
@@ -2838,14 +2838,14 @@
   min-height: 52px;
   align-items: center;
   justify-content: center;
-  color: #77736c;
+  color: var(--sb-text-muted);
   font-size: 12px;
 }
 
 .route-weather.is-loading > svg {
   width: 20px;
   height: 20px;
-  color: #d66a1e;
+  color: var(--sb-warning);
 }
 
 .route-weather.is-error {
@@ -2858,10 +2858,10 @@
   align-items: center;
   gap: 6px;
   padding: 0 10px;
-  border: 1px solid #ded8cf;
+  border: 1px solid var(--sb-border);
   border-radius: 9px;
-  background: #fff;
-  color: #4f4b46;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font-size: 11px;
   font-weight: 650;
   cursor: pointer;
@@ -3061,12 +3061,12 @@
   gap: 4px;
   padding: 10px;
   border-radius: 11px;
-  background: #f5f2ed;
+  background: var(--sb-surface-raised);
 }
 
 .weather-samples small {
   overflow: hidden;
-  color: #7e7971;
+  color: var(--sb-text-muted);
   font-size: 9px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -3074,6 +3074,7 @@
 }
 
 .weather-samples strong {
+  color: var(--sb-text);
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 610;
@@ -3082,7 +3083,7 @@
 .weather-condition {
   min-height: 27px;
   overflow: hidden;
-  color: #514e49;
+  color: var(--sb-text-muted);
   font-size: 9px;
   line-height: 1.35;
   display: -webkit-box;
@@ -3095,7 +3096,7 @@
   align-items: center;
   gap: 3px;
   overflow: hidden;
-  color: #77736c;
+  color: var(--sb-text-muted);
   font-size: 8px;
   white-space: nowrap;
 }
