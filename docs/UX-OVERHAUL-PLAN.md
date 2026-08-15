@@ -144,7 +144,22 @@ outrank expression.
 **Why first:** Phases 2–3 move thousands of lines of CSS. Without visual regression coverage,
 that work is uninsurable.
 
-### TASK-0.1 — Visual regression harness for all primary screens
+### TASK-0.1 — Visual regression harness for all primary screens [DONE 2026-08-15, commit 7a3b706]
+
+**Execution notes (diverges from plan prose, not from intent):**
+- Prerequisite fix landed first (commit 2dcd733): `npm run lint` was already
+  broken on main before this plan started -- the Impeccable skill's vendored
+  scripts under `.claude/.github/.opencode/skills/` weren't excluded from
+  ESLint, producing 304 warnings against `--max-warnings=0`. Fixed via
+  `eslint.config.mjs` `globalIgnores`.
+- Heavy Playwright/build work moved to `switchback-router` (LXC 143 on
+  `megaplex`, reached via `ssh megaplex "pct exec 143 -- ..."`) at the user's
+  request, to avoid loading the coding session's own host. A clean sibling
+  clone lives at `/root/Vibe/switchback-ux` on that LXC (kept separate from
+  its existing `/root/Vibe/switchback` checkout, which has unrelated
+  uncommitted WIP from a different workstream on the backend routing spec).
+  Baselines are generated/verified there, then pulled back into this repo.
+
 - **Files:** `tests/e2e/visual/` (new), `playwright.config.ts`
 - **Do:** Add a Playwright project `visual` that, for each primary screen — Plan (empty),
   Plan (route result), Library, Record, Profile, Ride HUD — captures a screenshot at
@@ -158,7 +173,7 @@ that work is uninsurable.
 - **Verify:** `npx playwright test --project=visual` (paste summary line)
 - **Risk:** Low. New tests only.
 
-### TASK-0.2 — Add the visual project to CI
+### TASK-0.2 — Add the visual project to CI [DONE 2026-08-15, commit 4c228cc]
 - **Files:** `.github/workflows/quality.yml`
 - **Do:** Add a `visual` job mirroring `critical-browser` (checkout, node 24, `npm ci`,
   `npx playwright install --with-deps chromium`, run `--project=visual`), uploading diffs on
@@ -167,7 +182,7 @@ that work is uninsurable.
 - **Verify:** `npx yaml-lint .github/workflows/quality.yml` or `python3 -c "import yaml,sys;yaml.safe_load(open('.github/workflows/quality.yml'))"`
 - **Risk:** Low.
 
-### TASK-0.3 — Record the CSS baseline metrics
+### TASK-0.3 — Record the CSS baseline metrics [DONE 2026-08-15, commit f7aea97]
 - **Files:** `docs/quality/CSS-BASELINE.md` (new)
 - **Do:** Commit the §1 metrics table with the commands that produced each number, so later
   phases can prove reduction.
@@ -178,7 +193,7 @@ that work is uninsurable.
 
 ## PHASE 1 — P0 outages (user-facing breakage)
 
-### TASK-1.1 — Profile/Settings screen has NO stylesheet (complete feature outage)
+### TASK-1.1 — Profile/Settings screen has NO stylesheet (complete feature outage) [DONE 2026-08-15, commit b54b1b3]
 - **Severity:** **P0 — the entire Profile/Settings feature is unusable.**
 - **Evidence:** `src/components/shell/ProfilePanel.tsx:179` renders
   `<section className="profile-panel">`, but **no CSS rule for `.profile-panel` exists
@@ -210,7 +225,7 @@ that work is uninsurable.
 - **Risk:** Medium — new CSS could collide. Mitigate by scoping every rule under
   `.profile-panel`.
 
-### TASK-1.2 — Two panels never re-skinned for the dark theme
+### TASK-1.2 — Two panels never re-skinned for the dark theme [DONE 2026-08-15, commit 1bdf18a]
 - **Severity:** **P0 — visually broken.** The most jarring finding in the whole audit.
 - **Evidence:** `RouteSharePanel` and `CommunityPublishPanel` render in a hardcoded light
   cream theme while every sibling panel around them is dark:
@@ -227,7 +242,7 @@ that work is uninsurable.
   detail panels; screenshot of the expanded detail scroll proves no light card remains.
 - **Risk:** Low.
 
-### TASK-1.3 — Weather panel text is near-invisible
+### TASK-1.3 — Weather panel text is near-invisible [DONE 2026-08-15, commit 886d5d1]
 - **Severity:** **P0 — unreadable content.**
 - **Evidence:** Temperature values in `RouteWeatherPanel` render at very low contrast against
   their card background (screenshot `live-shots/audit-route-details-2.png`). Additionally the
