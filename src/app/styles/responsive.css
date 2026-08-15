@@ -2364,7 +2364,6 @@
 }
 
 .map-avoid-button[aria-pressed="true"] {
-  border-color: #c84432;
   background: #fff0ed;
   color: #a83224;
 }
@@ -3154,7 +3153,12 @@
 
 .map-tool-row {
   display: flex;
-  gap: 8px;
+  overflow: hidden;
+  border: 1px solid rgb(66 58 47 / 13%);
+  border-radius: 13px;
+  background: rgb(255 255 255 / 95%);
+  box-shadow: 0 5px 18px rgb(49 42 33 / 13%);
+  backdrop-filter: blur(14px);
 }
 
 .map-layers-button {
@@ -3163,22 +3167,21 @@
   align-items: center;
   gap: 8px;
   padding: 0 15px;
-  border: 1px solid rgb(66 58 47 / 13%);
-  border-radius: 13px;
-  background: rgb(255 255 255 / 95%);
+  border: 0;
+  background: transparent;
   color: #383531;
-  box-shadow: 0 5px 18px rgb(49 42 33 / 13%);
   font-size: 12px;
   font-weight: 680;
   cursor: pointer;
-  backdrop-filter: blur(14px);
+}
+
+.map-layers-button + .map-layers-button {
+  border-left: 1px solid rgb(66 58 47 / 13%);
 }
 
 .map-sketch-button[aria-pressed="true"] {
-  border-color: rgb(232 95 44 / 56%);
   background: #fff1eb;
   color: #a63f1e;
-  box-shadow: 0 5px 18px rgb(120 49 25 / 16%);
 }
 
 .map-layers-button svg {
@@ -3191,12 +3194,10 @@
    glance whether something is currently loading or has errored even when
    the Layers panel is closed. */
 .map-layers-button.is-loading {
-  border-color: rgb(232 95 44 / 42%);
   color: #a63f1e;
 }
 
 .map-layers-button.has-error {
-  border-color: rgb(200 68 50 / 50%);
   color: #b53a2b;
 }
 
@@ -3759,10 +3760,6 @@
     right: 12px;
   }
 
-  .map-tool-row {
-    gap: 6px;
-  }
-
   .map-layers-button {
     min-height: 44px;
     padding: 0 12px;
@@ -4219,7 +4216,6 @@
   .map-tool-row {
     flex-direction: row;
     align-items: center;
-    gap: 6px;
   }
 
   .map-layers-button {
