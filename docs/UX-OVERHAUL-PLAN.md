@@ -513,7 +513,7 @@ Each can be its own commit.
 
 **Goal:** Max 3 floating clusters, each ONE surface, on a single coordinated margin system.
 
-### TASK-6.1 — Join the top-right toolbar into one surface
+### TASK-6.1 — Join the top-right toolbar into one surface [DONE 2026-08-15, commit a49ae3e]
 - **Files:** `src/app/styles/responsive.css:3170` (`.map-layer-control`),
   `:3180` (`.map-tool-row`), `:3185–3200` (`.map-layers-button`),
   `src/components/planner/MapStageLayerControl.tsx:87–97`
@@ -535,7 +535,7 @@ Each can be its own commit.
 - **Risk:** Medium — overriding library-owned MapLibre CSS; check all breakpoints
   (`responsive.css:47,221,1878,3778,3824`).
 
-### TASK-6.3 — Unify corner margins
+### TASK-6.3 — Unify corner margins [DONE 2026-08-15, commit 523c33d]
 - **Files:** `src/app/styles/map-stage-road-locks.css:23–26` (`top:16px; right:16px`) vs
   `responsive.css:3170` (`top:20px; right:20px`)
 - **Do:** "Lock a road" sits 4px off from the layer toolbar in the same corner — an
