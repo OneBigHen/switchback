@@ -3953,7 +3953,6 @@
 .ride-omnibox input {
   color: var(--ride-forest);
   font-size: 15px;
-  font-style: italic;
 }
 
 .ride-omnibox input::placeholder {
