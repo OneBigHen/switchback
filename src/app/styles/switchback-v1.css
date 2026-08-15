@@ -152,7 +152,6 @@
 }
 
 .brand-mark svg,
-.route-count,
 .twistiness-meter strong {
   color: var(--twisty);
 }

@@ -361,7 +361,6 @@ p {
 h1,
 h2,
 .route-slip-metric strong,
-.route-count,
 .ride-telemetry strong {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;

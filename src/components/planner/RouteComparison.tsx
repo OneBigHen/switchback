@@ -195,7 +195,6 @@ export function RouteComparison({
         <div>
           <h2 id="route-rack-title">Choose a route</h2>
         </div>
-        <span className="route-count">{routes.length.toString().padStart(2, "0")}</span>
       </div>
 
       <div className="route-slips">
@@ -213,7 +212,7 @@ export function RouteComparison({
               aria-pressed={selected}
               onClick={() => onSelect(route.id)}
             >
-              <span className="route-slip-index">{String(index + 1).padStart(2, "0")}</span>
+              <span className="route-slip-index">{index + 1}.</span>
               <span className="route-slip-body">
                 <span className="route-slip-name">
                   <strong>{route.name}</strong>
