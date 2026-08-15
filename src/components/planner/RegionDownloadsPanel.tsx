@@ -483,6 +483,10 @@ export function RegionDownloadsPanel({
         </a>{" "}
         via Geofabrik.
       </p>
+      <p className="region-description">
+        <strong>Beta:</strong> offline routing has measured accuracy gaps versus live routing —
+        verify turns before trusting a line with no signal.
+      </p>
 
       <AriaLiveRegion id="region-downloads-notice" politeness="polite" message={notice} />
 

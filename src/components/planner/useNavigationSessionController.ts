@@ -398,7 +398,7 @@ export function useNavigationSessionController({
         rerouteInFlightRef.current = false
         dispatch({ type: "cancelReroute" })
         setRerouteStatus("idle")
-        if (usedOfflineRecovery) setGpsMessage("Offline corridor recovery · guidance continues")
+        if (usedOfflineRecovery) setGpsMessage("Offline routing (beta) · verify turns, accuracy varies")
         rerouteHandlerRef.current?.(rerouted)
       }).catch(() => {
         if (requestVersion !== rerouteVersionRef.current) return
