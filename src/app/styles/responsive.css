@@ -876,11 +876,6 @@
     gap: 5px;
   }
 
-  .engine-status {
-    min-height: 34px;
-    padding: 0 8px;
-  }
-
   .planner-action-dock {
     min-height: 82px;
     padding: 11px 16px max(13px, env(safe-area-inset-bottom));
@@ -1960,18 +1955,6 @@
   text-transform: none;
 }
 
-.engine-status {
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid #e6e1d8;
-  border-radius: 999px;
-  background: #fff;
-  color: #69665f;
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
 .deck-section {
   padding: 20px 2px;
   border-color: #ebe6de;
@@ -2044,14 +2027,6 @@
 .ride-omnibox button svg {
   width: 19px;
   height: 19px;
-}
-
-.omnibox-helper {
-  min-height: 18px;
-  margin: 8px 5px 0;
-  color: #77736c;
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 .ride-stop-ideas {

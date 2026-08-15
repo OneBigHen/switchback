@@ -157,7 +157,6 @@
 }
 
 .brand-lockup small,
-.engine-status,
 .route-slip-name small,
 .route-slip-metric small {
   color: var(--metal);
