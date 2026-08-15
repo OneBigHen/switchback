@@ -3871,7 +3871,7 @@
 .ride-intent-heading h1 {
   margin: 0;
   color: var(--ride-forest);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: clamp(28px, 3vw, 38px);
   font-weight: 600;
   letter-spacing: -0.045em;
@@ -4122,7 +4122,7 @@
 
 .route-rack .section-heading h2 {
   color: var(--ride-forest);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
 }
 
@@ -4143,7 +4143,7 @@
 
 .route-slip-name strong {
   color: var(--ride-forest);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 20px;
 }
 
