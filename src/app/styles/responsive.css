@@ -1338,9 +1338,9 @@
   gap: 12px;
   margin-top: 14px;
   padding: 15px;
-  border: 1px solid #e5e0d8;
+  border: 1px solid var(--sb-border);
   border-radius: 14px;
-  background: linear-gradient(135deg, #fbf7f2, #fff);
+  background: var(--sb-surface);
 }
 
 .route-share-panel .eyebrow {
@@ -1357,13 +1357,13 @@
 .route-share-panel strong {
   display: block;
   margin-top: 3px;
-  color: #2c2a27;
+  color: var(--sb-text);
   font-size: 13px;
 }
 
 .route-share-panel p {
   margin: 5px 0 0;
-  color: #706c65;
+  color: var(--sb-text-muted);
   font-size: 11px;
   line-height: 1.45;
 }
@@ -1380,27 +1380,28 @@
   min-height: 32px;
   align-items: center;
   gap: 5px;
-  color: #5d5953;
+  color: var(--sb-text-muted);
   font-size: 10px;
   font-weight: 650;
 }
 
 .route-share-controls input[type="checkbox"] {
-  accent-color: #e85f2c;
+  accent-color: var(--sb-action);
 }
 
 .route-share-controls input[type="number"] {
   width: 48px;
   min-height: 30px;
   padding: 0 6px;
-  border: 1px solid #ded8cf;
+  border: 1px solid var(--sb-border);
   border-radius: 7px;
-  color: #2c2a27;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font: 650 11px/1 var(--font-body);
 }
 
 .route-share-controls small {
-  color: #8a857e;
+  color: var(--sb-text-muted);
   font-size: 9px;
 }
 
@@ -1416,10 +1417,10 @@
   align-items: center;
   gap: 7px;
   padding: 0 11px;
-  border: 1px solid #ded8cf;
+  border: 1px solid var(--sb-border);
   border-radius: 9px;
-  background: #fff;
-  color: #4d4943;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font-size: 10px;
   font-weight: 720;
 }
@@ -1427,13 +1428,14 @@
 .route-share-actions svg {
   width: 15px;
   height: 15px;
-  color: #d95629;
+  color: var(--sb-action);
 }
 
 .route-share-message {
   padding: 8px 9px;
   border-radius: 8px;
-  background: #f3eee7;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
 }
 
 .gpx-export-variant {
