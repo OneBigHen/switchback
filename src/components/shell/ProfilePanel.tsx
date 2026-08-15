@@ -176,7 +176,7 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
     gravel === "all" ? "allow" : gravel === "maintained" ? "warn" : "warn"
 
   return (
-    <section className="profile-panel" aria-label="Profile and settings">
+    <section className="profile-panel sb-bottom-sheet" aria-label="Profile and settings">
       <header>
         <UserCircle aria-hidden="true" weight="fill" />
         <div>
