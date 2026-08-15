@@ -6,8 +6,11 @@ export interface ProjectGpxRouteSummary {
   twistiness: number
   turnCount: number
   sourceProject: string
-  sourceFile: string
-  sources: string[]
+  // Redacted from the public /api/gpx-library catalog (see handler.ts)
+  // because they carry host filesystem paths; anonymous clients see them
+  // as absent, not present-and-empty.
+  sourceFile?: string
+  sources?: string[]
   duplicateFamilyId?: string
   duplicateFamilySize?: number
   duplicateFamilyRole?: "canonical" | "near-duplicate"

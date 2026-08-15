@@ -370,6 +370,35 @@ describe("project GPX library view model", () => {
     expect(group.memberIds).toEqual(["generated", "original"])
   })
 
+  it("does not throw when sourceFile and sources are absent (public /api/gpx-library redacts them)", async () => {
+    const { buildProjectRouteLibrary } = await import("@/lib/gpx/library-view-model")
+    const routes: ProjectGpxRouteSummary[] = [
+      {
+        id: "public-1",
+        name: "York Gravel Loop",
+        distanceMiles: 42,
+        durationMinutes: 90,
+        twistiness: 60,
+        turnCount: 40,
+        sourceProject: "Titan"
+      },
+      {
+        id: "public-2",
+        name: "Bald Eagle Dual Sport Loop",
+        distanceMiles: 55,
+        durationMinutes: 110,
+        twistiness: 70,
+        turnCount: 50,
+        sourceProject: "LongWay"
+      }
+    ]
+
+    const library = buildProjectRouteLibrary(routes, { query: "gravel" })
+
+    expect(library.totalRoutes).toBe(2)
+    expect(library.groups.map((group) => group.memberIds)).toEqual([["public-1"]])
+  })
+
   it("prefers an explicit canonical region folder over generated filename guesses", async () => {
     const { buildProjectRouteLibrary } = await import("@/lib/gpx/library-view-model")
     const routes = [

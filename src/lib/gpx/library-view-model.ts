@@ -137,13 +137,13 @@ function normalizeSearchText(value: string): string {
 }
 
 function routeText(route: ProjectGpxRouteSummary): string {
-  return [route.name, route.sourceProject, route.sourceFile, ...route.sources]
+  return [route.name, route.sourceProject, route.sourceFile, ...(route.sources ?? [])]
     .join(" ")
     .replace(/[_-]+/g, " ")
 }
 
 function inferExplicitRouteRegion(route: ProjectGpxRouteSummary): ProjectRouteRegion | undefined {
-  const sourceText = [route.sourceFile, ...route.sources].join(" ")
+  const sourceText = [route.sourceFile, ...(route.sources ?? [])].join(" ")
   return REGION_PATHS.find(([pattern]) => pattern.test(sourceText))?.[1]
 }
 
@@ -254,7 +254,7 @@ export function buildProjectRouteLibrary(
         group.profile,
         group.surface,
         ...group.sourceProjects,
-        ...group.members.flatMap((member) => [member.sourceFile, ...member.sources])
+        ...group.members.flatMap((member) => [member.sourceFile, ...(member.sources ?? [])])
       ].join(" "))
       return queryTokens.every((token) => searchable.includes(token))
     })

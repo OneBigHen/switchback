@@ -203,7 +203,8 @@ export function LibraryDrawer({
           >
             {group.members.map((member) => (
               <option key={member.id} value={member.id}>
-                {member.sourceProject} · {member.distanceMiles.toFixed(1)} mi · {member.sourceFile.split("/").at(-1)}
+                {member.sourceProject} · {member.distanceMiles.toFixed(1)} mi
+                {member.sourceFile ? ` · ${member.sourceFile.split("/").at(-1)}` : ""}
               </option>
             ))}
           </select>
