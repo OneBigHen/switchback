@@ -36,6 +36,7 @@ const gates = {
     ? (quickStatus("lint") === "PASS" && quickStatus("typecheck") === "PASS" && quickStatus("unit") === "PASS" ? "PASS" : "NOT RUN")
     : normalizeStatus(process.env.QUALITY_CODE_QUALITY),
   "critical-browser": normalizeStatus(process.env.QUALITY_CRITICAL_BROWSER),
+  visual: normalizeStatus(process.env.QUALITY_VISUAL),
   "real-router": normalizeStatus(process.env.QUALITY_REAL_ROUTER),
   pwa: normalizeStatus(process.env.QUALITY_PWA),
   "live-smoke": liveSmokeStatus()
@@ -66,7 +67,7 @@ function liveSmokeStatus() {
   return normalizeStatus(process.env.QUALITY_LIVE_SMOKE) === "FAIL" ? "FAIL" : "NOT RUN"
 }
 
-const requiredGates = ["code-quality", "critical-browser", "real-router", "pwa"]
+const requiredGates = ["code-quality", "critical-browser", "visual", "real-router", "pwa"]
 const failedRequired = requiredGates.filter((gate) => gates[gate] === "FAIL")
 const unfinishedRequired = requiredGates.filter((gate) => gates[gate] !== "PASS")
 const state = failedRequired.length > 0

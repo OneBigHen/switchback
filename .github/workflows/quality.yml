@@ -65,6 +65,31 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  visual:
+    name: visual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=visual
+      - name: Upload visual failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-visual-failure
+          path: |
+            test-results
+            playwright-report
+            tests/e2e/visual/screens.spec.ts-snapshots
+            artifacts/quality
+          if-no-files-found: ignore
+          retention-days: 7
+
   real-router:
     name: real-router
     runs-on: ubuntu-latest
@@ -159,7 +184,7 @@ jobs:
   quality-summary:
     name: quality-summary
     if: always()
-    needs: [code-quality, critical-browser, real-router, pwa, live-smoke]
+    needs: [code-quality, critical-browser, visual, real-router, pwa, live-smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -177,6 +202,7 @@ jobs:
         env:
           QUALITY_CODE_QUALITY: ${{ needs.code-quality.result }}
           QUALITY_CRITICAL_BROWSER: ${{ needs.critical-browser.result }}
+          QUALITY_VISUAL: ${{ needs.visual.result }}
           QUALITY_REAL_ROUTER: ${{ needs.real-router.result }}
           QUALITY_PWA: ${{ needs.pwa.result }}
           QUALITY_LIVE_SMOKE: ${{ needs.live-smoke.result }}
