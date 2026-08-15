@@ -22,7 +22,7 @@ interface AppNavigationProps {
 export function AppNavigation({ activeTab, onSelect }: AppNavigationProps) {
   return (
     <nav className="app-navigation" aria-label="Primary">
-      <div className="app-navigation-brand" aria-label="Switchback">
+      <div className="app-navigation-brand">
         <span className="switchback-mark" aria-hidden="true">
           <svg viewBox="0 0 44 44" focusable="false">
             <path d="M9 12h17c5 0 8 2 8 6s-3 6-8 6H18c-5 0-8 2-8 7s4 7 9 7h16" />

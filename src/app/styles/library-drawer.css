@@ -60,6 +60,18 @@
   opacity: 0;
 }
 
+.import-lock-wrap .import-lock-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .library-search {
   display: grid;
   min-height: 48px;

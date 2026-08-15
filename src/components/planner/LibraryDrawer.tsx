@@ -352,19 +352,22 @@ export function LibraryDrawer({
                 }}
               />
             </label>
-            <button
-              type="button"
-              className="import-route-button import-lock-button"
-              aria-label="Import as road lock"
-              onClick={() => lockFileInputRef.current?.click()}
-            >
-              <Lock aria-hidden="true" />
-              <span>Import as lock</span>
+            <span className="import-route-button import-lock-wrap">
+              <button
+                type="button"
+                className="import-lock-button"
+                aria-label="Import as road lock"
+                onClick={() => lockFileInputRef.current?.click()}
+              >
+                <Lock aria-hidden="true" />
+                <span>Import as lock</span>
+              </button>
               <input
                 ref={lockFileInputRef}
                 type="file"
                 accept=".gpx,.kml,.kmz,application/gpx+xml,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/xml,text/xml"
                 aria-label="Import a GPX, KML, or KMZ file as a road lock"
+                tabIndex={-1}
                 onChange={(event) => {
                   const file = event.target.files?.[0]
                   if (file) {
@@ -374,7 +377,7 @@ export function LibraryDrawer({
                   event.currentTarget.value = ""
                 }}
               />
-            </button>
+            </span>
             <button
               ref={closeButtonRef}
               type="button"
