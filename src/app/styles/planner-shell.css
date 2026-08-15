@@ -159,19 +159,19 @@
 .maplibregl-ctrl-group {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 9px !important;
-  background: var(--machined) !important;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 28%) !important;
+  border-radius: 9px;
+  background: var(--machined);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 28%);
 }
 
 .maplibregl-ctrl-group button {
-  width: 44px !important;
-  height: 44px !important;
-  background-color: var(--machined) !important;
+  width: 44px;
+  height: 44px;
+  background-color: var(--machined);
 }
 
 .maplibregl-ctrl-group button + button {
-  border-top-color: var(--line) !important;
+  border-top-color: var(--line);
 }
 
 .maplibregl-ctrl-group button span {
@@ -187,22 +187,22 @@
 }
 
 .maplibregl-ctrl-scale {
-  border-color: rgb(243 239 230 / 46%) !important;
-  background: transparent !important;
-  color: rgb(243 239 230 / 70%) !important;
-  font-size: 9px !important;
+  border-color: rgb(243 239 230 / 46%);
+  background: transparent;
+  color: rgb(243 239 230 / 70%);
+  font-size: 9px;
 }
 
 .maplibregl-ctrl-attrib {
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: rgb(11 14 13 / 86%) !important;
+  background: rgb(11 14 13 / 86%);
   color: var(--metal);
   font-size: 10px;
 }
 
 .maplibregl-ctrl-attrib a {
-  color: var(--instrument) !important;
+  color: var(--instrument);
 }
 
 .planner-deck {

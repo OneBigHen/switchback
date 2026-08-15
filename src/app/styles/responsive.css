@@ -188,7 +188,7 @@
 
   .ride-speed-badge,
   .ride-speed-limit {
-    display: none !important;
+    display: none;
   }
 
   .ride-telemetry > div:not(.ride-progress-track) {
@@ -679,19 +679,19 @@
 
 .trip-stage-warning,
 .trip-stage-error {
-  margin-top: 10px !important;
+  margin-top: 10px;
   padding: 8px 9px;
   border-radius: 8px;
 }
 
 .trip-stage-warning {
   background: #fff2dc;
-  color: #8b531d !important;
+  color: #8b531d;
 }
 
 .trip-stage-error {
   background: #fff0ee;
-  color: #a6372b !important;
+  color: #a6372b;
 }
 
 .trip-stage-list {
@@ -1860,6 +1860,9 @@
   }
 }
 
+/* TASK-2.4 justified exception: a reduced-motion reset must win over any
+   component's own specificity by design -- the standard pattern for this
+   universal selector forces every match, not a cascade fight. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1873,6 +1876,9 @@
 
 /* Switchback 0.2 — a calm map-first workspace for planning. Ride mode keeps
    the original high-contrast cockpit palette for outdoor legibility. */
+/* TASK-2.4 justified exception: the standard visually-hidden utility
+   pattern (matches Bootstrap/Tailwind's .sr-only) must reliably override
+   any component's own display/position rules wherever it's applied. */
 .sr-only {
   position: absolute !important;
   width: 1px !important;
@@ -3074,7 +3080,7 @@
 .map-stage:not(.is-ride-mode) .maplibregl-ctrl-group,
 .map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib {
   border-color: rgb(66 58 47 / 12%);
-  background: rgb(255 255 255 / 92%) !important;
+  background: rgb(255 255 255 / 92%);
   color: #615d57;
   box-shadow: 0 4px 14px rgb(49 42 33 / 10%);
 }
@@ -3084,7 +3090,7 @@
 }
 
 .map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib a {
-  color: #3e3b37 !important;
+  color: #3e3b37;
 }
 
 .map-layer-status {

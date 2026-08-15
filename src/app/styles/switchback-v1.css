@@ -383,14 +383,14 @@
 
 .maplibregl-ctrl-group,
 .maplibregl-ctrl-attrib {
-  border-color: var(--line) !important;
-  background: color-mix(in srgb, var(--machined) 94%, transparent) !important;
-  color: var(--metal) !important;
-  box-shadow: 0 8px 28px rgb(16 37 61 / 12%) !important;
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--machined) 94%, transparent);
+  color: var(--metal);
+  box-shadow: 0 8px 28px rgb(16 37 61 / 12%);
 }
 
 .maplibregl-ctrl-group button {
-  background-color: var(--machined) !important;
+  background-color: var(--machined);
 }
 
 .maplibregl-ctrl-group button span {

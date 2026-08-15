@@ -328,6 +328,26 @@ that the evidence says isn't there.
 - **Verify:** Paste the grep; visual suite green.
 - **Risk:** Medium.
 
+**[DONE — commit `fix: eliminate !important outside two documented exceptions (TASK-2.4)`]**
+Diagnosed all 39 declarations individually (competing-selector check, specificity comparison,
+CSS import order in `layout.tsx`, and for MapLibre controls, direct inspection of
+`node_modules/maplibre-gl/dist/maplibre-gl.css` to confirm no third-party `!important`/
+higher-specificity rule required countering). Removed 27 across `planner-shell.css`,
+`switchback-v1.css`, `community.css`, `ride-hud.css`, `responsive.css` — every one was dead
+weight left over from Era A, not a real cascade conflict. Kept 12, both in `responsive.css`,
+as documented exceptions (comments added at each site):
+  - The global `@media (prefers-reduced-motion: reduce)` reset (4 declarations) — by design
+    must win over any component's own specificity, that's the standard pattern for this rule.
+  - `.sr-only` (8 declarations) — the conventional visually-hidden utility (matches
+    Bootstrap/Tailwind's `.sr-only`), must reliably override whatever display/position rules
+    the host component sets.
+- **Verify:** `grep -c '!important' src/app/styles/*.css` → 0 for every file except
+  `responsive.css` (12, both exceptions above — within the "≤3 files" allowance, single file).
+  Full 12-test visual suite green on the canonical LXC baseline (desktop + mobile × 6 screens),
+  including Ride HUD and Plan/route-result screens where the MapLibre control theming changes
+  are visible. Full gate green: lint (`--max-warnings=0`), typecheck, 209 test files / 1307
+  tests passed.
+
 ---
 
 ## PHASE 3 — Real token system
