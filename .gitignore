@@ -6,6 +6,8 @@ coverage/
 playwright-report/
 test-results/
 dogfood-output/
+.playwright-mcp/
+live-shots/
 .env*
 !.env.example
 reasonix.toml
@@ -13,7 +15,13 @@ reasonix.toml
 *.tsbuildinfo
 data/*.db
 data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
+data/*.db-wal
+data/*.db-shm
 data/*.pbf
+*.sqlite-wal
+*.sqlite-shm
 data/graph-cache
 data/offline-regions/
 data/graphhopper*.jar
