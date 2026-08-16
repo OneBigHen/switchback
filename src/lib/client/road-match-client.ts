@@ -4,11 +4,6 @@ interface RoadMatchingErrorPayload {
   error?: { code?: string; message?: string }
 }
 
-interface RoadMatchingSuccessPayload {
-  matched?: RoadMatchResult
-  matchedAt?: string
-}
-
 export interface RoadMatchClientOptions {
   fetcher?: typeof fetch
   timeoutMs?: number
@@ -59,21 +54,24 @@ export async function requestRoadMatch(
     clearTimeout(timer)
   }
 
-  let payload: RoadMatchResult | RoadMatchingSuccessPayload | RoadMatchingErrorPayload | null
+  let payload: unknown
   try {
-    payload = (await response.json()) as RoadMatchResult | RoadMatchingErrorPayload
+    payload = await response.json()
   } catch {
     throw new Error("Road matching returned an unreadable response.")
   }
 
-  const match = payload && typeof payload === "object" && "matched" in payload
-    ? payload.matched
+  const result = payload && typeof payload === "object" && "matched" in payload
+    ? (payload as { matched?: unknown }).matched
     : payload
-  if (!response.ok || !match || typeof match !== "object" || !("edgeIds" in match)) {
-    const message = payload && typeof payload === "object" && "error" in payload && payload.error?.message
-      ? payload.error.message
+  if (!response.ok || !result || typeof result !== "object" || !("edgeIds" in result)) {
+    const errorPayload = payload && typeof payload === "object"
+      ? payload as RoadMatchingErrorPayload
+      : null
+    const message = errorPayload && "error" in errorPayload && errorPayload.error?.message
+      ? errorPayload.error.message
       : "No legal motorcycle path could be matched between these points."
     throw new Error(message)
   }
-  return match as RoadMatchResult
+  return result as RoadMatchResult
 }

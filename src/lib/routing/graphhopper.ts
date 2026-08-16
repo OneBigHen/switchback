@@ -23,6 +23,7 @@ export interface GraphHopperResult {
   engine: "graphhopper"
   engineVersion: string
   routes: PlannedRoute[]
+  warnings?: string[]
 }
 
 export class GraphHopperProviderError extends Error {
@@ -229,7 +230,7 @@ export function expandMustLockWaypoints(input: RouteRequest): {
 }
 
 /** Bike-profile rules per §3: surface/smoothness/tracktype exclusions and penalties. */
-function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule[] {
+function buildBikeProfileRules(profile: BikeProfile, omitSmoothness = false): GraphHopperCustomModelRule[] {
   const rules: GraphHopperCustomModelRule[] = []
   const surfaces = disallowedSurfaces(profile)
   const smoothness = disallowedSmoothness(profile)
@@ -247,7 +248,7 @@ function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule
     }).join(" || ")
     rules.push({ if: condition, multiply_by: "0" })
   }
-  if (smoothness.size > 0) {
+  if (!omitSmoothness && smoothness.size > 0) {
     const condition = [...smoothness].map((s) => `smoothness == ${String(s).toUpperCase()}`).join(" || ")
     rules.push({ if: condition, multiply_by: "0" })
   }
@@ -263,7 +264,8 @@ function buildBikeProfileRules(profile: BikeProfile): GraphHopperCustomModelRule
 
 export function createGraphHopperRequest(
   _input: RouteRequest,
-  details: string[] = REQUESTED_DETAILS
+  details: string[] = REQUESTED_DETAILS,
+  omitSmoothness = false
 ): Record<string, unknown> {
   // The adapter boundary normalizes every request so its internals always see
   // the full explicit constraint contract (SB-001); idempotent for inputs
@@ -312,7 +314,7 @@ export function createGraphHopperRequest(
   })
   const mustRules = buildMustLockRules(mustAreas.features)
   const preferRules = buildPreferLockRules(preferAreas.features)
-  const bikeRules = bikeProfile ? buildBikeProfileRules(bikeProfile) : []
+  const bikeRules = bikeProfile ? buildBikeProfileRules(bikeProfile, omitSmoothness) : []
 
   // Explicit toll avoidance stays a request-time zero-priority rule; the
   // persistent profiles penalize tolls without excluding them by default.
@@ -596,12 +598,15 @@ interface RouteFetchResult {
   payload: GraphHopperResponse
   /** Detail name the active graph cannot serve, when the request was rejected. */
   unsupportedDetail: string | null
+  /** Request-time encoded value missing from an older active graph. */
+  unsupportedEncodedValue: string | null
 }
 
 async function fetchRouteOnce(
   request: NormalizedRouteRequest,
   options: GraphHopperOptions,
-  details: string[]
+  details: string[],
+  omitSmoothness = false
 ): Promise<RouteFetchResult> {
   const fetcher = options.fetcher ?? fetch
   let response: Response
@@ -609,7 +614,7 @@ async function fetchRouteOnce(
     response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(createGraphHopperRequest(request, details)),
+      body: JSON.stringify(createGraphHopperRequest(request, details, omitSmoothness)),
       signal: options.signal
         ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)])
         : AbortSignal.timeout(30_000)
@@ -643,7 +648,15 @@ async function fetchRouteOnce(
   const missingDetail = response.ok
     ? null
     : payload.message?.match(/Cannot find the path details: \[([^\]]+)\]/)?.[1] ?? null
-  return { response, payload, unsupportedDetail: missingDetail }
+  const missingEncodedValue = response.ok
+    ? null
+    : payload.message?.match(/'([^']+)' not available/)?.[1] ?? null
+  return {
+    response,
+    payload,
+    unsupportedDetail: missingDetail,
+    unsupportedEncodedValue: missingEncodedValue
+  }
 }
 
 export async function requestGraphHopperRoutes(
@@ -665,9 +678,14 @@ export async function requestGraphHopperRoutes(
   // or not-yet-reimported graph degrades to missing evidence instead of
   // failing every route; the evidence fields already handle absence.
   let attempt = await fetchRouteOnce(request, options, REQUESTED_DETAILS)
-  if (attempt.unsupportedDetail) {
+  const warnings: string[] = []
+  if (attempt.unsupportedDetail || attempt.unsupportedEncodedValue === "smoothness") {
     const degraded = REQUESTED_DETAILS.filter((detail) => detail !== attempt.unsupportedDetail)
-    attempt = await fetchRouteOnce(request, options, degraded)
+    const omitSmoothness = attempt.unsupportedEncodedValue === "smoothness"
+    attempt = await fetchRouteOnce(request, options, degraded, omitSmoothness)
+    if (omitSmoothness) {
+      warnings.push("The active routing graph lacks smoothness data; this route was served without that condition.")
+    }
   }
 
   if (!attempt.response.ok) {
@@ -681,6 +699,7 @@ export async function requestGraphHopperRoutes(
   return {
     engine: "graphhopper",
     engineVersion: payload.info?.version ?? "11.0",
-    routes: payload.paths.map((path, index) => normalizePath(path, request, index))
+    routes: payload.paths.map((path, index) => normalizePath(path, request, index)),
+    ...(warnings.length > 0 ? { warnings } : {})
   }
 }
