@@ -202,3 +202,51 @@
 .storage-quota-meter-packages strong {
   color: var(--instrument);
 }
+
+@media (max-width: 760px) {
+    .storage-quota-meter {
+      gap: 8px;
+      padding: 11px;
+    }
+
+    .storage-quota-meter-tier-row {
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .storage-quota-meter-row,
+    .storage-quota-meter-projection {
+      font-size: 11px;
+    }
+
+    .storage-quota-meter-persist {
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .storage-quota-meter-persist-cta {
+      width: 100%;
+      min-height: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .storage-quota-meter-persist-cta {
+      min-height: 42px;
+      padding: 9px 12px;
+    }
+
+    .storage-quota-meter-tier {
+      font-size: 11px;
+    }
+
+    .storage-quota-meter-bar {
+      height: 6px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .storage-quota-meter-persist {
+      align-items: center;
+    }
+}

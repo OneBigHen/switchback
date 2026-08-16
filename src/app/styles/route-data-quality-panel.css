@@ -1,3 +1,43 @@
+/* TASK-2.3: this file is imported at the component level (not from
+   layout.tsx), so Next.js bundles it after the global stylesheet chunk --
+   its own rules below always beat anything that used to live in
+   responsive.css, regardless of that file's media-query source order.
+   The block below was moved from responsive.css's mobile overrides; it is
+   placed before this file's own rules (rather than appended after, as a
+   plain source move would do) so any rule here that duplicates a
+   selector/property below continues to lose to it, preserving the exact
+   pre-split rendered behavior. */
+
+@media (max-width: 760px) {
+    .route-data-quality-panel {
+      margin-top: 6px;
+      padding: 11px;
+      gap: 8px;
+    }
+
+    .route-data-quality-bar-row strong {
+      font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .route-data-quality-bars {
+      gap: 6px;
+    }
+
+    .route-data-quality-bar-track {
+      height: 6px;
+    }
+
+    .route-data-quality-caveats li {
+      font-size: 11px;
+    }
+
+    .route-data-quality-footer {
+      font-size: 10px;
+    }
+}
+
 .route-data-quality-panel {
   display: grid;
   gap: 10px;

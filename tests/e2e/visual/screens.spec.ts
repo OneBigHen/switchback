@@ -15,6 +15,24 @@ import {
 // addition to the pixel diff — a passing screenshot alone would not have
 // caught the Profile-panel outage (TASK-1.1), where the panel painted with
 // zero effective size but no test failed.
+
+// TASK-2.3: Next.js's dev-mode indicator (a shadow-DOM toast, always
+// z-index: max) surfaces browser console warnings -- including "GPU stall
+// due to ReadPixels" driver messages from the software-rendered (SwiftShader)
+// WebGL context MapLibre uses in this headless test environment. Whether that
+// driver warning fires is sensitive to the exact timing of style
+// recalculation/layout passes, which shifts by a few milliseconds any time
+// the CSS is reorganized into more/fewer files -- with no change to actual
+// app markup or rendered values. It never appears in a production build
+// (`next build` has zero warnings), so it's not part of the UI under test;
+// mask it out rather than let dev-only chrome flip the suite red.
+function screenshotOptions(page: Page): { maxDiffPixelRatio: number; mask: Locator[] } {
+  // The toast's host element (<nextjs-portal>) is a 0x0 shadow-DOM anchor;
+  // the visible badge lives on the ".nextjs-toast" node inside its shadow
+  // root, which Playwright's CSS engine pierces into automatically.
+  return { maxDiffPixelRatio: 0.02, mask: [page.locator(".nextjs-toast")] }
+}
+
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 }
@@ -63,7 +81,7 @@ for (const viewport of VIEWPORTS) {
       await page.goto("/")
       await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
       await assertPanelVisible(page.locator(".planner-deck"))
-      await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, { maxDiffPixelRatio: 0.02 })
+      await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Plan screen (route result)", async ({ page }) => {
@@ -73,7 +91,7 @@ for (const viewport of VIEWPORTS) {
       ]))
       await planFixtureRoute(page, capture)
       await assertPanelVisible(page.locator(".planner-deck"))
-      await expect(page).toHaveScreenshot(`plan-result-${viewport.name}.png`, { maxDiffPixelRatio: 0.02 })
+      await expect(page).toHaveScreenshot(`plan-result-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Library screen", async ({ page }) => {
@@ -82,7 +100,7 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole("button", { name: "Library", exact: true }).click()
       const panel = page.locator(".library-drawer")
       await assertPanelVisible(panel)
-      await expect(page).toHaveScreenshot(`library-${viewport.name}.png`, { maxDiffPixelRatio: 0.02 })
+      await expect(page).toHaveScreenshot(`library-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Record screen", async ({ page }) => {
@@ -91,7 +109,7 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole("button", { name: "Record", exact: true }).click()
       const panel = page.locator(".record-panel")
       await assertPanelVisible(panel)
-      await expect(page).toHaveScreenshot(`record-${viewport.name}.png`, { maxDiffPixelRatio: 0.02 })
+      await expect(page).toHaveScreenshot(`record-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Profile screen", async ({ page }) => {
@@ -102,7 +120,7 @@ for (const viewport of VIEWPORTS) {
       // This is the exact check that would have caught TASK-1.1: the panel
       // rendered in the a11y tree with no visible content on any viewport.
       await assertPanelVisible(panel)
-      await expect(page).toHaveScreenshot(`profile-${viewport.name}.png`, { maxDiffPixelRatio: 0.02 })
+      await expect(page).toHaveScreenshot(`profile-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Ride HUD", async ({ page }) => {
@@ -117,7 +135,7 @@ for (const viewport of VIEWPORTS) {
       const panel = page.locator(".ride-hud")
       await assertPanelVisible(panel)
       await expect(page.getByRole("region", { name: /Ride (mode|preview) for/ })).toBeVisible()
-      await expect(page).toHaveScreenshot(`ride-hud-${viewport.name}.png`, { maxDiffPixelRatio: 0.02 })
+      await expect(page).toHaveScreenshot(`ride-hud-${viewport.name}.png`, screenshotOptions(page))
     })
   })
 }

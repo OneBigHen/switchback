@@ -1,0 +1,21 @@
+/* Standard responsive breakpoints used across Switchback's styles.
+   Keep new breakpoint rules aligned to these; don't invent new widths.
+
+   390px   -- phone portrait floor (small-phone layout squeeze)
+   760px   -- tablet-portrait / phone-landscape ceiling (primary mobile breakpoint)
+   761px+  -- desktop / tablet-landscape (default layout, min-width query when needed)
+   landscape, max-height: 520px -- short-landscape phones (map-first layouts collapse chrome) */
+
+/* TASK-2.4 justified exception: a reduced-motion reset must win over any
+   component's own specificity by design -- the standard pattern for this
+   universal selector forces every match, not a cascade fight. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+}

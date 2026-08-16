@@ -1,0 +1,361 @@
+.clear-route-button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #ddd7cd;
+  border-radius: 10px;
+  background: #fff;
+  color: #5c554d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clear-route-button:hover {
+  border-color: #b84f1c;
+  color: #9c3d12;
+}
+
+.planner-action-dock .clear-route-button {
+  min-height: 58px;
+  border-radius: 14px;
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.planner-action-dock {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 8;
+  display: grid;
+  min-height: 88px;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 20px 16px;
+  border-top: 1px solid #e4dfd6;
+  background: rgb(255 253 249 / 96%);
+  box-shadow: 0 -14px 32px rgb(57 49 38 / 9%);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.planner-action-dock:has(.dock-ride-button) {
+  grid-template-columns: minmax(108px, 0.72fr) minmax(160px, 1.28fr);
+}
+
+.planner-action-dock:has(.offline-pack-button) {
+  grid-template-columns: minmax(94px, 0.72fr) minmax(108px, 0.8fr) minmax(142px, 1.2fr);
+}
+
+.planner-action-dock:has(.clear-route-button):has(.offline-pack-button) {
+  min-height: 132px;
+  grid-template-columns: minmax(74px, 0.7fr) minmax(74px, 0.7fr) minmax(112px, 1.2fr);
+  grid-template-areas:
+    "replan clear start"
+    "offline offline offline";
+}
+
+.planner-action-dock:has(.clear-route-button) .replan-button {
+  grid-area: replan;
+}
+
+.planner-action-dock .clear-route-button {
+  grid-area: clear;
+}
+
+.planner-action-dock:has(.clear-route-button) .dock-ride-button {
+  grid-area: start;
+}
+
+.planner-action-dock:has(.clear-route-button) .offline-pack-button {
+  grid-area: offline;
+}
+
+.planner-action-dock .plan-button,
+.planner-action-dock .ride-button,
+.replan-button,
+.offline-pack-button {
+  min-height: 58px;
+  border-radius: 14px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.planner-action-dock .ride-button {
+  border: 0;
+  background: #242321;
+  color: #fff;
+  box-shadow: 0 9px 22px rgb(36 35 33 / 19%);
+}
+
+.offline-pack-button {
+  display: inline-flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #cbc3b8;
+  border-radius: 14px;
+  background: #f8f5ef;
+  color: #4f4a44;
+}
+
+.offline-pack-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.replan-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #ddd7cd;
+  background: #fff;
+  color: #4f4b46;
+  cursor: pointer;
+}
+
+.replan-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.replan-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 760px) {
+    .planner-action-dock {
+      min-height: 82px;
+      padding: 11px 16px max(13px, env(safe-area-inset-bottom));
+    }
+
+    .planner-action-dock .plan-button,
+    .planner-action-dock .ride-button,
+    .replan-button {
+      min-height: 56px;
+    }
+}
+
+@media (max-width: 390px) {
+    .planner-action-dock:has(.dock-ride-button) {
+      grid-template-columns: 96px minmax(0, 1fr);
+    }
+
+    .planner-action-dock .ride-button,
+    .replan-button {
+      font-size: 12px;
+    }
+}
+
+.planner-action-dock:empty {
+  display: none;
+}
+
+.road-locks-dock-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--machined);
+  color: var(--metal);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.road-locks-dock-button:hover,
+.road-locks-dock-button:focus-visible,
+.road-locks-dock-button[aria-expanded="true"] {
+  border-color: var(--signal);
+  color: var(--instrument);
+}
+
+.road-locks-dock-button.has-must-locks {
+  border-color: rgb(243 106 45 / 60%);
+  background: rgb(243 106 45 / 12%);
+  color: var(--signal);
+}
+
+.road-locks-dock-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.road-locks-dock-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--metal);
+  color: var(--oled);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.road-locks-dock-count[data-tier="must"] {
+  background: var(--signal);
+  color: var(--oled);
+}
+
+.offline-pack-modal-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 55%);
+}
+
+.offline-pack-modal {
+  display: grid;
+  width: min(440px, calc(100vw - 32px));
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--oled);
+  box-shadow: 0 22px 64px rgb(0 0 0 / 42%);
+  color: var(--instrument);
+}
+
+.offline-pack-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.offline-pack-modal h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.offline-pack-modal-summary {
+  margin: 0;
+  color: var(--metal);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.offline-pack-modal-alternative {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--metal);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.offline-pack-modal-alternative strong {
+  color: var(--instrument);
+  font-weight: 750;
+}
+
+.offline-pack-modal > footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.offline-pack-modal-cancel {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--metal);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.offline-pack-modal-cancel:hover {
+  border-color: rgb(243 239 230 / 28%);
+  color: var(--instrument);
+}
+
+.offline-pack-modal-save {
+  flex: 1.4;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--signal);
+  border-radius: 10px;
+  background: var(--signal);
+  color: var(--oled);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.offline-pack-modal-save:hover,
+.offline-pack-modal-save:focus-visible {
+  background: rgb(243 106 45 / 88%);
+}
+
+.offline-pack-modal-save svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 760px) {
+    .offline-pack-modal-scrim {
+      align-items: flex-end;
+      padding: 0;
+    }
+
+    .offline-pack-modal {
+      width: 100%;
+      max-width: none;
+      border-radius: 18px 18px 0 0;
+      padding: 16px 14px calc(env(safe-area-inset-bottom) + 14px);
+    }
+
+    .road-locks-dock-button > span:not(.road-locks-dock-count) {
+      display: none;
+    }
+
+    .road-locks-dock-button {
+      min-width: 48px;
+      padding: 0 10px;
+      justify-content: center;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .offline-pack-modal-scrim {
+      align-items: center;
+      padding: 12px;
+    }
+
+    .offline-pack-modal {
+      width: min(440px, calc(100vw - 24px));
+      padding: 14px;
+      gap: 8px;
+    }
+}

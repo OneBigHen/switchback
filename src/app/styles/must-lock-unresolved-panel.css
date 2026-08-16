@@ -1,3 +1,47 @@
+/* TASK-2.3: this file is imported at the component level (not from
+   layout.tsx), so Next.js bundles it after the global stylesheet chunk --
+   its own rules below always beat anything that used to live in
+   responsive.css, regardless of that file's media-query source order.
+   The block below was moved from responsive.css's mobile overrides; it is
+   placed before this file's own rules (rather than appended after, as a
+   plain source move would do) so any rule here that duplicates a
+   selector/property below continues to lose to it, preserving the exact
+   pre-split rendered behavior. */
+
+@media (max-width: 760px) {
+    .must-lock-unresolved-panel {
+      margin: 16px;
+      padding: 14px;
+    }
+
+    .must-lock-unresolved-panel > header > h2 {
+      font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .must-lock-unresolved-panel {
+      margin: 10px;
+      padding: 13px;
+    }
+
+    .must-lock-unresolved-panel > header > h2 {
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .must-lock-option button {
+      min-height: 44px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .must-lock-unresolved-panel {
+      margin: 10px;
+      padding: 11px 12px;
+    }
+}
+
 .must-lock-unresolved-panel {
   width: 100%;
   max-width: 520px;

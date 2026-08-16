@@ -1,3 +1,90 @@
+/* TASK-2.3: this file is imported at the component level (not from
+   layout.tsx), so Next.js bundles it after the global stylesheet chunk --
+   its own rules below always beat anything that used to live in
+   responsive.css, regardless of that file's media-query source order.
+   The block below was moved from responsive.css's mobile overrides; it is
+   placed before this file's own rules (rather than appended after, as a
+   plain source move would do) so any rule here that duplicates a
+   selector/property below continues to lose to it, preserving the exact
+   pre-split rendered behavior. */
+
+@media (max-width: 760px) {
+    .road-lock-library-drawer {
+      width: 100%;
+      max-width: none;
+      padding: 12px;
+    }
+
+    .road-lock-row {
+      grid-template-columns: 28px minmax(0, 1fr);
+    }
+
+    .road-lock-row-actions {
+      grid-column: 1 / -1;
+      justify-self: stretch;
+    }
+
+    .road-lock-image-overlay {
+      margin: 14px;
+      padding: 12px;
+    }
+
+    .road-lock-image-canvas {
+      min-height: 240px;
+    }
+
+    .road-lock-transform-controls {
+      grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .road-lock-library-drawer {
+      margin: 0;
+      border-radius: 0;
+      box-shadow: none;
+      width: 100vw;
+      padding: 12px 12px calc(env(safe-area-inset-bottom) + 14px);
+    }
+
+    .road-lock-library-drawer > header h2 {
+      font-size: 16px;
+    }
+
+    .road-lock-row {
+      gap: 6px;
+    }
+
+    .road-lock-row-title strong {
+      font-size: 13px;
+    }
+
+    .road-lock-image-overlay {
+      margin: 8px;
+      padding: 10px;
+    }
+
+    .road-lock-accuracy-statement {
+      font-size: 11px;
+    }
+
+    .road-lock-image-canvas {
+      min-height: 200px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .road-lock-library-drawer {
+      width: min(420px, 90vw);
+      padding: 11px 12px;
+    }
+
+    .road-lock-image-overlay {
+      width: min(640px, calc(100vw - 24px));
+      padding: 10px 12px;
+    }
+}
+
 .road-lock-scrim {
   position: fixed;
   inset: 0;

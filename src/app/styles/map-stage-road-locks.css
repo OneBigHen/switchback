@@ -1,3 +1,69 @@
+/* TASK-2.3: this file is imported at the component level (not from
+   layout.tsx), so Next.js bundles it after the global stylesheet chunk --
+   its own rules below always beat anything that used to live in
+   responsive.css, regardless of that file's media-query source order.
+   The block below was moved from responsive.css's mobile overrides; it is
+   placed before this file's own rules (rather than appended after, as a
+   plain source move would do) so any rule here that duplicates a
+   selector/property below continues to lose to it, preserving the exact
+   pre-split rendered behavior. */
+
+.library-drawer .import-route-button,
+.library-drawer .icon-tool {
+  min-height: 44px;
+  border-color: #ded8cf;
+  border-radius: 11px;
+  background: #fff;
+  color: #5f5b55;
+  box-shadow: 0 2px 7px rgb(57 49 38 / 5%);
+}
+
+.library-drawer .import-route-button:hover,
+.library-drawer .import-route-button:focus-within,
+.library-drawer .icon-tool:hover {
+  border-color: #bdb5a9;
+  background: #faf8f4;
+  color: #242321;
+}
+
+.planner-deck .icon-tool,
+.planner-deck .map-pick-button {
+  border-color: #e6e1d8;
+  background: #f4f1ec;
+  color: #5d5953;
+  box-shadow: none;
+}
+
+.route-slip.is-selected {
+  padding-left: 13px;
+  border-color: rgb(232 95 44 / 68%);
+  background: #fffaf6;
+  box-shadow: 0 0 0 3px rgb(232 95 44 / 7%);
+}
+
+.route-slip.is-selected {
+  border-color: var(--ride-orange);
+  background: #fffaf4;
+}
+
+.offline-pack-modal .icon-tool {
+  min-width: 36px;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--metal);
+  cursor: pointer;
+}
+
+.offline-pack-modal .icon-tool:hover,
+.offline-pack-modal .icon-tool:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
 /**
  * Road-lock map surface + match-state color tokens.
  *

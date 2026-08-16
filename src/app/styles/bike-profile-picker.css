@@ -1,3 +1,67 @@
+/* TASK-2.3: this file is imported at the component level (not from
+   layout.tsx), so Next.js bundles it after the global stylesheet chunk --
+   its own rules below always beat anything that used to live in
+   responsive.css, regardless of that file's media-query source order.
+   The block below was moved from responsive.css's mobile overrides; it is
+   placed before this file's own rules (rather than appended after, as a
+   plain source move would do) so any rule here that duplicates a
+   selector/property below continues to lose to it, preserving the exact
+   pre-split rendered behavior. */
+
+@media (max-width: 760px) {
+    .bike-profile-picker {
+      gap: 8px;
+      padding: 11px;
+    }
+
+    .bike-profile-option {
+      min-height: 50px;
+    }
+
+    .bike-profile-summary {
+      grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .bike-profile-segmented {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bike-profile-option {
+      min-height: 46px;
+    }
+
+    .bike-profile-fields,
+    .bike-profile-summary {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bike-profile-mismatch {
+      font-size: 10px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .bike-profile-picker,
+    .route-data-quality-panel,
+    .storage-quota-meter {
+      padding: 10px 12px;
+      gap: 7px;
+    }
+
+    .bike-profile-option,
+    .download-mode-option,
+    .region-suite-option {
+      min-height: 42px;
+    }
+
+    .bike-profile-fields,
+    .download-mode-corridor-options {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .bike-profile-picker {
   display: grid;
   gap: 10px;

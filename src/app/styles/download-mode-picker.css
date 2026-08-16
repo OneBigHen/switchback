@@ -191,3 +191,32 @@
   color: var(--instrument);
   font-variant-numeric: tabular-nums;
 }
+
+@media (max-width: 760px) {
+    .download-mode-list {
+      gap: 6px;
+    }
+
+    .download-mode-option {
+      min-height: 48px;
+      padding: 9px 10px;
+    }
+
+    .download-mode-corridor {
+      padding: 8px 9px;
+    }
+
+    .download-mode-corridor-options {
+      grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .download-mode-option-name strong {
+      font-size: 13px;
+    }
+
+    .download-mode-corridor {
+      padding: 9px 10px;
+    }
+}

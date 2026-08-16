@@ -1,0 +1,764 @@
+@media (max-width: 760px) {
+    .deck-section {
+      padding: 18px 2px;
+    }
+
+    .profile-description {
+      display: none;
+    }
+
+    .planner-controls {
+      margin-top: 10px;
+    }
+}
+
+@media (max-width: 390px) {
+    .planner-deck {
+      max-height: 74dvh;
+    }
+
+    .planner-scroll {
+      padding-right: 13px;
+      padding-left: 13px;
+    }
+
+    .profile-switch button {
+      font-size: 9px;
+    }
+}
+
+/* Route command center: keep the next human action visible while the planner
+   content scrolls, and let the map reclaim the screen without losing context. */
+.planner-scroll {
+  height: calc(100% - 88px);
+  padding-bottom: 24px;
+}
+
+.deck-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planner-minimize,
+.planner-expand {
+  border: 0;
+  background: transparent;
+  color: #6f6c66;
+  cursor: pointer;
+}
+
+.planner-sheet-handle {
+  display: none;
+}
+
+.planner-minimize {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #e6e1d8;
+  border-radius: 11px;
+  background: #f5f2ed;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.planner-minimize:hover {
+  background: #ece8e1;
+  color: #242321;
+}
+
+.planner-minimize:active,
+.planner-expand:active,
+.replan-button:active {
+  transform: translateY(1px);
+}
+
+.planner-minimize svg,
+.planner-expand > svg {
+  width: 19px;
+  height: 19px;
+}
+
+.planner-deck.has-expanded-route-dock:has(.clear-route-button):not(.is-minimized) .planner-scroll {
+  height: calc(100% - 132px);
+}
+
+.planner-deck.is-minimized {
+  top: auto;
+  bottom: 20px;
+  width: min(420px, calc(100vw - 40px));
+  height: 158px;
+  border-radius: 20px;
+  transition: height 220ms ease, width 220ms ease;
+}
+
+.planner-mini-header {
+  height: 70px;
+  padding: 10px 14px 8px;
+}
+
+.planner-expand {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: 42px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  text-align: left;
+}
+
+.planner-expand > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.planner-expand small {
+  color: #8a857d;
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.planner-expand strong {
+  overflow: hidden;
+  color: #242321;
+  font-family: var(--font-display);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-deck.is-minimized .planner-action-dock {
+  min-height: 88px;
+  padding-top: 10px;
+}
+
+@media (max-width: 760px) {
+    .planner-deck {
+      max-height: min(77dvh, 760px);
+    }
+
+    .planner-sheet-handle {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      z-index: 22;
+      display: grid;
+      width: 92px;
+      height: 32px;
+      padding: 0;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      cursor: grab;
+      touch-action: none;
+      transform: translateX(-50%);
+    }
+
+    .planner-sheet-handle:active {
+      cursor: grabbing;
+    }
+
+    .planner-sheet-handle > span {
+      width: 42px;
+      height: 5px;
+      border-radius: 999px;
+      background: #c8c2b9;
+    }
+
+    .planner-scroll {
+      height: calc(100% - 82px);
+      padding-top: 28px;
+    }
+
+    /* The home-state action dock stacks Free Ride + Road locks and is taller
+       than the flat reservation above (dock ≈134px vs 82px reserved), so the
+       bottom of the ride-prompt card ("Edit route") can sit beneath the fixed
+       bar on phones. Reserve the real stacked height for that state. */
+    .planner-deck:not(.is-minimized):has(.free-ride-button):not(:has(.dock-ride-button)) .planner-scroll {
+      height: calc(100% - 134px);
+    }
+
+    .planner-deck::after {
+      display: none;
+    }
+
+    .deck-header {
+      align-items: center;
+    }
+
+    .deck-header-tools {
+      gap: 5px;
+    }
+
+    .planner-deck.is-minimized {
+      right: 8px;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      left: 8px;
+      width: auto;
+      height: 146px;
+      max-height: none;
+    }
+
+    .planner-deck.is-minimized .planner-action-dock {
+      min-height: 78px;
+    }
+
+    .planner-mini-header {
+      height: 68px;
+      padding: 8px 12px 6px;
+    }
+}
+
+@media (max-width: 390px) {
+    /* At iPhone width, the three post-plan actions wrap to two rows. Reserve
+       their real height so the comparison actions never scroll beneath them. */
+    .planner-deck.has-expanded-route-dock:not(.is-minimized) .planner-scroll {
+      height: calc(100% - 154px);
+    }
+}
+
+/* Switchback 0.2 — a calm map-first workspace for planning. Ride mode keeps
+   the original high-contrast cockpit palette for outdoor legibility. */
+/* TASK-2.4 justified exception: the standard visually-hidden utility
+   pattern (matches Bootstrap/Tailwind's .sr-only) must reliably override
+   any component's own display/position rules wherever it's applied. */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.planner-deck,
+.library-drawer {
+  --oled: #fffdf9;
+  --machined: #fffdf9;
+  --raised: #f3f1ec;
+  --instrument: #242321;
+  --metal: #6f6c66;
+  --line: #e5e1d9;
+  color-scheme: light;
+}
+
+.planner-deck {
+  top: 20px;
+  bottom: 20px;
+  left: 20px;
+  width: 448px;
+  border: 1px solid rgb(72 62 48 / 12%);
+  border-radius: 24px;
+  background: rgb(255 253 249 / 97%);
+  color: var(--instrument);
+  box-shadow: 0 22px 64px rgb(46 40 31 / 20%), 0 2px 8px rgb(46 40 31 / 7%);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.planner-deck::before {
+  display: none;
+}
+
+.planner-scroll {
+  padding: 18px 20px 28px;
+  overscroll-behavior: contain;
+  scrollbar-color: #d7d1c7 transparent;
+}
+
+.deck-header {
+  margin: 0 2px 16px;
+}
+
+.brand-lockup {
+  color: #242321;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: #242321;
+  box-shadow: 0 5px 14px rgb(36 35 33 / 14%);
+}
+
+.brand-lockup strong {
+  font-size: 18px;
+  font-weight: 720;
+}
+
+.brand-lockup small {
+  color: #77736d;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: none;
+}
+
+.deck-section {
+  padding: 20px 2px;
+  border-color: #ebe6de;
+}
+
+.planner-deck h1 {
+  color: #242321;
+  font-size: clamp(25px, 2vw, 29px);
+  font-weight: 660;
+  line-height: 1.12;
+}
+
+.planner-deck h2 {
+  color: #242321;
+  font-size: 19px;
+  font-weight: 660;
+}
+
+.waypoint-stack {
+  gap: 10px;
+}
+
+.waypoint-stack::before {
+  background: #d8d2c8;
+}
+
+.planner-deck .place-suggestions {
+  border-color: #ded8ce;
+  background: #fff;
+  color: #242321;
+  box-shadow: 0 18px 44px rgb(49 42 33 / 18%);
+}
+
+.planner-deck .place-suggestions li + li {
+  border-color: #eee9e2;
+}
+
+.planner-deck .place-suggestions button:hover {
+  background: #f6f3ee;
+}
+
+.route-shaping-tools {
+  display: grid;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.add-via-button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px dashed #d5cfc5;
+  border-radius: 11px;
+  background: #faf8f4;
+  color: #5f5b55;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.add-via-button[aria-pressed="true"] {
+  border-color: #e85f2c;
+  border-style: solid;
+  background: #fff1eb;
+  color: #bd4820;
+}
+
+.add-via-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.route-edit-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.route-edit-toolbar button {
+  min-height: 42px;
+  border: 1px solid #ded8cf;
+  border-radius: 10px;
+  background: #fff;
+  color: #514e49;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.route-edit-toolbar button:disabled,
+.via-point-actions button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.via-points {
+  display: grid;
+  gap: 6px;
+}
+
+.via-points > span {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 3px 3px 9px;
+  border: 1px solid #e5e0d8;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.via-points b {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: #242321;
+  color: #fff;
+  font-size: 10px;
+}
+
+.via-points > span > span {
+  overflow: hidden;
+  color: #514e49;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.via-point-actions {
+  display: flex;
+  gap: 2px;
+  overflow: visible;
+}
+
+.via-points .via-point-actions button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #8b867e;
+  cursor: pointer;
+}
+
+.via-points .via-point-actions button:hover:not(:disabled) {
+  background: #f3f0eb;
+  color: #b54127;
+}
+
+.via-points .via-point-actions button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.segment-character-controls {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #ebe5dc;
+  border-radius: 12px;
+  background: #faf8f5;
+}
+
+.segment-character-controls > label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px auto;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  color: #625e57;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.segment-character-controls select {
+  min-height: 34px;
+  border: 1px solid #ddd6cd;
+  border-radius: 8px;
+  background: #fff;
+  color: #46423d;
+  font: inherit;
+  font-size: 11px;
+}
+
+.segment-character-controls button,
+.avoid-area-summary button {
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid #d8d0c6;
+  border-radius: 8px;
+  background: #fff;
+  color: #5f574e;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.segment-character-controls button[aria-pressed="true"] {
+  border-color: #b85431;
+  background: #fff0ea;
+  color: #9e3e21;
+}
+
+.avoid-area-summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid #efc4bc;
+  border-radius: 10px;
+  background: #fff5f2;
+  color: #9b412e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.map-shape-hint {
+  margin: 8px 3px 0;
+  color: #77736c;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.profile-glyph {
+  color: #d95629;
+}
+
+.profile-switch {
+  gap: 5px;
+  padding: 5px;
+  border: 0;
+  border-radius: 13px;
+  background: #efede8;
+}
+
+.profile-switch button {
+  min-height: 42px;
+  color: #77736c;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.profile-switch button[aria-pressed="true"] {
+  border-color: transparent;
+  background: #fff;
+  color: #242321;
+  box-shadow: 0 2px 8px rgb(55 47 38 / 8%);
+}
+
+.profile-description {
+  min-height: 0;
+  color: #77736c;
+  font-size: 12px;
+}
+
+.curve-toggle {
+  color: #68645e;
+  font-size: 12px;
+}
+
+.planner-preferences {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0 14px;
+}
+
+.planner-preferences .curve-toggle {
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.curve-toggle > span {
+  border-color: #d7d1c7;
+  background: #ece8e1;
+}
+
+.library-button,
+.tool-button {
+  border-color: #ded8cf;
+  background: #fff;
+  color: #5f5b55;
+  font-size: 11px;
+}
+
+.library-button > span {
+  color: #fff;
+}
+
+.plan-button {
+  min-height: 58px;
+  border: 0;
+  border-radius: 14px;
+  background: #e85f2c;
+  color: #fff;
+  box-shadow: 0 8px 20px rgb(232 95 44 / 22%);
+  font-size: 14px;
+}
+
+.planner-error {
+  border-radius: 10px;
+  background: #fff2ef;
+}
+
+.planner-error p {
+  color: #7e5149;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+    .planner-deck {
+      top: auto;
+      right: 8px;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      left: 8px;
+      width: auto;
+      max-height: min(77dvh, 760px);
+      border-radius: 24px;
+    }
+
+    .planner-deck::after {
+      position: sticky;
+      top: 8px;
+      left: 50%;
+      z-index: 20;
+      display: block;
+      width: 38px;
+      height: 4px;
+      border-radius: 999px;
+      background: #d1ccc3;
+      content: "";
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .planner-scroll {
+      padding: 18px 16px 28px;
+    }
+
+    .planner-deck h1 {
+      font-size: 24px;
+    }
+}
+
+@media (max-width: 390px) {
+    .planner-deck {
+      max-height: 80dvh;
+    }
+
+    .profile-switch button {
+      font-size: 10px;
+    }
+}
+
+/* The former sheet handle was decorative. The header chevron is now the real,
+   keyboard-accessible minimize control. */
+@media (max-width: 760px) {
+    .planner-deck {
+      height: min(77dvh, 760px);
+    }
+
+    .planner-deck::after {
+      display: none;
+    }
+}
+
+@media (max-width: 390px) {
+    .planner-deck {
+      height: min(80dvh, 760px);
+    }
+}
+
+/* Intent-first planner: the map is the canvas and the sheet answers one
+   question before exposing any routing controls. */
+.planner-deck {
+  --ride-forest: #183c2a;
+  --ride-ink: #213126;
+  --ride-cream: #fffaf0;
+  --ride-line: #d8cfbd;
+  --ride-orange: #de6a25;
+  background: color-mix(in srgb, var(--ride-cream) 96%, white);
+}
+
+.edit-route-button,
+.route-details-toggle {
+  display: block;
+  min-height: 46px;
+  margin: 12px auto 3px;
+  border: 0;
+  background: transparent;
+  color: var(--ride-forest);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.planner-deck > .planner-action-dock .dock-ride-button {
+  min-height: 58px;
+  border-radius: 16px;
+  background: var(--ride-orange);
+  box-shadow: 0 9px 20px rgb(181 78 25 / 22%);
+}
+
+.planner-deck > .planner-action-dock .dock-ride-button span {
+  font-size: 14px;
+}
+
+.planner-deck .profile-section,
+.planner-deck .waypoint-composer {
+  border-top-color: #dcd2c1;
+}
+
+@media (max-width: 760px) {
+    .planner-deck {
+      bottom: max(8px, env(safe-area-inset-bottom));
+      max-height: min(78dvh, 760px);
+      height: auto;
+      border-radius: 28px;
+      background: var(--ride-cream);
+    }
+
+    .planner-scroll {
+      padding: 18px 16px 24px;
+    }
+
+    .planner-deck > .planner-action-dock {
+      bottom: -24px;
+      background: var(--ride-cream);
+    }
+}
+
+.planner-dock-mismatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--road-lock-approximate);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.planner-dock-mismatch svg {
+  width: 13px;
+  height: 13px;
+}

@@ -226,3 +226,45 @@
   font-size: 11px;
   line-height: 1.5;
 }
+
+@media (max-width: 760px) {
+    .waypoint-field {
+      min-height: 60px;
+    }
+}
+
+.waypoint-field {
+  min-height: 66px;
+  border-color: #e4dfd6;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 2px 9px rgb(57 49 38 / 4%);
+}
+
+.waypoint-field:focus-within,
+.waypoint-field.is-armed {
+  border-color: rgb(232 95 44 / 56%);
+  box-shadow: 0 0 0 4px rgb(232 95 44 / 8%);
+}
+
+.waypoint-node {
+  border-color: #fff;
+  background: #242321;
+  color: #fff;
+  box-shadow: 0 0 0 1px #ddd7ce;
+}
+
+.waypoint-node-finish {
+  background: var(--signal);
+}
+
+.waypoint-field label > span {
+  color: #858078;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.waypoint-field input {
+  color: #292725;
+  font-size: 14px;
+}

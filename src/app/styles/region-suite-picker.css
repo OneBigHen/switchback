@@ -202,3 +202,20 @@
   color: var(--instrument);
   font-variant-numeric: tabular-nums;
 }
+
+@media (max-width: 760px) {
+    .region-suite-list {
+      gap: 6px;
+    }
+
+    .region-suite-option {
+      min-height: 50px;
+      padding: 9px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .region-suite-option-text strong {
+      font-size: 13px;
+    }
+}

@@ -842,3 +842,20 @@
 :root[data-theme="dark"] .planner-deck .route-slip-metric small {
   color: var(--metal);
 }
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .planner-shell {
+      min-height: 0;
+    }
+}
+
+.style-explorer {
+  background-color: #e6eddc;
+  background-image: linear-gradient(145deg, transparent 42%, #75a4c3 43%, #75a4c3 49%, transparent 50%), linear-gradient(25deg, transparent 48%, #c8a66d 49%, #c8a66d 53%, transparent 54%);
+}
+
+.style-night {
+  border-color: #303b37;
+  background-color: #17211e;
+  background-image: linear-gradient(145deg, transparent 42%, #567d83 43%, #567d83 49%, transparent 50%), linear-gradient(25deg, transparent 48%, #c56d42 49%, #c56d42 53%, transparent 54%);
+}

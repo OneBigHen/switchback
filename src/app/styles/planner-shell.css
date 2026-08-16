@@ -417,3 +417,347 @@ h2 {
   filter: saturate(0.45) brightness(0.92);
   transition: filter 180ms ease;
 }
+
+@media (max-width: 760px) {
+    .map-crosshair {
+      top: 24%;
+      left: 50%;
+    }
+
+    .maplibregl-ctrl-bottom-left {
+      bottom: calc(70dvh + 8px);
+      left: 0;
+    }
+
+    .maplibregl-ctrl-bottom-right {
+      bottom: calc(70dvh + 8px);
+    }
+
+    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
+    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-right {
+      bottom: 260px;
+    }
+
+    .map-layer-status {
+      top: 64px;
+      /* Anchor to the left of the visible area below the toolbar so the
+         banner does not run off the edge of a narrow phone screen. The
+         default desktop rule centers it horizontally. */
+      left: 12px;
+      transform: none;
+      max-width: calc(100% - 24px);
+    }
+
+    .map-feature-banner {
+      max-width: calc(100% - 24px);
+    }
+
+    .map-loading,
+    .map-error {
+      top: 12px;
+      right: 12px;
+      left: 12px;
+      max-width: none;
+      text-align: center;
+    }
+
+    .app-notice {
+      top: 82px;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+    }
+}
+
+@media (max-width: 390px) {
+    .maplibregl-ctrl-bottom-left,
+    .maplibregl-ctrl-bottom-right {
+      bottom: calc(74dvh + 8px);
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .ride-map-recenter {
+      right: max(12px, env(safe-area-inset-right));
+      bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
+    }
+
+    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
+    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-right {
+      bottom: 148px;
+    }
+}
+
+.map-stage:not(.is-ride-mode) {
+  background: #ebe9e3;
+}
+
+.map-stage:not(.is-ride-mode)::after {
+  box-shadow: inset 0 0 72px rgb(63 54 43 / 8%);
+}
+
+.ride-research {
+  display: grid;
+  gap: 7px;
+  margin: 12px 4px 0;
+}
+
+.ride-research > button {
+  min-height: 38px;
+  justify-self: start;
+  padding: 0 12px;
+  border: 1px solid #d9d2c8;
+  border-radius: 9px;
+  background: #fff;
+  color: #3c3833;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ride-research > button:disabled {
+  color: #9a958d;
+}
+
+.ride-research > small {
+  color: #77736c;
+  font-size: 11px;
+}
+
+.ride-research ul {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ride-research a {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border-radius: 8px;
+  background: #f5f2ed;
+  color: #37332e;
+  text-decoration: none;
+}
+
+.ride-research a:hover,
+.ride-research a:focus-visible {
+  background: #efe9e0;
+}
+
+.ride-research a b {
+  color: #af4220;
+  font-size: 12px;
+}
+
+.ride-research a span {
+  color: #6d675f;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.map-avoid-preview {
+  position: absolute;
+  border: 2px dashed #c84432;
+  background: rgb(200 68 50 / 16%);
+  pointer-events: none;
+}
+
+.ride-map-recenter {
+  position: absolute;
+  right: 24px;
+  bottom: 218px;
+  z-index: 11;
+  display: inline-flex;
+  min-width: 52px;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid rgb(243 239 230 / 28%);
+  border-radius: 999px;
+  background: rgb(11 14 13 / 92%);
+  color: var(--instrument);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 34%);
+  font-size: 11px;
+  font-weight: 720;
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.ride-map-recenter.is-following {
+  border-color: rgb(26 115 232 / 58%);
+  color: #8ab4f8;
+}
+
+.ride-map-recenter svg {
+  width: 21px;
+  height: 21px;
+}
+
+.map-stage.is-ride-mode .maplibregl-ctrl-geolocate {
+  display: none;
+}
+
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-group,
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib {
+  border-color: rgb(66 58 47 / 12%);
+  background: rgb(255 255 255 / 92%);
+  color: #615d57;
+  box-shadow: 0 4px 14px rgb(49 42 33 / 10%);
+}
+
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-group button {
+  filter: none;
+}
+
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib a {
+  color: #3e3b37;
+}
+
+.map-layer-status {
+  /* In non-ride mode the basemap is light, so the pill gets a light card
+     style. The horizontal-centred position is inherited from
+     planner-shell.css so the loading/error/zoom banner is always visible
+     on desktop widths (previously this was left:488px, which placed it
+     past the visible area on most viewports). */
+  border-color: rgb(66 58 47 / 12%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 92%);
+  color: #625e58;
+  font-size: 11px;
+  box-shadow: 0 4px 14px rgb(49 42 33 / 9%);
+}
+
+.map-layer-status.map-feature-banner {
+  color: #383531;
+  box-shadow: 0 6px 22px rgb(49 42 33 / 14%);
+}
+
+.map-layer-status.map-layer-error {
+  border-color: rgb(200 68 50 / 42%);
+  color: #b53a2b;
+  background: rgb(255 250 248 / 95%);
+}
+
+.map-layer-status.unpaved-status {
+  top: 62px;
+}
+
+.map-sketch-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  background: rgb(255 246 239 / 7%);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.map-sketch-surface::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px rgb(232 95 44 / 58%);
+}
+
+.map-sketch-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.map-sketch-line polyline {
+  fill: none;
+  stroke: #e85f2c;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7;
+  filter: drop-shadow(0 2px 2px rgb(53 24 13 / 30%));
+}
+
+.map-sketch-instructions {
+  position: absolute;
+  top: 78px;
+  left: 50%;
+  display: grid;
+  width: min(430px, calc(100vw - 180px));
+  min-width: 300px;
+  gap: 3px;
+  padding: 13px 16px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 14px;
+  transform: translateX(-50%);
+  background: rgb(34 32 29 / 92%);
+  color: #fff;
+  box-shadow: 0 12px 36px rgb(37 28 22 / 25%);
+  text-align: center;
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+}
+
+.map-sketch-instructions strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.map-sketch-instructions span {
+  color: rgb(255 255 255 / 84%);
+  font-size: 12px;
+}
+
+.map-sketch-instructions small {
+  color: rgb(255 255 255 / 58%);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+    .maplibregl-ctrl-bottom-left,
+    .maplibregl-ctrl-bottom-right {
+      bottom: calc(77dvh + 8px);
+    }
+
+    .map-sketch-instructions {
+      top: 68px;
+      right: 82px;
+      left: 12px;
+      width: auto;
+      min-width: 0;
+      transform: none;
+    }
+
+    .map-layer-status.unpaved-status {
+      top: 100px;
+    }
+}
+
+@media (max-width: 390px) {
+    .maplibregl-ctrl-bottom-left,
+    .maplibregl-ctrl-bottom-right {
+      bottom: calc(80dvh + 8px);
+    }
+}
+
+@media (max-width: 760px) {
+    .ride-map-recenter {
+      right: max(12px, env(safe-area-inset-right));
+      bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
+      min-width: 48px;
+      min-height: 48px;
+      padding: 0 12px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .ride-map-recenter {
+      right: max(12px, env(safe-area-inset-right));
+      bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
+    }
+}

@@ -1,0 +1,566 @@
+.map-avoid-button[aria-pressed="true"] {
+  background: #fff0ed;
+  color: #a83224;
+}
+
+.avoid-area-glyph {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 2px dashed currentColor;
+  border-radius: 3px;
+  font-size: 0;
+}
+
+.map-layer-control {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 6;
+  display: grid;
+  justify-items: end;
+  gap: 9px;
+}
+
+.map-tool-row {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgb(66 58 47 / 13%);
+  border-radius: 13px;
+  background: rgb(255 255 255 / 95%);
+  box-shadow: 0 5px 18px rgb(49 42 33 / 13%);
+  backdrop-filter: blur(14px);
+}
+
+.map-layers-button {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 0;
+  background: transparent;
+  color: #383531;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.map-layers-button + .map-layers-button {
+  border-left: 1px solid rgb(66 58 47 / 13%);
+}
+
+.map-sketch-button[aria-pressed="true"] {
+  background: #fff1eb;
+  color: #a63f1e;
+}
+
+.map-layers-button svg {
+  width: 19px;
+  height: 19px;
+  color: #d95629;
+}
+
+/* Layers button reflects overall layer-load state so the user can see at a
+   glance whether something is currently loading or has errored even when
+   the Layers panel is closed. */
+.map-layers-button.is-loading {
+  color: #a63f1e;
+}
+
+.map-layers-button.has-error {
+  color: #b53a2b;
+}
+
+.map-layers-button-spinner {
+  width: 14px;
+  height: 14px;
+  color: #d95629;
+}
+
+.map-layer-menu {
+  width: min(342px, calc(100vw - 40px));
+  max-height: min(70vh, 620px);
+  padding: 16px;
+  border: 1px solid rgb(66 58 47 / 13%);
+  border-radius: 18px;
+  background: rgb(255 253 249 / 98%);
+  color: #242321;
+  box-shadow: 0 18px 50px rgb(49 42 33 / 20%);
+  overflow-y: auto;
+  backdrop-filter: blur(18px);
+}
+
+.map-layer-menu > div + div {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e7e2da;
+}
+
+.map-layer-menu > div > strong {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.map-style-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.map-style-options button {
+  display: grid;
+  min-height: 76px;
+  justify-items: center;
+  align-content: center;
+  gap: 7px;
+  border: 1px solid #e0dbd2;
+  border-radius: 12px;
+  background: #fff;
+  color: #625e58;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.map-style-options button[aria-pressed="true"] {
+  border-color: #e85f2c;
+  box-shadow: 0 0 0 2px rgb(232 95 44 / 9%);
+  color: #242321;
+}
+
+.style-swatch {
+  display: block;
+  width: 48px;
+  height: 30px;
+  border: 1px solid rgb(0 0 0 / 9%);
+  border-radius: 7px;
+  background-color: #efede8;
+  background-image: linear-gradient(145deg, transparent 42%, #91acc4 43%, #91acc4 49%, transparent 50%), linear-gradient(25deg, transparent 48%, #d7c7a9 49%, #d7c7a9 53%, transparent 54%);
+}
+
+.overlay-options label {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: 18px 27px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.overlay-options label.is-unavailable {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.overlay-options label.has-layer-state.is-error {
+  background: rgb(227 93 84 / 6%);
+}
+
+.overlay-options label.has-layer-state.is-loading {
+  background: rgb(232 95 44 / 4%);
+}
+
+.overlay-options label + label {
+  border-top: 1px solid #eee9e2;
+}
+
+.overlay-options input {
+  width: 17px;
+  height: 17px;
+  accent-color: #e85f2c;
+}
+
+.overlay-key {
+  display: block;
+  width: 27px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.unpaved-key {
+  background: repeating-linear-gradient(90deg, #8b5e34 0 6px, transparent 6px 9px);
+}
+
+.curvature-key {
+  background: repeating-linear-gradient(90deg, #e85f2c 0 4px, transparent 4px 7px);
+}
+
+.catalog-key {
+  background: linear-gradient(90deg, #7d9181, #b1b8ae);
+}
+
+.overlay-options label > .overlay-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.overlay-options b {
+  font-size: 12px;
+}
+
+.overlay-options small {
+  color: #77736c;
+  font-size: 10px;
+}
+
+.overlay-options .layer-freshness {
+  color: #969088;
+  font-size: 9px;
+}
+
+.layer-order-controls {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.layer-order-controls button {
+  min-height: 22px;
+  padding: 2px 5px;
+  border: 1px solid #ded8cf;
+  border-radius: 5px;
+  background: #fff;
+  color: #625e58;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.layer-order-controls button:disabled {
+  opacity: 0.4;
+}
+
+.layer-opacity {
+  width: 100%;
+  height: 14px;
+  margin-top: 2px;
+  accent-color: #e85f2c;
+}
+
+/* Per-layer status badge — surfaces loading / count / empty / zoom / error
+   directly inside the Layers panel so users always know which specific
+   layers have data and which found nothing in view. */
+.layer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.layer-status-badge.is-loading {
+  color: #c46635;
+  background: #fdf0e6;
+  border-color: #f1d6b8;
+}
+
+.layer-status-badge.is-ready {
+  color: #1b6e42;
+  background: #e9f3ed;
+  border-color: #c5dccf;
+}
+
+.layer-status-badge.is-empty {
+  color: #7a766f;
+  background: #f1efeb;
+  border-color: #e1ddd5;
+}
+
+.layer-status-badge.is-zoom {
+  color: #6c7480;
+  background: #eef0f2;
+  border-color: #d9dde2;
+}
+
+.layer-status-badge.is-error {
+  color: #c84432;
+  background: #fdeae7;
+  border-color: #f3cfc8;
+}
+
+/* Section header summarizing active status across the whole overlay list */
+.overlay-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.layer-section-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.layer-section-status.is-loading {
+  color: #c46635;
+  background: #fdf0e6;
+}
+
+.layer-section-status.is-error {
+  color: #c84432;
+  background: #fdeae7;
+}
+
+.layer-section-status.is-empty {
+  color: #7a766f;
+  background: #f1efeb;
+}
+
+.layer-section-status .map-layer-spinner {
+  width: 10px;
+  height: 10px;
+  border-width: 1.4px;
+}
+
+/* Retry banner — surfaces a big "Retry layers" button when any layer errors */
+.layer-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 8px 11px;
+  border-radius: 7px;
+  border: 1px solid #f3cfc8;
+  background: #fdeae7;
+  color: #c84432;
+  font-size: 11px;
+}
+
+.layer-error-banner button {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid #c84432;
+  border-radius: 999px;
+  background: transparent;
+  color: #c84432;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.layer-error-banner button:hover {
+  background: #c84432;
+  color: #fff;
+}
+
+.route-visibility-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #625e58;
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.route-visibility-options input {
+  width: 17px;
+  height: 17px;
+  accent-color: #e85f2c;
+}
+
+.map-pack-save {
+  display: flex;
+  gap: 6px;
+}
+
+.map-pack-save input {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #ded8cf;
+  border-radius: 8px;
+  background: #fff;
+  color: #242321;
+  font: inherit;
+  font-size: 11px;
+}
+
+.map-pack-save button,
+.map-pack-list button {
+  border: 1px solid #d8d1c7;
+  border-radius: 8px;
+  background: #fff;
+  color: #4f4a44;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.map-pack-save button {
+  min-width: 48px;
+}
+
+.map-pack-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.map-pack-list button {
+  min-height: 30px;
+  padding: 5px 8px;
+}
+
+.map-pack-options > small {
+  display: block;
+  margin-top: 7px;
+  color: #77736c;
+  font-size: 10px;
+}
+
+.reference-map-options > input[type="file"] {
+  display: block;
+  width: 100%;
+  color: #625e58;
+  font-size: 10px;
+}
+
+.reference-map-options > small {
+  display: block;
+  margin-top: 7px;
+  color: #77736c;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.reference-map-actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reference-map-actions > span {
+  overflow: hidden;
+  color: #4e4943;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-map-actions label {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 8px;
+  color: #625e58;
+  font-size: 10px;
+}
+
+.reference-map-actions input[type="range"] {
+  width: 100%;
+  accent-color: #e85f2c;
+}
+
+.reference-map-actions button {
+  min-height: 30px;
+  border: 1px solid #d8d1c7;
+  border-radius: 8px;
+  background: #fff;
+  color: #4f4a44;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+    .map-layer-control {
+      top: max(72px, calc(env(safe-area-inset-top) + 64px));
+      right: 12px;
+    }
+
+    .map-layers-button {
+      min-height: 44px;
+      padding: 0 12px;
+    }
+
+    .map-layer-control {
+      right: auto;
+      left: 12px;
+      justify-items: start;
+    }
+
+    /* Keep edit tools clear of the right-side map controls and above the bottom
+       sheet. The labels collapse to three unambiguous 46px icon targets on
+       phone; accessible names remain on every button. */
+    .map-tool-row {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .map-layers-button {
+      width: 46px;
+      min-width: 46px;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .map-layers-button > span:last-child {
+      display: none;
+    }
+}
+
+.map-provenance-options {
+  display: grid;
+  gap: 5px;
+  padding-top: 8px;
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.map-provenance-options strong {
+  color: var(--instrument);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.map-provenance-summary {
+  color: var(--metal);
+  font-size: 9px;
+}
+
+.map-provenance-options ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  max-height: 132px;
+  overflow: auto;
+  list-style: none;
+}
+
+.map-provenance-options li {
+  display: grid;
+  gap: 1px;
+}
+
+.map-provenance-options li b {
+  color: var(--instrument);
+  font-size: 10px;
+}
+
+.map-provenance-options li span {
+  color: var(--metal);
+  font-size: 9px;
+  line-height: 1.4;
+}
