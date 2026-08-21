@@ -6,6 +6,18 @@ const root = resolve(import.meta.dirname, "../..")
 const read = (path: string) => readFileSync(resolve(root, path), "utf8")
 
 describe("self-host deployment contract", () => {
+  it("makes backup and restore use the shared data-root resolver", () => {
+    const backup = read("deployment/backup.sh")
+    const restore = read("deployment/restore.sh")
+
+    expect(backup).toContain("resolve-data-root.sh")
+    expect(backup).toContain("resolve_switchback_data_root")
+    expect(restore).toContain("resolve-data-root.sh")
+    expect(restore).toContain("resolve_switchback_data_root")
+    expect(backup).not.toContain("SWITCHBACK_DATA_ROOT:-/var/lib/switchback")
+    expect(restore).not.toContain("SWITCHBACK_DATA_ROOT:-/var/lib/switchback")
+  })
+
   it("builds a pinned private GraphHopper service from the repository runtime", () => {
     const compose = read("deployment/docker-compose.production.yml")
     const graphhopper = compose.match(/^  graphhopper:\n([\s\S]*?)^volumes:\n/m)?.[1] ?? ""

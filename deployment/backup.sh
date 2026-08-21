@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="${SWITCHBACK_DATA_ROOT:-/var/lib/switchback}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/resolve-data-root.sh"
+ROOT="$(resolve_switchback_data_root)"
 DEST="${1:-/var/backups/switchback}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$DEST/$STAMP"
