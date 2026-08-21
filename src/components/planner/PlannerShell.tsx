@@ -22,6 +22,7 @@ import {
 } from "@/lib/client/map-layers"
 import { createPlanningSessionController } from "@/lib/client/planning-session-controller"
 import { routeEntityCache } from "@/lib/client/route-entity-cache"
+import { importGpxRoadLock, type GpxRoadLockImportOptions } from "@/lib/client/road-lock-import"
 import {
   createPlannerLocation,
   requestPlannerLocation,
@@ -622,6 +623,13 @@ export function PlannerShell() {
       warnings: []
     })
     applyAppTab("plan", "replace")
+  }
+
+  const handleImportAsLock = async (file: File, options: GpxRoadLockImportOptions) => {
+    const lock = await importGpxRoadLock(file, options)
+    routeRequestGate.invalidate()
+    usePlannerStore.getState().addRoadLock(lock)
+    return lock
   }
 
   const {
@@ -1500,6 +1508,7 @@ export function PlannerShell() {
               }))
           }}
           onImport={(file) => void handleImport(file)}
+          onImportAsLock={handleImportAsLock}
         />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "record" ? (
