@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 vi.mock("@/lib/routing/graphhopper", () => ({
@@ -77,6 +79,16 @@ function restoreEnvironment(): void {
 }
 
 describe("routes API provider wiring", () => {
+  it("keeps ride-character mapping outside the client namespace", () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, "../../src/app/api/routes/route.ts"),
+      "utf8"
+    )
+
+    expect(source).toContain("@/lib/domain/routing/ride-character")
+    expect(source).not.toContain("@/lib/client/")
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.GRAPHHOPPER_URL = "http://graphhopper.test"
