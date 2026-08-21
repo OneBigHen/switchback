@@ -23,6 +23,7 @@ import {
 import { createPlanningSessionController } from "@/lib/client/planning-session-controller"
 import { routeEntityCache } from "@/lib/client/route-entity-cache"
 import { importGpxRoadLock, type GpxRoadLockImportOptions } from "@/lib/client/road-lock-import"
+import { finalizeRecordedRide } from "@/lib/client/recorded-ride-finalization"
 import {
   createPlannerLocation,
   requestPlannerLocation,
@@ -105,22 +106,6 @@ function localPreferenceLearningSettings(): { enabled: boolean; bikeId: string }
   const settings = loadRiderSettings()
   const bike = getActiveBike(settings)
   return { enabled: settings.learningEnabled, bikeId: bike.id }
-}
-
-function recordedDistanceMiles(points: Array<{ coordinate: [number, number] }>): number {
-  const radians = (value: number) => value * Math.PI / 180
-  let meters = 0
-  for (let index = 1; index < points.length; index++) {
-    const previous = points[index - 1]!.coordinate
-    const current = points[index]!.coordinate
-    const latitudeDelta = radians(current[1] - previous[1])
-    const longitudeDelta = radians(current[0] - previous[0])
-    const firstLatitude = radians(previous[1])
-    const secondLatitude = radians(current[1])
-    const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDelta / 2) ** 2
-    meters += 2 * 6_371_000 * Math.asin(Math.sqrt(a))
-  }
-  return meters / 1609.344
 }
 
 export function PlannerShell() {
@@ -300,30 +285,12 @@ export function PlannerShell() {
         else freeRideTransitionRef.current = false
         return
       }
-      const first = points[0]!.coordinate
-      const last = points.at(-1)!.coordinate
-      const durationMinutes = Math.max(0, (Date.parse(points.at(-1)!.recordedAt) - Date.parse(points[0]!.recordedAt)) / 60_000)
-      const recordedRoute: PlannedRoute = !wasFreeRide && selectedRoute ? selectedRoute : {
-        id: `recording-${Date.now()}`,
-        name: `${wasFreeRide ? "Free Ride" : "Recorded ride"} · ${new Date().toLocaleDateString()}`,
-        profile: wasFreeRide ? "neural" : "quick",
-        geometry: points.map((point) => point.coordinate),
-        waypoints: [
-          { lat: first[1], lon: first[0], label: "Recording start" },
-          { lat: last[1], lon: last[0], label: "Recording finish" }
-        ],
-        instructions: [],
-        distanceMiles: recordedDistanceMiles(points),
-        durationMinutes,
-        ascentMeters: null,
-        descentMeters: null,
-        twistiness: 0,
-        turnCount: 0,
-        roadMix: {},
-        surfaceMix: {},
-        routingSource: "imported",
-        previewOnly: false
-      }
+      const recordedRoute = finalizeRecordedRide({
+        points,
+        wasFreeRide,
+        selectedRoute,
+        now: new Date()
+      })
       void rideJournalLibrary.save({ route: recordedRoute, points }).then(async (saved) => {
         await refreshRideJournal()
         setNotice({ kind: "success", message: `${saved.routeName} saved to Library rides.` })
