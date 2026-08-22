@@ -57,14 +57,14 @@ short-lived token and run this command. Paste the token only at the prompt;
 it is read from stdin and is not written to a script or shell history:
 
 ```bash
-ssh megaplex 'pct exec 125 -- /opt/actions-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen --runner-group homelab-ci'
+ssh -t megaplex 'pct exec 125 -- /opt/actions-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen --runner-group homelab-ci'
 ```
 
 If organization registration is unavailable, use the repository page's
 **Settings → Actions → Runners → New self-hosted runner** token instead:
 
 ```bash
-ssh megaplex 'pct exec 125 -- /opt/actions-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen/switchback'
+ssh -t megaplex 'pct exec 125 -- /opt/actions-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen/switchback'
 ```
 
 The service is created by the supported `svc.sh` mechanism after registration.
