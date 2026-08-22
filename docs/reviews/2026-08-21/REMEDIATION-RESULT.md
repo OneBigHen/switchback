@@ -114,6 +114,11 @@ failed and a foreign Compose project exposed a generic `web` service with a
 The same harness verified that multiple candidate mounts were ambiguous.
 No real restore or project database was touched.
 
+At baseline `54e9645`, backup and restore used only the explicit
+`SWITCHBACK_DATA_ROOT` or the fixed Switchback legacy path; they did not scan
+generic Docker containers. The cross-project selection was introduced by the
+P01 resolver refactor.
+
 ### Fix and regression coverage
 
 Generic `docker ps --filter label=com.docker.compose.service=web` discovery was
