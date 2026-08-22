@@ -129,7 +129,6 @@ export async function resolveReroute({
   if (online) {
     try {
       const rerouted = await resolveOnline(route, points, signal)
-      throwIfAborted(signal)
       return { route: rerouted, source: "online" }
     } catch (caught) {
       // An abort is cancellation, not permission to try a less authoritative

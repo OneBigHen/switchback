@@ -96,6 +96,23 @@ describe("ride reroute resolution", () => {
     expect(saved).not.toHaveBeenCalled()
   })
 
+  it("keeps an online route that resolves as the abort signal fires", async () => {
+    const controller = new AbortController()
+    const onlineRoute = { ...route, id: "online-after-deadline" }
+
+    await expect(resolveReroute(resolutionInput({
+      signal: controller.signal,
+      dependencies: {
+        online: vi.fn(async () => {
+          controller.abort()
+          return onlineRoute
+        }),
+        regional: vi.fn(async (): Promise<RerouteRegionalResult> => ({ route: null, error: "not used" })),
+        saved: vi.fn(async () => { throw new Error("not used") })
+      }
+    }))).resolves.toEqual({ route: onlineRoute, source: "online" })
+  })
+
   it("falls back from online failure to regional offline", async () => {
     const regionalRoute = { ...route, id: "regional-route" }
     const saved = vi.fn(async () => { throw new Error("not used") })
