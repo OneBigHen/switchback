@@ -1,7 +1,7 @@
 # Switchback Release Candidate QA
 
 Date: 2026-08-22
-Build: `integration/paperclip-baseline` at `10373e6`
+Build: `integration/paperclip-baseline` (final consolidated head)
 
 ## Result
 
