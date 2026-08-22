@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest"
 
 const root = resolve(import.meta.dirname, "../../..")
 const resolver = resolve(root, "deployment/lib/resolve-data-root.sh")
+const restore = resolve(root, "deployment/restore.sh")
 
 const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
 
@@ -57,7 +58,7 @@ describe("resolve_switchback_data_root", () => {
     const result = runResolver({
       legacyRoot,
       docker: `
-if [ "$1" = "ps" ]; then
+if [ "$1" = "compose" ]; then
   printf '%s\\n' web-container
 elif [ "$1" = "inspect" ]; then
   printf '%s\\n' ${shellQuote(mountRoot)}
@@ -69,6 +70,29 @@ fi
 
     expect(result.status).toBe(0)
     expect(result.stdout).toBe(`${mountRoot}\n`)
+    rmSync(legacyRoot, { recursive: true, force: true })
+  })
+
+  it("fails closed when Compose lookup fails and only a foreign web container exists", () => {
+    const legacyRoot = mkdtempSync(join(tmpdir(), "switchback-legacy-"))
+    const foreignRoot = join(tmpdir(), "foreign-project-data")
+    const result = runResolver({
+      legacyRoot,
+      docker: `
+if [ "$1" = "compose" ]; then
+  exit 1
+elif [ "$1" = "ps" ]; then
+  printf '%s\\n' foreign-web
+elif [ "$1" = "inspect" ]; then
+  printf '%s\\n' ${shellQuote(foreignRoot)}
+else
+  exit 1
+fi
+`
+    })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stdout).not.toContain(foreignRoot)
     rmSync(legacyRoot, { recursive: true, force: true })
   })
 
@@ -98,7 +122,7 @@ fi
     const ambiguous = runResolver({
       legacyRoot,
       docker: `
-if [ "$1" = "ps" ]; then
+if [ "$1" = "compose" ]; then
   printf 'web-one\\nweb-two\\n'
 elif [ "$1" = "inspect" ]; then
   printf '/var/lib/docker/volumes/one/_data\\n/var/lib/docker/volumes/two/_data\\n'
@@ -110,5 +134,18 @@ fi
     expect(ambiguous.status).not.toBe(0)
     expect(ambiguous.stderr).toContain("ambiguous")
     rmSync(legacyRoot, { recursive: true, force: true })
+  })
+
+  it("refuses an unsafe restore root before touching the backup", () => {
+    const backup = mkdtempSync(join(tmpdir(), "switchback-backup-"))
+    const result = spawnSync("bash", [restore, backup], {
+      encoding: "utf8",
+      env: { ...process.env, SWITCHBACK_DATA_ROOT: "/" }
+    })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain("Refusing unsafe Switchback data root")
+    expect(result.stdout).not.toContain("Restore target:")
+    rmSync(backup, { recursive: true, force: true })
   })
 })

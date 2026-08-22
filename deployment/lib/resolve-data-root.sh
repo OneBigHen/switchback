@@ -1,5 +1,23 @@
 #!/usr/bin/env bash
 
+validate_switchback_data_root() {
+  local root="${1:-}"
+  if [[ -z "$root" || "$root" != /* || "$root" == "/" ]]; then
+    printf 'Refusing unsafe Switchback data root: %s\n' "${root:-<empty>}" >&2
+    return 1
+  fi
+  if [[ -L "$root" || ( -e "$root" && ! -d "$root" ) ]]; then
+    printf 'Refusing inconsistent Switchback data root: %s\n' "$root" >&2
+    return 1
+  fi
+  for expected_dir in app artifacts; do
+    if [[ -e "$root/$expected_dir" && ! -d "$root/$expected_dir" ]]; then
+      printf 'Refusing inconsistent Switchback data root: %s/%s is not a directory\n' "$root" "$expected_dir" >&2
+      return 1
+    fi
+  done
+}
+
 resolve_switchback_data_root() {
   if [[ -n "${SWITCHBACK_DATA_ROOT:-}" ]]; then
     printf '%s\n' "$SWITCHBACK_DATA_ROOT"
@@ -18,12 +36,6 @@ resolve_switchback_data_root() {
 
   if command -v docker >/dev/null 2>&1; then
     if [[ -f "$compose_file" ]] && ids="$(docker compose -f "$compose_file" ps -aq web 2>/dev/null)"; then
-      while IFS= read -r container_id; do
-        [[ -n "$container_id" ]] && container_ids+=("$container_id")
-      done <<<"$ids"
-    fi
-
-    if ((${#container_ids[@]} == 0)) && ids="$(docker ps -aq --filter label=com.docker.compose.service=web 2>/dev/null)"; then
       while IFS= read -r container_id; do
         [[ -n "$container_id" ]] && container_ids+=("$container_id")
       done <<<"$ids"
