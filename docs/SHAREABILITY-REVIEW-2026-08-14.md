@@ -142,8 +142,8 @@ above; full lint/typecheck/test/e2e-critical/build chain re-run clean at the end
 - **TLS**: real public cert (`Google Trust Services`, `CN=henning.rodeo`, valid to
   2026-09-18), terminated at the Cloudflare edge. No `tls internal` anywhere in this path —
   there is no local Caddy for this app; Cloudflare's tunnel daemon (`cloudflared`,
-  `legacy-shared-services` config) proxies `ride.henning.rodeo` directly to
-  `http://192.168.1.40:3100`, i.e. origin traffic is plaintext HTTP inside the tunnel, which
+  configured Cloudflare tunnel) proxies `ride.henning.rodeo` directly to
+  a private loopback/LAN origin, i.e. origin traffic is plaintext HTTP inside the tunnel, which
   is the standard/expected Cloudflare Tunnel model (the tunnel itself is the encrypted
   transport — there's no separate local Caddy config for this app to inspect).
 - **`TRUST_CF_CONNECTING_IP`**: not set in production — `cf-connecting-ip` is **not** trusted

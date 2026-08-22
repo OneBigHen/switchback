@@ -20,8 +20,8 @@ authenticator and authenticated-browser acceptance remain open
 
 ## Verification
 
-- Focused identity tests: 10 files / 30 tests passed on Megaplex with Node 24.
-- Full Vitest on Megaplex: 201 files / 1,282 passed / 1 skipped.
+- Focused identity tests: 10 files / 30 tests passed on the validation host with Node 24.
+- Full Vitest on the validation host: 201 files / 1,282 passed / 1 skipped.
 - Browser/API acceptance: 32/32 standard desktop/mobile profiles, 30/30
   critical Chromium/WebKit, PWA 2/2, memory soak 10/10 cycles, and real
   GraphHopper fixture 5/5. The real-router gate was run with its fixture

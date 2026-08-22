@@ -101,7 +101,7 @@ npm run routing:start
 npm run dev
 ```
 
-Open `http://localhost:3000`. `localhost` is treated as a secure browser context for development; a phone opening a raw LAN URL such as `http://192.168.1.40:3000` is not. Use the HTTPS setup below for phone GPS and wake lock.
+Open `http://localhost:3000`. `localhost` is treated as a secure browser context for development; a phone opening a raw LAN URL is not. Use the HTTPS setup below for phone GPS and wake lock.
 
 ## Configuration
 
@@ -195,7 +195,7 @@ sudo rsync -a --delete --exclude node_modules --exclude .next --exclude data ./ 
 sudo -u switchback bash -lc 'cd /opt/switchback && npm ci && cp .env.example .env.production && npm run build'
 ```
 
-Materialize the routing files under `/opt/switchback/data`; do not leave production symlinks pointing into `/root/Vibe`. Import the graph as the service user if it was not copied from a compatible GraphHopper 11 install:
+Materialize the routing files under `/opt/switchback/data`; do not leave production symlinks pointing into a developer checkout. Import the graph as the service user if it was not copied from a compatible GraphHopper 11 install:
 
 ```bash
 sudo -u switchback bash -lc 'cd /opt/switchback && npm run data:bootstrap && npm run routing:import'
@@ -223,7 +223,7 @@ curl --fail http://127.0.0.1:3100/api/health
 Create a local DNS record, for example:
 
 ```text
-switchback.home.arpa -> 192.168.1.40
+switchback.home.arpa -> <your-LAN-IP>
 ```
 
 `.home.arpa` is reserved for home networks. Every phone that will use Switchback must resolve that name to the Caddy host.

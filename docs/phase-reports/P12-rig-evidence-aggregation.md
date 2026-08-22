@@ -55,12 +55,12 @@ copying route geometry or changing existing user data.
 | Command/evidence | Result |
 |---|---|
 | Focused P12 Vitest suite | 1 file, 5 tests passed locally |
-| Megaplex `npm run verify` | lint/typecheck/build passed; 176 test files, 1,195 passed, 1 skipped |
-| Megaplex broad Playwright | 24/24 |
-| Megaplex critical Chromium/WebKit | 30/30 |
-| Megaplex PWA | 2/2 |
-| Megaplex real-router fixture | 5/5, including private, motorcycle-closed, and disconnected refusals |
-| Megaplex memory soak | 1/1 test; 10/10 planner cycles |
+| the validation host `npm run verify` | lint/typecheck/build passed; 176 test files, 1,195 passed, 1 skipped |
+| the validation host broad Playwright | 24/24 |
+| the validation host critical Chromium/WebKit | 30/30 |
+| the validation host PWA | 2/2 |
+| the validation host real-router fixture | 5/5, including private, motorcycle-closed, and disconnected refusals |
+| the validation host memory soak | 1/1 test; 10/10 planner cycles |
 | Local/remote scoped SHA parity | equal for `rig-evidence.ts` and its focused test |
 | Router cleanup | PID file absent and port 8998 closed |
 

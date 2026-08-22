@@ -127,7 +127,7 @@ documented in ADR 0006.
 
 ## Validation posture
 
-The latest Megaplex acceptance run is green through unit (202 files / 1,285
+The latest the validation host acceptance run is green through unit (202 files / 1,285
 passed / 1 skipped), lint, typecheck, and production build. The self-hosted
 Compose/Caddy stack is stable with non-degraded `/api/health`, live routes for
 all eight profiles, and a valid Caddy configuration; final container gates are

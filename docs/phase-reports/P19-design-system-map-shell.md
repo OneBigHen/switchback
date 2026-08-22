@@ -59,13 +59,13 @@ IndexedDB data are unchanged.
 ## Tests
 
 - Local focused UI contract: 2 files / 3 tests passed.
-- Megaplex `npm run verify`: 184 test files / 1,225 passed / 1 skipped;
+- the validation host `npm run verify`: 184 test files / 1,225 passed / 1 skipped;
   lint, typecheck, and production build passed.
-- Megaplex broad browser matrix: 24/24.
-- Megaplex critical Chromium/WebKit: 30/30.
-- Megaplex PWA/offline: 2/2.
-- Megaplex real-router regression: 5/5.
-- Megaplex memory soak: 1/1 test with 10/10 planner cycles.
+- the validation host broad browser matrix: 24/24.
+- the validation host critical Chromium/WebKit: 30/30.
+- the validation host PWA/offline: 2/2.
+- the validation host real-router regression: 5/5.
+- the validation host memory soak: 1/1 test with 10/10 planner cycles.
 - Router cleanup: PID file absent and port 8998 closed.
 - Final screenshots were captured for desktop, iPhone, landscape, Library,
   and Ride surfaces; the dark editor state was visually reviewed after the
@@ -77,12 +77,12 @@ IndexedDB data are unchanged.
 - `npm run lint`
 - `npm run typecheck`
 - `git diff --check`
-- Megaplex `npm run verify`
-- Megaplex `npm run test:e2e`
-- Megaplex `npm run test:e2e:critical`
-- Megaplex `npm run test:e2e:pwa`
-- Megaplex `npm run test:e2e:memory-soak`
-- Megaplex `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
+- the validation host `npm run verify`
+- the validation host `npm run test:e2e`
+- the validation host `npm run test:e2e:critical`
+- the validation host `npm run test:e2e:pwa`
+- the validation host `npm run test:e2e:memory-soak`
+- the validation host `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
 
 ## Memory/performance evidence
 
@@ -110,7 +110,7 @@ UI phase.
 
 - P20 — Explore/search: simple home, free text, destination, loop, and GPX.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/ Megaplex acceptance loop.
+  gates outside this local/ the validation host acceptance loop.
 
 ## Rollback
 

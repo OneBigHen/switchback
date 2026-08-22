@@ -152,11 +152,11 @@ that work is uninsurable.
   scripts under `.claude/.github/.opencode/skills/` weren't excluded from
   ESLint, producing 304 warnings against `--max-warnings=0`. Fixed via
   `eslint.config.mjs` `globalIgnores`.
-- Heavy Playwright/build work moved to `switchback-router` (LXC 143 on
-  `megaplex`, reached via `ssh megaplex "pct exec 143 -- ..."`) at the user's
+- Heavy Playwright/build work moved to the routing test LXC (LXC 143 on
+  a private validation host, reached via `ssh <validation-host> "pct exec 143 -- ..."`) at the user's
   request, to avoid loading the coding session's own host. A clean sibling
-  clone lives at `/root/Vibe/switchback-ux` on that LXC (kept separate from
-  its existing `/root/Vibe/switchback` checkout, which has unrelated
+  clone lives at `/path/to/switchback-ux` on that LXC (kept separate from
+  its existing `/path/to/switchback` checkout, which has unrelated
   uncommitted WIP from a different workstream on the backend routing spec).
   Baselines are generated/verified there, then pulled back into this repo.
 
@@ -175,9 +175,10 @@ that work is uninsurable.
 
 ### TASK-0.2 — Add the visual project to CI [DONE 2026-08-15, commit 4c228cc]
 - **Files:** `.github/workflows/quality.yml`
-- **Do:** Add a `visual` job mirroring `critical-browser` (checkout, node 24, `npm ci`,
+- **Do:** Add a `visual` job mirroring the public browser jobs (checkout, node 24, `npm ci`,
   `npx playwright install --with-deps chromium`, run `--project=visual`), uploading diffs on
-  failure. Add it to the `quality-summary` `needs:` list.
+  failure. The current workflow keeps visual evidence separate from the deterministic
+  required-check set; see `docs/CI-ARCHITECTURE.md`.
 - **Accept:** Workflow YAML valid; job appears in `needs`.
 - **Verify:** `npx yaml-lint .github/workflows/quality.yml` or `python3 -c "import yaml,sys;yaml.safe_load(open('.github/workflows/quality.yml'))"`
 - **Risk:** Low.

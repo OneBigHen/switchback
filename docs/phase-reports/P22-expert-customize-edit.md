@@ -41,12 +41,12 @@ None.
 
 ## Tests
 
-- Megaplex focused audit: 9 files / 92 tests passed:
+- the validation host focused audit: 9 files / 92 tests passed:
   `planner-deck.test.tsx`, `planner-shell-geocoding.test.tsx`,
   `bike-profile-picker.test.tsx`, `road-lock-library-drawer.test.tsx`,
   `library-drawer-road-locks.test.tsx`, `waypoint-field.test.tsx`,
   `route-edit-state.test.ts`, `road-locks.test.ts`, and `bike-profiles.test.ts`.
-- Megaplex graph-matched road-lock journey: desktop Chromium 1/1 passed.
+- the validation host graph-matched road-lock journey: desktop Chromium 1/1 passed.
 - The unchanged source tree retained the P19 acceptance gates: `npm run
   verify` at 184 test files / 1,225 passed / 1 skipped, lint, typecheck, and
   build; browser 24/24; critical 30/30; PWA 2/2; real-router 5/5; memory soak
@@ -78,7 +78,7 @@ device ergonomics, authenticated-browser behavior, or field/provider quality.
 
 - P23 — Ride HUD v2 for portrait and landscape mounted-phone use.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/Megaplex acceptance loop.
+  gates outside this local/the validation host acceptance loop.
 
 ## Rollback
 

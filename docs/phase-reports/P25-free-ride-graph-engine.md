@@ -64,9 +64,9 @@ saved route data remains compatible.
 
 ## Tests
 
-- Megaplex focused P25 audit: 4 files / 23 tests passed; lint and typecheck
+- the validation host focused P25 audit: 4 files / 23 tests passed; lint and typecheck
   passed.
-- Megaplex `npm run verify`: 185 test files / 1,230 passed / 1 skipped; lint,
+- the validation host `npm run verify`: 185 test files / 1,230 passed / 1 skipped; lint,
   typecheck, and production build passed.
 - Free Ride browser matrix: 4/4 passed across desktop Chromium, mobile Safari,
   and both landscape projects.
@@ -86,8 +86,8 @@ npm exec -- vitest run tests/unit/free-ride-graph.test.ts \
   tests/components/free-ride-hud.test.tsx --reporter=verbose
 ```
 
-The remaining acceptance commands ran in `/tmp/switchback-megaplex-test.LDEtb5`
-inside the Megaplex LXC with Node 24.
+The remaining acceptance commands ran in `/tmp/switchback-validation-test.LDEtb5`
+inside a dedicated test LXC with Node 24.
 
 ## Memory/performance evidence
 
@@ -120,7 +120,7 @@ matched against current map data, or that field GPS/provider quality is good.
 - P26 — Free Ride interruption, quiet-period, preference-signal, and Head Home
   behavior.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/Megaplex acceptance loop.
+  gates outside this local/the validation host acceptance loop.
 
 ## Rollback
 
