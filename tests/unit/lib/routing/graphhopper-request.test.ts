@@ -52,6 +52,19 @@ function preferLock() {
   })
 }
 
+function unmatchedMustLock() {
+  return createManualRoadLock({
+    mode: "must",
+    displayName: "Unmatched road",
+    edgeIds: [],
+    geometry: lockLine,
+    orderedAnchors: [lockLine[0]!, lockLine[1]!],
+    accessSnapshot,
+    sourceRegionId: "manual",
+    sourceGraphVersion: "manual"
+  })
+}
+
 describe("GraphHopper request policy", () => {
   afterEach(() => {
     featureFlags.roadRequirements = true
@@ -142,6 +155,20 @@ describe("GraphHopper request policy", () => {
         { label: "Must-use PA-125: exit" },
         { label: "Finish" }
       ]
+    })
+  })
+
+  it("does not send an unresolved empty-edge must lock to GraphHopper", () => {
+    const request = {
+      profile: "twisty" as const,
+      points: [start, finish],
+      roadLocks: [unmatchedMustLock()]
+    }
+
+    expect(createGraphHopperRequest(request)).not.toHaveProperty("custom_model")
+    expect(expandMustLockWaypoints(request)).toEqual({
+      points: [start, finish],
+      wireToOriginal: [0, 1]
     })
   })
 })

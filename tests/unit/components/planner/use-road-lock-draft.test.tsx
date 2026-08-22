@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import { useRoadLockDraft } from "@/components/planner/useRoadLockDraft"
 import type { RoadMatchResult } from "@/lib/roads/road-matching"
 import type { RoadLock } from "@/lib/roads/road-locks"
+import { initialPlannerState, usePlannerStore } from "@/stores/planner-store"
 
 const matched: RoadMatchResult = {
   displayName: null,
@@ -90,6 +91,29 @@ describe("useRoadLockDraft", () => {
       accessSnapshot: { routable: true, motorcycleAccess: "unknown" }
     })
     expect(result.current.lockDrawMode).toBe(false)
+  })
+
+  it("does not save or persist a must lock when matching fails", async () => {
+    usePlannerStore.setState(initialPlannerState)
+    localStorage.clear()
+    const addRoadLock = vi.fn((lock: RoadLock) => usePlannerStore.getState().addRoadLock(lock))
+    const matchRoad = vi.fn(async () => {
+      throw new Error("router unavailable")
+    })
+    const { result } = renderHook(() => useRoadLockDraft({ addRoadLock, matchRoad }))
+    addAnchors(result)
+
+    await act(async () => result.current.commitLockDraft())
+
+    expect(matchRoad).toHaveBeenCalledOnce()
+    expect(addRoadLock).not.toHaveBeenCalled()
+    expect(usePlannerStore.getState().roadLocks).toEqual([])
+    const persisted = JSON.parse(localStorage.getItem("switchback.planner.v1") ?? '{"state":{"roadLocks":[]}}') as {
+      state: { roadLocks: RoadLock[] }
+    }
+    expect(persisted.state.roadLocks).toEqual([])
+    expect(result.current.lockDraftMessage).toBe("router unavailable")
+    expect(result.current.lockDrawMode).toBe(true)
   })
 
   it("reset cancels the draft and clears all captured state", () => {

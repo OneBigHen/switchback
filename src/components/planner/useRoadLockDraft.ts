@@ -134,9 +134,8 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
     try {
       // SB-013/014: when road requirements are enabled, the browser graph-matches
       // the two anchors against the live router so the lock carries real edge ids
-      // and ordered geometry. Matching is best-effort: a refusal (router down, no
-      // legal path) falls back to an approximate manual lock that never claims a
-      // verified graph match.
+      // and ordered geometry. Matching is required for must locks; prefer locks
+      // may fall back to an explicitly approximate manual lock.
       if (featureFlags.roadRequirements) {
         try {
           const matched = await matchRoad({
@@ -156,8 +155,8 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
           addRoadLock(lock)
           resetLockDraft()
           return
-        } catch {
-          // Save an honest approximate lock when graph matching is unavailable.
+        } catch (caught) {
+          if (draft.mode !== "prefer") throw caught
         }
       }
       const geometry: Coordinate[] = draft.anchors.map(([lon, lat]) => [lon, lat] as Coordinate)
