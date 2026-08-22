@@ -581,7 +581,7 @@ after an e2e run.
 ## 8. Refactor Residue
 
 - `docs/fix-brief.md` — the AI implementation prompt for this work
-  ("You are working in /root/Vibe/switchback…"), committed into `docs/`. It
+  ("You are working in <local checkout>…"), committed into `docs/`. It
   references `docs/audit-deepseek-v4-pro.md` as a source of truth and instructs
   not to commit audit docs. Delete or move out of the shipped tree.
 - `src/lib/client/corridor-hints-client.ts:4` — `export { characterForProfile }`

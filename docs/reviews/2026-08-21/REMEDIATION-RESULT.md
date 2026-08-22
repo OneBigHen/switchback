@@ -211,7 +211,7 @@ are not part of the branch.
 
 ## Git and merge status
 
-- Worktree: `/root/Vibe/switchback-opus-adversarial`
+- Worktree: `<isolated checkout>`
 - Branch: `fix/opus-adversarial-blockers`
 - Starting point: `253a237`
 - Fix commits are separate by finding; follow-up defense-in-depth and typing

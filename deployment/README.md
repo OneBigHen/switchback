@@ -23,3 +23,27 @@ as `.failed` files for operator review.
 
 The checked-in Caddy file provides transport/security headers, not identity
 access control. Do not expose it publicly until the edge policy is active.
+
+## Backup and restore data root
+
+Set `SWITCHBACK_DATA_ROOT` to the absolute host path that contains the
+Switchback `app/` and `artifacts/` directories before running the maintenance
+scripts. This explicit root is preferred; `/data` inside the web container is
+not a host path.
+
+```bash
+export SWITCHBACK_DATA_ROOT=/path/to/switchback-data
+deployment/backup.sh /path/to/backups
+SWITCHBACK_DATA_ROOT=/path/to/switchback-data deployment/restore.sh /path/to/backup/UTC-STAMP
+```
+
+When the variable is empty, the resolver may inspect only the Compose project
+declared by `deployment/docker-compose.production.yml`. It accepts exactly one
+unique `/data` mount source. It never searches for an arbitrary container named
+`web`; missing or ambiguous discovery fails closed. A legacy root is accepted
+only when it contains recognizable Switchback state.
+
+`restore.sh` validates the resolved root before it prints `Restore target:` or
+touches the backup. `/`, symlinks, files, and ambiguous or foreign roots are
+rejected. Checksums are verified before the database/artifact copy; no restore
+should proceed without a validated Switchback root.

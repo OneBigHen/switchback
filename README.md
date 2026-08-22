@@ -122,6 +122,7 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 | `CORRIDOR_CACHE_PATH` | `<repo>/data/route-research-cache.sqlite` | Server-side 7-day cache of validated corridor hints for `/api/ride-corridors` and the timeboxed destination planner |
 | `GPX_LIBRARY_PATH` | `<repo>/data/gpx-library` | Server-side catalog scanned by `/api/gpx-library`; separate from each browser's IndexedDB routes |
 | `COMMUNITY_DB_PATH` / `SYNC_DB_PATH` | `data/*.sqlite` | Server-side route-centered community and opaque encrypted-sync stores; keep outside the web root |
+| `SWITCHBACK_DATA_ROOT` | unset | Preferred absolute host path for backup/restore; unset uses only unambiguous Compose-scoped discovery |
 | `SWITCHBACK_SESSION_SECRET` | unset | At least 32 characters; signs pseudonymous identity sessions |
 | `SWITCHBACK_WEBAUTHN_RP_ID` | `localhost` outside production | Production HTTPS relying-party hostname; must match the configured origin or a parent domain |
 | `SWITCHBACK_WEBAUTHN_ORIGIN` | `http://localhost:3000` outside production | Exact production HTTPS origin accepted by WebAuthn verification |
@@ -179,6 +180,13 @@ defense in depth, but the proxy contract must be respected:
 - **GPX library paths are scrubbed** from the public catalog response; the
   project catalog under `GPX_LIBRARY_PATH` is still visible to anyone — only
   publish routes you intend to share.
+
+Backup and restore use `deployment/lib/resolve-data-root.sh`. Set
+`SWITCHBACK_DATA_ROOT` explicitly when possible. If it is unset, discovery is
+limited to the web service declared by the production Compose file and accepts
+only one unique `/data` mount source; generic Docker-wide `web` discovery is
+forbidden. `deployment/restore.sh` prints the validated target only after
+rejecting unsafe, foreign, or ambiguous roots and verifying backup checksums.
 
 ## Production on a LAN with HTTPS
 

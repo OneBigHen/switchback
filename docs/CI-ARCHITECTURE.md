@@ -18,8 +18,9 @@ Every pull request runs on a fresh `ubuntu-latest` machine with read-only
 - `real-router` (a pinned local GraphHopper fixture)
 
 The `visual` job also runs for visibility. Its snapshots are not updated in CI;
-environmental pixel drift is reported as a visual failure and is not one of the
-deterministic merge gates until the baseline policy is resolved.
+environmental pixel drift is reported as a visual failure, and the job is
+explicitly `continue-on-error` until the baseline is independent of the app's
+time-based automatic theme selection. It is not a deterministic merge gate.
 
 No public fork PR uses a persistent runner or receives secrets. The workflow
 uses `pull_request`, not `pull_request_target`, for untrusted code.
