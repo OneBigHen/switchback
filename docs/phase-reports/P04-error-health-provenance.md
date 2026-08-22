@@ -51,7 +51,7 @@ configuration, or user data was changed.
 ## Tests
 
 The complete gate ran in an isolated checkout on the validation host's `dedicated test LXC`
-LXC 109 (`<private-test-host>`) using Node 24.15.0. The checkout excluded
+`<lxc-vmid>` (`<private-test-host>`) using Node 24.15.0. The checkout excluded
 `.env.local`, Git metadata, production routing data, runtime databases,
 dependencies copied from the workstation, and generated artifacts. No
 production Switchback service was restarted or reconfigured.

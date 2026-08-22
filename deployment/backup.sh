@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/resolve-data-root.sh"
 ROOT="$(resolve_switchback_data_root)"
+validate_switchback_data_root "$ROOT"
 DEST="${1:-/var/backups/switchback}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$DEST/$STAMP"

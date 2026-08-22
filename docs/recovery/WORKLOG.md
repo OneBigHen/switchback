@@ -1423,7 +1423,7 @@ P06 — planning controller.
   route geometry, server memory, route queue, and route cache.
 - Instrumented the persistent map, route-import worker, GPS/recording paths,
   and navigation timer cleanup; added the ten-cycle `memory-soak` project.
-- Isolated the validation host test checkout on `dedicated test LXC` LXC 109
+- Isolated the validation host test checkout on `<lxc-vmid>`
   (`<private-test-host>`) used Node 24.15.0 and the fixture router only. No
   production Switchback service was changed.
 

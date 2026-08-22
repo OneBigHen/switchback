@@ -102,9 +102,9 @@ only disposable smoke containers and checks out the exact trusted `main` ref.
 ## Maintenance
 
 `ci-maintenance.timer` runs daily with a small randomized delay. It prunes
-stopped containers, unused networks, dangling images, old Docker build cache,
-npm/pnpm cache metadata, and old runner work directories. It never prunes Docker
-volumes. If a `Runner.Worker` process is active, destructive cleanup is skipped.
+stopped containers, unused networks, dangling images, and old Docker build
+cache. It never prunes Docker volumes or runner workspaces. If a `Runner.Worker`
+process is active, destructive cleanup is skipped.
 
 ```bash
 ssh <proxmox-host> 'pct exec <lxc-vmid> -- systemctl status ci-maintenance.timer --no-pager'

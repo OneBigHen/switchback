@@ -82,7 +82,7 @@ invent a route by joining unrelated waypoints to make them appear valid.
 
 ## the validation host verification
 
-The isolated checkout on `<private-test-host>`, the validation host `dedicated test LXC` LXC 109,
+The isolated checkout on `<private-test-host>`, the validation host `dedicated test LXC` `<lxc-vmid>`,
 used Node 24.15.0 and the synced P10 source:
 
 | Command/evidence | Result |

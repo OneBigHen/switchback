@@ -62,7 +62,7 @@ changed or deleted.
 
 ## Tests
 
-The P03 gate ran in the sanitized, isolated the validation host `dedicated test LXC` LXC 109
+The P03 gate ran in the sanitized, isolated validation host `<lxc-vmid>`
 (`<private-test-host>`) using Node 24.15.0. The checkout did not receive
 `.env.local`, Git metadata, production routing data, or runtime databases; no
 production Switchback service was restarted or reconfigured.

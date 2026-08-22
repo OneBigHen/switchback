@@ -59,8 +59,8 @@ persisted route data, runtime database, or production service changed.
 
 ## Tests
 
-The complete final gate ran in the isolated the validation host `dedicated test LXC` LXC 109
-(`<private-test-host>`) checkout at `/tmp/switchback-validation-test.LDEtb5`, using
+The complete final gate ran in the isolated validation host `<lxc-vmid>`
+(`<private-test-host>`) checkout at `<validation-checkout>`, using
 Node 24.15.0. The checkout excluded Git metadata, `.env*`, dependencies,
 production routing data, runtime databases, and generated source artifacts.
 The real-router run used only the isolated GraphHopper jar and prepared fixture

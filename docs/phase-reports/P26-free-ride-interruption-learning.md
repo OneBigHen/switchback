@@ -82,7 +82,7 @@ npm exec -- vitest run tests/unit/free-ride-recommendation.test.ts \
 npm run test:e2e -- tests/e2e/free-ride.spec.ts
 ```
 
-The full acceptance commands ran in `/tmp/switchback-validation-test.LDEtb5`
+The full acceptance commands ran in `<validation-checkout>`
 inside a dedicated test LXC with Node 24.
 
 ## Memory/performance evidence

@@ -4,7 +4,6 @@ set -euo pipefail
 runner_root="${CI_RUNNER_ROOT:-/opt/actions-runner}"
 runner_user="github-runner"
 runner_home="/home/${runner_user}"
-work_root="$runner_root/_work"
 
 log() { printf 'ci-maintenance: %s\n' "$*"; }
 disk_percent() { df --output=pcent "$runner_root" | tail -n 1 | tr -dc '0-9'; }
@@ -31,15 +30,8 @@ docker container prune --force
 docker network prune --force
 docker image prune --force
 docker builder prune --force --filter until=168h
-runuser -u "$runner_user" -- env HOME="$runner_home" npm cache verify
-runuser -u "$runner_user" -- env HOME="$runner_home" sh -c "cd '$runner_home' && pnpm store prune"
-
 if (( before >= 75 )); then
   log "disk is at or above 75%; routine cleanup completed under warning threshold"
-fi
-
-if [[ -d "$work_root" ]]; then
-  find "$work_root" -mindepth 1 -maxdepth 1 -type d -mtime +7 -print -exec rm -rf -- {} +
 fi
 
 if (( before >= 85 )); then

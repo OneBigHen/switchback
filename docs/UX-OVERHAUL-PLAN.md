@@ -152,7 +152,7 @@ that work is uninsurable.
   scripts under `.claude/.github/.opencode/skills/` weren't excluded from
   ESLint, producing 304 warnings against `--max-warnings=0`. Fixed via
   `eslint.config.mjs` `globalIgnores`.
-- Heavy Playwright/build work moved to the routing test LXC (LXC 143 on
+- Heavy Playwright/build work moved to the routing test LXC (LXC <lxc-vmid> on
   a private validation host, reached via `ssh <validation-host> "pct exec 143 -- ..."`) at the user's
   request, to avoid loading the coding session's own host. A clean sibling
   clone lives at `/path/to/switchback-ux` on that LXC (kept separate from

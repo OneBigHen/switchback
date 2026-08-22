@@ -90,10 +90,10 @@ report; no owner corpus re-import was run during this phase.
 
 ## Commands and environment
 
-The acceptance runs used `/tmp/switchback-validation-test.LDEtb5` in the
+The acceptance runs used `<validation-checkout>` in the
 the validation host LXC at `root@<private-test-host>`, with Node 24.15.0 at
-`/tmp/node-v24.15.0-linux-x64`. The final full verification log is
-`/tmp/switchback-p27-final-verify.log` on that LXC.
+`<node-toolchain-path>`. The final full verification log is
+`<verification-log>` on that validation host.
 
 ## Memory/performance evidence
 

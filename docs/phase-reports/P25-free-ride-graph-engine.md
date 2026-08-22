@@ -86,7 +86,7 @@ npm exec -- vitest run tests/unit/free-ride-graph.test.ts \
   tests/components/free-ride-hud.test.tsx --reporter=verbose
 ```
 
-The remaining acceptance commands ran in `/tmp/switchback-validation-test.LDEtb5`
+The remaining acceptance commands ran in `<validation-checkout>`
 inside a dedicated test LXC with Node 24.
 
 ## Memory/performance evidence

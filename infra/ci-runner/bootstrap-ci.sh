@@ -15,6 +15,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 runner_user="github-runner"
 runner_home="/home/${runner_user}"
 playwright_version="${CI_PLAYWRIGHT_VERSION:-1.61.1}"
+timezone="${CI_TIMEZONE:-UTC}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
@@ -51,8 +52,9 @@ if ! id -u "$runner_user" >/dev/null 2>&1; then
   useradd --create-home --home-dir "$runner_home" --shell /bin/bash "$runner_user"
 fi
 
-ln -snf /usr/share/zoneinfo/America/New_York /etc/localtime
-echo America/New_York > /etc/timezone
+[[ -f "/usr/share/zoneinfo/${timezone}" ]] || die "unknown CI_TIMEZONE: ${timezone}"
+ln -snf "/usr/share/zoneinfo/${timezone}" /etc/localtime
+printf '%s\n' "$timezone" > /etc/timezone
 
 install -d -m 0755 /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
