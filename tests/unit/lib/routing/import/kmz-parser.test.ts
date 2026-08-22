@@ -49,6 +49,19 @@ function storedKmz(
   return archive
 }
 
+async function deflatedKmz(name: string, kml: string): Promise<Uint8Array> {
+  const source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(kml))
+      controller.close()
+    }
+  })
+  const compressed = new Uint8Array(await new Response(
+    source.pipeThrough(new CompressionStream("deflate-raw"))
+  ).arrayBuffer())
+  return storedKmz(name, compressed, 0, 8, new TextEncoder().encode(kml).length)
+}
+
 describe("KMZ parser", () => {
   it("extracts a stored KML entry", async () => {
     const kml = "<kml><Document><name>Stored</name></Document></kml>"
@@ -67,6 +80,21 @@ describe("KMZ parser", () => {
 
     await expect(extractKmzKml(storedKmz("doc.kml", compressed, 0, 8, new TextEncoder().encode(kml).length)))
       .resolves.toBe(kml)
+  })
+
+  it("extracts a large deflated KML without losing content", { timeout: 10_000 }, async () => {
+    const coordinates = Array.from({ length: 8_000 }, (_, index) =>
+      `${-77 + (index % 2) * 0.001},${40 + (index % 2) * 0.001},0`
+    ).join(" ")
+    const kml = [
+      '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><LineString><coordinates>',
+      coordinates,
+      "</coordinates></LineString></Placemark></Document></kml>"
+    ].join("")
+    expect(new TextEncoder().encode(kml).byteLength).toBeGreaterThanOrEqual(100_000)
+
+    const archive = await deflatedKmz("doc.kml", kml)
+    await expect(extractKmzKml(archive)).resolves.toBe(kml)
   })
 
   it("rejects encrypted entries before attempting extraction", async () => {

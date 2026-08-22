@@ -63,11 +63,13 @@ export async function extractKmzKml(bytes: Uint8Array): Promise<string> {
   if (entry.compression !== 8 || typeof DecompressionStream === "undefined") {
     throw new Error("This browser cannot decompress this KMZ file. Extract its KML file and import that instead.")
   }
-  const decompressor = new DecompressionStream("deflate-raw")
-  const writer = decompressor.writable.getWriter()
-  await writer.write(new Uint8Array(entry.compressed))
-  await writer.close()
-  const decoded = await new Response(decompressor.readable).text()
+  const compressedStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(entry.compressed))
+      controller.close()
+    }
+  }).pipeThrough(new DecompressionStream("deflate-raw"))
+  const decoded = await new Response(compressedStream).text()
   if (new TextEncoder().encode(decoded).byteLength > MAX_GPX_IMPORT_BYTES) {
     throw new Error("KMZ KML contents must be 5 MB or smaller.")
   }
