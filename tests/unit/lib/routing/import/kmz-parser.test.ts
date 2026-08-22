@@ -50,7 +50,7 @@ function storedKmz(
 }
 
 async function deflatedKmz(name: string, kml: string): Promise<Uint8Array> {
-  const source = new ReadableStream<Uint8Array>({
+  const source = new ReadableStream<BufferSource>({
     start(controller) {
       controller.enqueue(new TextEncoder().encode(kml))
       controller.close()

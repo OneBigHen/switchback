@@ -63,7 +63,7 @@ export async function extractKmzKml(bytes: Uint8Array): Promise<string> {
   if (entry.compression !== 8 || typeof DecompressionStream === "undefined") {
     throw new Error("This browser cannot decompress this KMZ file. Extract its KML file and import that instead.")
   }
-  const compressedStream = new ReadableStream<Uint8Array>({
+  const compressedStream = new ReadableStream<BufferSource>({
     start(controller) {
       controller.enqueue(new Uint8Array(entry.compressed))
       controller.close()
