@@ -1,8 +1,8 @@
 # Opus adversarial remediation result
 
-Review: `OPUS-ADVERSARIAL-REVIEW.md`  
-Reviewed HEAD: `253a237`  
-Baseline: `54e9645`  
+Review: `OPUS-ADVERSARIAL-REVIEW.md`
+Reviewed HEAD: `253a237`
+Baseline: `54e9645`
 Remediation branch: `fix/opus-adversarial-blockers`
 
 The three P0 claims were independently reproduced before fixing. The baseline
