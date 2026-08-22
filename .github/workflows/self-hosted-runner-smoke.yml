@@ -1,0 +1,82 @@
+name: Self-hosted runner smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: homelab-ci smoke
+    runs-on: [self-hosted, linux, x64, homelab-ci]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Report appliance
+        run: |
+          set -euo pipefail
+          printf 'hostname: '; hostname
+          printf 'kernel: '; uname -srmo
+          printf 'architecture: '; uname -m
+          printf 'node: '; node --version
+          printf 'npm: '; npm --version
+          printf 'pnpm: '; pnpm --version
+          printf 'git: '; git --version
+          printf 'gh: '; gh --version | head -n 1
+          printf 'docker: '; docker --version
+          printf 'compose: '; docker compose version
+          printf 'cpu: '; nproc
+          free -h
+          df -h /
+
+      - name: Node execution
+        run: |
+          node -e "if (2 + 2 !== 4) process.exit(1); console.log('node: PASS')"
+
+      - name: Docker execution
+        run: docker run --rm hello-world
+
+      - name: Docker Compose execution
+        run: |
+          set -euo pipefail
+          compose_dir="$(mktemp -d)"
+          trap 'docker compose --project-directory "$compose_dir" down --volumes --remove-orphans' EXIT
+          cat > "$compose_dir/compose.yml" <<'EOF'
+          services:
+            smoke:
+              image: alpine:3.22
+              command: ["sh", "-c", "echo compose: PASS"]
+          EOF
+          docker compose -f "$compose_dir/compose.yml" up --abort-on-container-exit --exit-code-from smoke
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      - name: Install Playwright browser revisions
+        run: npx playwright install chromium webkit
+
+      - name: Playwright Chromium and WebKit
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium, webkit } from '@playwright/test';
+          for (const [name, type] of Object.entries({ chromium, webkit })) {
+            const browser = await type.launch({ headless: true });
+            try {
+              const page = await browser.newPage();
+              await page.goto('data:text/html,<main id="ready">ci-ok</main>');
+              if (await page.locator('#ready').textContent() !== 'ci-ok') throw new Error(`${name} content mismatch`);
+              console.log(`${name}: PASS`);
+            } finally {
+              await browser.close();
+            }
+          }
+          NODE
