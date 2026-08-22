@@ -211,8 +211,9 @@ are not part of the branch.
 - Starting point: `253a237`
 - Fix commits are separate by finding; follow-up defense-in-depth and typing
   corrections are separate commits.
-- Push status: pushed to `origin/fix/opus-adversarial-blockers` at
-  `d232f9b2ac71b52e4c5ea84d8f5221d6fa313a83`.
+- Push status: pushed to `origin/fix/opus-adversarial-blockers`; remote matched
+  the local branch after each push. The final remote SHA is reported in the
+  agent handoff.
 - Merge status: not merged.
 
 External GitHub-hosted public-runner and live-provider gates remain unproven.
