@@ -32,6 +32,7 @@ function createRouteImportWorker(): RouteImportWorker {
 let nextGeneration = 0
 let activeImportWorkers = 0
 const MAX_ACTIVE_IMPORT_WORKERS = 1
+const ROUTE_IMPORT_DEADLINE_MS = 30_000
 
 function createGeneration(): number {
   nextGeneration = nextGeneration === Number.MAX_SAFE_INTEGER ? 1 : nextGeneration + 1
@@ -82,6 +83,7 @@ export async function parseRouteFileInWorker(
 
   return new Promise<PlannedRoute>((resolve, reject) => {
     let settled = false
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
     const onAbort = () => {
       if (settled) return
       try {
@@ -101,6 +103,7 @@ export async function parseRouteFileInWorker(
     const finish = () => {
       if (settled) return
       settled = true
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
       signal?.removeEventListener("abort", onAbort)
       worker.onmessage = null
       worker.onerror = null
@@ -108,6 +111,11 @@ export async function parseRouteFileInWorker(
       releaseWorkerMetric()
       activeImportWorkers -= 1
       worker.terminate()
+    }
+    const onTimeout = () => {
+      if (settled) return
+      finish()
+      reject(new Error("The route import timed out."))
     }
     worker.onerror = () => {
       if (settled) return
@@ -148,6 +156,7 @@ export async function parseRouteFileInWorker(
       }
       resolve(result.route)
     }
+    timeoutId = setTimeout(onTimeout, ROUTE_IMPORT_DEADLINE_MS)
     signal?.addEventListener("abort", onAbort, { once: true })
     if (signal?.aborted) {
       onAbort()

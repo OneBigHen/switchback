@@ -161,6 +161,42 @@ describe("route import worker client", () => {
     expect(worker.onmessageerror).toBeNull()
   })
 
+  it("times out a silent worker, releases the slot, and allows the next import", async () => {
+    vi.useFakeTimers()
+    try {
+      const firstWorker = new FakeWorker()
+      const secondWorker = new FakeWorker()
+      const createWorker = vi.fn(() => firstWorker)
+      const first = parseRouteFileInWorker(file(), createWorker)
+      void first.catch(() => undefined)
+
+      await vi.waitFor(() => expect(firstWorker.postMessage).toHaveBeenCalledTimes(1))
+      await expect(parseRouteFileInWorker(file(), createWorker))
+        .rejects.toThrow("Another route import is already in progress.")
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(firstWorker.terminate).toHaveBeenCalledOnce()
+      await expect(first).rejects.toThrow("The route import timed out.")
+
+      createWorker.mockReturnValueOnce(secondWorker)
+      const second = parseRouteFileInWorker(file(), createWorker)
+      await vi.waitFor(() => expect(secondWorker.postMessage).toHaveBeenCalledTimes(1))
+      const [request] = secondWorker.postMessage.mock.calls[0]!
+      secondWorker.onmessage?.({ data: {
+        version: 1,
+        kind: "parsed-route",
+        requestId: request.requestId,
+        generation: request.generation,
+        route
+      } } as MessageEvent)
+
+      await expect(second).resolves.toBe(route)
+      expect(secondWorker.terminate).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("rejects an oversized file before the worker factory is called", async () => {
     const createWorker = vi.fn(() => {
       throw new Error("worker factory should not be called")
