@@ -17,8 +17,8 @@ The default live-safe values are:
 ## Provision
 
 ```bash
-ssh megaplex 'CI_VMID=125 /path/to/switchback/infra/ci-runner/create-lxc.sh'
-scp -r infra/ci-runner megaplex:/root/
+scp -r infra/ci-runner megaplex:/root/ci-runner
+ssh megaplex 'CI_VMID=125 /root/ci-runner/create-lxc.sh'
 ssh megaplex 'pct exec 125 -- /root/ci-runner/bootstrap-ci.sh'
 ```
 
