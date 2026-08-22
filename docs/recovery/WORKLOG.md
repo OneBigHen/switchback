@@ -16,8 +16,8 @@
   freeze/rollback runbook.
 
 **Verification**
-- Final Megaplex full unit: 202 test files / 1,287 passed / 1 skipped.
-- Final Megaplex lint, typecheck, and production build passed.
+- Final validation host full unit: 202 test files / 1,287 passed / 1 skipped.
+- Final validation host lint, typecheck, and production build passed.
 - The production Compose/Caddy stack passed `/api/health` with
   `degraded=false`, returned live GraphHopper routes for all eight profiles,
   and kept web, worker, GraphHopper, and Caddy up with zero restarts; Caddy
@@ -27,7 +27,7 @@
 - The isolated test router shut down cleanly: no PID file and port 8998 closed.
 - The corrected real-data offline parity harness now fails closed on a missing
   GraphHopper oracle and sends the matching Street/Dual-Sport bike model. Its
-  fresh Megaplex PA/NJ run (204 random plus four golden pairs) produced
+  fresh the validation host PA/NJ run (204 random plus four golden pairs) produced
   187/208 (89.9%), with clean legality across 45,769 returned edges, 12
   comparisons above 25%, and zero oracle errors; regional parity remains open.
   The active GraphHopper graph was rebuilt with `smoothness` encoded and
@@ -68,9 +68,9 @@ field/native decisions measurement-gated.
   routes and joined derivatives cannot be mislabeled as an original artifact.
 
 **Verification**
-- Megaplex focused P28 audit: 7 files / 68 tests passed; final full verify:
+- the validation host focused P28 audit: 7 files / 68 tests passed; final full verify:
   188 test files / 1,244 passed / 1 skipped; lint, typecheck, and build passed.
-- Megaplex broad browser: 28/28; critical: 30/30; PWA: 2/2; memory soak:
+- the validation host broad browser: 28/28; critical: 30/30; PWA: 2/2; memory soak:
   10/10 cycles; real-router: 5/5 with explicit `:8998` endpoint and clean
   router shutdown.
 
@@ -118,9 +118,9 @@ acceptance from browser tests.
   validate the report shape, and route details show the honest evidence state.
 
 **Verification**
-- Final Megaplex focused GPX audit: 5 files / 16 tests; final full verify:
+- Final validation host focused GPX audit: 5 files / 16 tests; final full verify:
   187 test files / 1,238 passed / 1 skipped; lint, typecheck, and build passed.
-- Megaplex broad browser: 28/28; critical: 30/30; PWA: 2/2; memory soak:
+- the validation host broad browser: 28/28; critical: 30/30; PWA: 2/2; memory soak:
   10/10 cycles; real-router: 5/5.
 
 **Gate boundary**
@@ -164,8 +164,8 @@ corpus during implementation.
   saved Home, using the normal route planner and Ride transition.
 
 **Verification**
-- Megaplex focused P26 audit: 3 files / 22 tests; lint and typecheck passed.
-- Megaplex full verify: 185 test files / 1,232 passed / 1 skipped; lint,
+- the validation host focused P26 audit: 3 files / 22 tests; lint and typecheck passed.
+- the validation host full verify: 185 test files / 1,232 passed / 1 skipped; lint,
   typecheck, and build passed.
 - Free Ride browser 8/8; broad browser 28/28; critical Chromium/WebKit
   30/30; PWA 2/2; real-router 5/5; memory soak 10/10 cycles.
@@ -211,8 +211,8 @@ or alternate route planner.
   cancellation do not become fake suggestions.
 
 **Verification**
-- Megaplex focused P25 audit: 4 files / 23 tests; lint and typecheck passed.
-- Megaplex full verify: 185 test files / 1,230 passed / 1 skipped; lint,
+- the validation host focused P25 audit: 4 files / 23 tests; lint and typecheck passed.
+- the validation host full verify: 185 test files / 1,230 passed / 1 skipped; lint,
   typecheck, and build passed.
 - Free Ride browser matrix 4/4; broad browser 24/24; critical Chromium/WebKit
   30/30; PWA 2/2; real-router 5/5; memory soak 10/10 cycles.
@@ -280,7 +280,7 @@ navigation state store.
   closes the existing coherent implementation.
 
 **Verification**
-- Megaplex focused navigation audit: 7 files / 48 tests passed.
+- the validation host focused navigation audit: 7 files / 48 tests passed.
 - P23’s planner-to-Ride browser matrix remains the relevant responsive
   acceptance: desktop, iPhone portrait, and both landscape projects 4/4.
 - The unchanged source tree retained the P19 acceptance gates: verify 184 test
@@ -332,8 +332,8 @@ lock cleanup, and safe-area layout. Do not add a second ride interface.
   closes the existing coherent implementation.
 
 **Verification**
-- Megaplex focused navigation/HUD audit: 8 files / 77 tests passed.
-- Megaplex planner-to-Ride journey: desktop, iPhone portrait, landscape-wide,
+- the validation host focused navigation/HUD audit: 8 files / 77 tests passed.
+- the validation host planner-to-Ride journey: desktop, iPhone portrait, landscape-wide,
   and landscape-narrow 4/4 passed.
 - Portrait and both landscape Ride captures were visually reviewed; controls,
   instruction card, telemetry, safe-area spacing, and progress remained inside
@@ -386,8 +386,8 @@ topology, or weaken graph-match/access validation.
   closes the existing coherent implementation.
 
 **Verification**
-- Megaplex focused unit/component audit: 9 files / 92 tests passed.
-- Megaplex graph-matched road-lock journey: desktop Chromium 1/1 passed.
+- the validation host focused unit/component audit: 9 files / 92 tests passed.
+- the validation host graph-matched road-lock journey: desktop Chromium 1/1 passed.
 - The unchanged source tree retained the P19 acceptance gates: verify 184 test
   files / 1,225 passed / 1 skipped; lint, typecheck, build; browser 24/24;
   critical 30/30; PWA 2/2; real-router 5/5; memory soak 10/10; router cleanup
@@ -434,8 +434,8 @@ do not add a second result surface or invented route claims.
   closes the existing coherent implementation.
 
 **Verification**
-- Megaplex focused unit/component audit: 5 files / 46 tests passed.
-- Megaplex relevant critical browser test: Chromium and WebKit 2/2 passed for
+- the validation host focused unit/component audit: 5 files / 46 tests passed.
+- the validation host relevant critical browser test: Chromium and WebKit 2/2 passed for
   progressive alternatives and user selection.
 - The unchanged source tree retained the P19 acceptance gates: verify 184 test
   files / 1,225 passed / 1 skipped; lint, typecheck, build; browser 24/24;
@@ -490,7 +490,7 @@ error, offline, and ride-mode states.
 **Verification**
 - Local focused UI contract: 2 files / 3 tests passed; lint, typecheck, and
   `git diff --check` passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   184 test files / 1,225 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Browser matrix: 24/24; critical Chromium/WebKit: 30/30; PWA: 2/2;
@@ -518,7 +518,7 @@ project or imported GPX without adding a second planner surface.
 **Before**
 - The intent-first home, explicit route editor, place-resolution state machine,
   and Library GPX flows already existed in the working tree.
-- The P20 acceptance boundary and Megaplex evidence were not yet recorded as a
+- The P20 acceptance boundary and the validation host evidence were not yet recorded as a
   phase report.
 
 **Scope boundary**
@@ -541,7 +541,7 @@ search abstraction.
   closes with documentation of an existing coherent implementation.
 
 **Verification**
-- Megaplex focused audit: 4 files / 51 tests passed across PlannerDeck,
+- the validation host focused audit: 4 files / 51 tests passed across PlannerDeck,
   PlannerShell geocoding, LibraryDrawer, and AppShell.
 - The unchanged source tree retained the P19 acceptance gates: verify 184 test
   files / 1,225 passed / 1 skipped; lint, typecheck, build; browser 24/24;
@@ -593,7 +593,7 @@ behavior tests. Do not invent provider geometry or claim field calibration.
 
 **Verification**
 - Local focused P18 suites: 6 files / 52 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   183 test files / 1,223 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -643,7 +643,7 @@ canonical refs remain optional until graph matching supplies them.
 
 **Verification**
 - Local focused P17 suites: 4 files / 33 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   182 test files / 1,217 tests passed and 1 skipped; lint, typecheck, and
   build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -693,7 +693,7 @@ remain empty rather than become guessed waypoints.
 
 **Verification**
 - Local focused P16 suites: 5 files / 60 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   180 test files / 1,211 tests passed and 1 skipped; lint, typecheck, and build
   passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
@@ -747,7 +747,7 @@ persisting new route geometry.
 
 **Verification**
 - Local focused P15 suites: 3 files / 28 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   179 test files / 1,207 tests passed and 1 skipped; lint, typecheck, and build
   passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
@@ -803,7 +803,7 @@ authority database, or change persisted route data.
 
 **Verification**
 - Local focused P14 suites: 4 files / 38 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   178 test files / 1,203 tests passed and 1 skipped; lint, typecheck, and build
   passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
@@ -857,7 +857,7 @@ offline integration phase.
 
 **Verification**
 - Local focused P13 suite: 2 files / 9 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   177 test files / 1,199 tests passed and 1 skipped; lint, typecheck, and build
   passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
@@ -911,7 +911,7 @@ later phases.
 
 **Verification**
 - Local focused P12 suite: 1 file / 5 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   176 test files / 1,195 tests passed and 1 skipped; lint, typecheck, and build
   passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
@@ -963,7 +963,7 @@ canonical OSM segment assignment, live MVUM facts, and map-match enrichment.
 
 **Verification**
 - Local focused P11 suite: 6 files / 41 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   175 test files / 1,190 tests passed and 1 skipped; lint, typecheck, and build
   passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
@@ -1014,10 +1014,10 @@ facts, or map-match confidence when no provider response exists.
   because no match endpoint is configured.
 
 **Verification**
-- Real `/root/Vibe` corpus: 778 scanned, 420 unique, 358 exact duplicates,
+- Local source corpus: 778 scanned, 420 unique, 358 exact duplicates,
   412 imported, 8 preserved rejected, 125 duplicate families, 113 near-
   duplicate families, and 387 routes in near families.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   174 test files / 1,187 tests and 1 skipped; lint, typecheck, and build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated real
   GraphHopper 5/5; ten-cycle memory soak 10/10; router PID and port cleanup
@@ -1065,7 +1065,7 @@ to its owning ingest/matching phase.
   leaving provider edge IDs and existing lock behavior untouched.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: final `npm run verify` passed
+- the validation host LXC `<private-test-host>`, Node 24.15.0: final `npm run verify` passed
   with 172 test files / 1,180 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Final broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1127,7 +1127,7 @@ offline-worker migration belongs in P08.
   their move listeners and abort controllers are cleaned up with the map.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: final `npm run verify` passed
+- the validation host LXC `<private-test-host>`, Node 24.15.0: final `npm run verify` passed
   with 171 test files / 1,173 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1182,7 +1182,7 @@ redesign belongs in P06.
   route cache, or production service changed.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   170 test files / 1,165 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1238,7 +1238,7 @@ belongs in P07.
   route contracts.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: final `npm run verify` passed
+- the validation host LXC `<private-test-host>`, Node 24.15.0: final `npm run verify` passed
   with 171 test files / 1,171 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Final broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1295,7 +1295,7 @@ recording paths. No account, data, or routing redesign belongs in P03.
   user data or routing planner path was migrated or deleted.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   167 test files / 1,159 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1347,7 +1347,7 @@ API handlers, invent route facts, or change provider selection semantics.
   production-service change was made.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   168 test files / 1,161 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1397,7 +1397,7 @@ delete the existing local data surfaces before P06/P19.
   phases.
 
 **Verification**
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   169 test files / 1,163 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
 - Broad browser 24/24; critical Chromium/WebKit 30/30; PWA 2/2; isolated
@@ -1423,8 +1423,8 @@ P06 — planning controller.
   route geometry, server memory, route queue, and route cache.
 - Instrumented the persistent map, route-import worker, GPS/recording paths,
   and navigation timer cleanup; added the ten-cycle `memory-soak` project.
-- Isolated Megaplex test checkout on `docker-stable` LXC 109
-  (`192.168.1.175`) used Node 24.15.0 and the fixture router only. No
+- Isolated the validation host test checkout on `dedicated test LXC` LXC 109
+  (`<private-test-host>`) used Node 24.15.0 and the fixture router only. No
   production Switchback service was changed.
 
 **Verification**
@@ -1989,7 +1989,7 @@ ceremony while keeping the local rider path account-free.
   actions without gating planning or riding.
 
 **Verification**
-- Megaplex Node 24 focused identity: 10 files / 30 tests passed.
+- the validation host Node 24 focused identity: 10 files / 30 tests passed.
 - Full Vitest: 201 files / 1,282 passed / 1 skipped.
 - Standard browser profiles: 32/32; critical Chromium/WebKit: 30/30;
   PWA: 2/2; memory soak: 10/10 cycles; real GraphHopper fixture: 5/5.

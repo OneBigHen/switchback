@@ -42,7 +42,7 @@ None.
 
 ## Tests
 
-- Megaplex focused audit: 7 files / 48 tests:
+- the validation host focused audit: 7 files / 48 tests:
   `navigation-engine.test.ts`, `navigation-session-controller.test.ts`,
   `ride-session.test.ts`, `ride-reroute.test.ts`, `ride-recovery.test.ts`,
   `ride-recovery-checkpoint.test.ts`, and `offline-route-recovery.test.ts`.
@@ -75,7 +75,7 @@ quality.
 - P25 — Free Ride graph engine with ahead/reachable RIG candidates and real
   detour/rejoin.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/Megaplex acceptance loop.
+  gates outside this local/the validation host acceptance loop.
 
 ## Rollback
 

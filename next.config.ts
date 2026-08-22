@@ -30,7 +30,7 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
 ]
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "192.168.1.40", "switchback.home.arpa"],
+  allowedDevOrigins: ["127.0.0.1", "switchback.home.arpa"],
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,

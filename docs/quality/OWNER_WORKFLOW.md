@@ -16,8 +16,9 @@ The normal path is:
 
 1. The agent starts from the requested baseline or a valid descendant.
 2. The agent works on an agent-managed branch and keeps existing product work.
-3. GitHub Actions runs code quality, critical browser, real-router, PWA, and
-   live-smoke jobs.
+3. GitHub Actions runs typecheck, lint, Vitest, build, critical browser,
+   road-lock, real-router, and PWA jobs. Trusted live-provider validation is a
+   separate main/manual workflow.
 4. The agent reads failure artifacts and adds a regression for every confirmed
    bug.
 5. The pull request template and [release evidence](RELEASE_EVIDENCE.md) carry

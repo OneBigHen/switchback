@@ -61,7 +61,7 @@ uncommitted P10 worktree changes.
 
 ## Owner-corpus evidence
 
-The real `/root/Vibe` corpus was read into a temporary output directory without
+The local source corpus was read into a temporary output directory without
 modifying source files:
 
 | Evidence | Result |
@@ -80,9 +80,9 @@ The eight rejected originals were retained. They are malformed XML, a zero-byte
 file, or degenerate one-point/duplicate-point tracks; the importer does not
 invent a route by joining unrelated waypoints to make them appear valid.
 
-## Megaplex verification
+## the validation host verification
 
-The isolated checkout on `192.168.1.175`, Megaplex `docker-stable` LXC 109,
+The isolated checkout on `<private-test-host>`, the validation host `dedicated test LXC` LXC 109,
 used Node 24.15.0 and the synced P10 source:
 
 | Command/evidence | Result |
@@ -91,7 +91,7 @@ used Node 24.15.0 and the synced P10 source:
 | `npm run test:e2e` | 24/24 across desktop Chromium, mobile Safari, and both landscape projects |
 | `npm run test:e2e:critical` | 30/30 across Chromium and WebKit |
 | `npm run test:e2e:pwa` | 2/2 |
-| Megaplex real-router gate | 5/5; private, motorcycle-closed, and disconnected refusals remained honest |
+| the validation host real-router gate | 5/5; private, motorcycle-closed, and disconnected refusals remained honest |
 | `npm run test:e2e:memory-soak` | 1 test; 10/10 planner cycles passed |
 | post-router cleanup | PID file absent and port 8998 closed |
 | local/remote scoped source hashes | equal for parser, normalizer, matcher, importer, and focused tests |

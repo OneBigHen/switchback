@@ -39,7 +39,7 @@ None.
 
 ## Tests
 
-- Megaplex focused audit: 4 files / 51 tests passed:
+- the validation host focused audit: 4 files / 51 tests passed:
   `planner-deck.test.tsx`, `planner-shell-geocoding.test.tsx`,
   `library-drawer.test.tsx`, and `app-shell.test.tsx`.
 - The unchanged source tree retained the P19 acceptance gates: `npm run
@@ -68,7 +68,7 @@ model quality in the field.
 - P21 — plan result UX with 2–3 meaningful alternatives and factual
   explanations.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/Megaplex acceptance loop.
+  gates outside this local/the validation host acceptance loop.
 
 ## Rollback
 

@@ -20,7 +20,7 @@
 
 The v2 region suite, readiness, route-pack migration, and atomic-install tests
 cover activation, corrupt updates, resume, and active tile validation. The
-Megaplex run passed 202 test files / 1,285 tests, lint, typecheck, build,
+the validation host run passed 202 test files / 1,285 tests, lint, typecheck, build,
 standard browser 32/32, critical browser 30/30, PWA 2/2, memory soak 10/10
 cycles, and real-router 5/5. The real generated PA/NJ offline parity audit
 remains open: 208 pairs (204 random plus four golden) produced 187/208

@@ -58,15 +58,15 @@ saved routes remain readable.
 ## Tests
 
 - Local focused P17 suites: 4 files / 33 tests passed.
-- Megaplex LXC `192.168.1.175`, Node 24.15.0: `npm run verify` passed with
+- the validation host LXC `<private-test-host>`, Node 24.15.0: `npm run verify` passed with
   182 test files / 1,217 tests passed and 1 skipped; lint, typecheck, and
   production build passed.
-- Megaplex broad browser matrix: 24/24.
-- Megaplex critical Chromium/WebKit: 30/30.
-- Megaplex PWA: 2/2.
-- Megaplex real-router fixture: 5/5, including private,
+- the validation host broad browser matrix: 24/24.
+- the validation host critical Chromium/WebKit: 30/30.
+- the validation host PWA: 2/2.
+- the validation host real-router fixture: 5/5, including private,
   motorcycle-closed, and disconnected refusals.
-- Megaplex memory soak: 1/1 test; 10/10 planner cycles.
+- the validation host memory soak: 1/1 test; 10/10 planner cycles.
 - Router cleanup: PID file absent and port 8998 closed.
 - `git diff --check` passed.
 - Scoped local/remote SHA parity matched for all seven P17 source/test files.
@@ -74,19 +74,19 @@ saved routes remain readable.
 ## Commands
 
 - `npx vitest run tests/unit/route-diversity.test.ts tests/unit/route-explanations.test.ts tests/unit/planner.test.ts tests/components/route-comparison.test.tsx --reporter=verbose`
-- Megaplex `npm run verify`
-- Megaplex `npm run test:e2e`
-- Megaplex `npm run test:e2e:critical`
-- Megaplex `npm run test:e2e:pwa`
-- Megaplex `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
-- Megaplex `npm run test:e2e:memory-soak`
+- the validation host `npm run verify`
+- the validation host `npm run test:e2e`
+- the validation host `npm run test:e2e:critical`
+- the validation host `npm run test:e2e:pwa`
+- the validation host `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
+- the validation host `npm run test:e2e:memory-soak`
 - `git diff --check`
 
 ## Memory/performance evidence
 
 P17 adds no listener, timer, persistent cache, worker, or geometry store. MMR
 and canonical similarity are bounded scans over the already bounded candidate
-sets. The Megaplex browser memory soak remained green at 10/10 cycles.
+sets. The validation host browser memory soak remained green at 10/10 cycles.
 
 ## Routing quality evidence
 

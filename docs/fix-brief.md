@@ -1,6 +1,6 @@
 # Switchback — Audit Fix Implementation Task
 
-You are working in /root/Vibe/switchback on branch `audit-fixes/deepseek-v4-pro`. You already audited this repo; your findings are in `docs/audit-deepseek-v4-pro.md`. Your previous audit report found the exact issues — that report is the source of truth for WHAT to fix.
+You are working in /path/to/switchback on branch `audit-fixes/deepseek-v4-pro`. You already audited this repo; your findings are in `docs/audit-deepseek-v4-pro.md`. Your previous audit report found the exact issues — that report is the source of truth for WHAT to fix.
 
 ## Task
 Fix EVERY issue YOU called out in `docs/audit-deepseek-v4-pro.md` — all HIGH findings, all numbered findings, and the full "TOP 10 PRIORITIES" list. Apply the fixes you recommended in that report. Do not stop at the top 10 — work through every numbered finding in the report.

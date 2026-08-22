@@ -50,8 +50,8 @@ database, provider configuration, or production service changed.
 
 ## Tests
 
-The complete gate ran in the isolated Megaplex `docker-stable` LXC 109
-(`192.168.1.175`) checkout at `/tmp/switchback-megaplex-test.LDEtb5`, using
+The complete gate ran in the isolated the validation host `dedicated test LXC` LXC 109
+(`<private-test-host>`) checkout at `/tmp/switchback-validation-test.LDEtb5`, using
 Node 24.15.0. The checkout excluded Git metadata, `.env*`, dependencies,
 production routing data, runtime databases, and generated source artifacts.
 The real-router run used the isolated GraphHopper fixture on port 8998; the
@@ -76,7 +76,7 @@ fixture was stopped after the run.
 |---|---|
 | focused controller/coordinator/local request tests | 3 files / 16 tests passed |
 | local lint and typecheck | passed |
-| Megaplex `npm run verify` | lint and typecheck passed; 170 files / 1,165 tests passed, 1 skipped; production build passed |
+| the validation host `npm run verify` | lint and typecheck passed; 170 files / 1,165 tests passed, 1 skipped; production build passed |
 | `npm run test:e2e` | 24/24 passed across desktop Chromium, mobile Safari, and both landscape projects |
 | `npm run test:e2e:critical` | 30/30 passed across Chromium and WebKit |
 | `npm run test:e2e:pwa` | 2/2 passed |

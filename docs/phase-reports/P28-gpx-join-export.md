@@ -63,14 +63,14 @@ older project artifacts remain readable. No owner-corpus re-import was run.
 
 ## Tests
 
-- Megaplex focused P28 audit: 7 files / 68 tests passed.
-- Megaplex `npm run verify`: 188 test files / 1,244 passed / 1 skipped;
+- the validation host focused P28 audit: 7 files / 68 tests passed.
+- the validation host `npm run verify`: 188 test files / 1,244 passed / 1 skipped;
   lint, typecheck, and production build passed.
-- Megaplex broad browser matrix: 28/28 passed.
-- Megaplex critical Chromium/WebKit matrix: 30/30 passed.
-- Megaplex PWA/offline matrix: 2/2 passed.
-- Megaplex memory soak: 1/1 test, 10/10 planner cycles.
-- Megaplex real GraphHopper fixture: 5/5 passed with
+- the validation host broad browser matrix: 28/28 passed.
+- the validation host critical Chromium/WebKit matrix: 30/30 passed.
+- the validation host PWA/offline matrix: 2/2 passed.
+- the validation host memory soak: 1/1 test, 10/10 planner cycles.
+- the validation host real GraphHopper fixture: 5/5 passed with
   `GRAPHHOPPER_URL=http://127.0.0.1:8998`; router PID and port 8998 cleanup
   were clear afterward.
 

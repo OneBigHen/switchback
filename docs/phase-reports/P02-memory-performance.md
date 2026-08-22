@@ -23,8 +23,8 @@ panel, map, route, GPS, and worker paths now expose their live resource state.
 
 ## Verification
 
-The complete gate ran in an isolated checkout on Megaplex's `docker-stable`
-LXC 109 (`192.168.1.175`) using Node 24.15.0. The temporary checkout did not
+The complete gate ran in an isolated checkout on the validation host's `dedicated test LXC`
+LXC 109 (`<private-test-host>`) using Node 24.15.0. The temporary checkout did not
 receive `.env.local`, the Git directory, production routing data, or runtime
 databases. The fixture-only Java/osmium packages and Playwright browser
 revisions were installed in the test LXC; no Switchback production service was

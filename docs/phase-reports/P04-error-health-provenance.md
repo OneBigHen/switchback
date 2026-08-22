@@ -50,8 +50,8 @@ configuration, or user data was changed.
 
 ## Tests
 
-The complete gate ran in an isolated checkout on Megaplex's `docker-stable`
-LXC 109 (`192.168.1.175`) using Node 24.15.0. The checkout excluded
+The complete gate ran in an isolated checkout on the validation host's `dedicated test LXC`
+LXC 109 (`<private-test-host>`) using Node 24.15.0. The checkout excluded
 `.env.local`, Git metadata, production routing data, runtime databases,
 dependencies copied from the workstation, and generated artifacts. No
 production Switchback service was restarted or reconfigured.
@@ -74,7 +74,7 @@ production Switchback service was restarted or reconfigured.
 |---|---|
 | focused P04 Vitest run | 4 files / 32 tests passed locally |
 | local lint, typecheck, and build | passed |
-| Megaplex `npm run verify` | lint and typecheck passed; 168 files / 1,161 tests passed, 1 skipped; production build passed |
+| the validation host `npm run verify` | lint and typecheck passed; 168 files / 1,161 tests passed, 1 skipped; production build passed |
 | `npm run test:e2e` | 24/24 passed across desktop Chromium, mobile Safari, and both landscape projects |
 | `npm run test:e2e:critical` | 30/30 passed across Chromium and WebKit |
 | `npm run test:e2e:pwa` | 2/2 passed |

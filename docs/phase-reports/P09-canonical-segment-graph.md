@@ -58,8 +58,8 @@ existing compatibility path remains intact until its OSM-backed owner exists.
 
 ## Tests
 
-The final gates ran in the isolated Megaplex `docker-stable` LXC 109
-(`192.168.1.175`) checkout at `/tmp/switchback-megaplex-test.LDEtb5`, using
+The final gates ran in the isolated the validation host `dedicated test LXC` LXC 109
+(`<private-test-host>`) checkout at `/tmp/switchback-validation-test.LDEtb5`, using
 Node 24.15.0. The checkout preserved its dependencies and fixture data while
 excluding Git metadata, `.env*`, production routing data, runtime databases,
 and generated source artifacts. The real-router run used only the isolated
@@ -70,12 +70,12 @@ GraphHopper jar and fixture PBF on port 8998.
 | Command/evidence | Result |
 |---|---|
 | `npx vitest run tests/unit/canonical-segments.test.ts --reporter=dot` | 7/7 passed locally; included in the final remote full suite |
-| Megaplex `npm run verify` | lint and typecheck passed; 172 test files / 1,180 tests passed, 1 skipped; production build passed |
-| Megaplex `npm run test:e2e` | 24/24 passed across desktop Chromium, mobile Safari, and both landscape projects |
-| Megaplex `npm run test:e2e:critical` | 30/30 passed across Chromium and WebKit |
-| Megaplex `npm run test:e2e:pwa` | 2/2 passed |
-| Megaplex real-router gate | 5/5 passed, including private, motorcycle-closed, and disconnected refusal fixtures |
-| Megaplex `npm run test:e2e:memory-soak` | 1 test / 10 of 10 planner cycles passed |
+| the validation host `npm run verify` | lint and typecheck passed; 172 test files / 1,180 tests passed, 1 skipped; production build passed |
+| the validation host `npm run test:e2e` | 24/24 passed across desktop Chromium, mobile Safari, and both landscape projects |
+| the validation host `npm run test:e2e:critical` | 30/30 passed across Chromium and WebKit |
+| the validation host `npm run test:e2e:pwa` | 2/2 passed |
+| the validation host real-router gate | 5/5 passed, including private, motorcycle-closed, and disconnected refusal fixtures |
+| the validation host `npm run test:e2e:memory-soak` | 1 test / 10 of 10 planner cycles passed |
 | final router cleanup | PID file absent; port 8998 closed |
 
 ## Memory/performance evidence
