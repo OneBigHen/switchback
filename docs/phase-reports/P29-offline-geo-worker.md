@@ -19,8 +19,8 @@
 
 - Focused P29 audit: 8 files / 49 tests passed, including regional offline
   route selection and the explicit missing-region failure.
-- Megaplex full unit: 202 test files / 1,285 passed / 1 skipped.
-- Megaplex lint, typecheck, build, standard browser 32/32, critical browser
+- the validation host full unit: 202 test files / 1,285 passed / 1 skipped.
+- the validation host lint, typecheck, build, standard browser 32/32, critical browser
   30/30, PWA 2/2, memory soak 10/10 cycles, and real-router 5/5 passed.
 - The isolated test router shut down cleanly with no PID file and port 8998
   closed.

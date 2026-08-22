@@ -17,12 +17,13 @@ Run the pull-request gate with:
 npm run qa:pr
 npm run test:e2e:real-router   # requires the prepared fixture router
 npm run test:e2e:pwa
-npm run test:live-smoke
+npx playwright test --project=road-lock
 ```
 
 The GitHub Actions workflow is [.github/workflows/quality.yml](../../.github/workflows/quality.yml).
-It runs the required checks on GitHub-hosted runners and uploads screenshots,
-traces, video, and router logs only when a job fails.
+It runs the deterministic public checks on GitHub-hosted runners and uploads
+failure evidence only when a job fails. Trusted live-provider validation is a
+separate workflow; see [CI architecture](../CI-ARCHITECTURE.md).
 
 Read next:
 

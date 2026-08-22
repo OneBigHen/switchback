@@ -15,6 +15,6 @@
 
 ## Boundary
 
-The Megaplex unit/build/browser gates are green. No current provider response,
+The validation host unit/build/browser gates are green. No current provider response,
 community prompt-injection campaign, or production semantic-index benchmark is
 claimed here.

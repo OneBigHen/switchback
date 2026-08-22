@@ -1,0 +1,367 @@
+import type { Coordinate, RouteProfileId, RouteRequest } from "./types"
+import { normalizeRouteRequest } from "@/lib/domain/routing/normalized-request"
+import type { BikeProfile } from "./bike-profiles"
+import { getProfile } from "./profiles"
+import {
+  disallowedSmoothness,
+  disallowedSurfaces,
+  disallowedTracktypes
+} from "./bike-profiles"
+import type { RoadLock } from "@/lib/roads/road-locks"
+import { featureFlags } from "@/lib/domain/feature-flags"
+
+const ROUND_TRIP_SPEED_MPH: Record<RouteProfileId, number> = {
+  quick: 48,
+  balanced: 44,
+  twisty: 38,
+  scenic: 34,
+  adventure: 28,
+  gravel: 24,
+  "avoid-highways": 40,
+  neural: 36
+}
+
+export function estimateRoundTripDistanceMeters(
+  profile: RouteProfileId,
+  targetMinutes: number
+): number {
+  const boundedMinutes = Math.max(20, Math.min(480, targetMinutes))
+  return Math.round(ROUND_TRIP_SPEED_MPH[profile] * boundedMinutes / 60 * 1609.344)
+}
+
+/**
+ * GraphHopper custom_model priority statement. Kept loose so callers can
+ * compose must/prefer/bike/region rules without depending on a strict
+ * GraphQL-shaped type that GraphHopper 11 still accepts via JSON.
+ */
+interface GraphHopperCustomModelRule {
+  if?: string
+  else?: string
+  multiply_by?: string
+  to?: string
+  limit_to?: string
+}
+
+/** GraphHopper FeatureCollection area wrapper used by custom_model priority rules. */
+interface GraphHopperAreaFeature {
+  type: "Feature"
+  id: string
+  geometry: {
+    type: "Polygon"
+    coordinates: Coordinate[][]
+  }
+}
+
+interface GraphHopperCustomModel {
+  priority?: GraphHopperCustomModelRule[]
+  speed?: GraphHopperCustomModelRule[]
+  areas?: {
+    type: "FeatureCollection"
+    features: GraphHopperAreaFeature[]
+  }
+}
+
+// SB-014/015 road requirements. The corridor is a bounded inside reward, never
+// a global outside zero: zeroing everything outside a thin polygon trapped the
+// whole route inside the corridor (the Phase 0 defect). A must lock instead
+// forces ordered traversal via injected via-waypoints at its entry/exit anchors
+// and rewards the locked edges; a prefer lock only nudges the corridor.
+const MUST_LOCK_INSIDE_REWARD = "1.8"
+const PREFER_LOCK_INSIDE_REWARD = "1.6"
+
+/** A lock's geometry corridor rendered as a GraphHopper polygon feature. */
+interface RoadLockAreaFeature {
+  id: string
+  polygon: Coordinate[]
+}
+
+const METERS_PER_DEGREE_LATITUDE = 111_320
+
+/**
+ * Build a thin closed corridor around a lock's LineString using its
+ * fallback tolerance. The result is a closed ring (first coord ==
+ * last coord) so GraphHopper's `in_<area>` condition can resolve it
+ * as a polygon mask for must/prefer custom_model rules.
+ */
+function bufferLineStringToPolygon(
+  coordinates: Coordinate[],
+  toleranceMeters: number
+): Coordinate[] {
+  if (coordinates.length < 2) return []
+  const tolerance = Math.max(toleranceMeters, 5)
+  const left: Coordinate[] = []
+  const right: Coordinate[] = []
+  for (let index = 0; index < coordinates.length - 1; index += 1) {
+    const [lonA, latA] = coordinates[index]!
+    const [lonB, latB] = coordinates[index + 1]!
+    const deltaLon = lonB - lonA
+    const deltaLat = latB - latA
+    const length = Math.hypot(deltaLon, deltaLat)
+    if (length === 0) continue
+    // Perpendicular direction adjusted for latitude so degrees are
+    // roughly isotropic at the lock's location.
+    const cosLat = Math.cos((latA * Math.PI) / 180) || 1
+    const scale = tolerance / METERS_PER_DEGREE_LATITUDE
+    const perpLon = (-deltaLat / length) * (scale / cosLat)
+    const perpLat = (deltaLon / length) * scale
+    if (left.length === 0) left.push([lonA + perpLon, latA + perpLat])
+    left.push([lonB + perpLon, latB + perpLat])
+    if (right.length === 0) right.push([lonA - perpLon, latA - perpLat])
+    right.push([lonB - perpLon, latB - perpLat])
+  }
+  if (left.length === 0 || right.length === 0) return []
+  const ring: Coordinate[] = [...left, ...right.reverse(), left[0]!]
+  return ring
+}
+
+function expandRoadLockGeometry(lock: RoadLock): Coordinate[] {
+  return lock.geometry.coordinates.map((c) => [c[0], c[1]] as Coordinate)
+}
+
+function buildRoadLockAreaFeatures(locks: readonly RoadLock[], idOffset = 0): {
+  features: RoadLockAreaFeature[]
+  closedPolygons: Coordinate[][]
+} {
+  const features: RoadLockAreaFeature[] = []
+  const closedPolygons: Coordinate[][] = []
+  locks.forEach((lock, index) => {
+    const sourceLine = expandRoadLockGeometry(lock)
+    const polygon = bufferLineStringToPolygon(sourceLine, lock.fallbackToleranceMeters)
+    if (polygon.length < 4) return
+    const id = `switchback_lock_${idOffset + index}`
+    features.push({ id, polygon })
+    closedPolygons.push(polygon)
+  })
+  return { features, closedPolygons }
+}
+
+function buildMustLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
+  return features.map((feature) => ({
+    if: `in_${feature.id}`,
+    multiply_by: MUST_LOCK_INSIDE_REWARD
+  }))
+}
+
+function buildPreferLockRules(features: readonly RoadLockAreaFeature[]): GraphHopperCustomModelRule[] {
+  return features.map((feature) => ({
+    if: `in_${feature.id}`,
+    multiply_by: PREFER_LOCK_INSIDE_REWARD
+  }))
+}
+
+/**
+ * SB-014 ordered Must traversal. Must-use locks (with graph edge ids) expand
+ * the request into ordered wire waypoints: start → lock entry → lock exit →
+ * next lock entry → exit → remaining stops/finish. GraphHopper routes through
+ * these in sequence, forcing the route to traverse each corridor in the rider's
+ * lock order — instead of the Phase 0 defect of zeroing every edge outside a
+ * thin polygon. `wireToOriginal[i]` is the original request point index, or -1
+ * for an injected anchor; the response parser drops injected anchors so the
+ * returned route keeps only the rider's own waypoints.
+ */
+export function expandMustLockWaypoints(input: RouteRequest): {
+  points: Array<{ lat: number; lon: number; label?: string }>
+  wireToOriginal: number[]
+} {
+  const request = normalizeRouteRequest(input)
+  const plain = {
+    points: request.points.map((point) => ({ ...point })),
+    wireToOriginal: request.points.map((_, index) => index)
+  }
+  if (!featureFlags.roadRequirements || request.roundTrip) return plain
+  const mustLocks = (request.roadLocks ?? []).filter(
+    (lock) => lock.mode === "must" && lock.edgeIds.length > 0
+  )
+  if (mustLocks.length === 0) return plain
+
+  const points: Array<{ lat: number; lon: number; label?: string }> = []
+  const wireToOriginal: number[] = []
+  const start = request.points[0]
+  if (!start) return plain
+  points.push({ ...start })
+  wireToOriginal.push(0)
+  for (const lock of mustLocks) {
+    const entry = lock.orderedAnchors[0]
+    const exit = lock.orderedAnchors.at(-1)
+    if (!entry || !exit) continue
+    const name = lock.displayName?.trim() || "road"
+    points.push({ lat: entry[1], lon: entry[0], label: `Must-use ${name}: entry` })
+    wireToOriginal.push(-1)
+    points.push({ lat: exit[1], lon: exit[0], label: `Must-use ${name}: exit` })
+    wireToOriginal.push(-1)
+  }
+  for (let index = 1; index < request.points.length; index += 1) {
+    points.push({ ...request.points[index]! })
+    wireToOriginal.push(index)
+  }
+  return { points, wireToOriginal }
+}
+
+/** Bike-profile rules per §3: surface/smoothness/tracktype exclusions and penalties. */
+function buildBikeProfileRules(profile: BikeProfile, omitSmoothness = false): GraphHopperCustomModelRule[] {
+  const rules: GraphHopperCustomModelRule[] = []
+  const surfaces = disallowedSurfaces(profile)
+  const smoothness = disallowedSmoothness(profile)
+  const tracktypes = disallowedTracktypes(profile)
+
+  if (surfaces.size > 0) {
+    // GraphHopper 11's Surface enum has no EARTH or MUD members; its OSM
+    // parser preserves those unknown materials as OTHER. Sending the OSM
+    // spellings directly makes the request-time custom model fail to compile.
+    const condition = [...surfaces].map((surface) => {
+      const graphHopperSurface = surface === "earth" || surface === "mud"
+        ? "OTHER"
+        : String(surface).toUpperCase()
+      return `surface == ${graphHopperSurface}`
+    }).join(" || ")
+    rules.push({ if: condition, multiply_by: "0" })
+  }
+  if (!omitSmoothness && smoothness.size > 0) {
+    const condition = [...smoothness].map((s) => `smoothness == ${String(s).toUpperCase()}`).join(" || ")
+    rules.push({ if: condition, multiply_by: "0" })
+  }
+  if (tracktypes.size > 0) {
+    const condition = [...tracktypes].map((t) => `track_type == ${String(t).toUpperCase()}`).join(" || ")
+    rules.push({ if: condition, multiply_by: "0" })
+  }
+  if (profile.category === "street" || profile.category === "touring") {
+    rules.push({ if: "road_class == PATH", multiply_by: "0" })
+  }
+  return rules
+}
+
+export function createGraphHopperRequest(
+  _input: RouteRequest,
+  details: string[] = REQUESTED_DETAILS,
+  omitSmoothness = false
+): Record<string, unknown> {
+  // The adapter boundary normalizes every request so its internals always see
+  // the full explicit constraint contract (SB-001); idempotent for inputs
+  // that were already normalized by the planner.
+  const _request = normalizeRouteRequest(_input)
+  const profile = getProfile(_request.profile)
+  if (_request.roundTrip && _request.points.length !== 1) {
+    throw new Error("A round trip requires exactly one start point")
+  }
+  if (!_request.roundTrip && _request.points.length < 2) {
+    throw new Error("A route requires at least two waypoints")
+  }
+  const avoidAreas = _request.avoidAreas ?? []
+  const areaFeatures: GraphHopperAreaFeature[] = avoidAreas.map((area, index) => {
+    const id = `switchback_avoid_${index}`
+    const first = area.polygon[0]
+    const last = area.polygon.at(-1)
+    const closed = first && (!last || first[0] !== last[0] || first[1] !== last[1])
+      ? [...area.polygon, first]
+      : area.polygon
+    return {
+      type: "Feature",
+      id,
+      geometry: { type: "Polygon", coordinates: [closed] }
+    }
+  })
+
+  const roadLocks = featureFlags.roadRequirements
+    ? (_request.roadLocks ?? []).filter((lock) => lock.edgeIds.length > 0)
+    : []
+  const bikeProfile = _request.bikeProfile
+
+  const mustLocks = roadLocks.filter((lock) => lock.mode === "must")
+  const preferLocks = roadLocks.filter((lock) => lock.mode === "prefer")
+  const mustAreas = buildRoadLockAreaFeatures(mustLocks, 0)
+  const preferAreas = buildRoadLockAreaFeatures(preferLocks, mustAreas.features.length)
+
+  const lockAreaFeatures: GraphHopperAreaFeature[] = []
+  ;[...mustAreas.features, ...preferAreas.features].forEach((feature, index) => {
+    const ring = [...mustAreas.closedPolygons, ...preferAreas.closedPolygons][index] ?? feature.polygon
+    lockAreaFeatures.push({
+      type: "Feature",
+      id: feature.id,
+      geometry: { type: "Polygon", coordinates: [ring] }
+    })
+  })
+  const mustRules = buildMustLockRules(mustAreas.features)
+  const preferRules = buildPreferLockRules(preferAreas.features)
+  const bikeRules = bikeProfile ? buildBikeProfileRules(bikeProfile, omitSmoothness) : []
+
+  // Explicit toll avoidance stays a request-time zero-priority rule; the
+  // persistent profiles penalize tolls without excluding them by default.
+  const tollAvoidanceRule: GraphHopperCustomModelRule[] = _request.tollPolicy === "avoid"
+    ? [{ if: "toll == ALL", multiply_by: "0" }]
+    : []
+
+  const highwayAvoidanceRule: GraphHopperCustomModelRule[] = (_request.avoidHighways || _request.profile === "avoid-highways")
+    ? [{ if: "road_class == MOTORWAY || road_class == TRUNK", multiply_by: "0" }]
+    : []
+
+  const priorityRules: GraphHopperCustomModelRule[] = [
+    ...highwayAvoidanceRule,
+    ...tollAvoidanceRule,
+    ...areaFeatures.map((feature) => ({ if: `in_${feature.id}`, multiply_by: "0" })),
+    ...mustRules,
+    ...preferRules,
+    ...bikeRules
+  ]
+
+  const customModelAreasFeatures: GraphHopperAreaFeature[] = [
+    ...areaFeatures,
+    ...lockAreaFeatures
+  ]
+
+  const hasCustomModelContent =
+    priorityRules.length > 0 || customModelAreasFeatures.length > 0
+  const customModel: GraphHopperCustomModel | null = hasCustomModelContent
+    ? {
+        priority: priorityRules,
+        ...(customModelAreasFeatures.length > 0 ? {
+          areas: {
+            type: "FeatureCollection",
+            features: customModelAreasFeatures
+          }
+        } : {})
+      }
+    : null
+
+  const baseRequest: Record<string, unknown> = {
+    profile: profile.engineProfile,
+    points: _request.points.map((point) => [point.lon, point.lat]),
+    points_encoded: false,
+    instructions: true,
+    calc_points: true,
+    elevation: false,
+    locale: "en-US",
+    details,
+    ...(customModel ? { custom_model: customModel } : {})
+  }
+  if (_request.roundTrip) {
+    return {
+      ...baseRequest,
+      algorithm: "round_trip",
+      "round_trip.distance": estimateRoundTripDistanceMeters(
+        _request.profile,
+        _request.roundTrip.targetMinutes
+      ),
+      "round_trip.seed": _request.roundTrip.seed ?? 0,
+      ...(_request.roundTrip.heading === undefined
+        ? {}
+        : { headings: [_request.roundTrip.heading] })
+    }
+  }
+  if (_request.points.length === 2) {
+    return {
+      ...baseRequest,
+      algorithm: "alternative_route",
+      "alternative_route.max_paths": 3,
+      // Timeboxed destination corridors need the engine to explore much
+      // longer detours than a 1.8x ceiling allows; widen it so a swung
+      // corridor can actually reach the requested duration.
+      "alternative_route.max_weight_factor": _request.targetMinutes ? 4.0 : 1.8,
+      "alternative_route.max_share_factor": 0.62
+    }
+  }
+  return baseRequest
+}
+
+export const REQUESTED_DETAILS = [
+  "road_class", "surface", "track_type", "max_speed", "toll", "road_environment", "urban_density", "curvature"
+]

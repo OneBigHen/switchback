@@ -11,7 +11,7 @@
   inputs and are excluded from the image/build context.
 - Added the native decision record below with the required field evidence
   table; it deliberately starts as unmeasured instead of guessing.
-- Final Megaplex acceptance is green: 202 test files / 1,285 passed / 1
+- Final validation host acceptance is green: 202 test files / 1,285 passed / 1
   skipped, plus lint, typecheck, and production build.
 - The self-hosted Compose/Caddy stack is live in the LXC: `/api/health` is
   non-degraded, all eight routing profiles return live GraphHopper routes,

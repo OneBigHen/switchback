@@ -265,7 +265,7 @@
   npm run build
   ```
 
-  Then sync the source to Megaplex and rerun the direct Node 24 Vitest suite, critical browser suite, and the previously established PWA, memory, and real-router gates.
+  Then sync the source to the validation host and rerun the direct Node 24 Vitest suite, critical browser suite, and the previously established PWA, memory, and real-router gates.
 
 - [ ] **Step 4: Update phase evidence without overstating it**
 

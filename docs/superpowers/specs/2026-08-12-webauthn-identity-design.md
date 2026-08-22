@@ -88,7 +88,7 @@ Test the public seams in vertical slices:
   session plus CSRF cookies;
 - cookie mutation without CSRF is rejected and a matching token is accepted;
 - the browser adapter uses native passkey capability and sends no private key;
-- existing community/sync and the full Megaplex acceptance suites remain green.
+- existing community/sync and the full the validation host acceptance suites remain green.
 
 No claim of physical passkey behavior, iOS platform UI, external riders, or
 production edge configuration is made by these tests.

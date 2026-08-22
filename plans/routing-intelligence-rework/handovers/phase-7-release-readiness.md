@@ -75,7 +75,7 @@ Rollback: `mv data/graph-cache-rollback-phase3-toll data/graph-cache` (router st
   (main = `b22ac77`, the last pre-rework commit; the old in-memory process is pid 9660's predecessor — the snapshot is git, not a copied build dir.)
 - Push/PR (NOT executed — awaiting authorization): see the release report.
 
-## GRAPH UPGRADE COMPLETED (2026-08-03) — via the 64 GB Windows PC (zac@desktop over Tailscale)
+## GRAPH UPGRADE COMPLETED (2026-08-03) — via the 64 GB Windows PC (private transfer host over Tailscale)
 
 - Imported the toll-aware PA/NJ graph on the 64 GB PC (WSL2 Ubuntu 24.04, Java 17): `IMPORT_EXIT=0`, 1.3 GB candidate cache (`data/graph-cache-phase3-toll`), validated (health OK, 34.5 km route, toll detail served).
 - Transferred back (649 MB, SSH-streamed — scp receive on this host truncates at 200 KB, bypassed via `ssh cat > file`), swapped in: legacy cache preserved at `data/graph-cache-rollback-legacy`.
@@ -93,4 +93,4 @@ Rollback: `mv data/graph-cache-rollback-phase3-toll data/graph-cache` (router st
 | GraphHopper (toll-aware candidate cache) | 127.0.0.1:8989/8990 | Running, full config |
 | Valhalla | :8000/:8002 | Running |
 | Legacy GraphHopper cache | data/graph-cache-rollback-legacy | Preserved for rollback |
-| 64 GB PC (zac@desktop) | Tailscale 100.78.187.73 | Import/validate done; scheduled tasks cleaned up |
+| 64 GB PC (private transfer host) | private overlay address omitted | Import/validate done; scheduled tasks cleaned up |

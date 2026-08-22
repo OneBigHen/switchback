@@ -12,7 +12,7 @@ The default deployable routing region is **Pennsylvania plus New Jersey**. The b
 - Free-form destination, address, and loop requests such as “Route me to 10 W Main St, New Hope, PA” or “two-hour gravel loop from Carlisle with a brewery stop,” with a deterministic local interpreter and optional OpenRouter enhancement
 - A modular free-form waypoint resolver that acquires browser location when a fresh session has no start, then location-biases destination lookup from the origin that will actually be routed
 - Google Places Text Search for precise destinations when configured, with location-biased Photon fallback when Google is absent, empty, or unavailable
-- GraphHopper-primary hybrid routing with optional distinct Valhalla alternatives/fallback for supported point-to-point requests, route-level provider provenance, and independently degradable elevation enrichment
+- GraphHopper-primary routing with optional Valhalla fallback for eligible point-to-point requests after GraphHopper failure, route-level provider provenance, and independently degradable elevation enrichment
 - Timeboxed 60/90/120/180-minute loops using GraphHopper's native round-trip algorithm, measured-duration feedback, varied seeds, and headings
 - Timeboxed point-to-point rides: a direct baseline plus up to four curvature/GPX/research corridors shaped inside a safe envelope, scored by a maximum-twisties formula with hard duration, backtracking, and self-overlap gates
 - Source-backed corridor hints from the optional You.com adviser (`/api/ride-corridors`), validated by URL and geocoding and cached for seven days — research never blocks the primary route
@@ -53,7 +53,7 @@ Adventure selection strongly favors gravel and other unpaved surfaces reported b
 | --- | --- | --- |
 | App | Next.js 16, React 19, TypeScript | One production process for the UI and server-side provider boundary |
 | Map | MapLibre GL JS + OpenFreeMap | Open rendering stack with a replaceable style URL and no required map token |
-| Router | Self-hosted GraphHopper 11 primary + optional Valhalla | GraphHopper owns motorcycle profiles and native loops; Valhalla can add distinct supported alternatives or preserve a supported point-to-point request during a GraphHopper failure |
+| Router | Self-hosted GraphHopper 11 primary + optional Valhalla | GraphHopper owns motorcycle profiles and native loops; eligible point-to-point requests may fall back to Valhalla after GraphHopper failure, but successful GraphHopper routes are not supplemented by Valhalla |
 | Route quality | GraphHopper custom models + SQLite curvature data | Makes Twisty, Scenic, and Adventure behavior controllable instead of relying on car-only profiles |
 | Place search | Google Places Text Search + Photon fallback | Uses Google for destination precision when a server-only key is configured and keeps no-key/outage-safe, location-biased search through Photon |
 | Ride intent | Local parser + optional OpenRouter | Keeps core planning available without a cloud key while supporting richer free-form requests when configured |
@@ -61,14 +61,14 @@ Adventure selection strongly favors gravel and other unpaved surfaces reported b
 | PA unpaved intelligence | PASDA / Pennsylvania DEP ArcGIS service | Cached route-corridor evidence plus viewport-bounded official reference lines |
 | Rider data | Dexie/IndexedDB | Fast local-first saved routes without a sign-in gate |
 
-GraphHopper is always attempted first. When `VALHALLA_URL` is configured, eligible non-Adventure, non-round-trip requests are also sent to Valhalla and distinct candidates are merged with route-level provider/version provenance. If GraphHopper fails, a successful Valhalla result preserves that supported request; optional-provider failure becomes a warning rather than deleting valid GraphHopper geometry. Native round trips and Adventure remain GraphHopper-only because their current semantics are not interchangeable. `VALHALLA_ELEVATION_URL` is independent and may enrich any returned geometry through `/height`; an elevation outage leaves the route intact.
+GraphHopper is always attempted first. When `VALHALLA_URL` is configured, eligible non-Adventure, non-round-trip requests use Valhalla only as a fallback after GraphHopper fails; a successful GraphHopper request is never sent to Valhalla for supplemental alternatives. A successful Valhalla fallback preserves that supported request and carries fallback provenance. Native round trips and Adventure remain GraphHopper-only because their current semantics are not interchangeable. `VALHALLA_ELEVATION_URL` is independent and may enrich returned geometry on the alternatives call through `/height`; an elevation outage leaves the route intact.
 
 Mapbox is not the routing core because its Directions API does not expose a motorcycle profile. Google two-wheel routing is region-limited and does not provide the custom curvy/scenic weighting this product needs. Google Places is used only for search quality when configured. The provider boundaries remain configuration-driven.
 
 ## Requirements
 
 - Linux or macOS
-- Node.js 22 or newer
+- Node.js 24 or newer
 - npm 10 or newer
 - Java 17 or newer
 - Approximately 2 GB RAM to serve the router and at least 6 GB available during graph import
@@ -101,7 +101,7 @@ npm run routing:start
 npm run dev
 ```
 
-Open `http://localhost:3000`. `localhost` is treated as a secure browser context for development; a phone opening a raw LAN URL such as `http://192.168.1.40:3000` is not. Use the HTTPS setup below for phone GPS and wake lock.
+Open `http://localhost:3000`. `localhost` is treated as a secure browser context for development; a phone opening a raw LAN URL is not. Use the HTTPS setup below for phone GPS and wake lock.
 
 ## Configuration
 
@@ -110,7 +110,7 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GRAPHHOPPER_URL` | `http://127.0.0.1:8989` | Server-only GraphHopper endpoint |
-| `VALHALLA_URL` | unset | Optional server-only Valhalla endpoint for supplemental alternatives and supported-request fallback; it does not replace GraphHopper |
+| `VALHALLA_URL` | unset | Optional server-only Valhalla endpoint for eligible supported-request fallback after GraphHopper failure; it does not supplement successful GraphHopper routing |
 | `VALHALLA_ELEVATION_URL` | unset | Optional server-only Valhalla `/height` source; may be configured independently from Valhalla routing |
 | `PHOTON_URL` | `https://photon.komoot.io/api/` | Server-only Photon-compatible search endpoint |
 | `GOOGLE_MAPS_API_KEY` | unset | Optional server-only key for Google Places Text Search and rider-stop ideas; never expose it through `NEXT_PUBLIC_*` |
@@ -122,6 +122,7 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 | `CORRIDOR_CACHE_PATH` | `<repo>/data/route-research-cache.sqlite` | Server-side 7-day cache of validated corridor hints for `/api/ride-corridors` and the timeboxed destination planner |
 | `GPX_LIBRARY_PATH` | `<repo>/data/gpx-library` | Server-side catalog scanned by `/api/gpx-library`; separate from each browser's IndexedDB routes |
 | `COMMUNITY_DB_PATH` / `SYNC_DB_PATH` | `data/*.sqlite` | Server-side route-centered community and opaque encrypted-sync stores; keep outside the web root |
+| `SWITCHBACK_DATA_ROOT` | unset | Preferred absolute host path for backup/restore; unset uses only unambiguous Compose-scoped discovery |
 | `SWITCHBACK_SESSION_SECRET` | unset | At least 32 characters; signs pseudonymous identity sessions |
 | `SWITCHBACK_WEBAUTHN_RP_ID` | `localhost` outside production | Production HTTPS relying-party hostname; must match the configured origin or a parent domain |
 | `SWITCHBACK_WEBAUTHN_ORIGIN` | `http://localhost:3000` outside production | Exact production HTTPS origin accepted by WebAuthn verification |
@@ -130,7 +131,7 @@ Copy [.env.example](.env.example) to `.env.local` for development or `.env.produ
 
 When `GOOGLE_MAPS_API_KEY` is configured, deliberate destination searches use Google Places Text Search with a location bias from the resolved start. Empty results and provider errors fall back to Photon. The public Photon endpoint is convenient for a personal deployment; for heavier or multi-user traffic, run a Photon instance you control and set `PHOTON_URL` rather than treating the public service as an unlimited production API.
 
-Valhalla is optional. The pinned [Valhalla Compose contract](infra/valhalla/README.md) builds Pennsylvania/New Jersey tiles from the same normalized extract and binds the service to `127.0.0.1:8002`; it is not required by the default GraphHopper startup. Enable `VALHALLA_URL` and/or `VALHALLA_ELEVATION_URL` only after the documented local route, status, and elevation checks pass. When `VALHALLA_URL` is configured, `/api/health` reports that routing provider independently; a Valhalla outage marks the app degraded while GraphHopper readiness remains authoritative. An elevation-only endpoint is not currently a separate health probe.
+Valhalla is optional and fallback-only for eligible point-to-point requests. The pinned [Valhalla Compose contract](infra/valhalla/README.md) builds Pennsylvania/New Jersey tiles from the same normalized extract and binds the service to `127.0.0.1:8002`; it is not required by the default GraphHopper startup. Enable `VALHALLA_URL` and/or `VALHALLA_ELEVATION_URL` only after the documented local route, status, and elevation checks pass. When `VALHALLA_URL` is configured, `/api/health` reports that routing provider independently; a Valhalla outage marks the app degraded while GraphHopper readiness remains authoritative. An elevation-only endpoint is not currently a separate health probe.
 
 `OPENROUTER_API_KEY` is optional. When it is absent, invalid, rate-limited, or returns unusable structured output, Switchback falls back to its local ride-intent parser. Keep the key only in `.env.local`, `.env.production`, or your service manager's protected environment; never use a `NEXT_PUBLIC_` name for it. The default `openrouter/free` router may choose different free models over time, so set `OPENROUTER_MODEL` to a specific compatible model if reproducibility matters.
 
@@ -180,6 +181,13 @@ defense in depth, but the proxy contract must be respected:
   project catalog under `GPX_LIBRARY_PATH` is still visible to anyone — only
   publish routes you intend to share.
 
+Backup and restore use `deployment/lib/resolve-data-root.sh`. Set
+`SWITCHBACK_DATA_ROOT` explicitly when possible. If it is unset, discovery is
+limited to the web service declared by the production Compose file and accepts
+only one unique `/data` mount source; generic Docker-wide `web` discovery is
+forbidden. `deployment/restore.sh` prints the validated target only after
+rejecting unsafe, foreign, or ambiguous roots and verifying backup checksums.
+
 ## Production on a LAN with HTTPS
 
 Geolocation, screen wake lock, service workers, and other installable-web-app capabilities require a [secure browser context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). `localhost` is a development exception; a phone connecting to a LAN IP over plain HTTP is not. The supplied Caddy example terminates HTTPS and proxies only the Next app.
@@ -195,7 +203,7 @@ sudo rsync -a --delete --exclude node_modules --exclude .next --exclude data ./ 
 sudo -u switchback bash -lc 'cd /opt/switchback && npm ci && cp .env.example .env.production && npm run build'
 ```
 
-Materialize the routing files under `/opt/switchback/data`; do not leave production symlinks pointing into `/root/Vibe`. Import the graph as the service user if it was not copied from a compatible GraphHopper 11 install:
+Materialize the routing files under `/opt/switchback/data`; do not leave production symlinks pointing into a developer checkout. Import the graph as the service user if it was not copied from a compatible GraphHopper 11 install:
 
 ```bash
 sudo -u switchback bash -lc 'cd /opt/switchback && npm run data:bootstrap && npm run routing:import'
@@ -223,7 +231,7 @@ curl --fail http://127.0.0.1:3100/api/health
 Create a local DNS record, for example:
 
 ```text
-switchback.home.arpa -> 192.168.1.40
+switchback.home.arpa -> <your-LAN-IP>
 ```
 
 `.home.arpa` is reserved for home networks. Every phone that will use Switchback must resolve that name to the Caddy host.
@@ -358,7 +366,7 @@ src/lib/routing/         Profiles, GraphHopper/Valhalla adapters, hybrid orchest
 src/lib/storage/         IndexedDB route library
 src/lib/weather/         National Weather Service forecast and alert adapter
 infra/graphhopper/       Pinned profiles, custom models, and GraphHopper config
-infra/valhalla/          Optional pinned PA/NJ supplemental-router Compose contract and runbook
+infra/valhalla/          Optional pinned PA/NJ fallback-router Compose contract and runbook
 infra/caddy/             HTTPS reverse-proxy example
 infra/systemd/           Production process supervisor examples
 scripts/                 Data bootstrap, motorcycle normalization, validation, and lifecycle scripts

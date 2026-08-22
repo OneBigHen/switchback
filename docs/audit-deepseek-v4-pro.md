@@ -52,7 +52,7 @@ in tracked files or in any commit/tag in git history.
 ### MEDIUM
 
 3. **`.env.local` points GraphHopper at a LAN address, not loopback**
-   `.env.local:2` sets `GRAPHHOPPER_URL=http://192.168.1.242:8989`, while the
+   `.env.local:2` sets `GRAPHHOPPER_URL` to a LAN address, while the
    file's own comment and the README (`README.md:148`, "Do not expose
    GraphHopper or Valhalla directly to the LAN") mandate loopback. The file is
    gitignored (not a leak), but the running deployment exposes the router to

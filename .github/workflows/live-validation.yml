@@ -1,0 +1,115 @@
+name: Trusted live validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: switchback-live-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: live-provider-preflight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      SWITCHBACK_LIVE_BASE_URL: ${{ secrets.SWITCHBACK_LIVE_BASE_URL }}
+      GRAPHHOPPER_URL: ${{ secrets.GRAPHHOPPER_URL }}
+    steps:
+      - id: check
+        name: Require trusted live endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in SWITCHBACK_LIVE_BASE_URL GRAPHHOPPER_URL; do
+            if [[ -z "${!name:-}" ]]; then missing+=("$name"); fi
+          done
+          if ((${#missing[@]})); then
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '### BLOCKED — SECRET NOT CONFIGURED'
+              echo
+              echo 'Trusted live validation requires these secret names:'
+              printf -- '- `%s`\n' "${missing[@]}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'configured=true' >> "$GITHUB_OUTPUT"
+          echo 'Trusted live endpoints are configured; continuing.' >> "$GITHUB_STEP_SUMMARY"
+
+  live-provider:
+    name: live-provider
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SWITCHBACK_LIVE_BASE_URL: ${{ secrets.SWITCHBACK_LIVE_BASE_URL }}
+      GRAPHHOPPER_URL: ${{ secrets.GRAPHHOPPER_URL }}
+      VALHALLA_URL: ${{ secrets.VALHALLA_URL }}
+      VALHALLA_ELEVATION_URL: ${{ secrets.VALHALLA_ELEVATION_URL }}
+      PHOTON_URL: ${{ secrets.PHOTON_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run bounded live-provider smoke
+        run: npm run test:live-smoke
+      - name: Publish live-provider report
+        if: always()
+        run: |
+          if [[ -f artifacts/quality/live-provider-results.json ]]; then
+            jq 'del(.generatedAt)' artifacts/quality/live-provider-results.json
+          fi
+          if [[ -f docs/quality/LIVE_PROVIDER_RESULTS.md ]]; then
+            cat docs/quality/LIVE_PROVIDER_RESULTS.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload live-provider report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-provider-results
+          path: |
+            artifacts/quality/live-provider-results.json
+            docs/quality/LIVE_PROVIDER_RESULTS.md
+          if-no-files-found: ignore
+          retention-days: 7
+
+  result:
+    name: live-provider-result
+    if: always()
+    needs: [preflight, live-provider]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report trusted live result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo 'BLOCKED — TRUSTED WORKFLOW MUST RUN FROM MAIN' >> "$GITHUB_STEP_SUMMARY"
+            echo '::error title=BLOCKED — UNTRUSTED REF::Dispatch this workflow from main.'
+            exit 1
+          fi
+          if [[ "${{ needs.preflight.outputs.configured }}" != true ]]; then
+            echo 'BLOCKED — SECRET NOT CONFIGURED' >> "$GITHUB_STEP_SUMMARY"
+            echo '::error title=BLOCKED — SECRET NOT CONFIGURED::Required trusted live endpoint secrets are absent.'
+            exit 1
+          fi
+          if [[ "${{ needs.live-provider.result }}" != success ]]; then
+            echo 'FAIL' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo 'PASS' >> "$GITHUB_STEP_SUMMARY"

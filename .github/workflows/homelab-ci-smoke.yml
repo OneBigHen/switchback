@@ -1,0 +1,88 @@
+name: Homelab CI smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: switchback-homelab-ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: trusted-ref guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require main ref
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo 'BLOCKED — HOMELAB WORKFLOW MUST RUN FROM MAIN' >> "$GITHUB_STEP_SUMMARY"
+            echo '::error title=BLOCKED — UNTRUSTED REF::Dispatch this workflow from main.'
+            exit 1
+          fi
+
+  smoke:
+    name: homelab-ci smoke
+    needs: guard
+    if: needs.guard.result == 'success'
+    runs-on: [self-hosted, linux, x64, homelab-ci]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Report appliance
+        run: |
+          set -euo pipefail
+          printf 'hostname: '; hostname
+          printf 'kernel: '; uname -srmo
+          printf 'node: '; node --version
+          printf 'npm: '; npm --version
+          printf 'git: '; git --version
+          printf 'docker: '; docker --version
+          printf 'compose: '; docker compose version
+          printf 'cpu: '; nproc
+          free -h
+          df -h /
+      - name: Node execution
+        run: |
+          node -e 'if (2 + 2 !== 4) process.exit(1); console.log("node: PASS")'
+      - name: Docker execution
+        run: docker run --rm hello-world
+      - name: Docker Compose execution
+        run: |
+          set -euo pipefail
+          compose_dir="$(mktemp -d)"
+          trap 'docker compose --project-directory "$compose_dir" down --volumes --remove-orphans' EXIT
+          printf '%s\n' \
+            'services:' \
+            '  smoke:' \
+            '    image: alpine:3.22' \
+            '    command: ["sh", "-c", "echo compose: PASS"]' > "$compose_dir/compose.yml"
+          docker compose -f "$compose_dir/compose.yml" up --abort-on-container-exit --exit-code-from smoke
+      - name: Playwright browser smoke
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install chromium webkit
+          node --input-type=module <<'NODE'
+          import { chromium, webkit } from '@playwright/test'
+          for (const [name, type] of Object.entries({ chromium, webkit })) {
+            const browser = await type.launch({ headless: true })
+            try {
+              const page = await browser.newPage()
+              await page.goto('data:text/html,<main id="ready">ci-ok</main>')
+              if (await page.locator('#ready').textContent() !== 'ci-ok') throw new Error(`${name} content mismatch`)
+              console.log(`${name}: PASS`)
+            } finally {
+              await browser.close()
+            }
+          }
+          NODE

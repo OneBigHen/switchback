@@ -48,12 +48,12 @@ library, or offline payloads.
 | Command/evidence | Result |
 |---|---|
 | Focused P13 Vitest suite | 2 files, 9 tests passed locally |
-| Megaplex `npm run verify` | lint/typecheck/build passed; 177 test files, 1,199 passed, 1 skipped |
-| Megaplex broad Playwright | 24/24 |
-| Megaplex critical Chromium/WebKit | 30/30 |
-| Megaplex PWA | 2/2 |
-| Megaplex real-router fixture | 5/5, including private, motorcycle-closed, and disconnected refusals |
-| Megaplex memory soak | 1/1 test; 10/10 planner cycles |
+| the validation host `npm run verify` | lint/typecheck/build passed; 177 test files, 1,199 passed, 1 skipped |
+| the validation host broad Playwright | 24/24 |
+| the validation host critical Chromium/WebKit | 30/30 |
+| the validation host PWA | 2/2 |
+| the validation host real-router fixture | 5/5, including private, motorcycle-closed, and disconnected refusals |
+| the validation host memory soak | 1/1 test; 10/10 planner cycles |
 | Local/remote scoped SHA parity | equal for both P13 modules and both focused tests |
 | Router cleanup | PID file absent and port 8998 closed |
 

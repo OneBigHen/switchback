@@ -77,23 +77,23 @@ report; no owner corpus re-import was run during this phase.
 
 ## Tests
 
-- Final Megaplex focused GPX audit: 5 files / 16 tests passed.
-- Final Megaplex `npm run verify`: 187 test files / 1,238 passed / 1 skipped;
+- Final validation host focused GPX audit: 5 files / 16 tests passed.
+- Final validation host `npm run verify`: 187 test files / 1,238 passed / 1 skipped;
   lint, typecheck, and production build passed.
-- Megaplex broad browser matrix: 28/28 passed.
-- Megaplex critical Chromium/WebKit matrix: 30/30 passed.
-- Megaplex PWA/offline matrix: 2/2 passed.
-- Megaplex memory soak: 1/1 test, 10/10 planner cycles.
-- Megaplex real GraphHopper fixture: 5/5 passed; router PID and port 8998
+- the validation host broad browser matrix: 28/28 passed.
+- the validation host critical Chromium/WebKit matrix: 30/30 passed.
+- the validation host PWA/offline matrix: 2/2 passed.
+- the validation host memory soak: 1/1 test, 10/10 planner cycles.
+- the validation host real GraphHopper fixture: 5/5 passed; router PID and port 8998
   cleanup were clear.
 - `git diff --check` passed before documentation edits.
 
 ## Commands and environment
 
-The acceptance runs used `/tmp/switchback-megaplex-test.LDEtb5` in the
-Megaplex LXC at `root@192.168.1.175`, with Node 24.15.0 at
-`/tmp/node-v24.15.0-linux-x64`. The final full verification log is
-`/tmp/switchback-p27-final-verify.log` on that LXC.
+The acceptance runs used `<validation-checkout>` in the
+the validation host LXC at `root@<private-test-host>`, with Node 24.15.0 at
+`<node-toolchain-path>`. The final full verification log is
+`<verification-log>` on that validation host.
 
 ## Memory/performance evidence
 

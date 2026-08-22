@@ -7,6 +7,7 @@ const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
 const qualitySuites = /\/(critical|real-router|pwa|visual)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
+const roadLockSpec = /\/road-lock\.spec\.ts$/
 const criticalMatch = /\/critical\/.*\.spec\.ts$/
 const realRouterMatch = /\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/pwa\/.*\.spec\.ts$/
@@ -37,17 +38,17 @@ export default defineConfig({
   projects: [
     {
       name: "desktop-chromium",
-      testIgnore: [qualitySuites, memorySoakSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
       use: { ...devices["Desktop Chrome"] }
     },
     {
       name: "mobile-safari",
-      testIgnore: [qualitySuites, memorySoakSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
       use: { ...devices["iPhone 14"] }
     },
     {
       name: "mobile-landscape-wide",
-      testIgnore: [qualitySuites, memorySoakSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
       use: {
         ...devices["iPhone 14 landscape"],
         viewport: { width: 844, height: 390 },
@@ -56,7 +57,7 @@ export default defineConfig({
     },
     {
       name: "mobile-landscape-narrow",
-      testIgnore: [qualitySuites, memorySoakSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
       use: { ...devices["iPhone SE landscape"] }
     },
     {
@@ -73,6 +74,11 @@ export default defineConfig({
       name: "critical-webkit",
       testMatch: criticalMatch,
       use: { ...devices["iPhone 14"], serviceWorkers: "block" }
+    },
+    {
+      name: "road-lock",
+      testMatch: roadLockSpec,
+      use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     },
     {
       name: "real-router",

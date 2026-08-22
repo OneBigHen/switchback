@@ -22,4 +22,4 @@
 
 The repository is ready for a real WebAuthn verifier and operator moderation
 workflow. No browser passkey ceremony, authenticated-browser proof, or
-external-rider community release is claimed by the Megaplex automation.
+external-rider community release is claimed by the validation host automation.

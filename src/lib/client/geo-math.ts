@@ -8,6 +8,13 @@ export function turfDistance(a: Coordinate, b: Coordinate): number {
   return distance([a[0], a[1]], [b[0], b[1]], { units: "meters" })
 }
 
+export function polylineDistanceMeters(geometry: Coordinate[]): number {
+  return geometry.slice(0, -1).reduce(
+    (total, coordinate, index) => total + turfDistance(coordinate, geometry[index + 1]!),
+    0
+  )
+}
+
 export function turfBearing(a: Coordinate, b: Coordinate): number {
   return bearing([a[0], a[1]], [b[0], b[1]])
 }
