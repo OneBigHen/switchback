@@ -83,7 +83,6 @@ export async function parseRouteFileInWorker(
 
   return new Promise<PlannedRoute>((resolve, reject) => {
     let settled = false
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
     const onAbort = () => {
       if (settled) return
       try {
@@ -117,6 +116,7 @@ export async function parseRouteFileInWorker(
       finish()
       reject(new Error("The route import timed out."))
     }
+    const timeoutId = setTimeout(onTimeout, ROUTE_IMPORT_DEADLINE_MS)
     worker.onerror = () => {
       if (settled) return
       finish()
@@ -156,7 +156,6 @@ export async function parseRouteFileInWorker(
       }
       resolve(result.route)
     }
-    timeoutId = setTimeout(onTimeout, ROUTE_IMPORT_DEADLINE_MS)
     signal?.addEventListener("abort", onAbort, { once: true })
     if (signal?.aborted) {
       onAbort()
