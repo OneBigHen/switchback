@@ -42,13 +42,15 @@ it after a serious compromise.
 ## Runner registration
 
 The runner is prepared under `/opt/actions-runner` but must not be configured
-with a PAT. Organization scope is preferred only when a runner group named
-`homelab-ci` exists and is restricted in GitHub organization settings to
-selected repositories, initially `OneBigHen/switchback`. The current local
-GitHub CLI credential cannot administer organization runner groups, so group
-creation and the short-lived registration token remain an owner step.
+with a PAT. The deployed runner is currently repository-scoped to
+`OneBigHen/switchback`; organization runner-group administration was not
+available to the local GitHub CLI credential. It is online as `github-ci`.
 
-Create the group at:
+The repository runner page is:
+
+`https://github.com/OneBigHen/switchback/settings/actions/runners`
+
+For a future organization-scoped enrollment, create or restrict the group at:
 
 `https://github.com/organizations/OneBigHen/settings/actions/runner-groups`
 
@@ -57,14 +59,23 @@ short-lived token and run this command. Paste the token only at the prompt;
 it is read from stdin and is not written to a script or shell history:
 
 ```bash
-ssh -t megaplex 'pct exec 125 -- /opt/actions-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen --runner-group homelab-ci'
+ssh -t megaplex 'pct exec 125 -- /root/ci-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen --runner-group homelab-ci'
 ```
 
 If organization registration is unavailable, use the repository page's
 **Settings → Actions → Runners → New self-hosted runner** token instead:
 
 ```bash
-ssh -t megaplex 'pct exec 125 -- /opt/actions-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen/switchback'
+ssh -t megaplex 'pct exec 125 -- /root/ci-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen/switchback'
+```
+
+When an authenticated local `gh` session has repository administration access,
+the same short-lived token can be piped directly without copying Docker-dev
+credentials or storing a token:
+
+```bash
+gh api --method POST repos/OneBigHen/switchback/actions/runners/registration-token --jq .token |
+  ssh -T megaplex 'pct exec 125 -- /root/ci-runner/install-actions-runner.sh --register --scope https://github.com/OneBigHen/switchback'
 ```
 
 The service is created by the supported `svc.sh` mechanism after registration.
@@ -152,8 +163,8 @@ destroy only VMID 125 and rerun the provisioning scripts from this repository:
 
 ```bash
 ssh megaplex 'pct destroy 125 --purge'
-ssh megaplex 'CI_VMID=125 /path/to/switchback/infra/ci-runner/create-lxc.sh'
-scp -r infra/ci-runner megaplex:/root/
+scp -r infra/ci-runner megaplex:/root/ci-runner
+ssh megaplex 'CI_VMID=125 /root/ci-runner/create-lxc.sh'
 ssh megaplex 'pct exec 125 -- /root/ci-runner/bootstrap-ci.sh'
 ```
 

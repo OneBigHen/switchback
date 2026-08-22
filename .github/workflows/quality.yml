@@ -216,7 +216,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: quality-live-smoke
-          path: artifacts/quality
+          path: .
       - name: Write owner-facing summary
         env:
           QUALITY_CODE_QUALITY: ${{ needs.code-quality.result }}
