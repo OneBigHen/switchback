@@ -75,9 +75,7 @@ export function enterImmersive(
   if (isImmersive(current)) return current
   return {
     detent: "immersive",
-    restoreDetent: current === "closed" || current === "peek" || current === "half" || current === "full"
-      ? current
-      : "half"
+    restoreDetent: current === "immersive" ? "half" : current
   }
 }
 

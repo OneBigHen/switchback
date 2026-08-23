@@ -91,7 +91,7 @@
   width: min(420px, calc(100vw - 40px));
   height: 158px;
   border-radius: 20px;
-  transition: height 220ms ease, width 220ms ease;
+  transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease;
 }
 
 .planner-mini-header {

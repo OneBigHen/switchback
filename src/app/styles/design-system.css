@@ -101,8 +101,8 @@ h6,
 }
 
 .planner-shell .sb-bottom-sheet {
-  transition: height var(--sb-motion-sheet), width var(--sb-motion-sheet),
-    border-radius var(--sb-motion-sheet);
+  transition: transform var(--sb-motion-sheet), opacity var(--sb-motion-sheet),
+    filter var(--sb-motion-sheet);
 }
 
 :root[data-theme="dark"] .planner-shell .sb-bottom-sheet {

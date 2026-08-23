@@ -10,6 +10,16 @@
   background: var(--oled);
 }
 
+.ride-hud {
+  --instrument: #f3f7fa;
+  --metal: #c7cbc8;
+  --line: #4a5658;
+  --signal: #8fc1ff;
+  --success: #72d6a4;
+  --danger: #ff8074;
+  --warning: #ffd27a;
+}
+
 .planner-shell .map-stage.is-lock-drawing {
   z-index: 6;
 }

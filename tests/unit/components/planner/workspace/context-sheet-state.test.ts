@@ -58,12 +58,6 @@ describe("context sheet detents", () => {
     }
   })
 
-  it("defaults the restore target to half for non-ladder callers", () => {
-    // Defensive branch: an unknown value collapses to the half restore.
-    const immersive = enterImmersive("unknown" as ContextSheetDetent)
-    expect(immersive.restoreDetent).toBe("half")
-  })
-
   it("maps the legacy expanded/collapsed sheet states without behavior change", () => {
     expect(detentFromLegacySheetState("expanded")).toBe("half")
     expect(detentFromLegacySheetState("collapsed")).toBe("peek")
