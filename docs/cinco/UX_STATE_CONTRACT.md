@@ -13,14 +13,21 @@ are what visual and E2E evidence are pinned against.
 
 | Input | Behavior without pinning | Deterministic control |
 |---|---|---|
-| Wall-clock time | Shell theme flips to dark when local hour `< 6` or `>= 19` (`PlannerShell.tsx`), auto night map style via sun calc (`day-phase.ts`), Free Ride suggestion expiry (`SB-030`) | `page.clock.setFixedTime(UX_STATE_FIXTURES.PINNED_CLOCK)` (midday) before navigation |
-| Device location | Config pins geolocation to fixture start (`playwright.config.ts`) | Keep default; off-route state moves it explicitly with `page.setGeolocation` |
+| Wall-clock time | Shell theme flips to dark when local hour `< 6` or `>= 19` (`PlannerShell.tsx`), auto night map style via sun calc (`day-phase.ts`), Free Ride suggestion expiry (`SB-030`) | `page.clock.install({ time: UX_STATE_FIXTURES.PINNED_CLOCK })` (midday) before navigation |
+| JS timers | Planner deck rotates the prompt placeholder every 4.2 s (`PlannerDeck.tsx`), so text captures race an interval | `clock.install` pauses app timers; placeholder stays on its first example. Free Ride states advance the clock explicitly (`fireDeferredTimers` / `driveFreeRidePoll`) to reach their deferred first poll deterministically |
+| Device location | Config pins geolocation to fixture start (`playwright.config.ts`) | Keep default; off-route state moves it explicitly with `page.context().setGeolocation` |
 | Map camera motion | `easeTo`/`flyTo` run 650 ms animations that can straddle a screenshot | Fixed `MAP_SETTLE_MS = 900` settle window (> longest 650 ms transition) after each state marker |
 | Live external services | Tiles, routing, weather, geocoding, suggestions would vary or fail | All network calls fulfilled by `tests/e2e/helpers/planner-fixtures.ts` mocks; service workers blocked by Playwright config |
-| Dev-mode toast | Next.js dev indicator overlays screenshots | Masked via existing `screenshotOptions()` |
+| Dev-mode overlay | Next.js dev indicator renders a shadow-DOM portal at z-index max; it masked screenshots and could intercept pointer events | Disabled for dev runs via `devIndicators: false` in `next.config.ts` (dev-only chrome, no production effect) |
 
-No app code was changed to achieve this stabilization; all controls live in
-the test harness.
+The clock pin is what un-blocked the pre-existing visual failures: baselines
+captured in daylight went dark-red whenever the suite ran after 19:00 local
+(CI's visual job is `continue-on-error` for exactly this reason, per the
+comment in `.github/workflows/quality.yml`). With `clock.install` all 52
+visual tests pass and repeat identically regardless of wall clock. The CI
+visual job intentionally remains evidence-only in Phase 0: baseline pixels
+still depend on the rendering host's font rasterization, so making the job
+gating is deferred until baselines are generated in a pinned CI image.
 
 ## Required viewports
 
@@ -117,7 +124,9 @@ on a live external service.
 - New baselines are created only by running the specs locally; they are never
   generated in CI to make a gate pass.
 - Existing baselines are updated only when the reviewed diff corresponds to an
-  intentional, described visual change (QA-002).
+  intentional, described visual change (QA-002). The Phase 0 clock pin made
+  the twelve tracked desktop/mobile primary-screen baselines pass again with
+  zero rebaselining — the drift had been theme, not pixels.
 - Evidence copies of every Phase 0 capture are exported to
   `artifacts/cinco/phase-0/` for PR review without opening snapshot internals.
 
