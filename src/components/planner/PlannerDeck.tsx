@@ -25,7 +25,6 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
@@ -40,6 +39,8 @@ import {
   type DownloadModePickerValue
 } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
+import { ContextSheet } from "./workspace/ContextSheet"
+import type { ContextSheetDetent } from "./workspace/context-sheet-state"
 import type {
   PlannerDeckCommands,
   PlannerDeckViewModel
@@ -154,7 +155,8 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onStartFreeRide = commands.onStartFreeRide
   const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
-  const [minimized, setMinimized] = useState(false)
+  const [sheetDetent, setSheetDetent] = useState<ContextSheetDetent>("half")
+  const minimized = sheetDetent === "peek"
   const [editing, setEditing] = useState(false)
   // Mobile planning flow stages (SB-025): Search → Choose → Edit → Prepare.
   // Multi-route comparison is "Choose"; a ready single route is "Prepare";
@@ -168,7 +170,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [roadLocksOpen, setRoadLocksOpen] = useState(false)
   const [offlinePackOpen, setOfflinePackOpen] = useState(false)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
-  const sheetDragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
   const routeEditorRef = useRef<HTMLDivElement>(null)
   const profiles = listProfiles()
   const activeProfile = profiles.find((item) => item.id === profile) ?? profiles[0]
@@ -223,17 +224,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     : planMode === "loop"
       ? `Plan a ${durationLabel} loop`
       : "Plan route"
-  const handleSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return
-    sheetDragStartRef.current = { pointerId: event.pointerId, clientY: event.clientY }
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-  }
-  const handleSheetPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const start = sheetDragStartRef.current
-    sheetDragStartRef.current = null
-    if (!start || start.pointerId !== event.pointerId) return
-    if (event.clientY - start.clientY >= 64) setMinimized(true)
-  }
   const submitQuickIntent = (prompt: string) => {
     setRidePrompt(prompt)
     onRidePrompt(prompt)
@@ -273,15 +263,16 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   }
 
   return (
-    <aside
+    <ContextSheet
       id="planner-sheet"
       className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
-      data-sheet-state={minimized ? "collapsed" : "expanded"}
-      aria-label="Motorcycle route planner"
+      detent={sheetDetent}
+      onDetentChange={setSheetDetent}
+      label="Motorcycle route planner"
     >
       {minimized ? (
         <div className="planner-mini-header">
-          <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setMinimized(false)}>
+          <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setSheetDetent("half")}>
             <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
             <span>
               <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
@@ -295,19 +286,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
         </div>
       ) : (
         <>
-        <button
-        type="button"
-        className="planner-sheet-handle"
-        aria-label="Collapse planner sheet by dragging down or tapping"
-        aria-controls="planner-sheet"
-        aria-expanded={true}
-          onClick={() => setMinimized(true)}
-          onPointerDown={handleSheetPointerDown}
-          onPointerUp={handleSheetPointerUp}
-          onPointerCancel={() => { sheetDragStartRef.current = null }}
-        >
-          <span aria-hidden="true" />
-        </button>
         <div className="planner-scroll">
         <header className="deck-header ride-deck-header">
           <a className="brand-lockup" href="#top" aria-label="Switchback home">
@@ -321,7 +299,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
               {planningStage}
             </span>
-            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setMinimized(true)}>
+            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setSheetDetent("peek")}>
               <CaretDown aria-hidden="true" />
             </button>
           </div>
@@ -814,7 +792,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           }}
         />
       ) : null}
-    </aside>
+    </ContextSheet>
   )
 }
 

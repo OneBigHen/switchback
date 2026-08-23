@@ -75,6 +75,21 @@ h6,
   isolation: isolate;
 }
 
+.map-workspace {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+  isolation: isolate;
+}
+
+.map-workspace-canvas {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
 .planner-shell :where(button, input:not([type="checkbox"]):not([type="radio"]), select) {
   min-height: var(--sb-touch-target);
 }
