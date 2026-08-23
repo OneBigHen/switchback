@@ -2,6 +2,7 @@ import type { Map as MapLibreMap } from "maplibre-gl"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 import { navigationCameraOptions } from "@/lib/client/navigation-map"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
+import { calculateMapViewportInsets, type WorkspaceMapContext } from "./workspace/map-viewport-insets"
 
 interface RouteViewportProps {
   routes: PlannedRoute[]
@@ -12,21 +13,18 @@ interface RouteViewportProps {
   recordingTrail?: Coordinate[] | null
 }
 
-function routeFitPadding(rideMode: boolean) {
-  const shortLandscape = window.innerHeight <= 520 && window.innerWidth > window.innerHeight
-  if (shortLandscape && window.innerWidth >= 800) {
-    return rideMode
-      ? { top: 80, right: 40, bottom: 150, left: 40 }
-      : { top: 40, right: 40, bottom: 40, left: 500 }
+/**
+ * Route-fit insets derived from workspace state. The legacy per-breakpoint
+ * padding tables now live in the tested inset model; this adapter keeps
+ * `fitSelectedRoute` call sites unchanged.
+ */
+function routeFitInsets(props: RouteViewportProps): ReturnType<typeof calculateMapViewportInsets> {
+  const context: WorkspaceMapContext = {
+    viewportWidthPx: window.innerWidth,
+    viewportHeightPx: window.innerHeight,
+    mode: props.rideMode ? "ride" : "planning"
   }
-  if (shortLandscape) {
-    return rideMode
-      ? { top: 72, right: 24, bottom: 150, left: 24 }
-      : { top: 24, right: 24, bottom: 170, left: 24 }
-  }
-  return window.innerWidth >= 800
-    ? { top: 80, right: 70, bottom: 80, left: rideMode ? 70 : 500 }
-    : { top: 90, right: 34, bottom: rideMode ? 250 : 450, left: 34 }
+  return calculateMapViewportInsets(context)
 }
 
 export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {
@@ -41,7 +39,7 @@ export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {
       [Math.max(...longitudes), Math.max(...latitudes)]
     ],
     {
-      padding: routeFitPadding(props.rideMode),
+      padding: routeFitInsets(props),
       duration: 900,
       maxZoom: 15
     }

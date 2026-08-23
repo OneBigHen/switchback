@@ -1,6 +1,7 @@
 import type { FeatureCollection, GeoJsonProperties, Geometry } from "geojson"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 import type { Coordinate } from "@/lib/routing/types"
+import { calculateNavigationFollowInsets } from "@/components/planner/workspace/map-viewport-insets"
 
 export interface NavigationViewport {
   width: number
@@ -21,8 +22,6 @@ export function navigationCameraOptions(
   frame: NavigationFrame,
   viewport: NavigationViewport
 ): NavigationCameraOptions {
-  const landscape = viewport.height <= 520 && viewport.width > viewport.height
-  const compact = viewport.width < 760
   const speed = frame.speedMetersPerSecond ?? 0
   const followZoom = speed >= 20 ? 15.6 : speed >= 8 ? 16.1 : 16.7
   const recovering = frame.status === "deviating" || frame.status === "off-route"
@@ -35,11 +34,12 @@ export function navigationCameraOptions(
   const pitch = recovering || frame.status === "uncertain" || frame.status === "weak-signal"
     ? 28
     : frame.status === "arrived" ? 18 : 52
-  const padding = landscape
-    ? { top: 112, right: 24, bottom: 52, left: 24 }
-    : compact
-      ? { top: 220, right: 28, bottom: 92, left: 28 }
-      : { top: 150, right: 88, bottom: 100, left: 430 }
+  // Ride-HUD occlusion insets come from the shared workspace model
+  // (golden-parity replacement for this file's inline padding table).
+  const padding = calculateNavigationFollowInsets({
+    viewportWidthPx: viewport.width,
+    viewportHeightPx: viewport.height
+  })
 
   return {
     center: frame.rawCoordinate,
