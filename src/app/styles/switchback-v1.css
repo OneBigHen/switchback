@@ -14,10 +14,13 @@
   --instrument: #f3f7fa;
   --metal: #c7cbc8;
   --line: #4a5658;
+  --machined: #1b2524;
+  --raised: #202b2a;
   --signal: #8fc1ff;
   --success: #72d6a4;
   --danger: #ff8074;
   --warning: #ffd27a;
+  color: var(--instrument);
 }
 
 .planner-shell .map-stage.is-lock-drawing {
@@ -682,6 +685,20 @@
     border-radius: 24px;
   }
 
+  /* Half detent: ~50% of content height (spec 45–55%), keeping the map the
+     primary canvas above the sheet. */
+  .planner-deck:not(.is-minimized) {
+    height: min(50dvh, 560px);
+    max-height: min(50dvh, 560px);
+  }
+
+  /* Full detent: ~88% of content height (spec 85–92%), capped so the top
+     edge and navigation rail stay visible. */
+  .planner-deck[data-sheet-detent="full"] {
+    height: min(88dvh, calc(100dvh - 108px));
+    max-height: min(88dvh, calc(100dvh - 108px));
+  }
+
   .planner-deck .planner-scroll {
     height: calc(100% - 82px);
   }
@@ -708,6 +725,13 @@
   .maplibregl-ctrl-bottom-left { left: 0; bottom: 84px; }
   .app-overlay-scrim { padding: 8px; }
   .app-overlay-panel { max-height: calc(100dvh - 16px); border-radius: 22px; }
+}
+
+@media (min-width: 761px) and (max-width: 900px) and (orientation: portrait) {
+  .planner-deck,
+  .destination-panel {
+    width: min(400px, calc(100vw - 112px));
+  }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {

@@ -7,6 +7,9 @@ import {
   type ContextSheetDetent
 } from "./context-sheet-state"
 
+/** Minimum vertical drag (CSS px) that counts as an expand/collapse gesture. */
+const SHEET_DRAG_THRESHOLD_PX = 64
+
 export interface ContextSheetProps {
   id: string
   label: string
@@ -31,10 +34,10 @@ export function ContextSheet({
   className
 }: ContextSheetProps) {
   const dragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
+  const dragGestureRef = useRef<"expand" | "collapse" | null>(null)
   const isPeek = detent === "peek"
   const isHidden = detent === "closed" || detent === "immersive"
   const usesPeekContent = isPeek && peekContent !== undefined
-  const nextDetent = isPeek ? expandSheetDetent(detent) : collapseSheetDetent(detent)
   const classes = [
     "sb-context-sheet",
     className,
@@ -45,15 +48,49 @@ export function ContextSheet({
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return
     dragStartRef.current = { pointerId: event.pointerId, clientY: event.clientY }
+    dragGestureRef.current = null
     event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = dragStartRef.current
+    if (!start || start.pointerId !== event.pointerId) return
+    const deltaY = event.clientY - start.clientY
+    if (deltaY <= -SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "expand"
+    else if (deltaY >= SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "collapse"
   }
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const start = dragStartRef.current
     dragStartRef.current = null
     if (!start || start.pointerId !== event.pointerId || isPeek) return
-    if (event.clientY - start.clientY >= 64 && nextDetent) onDetentChange(nextDetent)
+    const deltaY = event.clientY - start.clientY
+    if (deltaY <= -SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "expand"
+    else if (deltaY >= SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "collapse"
   }
+
+  /**
+   * One handle, both directions: a drag resolves the gesture it captured,
+   * and a plain tap advances the ladder (half→full, full→half) so keyboard
+   * and pointer users always have a path in both directions.
+   */
+  const handleActivate = () => {
+    if (isPeek) return
+    const gesture = dragGestureRef.current
+    dragGestureRef.current = null
+    const target = gesture === "expand"
+      ? expandSheetDetent(detent)
+      : gesture === "collapse"
+        ? collapseSheetDetent(detent)
+        : detent === "full"
+          ? collapseSheetDetent(detent)
+          : expandSheetDetent(detent)
+    if (target) onDetentChange(target)
+  }
+
+  const handleLabel = detent === "full"
+    ? "Collapse planner sheet"
+    : "Expand planner sheet"
 
   return (
     <aside
@@ -72,7 +109,8 @@ export function ContextSheet({
             aria-controls={id}
             aria-expanded={false}
             onClick={() => {
-              if (nextDetent) onDetentChange(nextDetent)
+              const target = expandSheetDetent(detent)
+              if (target) onDetentChange(target)
             }}
           >
             {peekContent}
@@ -83,15 +121,17 @@ export function ContextSheet({
         <button
           type="button"
           className="planner-sheet-handle"
-          aria-label="Collapse planner sheet by dragging down or tapping"
+          aria-label={handleLabel}
           aria-controls={id}
-          aria-expanded={true}
-          onClick={() => {
-            if (nextDetent) onDetentChange(nextDetent)
-          }}
+          aria-expanded={detent !== "full"}
+          onClick={handleActivate}
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onPointerCancel={() => { dragStartRef.current = null }}
+          onPointerCancel={() => {
+            dragStartRef.current = null
+            dragGestureRef.current = null
+          }}
         >
           <span aria-hidden="true" />
         </button>

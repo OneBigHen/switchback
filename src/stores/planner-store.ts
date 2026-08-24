@@ -8,6 +8,7 @@ import type { RoadLock } from "@/lib/roads/road-locks"
 import { convertMustLockToPrefer } from "@/lib/roads/road-locks"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { ContextSheetDetent } from "@/components/planner/workspace/context-sheet-state"
 
 export type PlannerPointId = "start" | "finish"
 export type PlannerSurface = "planner" | "library" | "ride" | "free-ride"
@@ -195,6 +196,10 @@ interface PlannerState {
   planningStartedAt: number | null
   /** True while a replan keeps the previous route visible but dimmed. */
   isRecalculating: boolean
+  /** ContextSheet detent override; transient. `null` defers to the
+   *  viewport default (peek on phones, half elsewhere). Map camera
+   *  fitting reads this so insets track the visible sheet size. */
+  sheetDetentOverride: ContextSheetDetent | null
   routePointPast: RoutePointSnapshot[]
   routePointFuture: RoutePointSnapshot[]
   canUndoRoutePoints: boolean
@@ -219,6 +224,7 @@ interface PlannerState {
   undoRoutePoints(): void
   redoRoutePoints(): void
   armPoint(id: PlannerPointId | null): void
+  setSheetDetentOverride(detent: ContextSheetDetent | null): void
   setProfile(profile: RouteProfileId): void
   setBikeProfile(profile: BikeProfile): void
   beginRouting(): void
@@ -267,6 +273,7 @@ export const initialPlannerState = {
   planningPhase: "idle" as const,
   planningStartedAt: null,
   isRecalculating: false,
+  sheetDetentOverride: null,
   curvatureVisible: true,
   surface: "planner" as const,
   routePointPast: [] as RoutePointSnapshot[],
@@ -421,6 +428,7 @@ export const usePlannerStore = create<PlannerState>()(
         }
       }),
       armPoint: (armedPoint) => set({ armedPoint }),
+      setSheetDetentOverride: (sheetDetentOverride) => set({ sheetDetentOverride }),
       setProfile: (profile) => {
         if (usePlannerStore.getState().profile === profile) return
         routeEntityCache.invalidate()

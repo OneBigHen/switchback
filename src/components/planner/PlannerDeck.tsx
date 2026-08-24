@@ -23,12 +23,14 @@ import {
 import {
   useEffect,
   useRef,
+  useSyncExternalStore,
   useState,
   type FormEvent,
   type ReactNode
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
 import { featureFlags } from "@/lib/domain/feature-flags"
+import { usePlannerStore } from "@/stores/planner-store"
 import type { RouteProfileId } from "@/lib/routing/types"
 import { BikeProfilePicker } from "./BikeProfilePicker"
 import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
@@ -40,7 +42,6 @@ import {
 } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
 import { ContextSheet } from "./workspace/ContextSheet"
-import type { ContextSheetDetent } from "./workspace/context-sheet-state"
 import type {
   PlannerDeckCommands,
   PlannerDeckViewModel
@@ -64,6 +65,19 @@ interface VoiceRecognition {
 }
 
 type VoiceRecognitionConstructor = new () => VoiceRecognition
+
+const PHONE_VIEWPORT_QUERY = "(max-width: 760px)"
+
+function subscribeToPhoneViewport(onChange: () => void): () => void {
+  if (typeof window.matchMedia !== "function") return () => {}
+  const mediaQuery = window.matchMedia(PHONE_VIEWPORT_QUERY)
+  mediaQuery.addEventListener("change", onChange)
+  return () => mediaQuery.removeEventListener("change", onChange)
+}
+
+function getPhoneViewportSnapshot(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia(PHONE_VIEWPORT_QUERY).matches
+}
 
 interface PlannerDeckProps {
   viewModel: PlannerDeckViewModel
@@ -155,7 +169,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onStartFreeRide = commands.onStartFreeRide
   const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
-  const [sheetDetent, setSheetDetent] = useState<ContextSheetDetent>("half")
+  const isPhoneViewport = useSyncExternalStore(subscribeToPhoneViewport, getPhoneViewportSnapshot, () => false)
+  const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
+  const setSheetDetentOverride = usePlannerStore((state) => state.setSheetDetentOverride)
+  const sheetDetent = sheetDetentOverride ?? (isPhoneViewport ? "peek" : "half")
   const minimized = sheetDetent === "peek"
   const [editing, setEditing] = useState(false)
   // Mobile planning flow stages (SB-025): Search → Choose → Edit → Prepare.
@@ -226,6 +243,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       : "Plan route"
   const submitQuickIntent = (prompt: string) => {
     setRidePrompt(prompt)
+    setSheetDetentOverride("half")
     onRidePrompt(prompt)
   }
   const voiceSessionRef = useRef(false)
@@ -267,23 +285,35 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       id="planner-sheet"
       className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
       detent={sheetDetent}
-      onDetentChange={setSheetDetent}
+      onDetentChange={setSheetDetentOverride}
       label="Motorcycle route planner"
     >
       {minimized ? (
-        <div className="planner-mini-header">
-          <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setSheetDetent("half")}>
-            <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
-            <span>
-              <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
-              <strong>{selectedRoute?.name ?? "Switchback"}</strong>
-              <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
-                {planningStage}
+        <>
+          <div className="planner-mini-header">
+            <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setSheetDetentOverride("half")}>
+              <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
+              <span>
+                <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
+                <strong>{selectedRoute?.name ?? "Switchback"}</strong>
+                <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+                  {planningStage}
+                </span>
               </span>
-            </span>
-            <CaretUp aria-hidden="true" />
-          </button>
-        </div>
+              <CaretUp aria-hidden="true" />
+            </button>
+          </div>
+          <div className="planner-peek-actions" aria-label="Quick ride actions">
+            {onStartFreeRide ? (
+              <button type="button" className="planner-peek-action is-primary" onClick={onStartFreeRide}>
+                <Sparkle weight="fill" aria-hidden="true" /> Free Ride
+              </button>
+            ) : null}
+            <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("1-hour loop")}>1-hour loop</button>
+            <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Twisty roads")}>Twisties</button>
+            <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Scenic ride")}>Scenic</button>
+          </div>
+        </>
       ) : (
         <>
         <div className="planner-scroll">
@@ -299,7 +329,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
               {planningStage}
             </span>
-            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setSheetDetent("peek")}>
+            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setSheetDetentOverride("peek")}>
               <CaretDown aria-hidden="true" />
             </button>
           </div>

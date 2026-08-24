@@ -4,6 +4,7 @@ import { expect, type Locator, type Page } from "@playwright/test"
 import {
   FIXTURE_START,
   expectRouteOutcome,
+  expandPhonePlanner,
   installPlannerServices,
   makeRoute,
   openPlannerEditor,
@@ -87,6 +88,15 @@ export async function captureEvidence(page: Page, name: string): Promise<void> {
  *  transition (MAP_SETTLE_MS, documented in UX_STATE_CONTRACT.md). */
 export async function settleMapDelay(page: Page): Promise<void> {
   await page.waitForTimeout(MAP_SETTLE_MS)
+}
+
+async function expectPlannerHomeReady(page: Page): Promise<void> {
+  const heading = page.getByRole("heading", { name: /Where do you want to ride/i })
+  const expand = page.getByRole("button", { name: "Expand planner" })
+  await expect.poll(async () => (
+    await heading.isVisible().catch(() => false)
+    || await expand.isVisible().catch(() => false)
+  ), { timeout: 10_000 }).toBe(true)
 }
 
 async function ensureCurrentLocationStart(page: Page): Promise<void> {
@@ -187,14 +197,14 @@ export const uxState = {
   async home(page: Page): Promise<void> {
     await installPlannerServices(page)
     await page.goto("/")
-    await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+    await expectPlannerHomeReady(page)
   },
 
   /** State 2 — route loading. Caller must invoke `release()` before test end. */
   async routeLoading(page: Page): Promise<HeldRouteResponse> {
     await installPlannerServices(page)
     await page.goto("/")
-    await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+    await expectPlannerHomeReady(page)
     await openPlannerEditor(page)
     await ensureCurrentLocationStart(page)
     await chooseFixtureFinish(page)
@@ -297,6 +307,7 @@ export const uxState = {
       })
     }))
     await page.goto("/")
+    await expandPhonePlanner(page)
     await page.getByRole("button", { name: "Free Ride" }).click()
     await driveFreeRidePoll(
       page,
@@ -321,6 +332,7 @@ export const uxState = {
       })
     }))
     await page.goto("/")
+    await expandPhonePlanner(page)
     await page.getByRole("button", { name: "Free Ride" }).click()
     const suggestionRegion = page.getByRole("region", { name: "Suggested fun road" })
     await driveFreeRidePoll(page, suggestionRegion)
@@ -334,7 +346,7 @@ export const uxState = {
     // style URL and simulates the tile/style provider being unreachable.
     await page.route("https://tiles.openfreemap.org/styles/**", (route) => route.abort())
     await page.goto("/")
-    await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+    await expectPlannerHomeReady(page)
     await expect(page.locator(".map-error")).toContainText(
       "The base map could not load. Routing controls remain available."
     )

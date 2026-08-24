@@ -24,6 +24,25 @@ function screenshotOptions(page: Page): { maxDiffPixelRatio: number; mask: Locat
   return { maxDiffPixelRatio: 0.02, mask: [page.locator(".nextjs-toast")] }
 }
 
+/**
+ * Phase 1 gate containment guard: the ride telemetry rail must fit entirely
+ * inside the viewport. A pixel snapshot alone cannot catch off-canvas
+ * clipping — the baseline would contain the same defect — so the geometry
+ * is asserted directly against the live viewport.
+ */
+async function expectTelemetryContained(page: Page): Promise<void> {
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  const rail = page.locator(".ride-telemetry")
+  await expect(rail).toBeVisible()
+  const box = await rail.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height)
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width)
+}
+
 for (const viewport of STATE_VIEWPORTS) {
   test.describe(`ux state contract — ${viewport.name}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } })
@@ -84,6 +103,7 @@ for (const viewport of STATE_VIEWPORTS) {
       await settleMapDelay(page)
       await captureEvidence(page, evidenceName("ride"))
       await expect(page).toHaveScreenshot(`${evidenceName("ride")}.png`, screenshotOptions(page))
+      await expectTelemetryContained(page)
     })
 
     test("off-route recovery", async ({ page }) => {
@@ -92,6 +112,7 @@ for (const viewport of STATE_VIEWPORTS) {
       await settleMapDelay(page)
       await captureEvidence(page, evidenceName("off-route-recovery"))
       await expect(page).toHaveScreenshot(`${evidenceName("off-route-recovery")}.png`, screenshotOptions(page))
+      await expectTelemetryContained(page)
     })
 
     test("free ride idle", async ({ page }) => {

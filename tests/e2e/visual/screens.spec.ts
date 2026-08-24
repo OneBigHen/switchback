@@ -5,6 +5,7 @@ import {
   installRouteApi,
   makeRoute,
   openPlannerEditor,
+  expandPhonePlanner,
   expectRouteOutcome,
   tripPlan,
   type RouteCapture
@@ -81,6 +82,7 @@ async function chooseFixtureFinish(page: Page): Promise<void> {
 
 async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
+  await expandPhonePlanner(page)
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
   await openPlannerEditor(page)
   await ensureStart(page)
@@ -96,8 +98,12 @@ for (const viewport of VIEWPORTS) {
     test("Plan screen (empty)", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-      await assertPanelVisible(page.locator(".planner-deck"))
+      if (viewport.name === "mobile") {
+        await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
+      } else {
+        await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+      }
+      await assertPanelVisible(page.locator(".planner-deck"), viewport.name === "mobile" ? 100 : 200)
       await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
 

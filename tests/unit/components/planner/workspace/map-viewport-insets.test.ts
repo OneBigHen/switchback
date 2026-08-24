@@ -52,14 +52,41 @@ describe("calculateMapViewportInsets — route-fit goldens", () => {
     }
   })
 
-  it("respects sheet detent for phone portrait bottom occlusion", () => {
+  it("reserves a distinct bottom occlusion per sheet detent (UX-004)", () => {
     const base = { ...PHONE_PORTRAIT, mode: "planning" as const }
-    expect(calculateMapViewportInsets({ ...base, sheetDetent: "peek" }).bottom).toBe(450)
-    expect(calculateMapViewportInsets({ ...base, sheetDetent: "half" }).bottom).toBe(450)
-    expect(calculateMapViewportInsets({ ...base, sheetDetent: "full" }).bottom).toBe(450)
+    // Peek reserves its rendered 146px sheet plus the 84px navigation-rail
+    // anchor and one gutter; half and full reserve their container fractions
+    // (capped so the full sheet cannot consume the entire viewport).
+    const peek = calculateMapViewportInsets({ ...base, sheetDetent: "peek" }).bottom
+    const half = calculateMapViewportInsets({ ...base, sheetDetent: "half" }).bottom
+    const full = calculateMapViewportInsets({ ...base, sheetDetent: "full" }).bottom
+    expect(peek).toBe(146 + 84 + MAP_VIEWPORT_GUTTER_PX)
+    expect(half).toBe(Math.round(PHONE_PORTRAIT.viewportHeightPx * 0.5) + 84 + MAP_VIEWPORT_GUTTER_PX)
+    expect(full).toBe(Math.min(
+      Math.round(PHONE_PORTRAIT.viewportHeightPx * 0.88) + 84 + MAP_VIEWPORT_GUTTER_PX,
+      PHONE_PORTRAIT.viewportHeightPx - 90 - 60
+    ))
+    // Disclosure must monotonically increase the reserved map occlusion:
+    // identical values here would re-pin the UX-004 regression.
+    expect(peek).toBeLessThan(half)
+    expect(half).toBeLessThan(full)
     // Closed/immersive sheets occlude nothing beyond the gutter baseline.
     expect(calculateMapViewportInsets({ ...base, sheetDetent: "closed" }).bottom).toBe(34)
     expect(calculateMapViewportInsets({ ...base, sheetDetent: "immersive" }).bottom).toBe(34)
+  })
+
+  it("scales half/full occlusion with the container height, not a constant", () => {
+    const phone = { ...PHONE_PORTRAIT, mode: "planning" as const, sheetDetent: "half" as const }
+    const tablet = { ...TABLET_PORTRAIT, mode: "planning" as const, sheetDetent: "half" as const }
+    const phoneHalf = calculateMapViewportInsets(phone).bottom
+    const tabletHalf = calculateMapViewportInsets(tablet).bottom
+    expect(tabletHalf).toBe(Math.round(TABLET_PORTRAIT.viewportHeightPx * 0.5) + 84 + MAP_VIEWPORT_GUTTER_PX)
+    expect(tabletHalf).toBeGreaterThan(phoneHalf)
+  })
+
+  it("keeps the legacy open-sheet reservation when no detent is known", () => {
+    const base = { ...PHONE_PORTRAIT, mode: "planning" as const }
+    expect(calculateMapViewportInsets(base).bottom).toBe(450)
   })
 
   it("honors an explicit workspace panel width with gutter on desktop planning", () => {

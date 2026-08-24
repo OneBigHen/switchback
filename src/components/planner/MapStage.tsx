@@ -116,6 +116,7 @@ export function MapStage(props: MapStageProps) {
   const [sketchMessage, setSketchMessage] = useState("")
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
+  const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
   const [highlightedLockId, setHighlightedLockId] = useState<string | null>(null)
   const {
     lockDrawMode,
@@ -756,8 +757,10 @@ export function MapStage(props: MapStageProps) {
     if (!map || !ready) return
     const current = propsRef.current
     updatePlannerSources(map, current)
-    fitSelectedRoute(map, current)
-  }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready])
+    fitSelectedRoute(map, { ...current, sheetDetent: sheetDetentOverride ?? undefined })
+    // Re-fit when the sheet detent changes: the visible map region grows or
+    // shrinks with the ContextSheet, and the route must fit what is visible.
+  }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, sheetDetentOverride])
 
   useEffect(() => {
     const map = mapRef.current

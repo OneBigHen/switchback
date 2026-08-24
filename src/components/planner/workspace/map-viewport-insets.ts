@@ -13,7 +13,11 @@
  * retune constants here without touching camera code.
  */
 
-import type { ContextSheetDetent } from "./context-sheet-state"
+import {
+  CONTEXT_SHEET_FULL_FRACTION,
+  CONTEXT_SHEET_HALF_FRACTION,
+  type ContextSheetDetent
+} from "./context-sheet-state"
 
 export interface MapViewportInsets {
   top: number
@@ -32,9 +36,10 @@ export interface WorkspaceMapContext {
   /** Defaults to "planning"; follow-camera insets ignore it. */
   mode?: WorkspaceMapMode
   /**
-   * Phone-portrait context sheet detent. Legacy behavior maps the deck's
-   * expanded/collapsed states to "half"/"peek" (see context-sheet-state);
-   * either way the bottom occlusion is the tuned legacy constant below.
+   * Phone-portrait context sheet detent. The bottom occlusion tracks the
+   * visible sheet size: peek reserves its rendered height plus the
+   * navigation-rail anchor, half/full reserve their container fractions,
+   * and closed/immersive reserve only the gutter baseline.
    */
   sheetDetent?: ContextSheetDetent
   /**
@@ -63,6 +68,16 @@ const PLANNING_PANEL_LEFT_INSET_PX = 500
 const PLANNING_PHONE_SHEET_BOTTOM_INSET_PX = 450
 const RIDE_PHONE_SHEET_BOTTOM_INSET_PX = 250
 const PLANNING_SHORT_LANDSCAPE_BOTTOM_INSET_PX = 170
+/**
+ * The phone sheet floats above the persistent bottom navigation rail
+ * (`bottom: calc(84px + safe-area)` in switchback-v1.css).
+ */
+const PLANNING_PHONE_SHEET_ANCHOR_PX = 84
+/** Rendered peek height (`.planner-deck.is-minimized` in switchback-v1.css). */
+const PLANNING_PHONE_SHEET_PEEK_HEIGHT_PX = 146
+/** Keep at least a slim map strip (top inset + one gutter) when the full
+ *  sheet math would otherwise consume the whole viewport. */
+const PLANNING_PHONE_FULL_MIN_MAP_PX = 60
 
 function isShortLandscape(ctx: WorkspaceMapContext): boolean {
   return ctx.viewportHeightPx <= 520 && ctx.viewportWidthPx > ctx.viewportHeightPx
@@ -106,7 +121,7 @@ export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewpor
     return {
       top: 90,
       right: 34,
-      bottom: sheetDetentBottomInset(ctx.sheetDetent),
+      bottom: sheetDetentBottomInset(ctx.sheetDetent, ctx.viewportHeightPx),
       left: 34
     }
   }
@@ -118,14 +133,32 @@ export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewpor
   }
 }
 
-function sheetDetentBottomInset(detent: ContextSheetDetent | undefined): number {
+function sheetDetentBottomInset(
+  detent: ContextSheetDetent | undefined,
+  viewportHeightPx: number
+): number {
   switch (detent) {
     case "closed":
     case "immersive":
       return 34
-    default:
-      // Legacy tuning: an open sheet (peek or half) reserves this much.
+    case undefined:
+      // Legacy callers that do not know the sheet state keep the tuned
+      // open-sheet reservation.
       return PLANNING_PHONE_SHEET_BOTTOM_INSET_PX
+    case "peek":
+      // Rendered peek height plus the navigation-rail anchor it floats on.
+      return PLANNING_PHONE_SHEET_PEEK_HEIGHT_PX + PLANNING_PHONE_SHEET_ANCHOR_PX + MAP_VIEWPORT_GUTTER_PX
+    case "half":
+    case "full": {
+      const fraction = detent === "half"
+        ? CONTEXT_SHEET_HALF_FRACTION
+        : CONTEXT_SHEET_FULL_FRACTION
+      const sheetPx = Math.round(viewportHeightPx * fraction)
+      const inset = sheetPx + PLANNING_PHONE_SHEET_ANCHOR_PX + MAP_VIEWPORT_GUTTER_PX
+      // The full sheet may mathematically cover the viewport; the camera
+      // still needs a visible map strip to fit into.
+      return Math.min(inset, Math.max(viewportHeightPx - 90 - PLANNING_PHONE_FULL_MIN_MAP_PX, MAP_VIEWPORT_GUTTER_PX))
+    }
   }
 }
 
