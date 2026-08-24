@@ -104,9 +104,9 @@ jobs:
             exit 1
           fi
           if [[ "${{ needs.preflight.outputs.configured }}" != true ]]; then
-            echo 'BLOCKED — SECRET NOT CONFIGURED' >> "$GITHUB_STEP_SUMMARY"
-            echo '::error title=BLOCKED — SECRET NOT CONFIGURED::Required trusted live endpoint secrets are absent.'
-            exit 1
+            echo 'SKIPPED — SECRET NOT CONFIGURED' >> "$GITHUB_STEP_SUMMARY"
+            echo '::notice title=SKIPPED — SECRET NOT CONFIGURED::Required trusted live endpoint secrets are absent; live-provider checks did not run. See the preflight job summary for which secret names are missing.'
+            exit 0
           fi
           if [[ "${{ needs.live-provider.result }}" != success ]]; then
             echo 'FAIL' >> "$GITHUB_STEP_SUMMARY"

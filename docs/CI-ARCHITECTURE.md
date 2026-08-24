@@ -35,8 +35,13 @@ uses `pull_request`, not `pull_request_target`, for untrusted code.
 
 Optional endpoint secret names are `VALHALLA_URL`, `VALHALLA_ELEVATION_URL`,
 and `PHOTON_URL`. Values are never printed. If a required secret is absent, the
-workflow reports `BLOCKED — SECRET NOT CONFIGURED` and fails its result job;
-that state is not treated as a pass.
+workflow reports `SKIPPED — SECRET NOT CONFIGURED` and its result job passes
+without running the live-provider checks; that state is a skip, not a
+verification of live behavior. (Before 2026-08-24 this was a hard failure —
+changed because the repo has no self-hosted routing endpoints to configure
+these against yet, and a gate that can never pass just reads as permanently
+broken CI. Revert the `result` job's missing-secret branch to `exit 1` once
+real endpoint secrets exist, so a *later* regression in them is caught again.)
 
 ## Homelab runner
 
