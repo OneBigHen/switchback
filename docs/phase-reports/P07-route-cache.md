@@ -57,8 +57,8 @@ no IndexedDB/localStorage schema or user-data migration was required.
 
 ## Tests
 
-The complete final gate ran in the isolated Megaplex `docker-stable` LXC 109
-(`192.168.1.175`) checkout at `/tmp/switchback-megaplex-test.LDEtb5`, using
+The complete final gate ran in the isolated validation host `<lxc-vmid>`
+(`<private-test-host>`) checkout at `<validation-checkout>`, using
 Node 24.15.0. The checkout excluded Git metadata, `.env*`, dependencies,
 production routing data, runtime databases, and generated source artifacts.
 The real-router run used the isolated GraphHopper fixture on port 8998; the
@@ -83,7 +83,7 @@ fixture was stopped after the run.
 |---|---|
 | focused cache/store/planner-shell tests | 4 files / 49 tests passed |
 | local lint and typecheck | passed |
-| Megaplex `npm run verify` | lint and typecheck passed; 171 files / 1,171 tests passed, 1 skipped; production build passed |
+| the validation host `npm run verify` | lint and typecheck passed; 171 files / 1,171 tests passed, 1 skipped; production build passed |
 | `npm run test:e2e` | 24/24 passed across desktop Chromium, mobile Safari, and both landscape projects |
 | `npm run test:e2e:critical` | 30/30 passed across Chromium and WebKit |
 | `npm run test:e2e:pwa` | 2/2 passed |

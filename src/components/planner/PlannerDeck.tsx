@@ -23,13 +23,14 @@ import {
 import {
   useEffect,
   useRef,
+  useSyncExternalStore,
   useState,
   type FormEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
 import { featureFlags } from "@/lib/domain/feature-flags"
+import { usePlannerStore } from "@/stores/planner-store"
 import type { RouteProfileId } from "@/lib/routing/types"
 import { BikeProfilePicker } from "./BikeProfilePicker"
 import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
@@ -40,6 +41,7 @@ import {
   type DownloadModePickerValue
 } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
+import { ContextSheet } from "./workspace/ContextSheet"
 import type {
   PlannerDeckCommands,
   PlannerDeckViewModel
@@ -63,6 +65,19 @@ interface VoiceRecognition {
 }
 
 type VoiceRecognitionConstructor = new () => VoiceRecognition
+
+const PHONE_VIEWPORT_QUERY = "(max-width: 760px)"
+
+function subscribeToPhoneViewport(onChange: () => void): () => void {
+  if (typeof window.matchMedia !== "function") return () => {}
+  const mediaQuery = window.matchMedia(PHONE_VIEWPORT_QUERY)
+  mediaQuery.addEventListener("change", onChange)
+  return () => mediaQuery.removeEventListener("change", onChange)
+}
+
+function getPhoneViewportSnapshot(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia(PHONE_VIEWPORT_QUERY).matches
+}
 
 interface PlannerDeckProps {
   viewModel: PlannerDeckViewModel
@@ -154,7 +169,11 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onStartFreeRide = commands.onStartFreeRide
   const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
-  const [minimized, setMinimized] = useState(false)
+  const isPhoneViewport = useSyncExternalStore(subscribeToPhoneViewport, getPhoneViewportSnapshot, () => false)
+  const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
+  const setSheetDetentOverride = usePlannerStore((state) => state.setSheetDetentOverride)
+  const sheetDetent = sheetDetentOverride ?? (isPhoneViewport ? "peek" : "half")
+  const minimized = sheetDetent === "peek"
   const [editing, setEditing] = useState(false)
   // Mobile planning flow stages (SB-025): Search → Choose → Edit → Prepare.
   // Multi-route comparison is "Choose"; a ready single route is "Prepare";
@@ -168,7 +187,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [roadLocksOpen, setRoadLocksOpen] = useState(false)
   const [offlinePackOpen, setOfflinePackOpen] = useState(false)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
-  const sheetDragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
   const routeEditorRef = useRef<HTMLDivElement>(null)
   const profiles = listProfiles()
   const activeProfile = profiles.find((item) => item.id === profile) ?? profiles[0]
@@ -223,19 +241,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     : planMode === "loop"
       ? `Plan a ${durationLabel} loop`
       : "Plan route"
-  const handleSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return
-    sheetDragStartRef.current = { pointerId: event.pointerId, clientY: event.clientY }
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-  }
-  const handleSheetPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const start = sheetDragStartRef.current
-    sheetDragStartRef.current = null
-    if (!start || start.pointerId !== event.pointerId) return
-    if (event.clientY - start.clientY >= 64) setMinimized(true)
-  }
   const submitQuickIntent = (prompt: string) => {
     setRidePrompt(prompt)
+    setSheetDetentOverride("half")
     onRidePrompt(prompt)
   }
   const voiceSessionRef = useRef(false)
@@ -273,41 +281,41 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   }
 
   return (
-    <aside
+    <ContextSheet
       id="planner-sheet"
       className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
-      data-sheet-state={minimized ? "collapsed" : "expanded"}
-      aria-label="Motorcycle route planner"
+      detent={sheetDetent}
+      onDetentChange={setSheetDetentOverride}
+      label="Motorcycle route planner"
     >
       {minimized ? (
-        <div className="planner-mini-header">
-          <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setMinimized(false)}>
-            <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
-            <span>
-              <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
-              <strong>{selectedRoute?.name ?? "Switchback"}</strong>
-              <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
-                {planningStage}
+        <>
+          <div className="planner-mini-header">
+            <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setSheetDetentOverride("half")}>
+              <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
+              <span>
+                <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
+                <strong>{selectedRoute?.name ?? "Switchback"}</strong>
+                <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+                  {planningStage}
+                </span>
               </span>
-            </span>
-            <CaretUp aria-hidden="true" />
-          </button>
-        </div>
+              <CaretUp aria-hidden="true" />
+            </button>
+          </div>
+          <div className="planner-peek-actions" aria-label="Quick ride actions">
+            {onStartFreeRide ? (
+              <button type="button" className="planner-peek-action is-primary" onClick={onStartFreeRide}>
+                <Sparkle weight="fill" aria-hidden="true" /> Free Ride
+              </button>
+            ) : null}
+            <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("1-hour loop")}>1-hour loop</button>
+            <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Twisty roads")}>Twisties</button>
+            <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Scenic ride")}>Scenic</button>
+          </div>
+        </>
       ) : (
         <>
-        <button
-        type="button"
-        className="planner-sheet-handle"
-        aria-label="Collapse planner sheet by dragging down or tapping"
-        aria-controls="planner-sheet"
-        aria-expanded={true}
-          onClick={() => setMinimized(true)}
-          onPointerDown={handleSheetPointerDown}
-          onPointerUp={handleSheetPointerUp}
-          onPointerCancel={() => { sheetDragStartRef.current = null }}
-        >
-          <span aria-hidden="true" />
-        </button>
         <div className="planner-scroll">
         <header className="deck-header ride-deck-header">
           <a className="brand-lockup" href="#top" aria-label="Switchback home">
@@ -321,7 +329,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
               {planningStage}
             </span>
-            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setMinimized(true)}>
+            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => setSheetDetentOverride("peek")}>
               <CaretDown aria-hidden="true" />
             </button>
           </div>
@@ -814,7 +822,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           }}
         />
       ) : null}
-    </aside>
+    </ContextSheet>
   )
 }
 

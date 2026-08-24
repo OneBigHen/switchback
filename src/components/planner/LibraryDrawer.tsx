@@ -2,15 +2,7 @@
 
 import { ArrowRight, Eye, EyeSlash, FileArrowUp, Folder, Lock, MagnifyingGlass, MapTrifold, Path, Tag, Trash, X } from "@phosphor-icons/react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { parseRouteFileInWorker } from "@/lib/client/route-import-client"
-import { MAX_GPX_IMPORT_BYTES } from "@/lib/routing/gpx-import"
-import type { Coordinate } from "@/lib/routing/types"
-import {
-  createGpxRoadLock,
-  type RoadLock,
-  type RoadLockMode
-} from "@/lib/roads/road-locks"
-import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
+import type { RoadLock, RoadLockMode } from "@/lib/roads/road-locks"
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import {
   buildProjectRouteLibrary,
@@ -25,7 +17,6 @@ import type {
 import type { SavedRoute } from "@/lib/storage/route-library"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { TripPlan } from "@/lib/trip/trip-plan"
-import { usePlannerStore } from "@/stores/planner-store"
 
 function formatDateLabel(value: string | number | Date | null | undefined): string {
   if (value === null || value === undefined) return "date unavailable"
@@ -53,10 +44,8 @@ interface LibraryDrawerProps {
   }): void
   onImport(file: File): void
   /**
-   * Optional override for the "Import as lock" affordance. If absent the
-   * drawer falls back to a self-contained flow that parses the GPX,
-   * builds a `RoadLock` via `createGpxRoadLock`, and persists it through
-   * `usePlannerStore.getState().addRoadLock`.
+   * Application callback for the "Import as lock" affordance. The drawer
+   * owns only the pending/error/success presentation around this callback.
    */
   onImportAsLock?(file: File, options: ImportAsLockOptions): Promise<RoadLock | null>
 }
@@ -245,73 +234,28 @@ export function LibraryDrawer({
     setSelectedRouteIds([])
   }
 
-  const resetLockDraft = () => {
+  const resetLockDraft = (clearNotice = true) => {
     setPendingLockFile(null)
     setLockDraftMode("must")
     setLockDraftName("")
     setLockDraftError("")
+    if (clearNotice) setLockImportNotice(null)
     if (lockFileInputRef.current) lockFileInputRef.current.value = ""
   }
 
-  const buildDefaultImportedLockAccessSnapshot = (): RoadAccessSnapshot => ({
-    highwayClass: "unknown",
-    motorcycleAccess: "unknown",
-    generalAccess: "unknown",
-    surface: "unknown",
-    smoothness: "unknown",
-    tracktype: "unknown",
-    maxweightTonnes: null,
-    seasonalUndated: false,
-    activeConditions: [],
-    routable: true
-  })
-
-  /**
-   * Self-contained "import GPX as a road lock" path. Uses the same
-   * worker that parses imported routes, then builds a `gpx`-provenance
-   * `RoadLock` via `createGpxRoadLock` and persists it through the
-   * planner store so a future replan rematches the corridor against
-   * the live graph. The image-bytes contract (`ROAD_LOCK_IMAGE_OVERLAY`
-   * flow) is separate — GPX lock imports stay self-contained here.
-   */
   async function persistGpxLockFromFile(file: File): Promise<void> {
-    if (file.size > MAX_GPX_IMPORT_BYTES) {
-      setLockDraftError("Route imports must be 5 MB or smaller.")
-      return
-    }
     setLockImportBusy(true)
     try {
-      if (onImportAsLock) {
-        const lock = await onImportAsLock(file, {
-          mode: lockDraftMode,
-          displayName: lockDraftName,
-          sourceRegionId: "gpx-import",
-          sourceGraphVersion: "gpx-import"
-        })
-        if (!lock) throw new Error("The GPX file could not be imported as a road lock.")
-        usePlannerStore.getState().addRoadLock(lock)
-        setLockImportNotice(`${lock.displayName ?? "GPX"} imported as a ${lock.mode === "must" ? "must-use" : "preferred"} road lock.`)
-      } else {
-        const parsed = await parseRouteFileInWorker(file)
-        const geometry = parsed.geometry as Coordinate[]
-        if (geometry.length < 2) {
-          throw new Error("The imported GPX has no usable track geometry.")
-        }
-        const orderedAnchors: Coordinate[] = [geometry[0]!, geometry.at(-1)!]
-        const lock = createGpxRoadLock({
-          mode: lockDraftMode,
-          displayName: lockDraftName.trim() || parsed.name,
-          edgeIds: [],
-          geometry,
-          orderedAnchors,
-          accessSnapshot: buildDefaultImportedLockAccessSnapshot(),
-          sourceRegionId: "gpx-import",
-          sourceGraphVersion: "gpx-import"
-        })
-        usePlannerStore.getState().addRoadLock(lock)
-        setLockImportNotice(`${lock.displayName ?? "GPX"} imported as a ${lock.mode === "must" ? "must-use" : "preferred"} road lock.`)
-      }
-      resetLockDraft()
+      if (!onImportAsLock) throw new Error("Road lock import is unavailable in this view.")
+      const lock = await onImportAsLock(file, {
+        mode: lockDraftMode,
+        displayName: lockDraftName,
+        sourceRegionId: "gpx-import",
+        sourceGraphVersion: "gpx-import"
+      })
+      if (!lock) throw new Error("The GPX file could not be imported as a road lock.")
+      setLockImportNotice(`${lock.displayName ?? "GPX"} imported as a ${lock.mode === "must" ? "must-use" : "preferred"} road lock.`)
+      resetLockDraft(false)
     } catch (caught) {
       setLockDraftError(caught instanceof Error ? caught.message : "The GPX file could not be imported as a road lock.")
     } finally {
@@ -372,6 +316,7 @@ export function LibraryDrawer({
                   if (file) {
                     setPendingLockFile(file)
                     setLockDraftError("")
+                    setLockImportNotice(null)
                   }
                   event.currentTarget.value = ""
                 }}
@@ -446,15 +391,15 @@ export function LibraryDrawer({
               />
             </label>
             {lockDraftError ? <span className="library-lock-import-error" role="status">{lockDraftError}</span> : null}
-            {lockImportNotice ? <span className="library-lock-import-notice" role="status">{lockImportNotice}</span> : null}
             <div className="library-lock-import-actions">
-              <button type="button" onClick={resetLockDraft} disabled={lockImportBusy}>Cancel</button>
+              <button type="button" onClick={() => resetLockDraft()} disabled={lockImportBusy}>Cancel</button>
               <button type="submit" disabled={lockImportBusy}>
                 {lockImportBusy ? "Saving lock…" : "Save road lock"}
               </button>
             </div>
           </form>
         ) : null}
+        {lockImportNotice ? <span className="library-lock-import-notice" role="status">{lockImportNotice}</span> : null}
 
         {routes.length > 0 ? (
           <div className="library-filters local-library-filters" role="group" aria-label="Organize saved routes">

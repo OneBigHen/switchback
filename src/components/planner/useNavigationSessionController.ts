@@ -7,12 +7,9 @@ import {
 } from "@/lib/client/navigation-engine"
 import { startRideSession, type RideSession } from "@/lib/client/ride-session"
 import { trackRuntimeResource } from "@/lib/client/runtime-diagnostics"
-import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather, sampleRouteWeatherPoints } from "@/lib/client/weather-client"
 import { buildRideRecoveryCheckpoint } from "@/lib/client/ride-recovery-checkpoint"
-import { buildReroutePoints, type RideRerouteMode } from "@/lib/client/ride-reroute"
-import { recoverRouteFromOfflinePack } from "@/lib/client/offline-route-recovery"
-import { recoverRouteFromInstalledRegions } from "@/lib/client/regional-offline-route"
+import { buildReroutePoints, resolveReroute, type RideRerouteMode } from "@/lib/client/ride-reroute"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 import type { RouteWeatherAlert } from "@/lib/weather/types"
@@ -31,7 +28,6 @@ import {
   type NavigationSessionViewModel
 } from "@/lib/client/navigation-session"
 import { navigationStore } from "@/stores/navigation-store"
-import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 
 export type GpsState = "acquiring" | "ready" | "weak" | "error"
 export type RejoinPolicy = "nearest-safe" | "next-shaping-point" | "skip-point" | "preserve-original" | "fuel-detour"
@@ -354,52 +350,19 @@ export function useNavigationSessionController({
       const rerouteDeadline = AbortSignal.timeout(30_000)
       const rerouteSignal = AbortSignal.any([requestController.signal, rerouteDeadline])
 
-      let usedOfflineRecovery = false
-      const recoverOffline = async (): Promise<PlannedRoute> => {
-        const regional = await recoverRouteFromInstalledRegions(route, points, { signal: rerouteSignal })
-        if (regional.route) {
-          usedOfflineRecovery = true
-          return regional.route
-        }
-        if (rerouteSignal.aborted) throw new Error("Offline reroute was cancelled")
-        const pack = await new OfflineRoutePackLibrary().get(`${route.id}-offline`)
-        if (!pack) throw new Error("No saved offline corridor is available for this route.")
-        const recovered = recoverRouteFromOfflinePack(pack, points)
-        if (!recovered.route) throw new Error(recovered.error ?? "Offline corridor recovery failed.")
-        usedOfflineRecovery = true
-        return recovered.route
-      }
-      const resolveReroute = async (): Promise<PlannedRoute> => {
-        if (navigator.onLine === false) return recoverOffline()
-        try {
-          const plan = await requestTripPlan(
-            {
-              profile: route.profile,
-              compare: false,
-              avoidHighways: route.avoidHighways,
-              avoidAreas: route.avoidAreas,
-              points
-            },
-            fetch,
-            rerouteSignal
-          )
-          const rerouted = plan.routes.find((c) => c.id === plan.selectedRouteId) ?? plan.routes[0]
-          if (!rerouted) throw new Error("The routing service returned no recovery line.")
-          return rerouted
-        } catch (caught) {
-          if (requestVersion !== rerouteVersionRef.current || requestController.signal.aborted) throw caught
-          return recoverOffline()
-        }
-      }
-
-      void resolveReroute().then((rerouted) => {
+      void resolveReroute({
+        route,
+        points,
+        online: navigator.onLine !== false,
+        signal: rerouteSignal
+      }).then((resolution) => {
         if (requestVersion !== rerouteVersionRef.current) return
         if (rerouteAbortRef.current === requestController) rerouteAbortRef.current = null
         rerouteInFlightRef.current = false
         dispatch({ type: "cancelReroute" })
         setRerouteStatus("idle")
-        if (usedOfflineRecovery) setGpsMessage("Offline routing (beta) · verify turns, accuracy varies")
-        rerouteHandlerRef.current?.(rerouted)
+        if (resolution.source !== "online") setGpsMessage("Offline routing (beta) · verify turns, accuracy varies")
+        rerouteHandlerRef.current?.(resolution.route)
       }).catch(() => {
         if (requestVersion !== rerouteVersionRef.current) return
         if (rerouteAbortRef.current === requestController) rerouteAbortRef.current = null

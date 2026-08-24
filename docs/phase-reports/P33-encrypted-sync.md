@@ -14,5 +14,5 @@
 
 ## Boundary
 
-The Megaplex unit/build gates are green. Recovery-kit UX, passkey-synced device
+The validation host unit/build gates are green. Recovery-kit UX, passkey-synced device
 pairing, and a real multi-device restore drill are not proven.

@@ -41,12 +41,12 @@ None.
 
 ## Tests
 
-- Megaplex focused audit: 8 files / 77 tests:
+- the validation host focused audit: 8 files / 77 tests:
   `ride-hud.test.tsx`, `free-ride-hud.test.tsx`, `navigation-engine.test.ts`,
   `navigation-map.test.ts`, `navigation-session-controller.test.ts`,
   `navigation-store.test.ts`, `recording-session-hook.test.tsx`, and
   `recording-session.test.ts`.
-- Megaplex planner-to-Ride journey: 4/4 passed across desktop Chromium,
+- the validation host planner-to-Ride journey: 4/4 passed across desktop Chromium,
   mobile Safari, mobile landscape wide, and mobile landscape narrow.
 - Portrait and both landscape Ride screenshots were visually reviewed.
 - The unchanged source tree retained the P19 acceptance gates: `npm run
@@ -82,7 +82,7 @@ authenticated-browser behavior, live provider quality, or field GPS behavior.
 - P24 — navigation state machine for GPS filtering, off-route, forward rejoin,
   resume, voice, and wake behavior.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/Megaplex acceptance loop.
+  gates outside this local/the validation host acceptance loop.
 
 ## Rollback
 

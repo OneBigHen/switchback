@@ -1,21 +1,7 @@
 import type { TripPlanRequest } from "@/lib/routing/planner"
-import type { RideCharacter } from "@/lib/ai/ride-intent"
+import { characterForProfile } from "@/lib/domain/routing/ride-character"
 
-const PROFILE_CHARACTER: Record<string, RideCharacter> = {
-  balanced: "balanced",
-  quick: "quick",
-  twisty: "twisty",
-  scenic: "scenic",
-  adventure: "adventure",
-  gravel: "gravel",
-  "avoid-highways": "avoid-highways",
-  neural: "neural"
-}
-
-/** Best-effort ride character for a routing profile (adviser input). */
-export function characterForProfile(profile: string): RideCharacter {
-  return PROFILE_CHARACTER[profile] ?? "balanced"
-}
+export { characterForProfile }
 
 /**
  * Phase 5 → 4 merge step: background, best-effort corridor-hint refresh.

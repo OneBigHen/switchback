@@ -70,33 +70,33 @@ rewritten or deleted.
 
 - Focused local P14 suites: eligibility, route score, routing semantics, and
   planner tests passed — 4 files / 38 tests.
-- Megaplex full `npm run verify`: 178 test files / 1,203 passed / 1 skipped;
+- the validation host full `npm run verify`: 178 test files / 1,203 passed / 1 skipped;
   lint, typecheck, and production build passed.
-- Megaplex broad browser matrix: 24/24.
-- Megaplex critical Chromium/WebKit: 30/30.
-- Megaplex PWA: 2/2.
-- Megaplex real-router fixture: 5/5, including private,
+- the validation host broad browser matrix: 24/24.
+- the validation host critical Chromium/WebKit: 30/30.
+- the validation host PWA: 2/2.
+- the validation host real-router fixture: 5/5, including private,
   motorcycle-closed, and disconnected refusals.
-- Megaplex memory soak: 1/1 test; 10/10 planner cycles.
+- the validation host memory soak: 1/1 test; 10/10 planner cycles.
 - Local/remote SHA parity matched for all 10 scoped P14 source/test files.
 - Router cleanup: PID file absent and port 8998 closed.
 
 ## Commands
 
 - `npx vitest run tests/unit/eligibility-engine.test.ts tests/unit/routing-semantics.test.ts tests/unit/route-score-domain.test.ts tests/unit/planner.test.ts`
-- Megaplex `npm run verify`
-- Megaplex `npm run test:e2e`
-- Megaplex `npm run test:e2e:critical`
-- Megaplex `npm run test:e2e:pwa`
-- Megaplex `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
-- Megaplex `npm run test:e2e:memory-soak`
+- the validation host `npm run verify`
+- the validation host `npm run test:e2e`
+- the validation host `npm run test:e2e:critical`
+- the validation host `npm run test:e2e:pwa`
+- the validation host `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
+- the validation host `npm run test:e2e:memory-soak`
 - `git diff --check`
 
 ## Memory/performance evidence
 
 P14 adds no worker, listener, timer, persistent cache, or geometry store. The
 feature guard iterates the provided segment list once and rejects malformed
-input before scoring. The Megaplex browser memory soak remained green at
+input before scoring. The validation host browser memory soak remained green at
 10/10 cycles. The interrupted host-local full Vitest run was not used as
 acceptance evidence; the complete suite ran successfully in the faster LXC.
 

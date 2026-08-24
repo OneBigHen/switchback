@@ -60,9 +60,9 @@ preference data retain their existing local schemas.
 
 ## Tests
 
-- Megaplex focused P26 audit: 3 files / 22 tests passed; lint and typecheck
+- the validation host focused P26 audit: 3 files / 22 tests passed; lint and typecheck
   passed.
-- Megaplex `npm run verify`: 185 test files / 1,232 passed / 1 skipped; lint,
+- the validation host `npm run verify`: 185 test files / 1,232 passed / 1 skipped; lint,
   typecheck, and production build passed.
 - Free Ride browser matrix: 8/8 across desktop Chromium, mobile Safari, and
   both landscape projects, including the saved Home transition.
@@ -82,8 +82,8 @@ npm exec -- vitest run tests/unit/free-ride-recommendation.test.ts \
 npm run test:e2e -- tests/e2e/free-ride.spec.ts
 ```
 
-The full acceptance commands ran in `/tmp/switchback-megaplex-test.LDEtb5`
-inside the Megaplex LXC with Node 24.
+The full acceptance commands ran in `<validation-checkout>`
+inside a dedicated test LXC with Node 24.
 
 ## Memory/performance evidence
 
@@ -111,7 +111,7 @@ the installed RIG corpus, or field GPS/provider/model quality.
 
 - P27 — GPX analysis, confidence, unmatched spans, and grounded descriptions.
 - Physical-device drill and production-concurrency evidence remain release
-  gates outside this local/Megaplex acceptance loop.
+  gates outside this local/the validation host acceptance loop.
 
 ## Rollback
 

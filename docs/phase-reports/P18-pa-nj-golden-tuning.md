@@ -56,32 +56,32 @@ None. `policyVersion` is optional and no saved route or user data changes.
 ## Tests
 
 - Local focused P18 suites: 6 files / 52 tests passed.
-- Megaplex `npm run verify`: 183 test files / 1,223 passed / 1 skipped;
+- the validation host `npm run verify`: 183 test files / 1,223 passed / 1 skipped;
   lint, typecheck, and production build passed.
-- Megaplex broad browser: 24/24.
-- Megaplex critical Chromium/WebKit: 30/30.
-- Megaplex PWA: 2/2.
-- Megaplex real-router fixture: 5/5.
-- Megaplex memory soak: 1/1 test with 10/10 planner cycles.
+- the validation host broad browser: 24/24.
+- the validation host critical Chromium/WebKit: 30/30.
+- the validation host PWA: 2/2.
+- the validation host real-router fixture: 5/5.
+- the validation host memory soak: 1/1 test with 10/10 planner cycles.
 - Router cleanup: PID file absent and port 8998 closed.
 - `git diff --check` and scoped local/remote SHA parity passed.
 
 ## Commands
 
 - `npm exec -- vitest run tests/unit/route-policy.test.ts tests/unit/route-score-domain.test.ts tests/unit/route-utility-v2.test.ts tests/unit/routing-fixtures.test.ts tests/unit/route-diversity.test.ts tests/unit/planner.test.ts --reporter=verbose`
-- Megaplex `npm run verify`
-- Megaplex `npm run test:e2e`
-- Megaplex `npm run test:e2e:critical`
-- Megaplex `npm run test:e2e:pwa`
-- Megaplex `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
-- Megaplex `npm run test:e2e:memory-soak`
+- the validation host `npm run verify`
+- the validation host `npm run test:e2e`
+- the validation host `npm run test:e2e:critical`
+- the validation host `npm run test:e2e:pwa`
+- the validation host `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
+- the validation host `npm run test:e2e:memory-soak`
 - `git diff --check`
 
 ## Memory/performance evidence
 
 P18 adds no listener, timer, worker, persistent cache, or unbounded route
 store. Policy lookup and validation are bounded over fixed profile keys. The
-Megaplex memory soak stayed green for ten planner cycles.
+the validation host memory soak stayed green for ten planner cycles.
 
 ## Routing quality evidence
 

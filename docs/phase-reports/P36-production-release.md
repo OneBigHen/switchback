@@ -13,7 +13,7 @@
 
 ## Open gates
 
-- Megaplex final automated acceptance after deployment hardening: green
+- the validation host final automated acceptance after deployment hardening: green
   (202 test files / 1,285 passed / 1 skipped; lint, typecheck, build; the
   production Compose/Caddy stack is stable, `/api/health` is non-degraded,
   all eight profiles return live routes, and Caddy validates). Final

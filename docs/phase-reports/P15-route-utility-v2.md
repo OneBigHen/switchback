@@ -59,14 +59,14 @@ None. P15 changes in-memory score diagnostics and candidate selection only.
 ## Tests
 
 - Local focused suites: 3 files / 28 tests passed.
-- Megaplex full `npm run verify`: 179 test files / 1,207 passed / 1 skipped;
+- the validation host full `npm run verify`: 179 test files / 1,207 passed / 1 skipped;
   lint, typecheck, and production build passed.
-- Megaplex broad browser matrix: 24/24.
-- Megaplex critical Chromium/WebKit: 30/30.
-- Megaplex PWA: 2/2.
-- Megaplex real-router fixture: 5/5, including private,
+- the validation host broad browser matrix: 24/24.
+- the validation host critical Chromium/WebKit: 30/30.
+- the validation host PWA: 2/2.
+- the validation host real-router fixture: 5/5, including private,
   motorcycle-closed, and disconnected refusals.
-- Megaplex memory soak: 1/1 test; 10/10 planner cycles.
+- the validation host memory soak: 1/1 test; 10/10 planner cycles.
 - Scoped local/remote SHA parity matched for all 5 P15 source/test files.
 - Router cleanup: PID file absent and port 8998 closed.
 - `git diff --check` passed.
@@ -74,19 +74,19 @@ None. P15 changes in-memory score diagnostics and candidate selection only.
 ## Commands
 
 - `npx vitest run tests/unit/route-utility-v2.test.ts tests/unit/route-score-domain.test.ts tests/unit/planner.test.ts`
-- Megaplex `npm run verify`
-- Megaplex `npm run test:e2e`
-- Megaplex `npm run test:e2e:critical`
-- Megaplex `npm run test:e2e:pwa`
-- Megaplex `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
-- Megaplex `npm run test:e2e:memory-soak`
+- the validation host `npm run verify`
+- the validation host `npm run test:e2e`
+- the validation host `npm run test:e2e:critical`
+- the validation host `npm run test:e2e:pwa`
+- the validation host `GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router`
+- the validation host `npm run test:e2e:memory-soak`
 - `git diff --check`
 
 ## Memory/performance evidence
 
 P15 adds no worker, listener, timer, persistent cache, or geometry store.
 Overlap uses the existing sampled geometry helper; connected-run evaluation is
-linear in the supplied feature list. The Megaplex browser memory soak remained
+linear in the supplied feature list. The validation host browser memory soak remained
 green at 10/10 cycles.
 
 ## Routing quality evidence

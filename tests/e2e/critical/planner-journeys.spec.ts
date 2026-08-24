@@ -6,6 +6,7 @@ import {
   installRouteApi,
   makeRoute,
   openPlannerEditor,
+  expandPhonePlanner,
   expectRouteOutcome,
   tripPlan,
   type RouteCapture
@@ -40,6 +41,7 @@ async function chooseFixtureFinish(page: import("@playwright/test").Page): Promi
 
 async function planDirectRoute(page: import("@playwright/test").Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
+  await expandPhonePlanner(page)
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
   await openPlannerEditor(page)
   await ensureStart(page)
@@ -58,6 +60,7 @@ for (const suggestion of QUICK_SUGGESTIONS) {
     )]))
 
     await page.goto("/")
+    await expandPhonePlanner(page)
     await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
     // These chips are intentionally removed as soon as the prompt is
     // committed. Dispatch the user click without asking Playwright to keep
@@ -80,6 +83,7 @@ for (const suggestion of PROMPT_EXAMPLES) {
     )]))
 
     await page.goto("/")
+    await expandPhonePlanner(page)
     const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
     // Type rather than fill(): Playwright's fill() dispatches a single
     // synthetic input event that WebKit + this controlled input can drop,
@@ -201,6 +205,7 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
   })
 
   await page.goto("/")
+  await expandPhonePlanner(page)
   const prompt = page.locator("#ride-prompt")
   await prompt.click()
   await page.keyboard.type("first destination")

@@ -1,7 +1,7 @@
 # Switchback first-class routing handoff report
 
 Date: 2026-08-04
-Repository: `/root/Vibe/switchback`
+Repository: `/path/to/switchback`
 Branch at handoff: `main`
 
 ## Outcome

@@ -8,7 +8,7 @@ import type {
 } from "@/lib/domain/contracts"
 import { evaluateFeatureEligibility } from "@/lib/domain/routing/eligibility"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import { backtrackingShare, selfOverlapShare } from "@/lib/routing/destination-corridors"
+import { backtrackingShare, selfOverlapShare } from "@/lib/routing/route-geometry-quality"
 import { haversine } from "@/lib/routing/scoring"
 import { isRoutePolicy, PA_NJ_ROUTE_POLICY_V1, type RoutePolicy } from "./route-policy"
 

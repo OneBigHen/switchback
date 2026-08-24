@@ -90,7 +90,7 @@ describe("LibraryDrawer Import as lock affordance", () => {
     expect(values).toEqual(["must", "prefer"])
   })
 
-  it("persists the resulting lock via the planner-store when onImportAsLock is provided", async () => {
+  it("delegates the resulting lock to the supplied importer without persisting it", async () => {
     const onImportAsLock = vi.fn().mockResolvedValue({
       id: "lock-from-store",
       mode: "prefer",
@@ -143,9 +143,29 @@ describe("LibraryDrawer Import as lock affordance", () => {
     const options = onImportAsLock.mock.calls[0]![1]
     expect(options.mode).toBe("prefer")
     expect(options.displayName).toBe("Ridge crest")
-    await vi.waitFor(() => {
-      const locks = usePlannerStore.getState().roadLocks
-      expect(locks.some((lock) => lock.id === "lock-from-store")).toBe(true)
-    })
+    expect(usePlannerStore.getState().roadLocks).toEqual([])
+    await vi.waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/imported as a preferred road lock/i))
+  })
+
+  it("keeps importer errors visible without mutating planner state", async () => {
+    const onImportAsLock = vi.fn().mockRejectedValue(new Error("The GPX track is invalid."))
+    render(
+      <LibraryDrawer
+        routes={[]}
+        onClose={vi.fn()}
+        onLoad={vi.fn()}
+        onDelete={vi.fn()}
+        onImport={vi.fn()}
+        onImportAsLock={onImportAsLock}
+      />
+    )
+
+    const file = new File(["<gpx />"], "invalid.gpx", { type: "application/gpx+xml" })
+    fireEvent.change(screen.getByLabelText("Import a GPX, KML, or KMZ file as a road lock"), { target: { files: [file] } })
+    fireEvent.click(screen.getByRole("button", { name: /Save road lock/i }))
+
+    await vi.waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("The GPX track is invalid."))
+    expect(onImportAsLock).toHaveBeenCalledOnce()
+    expect(usePlannerStore.getState().roadLocks).toEqual([])
   })
 })

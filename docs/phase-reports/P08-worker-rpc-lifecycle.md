@@ -59,8 +59,8 @@ persisted route data, runtime database, or production service changed.
 
 ## Tests
 
-The complete final gate ran in the isolated Megaplex `docker-stable` LXC 109
-(`192.168.1.175`) checkout at `/tmp/switchback-megaplex-test.LDEtb5`, using
+The complete final gate ran in the isolated validation host `<lxc-vmid>`
+(`<private-test-host>`) checkout at `<validation-checkout>`, using
 Node 24.15.0. The checkout excluded Git metadata, `.env*`, dependencies,
 production routing data, runtime databases, and generated source artifacts.
 The real-router run used only the isolated GraphHopper jar and prepared fixture
@@ -85,7 +85,7 @@ PBF on port 8998; the router was stopped after the run.
 |---|---|
 | focused import/MapStage/runtime tests | 4 files / 15 tests passed locally |
 | local lint and typecheck | passed |
-| Megaplex `npm run verify` | lint and typecheck passed; 171 files / 1,173 tests passed, 1 skipped; production build passed |
+| the validation host `npm run verify` | lint and typecheck passed; 171 files / 1,173 tests passed, 1 skipped; production build passed |
 | `npm run test:e2e` | 24/24 passed across desktop Chromium, mobile Safari, and both landscape projects |
 | `npm run test:e2e:critical` | 30/30 passed across Chromium and WebKit |
 | `npm run test:e2e:pwa` | 2/2 passed |

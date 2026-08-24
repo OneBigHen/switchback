@@ -6,6 +6,19 @@ const root = resolve(import.meta.dirname, "../..")
 const read = (path: string) => readFileSync(resolve(root, path), "utf8")
 
 describe("self-host deployment contract", () => {
+  it("makes backup and restore use the shared data-root resolver", () => {
+    const backup = read("deployment/backup.sh")
+    const restore = read("deployment/restore.sh")
+
+    expect(backup).toContain("resolve-data-root.sh")
+    expect(backup).toContain("resolve_switchback_data_root")
+    expect(backup).toContain("validate_switchback_data_root")
+    expect(restore).toContain("resolve-data-root.sh")
+    expect(restore).toContain("resolve_switchback_data_root")
+    expect(backup).not.toContain("SWITCHBACK_DATA_ROOT:-/var/lib/switchback")
+    expect(restore).not.toContain("SWITCHBACK_DATA_ROOT:-/var/lib/switchback")
+  })
+
   it("builds a pinned private GraphHopper service from the repository runtime", () => {
     const compose = read("deployment/docker-compose.production.yml")
     const graphhopper = compose.match(/^  graphhopper:\n([\s\S]*?)^volumes:\n/m)?.[1] ?? ""
@@ -16,6 +29,13 @@ describe("self-host deployment contract", () => {
     expect(graphhopper).toContain(":/data")
     expect(graphhopper).not.toContain(":/data:ro")
     expect(graphhopper).not.toContain("ports:")
+  })
+
+  it("does not delete runner workspaces during routine maintenance", () => {
+    const maintenance = read("infra/ci-runner/ci-maintenance.sh")
+
+    expect(maintenance).not.toContain("work_root")
+    expect(maintenance).not.toContain("rm -rf")
   })
 
   it("keeps the edge ports and hostname explicit for private or Access-protected installs", () => {

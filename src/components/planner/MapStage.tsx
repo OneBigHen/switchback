@@ -1,9 +1,8 @@
 "use client"
 
-import type { FeatureCollection } from "geojson"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import { Crosshair, Lock, X } from "@phosphor-icons/react"
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react"
 import { buildWaypointFeatures, emptyFeatureCollection } from "@/lib/client/map-data"
 import { createFallbackStyleImage } from "@/lib/client/map-style"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
@@ -11,25 +10,16 @@ import { buildNavigationMapFeatures } from "@/lib/client/navigation-map"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import "@/app/styles/map-stage-road-locks.css"
 import {
-  featureMapLayerIds,
   mapStyleUrl,
-  riderFeatureLayersAtZoom,
-  riderFeatureQuery,
-  type FeatureLayerState,
   type RiderLayerId,
   type RiderLayerSetting,
   type RiderMapPack,
-  paUnpavedRoadsQuery,
   shouldShowBaseMapFailure,
   type MapStyleId
 } from "@/lib/client/map-layers"
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
-import { createManualRoadLock, type RoadLockMode } from "@/lib/roads/road-locks"
-import { requestRoadMatch } from "@/lib/client/road-match-client"
-import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime-diagnostics"
-import { roadMatchToAccessSnapshot } from "@/lib/roads/road-matching"
 import { featureFlags } from "@/lib/domain/feature-flags"
-import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
+import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime-diagnostics"
 import type { PlannerPointId } from "@/stores/planner-store"
 import { usePlannerStore } from "@/stores/planner-store"
 import { useNavigationFrame } from "@/stores/navigation-store"
@@ -37,12 +27,13 @@ import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"
 import {
   addRiderMapLayers,
   geoJsonSource,
-  RIDER_FEATURE_SOURCE,
   updatePlannerSources,
   updateReferenceMapSource,
   updateRiderMapLayerPresentation
 } from "./map-stage-sources"
+import { useRiderFeatureLayers } from "./workspace/use-rider-feature-layers"
 import { useReferenceMapOverlay } from "./useReferenceMapOverlay"
+import { useRoadLockDraft } from "./useRoadLockDraft"
 import {
   appendSketchPoint,
   avoidAreaPolygon,
@@ -52,32 +43,9 @@ import {
   roadLockDriftArrowFeatures,
   roadLockLineFeatures,
   routeSketchWaypoints,
-  resolveRoadLockMatchColorMap,
-  snapRouteTapToRoutableEdge
+  resolveRoadLockMatchColorMap
 } from "./map-drawing"
 import { MapStageLayerControl } from "./MapStageLayerControl"
-
-/**
- * Permissive access snapshot for a manually drawn road lock. The
- * `rematchRoadLock` path fills the real snapshot in once the corridor
- * is matched against the routing graph; the UI just needs a placeholder
- * that survives the precedence model without contradicting legal access
- * (e.g. not motorcycle=no). Defaults to "unknown but routable".
- */
-function defaultManualLockAccessSnapshot(): RoadAccessSnapshot {
-  return {
-    highwayClass: "unknown",
-    motorcycleAccess: "unknown",
-    generalAccess: "unknown",
-    surface: "unknown",
-    smoothness: "unknown",
-    tracktype: "unknown",
-    maxweightTonnes: null,
-    seasonalUndated: false,
-    activeConditions: [],
-    routable: true
-  }
-}
 
 interface MapStageProps {
   routes: PlannedRoute[]
@@ -134,21 +102,11 @@ export function MapStage(props: MapStageProps) {
   const styleTimeoutRef = useRef<number | null>(null)
   const propsRef = useRef<LiveMapProps>(props)
   const navigationFollowingRef = useRef(true)
-  const curvatureAbortRef = useRef<AbortController | null>(null)
-  const unpavedAbortRef = useRef<AbortController | null>(null)
-  const riderFeaturesAbortRef = useRef<AbortController | null>(null)
   const sketchPointsRef = useRef<SketchScreenPoint[]>([])
   const sketchDrawingRef = useRef(false)
   const avoidDrawingRef = useRef(false)
   const [readyStyle, setReadyStyle] = useState<MapStyleId | null>(null)
   const [mapError, setMapError] = useState("")
-  const [curvatureStatus, setCurvatureStatus] = useState<"hidden" | "loading" | "ready" | "zoom" | "error">("hidden")
-  const [unpavedStatus, setUnpavedStatus] = useState<"hidden" | "loading" | "ready" | "zoom" | "error">("hidden")
-  const [unpavedCount, setUnpavedCount] = useState(0)
-  const [riderFeaturesStatus, setRiderFeaturesStatus] = useState<"hidden" | "loading" | "ready" | "zoom" | "error">("hidden")
-  const [riderLayerStates, setRiderLayerStates] = useState<Record<string, FeatureLayerState>>({})
-  const [riderLayerCounts, setRiderLayerCounts] = useState<Record<string, number>>({})
-  const [riderFeaturesRetry, setRiderFeaturesRetry] = useState(0)
   const [navigationFollowing, setNavigationFollowing] = useState(true)
   const [sketchMode, setSketchMode] = useState(false)
   const [avoidMode, setAvoidMode] = useState(false)
@@ -158,123 +116,37 @@ export function MapStage(props: MapStageProps) {
   const [sketchMessage, setSketchMessage] = useState("")
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
-  const [lockDrawMode, setLockDrawMode] = useState(false)
-  const [lockAnchors, setLockAnchors] = useState<Coordinate[]>([])
-  const [lockMode, setLockMode] = useState<RoadLockMode>(featureFlags.roadRequirements ? "must" : "prefer")
-  const [lockName, setLockName] = useState("")
-  const [lockDraftStep, setLockDraftStep] = useState<"first" | "second" | "naming">("first")
-  const [lockDraftMessage, setLockDraftMessage] = useState("")
+  const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
   const [highlightedLockId, setHighlightedLockId] = useState<string | null>(null)
+  const {
+    lockDrawMode,
+    lockAnchors,
+    lockMode,
+    lockName,
+    lockDraftStep,
+    lockDraftMessage,
+    beginLockDraft,
+    isLockDrawActive,
+    resetLockDraft,
+    handleLockDrawTap,
+    commitLockDraft,
+    setLockMode,
+    setLockName
+  } = useRoadLockDraft({ addRoadLock })
   const ready = readyStyle === props.mapStyle
-
-  const lockDrawRef = useRef({
-    active: false,
-    step: "first" as "first" | "second" | "naming",
-    anchors: [] as Coordinate[],
-    mode: "must" as RoadLockMode,
-    name: ""
+  const {
+    curvatureStatus,
+    unpavedStatus,
+    unpavedCount,
+    riderFeaturesStatus,
+    riderLayerStates,
+    riderLayerCounts,
+    retryRiderFeatures
+  } = useRiderFeatureLayers(mapRef, ready, propsRef, {
+    curvatureVisible: props.curvatureVisible,
+    unpavedVisible: props.unpavedVisible,
+    riderLayers: props.riderLayers
   })
-
-  useEffect(() => {
-    lockDrawRef.current = {
-      active: lockDrawMode,
-      step: lockDraftStep,
-      anchors: lockAnchors,
-      // Must mode is disabled until graph-matched road requirements ship;
-      // clamp any legacy "must" draft so it cannot silently become a lock
-      // the provider model would misinterpret (SB-006 containment).
-      mode: featureFlags.roadRequirements ? lockMode : "prefer",
-      name: lockName
-    }
-  }, [lockDrawMode, lockDraftStep, lockAnchors, lockMode, lockName])
-
-  const resetLockDraft = useCallback(() => {
-    setLockDrawMode(false)
-    setLockAnchors([])
-    setLockDraftStep("first")
-    setLockDraftMessage("")
-    setLockName("")
-    setLockMode("must")
-  }, [])
-
-  const handleLockDrawTap = useCallback((point: { lat: number; lon: number }) => {
-    const coordinate: Coordinate = [point.lon, point.lat]
-    const snap = snapRouteTapToRoutableEdge(coordinate)
-    setLockAnchors((previous) => {
-      if (lockDrawRef.current.step === "first") {
-        const next = [snap.coordinate] as Coordinate[]
-        setLockDraftStep("second")
-        setLockDraftMessage("First anchor set. Choose the corridor end.")
-        return next
-      }
-      if (lockDrawRef.current.step === "second") {
-        // Reject a duplicate first/last tap; the rider must place two distinct anchors.
-        if (previous.length === 1 && snap.coordinate[0] === previous[0]![0] && snap.coordinate[1] === previous[0]![1]) {
-          return previous
-        }
-        const next = [...previous, snap.coordinate] as Coordinate[]
-        setLockDraftStep("naming")
-        setLockDraftMessage("Name the lock (optional) and save.")
-        return next
-      }
-      return previous
-    })
-  }, [])
-
-  const commitLockDraft = useCallback(async () => {
-    const draft = lockDrawRef.current
-    if (draft.anchors.length < 2) {
-      setLockDraftMessage("Place two corridor anchors before saving the lock.")
-      return
-    }
-    const displayName = draft.name.trim() || undefined
-    const [entry, exit] = draft.anchors
-    if (!entry || !exit) {
-      setLockDraftMessage("Place two corridor anchors before saving the lock.")
-      return
-    }
-    try {
-      // SB-013/014: when road requirements are enabled, the browser graph-matches
-      // the two anchors against the live router so the lock carries real edge ids
-      // and ordered geometry. Matching is best-effort: a refusal (router down, no
-      // legal path) falls back to an approximate manual lock that never claims a
-      // verified graph match.
-      if (featureFlags.roadRequirements) {
-        const matched = await requestRoadMatch({
-          start: { lat: entry[1], lon: entry[0], label: "Lock entry" },
-          end: { lat: exit[1], lon: exit[0], label: "Lock exit" }
-        })
-        const lock = createManualRoadLock({
-          mode: draft.mode,
-          displayName,
-          edgeIds: matched.edgeIds,
-          geometry: matched.geometry,
-          orderedAnchors: draft.anchors,
-          accessSnapshot: roadMatchToAccessSnapshot(matched.access),
-          sourceRegionId: "matched",
-          sourceGraphVersion: matched.graphVersion
-        })
-        addRoadLock(lock)
-        resetLockDraft()
-        return
-      }
-      const geometry: Coordinate[] = draft.anchors.map(([lon, lat]) => [lon, lat] as Coordinate)
-      const lock = createManualRoadLock({
-        mode: draft.mode,
-        displayName,
-        edgeIds: [],
-        geometry,
-        orderedAnchors: draft.anchors,
-        accessSnapshot: defaultManualLockAccessSnapshot(),
-        sourceRegionId: "manual",
-        sourceGraphVersion: "manual"
-      })
-      addRoadLock(lock)
-      resetLockDraft()
-    } catch (caught) {
-      setLockDraftMessage(caught instanceof Error ? caught.message : "The road lock could not be saved.")
-    }
-  }, [addRoadLock, resetLockDraft])
   const { referenceMessage, alignReferenceToView, handleReferenceFile, removeReferenceMap } = useReferenceMapOverlay({
     mapRef,
     ready,
@@ -473,7 +345,7 @@ export function MapStage(props: MapStageProps) {
           return
         }
         const current = propsRef.current
-        if (lockDrawRef.current.active) {
+        if (isLockDrawActive()) {
           handleLockDrawTap({
             lat: Number(event.lngLat.lat.toFixed(6)),
             lon: Number(event.lngLat.lng.toFixed(6))
@@ -861,9 +733,6 @@ export function MapStage(props: MapStageProps) {
       disposed = true
       if (styleTimeoutRef.current != null) window.clearTimeout(styleTimeoutRef.current)
       styleTimeoutRef.current = null
-      curvatureAbortRef.current?.abort()
-      unpavedAbortRef.current?.abort()
-      riderFeaturesAbortRef.current?.abort()
       releaseMapProbe?.()
       setReadyStyle(null)
       map?.remove()
@@ -888,8 +757,10 @@ export function MapStage(props: MapStageProps) {
     if (!map || !ready) return
     const current = propsRef.current
     updatePlannerSources(map, current)
-    fitSelectedRoute(map, current)
-  }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready])
+    fitSelectedRoute(map, { ...current, sheetDetent: sheetDetentOverride ?? undefined })
+    // Re-fit when the sheet detent changes: the visible map region grows or
+    // shrinks with the ContextSheet, and the route must fit what is visible.
+  }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, sheetDetentOverride])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1024,293 +895,6 @@ export function MapStage(props: MapStageProps) {
     )
   }, [props.riderLayers, props.curvatureVisible, props.unpavedVisible, props.routeVisibility, ready])
 
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !ready) return
-    let disposed = false
-    let requestVersion = 0
-    const isCurrent = (version: number) => !disposed && mapRef.current === map && version === requestVersion
-
-    const refreshCurvature = async () => {
-      if (disposed || mapRef.current !== map) return
-      const version = ++requestVersion
-      curvatureAbortRef.current?.abort()
-      if (!propsRef.current.curvatureVisible || map.getZoom() < 7) {
-        if (!isCurrent(version)) return
-        geoJsonSource(map, "switchback-curvature")?.setData(emptyFeatureCollection())
-        setCurvatureStatus(propsRef.current.curvatureVisible ? "zoom" : "hidden")
-        return
-      }
-      const bounds = map.getBounds()
-      const south = bounds.getSouth()
-      const west = bounds.getWest()
-      const north = bounds.getNorth()
-      const east = bounds.getEast()
-      if (north - south > 5 || east - west > 5) {
-        if (!isCurrent(version)) return
-        geoJsonSource(map, "switchback-curvature")?.setData(emptyFeatureCollection())
-        setCurvatureStatus("zoom")
-        return
-      }
-      const controller = new AbortController()
-      curvatureAbortRef.current = controller
-      const query = new URLSearchParams({
-        south: String(south),
-        west: String(west),
-        north: String(north),
-        east: String(east),
-        minScore: "700",
-        limit: "1200"
-      })
-      try {
-        if (!isCurrent(version)) return
-        setCurvatureStatus("loading")
-        const response = await fetch(`/api/curvature?${query}`, {
-          headers: { accept: "application/geo+json, application/json" },
-          signal: controller.signal
-        })
-        if (!isCurrent(version)) return
-        if (!response.ok) {
-          setCurvatureStatus("error")
-          return
-        }
-        const collection = await response.json() as FeatureCollection
-        if (!isCurrent(version)) return
-        geoJsonSource(map, "switchback-curvature")?.setData(collection)
-        setCurvatureStatus("ready")
-      } catch (caught) {
-        if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
-        setCurvatureStatus("error")
-      }
-    }
-
-    const onMoveEnd = () => {
-      if (!propsRef.current.rideMode) void refreshCurvature()
-    }
-    map.on("moveend", onMoveEnd)
-    void refreshCurvature()
-    return () => {
-      disposed = true
-      requestVersion += 1
-      map.off("moveend", onMoveEnd)
-      curvatureAbortRef.current?.abort()
-    }
-  }, [props.curvatureVisible, ready])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !ready) return
-    let disposed = false
-    let requestVersion = 0
-    const isCurrent = (version: number) => !disposed && mapRef.current === map && version === requestVersion
-
-    const refreshUnpavedRoads = async () => {
-      if (disposed || mapRef.current !== map) return
-      const version = ++requestVersion
-      unpavedAbortRef.current?.abort()
-      const current = propsRef.current
-      if (!current.unpavedVisible) {
-        if (!isCurrent(version)) return
-        geoJsonSource(map, "switchback-unpaved")?.setData(emptyFeatureCollection())
-        setUnpavedStatus("hidden")
-        setUnpavedCount(0)
-        return
-      }
-      const bounds = map.getBounds()
-      const query = paUnpavedRoadsQuery({
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth()
-      }, map.getZoom())
-      if (!query) {
-        if (!isCurrent(version)) return
-        geoJsonSource(map, "switchback-unpaved")?.setData(emptyFeatureCollection())
-        setUnpavedStatus("zoom")
-        setUnpavedCount(0)
-        return
-      }
-      const controller = new AbortController()
-      unpavedAbortRef.current = controller
-      try {
-        if (!isCurrent(version)) return
-        setUnpavedStatus("loading")
-        const response = await fetch(`/api/pa-unpaved-roads?${query}`, {
-          headers: { accept: "application/geo+json, application/json" },
-          signal: controller.signal
-        })
-        if (!isCurrent(version)) return
-        if (!response.ok) {
-          setUnpavedStatus("error")
-          return
-        }
-        const collection = await response.json() as FeatureCollection & { metadata?: { count?: number } }
-        if (!isCurrent(version)) return
-        geoJsonSource(map, "switchback-unpaved")?.setData(collection)
-        setUnpavedCount(collection.metadata?.count ?? collection.features.length)
-        setUnpavedStatus("ready")
-      } catch (caught) {
-        if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
-        setUnpavedStatus("error")
-      }
-    }
-
-    const onMoveEnd = () => {
-      if (!propsRef.current.rideMode) void refreshUnpavedRoads()
-    }
-    map.on("moveend", onMoveEnd)
-    void refreshUnpavedRoads()
-    return () => {
-      disposed = true
-      requestVersion += 1
-      map.off("moveend", onMoveEnd)
-      unpavedAbortRef.current?.abort()
-    }
-  }, [props.unpavedVisible, ready])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !ready) return
-    let disposed = false
-    let requestVersion = 0
-    const isCurrent = (version: number) => !disposed && mapRef.current === map && version === requestVersion
-
-    const FEATURE_LAYER_SET = new Set<RiderLayerId>(featureMapLayerIds)
-
-    const refreshRiderFeatures = async () => {
-      if (disposed || mapRef.current !== map) return
-      const version = ++requestVersion
-      riderFeaturesAbortRef.current?.abort()
-      const current = propsRef.current
-      const bounds = map.getBounds()
-      const zoom = map.getZoom()
-      const selectedLayers = riderFeatureLayersAtZoom(current.riderLayers, zoom)
-      const selectedSet = new Set<RiderLayerId>(selectedLayers)
-      const visibleFeatureLayers = current.riderLayers
-        .filter((setting) => setting.visible && FEATURE_LAYER_SET.has(setting.id))
-        .map((setting) => setting.id)
-      const query = riderFeatureQuery(current.riderLayers, {
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth()
-      }, zoom)
-
-      // No query (zoom too low for every enabled feature layer, or no layers
-      // enabled at all). Mark the visible-but-below-zoom layers so the panel
-      // can tell the user *why* nothing is showing.
-      if (!query) {
-        if (!isCurrent(version)) return
-        if (selectedLayers.length === 0 && visibleFeatureLayers.length === 0) {
-          setRiderLayerStates({})
-          setRiderLayerCounts({})
-          setRiderFeaturesStatus("hidden")
-          return
-        }
-        setRiderLayerStates(() => {
-          const next: Record<string, FeatureLayerState> = {}
-          for (const id of visibleFeatureLayers) next[id] = "zoom"
-          return next
-        })
-        setRiderLayerCounts({})
-        setRiderFeaturesStatus("zoom")
-        return
-      }
-
-      const controller = new AbortController()
-      riderFeaturesAbortRef.current = controller
-
-      // Preserve prior ready/empty states while a refetch is in flight so
-      // panning around with already-loaded data does not flash "loading"
-      // back onto the screen. Only newly-enabled layers show loading.
-      if (!isCurrent(version)) return
-      setRiderLayerStates((prev) => {
-        const next: Record<string, FeatureLayerState> = {}
-        for (const id of visibleFeatureLayers) {
-          if (selectedSet.has(id)) {
-            const was = prev[id]
-            next[id] = was === "ready" || was === "empty" ? was : "loading"
-          } else {
-            next[id] = "zoom"
-          }
-        }
-        return next
-      })
-      // The aggregate banner only flips to loading if there is no prior
-      // successful data — otherwise keep "ready" so the corner banner
-      // stays calm during panning.
-      if (!isCurrent(version)) return
-      setRiderFeaturesStatus((prev) => (prev === "ready" ? "ready" : "loading"))
-
-      try {
-        if (!isCurrent(version)) return
-        const response = await fetch(`/api/map-features?${query}`, {
-          headers: { accept: "application/geo+json, application/json" },
-          signal: controller.signal
-        })
-        if (!isCurrent(version)) return
-        if (!response.ok) {
-          geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
-          setRiderLayerStates((prev) => {
-            const next: Record<string, FeatureLayerState> = { ...prev }
-            for (const id of selectedLayers) next[id] = "error"
-            return next
-          })
-          setRiderLayerCounts({})
-          setRiderFeaturesStatus("error")
-          return
-        }
-        const collection = await response.json() as FeatureCollection
-        if (!isCurrent(version)) return
-        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(collection)
-        // Tally per-layer counts so the Layers panel can answer "did this
-        // layer load but find nothing in view?" — a very common case for
-        // sparse OSM data that previously looked indistinguishable from a
-        // failed fetch.
-        const counts: Record<string, number> = {}
-        for (const feature of collection.features) {
-          const lid = (feature.properties as Record<string, unknown> | null)?.layerId
-          if (typeof lid === "string") counts[lid] = (counts[lid] ?? 0) + 1
-        }
-        setRiderLayerCounts(counts)
-        setRiderLayerStates((prev) => {
-          const next: Record<string, FeatureLayerState> = { ...prev }
-          for (const id of visibleFeatureLayers) {
-            if (selectedSet.has(id)) {
-              next[id] = (counts[id] ?? 0) > 0 ? "ready" : "empty"
-            } else {
-              next[id] = "zoom"
-            }
-          }
-          return next
-        })
-        setRiderFeaturesStatus("ready")
-      } catch (caught) {
-        if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
-        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())
-        setRiderLayerStates((prev) => {
-          const next: Record<string, FeatureLayerState> = { ...prev }
-          for (const id of selectedLayers) next[id] = "error"
-          return next
-        })
-        setRiderLayerCounts({})
-        setRiderFeaturesStatus("error")
-      }
-    }
-
-    const onMoveEnd = () => {
-      if (!propsRef.current.rideMode) void refreshRiderFeatures()
-    }
-    map.on("moveend", onMoveEnd)
-    void refreshRiderFeatures()
-    return () => {
-      disposed = true
-      requestVersion += 1
-      map.off("moveend", onMoveEnd)
-      riderFeaturesAbortRef.current?.abort()
-    }
-  }, [props.riderLayers, ready, riderFeaturesRetry])
-
   return (
     <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}${props.recalculating ? " is-recalculating" : ""}`} aria-label="Interactive route map" data-recalculating={props.recalculating ? "true" : "false"}>
       <div ref={containerRef} className="map-canvas" />
@@ -1335,7 +919,7 @@ export function MapStage(props: MapStageProps) {
       {riderFeaturesStatus === "error" ? (
         <div className="map-layer-status map-layer-error map-feature-banner" role="alert">
           <span>Map layers unavailable</span>
-          <button type="button" className="map-feature-retry" onClick={() => setRiderFeaturesRetry((value) => value + 1)}>Retry</button>
+          <button type="button" className="map-feature-retry" onClick={retryRiderFeatures}>Retry</button>
         </div>
       ) : null}
       {props.rideMode && navigationFrame ? (
@@ -1366,7 +950,7 @@ export function MapStage(props: MapStageProps) {
         unpavedCount={unpavedCount}
         riderLayerStates={riderLayerStates}
         riderLayerCounts={riderLayerCounts}
-        onRetryRiderLayers={() => setRiderFeaturesRetry((value) => value + 1)}
+        onRetryRiderLayers={retryRiderFeatures}
         referenceMap={props.referenceMap}
         referenceMessage={referenceMessage}
         onToggleSketch={() => {
@@ -1459,11 +1043,7 @@ export function MapStage(props: MapStageProps) {
           aria-pressed={lockDrawMode}
           onClick={() => {
             if (lockDrawMode) resetLockDraft()
-            else {
-              setLockDrawMode(true)
-              setLockDraftStep("first")
-              setLockDraftMessage("Choose the first road point, then choose the corridor end.")
-            }
+            else beginLockDraft()
           }}
         >
           <Lock weight="bold" aria-hidden="true" />

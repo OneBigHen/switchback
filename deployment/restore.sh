@@ -2,7 +2,11 @@
 set -euo pipefail
 
 BACKUP="${1:?backup directory required}"
-ROOT="${SWITCHBACK_DATA_ROOT:-/var/lib/switchback}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/resolve-data-root.sh"
+ROOT="$(resolve_switchback_data_root)"
+validate_switchback_data_root "$ROOT"
+printf 'Restore target: %s\n' "$ROOT"
 
 sha256sum -c "$BACKUP/SHA256SUMS"
 mkdir -p "$ROOT/app" "$ROOT/artifacts"

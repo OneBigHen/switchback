@@ -30,10 +30,14 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
 ]
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "192.168.1.40", "switchback.home.arpa"],
+  allowedDevOrigins: ["127.0.0.1", "switchback.home.arpa"],
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
+  // The dev-mode indicator toast renders in a shadow-DOM portal at
+  // z-index max; besides masking screenshots it can intercept pointer
+  // events during E2E runs (it is dev-only chrome, not app UI).
+  devIndicators: false,
   turbopack: {
     root: process.cwd()
   },

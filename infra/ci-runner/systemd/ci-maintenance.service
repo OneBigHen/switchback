@@ -1,0 +1,10 @@
+[Unit]
+Description=GitHub CI appliance housekeeping
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ci-maintenance.sh
+Nice=10
+IOSchedulingClass=idle

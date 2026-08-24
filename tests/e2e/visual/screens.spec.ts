@@ -5,16 +5,27 @@ import {
   installRouteApi,
   makeRoute,
   openPlannerEditor,
+  expandPhonePlanner,
   expectRouteOutcome,
   tripPlan,
   type RouteCapture
 } from "../helpers/planner-fixtures"
+import { pinVisualClock } from "../helpers/ux-state-fixtures"
 
 // TASK-0.1: visual regression harness for the six primary screens. Every spec
 // asserts the screen's root panel is actually visible and non-zero-size in
 // addition to the pixel diff — a passing screenshot alone would not have
 // caught the Profile-panel outage (TASK-1.1), where the panel painted with
 // zero effective size but no test failed.
+
+// CINCO Phase 0: the shell resolves its theme from the wall clock (dark when
+// local hour < 6 or >= 19), so captures taken outside daylight hours drifted
+// wholesale against light-theme baselines. Pinning the clock to midday makes
+// theme — and therefore these baselines — deterministic (see
+// docs/cinco/UX_STATE_CONTRACT.md).
+test.beforeEach(async ({ page }) => {
+  await pinVisualClock(page)
+})
 
 // TASK-2.3: Next.js's dev-mode indicator (a shadow-DOM toast, always
 // z-index: max) surfaces browser console warnings -- including "GPU stall
@@ -33,9 +44,16 @@ function screenshotOptions(page: Page): { maxDiffPixelRatio: number; mask: Locat
   return { maxDiffPixelRatio: 0.02, mask: [page.locator(".nextjs-toast")] }
 }
 
+// CINCO Phase 0 required target viewports (docs/cinco/UX_STATE_CONTRACT.md):
+// every primary screen is evidenced on desktop, phone portrait/landscape, and
+// tablet portrait/landscape — intentionally different compositions, not
+// stretched variants.
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
-  { name: "mobile", width: 390, height: 844 }
+  { name: "mobile", width: 390, height: 844 },
+  { name: "phone-landscape", width: 844, height: 390 },
+  { name: "tablet-portrait", width: 768, height: 1024 },
+  { name: "tablet-landscape", width: 1024, height: 768 }
 ] as const
 
 async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<void> {
@@ -64,6 +82,7 @@ async function chooseFixtureFinish(page: Page): Promise<void> {
 
 async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
+  await expandPhonePlanner(page)
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
   await openPlannerEditor(page)
   await ensureStart(page)
@@ -79,8 +98,12 @@ for (const viewport of VIEWPORTS) {
     test("Plan screen (empty)", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-      await assertPanelVisible(page.locator(".planner-deck"))
+      if (viewport.name === "mobile") {
+        await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
+      } else {
+        await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+      }
+      await assertPanelVisible(page.locator(".planner-deck"), viewport.name === "mobile" ? 100 : 200)
       await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
 
