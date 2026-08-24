@@ -12,6 +12,8 @@ NeuralWatt permits up to three concurrent GLM agents. Use that capacity only for
 
 Runtime verification is manual and happens only when the user requests it. Routine GLM work stays within repository inspection, bounded edits, and targeted existing validation commands.
 
+Paperclip tasks should link to the GitHub PR and evaluate CI evidence against the current head SHA.
+
 ## Delegation command
 
 From this repository, invoke:
