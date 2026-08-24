@@ -5,6 +5,7 @@ import { PlannerDeck } from "@/components/planner/PlannerDeck"
 import type { PlannerDeckViewModel, PlannerDeckCommands } from "@/components/planner/PlannerDeckViewModel"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import { featureFlags } from "@/lib/domain/feature-flags"
+import { usePlannerStore } from "@/stores/planner-store"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 
 const harrisburg: Waypoint = {
@@ -32,7 +33,12 @@ const plannedRoute: PlannedRoute = {
   previewOnly: false
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  // The sheet detent override now lives in the shared planner store; a test
+  // that minimizes the deck must not leak "peek" into later tests.
+  usePlannerStore.setState({ sheetDetentOverride: null })
+})
 
 function defaultViewModel(): PlannerDeckViewModel {
   return {
@@ -442,9 +448,11 @@ describe("planner ride composer", () => {
   it("minimizes the mobile sheet when the rider swipes its handle down", () => {
     renderDeck()
 
-    const handle = screen.getByRole("button", { name: "Collapse planner sheet by dragging down or tapping" })
+    const handle = screen.getByRole("button", { name: /expand planner sheet/i })
+    // A real swipe resolves as pointerdown → pointerup → click on the handle.
     fireEvent.pointerDown(handle, { pointerId: 7, clientY: 24, pointerType: "touch" })
     fireEvent.pointerUp(handle, { pointerId: 7, clientY: 112, pointerType: "touch" })
+    fireEvent.click(handle)
 
     expect(screen.getByRole("button", { name: "Expand planner" })).toBeInTheDocument()
   })

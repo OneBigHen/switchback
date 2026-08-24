@@ -37,7 +37,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgb(11 14 13 / 92%);
-  color: var(--instrument);
+  color: #f3f7fa;
   font-size: 12px;
   letter-spacing: 0.02em;
 }
