@@ -155,6 +155,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
   const [minimized, setMinimized] = useState(false)
+  const [sheetExpanded, setSheetExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   // Mobile planning flow stages (SB-025): Search → Choose → Edit → Prepare.
   // Multi-route comparison is "Choose"; a ready single route is "Prepare";
@@ -169,6 +170,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [offlinePackOpen, setOfflinePackOpen] = useState(false)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
   const sheetDragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
+  const sheetDidDragRef = useRef(false)
   const routeEditorRef = useRef<HTMLDivElement>(null)
   const profiles = listProfiles()
   const activeProfile = profiles.find((item) => item.id === profile) ?? profiles[0]
@@ -225,6 +227,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       : "Plan route"
   const handleSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return
+    sheetDidDragRef.current = false
     sheetDragStartRef.current = { pointerId: event.pointerId, clientY: event.clientY }
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
@@ -232,7 +235,20 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     const start = sheetDragStartRef.current
     sheetDragStartRef.current = null
     if (!start || start.pointerId !== event.pointerId) return
-    if (event.clientY - start.clientY >= 64) setMinimized(true)
+    const delta = event.clientY - start.clientY
+    sheetDidDragRef.current = Math.abs(delta) >= 64
+    if (delta <= -64) setSheetExpanded(true)
+    if (delta >= 64) {
+      if (sheetExpanded) setSheetExpanded(false)
+      else setMinimized(true)
+    }
+  }
+  const handleSheetClick = () => {
+    if (sheetDidDragRef.current) {
+      sheetDidDragRef.current = false
+      return
+    }
+    setMinimized(true)
   }
   const submitQuickIntent = (prompt: string) => {
     setRidePrompt(prompt)
@@ -275,8 +291,8 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   return (
     <aside
       id="planner-sheet"
-      className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
-      data-sheet-state={minimized ? "collapsed" : "expanded"}
+      className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${sheetExpanded ? " is-expanded" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
+      data-sheet-state={minimized ? "collapsed" : sheetExpanded ? "full" : "half"}
       aria-label="Motorcycle route planner"
     >
       {minimized ? (
@@ -298,10 +314,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
         <button
         type="button"
         className="planner-sheet-handle"
-        aria-label="Collapse planner sheet by dragging down or tapping"
+        aria-label="Resize planner sheet by dragging up or down; tap to minimize"
         aria-controls="planner-sheet"
         aria-expanded={true}
-          onClick={() => setMinimized(true)}
+          onClick={handleSheetClick}
           onPointerDown={handleSheetPointerDown}
           onPointerUp={handleSheetPointerUp}
           onPointerCancel={() => { sheetDragStartRef.current = null }}

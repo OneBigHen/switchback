@@ -616,7 +616,7 @@ h2 {
   color: #3e3b37;
 }
 
-.map-layer-status {
+.map-stage:not(.is-ride-mode) .map-layer-status {
   /* In non-ride mode the basemap is light, so the pill gets a light card
      style. The horizontal-centred position is inherited from
      planner-shell.css so the loading/error/zoom banner is always visible
@@ -630,18 +630,18 @@ h2 {
   box-shadow: 0 4px 14px rgb(49 42 33 / 9%);
 }
 
-.map-layer-status.map-feature-banner {
+.map-stage:not(.is-ride-mode) .map-layer-status.map-feature-banner {
   color: #383531;
   box-shadow: 0 6px 22px rgb(49 42 33 / 14%);
 }
 
-.map-layer-status.map-layer-error {
+.map-stage:not(.is-ride-mode) .map-layer-status.map-layer-error {
   border-color: rgb(200 68 50 / 42%);
   color: #b53a2b;
   background: rgb(255 250 248 / 95%);
 }
 
-.map-layer-status.unpaved-status {
+.map-stage:not(.is-ride-mode) .map-layer-status.unpaved-status {
   top: 62px;
 }
 

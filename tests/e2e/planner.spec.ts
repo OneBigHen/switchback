@@ -302,7 +302,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
     )
   }
 
-  await page.getByRole("button", { name: /Minimize planner|Collapse planner sheet by dragging down or tapping/ }).last().click()
+  await page.getByRole("button", { name: /Minimize planner|Resize planner sheet by dragging up or down; tap to minimize/ }).last().click()
   await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
   await expectInsideViewport(page, page.getByRole("button", { name: "Plan route" }))
   await page.getByRole("button", { name: "Expand planner" }).click()

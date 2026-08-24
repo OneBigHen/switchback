@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 import type { PlannedRoute } from "@/lib/routing/types"
@@ -85,6 +85,10 @@ function makeFrame(overrides: Partial<NavigationFrame> = {}): NavigationFrame {
 }
 
 describe("fitSelectedRoute", () => {
+  afterEach(() => {
+    document.getElementById("planner-sheet")?.remove()
+  })
+
   it("fits the map to the bounding box of the selected route geometry", () => {
     const route = makeRoute("route-a", [
       [-76.9, 40.0],
@@ -107,6 +111,24 @@ describe("fitSelectedRoute", () => {
     ])
     expect(call.options.duration).toBe(900)
     expect(call.options.maxZoom).toBe(15)
+  })
+
+  it("measures the mobile sheet when reserving route-fit space", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 })
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 })
+    const sheet = document.createElement("aside")
+    sheet.id = "planner-sheet"
+    sheet.getBoundingClientRect = () => ({ x: 8, y: 420, top: 420, right: 382, bottom: 836, left: 8, width: 374, height: 416, toJSON: () => ({}) })
+    document.body.append(sheet)
+    const fake = createFakeMap()
+
+    fitSelectedRoute(fake.map, {
+      routes: [makeRoute("route-a", [[-76.9, 40], [-76.8, 40.2]])],
+      selectedRouteId: "route-a",
+      rideMode: false
+    })
+
+    expect(fake.fitBoundsCalls[0]?.options.padding).toMatchObject({ bottom: 448 })
   })
 
   it("still fits when in ride mode if no navigation frame is active", () => {

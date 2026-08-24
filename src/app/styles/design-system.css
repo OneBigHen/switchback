@@ -156,6 +156,15 @@ h6,
     min-height: 188px;
   }
 
+  .planner-shell .sb-bottom-sheet:not(.is-minimized):not(.is-expanded) {
+    height: min(52dvh, 520px);
+  }
+
+  .planner-shell .sb-bottom-sheet.is-expanded {
+    height: min(86dvh, 820px);
+    max-height: min(86dvh, 820px);
+  }
+
   .planner-shell .sb-bottom-sheet.is-minimized {
     top: auto;
     height: 128px;

@@ -12,6 +12,16 @@ interface RouteViewportProps {
   recordingTrail?: Coordinate[] | null
 }
 
+function plannerSheetPadding() {
+  const sheet = document.getElementById("planner-sheet")
+  if (!sheet || sheet.classList.contains("is-minimized")) return null
+  const bounds = sheet.getBoundingClientRect()
+  if (bounds.width <= 0 || bounds.height <= 0) return null
+  return window.innerWidth >= 800
+    ? { left: Math.ceil(bounds.right + 24) }
+    : { bottom: Math.ceil(window.innerHeight - bounds.top + 24) }
+}
+
 function routeFitPadding(rideMode: boolean) {
   const shortLandscape = window.innerHeight <= 520 && window.innerWidth > window.innerHeight
   if (shortLandscape && window.innerWidth >= 800) {
@@ -24,9 +34,12 @@ function routeFitPadding(rideMode: boolean) {
       ? { top: 72, right: 24, bottom: 150, left: 24 }
       : { top: 24, right: 24, bottom: 170, left: 24 }
   }
-  return window.innerWidth >= 800
+  const fallback = window.innerWidth >= 800
     ? { top: 80, right: 70, bottom: 80, left: rideMode ? 70 : 500 }
     : { top: 90, right: 34, bottom: rideMode ? 250 : 450, left: 34 }
+  if (rideMode) return fallback
+  const sheetPadding = plannerSheetPadding()
+  return sheetPadding ? { ...fallback, ...sheetPadding } : fallback
 }
 
 export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {

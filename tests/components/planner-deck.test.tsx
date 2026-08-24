@@ -442,11 +442,22 @@ describe("planner ride composer", () => {
   it("minimizes the mobile sheet when the rider swipes its handle down", () => {
     renderDeck()
 
-    const handle = screen.getByRole("button", { name: "Collapse planner sheet by dragging down or tapping" })
+    const handle = screen.getByRole("button", { name: "Resize planner sheet by dragging up or down; tap to minimize" })
     fireEvent.pointerDown(handle, { pointerId: 7, clientY: 24, pointerType: "touch" })
     fireEvent.pointerUp(handle, { pointerId: 7, clientY: 112, pointerType: "touch" })
 
     expect(screen.getByRole("button", { name: "Expand planner" })).toBeInTheDocument()
+  })
+
+  it("expands the mobile sheet when the rider swipes its handle up", () => {
+    renderDeck()
+
+    const handle = screen.getByRole("button", { name: "Resize planner sheet by dragging up or down; tap to minimize" })
+    fireEvent.pointerDown(handle, { pointerId: 8, clientY: 120, pointerType: "touch" })
+    fireEvent.pointerUp(handle, { pointerId: 8, clientY: 40, pointerType: "touch" })
+    fireEvent.click(handle)
+
+    expect(screen.getByRole("complementary", { name: "Motorcycle route planner" })).toHaveAttribute("data-sheet-state", "full")
   })
 
   it("keeps ride style and the library inside the explicit route editor", async () => {
