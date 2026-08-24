@@ -380,7 +380,7 @@
 
     .ride-instruction {
       right: 8px;
-      bottom: 132px;
+      bottom: 140px;
       left: 8px;
       width: auto;
       min-height: 118px;
@@ -715,7 +715,9 @@
 .ride-hud-status-line {
   display: block;
   margin-bottom: 5px;
-  color: #d95629;
+  /* Shared signal accent; #d95629 failed the 4.5:1 body-contrast target
+     on the raised instruction surface (DESIGN.md §8). */
+  color: #f36a2d;
   font-size: 10px;
   font-weight: 760;
   letter-spacing: 0.11em;

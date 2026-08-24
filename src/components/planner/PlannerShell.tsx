@@ -65,6 +65,7 @@ import { MapStage } from "./MapStage"
 import { type PlanMode, type RideIntentStatus } from "./PlannerDeck"
 import { RideHud } from "./RideHud"
 import { PlannerComposition } from "./PlannerComposition"
+import { MapCanvas, MapWorkspace } from "./workspace/MapWorkspace"
 import { usePlannerLibraries } from "./usePlannerLibraries"
 import { usePlannerHome } from "./usePlannerHome"
 import { usePlannerRideIntent } from "./usePlannerRideIntent"
@@ -1131,7 +1132,9 @@ export function PlannerShell() {
 
   return (
     <AppShell mode={appMode} dataSketching={sketching}>
-      <MapStage
+      <MapWorkspace mode={surface === "ride" ? "ride" : surface === "free-ride" ? "free-ride" : "planning"}>
+        <MapCanvas>
+          <MapStage
         routes={routes}
         selectedRouteId={selectedRouteId}
         start={start}
@@ -1212,14 +1215,15 @@ export function PlannerShell() {
           setAvoidAreas((areas) => [...areas, area].slice(0, 3))
           setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} will be excluded when you replan.` })
         }}
-      />
+          />
+        </MapCanvas>
 
-      {surface !== "ride" && surface !== "free-ride" ? (
-        <AppNavigation activeTab={navigation.activeTab} onSelect={handleAppTab} />
-      ) : null}
+        {surface !== "ride" && surface !== "free-ride" ? (
+          <AppNavigation activeTab={navigation.activeTab} onSelect={handleAppTab} />
+        ) : null}
 
-      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
-        <PlannerComposition
+        {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
+          <PlannerComposition
           viewModel={buildPlannerDeckViewModel({
             plan,
             start,
@@ -1441,8 +1445,9 @@ export function PlannerShell() {
               previousRoute,
               replayComparison
           } : null}
-        />
-      ) : null}
+          />
+        ) : null}
+      </MapWorkspace>
       {surface === "library" && navigation.activeTab === "library" ? (
         <LibraryDrawer
           routes={savedRoutes}

@@ -161,11 +161,29 @@ export async function installRouteApi(
 export async function openPlannerEditor(page: Page): Promise<void> {
   const editor = page.getByRole("heading", { name: /Pick two points|Start here/i })
   if (await editor.isVisible().catch(() => false)) return
+  await expandPhonePlanner(page)
   // A real tap must reach this control: a regression where the home-state
   // action dock occluded "Edit route" on phones used to require force here.
   // An actionability failure now flags that overlap instead of masking it.
   await page.getByRole("button", { name: "Edit route" }).click()
   await expect(editor).toBeVisible()
+}
+
+export async function expandPhonePlanner(page: Page): Promise<void> {
+  if (!await page.evaluate(() => window.matchMedia("(max-width: 760px)").matches)) return
+  const expand = page.getByRole("button", { name: "Expand planner" })
+  const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
+  await page.waitForTimeout(750)
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (await expand.isVisible().catch(() => false)) {
+      await expand.click()
+    } else if (await prompt.isVisible().catch(() => false)) {
+      await page.waitForTimeout(250)
+      if (await prompt.isVisible().catch(() => false)) return
+    }
+    await page.waitForTimeout(250)
+  }
+  await expect(prompt).toBeVisible()
 }
 
 export async function expectRouteOutcome(page: Page, capture: RouteCapture): Promise<void> {
