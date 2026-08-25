@@ -16,11 +16,13 @@ Every pull request runs on a fresh `ubuntu-latest` machine with read-only
 - `pwa`
 - `road-lock`
 - `real-router` (a pinned local GraphHopper fixture)
+- `visual` (pinned clock/timezone and responsive visual states)
 
-The `visual` job also runs for visibility. Its snapshots are not updated in CI;
-environmental pixel drift is reported as a visual failure, and the job is
-explicitly `continue-on-error` until the baseline is independent of the app's
-time-based automatic theme selection. It is not a deterministic merge gate.
+The visual job is a deterministic merge gate. Its snapshots are not updated in
+CI; environmental pixel drift is reported as a failure. The suite pins the
+browser timezone and the app clock before capturing the required desktop,
+phone, and tablet states, so a visual failure is actionable rather than an
+unbounded time-of-day comparison.
 
 No public fork PR uses a persistent runner or receives secrets. The workflow
 uses `pull_request`, not `pull_request_target`, for untrusted code.
@@ -75,8 +77,10 @@ zero-cost backend. No cloud resource is created by this repository.
 ## Rules and debugging
 
 Require the deterministic public jobs above in the `main` branch ruleset after
-the first public workflow run. Do not require visual, live-provider, Cirun, or
-homelab jobs as merge gates.
+the first public workflow run. Do not require live-provider, Cirun, or homelab
+jobs as merge gates. Live-provider remains a trusted, separately configured
+deployment check; when its endpoint secret is absent, its summary must remain
+`BLOCKED — SECRET NOT CONFIGURED` and must not be read as live verification.
 
 Useful commands:
 
