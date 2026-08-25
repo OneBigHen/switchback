@@ -25,6 +25,18 @@ describe("planner state machine (SB-022)", () => {
     expect(canTransitionPlannerPhase("cancelled", "idle")).toBe(true)
     expect(canTransitionPlannerPhase("error", "idle")).toBe(true)
   })
+
+  it("lets a terminal phase start a brand-new lifecycle, same as idle/ready", () => {
+    // A cancelled or errored plan must not permanently block the *next* one:
+    // the rider's very next prompt (→ interpreting) or direct replan
+    // (→ routing-primary) has to be a legal source transition, or the phase
+    // gets stuck at "cancelled"/"error" for the rest of the session and the
+    // planning-progress UI silently stops updating.
+    expect(canTransitionPlannerPhase("cancelled", "interpreting")).toBe(true)
+    expect(canTransitionPlannerPhase("cancelled", "routing-primary")).toBe(true)
+    expect(canTransitionPlannerPhase("error", "interpreting")).toBe(true)
+    expect(canTransitionPlannerPhase("error", "routing-primary")).toBe(true)
+  })
 })
 
 describe("planner store phase guard", () => {

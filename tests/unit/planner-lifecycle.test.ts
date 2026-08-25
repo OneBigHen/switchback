@@ -81,4 +81,32 @@ describe("planner lifecycle phase", () => {
     expect(state.plan?.selectedRouteId).toBe("old-route")
     expect(state.status).toBe("error")
   })
+
+  it("does not get stuck reporting progress after a cancelled plan is retried", () => {
+    // Regression: cancelPlanning() used to leave planningPhase permanently at
+    // "cancelled", which every later setPlanningPhase("interpreting") call
+    // (the very next ride prompt, see usePlannerRideIntent.ts) silently
+    // rejected as an illegal source transition. The rider's plan would still
+    // run, but the lifecycle spinner/cancel UI would never reappear.
+    const store = usePlannerStore.getState()
+    store.setPlanningPhase("interpreting")
+    store.cancelPlanning()
+    expect(usePlannerStore.getState().planningPhase).toBe("cancelled")
+
+    store.setPlanningPhase("interpreting")
+    expect(usePlannerStore.getState().planningPhase).toBe("interpreting")
+  })
+
+  it("does not get stuck reporting progress after a failed plan is retried", () => {
+    // Same regression as above, via the failRouting()/error path exercised by
+    // runLatestTripPlan's direct routing-primary re-entry.
+    const store = usePlannerStore.getState()
+    store.setPlanningPhase("interpreting")
+    store.setPlanningPhase("routing-primary")
+    store.failRouting({ code: "ROUTE_PLANNING_FAILED", message: "Could not route" })
+    expect(usePlannerStore.getState().planningPhase).toBe("error")
+
+    store.setPlanningPhase("routing-primary")
+    expect(usePlannerStore.getState().planningPhase).toBe("routing-primary")
+  })
 })
