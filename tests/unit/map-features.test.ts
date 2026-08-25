@@ -63,6 +63,47 @@ describe("rider map feature HTTP contract", () => {
     expect(String(receivedInit?.body)).toContain("data=")
   })
 
+  it("marks the response degraded instead of pretending an outage is an empty area", async () => {
+    const fetcher: typeof fetch = async (url) => {
+      if (String(url).includes("overpass")) {
+        return new Response("upstream error", { status: 503 })
+      }
+      return new Response(JSON.stringify({ features: [] }), { status: 200 })
+    }
+
+    const result = await getRiderMapFeatures({
+      bounds: { west: -75.1, south: 40.1, east: -74.7, north: 40.5 },
+      layers: ["fuel", "weather"]
+    }, {
+      overpassUrl: "https://overpass.test/api/interpreter",
+      nwsUserAgent: "Switchback test",
+      fetcher
+    })
+
+    expect(result.features).toEqual([])
+    expect(result.unavailable).toEqual(["osm"])
+  })
+
+  it("omits the unavailable field once every requested provider succeeds", async () => {
+    const fetcher: typeof fetch = async (url) => {
+      if (String(url).includes("overpass")) {
+        return new Response(JSON.stringify({ elements: [] }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ features: [] }), { status: 200 })
+    }
+
+    const result = await getRiderMapFeatures({
+      bounds: { west: -75.1, south: 40.1, east: -74.7, north: 40.5 },
+      layers: ["fuel", "weather"]
+    }, {
+      overpassUrl: "https://overpass.test/api/interpreter",
+      nwsUserAgent: "Switchback test",
+      fetcher
+    })
+
+    expect(result.unavailable).toBeUndefined()
+  })
+
   it("serves a bounded set of selected live layers through the same-origin API", async () => {
     const provider = vi.fn(async () => collection)
     const response = await handleMapFeaturesRequest(

@@ -254,15 +254,6 @@ export function filterFunStopCandidates(
     .map(({ place }) => place)
 }
 
-export function selectFunStopCandidate(
-  places: PlaceResult[],
-  stopKind: FunStopKind,
-  center: GeocoderBias,
-  radiusKm = FUN_STOP_RADIUS_KM
-): PlaceResult | undefined {
-  return filterFunStopCandidates(places, stopKind, center, radiusKm)[0]
-}
-
 function isCoordinateInRoutingCoverage(point: GeocoderBias): boolean {
   return point.lat >= getCoverageBounds().south &&
     point.lat <= getCoverageBounds().north &&

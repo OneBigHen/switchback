@@ -343,11 +343,8 @@ export async function interpretRidePrompt(
     const payload = await response.json() as OpenRouterPayload
     const content = payload.choices?.[0]?.message?.content
     if (!content) return fallback
-    const parsed = safeParse(rideIntentSchema, JSON.parse(content))
-    if (!parsed.success) return fallback
     try {
-      const validated = validateIntent(parsed.data)
-      return { ...validated, source: "openrouter" as const }
+      return parseStrictRideIntent(JSON.parse(content), "openrouter")
     } catch {
       return fallback
     }

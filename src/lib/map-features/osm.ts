@@ -15,6 +15,10 @@ export interface MapFeatureRequest {
 export interface RiderFeatureCollection {
   type: "FeatureCollection"
   features: RiderFeature[]
+  /** Present only when at least one requested provider (OSM/Overpass or NWS
+   *  alerts) failed. Absent when every requested provider succeeded, so an
+   *  empty `features` array still means "confirmed no matches" by default. */
+  unavailable?: Array<"osm" | "weather">
 }
 
 interface RiderFeature {
@@ -215,31 +219,43 @@ export async function getRiderMapFeatures(
 ): Promise<RiderFeatureCollection> {
   const fetcher = options.fetcher ?? fetch
   const query = createOverpassQuery(request)
-  const work: Array<Promise<RiderFeature[]>> = []
+  const work: Array<{ source: "osm" | "weather"; promise: Promise<RiderFeature[]> }> = []
   if (query) {
-    work.push(fetcher(options.overpassUrl, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-        "user-agent": "Switchback route planner/0.1 (map data)"
-      },
-      body: new URLSearchParams({ data: query }),
-      signal: AbortSignal.timeout(18_000)
-    }).then(async (response) => {
-      if (!response.ok) throw new Error(`OpenStreetMap map-data request failed with ${response.status}`)
-      const payload = await response.json() as OverpassResponse
-      return normalizeOverpassFeatures(payload, request.layers).features
-    }))
+    work.push({
+      source: "osm",
+      promise: fetcher(options.overpassUrl, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "user-agent": "Switchback route planner/0.1 (map data)"
+        },
+        body: new URLSearchParams({ data: query }),
+        signal: AbortSignal.timeout(18_000)
+      }).then(async (response) => {
+        if (!response.ok) throw new Error(`OpenStreetMap map-data request failed with ${response.status}`)
+        const payload = await response.json() as OverpassResponse
+        return normalizeOverpassFeatures(payload, request.layers).features
+      })
+    })
   }
-  if (request.layers.includes("weather")) work.push(getNwsAlertFeatures(request.bounds, options))
+  if (request.layers.includes("weather")) {
+    work.push({ source: "weather", promise: getNwsAlertFeatures(request.bounds, options) })
+  }
   if (work.length === 0) return emptyCollection()
-  const collections = await Promise.allSettled(work)
+  const collections = await Promise.allSettled(work.map((item) => item.promise))
   if (!collections.some((result) => result.status === "fulfilled")) {
     throw new Error("No map-data provider could serve the selected layers")
   }
+  // A layer that failed alongside others that succeeded must not read as a
+  // confirmed "no results here" — name it so the map can tell an outage
+  // apart from an empty area.
+  const unavailable = work
+    .filter((_, index) => collections[index].status === "rejected")
+    .map((item) => item.source)
   return {
     type: "FeatureCollection",
-    features: collections.flatMap((result) => result.status === "fulfilled" ? result.value : [])
+    features: collections.flatMap((result) => result.status === "fulfilled" ? result.value : []),
+    ...(unavailable.length > 0 ? { unavailable } : {})
   }
 }
