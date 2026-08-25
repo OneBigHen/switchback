@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
   OFFLINE_REGIONS,
-  getRegionById,
-  findRegionsContaining,
   suggestRegionsForRoute,
   formatRegionBytes
 } from "@/lib/offline/region-catalog"
@@ -22,21 +20,6 @@ describe("region catalog", () => {
       expect(region.estimatedDownloadBytes).toBeGreaterThan(0)
       expect(region.estimatedNodeCount).toBeGreaterThan(0)
     }
-  })
-
-  it("getRegionById finds a known region", () => {
-    const pa = getRegionById("pennsylvania")
-    expect(pa).toBeDefined()
-    expect(pa!.code).toBe("PA")
-  })
-
-  it("getRegionById returns undefined for unknown regions", () => {
-    expect(getRegionById("atlantis")).toBeUndefined()
-  })
-
-  it("findRegionsContaining returns PA for Harrisburg", () => {
-    const regions = findRegionsContaining([-76.8867, 40.2732])
-    expect(regions.some((r) => r.id === "pennsylvania")).toBe(true)
   })
 
   it("suggestRegionsForRoute ranks regions by waypoint coverage", () => {

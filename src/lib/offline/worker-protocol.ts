@@ -17,18 +17,6 @@
  */
 export const OFFLINE_ROUTING_WORKER_PROTOCOL_VERSION = 2
 
-/**
- * Sentinel value used to mark a result as covering a stale (superseded)
- * request. Callers that observe a result whose `status === "stale"` may use
- * this symbol on a side channel to discard the result without surfacing it.
- *
- * The value is exported as a `unique symbol` so that it cannot collide with
- * any other symbol in the program.
- */
-export const OFFLINE_ROUTING_STALE_REQUEST_SENTINEL: unique symbol = Symbol.for(
-  "switchback.offline-routing.stale-request"
-)
-
 export type OfflineRoutingWorkerRequestKind =
   | "route"
   | "route_v2"

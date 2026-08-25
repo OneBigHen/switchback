@@ -38,7 +38,7 @@ export async function loadRouteGeometry(
     const geometry = parsed.geometry.filter(isCoordinate)
     if (geometry.length < 2) return { route: null, status: "missing-file" }
     return {
-      route: { id: routeId, label: parsed.id === routeId ? label : label, geometry },
+      route: { id: routeId, label, geometry },
       status: "loaded"
     }
   } catch (caught) {
