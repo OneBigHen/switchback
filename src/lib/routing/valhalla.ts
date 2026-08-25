@@ -254,12 +254,20 @@ function sampleGeometryForHeight(geometry: Coordinate[], maxPoints = 200): { lat
   return samples
 }
 
+/**
+ * Fetch elevation samples for a route. `unavailable: true` distinguishes a
+ * genuine provider failure (unreachable, non-2xx, or unparseable response)
+ * from a valid response that simply has no usable height data for this
+ * geometry (e.g. outside the elevation service's DEM coverage) — only the
+ * former is worth warning the rider about; the latter is expected and silent
+ * by design.
+ */
 export async function fetchRouteElevations(
   geometry: Coordinate[],
   baseUrl: string,
   fetcher: typeof fetch,
   signal?: AbortSignal
-): Promise<{ ascentMeters: number | null; descentMeters: number | null }> {
+): Promise<{ ascentMeters: number | null; descentMeters: number | null; unavailable?: boolean }> {
   const samples = sampleGeometryForHeight(geometry)
   let response: Response
   try {
@@ -272,16 +280,16 @@ export async function fetchRouteElevations(
         : AbortSignal.timeout(15_000)
     })
   } catch {
-    return { ascentMeters: null, descentMeters: null }
+    return { ascentMeters: null, descentMeters: null, unavailable: true }
   }
 
-  if (!response.ok) return { ascentMeters: null, descentMeters: null }
+  if (!response.ok) return { ascentMeters: null, descentMeters: null, unavailable: true }
 
   let payload: ValhallaHeightResponse
   try {
     payload = (await response.json()) as ValhallaHeightResponse
   } catch {
-    return { ascentMeters: null, descentMeters: null }
+    return { ascentMeters: null, descentMeters: null, unavailable: true }
   }
 
   const heights: (number | null)[] = payload.range_height
@@ -609,16 +617,27 @@ export async function requestValhallaRoutes(
   }
 }
 
-export async function enrichWithElevations<T extends { routes: PlannedRoute[] }>(
+export async function enrichWithElevations<T extends { routes: PlannedRoute[]; warnings?: string[] }>(
   result: T,
   options: ValhallaOptions
 ): Promise<T> {
   const fetcher = options.fetcher ?? fetch
+  let anyUnavailable = false
   const enriched = await Promise.all(
     result.routes.map(async (route) => {
-      const elevations = await fetchRouteElevations(route.geometry, options.baseUrl, fetcher, options.signal)
+      const { unavailable, ...elevations } = await fetchRouteElevations(route.geometry, options.baseUrl, fetcher, options.signal)
+      if (unavailable) anyUnavailable = true
       return { ...route, ...elevations }
     })
   )
-  return { ...result, routes: enriched }
+  return {
+    ...result,
+    routes: enriched,
+    ...(anyUnavailable ? {
+      warnings: [
+        ...(result.warnings ?? []),
+        "Elevation data was unavailable for one or more routes; distances and turns are unaffected."
+      ]
+    } : {})
+  }
 }
