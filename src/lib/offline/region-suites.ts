@@ -54,13 +54,3 @@ export function resolveSuiteRegions(suite: RegionSuite): OfflineRegion[] {
   const codes = new Set(suite.regionCodes)
   return OFFLINE_REGIONS.filter((region) => codes.has(region.code))
 }
-
-/**
- * Return catalog entries for a list of region codes. Used by the
- * storage-quota estimator to project the bytes a suite selection would
- * occupy once installed.
- */
-export function resolveRegionsByCode(codes: readonly string[]): OfflineRegion[] {
-  const set = new Set(codes)
-  return OFFLINE_REGIONS.filter((region) => set.has(region.code))
-}

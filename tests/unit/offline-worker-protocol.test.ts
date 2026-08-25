@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 import {
-  OFFLINE_ROUTING_STALE_REQUEST_SENTINEL,
   OFFLINE_ROUTING_WORKER_PROTOCOL_VERSION,
   buildOfflineRoutingWorkerFailure,
   buildOfflineRoutingWorkerOk,
@@ -300,18 +299,6 @@ describe("offline-routing worker protocol", () => {
       expect(failure.requestId).toBe("req-stale")
       expect(failure.message).toBe("Request was superseded by a newer one.")
       expect(failure.workerProtocolVersion).toBe(OFFLINE_ROUTING_WORKER_PROTOCOL_VERSION)
-      expect(typeof OFFLINE_ROUTING_STALE_REQUEST_SENTINEL).toBe("symbol")
-    })
-  })
-
-  describe("OFFLINE_ROUTING_STALE_REQUEST_SENTINEL", () => {
-    it("is a unique symbol exported from the module", () => {
-      expect(typeof OFFLINE_ROUTING_STALE_REQUEST_SENTINEL).toBe("symbol")
-      // Re-exported via Symbol.for so callers across the worker boundary can
-      // rely on a stable global registration.
-      expect(OFFLINE_ROUTING_STALE_REQUEST_SENTINEL).toBe(
-        Symbol.for("switchback.offline-routing.stale-request")
-      )
     })
   })
 

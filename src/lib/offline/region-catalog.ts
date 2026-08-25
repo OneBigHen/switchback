@@ -148,24 +148,6 @@ export const OFFLINE_REGIONS: readonly OfflineRegion[] = [
   }
 ]
 
-/** Find a region by slug. */
-export function getRegionById(id: string): OfflineRegion | undefined {
-  return OFFLINE_REGIONS.find((r) => r.id === id)
-}
-
-/** Return regions whose bounding box contains the given coordinate. */
-export function findRegionsContaining(coord: Coordinate): OfflineRegion[] {
-  const [lon, lat] = coord
-  return OFFLINE_REGIONS.filter((r) => {
-    return (
-      lon >= r.bounds.minLon &&
-      lon <= r.bounds.maxLon &&
-      lat >= r.bounds.minLat &&
-      lat <= r.bounds.maxLat
-    )
-  })
-}
-
 /** Suggested regions for a route, based on its waypoint coverage. */
 export function suggestRegionsForRoute(coords: Coordinate[]): OfflineRegion[] {
   const regionScores = new Map<string, { region: OfflineRegion; score: number }>()

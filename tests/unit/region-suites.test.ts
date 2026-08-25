@@ -4,8 +4,7 @@ import {
   HOME_TERRITORY_REGION_CODES,
   HOME_TERRITORY_SUITE_ID,
   getRegionSuite,
-  resolveSuiteRegions,
-  resolveRegionsByCode
+  resolveSuiteRegions
 } from "@/lib/offline/region-suites"
 import { OFFLINE_REGIONS } from "@/lib/offline/region-catalog"
 
@@ -38,10 +37,5 @@ describe("region suites", () => {
       const occurrences = OFFLINE_REGIONS.filter((r) => r.id === region.id).length
       expect(occurrences).toBe(1)
     }
-  })
-
-  it("resolveRegionsByCode tolerates unknown codes", () => {
-    const resolved = resolveRegionsByCode(["PA", "XX"])
-    expect(resolved.map((r) => r.code)).toEqual(["PA"])
   })
 })
