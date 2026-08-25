@@ -190,9 +190,6 @@ jobs:
   visual:
     name: visual
     runs-on: ubuntu-latest
-    # Evidence-only until the snapshot baseline is independent of the app's
-    # time-based automatic theme selection.
-    continue-on-error: true
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
