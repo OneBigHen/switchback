@@ -13,6 +13,25 @@ function formatDuration(milliseconds: number): string {
   return `${hours}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
 }
 
+/** Bounding-box-normalized breadcrumb path from real recorded coordinates
+ * (matches the projection `CommunityPreviewMap` uses for published routes) —
+ * this used to be a synthetic index-based zigzag unrelated to the ride. */
+function breadcrumbPoints(coordinates: Array<readonly [number, number]>, width: number, height: number): string {
+  const longitudes = coordinates.map(([longitude]) => longitude)
+  const latitudes = coordinates.map(([, latitude]) => latitude)
+  const minLongitude = Math.min(...longitudes)
+  const maxLongitude = Math.max(...longitudes)
+  const minLatitude = Math.min(...latitudes)
+  const maxLatitude = Math.max(...latitudes)
+  const longitudeSpan = Math.max(0.000001, maxLongitude - minLongitude)
+  const latitudeSpan = Math.max(0.000001, maxLatitude - minLatitude)
+  return coordinates.map(([longitude, latitude]) => {
+    const x = 12 + ((longitude - minLongitude) / longitudeSpan) * (width - 24)
+    const y = 12 + ((maxLatitude - latitude) / latitudeSpan) * (height - 24)
+    return `${x.toFixed(2)},${y.toFixed(2)}`
+  }).join(" ")
+}
+
 interface RecordPanelProps {
   controller: RecordingSessionController
 }
@@ -42,7 +61,7 @@ export function RecordPanel({ controller }: RecordPanelProps) {
         <MapPin weight="fill" aria-hidden="true" />
         {state.points.length > 1 ? (
           <svg viewBox="0 0 320 140" role="img" aria-label="Recorded breadcrumb preview">
-            <polyline points={state.points.map((_, index) => `${20 + index * Math.min(28, 280 / state.points.length)},${110 - (index % 4) * 22}`).join(" ")} />
+            <polyline points={breadcrumbPoints(state.points.map((point) => point.coordinate), 320, 140)} />
           </svg>
         ) : <span>Breadcrumb map appears after GPS points arrive.</span>}
       </div>

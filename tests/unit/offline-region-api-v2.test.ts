@@ -75,7 +75,11 @@ describe("offline region v2 API", () => {
       params: Promise.resolve({ regionId: "../secret" })
     })
     expect(response.status).toBe(400)
-    expect(await response.text()).not.toContain(root)
+    const body = await response.json()
+    expect(body).toMatchObject({
+      error: { code: "OFFLINE_MANIFEST_INVALID_REGION" }
+    })
+    expect(JSON.stringify(body)).not.toContain(root)
   })
 
   it("serves immutable tiles with ETag and byte-range support", async () => {
@@ -121,5 +125,8 @@ describe("offline region v2 API", () => {
       params: Promise.resolve({ regionId: "pennsylvania", tileId: "not-in-manifest" })
     })
     expect(missing.status).toBe(404)
+    await expect(missing.json()).resolves.toMatchObject({
+      error: { code: "OFFLINE_TILE_NOT_FOUND" }
+    })
   })
 })

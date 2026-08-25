@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { handleFreeRideSuggestions } from "@/app/api/free-ride/suggestions/handler"
+import { POST as postFreeRideSuggestions } from "@/app/api/free-ride/suggestions/route"
 import { createCanonicalSegment } from "@/lib/roads/canonical-segments"
 import { buildFreeRideGraph } from "@/lib/recommendation/free-ride-graph"
 import type { RigCorridor } from "@/lib/roads/rig-corridors"
@@ -82,6 +83,20 @@ function routed(request: { origin: [number, number]; destination?: [number, numb
 }
 
 describe("Free Ride suggestion API", () => {
+  it("rate-limits the provider-backed route before it can be polled without bound", async () => {
+    const responses = await Promise.all(Array.from({ length: 11 }, () => postFreeRideSuggestions(new Request("http://switchback.test/api/free-ride/suggestions", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-real-ip": "198.51.100.42" },
+      body: JSON.stringify({ position: [-77.1, 40.1] })
+    }))))
+
+    expect(responses.slice(0, 10).every((response) => response.status === 503)).toBe(true)
+    expect(responses[10]?.status).toBe(429)
+    await expect(responses[10]?.json()).resolves.toMatchObject({
+      error: { code: "RATE_LIMITED" }
+    })
+  })
+
   it("refuses to synthesize a suggestion without graph-backed evidence", async () => {
     const response = await handleFreeRideSuggestions(request({
       position: [-77.1, 40.1],

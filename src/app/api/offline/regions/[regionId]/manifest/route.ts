@@ -13,10 +13,18 @@ interface RouteContext {
 // Region manifests list every tile file; keep anonymous scraping cheap.
 const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 120, label: "offline manifest request" })
 
+const CODE_BY_STATUS: Record<number, string> = {
+  400: "OFFLINE_MANIFEST_INVALID_REGION",
+  404: "OFFLINE_MANIFEST_NOT_FOUND",
+  500: "OFFLINE_MANIFEST_UNAVAILABLE"
+}
+
 function failure(error: unknown): Response {
   const status = error instanceof OfflineRegionFileError ? error.status : 500
   const message = error instanceof OfflineRegionFileError ? error.message : "Offline manifest unavailable"
-  return Response.json({ error: message }, { status })
+  // Matches the `{ error: { code, message } }` shape used across the rest of
+  // the API surface (was a bare string here, the one outlier).
+  return Response.json({ error: { code: CODE_BY_STATUS[status] ?? "OFFLINE_MANIFEST_UNAVAILABLE", message } }, { status })
 }
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {

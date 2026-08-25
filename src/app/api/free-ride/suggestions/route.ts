@@ -4,10 +4,19 @@ import path from "node:path"
 import { buildFreeRideGraph, type FreeRideGraphIndex } from "@/lib/recommendation/free-ride-graph"
 import { plannedRouteToScoreable } from "@/lib/recommendation/route-candidate"
 import { requestGraphHopperRoutes } from "@/lib/routing/graphhopper"
+import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import type { RouteRequest } from "@/lib/domain/contracts"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
+
+// The client polls this endpoint every 15s while Free Ride is active
+// (~4 requests/min per rider), and each call can issue up to ~6 GraphHopper
+// requests (buildGraphBackedFreeRideCandidates: baseline + detour per
+// candidate). Unlike /api/routes, this endpoint had no per-caller limit at
+// all — matching the same window/max /api/routes uses for the same class of
+// provider-calling endpoint.
+const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 10, label: "free ride suggestion request" })
 
 const MAX_GRAPH_FILE_BYTES = 64 * 1024 * 1024
 let graphCache: { path: string; mtimeMs: number; size: number; graph: FreeRideGraphIndex } | null = null
@@ -54,7 +63,7 @@ async function requestFreeRideRoute(
   return plannedRouteToScoreable(route)
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function handleFreeRidePost(request: Request): Promise<Response> {
   let graph: FreeRideGraphIndex | null
   try {
     graph = await loadConfiguredGraph()
@@ -68,3 +77,5 @@ export async function POST(request: Request): Promise<Response> {
   }
   return handleFreeRideSuggestions(request, { graph, routeProvider: requestFreeRideRoute })
 }
+
+export const POST = withRateLimit(requestLimiter, handleFreeRidePost)

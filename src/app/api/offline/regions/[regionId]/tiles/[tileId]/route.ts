@@ -12,10 +12,18 @@ interface RouteContext {
 // Tiles can be large and are meant to be cached by the browser, not scraped.
 const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 120, label: "offline tile request" })
 
+const CODE_BY_STATUS: Record<number, string> = {
+  400: "OFFLINE_TILE_INVALID_REQUEST",
+  404: "OFFLINE_TILE_NOT_FOUND",
+  500: "OFFLINE_TILE_UNAVAILABLE"
+}
+
 function failure(error: unknown): Response {
   const status = error instanceof OfflineRegionFileError ? error.status : 500
   const message = error instanceof OfflineRegionFileError ? error.message : "Offline tile unavailable"
-  return Response.json({ error: message }, { status })
+  // Matches the `{ error: { code, message } }` shape used across the rest of
+  // the API surface (was a bare string here, the one outlier).
+  return Response.json({ error: { code: CODE_BY_STATUS[status] ?? "OFFLINE_TILE_UNAVAILABLE", message } }, { status })
 }
 
 function parseRange(value: string | null, size: number): { start: number; end: number } | null | "invalid" {

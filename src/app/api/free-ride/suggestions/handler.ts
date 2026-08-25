@@ -16,6 +16,7 @@ import {
 } from "@/lib/recommendation/free-ride"
 import type { FreeRideGraphIndex } from "@/lib/recommendation/free-ride-graph"
 import type { RideProfile } from "@/lib/domain/contracts"
+import { readBoundedJsonBody } from "@/lib/server/http-body"
 
 const PROFILES = [
   "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
@@ -38,10 +39,11 @@ const requestSchema = object_({
 })
 
 async function readBody(request: Request): Promise<unknown | null> {
+  // Streams and caps at 8KB instead of buffering the full body before
+  // checking its size (matching the pattern already used by /api/routes and
+  // /api/ride-intent) — a large POST is rejected without fully allocating it.
   try {
-    const text = await request.text()
-    if (text.length > 8 * 1024) return null
-    return JSON.parse(text) as unknown
+    return await readBoundedJsonBody(request, 8 * 1024)
   } catch {
     return null
   }
