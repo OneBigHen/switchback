@@ -84,7 +84,10 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
     setLockDraftStep("first")
     setLockDraftMessage("")
     setLockName("")
-    setLockMode("must")
+    // Match the initial-state clamp above: must mode only when road
+    // requirements are enabled, otherwise every draft (including the one
+    // after a reset) starts in prefer mode (SB-006 containment).
+    setLockMode(featureFlags.roadRequirements ? "must" : "prefer")
   }, [])
 
   const beginLockDraft = useCallback(() => {
