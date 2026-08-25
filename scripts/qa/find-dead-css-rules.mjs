@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// TASK-2.1: static dead-rule audit for responsive.css. See
+// TASK-2.1: static dead-rule audit, originally for responsive.css. See
 // docs/quality/CSS-DEAD-RULES.md for why this replaced the coverage-based
 // approach the plan originally suggested, and for its own known blind spots
 // (interpolated class names, third-party-injected classes) -- always
 // spot-check anything this flags before deleting it.
+//
+// TASK-2.3 (2026-08-16) split responsive.css into per-component stylesheets
+// and deleted the god-file, so this now scans every *.css file directly
+// under src/app/styles/ rather than a single hardcoded target.
 import { readFileSync, readdirSync, statSync } from "node:fs"
-import { join, extname } from "node:path"
+import { join, extname, relative } from "node:path"
 
 const root = process.cwd()
 
@@ -73,41 +77,53 @@ function isReferenced(cls) {
   return re.test(allSourceText)
 }
 
-const targetFile = join(root, "src/app/styles/responsive.css")
-const sourceText = readFileSync(targetFile, "utf8")
-const lineStarts = [0]
-for (let i = 0; i < sourceText.length; i++) if (sourceText[i] === "\n") lineStarts.push(i + 1)
-function lineOf(offset) {
-  let lo = 0, hi = lineStarts.length - 1
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1
-    if (lineStarts[mid] <= offset) lo = mid; else hi = mid - 1
-  }
-  return lo + 1
-}
-
-const topLevelRules = parseTopLevelRules(sourceText)
-const results = topLevelRules
-  .map((r) => ({
-    line: lineOf(r.start),
-    selector: sourceText.slice(r.start, sourceText.indexOf("{", r.start) + 1).trim()
-  }))
-  .filter((r) => !r.selector.startsWith("@media") && !r.selector.startsWith("@keyframes") && !r.selector.startsWith(":root"))
-  .map((r) => {
-    const classes = extractClasses(r.selector)
-    if (classes.length === 0) return { ...r, verdict: "SKIP (no class selector)" }
-    const referenced = classes.filter((c) => isReferenced(c))
-    if (referenced.length === classes.length) return { ...r, verdict: "KEEP" }
-    if (referenced.length === 0) return { ...r, verdict: "DEAD", unreferencedClasses: classes }
-    return { ...r, verdict: "PARTIAL", unreferencedClasses: classes.filter((c) => !referenced.includes(c)) }
-  })
+const stylesDir = join(root, "src/app/styles")
+const targetFiles = readdirSync(stylesDir)
+  .filter((f) => extname(f) === ".css")
+  .map((f) => join(stylesDir, f))
+  .sort()
 
 const counts = {}
-for (const r of results) counts[r.verdict] = (counts[r.verdict] ?? 0) + 1
+const flagged = []
+
+for (const targetFile of targetFiles) {
+  const sourceText = readFileSync(targetFile, "utf8")
+  const lineStarts = [0]
+  for (let i = 0; i < sourceText.length; i++) if (sourceText[i] === "\n") lineStarts.push(i + 1)
+  function lineOf(offset) {
+    let lo = 0, hi = lineStarts.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1
+      if (lineStarts[mid] <= offset) lo = mid; else hi = mid - 1
+    }
+    return lo + 1
+  }
+
+  const topLevelRules = parseTopLevelRules(sourceText)
+  const results = topLevelRules
+    .map((r) => ({
+      file: relative(root, targetFile),
+      line: lineOf(r.start),
+      selector: sourceText.slice(r.start, sourceText.indexOf("{", r.start) + 1).trim()
+    }))
+    .filter((r) => !r.selector.startsWith("@media") && !r.selector.startsWith("@keyframes") && !r.selector.startsWith(":root"))
+    .map((r) => {
+      const classes = extractClasses(r.selector)
+      if (classes.length === 0) return { ...r, verdict: "SKIP (no class selector)" }
+      const referenced = classes.filter((c) => isReferenced(c))
+      if (referenced.length === classes.length) return { ...r, verdict: "KEEP" }
+      if (referenced.length === 0) return { ...r, verdict: "DEAD", unreferencedClasses: classes }
+      return { ...r, verdict: "PARTIAL", unreferencedClasses: classes.filter((c) => !referenced.includes(c)) }
+    })
+
+  for (const r of results) {
+    counts[r.verdict] = (counts[r.verdict] ?? 0) + 1
+    if (r.verdict === "DEAD" || r.verdict === "PARTIAL") flagged.push(r)
+  }
+}
+
 console.log(counts)
 console.log("")
-for (const r of results) {
-  if (r.verdict === "DEAD" || r.verdict === "PARTIAL") {
-    console.log(`${r.verdict}\tline ${r.line}\t${r.selector.replace(/\n/g, " ").slice(0, 100)}`)
-  }
+for (const r of flagged) {
+  console.log(`${r.verdict}\t${r.file}:${r.line}\t${r.selector.replace(/\n/g, " ").slice(0, 100)}`)
 }
