@@ -74,10 +74,6 @@
   background: rgb(243 106 45 / 8%);
 }
 
-.region-suite-option-input {
-  display: none;
-}
-
 .region-suite-option-mark {
   display: grid;
   width: 18px;

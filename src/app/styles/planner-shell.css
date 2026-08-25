@@ -309,15 +309,9 @@
   box-shadow: 0 0 0 4px rgb(148 156 151 / 9%);
 }
 
-.status-ready > span,
 .live-dot {
   background: var(--success);
   box-shadow: 0 0 0 4px rgb(128 185 154 / 10%);
-}
-
-.status-offline > span {
-  background: var(--danger);
-  box-shadow: 0 0 0 4px rgb(227 93 84 / 10%);
 }
 
 .deck-section {

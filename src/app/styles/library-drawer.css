@@ -1620,9 +1620,7 @@
   text-transform: none;
 }
 
-.library-empty,
-.library-error,
-.library-drawer [role="alert"] {
+.library-empty {
   min-height: min(56vh, 460px);
   margin-top: 14px;
   padding: 38px 28px;
@@ -1642,28 +1640,17 @@
   color: #d95629;
 }
 
-.library-empty strong,
-.library-error strong,
-.library-drawer [role="alert"] strong {
+.library-empty strong {
   color: #34312e;
   font-size: 15px;
   letter-spacing: -0.02em;
 }
 
-.library-empty p,
-.library-error p,
-.library-drawer [role="alert"] p {
+.library-empty p {
   color: #77736c;
   font-size: 12px;
   line-height: 1.55;
   text-wrap: pretty;
-}
-
-.library-error,
-.library-drawer [role="alert"] {
-  border-color: #efc5bc;
-  background: #fff4f1;
-  color: #9b3b2b;
 }
 
 .library-drawer button:focus-visible,

@@ -151,11 +151,6 @@
   cursor: pointer;
 }
 
-.overlay-options label.is-unavailable {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
 .overlay-options label.has-layer-state.is-error {
   background: rgb(227 93 84 / 6%);
 }
