@@ -112,6 +112,73 @@ describe("RegionDownloadClient v2 atomic installs", () => {
     await expect(client.has(region.id)).resolves.toBe(true)
   })
 
+  it("resumes near-complete downloads without re-checking quota for already-stored bytes", async () => {
+    const tileA = new TextEncoder().encode("tile-a-bytes")
+    const tileB = new TextEncoder().encode("tile-b-bytes-long")
+    const shaA = createHash("sha256").update(tileA).digest("hex")
+    const shaB = createHash("sha256").update(tileB).digest("hex")
+    const twoTileManifest = {
+      schemaVersion: 2,
+      regionId: region.id,
+      regionName: region.name,
+      version: "v-quota-resume",
+      compression: "gzip-json",
+      buildDate: "2026-07-21T00:00:00Z",
+      sourceDataDate: "2026-07-20T00:00:00Z",
+      snapshotUrl: "https://example.com/pa.osm.pbf",
+      sourceUrl: region.sourceUrl,
+      bounds: region.bounds,
+      checksums: { inventorySha256: "a".repeat(64) },
+      attribution: "OpenStreetMap contributors",
+      tiles: [
+        { tileId: "tile-a", bounds: region.bounds, bytes: tileA.byteLength, sha256: shaA, nodeCount: 1, edgeCount: 1 },
+        { tileId: "tile-b", bounds: region.bounds, bytes: tileB.byteLength, sha256: shaB, nodeCount: 1, edgeCount: 1 }
+      ],
+      tileByteTotal: tileA.byteLength + tileB.byteLength
+    }
+
+    let tileBAttempts = 0
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith("/manifest")) return Response.json(twoTileManifest)
+      if (url.includes("tile-a")) return new Response(tileA)
+      tileBAttempts += 1
+      if (tileBAttempts === 1) throw new DOMException("cancelled", "AbortError")
+      return new Response(tileB)
+    }))
+
+    const originalStorage = (navigator as { storage?: unknown }).storage
+    // Plenty of headroom for the first attempt (both tiles fit comfortably).
+    let available = tileA.byteLength + tileB.byteLength + 1_000
+    Object.defineProperty(navigator, "storage", {
+      value: { estimate: async () => ({ quota: available, usage: 0 }) },
+      configurable: true
+    })
+
+    const client = new RegionDownloadClient(`regions-v2-${crypto.randomUUID()}`)
+    clients.push(client)
+    try {
+      // First attempt: tile-a downloads and verifies; tile-b is interrupted.
+      await expect(client.download(region, () => undefined)).rejects.toThrow()
+      await expect(client.getEntry(region.id)).resolves.toBeNull()
+
+      // Between attempts, available space shrinks to less than the FULL pack
+      // size (tile-a + tile-b) but still covers tile-b alone with a small
+      // margin. Re-checking quota against the full tileByteTotal on resume
+      // would wrongly reject this even though tile-a is already verified on
+      // disk and only tile-b's bytes are actually still needed.
+      available = tileB.byteLength + 2
+      expect(available).toBeLessThan(tileA.byteLength + tileB.byteLength)
+
+      await client.download(region, () => undefined)
+      expect(tileBAttempts).toBe(2)
+      await expect(client.getActiveTile(region.id, "tile-a")).resolves.toEqual(tileA)
+      await expect(client.getActiveTile(region.id, "tile-b")).resolves.toEqual(tileB)
+    } finally {
+      Object.defineProperty(navigator, "storage", { value: originalStorage, configurable: true })
+    }
+  })
+
   it("loads and validates only active spatial graph tiles", async () => {
     const rawTile = {
       schemaVersion: 2,
