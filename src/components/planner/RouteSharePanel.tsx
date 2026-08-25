@@ -16,7 +16,11 @@ export function RouteSharePanel({ route, onShareCreated }: RouteSharePanelProps)
   const [radiusMiles, setRadiusMiles] = useState(1)
   const [message, setMessage] = useState("")
   const zones = useMemo<PrivacyZone[]>(() => {
-    const radiusMeters = Math.max(0.1, radiusMiles) * 1_609.344
+    // Clamp to the same 0.1-10mi range the input advertises (type="number"
+    // min/max are visual hints only outside a <form>; without this a manually
+    // typed out-of-range value can produce a privacy zone that swallows the
+    // entire route, matching CommunityPublishPanel's identical clamp).
+    const radiusMeters = Math.max(0.1, Math.min(10, radiusMiles)) * 1_609.344
     const first = route.geometry[0]
     const last = route.geometry.at(-1)
     return [
