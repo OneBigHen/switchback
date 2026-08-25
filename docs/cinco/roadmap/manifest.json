@@ -1,0 +1,64 @@
+{
+  "name": "Switchback CINCO UX Roadmap",
+  "prepared_at": "2026-08-22",
+  "repo": "OneBigHen/switchback",
+  "program_goal": "Map-first motorcycle navigation UX with premium 3D rendering, progressive disclosure, route intelligence, simplified ride HUD, live road conditions, and Free Ride 2.0.",
+  "phases": [
+    {
+      "id": 0,
+      "name": "Baseline and UX Contract",
+      "file": "phases/PHASE_0_BASELINE_AND_UX_CONTRACT.md"
+    },
+    {
+      "id": 1,
+      "name": "Map Workspace Architecture",
+      "file": "phases/PHASE_1_MAP_WORKSPACE_ARCHITECTURE.md"
+    },
+    {
+      "id": 2,
+      "name": "CINCO Visual System and Premium Map",
+      "file": "phases/PHASE_2_CINCO_VISUAL_SYSTEM_AND_PREMIUM_MAP.md"
+    },
+    {
+      "id": 3,
+      "name": "Route Intelligence UX",
+      "file": "phases/PHASE_3_ROUTE_INTELLIGENCE_UX.md"
+    },
+    {
+      "id": 4,
+      "name": "Ride HUD and Route Actions",
+      "file": "phases/PHASE_4_RIDE_HUD_AND_ROUTE_ACTIONS.md"
+    },
+    {
+      "id": 5,
+      "name": "Live Road Intelligence",
+      "file": "phases/PHASE_5_LIVE_ROAD_INTELLIGENCE.md"
+    },
+    {
+      "id": 6,
+      "name": "Free Ride 2.0",
+      "file": "phases/PHASE_6_FREE_RIDE_2.md"
+    },
+    {
+      "id": 7,
+      "name": "Offline, Performance, and Hardening",
+      "file": "phases/PHASE_7_OFFLINE_PERFORMANCE_AND_HARDENING.md"
+    },
+    {
+      "id": 8,
+      "name": "Post-Core Expansion",
+      "file": "phases/PHASE_8_POST_CORE_EXPANSION.md"
+    }
+  ],
+  "required_first_read": [
+    "00_READ_ME_FIRST.md",
+    "01_PRODUCT_NORTH_STAR.md",
+    "02_CURRENT_BASELINE_AND_GUARDRAILS.md",
+    "03_UX_INTERACTION_SYSTEM.md",
+    "04_MAP_RENDERING_AND_3D_STRATEGY.md",
+    "05_REQUIREMENT_CATALOG.md",
+    "06_PHASE_ROADMAP.md",
+    "13_TEST_AND_ACCEPTANCE_MATRIX.md",
+    "14_AGENT_EXECUTION_PROTOCOL.md"
+  ]
+}

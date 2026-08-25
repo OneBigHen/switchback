@@ -23,14 +23,33 @@ import {
  * Midday pin for wall-clock-dependent rendering: the shell resolves its theme
  * from the local hour (< 6 or >= 19 goes dark, PlannerShell), auto night
  * style follows sun calculations (day-phase), and Free Ride suggestion
- * freshness compares against Date.now. Install also pauses JS timers, which
- * freezes two more drift sources: the planner deck's rotating prompt
- * placeholder (4.2 s interval, PlannerDeck) stays on its first example and
- * the stale-GPS interval never spuriously flips GPS status mid-capture.
- * Free Ride states call `page.clock.runFor` explicitly to fire their
- * deferred first suggestion poll.
+ * freshness compares against Date.now.
+ *
+ * The literal carries an explicit `-04:00` (EDT) offset rather than a
+ * bare "2026-06-15T12:00:00" — without one, `new Date(...)` parses as local
+ * time of whatever machine runs the suite, so the *wall-clock hour* read
+ * back via `getHours()` self-corrects (still noon) but the *absolute
+ * instant* underneath it does not. day-phase.ts's SunCalc-based
+ * isNightTime() operates on that absolute instant against fixed
+ * coordinates, so a bare literal made the resolved theme flip between light
+ * and dark purely from the host's timezone: verified false (day) on a
+ * UTC or America/New_York host, but true (night) on Asia/Tokyo or
+ * Pacific/Auckland, for this exact literal and PA fixture coordinates.
+ * Pinning `playwright.config.ts`'s `timezoneId` to America/New_York keeps
+ * `page.clock.install`'s browser-local readback (getHours, toString, etc.)
+ * consistent with this offset regardless of the host's own timezone.
+ *
+ * Note `install()` alone does not pause the clock — real time still elapses
+ * from this base as the test runs (Playwright: "Date.now will progress as
+ * the timers fire"); only `pauseAt`/`runFor`/`fastForward` control it
+ * explicitly. That's intentional here: MapLibre's camera easeTo/flyTo
+ * transitions run on requestAnimationFrame, which a truly paused clock
+ * would freeze mid-animation, and MAP_SETTLE_MS below waits on real time
+ * for exactly those transitions to finish. Free Ride states call
+ * `page.clock.runFor` explicitly to fire their deferred first suggestion
+ * poll on top of this real-time-progressing base.
  */
-export const PINNED_CLOCK = new Date("2026-06-15T12:00:00")
+export const PINNED_CLOCK = new Date("2026-06-15T12:00:00-04:00")
 
 /** Longest map camera transition in MapStage runs 650 ms (`easeTo`/
  *  `flyTo` duration). Screenshots wait this much longer than that so camera

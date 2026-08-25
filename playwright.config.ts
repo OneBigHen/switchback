@@ -27,6 +27,12 @@ export default defineConfig({
     baseURL: externalBaseUrl ?? localBaseUrl,
     geolocation: { latitude: 40.2732, longitude: -76.8867 },
     permissions: ["geolocation"],
+    // Matches the fixture geolocation (PA) and the explicit -04:00 offset
+    // baked into PINNED_CLOCK (ux-state-fixtures.ts). Without this, browser
+    // contexts inherit the host machine's own timezone, so local-time reads
+    // (Date#getHours, toString, etc.) drift with wherever the suite happens
+    // to run instead of staying pinned relative to the fixture location.
+    timezoneId: "America/New_York",
     // Production registers the offline PWA worker. Requests handled by a
     // service worker bypass page.route(), so API fixtures become order- and
     // viewport-dependent unless the worker is disabled for this matrix.
