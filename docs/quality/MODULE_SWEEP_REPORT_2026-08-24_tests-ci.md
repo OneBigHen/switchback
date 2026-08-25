@@ -21,6 +21,10 @@ The job now fails normally. `docs/CI-ARCHITECTURE.md` now records visual as a
 deterministic public merge gate and keeps live-provider and homelab checks
 outside public PR gating.
 
+The protected `main` branch required-status list was updated during this sweep
+to include `visual`; a red visual job can no longer be bypassed by the other
+public checks passing.
+
 ## Coverage audit
 
 - Unit and integration tests are run by `npm test`; fixture tools are installed
