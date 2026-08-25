@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RecordPanel } from "@/components/shell/RecordPanel"
 import { createRecordingState, type RecordingSessionState } from "@/lib/client/recording-session"
 import type { RecordingSessionController } from "@/components/shell/useRecordingSession"
+import type { RecordedRidePoint } from "@/lib/storage/ride-journal"
 
 function controller(state: RecordingSessionState, overrides: Partial<RecordingSessionController> = {}) {
   return {
@@ -43,6 +44,24 @@ describe("RecordPanel", () => {
 
     expect(handlers.pause).toHaveBeenCalledOnce()
     expect(handlers.finish).toHaveBeenCalledOnce()
+  })
+
+  it("plots the recorded GPS coordinates instead of a synthetic breadcrumb", () => {
+    const points: RecordedRidePoint[] = [
+      { coordinate: [-77, 40], recordedAt: "2026-08-24T12:00:00.000Z", speedMph: 30 },
+      { coordinate: [-76.9, 40.1], recordedAt: "2026-08-24T12:01:00.000Z", speedMph: 30 }
+    ]
+    const recording = {
+      ...createRecordingState(),
+      status: "recording" as const,
+      startedAt: 100,
+      points
+    }
+
+    render(<RecordPanel controller={controller(recording)} />)
+
+    expect(screen.getByRole("img", { name: "Recorded breadcrumb preview" }).querySelector("polyline"))
+      .toHaveAttribute("points", "12.00,128.00 308.00,12.00")
   })
 
   it("shows a recover action for an interrupted session", () => {
