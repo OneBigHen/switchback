@@ -2,8 +2,6 @@ import type { Coordinate } from "./types"
 import { haversine } from "./scoring"
 import type { CurvatureSegment } from "@/lib/curvature/repository"
 
-export { backtrackingShare, selfOverlapShare } from "./route-geometry-quality"
-
 /**
  * Phase 4: timeboxed destination corridors.
  *

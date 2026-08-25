@@ -1,5 +1,5 @@
 import type { Coordinate, PlannedRoute, TollPolicy } from "./types"
-import { backtrackingShare, selfOverlapShare } from "./destination-corridors"
+import { backtrackingShare, selfOverlapShare } from "./route-geometry-quality"
 import { smoothedRouteMetrics } from "./scoring"
 import boundaries from "./reference/pa-nj-boundaries.json"
 
