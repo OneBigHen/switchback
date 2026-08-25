@@ -150,6 +150,22 @@ export class RegionDownloadClient {
     }
   }
 
+  /**
+   * Bytes of this manifest's tiles already verified on disk (matching
+   * sha256/size), so a resumed download only needs quota for what remains —
+   * checking the full `tileByteTotal` again would reject a near-complete
+   * resume on a nearly-full device even though only a small remainder is
+   * still needed.
+   */
+  private async alreadyStoredBytes(regionId: string, manifest: OfflineRegionManifestV2): Promise<number> {
+    let stored = 0
+    for (const entry of manifest.tiles) {
+      const existing = await this.tiles.get(tileKey(regionId, manifest.version, entry.tileId))
+      if (existing?.sha256 === entry.sha256 && existing.byteSize === entry.bytes) stored += entry.bytes
+    }
+    return stored
+  }
+
   async download(
     region: OfflineRegion,
     onProgress: (progress: number) => void
@@ -170,7 +186,8 @@ export class RegionDownloadClient {
       if (!validateOfflineRegionManifestV2(manifest) || manifest.regionId !== region.id) {
         throw new Error("Offline region manifest is invalid")
       }
-      await this.checkQuota(manifest.tileByteTotal)
+      const remainingBytes = manifest.tileByteTotal - await this.alreadyStoredBytes(region.id, manifest)
+      await this.checkQuota(remainingBytes)
 
       const nextVersionKey = versionKey(region.id, manifest.version)
       const pending: StoredVersion = {
