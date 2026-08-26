@@ -467,6 +467,14 @@ export function LibraryDrawer({
           </div>
         ) : null}
 
+        {projectRoutes.length > 0 ? (
+          <a className="atlas-drawer-link" href="/gpx-library">
+            <span className="atlas-drawer-posters" aria-hidden="true"><i /><i /><i /></span>
+            <span className="atlas-drawer-copy"><strong>Route atlas</strong><small>{projectRoutes.length} rides drawn as posters</small></span>
+            <ArrowRight aria-hidden="true" />
+          </a>
+        ) : null}
+
         {visibleSavedRoutes.length === 0 && projectLibrary.groups.length === 0 && recordedRides.length === 0 && visibleTrips.length === 0 ? (
           <div className="library-empty">
             <MapTrifold aria-hidden="true" />

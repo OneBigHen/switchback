@@ -25,6 +25,7 @@ import "./styles/breakpoints.css"
 import "./styles/switchback-v1.css"
 import "./styles/design-system.css"
 import "./styles/community.css"
+import "./styles/route-atlas.css"
 
 export const metadata: Metadata = {
   title: "Switchback — Ride the better road",

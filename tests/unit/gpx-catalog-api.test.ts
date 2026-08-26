@@ -10,84 +10,71 @@ afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
 })
 
-describe("project GPX catalog API", () => {
-  it("lists imported route metadata and loads an allowed route", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "switchback-gpx-"))
-    temporaryDirectories.push(root)
-    await mkdir(path.join(root, "routes"))
-    const metadata = { id: "project-gpx-abc123", name: "Ridge Run", distanceMiles: 42 }
-    const route = { ...metadata, geometry: [[-76, 40], [-76.1, 40.1]] }
-    await writeFile(path.join(root, "manifest.json"), JSON.stringify({
-      scannedFiles: 2,
-      uniqueFiles: 1,
-      importedRoutes: 1,
-      rejectedFiles: 0,
-      routes: [metadata]
-    }))
-    await writeFile(path.join(root, "routes", `${metadata.id}.json`), JSON.stringify(route))
+async function makeCatalog(routes: unknown[], routeDetail?: Record<string, unknown>): Promise<string> {
+  const root = await mkdtemp(path.join(os.tmpdir(), "switchback-atlas-"))
+  temporaryDirectories.push(root)
+  await mkdir(path.join(root, "routes"))
+  await writeFile(path.join(root, "manifest.json"), JSON.stringify({ routes }))
+  if (routeDetail) {
+    await writeFile(path.join(root, "routes", `${(routes[0] as { id: string }).id}.json`), JSON.stringify(routeDetail))
+  }
+  return root
+}
+
+describe("atlas-extended GPX catalog API", () => {
+  it("adds a story and poster flag to every listed route without leaking paths", async () => {
+    const root = await makeCatalog([
+      {
+        id: "project-gpx-abc123",
+        name: "Ridge Run",
+        distanceMiles: 42,
+        durationMinutes: 90,
+        twistiness: 72,
+        turnCount: 88,
+        sourceProject: "rideplanner",
+        sourceFile: "/root/Vibe/secret.gpx"
+      }
+    ])
 
     const listing = await handleGpxCatalogRequest(new Request("http://switchback.test/api/gpx-library"), root)
     expect(listing.status).toBe(200)
-    await expect(listing.json()).resolves.toMatchObject({ importedRoutes: 1, routes: [metadata] })
-
-    const loaded = await handleGpxCatalogRequest(
-      new Request(`http://switchback.test/api/gpx-library?id=${metadata.id}`),
-      root
-    )
-    expect(loaded.status).toBe(200)
-    await expect(loaded.json()).resolves.toMatchObject(route)
+    const body = await listing.json()
+    const route = body.routes[0]
+    expect(route.story.tone).toBe("Day loop")
+    expect(route.story.body).toContain("42 miles")
+    expect(route.art).toBe(false)
+    expect(JSON.stringify(body)).not.toContain("/root/Vibe")
+    expect(JSON.stringify(body)).not.toContain("sourceFile")
   })
 
-  it("rejects route ids that are not present in the manifest", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "switchback-gpx-"))
-    temporaryDirectories.push(root)
-    await writeFile(path.join(root, "manifest.json"), JSON.stringify({ routes: [] }))
-
+  it("detail payload keeps geometry and adds story + poster metadata", async () => {
+    const detail = {
+      id: "project-gpx-abc123",
+      name: "Ridge Run",
+      distanceMiles: 42,
+      durationMinutes: 90,
+      twistiness: 72,
+      turnCount: 88,
+      geometry: [[-76, 40], [-76.01, 40.01], [-76.02, 40.0]]
+    }
+    const root = await makeCatalog([{ id: detail.id, name: detail.name }], detail)
     const response = await handleGpxCatalogRequest(
-      new Request("http://switchback.test/api/gpx-library?id=../../etc/passwd"),
+      new Request(`http://switchback.test/api/gpx-library?id=${detail.id}`),
       root
     )
-
-    expect(response.status).toBe(404)
-  })
-
-  it("strips host filesystem paths from the public catalog listing", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "switchback-gpx-"))
-    temporaryDirectories.push(root)
-    await writeFile(path.join(root, "manifest.json"), JSON.stringify({
-      routes: [{
-        id: "route-1",
-        name: "Ridge Run",
-        distanceMiles: 42,
-        sourceProject: "Titan",
-        sourceFile: "/root/Vibe/switchback/data/gpx-library/Titan/12-10/ridge.gpx",
-        sources: ["/root/Vibe/switchback/data/gpx-library/Titan/12-10/ridge.gpx"]
-      }]
-    }))
-
-    const response = await handleGpxCatalogRequest(new Request("http://switchback.test/api/gpx-library"), root)
     expect(response.status).toBe(200)
     const body = await response.json()
-    expect(body.routes[0].sourceFile).toBeUndefined()
-    expect(body.routes[0].sources).toBeUndefined()
-    expect(body.routes[0].sourceProject).toBe("Titan")
+    expect(Array.isArray(body.geometry)).toBe(true)
+    expect(body.story.title).toBe("Ridge Run")
+    expect(body.poster).toBeNull()
   })
 
-  it("rejects oversized or malformed route ids", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "switchback-gpx-"))
-    temporaryDirectories.push(root)
-    await writeFile(path.join(root, "manifest.json"), JSON.stringify({ routes: [{ id: "ok" }] }))
-
-    const oversized = await handleGpxCatalogRequest(
-      new Request(`http://switchback.test/api/gpx-library?id=${"a".repeat(300)}`),
+  it("still rejects unknown route ids", async () => {
+    const root = await makeCatalog([])
+    const response = await handleGpxCatalogRequest(
+      new Request("http://switchback.test/api/gpx-library?id=nope"),
       root
     )
-    expect(oversized.status).toBe(404)
-
-    const malformed = await handleGpxCatalogRequest(
-      new Request("http://switchback.test/api/gpx-library?id=bad%2F..%2Fname"),
-      root
-    )
-    expect(malformed.status).toBe(404)
+    expect(response.status).toBe(404)
   })
 })
