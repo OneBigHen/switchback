@@ -1,4 +1,5 @@
 import type { Coordinate } from "@/lib/routing/types"
+import { curvatureRampColor } from "@/lib/gpx/atlas"
 
 /**
  * Poster rendering for the route atlas: turns raw route geometry into
@@ -10,15 +11,17 @@ const TILE = 256
 const MAX_LATITUDE = 85.05112878
 
 export interface PosterPoint {
-  x: number
-  y: number
+  readonly x: number
+  readonly y: number
 }
 
 export interface PosterSegment {
   /** SVG path data for this contiguous piece of the route. */
-  path: string
+  readonly path: string
   /** Average curvature of this segment, 0-100. */
-  curvature: number
+  readonly curvature: number
+  readonly heat: number
+  readonly color: string
 }
 
 function mercatorY(latitude: number): number {
@@ -70,28 +73,37 @@ function smooth(values: number[], window = 5): number[] {
 }
 
 export interface PosterSpec {
-  segments: PosterSegment[]
+  readonly segments: readonly PosterSegment[]
   /** Start marker position in viewBox units. */
-  start: PosterPoint
+  readonly start: PosterPoint
   /** End marker position in viewBox units. */
-  end: PosterPoint
+  readonly end: PosterPoint
 }
 
 export interface PosterOptions {
-  width?: number
-  height?: number
-  padding?: number
+  readonly width?: number
+  readonly height?: number
+  readonly padding?: number
   /** Max vertices per rendered segment; longer pieces get decimated evenly. */
-  maxPointsPerSegment?: number
+  readonly maxPointsPerSegment?: number
 }
 
 const DEFAULT_MAX_POINTS = 350
 
+function finitePositive(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+function finiteNonNegative(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback
+}
+
 export function buildPosterSpec(geometry: Coordinate[], options: PosterOptions = {}): PosterSpec | null {
-  const width = options.width ?? 600
-  const height = options.height ?? 750
-  const padding = options.padding ?? 40
-  const maxPoints = options.maxPointsPerSegment ?? DEFAULT_MAX_POINTS
+  const width = finitePositive(options.width, 600)
+  const height = finitePositive(options.height, 750)
+  const rawPadding = finiteNonNegative(options.padding, 40)
+  const padding = Math.min(rawPadding, Math.max(0, Math.min(width, height) / 2 - 0.5))
+  const maxPoints = Math.max(2, Math.floor(finitePositive(options.maxPointsPerSegment, DEFAULT_MAX_POINTS)))
   if (!Array.isArray(geometry) || geometry.length < 2) return null
 
   const projectedAll = project(geometry.filter((p) => Number.isFinite(p?.[0]) && Number.isFinite(p?.[1])))
@@ -126,6 +138,8 @@ export function buildPosterSpec(geometry: Coordinate[], options: PosterOptions =
 
   const view = projected.map(toView)
   const heat = smooth(curvatures(projected))
+  const rankedHeat = [...heat].sort((a, b) => a - b)
+  const heatReference = Math.max(4, rankedHeat[Math.floor(rankedHeat.length * 0.95)] ?? 4)
 
   const chunks: Array<{ pts: PosterPoint[]; heat: number[] }> = []
   for (let i = 0; i < view.length; i += maxPoints) {
@@ -139,11 +153,14 @@ export function buildPosterSpec(geometry: Coordinate[], options: PosterOptions =
     // Peak corner intensity (p90) so real corners color their stretch.
     const sorted = [...chunkHeat].sort((a, b) => a - b)
     const peak = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))]
+    const normalizedHeat = Math.pow(Math.min(1, (peak ?? 0) / heatReference), 0.85)
     return {
       path:
         `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} ` +
         pts.slice(1).map((p) => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" "),
-      curvature: peak
+      curvature: peak ?? 0,
+      heat: normalizedHeat,
+      color: curvatureRampColor(normalizedHeat)
     }
   })
 

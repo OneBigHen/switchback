@@ -2,8 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
-import type { ProjectGpxCatalog } from "@/lib/gpx/catalog"
-import { curvatureBand, readAtlasArt } from "@/lib/gpx/atlas"
+import { atlasPathColor, curvatureBand, readAtlasArt, type AtlasMiniPath } from "@/lib/gpx/atlas"
 import { buildPosterSpec } from "@/lib/gpx/poster"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import type { Coordinate } from "@/lib/routing/types"
@@ -34,22 +33,69 @@ interface AtlasDetailRoute {
 
 interface DetailLoad {
   route: AtlasDetailRoute | null
-  artPaths: Array<{ band: string; d: string }>
-  start?: [number, number]
-  end?: [number, number]
+  artPaths: readonly AtlasMiniPath[]
+  start?: readonly [number, number]
+  end?: readonly [number, number]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+function isCoordinate(value: unknown): value is Coordinate {
+  return Array.isArray(value)
+    && value.length === 2
+    && isFiniteNumber(value[0])
+    && isFiniteNumber(value[1])
+}
+
+function isDetailRoute(value: unknown): value is AtlasDetailRoute {
+  if (!isRecord(value)) return false
+  if (
+    typeof value.id !== "string" ||
+    typeof value.name !== "string" ||
+    !isFiniteNumber(value.distanceMiles) ||
+    !isFiniteNumber(value.durationMinutes) ||
+    !isFiniteNumber(value.twistiness) ||
+    !isFiniteNumber(value.turnCount)
+  ) return false
+  if (value.sourceProject !== undefined && typeof value.sourceProject !== "string") return false
+  if (value.profile !== undefined && value.profile !== null && typeof value.profile !== "string") return false
+  if (value.ascentMeters !== undefined && value.ascentMeters !== null && !isFiniteNumber(value.ascentMeters)) return false
+  if (value.descentMeters !== undefined && value.descentMeters !== null && !isFiniteNumber(value.descentMeters)) return false
+  if (value.routingSource !== undefined && value.routingSource !== null && typeof value.routingSource !== "string") return false
+  if (value.previewOnly !== undefined && typeof value.previewOnly !== "boolean") return false
+  if (value.geometry !== undefined && (!Array.isArray(value.geometry) || !value.geometry.every(isCoordinate))) return false
+  if (value.story === undefined) return true
+  return isRecord(value.story)
+    && typeof value.story.title === "string"
+    && typeof value.story.summary === "string"
+    && typeof value.story.body === "string"
+    && typeof value.story.tone === "string"
+}
+
+function manifestHasRoute(value: unknown, routeId: string): boolean {
+  return isRecord(value)
+    && Array.isArray(value.routes)
+    && value.routes.some((entry) => isRecord(entry) && entry.id === routeId)
 }
 
 async function loadRouteDetail(routeId: string): Promise<DetailLoad> {
   const root = process.env.GPX_LIBRARY_PATH ?? path.join(process.cwd(), "data/gpx-library")
   try {
-    const manifest = JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8")) as ProjectGpxCatalog
-    if (!manifest.routes.some((entry) => entry.id === routeId)) return { route: null, artPaths: [] }
-    const route = JSON.parse(
+    const manifest: unknown = JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8"))
+    if (!manifestHasRoute(manifest, routeId)) return { route: null, artPaths: [] }
+    const parsedRoute: unknown = JSON.parse(
       await readFile(path.join(root, "routes", `${routeId}.json`), "utf8")
-    ) as AtlasDetailRoute
+    )
+    if (!isDetailRoute(parsedRoute) || parsedRoute.id !== routeId) return { route: null, artPaths: [] }
     const art = (await readAtlasArt())[routeId]
     return {
-      route,
+      route: parsedRoute,
       artPaths: art?.paths ?? [],
       start: art?.start,
       end: art?.end
@@ -91,7 +137,7 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
   // Server-side poster build straight from geometry; atlas.json paths are the
   // fast path for the gallery, this is the full-fidelity version.
   const spec = Array.isArray(route.geometry) && route.geometry.length > 1
-    ? buildPosterSpec(route.geometry as Coordinate[], { width: 600, height: 750, padding: 44 })
+    ? buildPosterSpec(route.geometry, { width: 600, height: 750, padding: 44 })
     : null
 
   const story = buildRouteStory({
@@ -104,11 +150,13 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
     ascentMeters: route.ascentMeters
   })
   const band = curvatureBand(route.twistiness)
+  const hasDrawableGeometry = spec !== null || artPaths.length > 0
 
   return (
     <main className="atlas-page atlas-poster-page">
       <nav className="atlas-back" aria-label="Breadcrumb">
-        <Link href="/gpx-library">← Route atlas</Link>
+        <Link href="/">Back to planner</Link>
+        <Link href="/gpx-library">Route atlas</Link>
       </nav>
       <div className="atlas-poster-layout">
         <figure
@@ -118,7 +166,7 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
             <svg viewBox="0 0 600 750" role="img" aria-label={`Poster map of ${route.name || "imported ride"}`}>
               <rect x="0.5" y="0.5" width="599" height="749" rx="14" className="atlas-frame" />
               {spec.segments.map((segment, index) => (
-                <path key={index} d={segment.path} className={`band-${curvatureBand(segment.curvature)}`} />
+                <path key={index} d={segment.path} style={{ color: segment.color }} />
               ))}
               {spec ? (
                 <>
@@ -130,16 +178,16 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
           ) : artPaths.length > 0 ? (
             <svg viewBox="0 0 100 125" role="img" aria-label={`Poster map of ${route.name || "imported ride"}`}>
               {artPaths.map((piece, index) => (
-                <path key={index} d={piece.d} className={`band-${piece.band}`} />
+                <path key={index} d={piece.d} style={{ color: atlasPathColor(piece) }} />
               ))}
               {start ? <circle cx={start[0]} cy={start[1]} r="1.6" className="atlas-marker-start" /> : null}
               {end ? <circle cx={end[0]} cy={end[1]} r="1.6" className="atlas-marker-end" /> : null}
             </svg>
           ) : (
-            <figcaption className="atlas-poster-missing">No drawable geometry was imported for this route.</figcaption>
+            <p className="atlas-poster-missing" role="status">No drawable geometry was imported for this route.</p>
           )}
-          <figcaption className="atlas-poster-caption">
-            {route.name || "Imported ride"} · drawn from its own GPX geometry
+          <figcaption className="atlas-poster-caption--large">
+            {hasDrawableGeometry ? `${route.name || "Imported ride"} · drawn from its own GPX geometry` : "No drawable GPX geometry was retained for this import."}
           </figcaption>
         </figure>
 
