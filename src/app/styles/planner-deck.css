@@ -14,7 +14,7 @@
 
 @media (max-width: 390px) {
     .planner-deck {
-      max-height: 74dvh;
+      max-height: var(--sb-sheet-half-height);
     }
 
     .planner-scroll {
@@ -27,10 +27,7 @@
     }
 }
 
-/* Route command center: keep the next human action visible while the planner
-   content scrolls, and let the map reclaim the screen without losing context. */
 .planner-scroll {
-  height: calc(100% - 88px);
   padding-bottom: 24px;
 }
 
@@ -81,15 +78,11 @@
   height: 19px;
 }
 
-.planner-deck.has-expanded-route-dock:has(.clear-route-button):not(.is-minimized) .planner-scroll {
-  height: calc(100% - 132px);
-}
-
 .planner-deck.is-minimized {
   top: auto;
   bottom: 20px;
   width: min(420px, calc(100vw - 40px));
-  height: 158px;
+  height: var(--sb-sheet-peek-height);
   border-radius: 20px;
   transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease;
 }
@@ -169,7 +162,7 @@
 
 @media (max-width: 760px) {
     .planner-deck {
-      max-height: min(77dvh, 760px);
+      max-height: var(--sb-sheet-half-height);
     }
 
     .planner-sheet-handle {
@@ -201,17 +194,9 @@
     }
 
     .planner-scroll {
-      height: calc(100% - 82px);
       padding-top: 28px;
     }
 
-    /* The home-state action dock stacks Free Ride + Road locks and is taller
-       than the flat reservation above (dock ≈134px vs 82px reserved), so the
-       bottom of the ride-prompt card ("Edit route") can sit beneath the fixed
-       bar on phones. Reserve the real stacked height for that state. */
-    .planner-deck:not(.is-minimized):has(.free-ride-button):not(:has(.dock-ride-button)) .planner-scroll {
-      height: calc(100% - 134px);
-    }
 
     .planner-deck::after {
       display: none;
@@ -230,7 +215,7 @@
       bottom: max(8px, env(safe-area-inset-bottom));
       left: 8px;
       width: auto;
-      height: 146px;
+      height: var(--sb-sheet-peek-height);
       max-height: none;
     }
 
@@ -257,11 +242,6 @@
 }
 
 @media (max-width: 390px) {
-    /* At iPhone width, the three post-plan actions wrap to two rows. Reserve
-       their real height so the comparison actions never scroll beneath them. */
-    .planner-deck.has-expanded-route-dock:not(.is-minimized) .planner-scroll {
-      height: calc(100% - 154px);
-    }
 }
 
 /* Switchback 0.2 — a calm map-first workspace for planning. Ride mode keeps
@@ -348,6 +328,55 @@
   border-color: #ebe6de;
 }
 
+.provider-health-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #e5d7c7;
+  border-radius: 12px;
+  background: #fff8ef;
+  color: #5f4d3f;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.provider-health-notice p {
+  flex: 1;
+  margin: 0;
+}
+
+.provider-health-notice svg {
+  flex: none;
+  margin-top: 1px;
+  color: #a96d22;
+}
+
+.provider-health-notice-status {
+  border-color: #e6e1d9;
+  background: #faf8f4;
+  color: #6f6c66;
+}
+
+.provider-health-retry {
+  flex: none;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #c88a45;
+  border-radius: 9px;
+  background: #fff;
+  color: #81501e;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.provider-health-retry:hover {
+  background: #fff2df;
+}
+
 .planner-deck h1 {
   color: #242321;
   font-size: clamp(25px, 2vw, 29px);
@@ -424,7 +453,7 @@
 }
 
 .route-edit-toolbar button {
-  min-height: 42px;
+  min-height: var(--sb-touch-target);
   border: 1px solid #ded8cf;
   border-radius: 10px;
   background: #fff;
@@ -591,7 +620,7 @@
 }
 
 .profile-switch button {
-  min-height: 42px;
+  min-height: var(--sb-touch-target);
   color: #77736c;
   font-size: 11px;
   letter-spacing: 0;
@@ -702,7 +731,7 @@
 
 @media (max-width: 390px) {
     .planner-deck {
-      max-height: 80dvh;
+      max-height: var(--sb-sheet-half-height);
     }
 
     .profile-switch button {
@@ -714,7 +743,7 @@
    keyboard-accessible minimize control. */
 @media (max-width: 760px) {
     .planner-deck {
-      height: min(77dvh, 760px);
+      height: var(--sb-sheet-half-height);
     }
 
     .planner-deck::after {
@@ -724,7 +753,7 @@
 
 @media (max-width: 390px) {
     .planner-deck {
-      height: min(80dvh, 760px);
+      height: var(--sb-sheet-half-height);
     }
 }
 
@@ -755,6 +784,21 @@
   cursor: pointer;
 }
 
+@media (max-width: 760px) {
+  .planner-deck .edit-route-button {
+    margin: 0 auto;
+  }
+
+  .planner-deck:not(.is-minimized) .edit-route-button {
+    position: static;
+    margin-block: 0;
+  }
+
+  .planner-deck.has-expanded-route-dock:not(.is-minimized) .edit-route-button {
+    position: static;
+  }
+}
+
 .planner-deck > .planner-action-dock .dock-ride-button {
   min-height: 58px;
   border-radius: 16px;
@@ -774,20 +818,29 @@
 @media (max-width: 760px) {
     .planner-deck {
       bottom: max(8px, env(safe-area-inset-bottom));
-      max-height: min(78dvh, 760px);
+      max-height: var(--sb-sheet-half-height);
       height: auto;
       border-radius: 28px;
       background: var(--ride-cream);
+    }
+
+    .planner-deck .ride-deck-header {
+      display: flex;
     }
 
     .planner-scroll {
       padding: 18px 16px 24px;
     }
 
-    .planner-deck > .planner-action-dock {
-      bottom: -24px;
-      background: var(--ride-cream);
+    .planner-deck.has-expanded-route-dock .ride-intent-heading,
+    .planner-deck.has-expanded-route-dock .ride-omnibox {
+      display: none;
     }
+
+    .planner-deck.has-expanded-route-dock .ride-omnibox-section:empty {
+      display: none;
+    }
+
 }
 
 .planner-dock-mismatch {

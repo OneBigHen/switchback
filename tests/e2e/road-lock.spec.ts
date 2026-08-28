@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import type { PlannedRoute, RouteProfileId } from "../../src/lib/routing/types"
+import { CANONICAL_HEALTH_RESPONSE } from "./helpers/health-fixtures"
 
 const appUrl = process.env.SWITCHBACK_E2E_URL ?? "/"
 
@@ -99,7 +100,7 @@ async function mockSharedPlannerServices(page: import("@playwright/test").Page) 
   await page.route("**/api/health", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ ok: true, app: { ok: true }, router: { ok: true } })
+    body: JSON.stringify(CANONICAL_HEALTH_RESPONSE)
   }))
   await page.route("**/api/curvature?**", (route) => route.fulfill({
     status: 200,

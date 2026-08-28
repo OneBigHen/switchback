@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import type { PlannedRoute, RouteProfileId } from "../../src/lib/routing/types"
+import { CANONICAL_HEALTH_RESPONSE } from "./helpers/health-fixtures"
 
 const appUrl = process.env.SWITCHBACK_E2E_URL ?? "/"
 
@@ -206,7 +207,7 @@ async function mockSharedPlannerServices(page: import("@playwright/test").Page) 
   await page.route("**/api/health", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ ok: true, app: { ok: true }, router: { ok: true } })
+    body: JSON.stringify(CANONICAL_HEALTH_RESPONSE)
   }))
   await page.route("**/api/curvature?**", (route) => route.fulfill({
     status: 200,
@@ -291,10 +292,8 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   if (testInfo.project.name.includes("landscape")) {
     await expectInsideViewport(page, page.locator(".planner-deck"))
   }
-  // TODO(audit Phase 0): restore "Router live" engine-status indicator removed
-  // when omnibox flow landed. The current PlannerDeck header dropped the
-  // `<div class="engine-status">` element. Web health is still polled via
-  // /api/health — re-introduce a small status pill in PlannerDeck header.
+  // Provider health is intentionally degraded-only: healthy status stays
+  // quiet, while provider failures are covered by focused planner tests.
   if (testInfo.project.name !== "desktop-chromium") {
     await expectNoOverlap(
       page.getByRole("button", { name: "Open map layers" }),
@@ -378,7 +377,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   })
 
   await page.getByRole("button", { name: "Exit ride mode" }).click()
-  await expect(page.getByRole("button", { name: /Start .* route/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
 })
 
 test("turns a free-form timebox into a gravel loop with route intelligence", async ({ page }) => {

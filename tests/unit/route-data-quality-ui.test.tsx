@@ -42,9 +42,9 @@ describe("RouteDataQualityPanel §9 contract", () => {
       expect(percent).toBeLessThanOrEqual(100)
     })
     const numbers = bars.map((bar) => Number(bar.getAttribute("aria-valuenow")))
-    const headline = screen.getByText("data quality · lowest coverage")
+    const headline = screen.getByText("mapped data coverage")
     const headlineValue = Number(headline.previousElementSibling?.textContent?.replace("%", ""))
-    expect(headlineValue).toBe(Math.min(...numbers))
+    expect(headlineValue).toBe(Math.round(numbers.reduce((sum, value) => sum + value, 0) / numbers.length))
   })
 
   it("renders the unknown-surface mileage caveat when surfaceMix carries an unknown bucket", () => {
@@ -54,5 +54,12 @@ describe("RouteDataQualityPanel §9 contract", () => {
       />
     )
     expect(screen.getByText(/Surface type is unknown for 18\.0 miles of this route\./i)).toBeInTheDocument()
+  })
+
+  it("labels unavailable condition coverage in the meter text", () => {
+    render(<RouteDataQualityPanel route={plannedRoute()} />)
+
+    const condition = screen.getByRole("meter", { name: "Condition coverage unavailable" })
+    expect(condition).toHaveAttribute("aria-valuetext", "Unavailable")
   })
 })

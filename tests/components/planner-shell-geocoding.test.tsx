@@ -75,8 +75,36 @@ vi.mock("@/components/planner/MapStage", () => ({
   )
 }))
 vi.mock("@/components/planner/LibraryDrawer", () => ({ LibraryDrawer: () => null }))
-vi.mock("@/components/planner/RideHud", () => ({ RideHud: () => null }))
-vi.mock("@/components/planner/RouteComparison", () => ({ RouteComparison: () => null }))
+vi.mock("@/components/planner/RideHud", () => ({
+  RideHud: ({ onExit }: { onExit(): void }) => (
+    <button type="button" onClick={onExit}>Exit ride mode</button>
+  )
+}))
+vi.mock("@/components/planner/RouteComparison", () => ({
+  RouteComparison: ({
+    routes,
+    selectedId,
+    onSelect
+  }: {
+    routes: PlannedRoute[]
+    selectedId: string
+    onSelect(id: string): void
+  }) => (
+    <section aria-label="Route choices">
+      {routes.map((candidate) => (
+        <button
+          type="button"
+          key={candidate.id}
+          aria-label={`Select ${candidate.name}`}
+          aria-pressed={candidate.id === selectedId}
+          onClick={() => onSelect(candidate.id)}
+        >
+          {candidate.name}
+        </button>
+      ))}
+    </section>
+  )
+}))
 vi.mock("@/components/planner/PlannerDeck", () => ({
   PlannerDeck: ({
     viewModel,
@@ -85,7 +113,9 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
   }: {
     viewModel: {
       intent: { researchSources: RideResearchSource[] }
-      ui: { selectedRoute?: PlannedRoute | null }
+      ui: { selectedRoute?: PlannedRoute | null; routesCount: number }
+      lifecycle: { phase: string }
+      providerHealth?: { status: string }
     }
     commands: {
       intent: {
@@ -101,14 +131,17 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
       }
       onClearRoute(): void
       onStartRide?(route: PlannedRoute): void
+      onStartFreeRide?(): void
+      onRetryProviderHealth?(): void
     }
     children?: ReactNode
   }) => {
     const researchSources = viewModel.intent.researchSources
     const selectedRoute = viewModel.ui.selectedRoute ?? null
-    const { intent, waypoint, onClearRoute, onStartRide } = commands
+    const { intent, waypoint, onClearRoute, onStartRide, onStartFreeRide } = commands
     return (
       <section>
+        <h1>Where do you want to ride?</h1>
         <button type="button" onClick={() => intent.onRidePrompt("test ride request")}>Plan prompt</button>
         <button type="button" onClick={() => intent.onChooseStopIdea({ lat: 40.42, lon: -76.68, label: "Trailhead Brewing" })}>Choose stop idea</button>
         <button type="button" onClick={onClearRoute}>Clear test route</button>
@@ -119,8 +152,21 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
         <button type="button" onClick={() => intent.onResearchRideIdea("first request")}>Research first request</button>
         <button type="button" onClick={() => intent.onResearchRideIdea("second request")}>Research second request</button>
         <output data-testid="research-source-count">{researchSources.length}</output>
+        <output data-testid="shell-selected-route">{selectedRoute?.id ?? "none"}</output>
+        <output data-testid="shell-selection-source">{usePlannerStore.getState().selectionSource}</output>
+        <output data-testid="shell-stage">
+          {selectedRoute ? "Prepare" : viewModel.ui.routesCount > 1 && (viewModel.lifecycle.phase === "ready" || viewModel.lifecycle.phase === "alternatives") ? "Choose" : "Search"}
+        </output>
+        <output data-testid="shell-provider-health">{viewModel.providerHealth?.status ?? "unknown"}</output>
+        {viewModel.providerHealth?.status === "graphhopper-unavailable" ? (
+          <div role="alert">The route service is temporarily unavailable.</div>
+        ) : null}
+        <button type="button" onClick={() => commands.onRetryProviderHealth?.()}>Retry provider health</button>
         {onStartRide && selectedRoute ? (
           <button type="button" onClick={() => onStartRide(selectedRoute)}>Start test ride</button>
+        ) : null}
+        {onStartFreeRide ? (
+          <button type="button" onClick={onStartFreeRide}>Start test Free Ride</button>
         ) : null}
         {children}
       </section>
@@ -257,6 +303,102 @@ describe("free-form planner place resolution", () => {
     )
     expect(usePlannerStore.getState().start).toMatchObject({ label: carlisle.label })
     expect(usePlannerStore.getState().finish).toMatchObject({ label: wellsboro.label })
+  })
+
+  it("does not synthesize a selected route when alternatives have no explicit selection", () => {
+    const alternatives: PlannedRoute[] = [
+      route,
+      { ...route, id: "route-2", name: "Alternative ride" },
+      { ...route, id: "route-3", name: "Scenic ride" }
+    ]
+    usePlannerStore.getState().applyPlan({
+      selectedRouteId: route.id,
+      routes: alternatives,
+      warnings: []
+    })
+    usePlannerStore.setState({ planningPhase: "ready" })
+
+    render(<PlannerShell />)
+
+    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent("none")
+    expect(screen.getByTestId("shell-selection-source")).toHaveTextContent("automatic")
+    expect(screen.getByTestId("shell-stage")).toHaveTextContent("Choose")
+    expect(screen.getByRole("button", { name: "Select Test ride" })).toHaveAttribute("aria-pressed", "false")
+    expect(screen.getByRole("button", { name: "Select Alternative ride" })).toHaveAttribute("aria-pressed", "false")
+    expect(screen.getByRole("button", { name: "Select Scenic ride" })).toHaveAttribute("aria-pressed", "false")
+  })
+
+  it("passes a nonhealthy provider state and Retry command into the planner deck", async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/api/gpx-library")) {
+        return Response.json({ routes: [], rejected: [], generatedAt: "now", scannedFiles: 0 })
+      }
+      return Response.json({
+        ok: false,
+        degraded: false,
+        app: { ok: true },
+        router: { ok: false, status: 503, latencyMs: 2 },
+        providers: { graphhopper: { ok: false, status: 503, latencyMs: 2 } },
+        degradedProviders: ["graphhopper"],
+        runtime: {
+          rssBytes: null,
+          heapUsedBytes: null,
+          heapTotalBytes: null,
+          externalBytes: null,
+          arrayBuffersBytes: null,
+          routeRunningJobs: null,
+          routeQueuedJobs: null,
+          routeCacheEntries: null
+        }
+      }, { status: 503 })
+    })
+
+    render(<PlannerShell />)
+    await waitFor(() => expect(screen.getByTestId("shell-provider-health")).toHaveTextContent("graphhopper-unavailable"))
+    expect(screen.getByRole("alert")).toHaveTextContent("The route service is temporarily unavailable")
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry provider health" }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+  })
+
+  it("selects the exact alternative card and transitions to Prepare", async () => {
+    const user = userEvent.setup()
+    const alternative: PlannedRoute = { ...route, id: "route-2", name: "Alternative ride" }
+    usePlannerStore.getState().applyPlan({
+      selectedRouteId: route.id,
+      routes: [route, alternative],
+      warnings: []
+    })
+    usePlannerStore.setState({ planningPhase: "ready" })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Select Alternative ride" }))
+
+    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent("route-2")
+    expect(screen.getByTestId("shell-selection-source")).toHaveTextContent("user")
+    expect(screen.getByTestId("shell-stage")).toHaveTextContent("Prepare")
+    expect(screen.getByRole("button", { name: "Select Alternative ride" })).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("resets an explicit selection back to the planning state without fallback selection", async () => {
+    const user = userEvent.setup()
+    const alternative: PlannedRoute = { ...route, id: "route-2", name: "Alternative ride" }
+    usePlannerStore.getState().applyPlan({
+      selectedRouteId: route.id,
+      routes: [route, alternative],
+      warnings: []
+    })
+    usePlannerStore.setState({ planningPhase: "ready" })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Select Alternative ride" }))
+    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent("route-2")
+
+    await user.click(screen.getByRole("button", { name: "Clear test route" }))
+
+    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent("none")
+    expect(screen.getByTestId("shell-selection-source")).toHaveTextContent("automatic")
+    expect(screen.getByTestId("shell-stage")).toHaveTextContent("Search")
   })
 
   it("does not reuse the previous finish when destination intent omits a destination", async () => {
@@ -551,5 +693,83 @@ describe("free-form planner place resolution", () => {
       surface: "ride",
       selectedRouteId: matched.id
     }))
+  })
+
+  it("confirms before exiting Free Ride when the recording has meaningful samples", async () => {
+    const user = userEvent.setup()
+    const confirm = vi.fn(() => false)
+    const clearWatch = vi.fn()
+    vi.stubGlobal("confirm", confirm)
+    Object.defineProperty(window.navigator, "geolocation", {
+      configurable: true,
+      value: {
+        watchPosition(success: PositionCallback) {
+          success({
+            coords: { latitude: 40.2732, longitude: -76.8867, speed: 12, altitude: 120, heading: 90, accuracy: 8 },
+            timestamp: Date.parse("2026-08-28T14:00:00.000Z")
+          } as GeolocationPosition)
+          success({
+            coords: { latitude: 40.3732, longitude: -76.7867, speed: 14, altitude: 125, heading: 95, accuracy: 8 },
+            timestamp: Date.parse("2026-08-28T14:01:00.000Z")
+          } as GeolocationPosition)
+          return 1
+        },
+        clearWatch
+      }
+    })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Start test Free Ride" }))
+    await waitFor(() => expect(usePlannerStore.getState().surface).toBe("free-ride"))
+
+    await user.click(screen.getByRole("button", { name: "Exit Free Ride" }))
+
+    expect(confirm).toHaveBeenCalledWith("Discard this recording? It has not been saved.")
+    expect(clearWatch).not.toHaveBeenCalled()
+    expect(usePlannerStore.getState().surface).toBe("free-ride")
+    expect(screen.getByRole("button", { name: "Exit Free Ride" })).toBeInTheDocument()
+
+    confirm.mockReturnValueOnce(true)
+    await user.click(screen.getByRole("button", { name: /^Exit$/ }))
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(clearWatch).toHaveBeenCalledWith(1)
+    expect(usePlannerStore.getState().surface).toBe("planner")
+    expect(screen.queryByRole("button", { name: "Exit Free Ride" })).not.toBeInTheDocument()
+  })
+
+  it("exits idle Free Ride immediately without asking to discard", async () => {
+    const user = userEvent.setup()
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal("confirm", confirm)
+    Reflect.deleteProperty(window.navigator, "geolocation")
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Start test Free Ride" }))
+    await waitFor(() => expect(usePlannerStore.getState().surface).toBe("free-ride"))
+
+    await user.click(screen.getByRole("button", { name: "Exit Free Ride" }))
+
+    expect(confirm).not.toHaveBeenCalled()
+    expect(usePlannerStore.getState().surface).toBe("planner")
+    expect(screen.queryByRole("button", { name: "Exit Free Ride" })).not.toBeInTheDocument()
+  })
+
+  it("restores the planner tab and heading when active guidance exits", async () => {
+    const user = userEvent.setup()
+    window.history.replaceState({}, "", "/?tab=library")
+    usePlannerStore.setState({ ...plannerTestState, surface: "ride" })
+    usePlannerStore.getState().applyPlan(plan)
+    usePlannerStore.getState().selectRoute(route.id)
+
+    render(<PlannerShell />)
+    await act(async () => undefined)
+    act(() => usePlannerStore.getState().setSurface("ride"))
+    await user.click(screen.getByRole("button", { name: "Exit ride mode" }))
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Where do you want to ride?" })).toBeVisible())
+    expect(usePlannerStore.getState().surface).toBe("planner")
+    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent(route.id)
+    expect(window.location.search).toBe("")
+    window.history.replaceState({}, "", "/")
   })
 })

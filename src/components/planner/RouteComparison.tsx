@@ -8,8 +8,7 @@ import {
   ListNumbers,
   NavigationArrow
 } from "@phosphor-icons/react"
-import { useState } from "react"
-import Image from "next/image"
+import { useLayoutEffect, useRef, useState } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { ManeuverGlyph } from "./maneuver-glyph"
 import { maneuverKind } from "@/lib/client/maneuver"
@@ -32,7 +31,17 @@ import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import type { ReplayComparisonResult } from "@/lib/client/replay-comparison"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { GpxJoinChoice, GpxJoinPreview } from "@/lib/gpx/join"
-import { explainRouteFacts } from "@/lib/recommendation/route-explanations"
+import {
+  explainRouteFacts,
+  routeCharacterSummary,
+  routeTradeoff
+} from "@/lib/recommendation/route-explanations"
+import { loadRiderSettings } from "@/lib/settings/rider-settings"
+import {
+  formatDistanceMeters,
+  formatDistanceMiles,
+  formatManeuverDistance
+} from "@/lib/settings/rider-units"
 import { GpxIntelligencePanel } from "./GpxIntelligencePanel"
 
 interface RouteComparisonProps {
@@ -61,7 +70,9 @@ interface RouteComparisonProps {
 }
 
 function dominantMix(mix: Record<string, number>): string {
-  const dominant = Object.entries(mix).sort((left, right) => right[1] - left[1])[0]
+  const dominant = Object.entries(mix)
+    .filter(([, share]) => Number.isFinite(share) && share > 0)
+    .sort((left, right) => right[1] - left[1])[0]
   if (!dominant) return "Road mix unavailable"
   return `${Math.round(dominant[1])}% ${dominant[0].replaceAll("_", " ")}`
 }
@@ -86,19 +97,26 @@ function unpavedPercent(mix: Record<string, number>): number {
   ))
 }
 
+function hasKnownSurfaceData(mix: Record<string, number>): boolean {
+  return Object.entries(mix).some(
+    ([surface, share]) => surface.toLowerCase() !== "unknown" && Number.isFinite(share) && share > 0
+  )
+}
+
 function hasSkippedPreferLock(route: PlannedRoute): RoadLockSatisfaction | undefined {
   return route.lockSatisfaction?.find((row) => row.mode === "prefer" && Boolean(row.skippedReason))
 }
 
-function formatUnknownSurfaceMiles(route: PlannedRoute): string | null {
+function formatUnknownSurfaceMiles(route: PlannedRoute, units: "imperial" | "metric"): string | null {
   const surfaceEntries = Object.entries(route.surfaceMix)
-  const surfaceTotal = surfaceEntries.reduce((sum, [, share]) => sum + share, 0)
+  const surfaceTotal = surfaceEntries.reduce((sum, [, share]) => sum + (Number.isFinite(share) ? Math.max(0, share) : 0), 0)
   if (surfaceTotal <= 0 || route.distanceMiles <= 0) return null
   const unknown = surfaceEntries
     .filter(([surface]) => surface.toLowerCase() === "unknown")
-    .reduce((sum, [, share]) => sum + (share / surfaceTotal) * route.distanceMiles, 0)
+    .reduce((sum, [, share]) => sum + (Number.isFinite(share) ? Math.max(0, share) / surfaceTotal : 0) * route.distanceMiles, 0)
   if (unknown <= 0) return null
-  return unknown.toFixed(1)
+  const formatted = formatDistanceMiles(unknown, units)
+  return `${formatted.value} ${formatted.unit}`.trim()
 }
 
 function routeReason(route: PlannedRoute): string {
@@ -110,11 +128,11 @@ function routeReason(route: PlannedRoute): string {
     case "twisty":
       return "Most curves and direction changes"
     case "scenic":
-      return "Balanced for back roads and views"
+      return "Balanced for back roads"
     case "adventure":
       return "Targets gravel and unpaved roads"
     case "gravel":
-      return "Maximizes legal, rideable gravel"
+      return "Maximizes mapped gravel"
     case "avoid-highways":
       return "Hard-avoids motorways and trunk roads"
     case "neural":
@@ -151,23 +169,30 @@ export function RouteComparison({
   onPrepareJoin,
   onJoin
 }: RouteComparisonProps) {
-  const [directionsOpen, setDirectionsOpen] = useState(true)
+  const [directionsOpen, setDirectionsOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [exportVariant, setExportVariant] = useState<GpxExportVariant>("track")
   const [joinPreview, setJoinPreview] = useState<GpxJoinPreview | null>(null)
   const [joinPreviewRouteId, setJoinPreviewRouteId] = useState<string | null>(null)
   const [joinBusy, setJoinBusy] = useState(false)
   const [dismissedMustLockIds, setDismissedMustLockIds] = useState<string[]>([])
-  const selectedRoute = routes.find((route) => route.id === selectedId) ?? routes[0]
+  const selectedRouteIdentityRef = useRef<HTMLParagraphElement>(null)
+  const selectedRoute = routes.find((route) => route.id === selectedId)
+  const selectedRouteId = selectedRoute?.id
   const selectedRecordedRide = selectedRoute && recordedRide && selectedRoute.id === `${recordedRide.id}-actual` ? recordedRide : null
   const activeJoinPreview = selectedRoute?.id === joinPreviewRouteId ? joinPreview : null
   const activeExportVariant = exportVariant === "recorded" && !selectedRecordedRide ? "track" : exportVariant
+  const units = loadRiderSettings().units
 
-  if (!selectedRoute) return null
-  const routeFacts = explainRouteFacts(selectedRoute, routes)
+  const routeFacts = selectedRoute ? explainRouteFacts(selectedRoute, routes, units) : []
+
+  useLayoutEffect(() => {
+    if (!selectedRouteId) return
+    selectedRouteIdentityRef.current?.scrollIntoView?.({ block: "start", behavior: "auto" })
+  }, [directionsOpen, detailsOpen, selectedRouteId])
 
   const prepareJoin = async () => {
-    if (!onPrepareJoin) return
+    if (!onPrepareJoin || !selectedRoute) return
     setJoinBusy(true)
     try {
       setJoinPreview(await onPrepareJoin(selectedRoute))
@@ -178,7 +203,7 @@ export function RouteComparison({
   }
 
   const chooseJoin = async (choice: GpxJoinChoice) => {
-    if (!activeJoinPreview || !onJoin) return
+    if (!activeJoinPreview || !onJoin || !selectedRoute) return
     setJoinBusy(true)
     try {
       await onJoin(selectedRoute, activeJoinPreview, choice)
@@ -194,6 +219,12 @@ export function RouteComparison({
       <div className="section-heading">
         <div>
           <h2 id="route-rack-title">Choose a route</h2>
+          {selectedRoute ? (
+            <p ref={selectedRouteIdentityRef} className="route-selection-identity">
+              <span>Selected route</span>
+              <strong>{selectedRoute.name}</strong>
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -201,8 +232,10 @@ export function RouteComparison({
         {routes.map((route, index) => {
           const selected = route.id === selectedId
           const officialUnpaved = officialUnpavedLabel(route)
-          const unknownSurfaceLabel = formatUnknownSurfaceMiles(route)
+          const unknownSurfaceLabel = formatUnknownSurfaceMiles(route, units)
           const skippedSatisfaction = hasSkippedPreferLock(route)
+          const hasSurfaceData = hasKnownSurfaceData(route.surfaceMix)
+          const routeDistance = formatDistanceMiles(route.distanceMiles, units)
           return (
             <button
               className={`route-slip${selected ? " is-selected" : ""}`}
@@ -217,12 +250,13 @@ export function RouteComparison({
                 <span className="route-slip-name">
                   <strong>{route.name}</strong>
                   <small>{routeReason(route)}</small>
+                  <small className="route-slip-tradeoff">{routeTradeoff(route, routes, units)}</small>
                 </span>
                 <span className="route-character">
                   <span>{dominantMix(route.roadMix)}</span>
-                  <span>{unpavedPercent(route.surfaceMix)}% unpaved</span>
+                  <span>{hasSurfaceData ? `${unpavedPercent(route.surfaceMix)}% unpaved` : "Surface data unavailable"}</span>
                   {unknownSurfaceLabel ? (
-                    <span className="route-character-unknown">~{unknownSurfaceLabel} mi unknown surface</span>
+                    <span className="route-character-unknown">~{unknownSurfaceLabel} unknown surface</span>
                   ) : null}
                   {officialUnpaved ? <span className="official-unpaved">{officialUnpaved}</span> : null}
                   {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
@@ -234,32 +268,21 @@ export function RouteComparison({
                 ) : null}
               </span>
               <span className="route-slip-stats">
-                {route.routeScore ? (
-                  <span
-                    className="route-slip-metric route-quality-meter"
-                    aria-label={`Route quality score ${Math.round(route.routeScore.total)}`}
-                  >
-                    <strong>{Math.round(route.routeScore.total)}</strong>
-                    <small>score</small>
-                  </span>
-                ) : null}
                 <span className="route-slip-metric">
-                  <strong>{route.distanceMiles.toFixed(1)}</strong>
-                  <small>miles</small>
+                    <strong>{routeDistance.value}</strong>
+                    <small>{routeDistance.unit || "distance"}</small>
                 </span>
                 <span className="route-slip-metric">
                   <strong>{Math.round(route.durationMinutes)}</strong>
                   <small>min</small>
-                </span>
-                <span className="route-slip-metric twistiness-meter">
-                  <strong>{Math.round(route.twistiness)}</strong>
-                  <small>twist</small>
                 </span>
               </span>
             </button>
           )
         })}
       </div>
+
+      {selectedRoute ? <>
 
       <div className="directions-panel">
         <button
@@ -291,11 +314,9 @@ export function RouteComparison({
                         <strong>{instruction.text}</strong>
                         <small>{instruction.streetName || "Unnamed road"}</small>
                       </span>
-                      <b className="directions-distance">{
-                        instruction.distanceMeters < 1_000
-                          ? `${Math.max(1, Math.round(instruction.distanceMeters))} m`
-                          : `${(instruction.distanceMeters / 1_609.344).toFixed(1)} mi`
-                      }</b>
+                      <b className="directions-distance">
+                        {formatManeuverDistance(instruction.distanceMeters, units)}
+                      </b>
                     </li>
                   )
                 })}
@@ -308,18 +329,24 @@ export function RouteComparison({
       <button
         type="button"
         className="route-details-toggle"
+        aria-label={detailsOpen ? "Hide route details" : "Show route details"}
         aria-expanded={detailsOpen}
+        aria-controls="route-preparation"
         onClick={() => setDetailsOpen((open) => !open)}
       >
-        {detailsOpen ? "Hide route details" : "Show route details"}
+        <span>{detailsOpen ? "Hide preparation" : "Prepare ride"}</span>
+        {" "}
+        <small>Weather, surface, route evidence, offline limits, and export</small>
       </button>
 
-      {detailsOpen ? <>
-      <div className="route-scenic-gallery" aria-label="Route character previews">
-        <Image src="/assets/scenic/ridge-overlook.webp" alt="Appalachian ridge road overlook" width={720} height={480} />
-        <Image src="/assets/scenic/autumn-switchback.webp" alt="Autumn mountain switchback" width={720} height={480} />
-        <Image src="/assets/scenic/roadside-coffee.webp" alt="Roadside motorcycle coffee stop" width={720} height={480} />
-      </div>
+      {showRideAction && selectedRoute ? (
+        <button type="button" className="ride-button route-primary-ride" onClick={() => onRide(selectedRoute)}>
+          <NavigationArrow weight="fill" aria-hidden="true" />
+          <span>Start ride</span>
+        </button>
+      ) : null}
+
+      {detailsOpen ? <div id="route-preparation" className="route-preparation">
       <RouteDataQualityPanel route={selectedRoute} sourceMapUpdated={sourceMapUpdated ?? null} />
 
       {selectedRoute.gpxIntelligence ? <GpxIntelligencePanel report={selectedRoute.gpxIntelligence} /> : null}
@@ -343,7 +370,7 @@ export function RouteComparison({
               <span>Choose entry</span>
               {activeJoinPreview.candidates.filter((candidate) => !candidate.rejectedReason).slice(0, 8).map((candidate) => (
                 <button type="button" className="tool-button" disabled={joinBusy} key={`${candidate.index}-${candidate.kind}`} onClick={() => void chooseJoin(candidate.index)}>
-                  {candidate.label} · {Math.round(candidate.approachDistanceMeters / 100) / 10} km approach · {Math.round(candidate.remainingDistanceMeters / 1609.344)} mi left
+                  {candidate.label} · {formatDistanceMeters(candidate.approachDistanceMeters, units).value} {formatDistanceMeters(candidate.approachDistanceMeters, units).unit} approach · {formatDistanceMeters(candidate.remainingDistanceMeters, units).value} {formatDistanceMeters(candidate.remainingDistanceMeters, units).unit} left
                 </button>
               ))}
             </div>
@@ -361,10 +388,13 @@ export function RouteComparison({
       ) : null}
 
       {selectedRoute.routeScore ? (
-        <div className="route-score-explanation" role="note" aria-label="Why this route scored well">
-          <strong>Why this route</strong>
-          <span>{(selectedRoute.routeScore.explanations ?? selectedRoute.routeScore.explanation ?? []).slice(0, 3).join(" ")}</span>
-        </div>
+        <section className="route-character-summary" aria-label="Route character">
+          <div className="route-score-explanation" role="note" aria-label="Why this route scored well">
+            <strong>Why this route</strong>
+            <span>{routeCharacterSummary(selectedRoute, units)}</span>
+            <small>Route quality {Math.round(selectedRoute.routeScore.total)}/100</small>
+          </div>
+        </section>
       ) : null}
 
       {selectedRoute.lockSatisfaction?.length ? (
@@ -442,14 +472,11 @@ export function RouteComparison({
           <DownloadSimple aria-hidden="true" />
           <span>Export GPX</span>
         </button>
-        {showRideAction ? (
-          <button type="button" className="ride-button" onClick={() => onRide(selectedRoute)}>
-            <NavigationArrow weight="fill" aria-hidden="true" />
-            <span>Start ride</span>
-          </button>
-        ) : null}
       </div>
-      </> : null}
+      </div> : null}
+      </> : (
+        <p className="route-selection-prompt" role="status">Choose a route above to review details and prepare your ride.</p>
+      )}
     </section>
   )
 }

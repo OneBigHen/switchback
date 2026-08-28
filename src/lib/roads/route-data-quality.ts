@@ -10,13 +10,13 @@ export interface RouteDataQuality {
   accessCoveragePercent: number
   surfaceCoveragePercent: number
   conditionCoveragePercent: number
+  conditionCoverageAvailable: boolean
   /** True when at least one segment carries seasonal=yes without a date range. */
   seasonalUncertainty: boolean
   /** Length of route (miles) on edges whose surface tag is unknown. */
   unknownSurfaceMiles: number
   /** Total route length in miles. */
   totalMiles: number
-  /** Smallest coverage percentage, surfaced as the headline confidence. */
   headlinePercent: number
   /** Last map update ISO timestamp this route was prepared against. */
   sourceMapUpdated: string | null
@@ -24,13 +24,13 @@ export interface RouteDataQuality {
   caveats: string[]
 }
 
-const UNPAVED_SURFACES = new Set([
-  "compacted", "dirt", "earth", "fine_gravel", "grass", "gravel", "ground", "mud", "sand", "unpaved"
-])
-
 function coveragePercent(known: number, total: number): number {
   if (total <= 0) return 100
   return Math.max(0, Math.min(100, Math.round((known / total) * 100)))
+}
+
+function boundedMiles(value: number, total: number): number {
+  return Math.min(total, Math.max(0, Number.isFinite(value) ? value : 0))
 }
 
 /**
@@ -65,10 +65,11 @@ export function computeRouteDataQuality(input: {
   let knownConditionMiles = 0
   let unknownSurfaceMiles = 0
   let seasonalUncertainty = false
+  const conditionCoverageAvailable = Boolean(input.segments?.length)
 
   if (input.segments && input.segments.length > 0) {
     for (const segment of input.segments) {
-      const miles = Math.max(0, segment.miles)
+      const miles = boundedMiles(segment.miles, totalMiles)
       if (segment.hasAccessTag) knownAccessMiles += miles
       if (segment.hasSurfaceTag) {
         knownSurfaceMiles += miles
@@ -83,29 +84,36 @@ export function computeRouteDataQuality(input: {
     // treat any non-empty surfaceMix as a partial surface coverage
     // signal. Unknown surfaces appear as the literal "unknown" bucket.
     const surfaceEntries = Object.entries(route.surfaceMix)
-    const surfaceTotal = surfaceEntries.reduce((sum, [, share]) => sum + share, 0)
+    const surfaceTotal = surfaceEntries.reduce(
+      (sum, [, share]) => sum + (Number.isFinite(share) ? Math.max(0, share) : 0),
+      0
+    )
     if (surfaceTotal > 0) {
       for (const [surface, share] of surfaceEntries) {
-        const miles = (share / surfaceTotal) * totalMiles
+        const miles = (Number.isFinite(share) ? Math.max(0, share) / surfaceTotal : 0) * totalMiles
         if (surface.toLowerCase() === "unknown") {
           unknownSurfaceMiles += miles
         } else {
           knownSurfaceMiles += miles
         }
       }
-      knownConditionMiles = Object.entries(route.roadMix)
-        .filter(([cls]) => UNPAVED_SURFACES.has(cls.toLowerCase()))
-        .reduce((sum, [, share]) => sum + (share / 100) * totalMiles, 0)
     } else {
       unknownSurfaceMiles = totalMiles
     }
     knownAccessMiles = totalMiles
   }
 
+  knownAccessMiles = boundedMiles(knownAccessMiles, totalMiles)
+  knownSurfaceMiles = boundedMiles(knownSurfaceMiles, totalMiles)
+  knownConditionMiles = boundedMiles(knownConditionMiles, totalMiles)
+  unknownSurfaceMiles = boundedMiles(unknownSurfaceMiles, totalMiles)
+
   const accessCoveragePercent = coveragePercent(knownAccessMiles, totalMiles)
   const surfaceCoveragePercent = coveragePercent(knownSurfaceMiles, totalMiles)
   const conditionCoveragePercent = coveragePercent(knownConditionMiles, totalMiles)
-  const headlinePercent = Math.min(accessCoveragePercent, surfaceCoveragePercent, conditionCoveragePercent)
+  const headlinePercent = Math.round(
+    (accessCoveragePercent + surfaceCoveragePercent + conditionCoveragePercent) / 3
+  )
 
   if (unknownSurfaceMiles > 0) {
     caveats.push(`Surface type is unknown for ${unknownSurfaceMiles.toFixed(1)} miles of this route.`)
@@ -116,7 +124,9 @@ export function computeRouteDataQuality(input: {
   if (accessCoveragePercent < 100) {
     caveats.push(`Access data is missing on ${(totalMiles - knownAccessMiles).toFixed(1)} miles of this route.`)
   }
-  if (conditionCoveragePercent < 60) {
+  if (!conditionCoverageAvailable) {
+    caveats.push("Condition data is unavailable for this route.")
+  } else if (conditionCoveragePercent < 60) {
     caveats.push("Surface condition data is sparse along this route. Inspect before high-speed riding.")
   }
 
@@ -124,6 +134,7 @@ export function computeRouteDataQuality(input: {
     accessCoveragePercent,
     surfaceCoveragePercent,
     conditionCoveragePercent,
+    conditionCoverageAvailable,
     seasonalUncertainty,
     unknownSurfaceMiles: Number(unknownSurfaceMiles.toFixed(2)),
     totalMiles,

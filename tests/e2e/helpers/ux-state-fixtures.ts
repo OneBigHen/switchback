@@ -5,6 +5,8 @@ import {
   FIXTURE_START,
   expectRouteOutcome,
   expandPhonePlanner,
+  ensureFixtureStart,
+  fillFixtureFinish,
   installPlannerServices,
   makeRoute,
   openPlannerEditor,
@@ -39,15 +41,12 @@ import {
  * `page.clock.install`'s browser-local readback (getHours, toString, etc.)
  * consistent with this offset regardless of the host's own timezone.
  *
- * Note `install()` alone does not pause the clock — real time still elapses
- * from this base as the test runs (Playwright: "Date.now will progress as
- * the timers fire"); only `pauseAt`/`runFor`/`fastForward` control it
- * explicitly. That's intentional here: MapLibre's camera easeTo/flyTo
- * transitions run on requestAnimationFrame, which a truly paused clock
- * would freeze mid-animation, and MAP_SETTLE_MS below waits on real time
- * for exactly those transitions to finish. Free Ride states call
- * `page.clock.runFor` explicitly to fire their deferred first suggestion
- * poll on top of this real-time-progressing base.
+ * Note `install()` pins the browser clock baseline but does not pause timers;
+ * real time still elapses while the test runs. That's intentional here:
+ * MapLibre's camera easeTo/flyTo transitions run on requestAnimationFrame,
+ * which a paused clock would freeze mid-animation, and MAP_SETTLE_MS below
+ * waits on real time for those transitions to finish. Free Ride states wait
+ * for their visible suggestion marker instead of advancing the clock manually.
  */
 export const PINNED_CLOCK = new Date("2026-06-15T12:00:00-04:00")
 
@@ -65,34 +64,13 @@ export async function pinVisualClock(page: Page): Promise<void> {
   await page.clock.install({ time: PINNED_CLOCK })
 }
 
-/** Fire timers due within the window without advancing further — used to
- *  reach timer-deferred states (Free Ride's 1 s delayed first poll)
- *  deterministically instead of racing real time. Network and browser
- *  events stay fully asynchronous. */
-export async function fireDeferredTimers(page: Page, milliseconds: number): Promise<void> {
-  await page.clock.runFor(milliseconds)
-}
-
-/**
- * Drive Free Ride's deferred suggestion poll to completion under the paused
- * clock. Geolocation fixes are real browser events that need real time to
- * land, while the app only re-polls when fake time advances past its 1 s
- * defer/15 s interval; alternate small real waits with clock advances until
- * `marker` reports the state has been reached (or give up after a bounded
- * number of cycles so failure stays a fast, visible assertion). Total fake
- * advance stays under the 15 s re-poll interval so each cycle fires exactly
- * the deferred first poll.
- */
 async function driveFreeRidePoll(
   page: Page,
   marker: Locator,
   attempts = 8
 ): Promise<void> {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    await page.waitForTimeout(250)
-    await fireDeferredTimers(page, 1_100)
-    if (await marker.isVisible().catch(() => false)) return
-  }
+  await expect(marker, "Free Ride suggestion did not become interactive after its deferred poll")
+    .toBeVisible({ timeout: attempts * 2_000 })
 }
 
 /** Export a review copy of the current viewport to the phase evidence dir. */
@@ -116,22 +94,6 @@ async function expectPlannerHomeReady(page: Page): Promise<void> {
     await heading.isVisible().catch(() => false)
     || await expand.isVisible().catch(() => false)
   ), { timeout: 10_000 }).toBe(true)
-}
-
-async function ensureCurrentLocationStart(page: Page): Promise<void> {
-  const start = page.getByRole("combobox", { name: "Start", exact: true })
-  if ((await start.inputValue()).length === 0) {
-    await page.getByRole("button", { name: /current location/i }).click()
-  }
-  await expect(start).toHaveValue(/Current location|Fixture start/)
-}
-
-async function chooseFixtureFinish(page: Page): Promise<void> {
-  const finish = page.getByRole("combobox", { name: "Finish", exact: true })
-  await finish.fill("Fixture finish")
-  await expect(page.getByRole("option", { name: /Fixture finish/i })).toBeVisible()
-  await page.getByRole("option", { name: /Fixture finish/i }).click()
-  await expect(finish).toHaveValue(/Fixture finish/i)
 }
 
 interface HeldRouteResponse {
@@ -172,8 +134,8 @@ export async function holdRouteResponse(
 
 async function driveToRouteResult(page: Page): Promise<RouteCapture> {
   await openPlannerEditor(page)
-  await ensureCurrentLocationStart(page)
-  await chooseFixtureFinish(page)
+  await ensureFixtureStart(page)
+  await fillFixtureFinish(page)
   const held = await holdRouteResponse(page, tripPlan([
     makeRoute("twisty", { name: "Contract fixture route" })
   ]))
@@ -225,8 +187,8 @@ export const uxState = {
     await page.goto("/")
     await expectPlannerHomeReady(page)
     await openPlannerEditor(page)
-    await ensureCurrentLocationStart(page)
-    await chooseFixtureFinish(page)
+    await ensureFixtureStart(page)
+    await fillFixtureFinish(page)
     const held = await holdRouteResponse(page, tripPlan([
       makeRoute("twisty", { name: "Contract fixture route" })
     ]))
@@ -255,8 +217,8 @@ export const uxState = {
     await installPlannerServices(page)
     await page.goto("/")
     await openPlannerEditor(page)
-    await ensureCurrentLocationStart(page)
-    await chooseFixtureFinish(page)
+    await ensureFixtureStart(page)
+    await fillFixtureFinish(page)
     const held = await holdRouteResponse(page, tripPlan([
       makeRoute("twisty", { name: "Twisty contract route" }),
       makeRoute("scenic", { name: "Scenic contract route" })
@@ -307,7 +269,6 @@ export const uxState = {
         longitude: FIXTURE_START.lon - 0.05 - fix * 0.0002,
         accuracy: 10
       })
-      await page.waitForTimeout(250)
     }
     await expect(page.locator(".ride-hud.is-off-route")).toBeVisible({ timeout: 15_000 })
   },

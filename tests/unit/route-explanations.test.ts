@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { explainRouteFacts } from "@/lib/recommendation/route-explanations"
+import { explainRouteFacts, routeTradeoff } from "@/lib/recommendation/route-explanations"
 import type { PlannedRoute } from "@/lib/routing/types"
 
 function route(overrides: Partial<PlannedRoute> = {}): PlannedRoute {
@@ -41,5 +41,13 @@ describe("factual route explanations", () => {
 
     expect(facts).toContain("Built from a verified RIG corridor anchor.")
     expect(facts.join(" ")).not.toMatch(/legal|high-confidence|safe/i)
+  })
+
+  it("reports a tie without inventing a minute of delay", () => {
+    const candidate = route({ id: "candidate", distanceMiles: 104, durationMinutes: 120 })
+
+    expect(routeTradeoff(candidate, [route({ id: "fast", durationMinutes: 120 }), candidate])).toBe(
+      "Same time as fastest · +4.0 mi vs fastest"
+    )
   })
 })

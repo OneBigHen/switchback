@@ -28,18 +28,26 @@ function plannedRoute(overrides: Partial<PlannedRoute> = {}): PlannedRoute {
 }
 
 describe("RouteDataQualityPanel", () => {
-  it("renders three coverage bars and a headline equal to the lowest coverage", () => {
+  it("renders three coverage bars and a mapped coverage headline", () => {
     render(<RouteDataQualityPanel route={plannedRoute()} />)
     expect(screen.getByText("Access")).toBeInTheDocument()
     expect(screen.getByText("Surface")).toBeInTheDocument()
     expect(screen.getByText("Condition")).toBeInTheDocument()
     expect(screen.getAllByText(/\d+%/).length).toBeGreaterThan(0)
-    expect(screen.getByText("data quality · lowest coverage")).toBeInTheDocument()
+    expect(screen.getByText("mapped data coverage")).toBeInTheDocument()
   })
 
   it("shows the unknown-surface mileage caveat when surfaceMix carries an unknown bucket", () => {
     render(<RouteDataQualityPanel route={plannedRoute({ distanceMiles: 60, surfaceMix: { asphalt: 70, unknown: 30 } })} />)
     expect(screen.getByText(/Surface type is unknown for 18\.0 miles of this route\./i)).toBeInTheDocument()
+  })
+
+  it("renders unavailable condition coverage instead of a misleading zero", () => {
+    render(<RouteDataQualityPanel route={plannedRoute()} />)
+
+    expect(screen.getByText("67%")).toBeInTheDocument()
+    expect(screen.getByText("Unavailable")).toBeInTheDocument()
+    expect(screen.getByText("Condition data is unavailable for this route.")).toBeInTheDocument()
   })
 
   it("renders each caveat from route data quality as a warning row", () => {
@@ -85,12 +93,12 @@ describe("RouteDataQualityPanel", () => {
     expect(screen.getByText("Unknown")).toBeInTheDocument()
   })
 
-  it("still renders the panel headline as the lowest coverage when surface coverage is the weakest", () => {
+  it("includes unavailable and partial dimensions in mapped coverage", () => {
     const route = plannedRoute({ distanceMiles: 50, surfaceMix: { asphalt: 30, unknown: 70 } })
     render(<RouteDataQualityPanel route={route} />)
-    const headline = screen.getByText("data quality · lowest coverage")
+    const headline = screen.getByText("mapped data coverage")
     const headlineValue = headline.previousElementSibling
     expect(headlineValue).not.toBeNull()
-    expect(Number(headlineValue!.textContent!.replace("%", ""))).toBeLessThanOrEqual(30)
+    expect(Number(headlineValue!.textContent!.replace("%", ""))).toBe(43)
   })
 })

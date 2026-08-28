@@ -18,6 +18,7 @@ or configured live environment was not available.
 | Provider degradation | typed route errors and hybrid provider | hybrid/error tests | provider failure journey | impossible route fixture | live smoke PASS | Automated; live depends on config |
 | Responsive plan/ride surfaces | existing responsive CSS and Playwright projects | component tests | responsive critical journey and broad matrix | N/A | iPhone drill | Automated; device pending |
 | Privacy/local data | local libraries and profile storage | storage/privacy tests | save/reload behavior | N/A | device drill | Automated; device pending |
+| Level A mobile hierarchy | `playwright.mobile.config.ts`, `tests/e2e/mobile-qa/` | mobile QA helper/assertion tests | WebKit/iPhone primary; Chromium comparison | N/A | real iOS/PWA separate | Fast/full emulation must be recorded separately from real-device proof |
 
 ## Visual evidence
 
@@ -34,4 +35,28 @@ surfaces. The most direct release references are:
 - [profile controls](../../artifacts/screenshots/reskin-profile-desktop-final.png)
 
 Failure screenshots, traces, browser video, and the GraphHopper log are CI
-artifacts with seven-day retention.
+artifacts with seven-day retention. The separate Level A mobile workflow
+uploads the complete `artifacts/mobile-qa/` tree for 14 days; see
+[LEVEL_A_MOBILE_QA.md](LEVEL_A_MOBILE_QA.md) for inspection commands and
+retention boundaries.
+
+## Mobile release confidence
+
+Record these four boundaries on separate lines in every release summary. Do
+not infer either real-device line from WebKit or Chromium:
+
+```text
+Mobile responsive emulation: PASS/FAIL
+WebKit mobile approximation: PASS/FAIL
+Real iOS Safari: PASS/FAIL/NOT RUN
+Installed iOS PWA behavior: PASS/FAIL/NOT RUN
+```
+
+Level A uses WebKit/iPhone emulation as its primary Linux signal and Chromium
+as a comparison. Its offline state proves only shell/local saved data and API
+failure handling, not offline rerouting. Level B is an infrequent real iOS
+Safari or BrowserStack run using the same `core-state`, `layout-containment`,
+and `visual-state` IDs. There are currently no real-iOS credentials or SDK in
+this repository, so that boundary remains `NOT RUN` until it actually runs.
+Installed PWA behavior requires the physical-device drill and is reported
+separately. No real-iPhone claim is made without real-iPhone evidence.

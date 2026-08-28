@@ -8,7 +8,7 @@ import {
 } from "./context-sheet-state"
 
 /** Minimum vertical drag (CSS px) that counts as an expand/collapse gesture. */
-const SHEET_DRAG_THRESHOLD_PX = 64
+const SHEET_DRAG_THRESHOLD_PX = 24
 
 export interface ContextSheetProps {
   id: string
@@ -34,7 +34,7 @@ export function ContextSheet({
   className
 }: ContextSheetProps) {
   const dragStartRef = useRef<{ pointerId: number; clientY: number } | null>(null)
-  const dragGestureRef = useRef<"expand" | "collapse" | null>(null)
+  const suppressNextClickRef = useRef(false)
   const isPeek = detent === "peek"
   const isHidden = detent === "closed" || detent === "immersive"
   const usesPeekContent = isPeek && peekContent !== undefined
@@ -47,17 +47,9 @@ export function ContextSheet({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return
+    suppressNextClickRef.current = false
     dragStartRef.current = { pointerId: event.pointerId, clientY: event.clientY }
-    dragGestureRef.current = null
     event.currentTarget.setPointerCapture?.(event.pointerId)
-  }
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const start = dragStartRef.current
-    if (!start || start.pointerId !== event.pointerId) return
-    const deltaY = event.clientY - start.clientY
-    if (deltaY <= -SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "expand"
-    else if (deltaY >= SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "collapse"
   }
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -65,26 +57,30 @@ export function ContextSheet({
     dragStartRef.current = null
     if (!start || start.pointerId !== event.pointerId || isPeek) return
     const deltaY = event.clientY - start.clientY
-    if (deltaY <= -SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "expand"
-    else if (deltaY >= SHEET_DRAG_THRESHOLD_PX) dragGestureRef.current = "collapse"
+    const target = deltaY <= -SHEET_DRAG_THRESHOLD_PX
+      ? expandSheetDetent(detent)
+      : deltaY >= SHEET_DRAG_THRESHOLD_PX
+        ? collapseSheetDetent(detent)
+        : null
+    if (target) {
+      suppressNextClickRef.current = true
+      onDetentChange(target)
+    }
   }
 
   /**
-   * One handle, both directions: a drag resolves the gesture it captured,
-   * and a plain tap advances the ladder (half→full, full→half) so keyboard
-   * and pointer users always have a path in both directions.
+   * A plain tap advances the ladder (half→full, full→half), so touch and
+   * keyboard users retain the same progressive-disclosure path as a drag.
    */
   const handleActivate = () => {
     if (isPeek) return
-    const gesture = dragGestureRef.current
-    dragGestureRef.current = null
-    const target = gesture === "expand"
-      ? expandSheetDetent(detent)
-      : gesture === "collapse"
-        ? collapseSheetDetent(detent)
-        : detent === "full"
-          ? collapseSheetDetent(detent)
-          : expandSheetDetent(detent)
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false
+      return
+    }
+    const target = detent === "full"
+      ? collapseSheetDetent(detent)
+      : expandSheetDetent(detent)
     if (target) onDetentChange(target)
   }
 
@@ -126,11 +122,10 @@ export function ContextSheet({
           aria-expanded={detent !== "full"}
           onClick={handleActivate}
           onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={() => {
             dragStartRef.current = null
-            dragGestureRef.current = null
+            suppressNextClickRef.current = false
           }}
         >
           <span aria-hidden="true" />

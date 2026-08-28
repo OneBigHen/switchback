@@ -56,4 +56,10 @@ describe("typed application navigation", () => {
     expect(next.theme).toBe("dark")
     expect(next.activeTab).toBe("plan")
   })
+
+  it("starts from the server-safe plan tab before restoring a URL tab", () => {
+    window.history.replaceState(null, "", "/?tab=library")
+
+    expect(createInitialAppNavigationState("auto").activeTab).toBe("plan")
+  })
 })

@@ -90,6 +90,14 @@ describe("route evidence panel", () => {
       expect(panel).toHaveTextContent("50% non-paved mix from routing tags")
       expect(panel).not.toHaveTextContent("44% non-paved mix")
     })
+
+    it("shows an unavailable state when no surface data was returned", () => {
+      render(<RouteEvidencePanel route={{ ...routeWithoutOfficialEvidence, surfaceMix: {} }} />)
+
+      const panel = screen.getByRole("region", { name: "Why this route was chosen" })
+      expect(panel).toHaveTextContent("Surface data unavailable.")
+      expect(panel).not.toHaveTextContent("0% non-paved mix")
+    })
   })
 
   describe("official unpaved-road evidence", () => {

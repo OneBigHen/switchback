@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test"
 import type { PlannedRoute, RouteProfileId } from "../../../src/lib/routing/types"
+import { CANONICAL_HEALTH_RESPONSE } from "./health-fixtures"
 
 export const FIXTURE_START = { lat: 40.2732, lon: -76.8867, label: "Fixture start" }
 // Keep the browser fixture snapped to the connected scenic branch. The
@@ -96,7 +97,7 @@ export async function installPlannerServices(page: Page): Promise<void> {
   await page.route("**/api/health", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ ok: true, app: { ok: true }, router: { ok: true } })
+    body: JSON.stringify(CANONICAL_HEALTH_RESPONSE)
   }))
   await page.route("**/api/curvature?**", (route) => route.fulfill({
     status: 200,
@@ -173,21 +174,37 @@ export async function expandPhonePlanner(page: Page): Promise<void> {
   if (!await page.evaluate(() => window.matchMedia("(max-width: 760px)").matches)) return
   const expand = page.getByRole("button", { name: "Expand planner" })
   const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
-  await page.waitForTimeout(750)
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (await expand.isVisible().catch(() => false)) {
-      await expand.click()
-    } else if (await prompt.isVisible().catch(() => false)) {
-      await page.waitForTimeout(250)
-      if (await prompt.isVisible().catch(() => false)) return
-    }
-    await page.waitForTimeout(250)
+  if (await expand.isVisible().catch(() => false)) await expand.click()
+  await expect(prompt, "mobile planner prompt must appear after expanding").toBeVisible({ timeout: 15_000 })
+}
+
+export async function ensureFixtureStart(page: Page): Promise<void> {
+  const start = page.getByRole("combobox", { name: "Start", exact: true })
+  if ((await start.inputValue()).length === 0) {
+    const startButton = page.getByRole("button", { name: /current location/i })
+    await expect(startButton, "fixture start must expose the current-location action").toBeVisible({ timeout: 15_000 })
+    await startButton.tap()
   }
-  await expect(prompt).toBeVisible()
+  await expect(start, "fixture start must be selected before routing").toHaveValue(/Current location|Fixture start/, { timeout: 15_000 })
+}
+
+export async function fillFixtureFinish(page: Page): Promise<void> {
+  const finish = page.getByRole("combobox", { name: "Finish", exact: true })
+  await finish.fill("Fixture finish")
+  await tapAutocompleteOption(page, /Fixture finish/i)
+  await expect(finish, "fixture finish must be selected before routing").toHaveValue(/Fixture finish/i, { timeout: 15_000 })
+}
+
+export async function tapAutocompleteOption(page: Page, name: string | RegExp): Promise<void> {
+  const option = page.getByRole("option", { name })
+  await expect(option, `autocomplete option ${String(name)} must become visible`).toBeVisible({ timeout: 15_000 })
+  await expect(option, `autocomplete option ${String(name)} must be enabled`).toBeEnabled({ timeout: 15_000 })
+  await option.tap({ timeout: 15_000 })
 }
 
 export async function expectRouteOutcome(page: Page, capture: RouteCapture): Promise<void> {
   await expect.poll(() => capture.requests.length, { timeout: 30_000 }).toBeGreaterThan(0)
+  expectFixtureRequestStart(capture)
   await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible({ timeout: 30_000 })
   const successful = capture.responses.at(-1)?.body.routes ?? []
   expect(successful.length).toBeGreaterThan(0)
@@ -195,8 +212,15 @@ export async function expectRouteOutcome(page: Page, capture: RouteCapture): Pro
   expect(successful[0]?.distanceMiles ?? 0).toBeGreaterThan(0)
   expect(successful[0]?.durationMinutes ?? 0).toBeGreaterThan(0)
   await expect(page.getByRole("button", { name: /^Select / }).first()).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText(/miles/).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/\b(?:miles|mi)\b/).first()).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText("Route unavailable")).toBeHidden({ timeout: 30_000 })
+}
+
+function expectFixtureRequestStart(capture: RouteCapture): void {
+  const request = capture.requests.at(-1)
+  const points = request?.points
+  const firstPoint = Array.isArray(points) ? points[0] : undefined
+  expect(firstPoint).toMatchObject({ lat: FIXTURE_START.lat, lon: FIXTURE_START.lon })
 }
 
 export function rideIntentForPrompt(prompt: string): Record<string, unknown> {

@@ -262,9 +262,9 @@
 }
 
 @media (max-width: 760px) {
-  .map-road-lock-toggle {
+  .planner-shell .map-road-lock-toggle {
     top: auto;
-    bottom: max(70dvh + 12px, calc(env(safe-area-inset-bottom) + 70dvh));
+    bottom: calc(var(--sb-map-sheet-clearance) + var(--sb-space-2));
     right: max(16px, env(safe-area-inset-right));
     min-width: 48px;
     padding: 0 10px;

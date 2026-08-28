@@ -135,7 +135,7 @@ export function FreeRideHud({
               {formatScore(suggestion.score.total)}
             </strong>
           </div>
-          <ul>
+          <ul className="free-ride-suggestion-reasons">
             {suggestion.reasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}
           </ul>
           <div className="free-ride-suggestion-actions">

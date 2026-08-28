@@ -208,7 +208,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
         </button>
         <button
           type="button"
-          className="ride-voice-toggle"
+          className="ride-guidance-toggle"
           aria-label={
             controller.guidancePaused
               ? "Resume guidance"
@@ -225,7 +225,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
         </button>
         <button
           type="button"
-          className="ride-voice-toggle"
+          className="ride-overnight-stop"
           aria-label="Pause for overnight stop"
           disabled={controller.guidancePaused}
           onClick={commands.pauseForOvernightStop}

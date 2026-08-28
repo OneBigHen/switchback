@@ -31,7 +31,7 @@
 
 .route-share-controls > label {
   display: inline-flex;
-  min-height: 32px;
+  min-height: var(--sb-touch-target);
   align-items: center;
   gap: 5px;
   color: var(--sb-text-muted);
@@ -45,7 +45,7 @@
 
 .route-share-controls input[type="number"] {
   width: 48px;
-  min-height: 30px;
+  min-height: var(--sb-touch-target);
   padding: 0 6px;
   border: 1px solid var(--sb-border);
   border-radius: 7px;
@@ -67,7 +67,7 @@
 
 .route-share-actions button {
   display: inline-flex;
-  min-height: 40px;
+  min-height: var(--sb-touch-target);
   align-items: center;
   gap: 7px;
   padding: 0 11px;

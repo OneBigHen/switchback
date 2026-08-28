@@ -602,10 +602,12 @@
     }
 }
 
-.ride-voice-toggle {
+.ride-voice-toggle,
+.ride-guidance-toggle,
+.ride-overnight-stop {
   display: grid;
-  min-width: 48px;
-  min-height: 48px;
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
   padding: 0;
   place-items: center;
   border: 1px solid var(--line);
@@ -615,11 +617,14 @@
   cursor: pointer;
 }
 
-.ride-voice-toggle[aria-pressed="false"] {
+.ride-voice-toggle[aria-pressed="false"],
+.ride-guidance-toggle[aria-pressed="false"] {
   color: var(--metal);
 }
 
-.ride-voice-toggle svg {
+.ride-voice-toggle svg,
+.ride-guidance-toggle svg,
+.ride-overnight-stop svg {
   width: 20px;
   height: 20px;
 }
@@ -643,19 +648,6 @@
 }
 
 @media (max-width: 760px) {
-    .ride-topbar {
-      grid-template-columns: minmax(0, 1fr) auto auto;
-    }
-
-    .ride-topbar .ride-voice-toggle {
-      grid-row: 1;
-      grid-column: 2;
-    }
-
-    .ride-topbar .ride-exit {
-      grid-column: 3;
-    }
-
     /* Ride mode owns the visual viewport. Keep every primary control in one
        compact, safe-area-aware rail so the map never grows a scrollable page. */
     .ride-topbar {
@@ -663,9 +655,9 @@
       right: max(8px, env(safe-area-inset-right));
       left: max(8px, env(safe-area-inset-left));
       display: grid;
-      min-height: 72px;
-      grid-template-columns: minmax(0, 1fr) 48px 58px 50px;
-      grid-template-rows: auto auto;
+      min-height: 112px;
+      grid-template-columns: minmax(0, 1fr) repeat(3, var(--sb-touch-target));
+      grid-template-rows: repeat(2, var(--sb-touch-target));
       gap: 2px 6px;
       padding: 8px;
     }
@@ -685,20 +677,30 @@
     }
 
     .ride-topbar .ride-voice-toggle {
-      grid-row: 1 / 3;
+      grid-row: 1;
       grid-column: 2;
     }
 
-    .ride-topbar .ride-record-toggle {
-      grid-row: 1 / 3;
+    .ride-topbar .ride-guidance-toggle {
+      grid-row: 1;
       grid-column: 3;
+    }
+
+    .ride-topbar .ride-overnight-stop {
+      grid-row: 1;
+      grid-column: 4;
+    }
+
+    .ride-topbar .ride-record-toggle {
+      grid-row: 2;
+      grid-column: 2 / 4;
       min-width: 58px;
       min-height: 48px;
       padding: 0 6px;
     }
 
     .ride-topbar .ride-exit {
-      grid-row: 1 / 3;
+      grid-row: 2;
       grid-column: 4;
     }
 

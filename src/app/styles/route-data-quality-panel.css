@@ -188,6 +188,14 @@
   background: var(--danger);
 }
 
+.route-data-quality-bar[data-tier="unavailable"] .route-data-quality-bar-row strong {
+  color: var(--metal);
+}
+
+.route-data-quality-bar[data-tier="unavailable"] .route-data-quality-bar-track > span {
+  background: var(--line);
+}
+
 .route-data-quality-caveats {
   display: grid;
   gap: 4px;
@@ -271,4 +279,23 @@
     padding: 10px;
     gap: 7px;
   }
+}
+
+.route-data-quality-panel {
+  --sb-route-meta-size: 14px;
+}
+
+.route-data-quality-header h3 small,
+.route-data-quality-seasonal,
+.route-data-quality-bar-row,
+.route-data-quality-caveats li,
+.route-data-quality-clean,
+.route-data-quality-footer,
+.route-data-quality-footer strong,
+.route-data-quality-footer small {
+  font-size: var(--sb-route-meta-size);
+}
+
+.route-data-quality-bar-row strong {
+  font-size: 15px;
 }

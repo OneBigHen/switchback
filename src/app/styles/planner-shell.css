@@ -260,6 +260,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
   color: var(--instrument);
   text-decoration: none;
 }
@@ -496,7 +498,7 @@ h2 {
 }
 
 .ride-research > button {
-  min-height: 38px;
+  min-height: var(--sb-touch-target);
   justify-self: start;
   padding: 0 12px;
   border: 1px solid #d9d2c8;

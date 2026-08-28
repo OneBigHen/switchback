@@ -14,7 +14,7 @@ are what visual and E2E evidence are pinned against.
 | Input | Behavior without pinning | Deterministic control |
 |---|---|---|
 | Wall-clock time | Shell theme flips to dark when local hour `< 6` or `>= 19` (`PlannerShell.tsx`), auto night map style via sun calc (`day-phase.ts`), Free Ride suggestion expiry (`SB-030`) | `page.clock.install({ time: UX_STATE_FIXTURES.PINNED_CLOCK })` (midday) before navigation |
-| JS timers | Planner deck rotates the prompt placeholder every 4.2 s (`PlannerDeck.tsx`), so text captures race an interval | `clock.install` pauses app timers; placeholder stays on its first example. Free Ride states advance the clock explicitly (`fireDeferredTimers` / `driveFreeRidePoll`) to reach their deferred first poll deterministically |
+| JS timers | Planner deck rotates the prompt placeholder every 4.2 s (`PlannerDeck.tsx`), so text captures race an interval | `clock.install` pins the browser clock baseline but leaves timers progressing with real time. Free Ride states wait for the visible suggestion marker deterministically |
 | Device location | Config pins geolocation to fixture start (`playwright.config.ts`) | Keep default; off-route state moves it explicitly with `page.context().setGeolocation` |
 | Map camera motion | `easeTo`/`flyTo` run 650 ms animations that can straddle a screenshot | Fixed `MAP_SETTLE_MS = 900` settle window (> longest 650 ms transition) after each state marker |
 | Live external services | Tiles, routing, weather, geocoding, suggestions would vary or fail | All network calls fulfilled by `tests/e2e/helpers/planner-fixtures.ts` mocks; service workers blocked by Playwright config |
@@ -28,6 +28,14 @@ visual tests pass and repeat identically regardless of wall clock. The CI
 visual job intentionally remains evidence-only in Phase 0: baseline pixels
 still depend on the rendering host's font rasterization, so making the job
 gating is deferred until baselines are generated in a pinned CI image.
+
+The Level A fast mobile gate uses the stable scenario IDs `core-state`,
+`layout-containment`, and `visual-state`; the same IDs are used for the
+infrequent Level B real-iOS run. WebKit/iPhone is an emulation approximation,
+not iOS Safari or installed-PWA proof. A screenshot is evidence only after its
+state marker is asserted and the map settle window has elapsed; a passing
+assertion without capture inspection does not establish visual correctness.
+See [Level A mobile QA](../quality/LEVEL_A_MOBILE_QA.md).
 
 ## Required viewports
 
@@ -44,6 +52,12 @@ Every primary screen must be evidenced at all of:
 Covered by `tests/e2e/visual/screens.spec.ts` (primary screens) and
 `tests/e2e/visual/ux-states.spec.ts` (state contract evidence, phone portrait
 + desktop).
+
+The Level A matrix additionally covers WebKit primary at 320x568, 390x844,
+430x932 (Pro Max-size) and the configured 568x320, 844x390, 932x430 landscape sizes, with
+Chromium comparisons at 390x844 and 844x390. All contexts are touch-enabled.
+Applicable state evidence covers light/dark, online/offline, and
+fresh/persisted storage. Offline state does not imply offline rerouting.
 
 ## Screen-state contract
 

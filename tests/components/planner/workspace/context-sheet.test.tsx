@@ -58,29 +58,25 @@ describe("ContextSheet", () => {
     expect(onDetentChange).toHaveBeenCalledWith("half")
   })
 
-  it("expands half to full with an upward drag gesture", () => {
+  it("commits one upward detent on pointer release without a follow-up click", () => {
     const onDetentChange = vi.fn()
 
     renderSheet("half", onDetentChange)
 
     const handle = screen.getByRole("button", { name: /expand planner sheet/i })
     fireEvent.pointerDown(handle, { pointerId: 1, clientY: 400, pointerType: "touch" })
-    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 320, pointerType: "touch" })
-    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 320, pointerType: "touch" })
-    fireEvent.click(handle)
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 368, pointerType: "touch" })
     expect(onDetentChange).toHaveBeenCalledWith("full")
   })
 
-  it("collapses half to peek with a downward drag gesture", () => {
+  it("commits one downward detent on pointer release without a follow-up click", () => {
     const onDetentChange = vi.fn()
 
     renderSheet("half", onDetentChange)
 
     const handle = screen.getByRole("button", { name: /expand planner sheet/i })
     fireEvent.pointerDown(handle, { pointerId: 1, clientY: 300, pointerType: "touch" })
-    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 400, pointerType: "touch" })
-    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 400, pointerType: "touch" })
-    fireEvent.click(handle)
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 332, pointerType: "touch" })
     expect(onDetentChange).toHaveBeenCalledWith("peek")
   })
 

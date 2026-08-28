@@ -7,6 +7,7 @@ import {
   openPlannerEditor,
   tripPlan
 } from "../helpers/planner-fixtures"
+import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
 async function establishServiceWorker(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/")
@@ -84,7 +85,7 @@ test("production shell survives offline reload and API requests are not cached a
   await page.route("**/api/health", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ ok: true, app: { ok: true }, router: { ok: true } })
+    body: JSON.stringify(CANONICAL_HEALTH_RESPONSE)
   }))
   await page.reload()
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
