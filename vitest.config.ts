@@ -10,7 +10,13 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
-    exclude: [...configDefaults.exclude, "tests/e2e/**"],
+    exclude: [
+      ...configDefaults.exclude,
+      "artifacts/**",
+      ".claude/worktrees/**",
+      "**/.claude/worktrees/**",
+      "tests/e2e/**",
+    ],
     coverage: {
       reporter: ["text", "html"]
     }

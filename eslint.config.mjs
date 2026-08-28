@@ -7,6 +7,9 @@ export default defineConfig([
   ...nextTypescript,
   globalIgnores([
     ".next/**",
+    ".claude/worktrees/**",
+    ".omo/evidence/**",
+    "artifacts/**",
     "coverage/**",
     "playwright-report/**",
     "test-results/**",

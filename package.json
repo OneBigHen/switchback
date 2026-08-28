@@ -15,6 +15,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test --project=desktop-chromium --project=mobile-safari --project=mobile-landscape-wide --project=mobile-landscape-narrow",
+    "test:e2e:mobile-qa": "tsx scripts/qa/mobile-qa-orchestrator.ts",
+    "test:e2e:mobile-qa:prepare": "MOBILE_QA_EXPECTED_PROJECTS=webkit-prepare playwright test --config=playwright.mobile.config.ts --project=webkit-prepare",
+    "test:e2e:mobile-qa:expanded": "MOBILE_QA_EXPECTED_PROJECTS=webkit-small,webkit-standard,webkit-large,webkit-standard-landscape,chromium-standard playwright test --config=playwright.mobile.config.ts --project=webkit-small --project=webkit-standard --project=webkit-large --project=webkit-standard-landscape --project=chromium-standard",
+    "report:mobile-qa": "tsx scripts/qa/report-mobile-qa.ts",
     "test:e2e:critical": "playwright test --project=critical-chromium --project=critical-webkit",
     "test:e2e:real-router": "SWITCHBACK_E2E_MODE=real-router VALHALLA_URL= VALHALLA_ELEVATION_URL= playwright test --project=real-router",
     "test:e2e:pwa": "SWITCHBACK_E2E_MODE=pwa playwright test --project=pwa",
@@ -34,7 +38,8 @@
     "validate:curvature": "node scripts/validate-curvature-live.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "benchmark:routing": "tsx scripts/benchmark-routing.mjs",
-    "atlas:build": "node scripts/build-route-atlas.mjs"
+    "atlas:build": "node scripts/build-route-atlas.mjs",
+    "doctor": "react-doctor --no-telemetry"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
@@ -71,6 +76,7 @@
     "fake-indexeddb": "^6.2.4",
     "jsdom": "29.1.1",
     "postcss": "8.5.23",
+    "react-doctor": "0.9.12",
     "tsx": "^4.20.6",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
