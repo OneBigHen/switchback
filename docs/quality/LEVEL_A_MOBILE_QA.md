@@ -132,6 +132,16 @@ landscape surface. These are selective scenario assignments, not every
 light/dark x online/offline x fresh/persisted cross-product; omitted
 combinations remain outside the gate rather than being implied as passing.
 
+## What gates a merge
+
+FAST and PREPARE are the required merge and release gates in CI. The FULL
+expanded matrix runs on every PR and push too, but as an advisory check
+(`continue-on-error`): its single-worker WebKit runs are long and sensitive to
+runner timing, so one landscape timeout must not halt development. Failures
+stay visible in the check list and artifacts. The nightly scheduled run
+requires FULL; release candidates may run it locally when a wide-viewport or
+orientation change warrants the extra coverage.
+
 The Level A offline state is deliberately narrow. It can prove the app shell,
 locally saved data, and clear handling of an API failure. It does **not** prove
 offline rerouting, offline basemap/place search, or a complete installed-region

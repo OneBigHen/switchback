@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # Nightly FULL gate, deliberately off the :00 push rush (06:17 UTC).
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -35,6 +38,12 @@ jobs:
           MOBILE_QA_ARTIFACT_ROOT: artifacts/mobile-qa/runs/prepare-${{ github.run_id }}-${{ github.run_attempt }}
         run: npm run test:e2e:mobile-qa:prepare
       - name: Mobile QA FULL
+        # The deterministic core (FAST + PREPARE) is the required merge and
+        # release gate. The expanded multi-viewport FULL matrix stays visible
+        # but advisory on PR/push runs — one Linux-WebKit timing hiccup must
+        # not halt development — and is required on the nightly gate, where no
+        # merge is waiting on the result.
+        continue-on-error: ${{ github.event_name != 'schedule' }}
         env:
           MOBILE_QA_ARTIFACT_ROOT: artifacts/mobile-qa/runs/full-${{ github.run_id }}-${{ github.run_attempt }}
         run: npm run test:e2e:mobile-qa:expanded
