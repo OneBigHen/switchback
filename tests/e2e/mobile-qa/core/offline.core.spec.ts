@@ -8,7 +8,8 @@ import {
   expectNoUnexpectedNetworkFailures,
   expectRealScrollOwner,
   expectSheetsAndModalsInsideVisualViewport,
-  expectViewportFitAndSafeAreaContainment
+  expectViewportFitAndSafeAreaContainment,
+  isWebkitOfflineInternalError
 } from "../assertions"
 import { installPlannerServices, makeRoute } from "../../helpers/planner-fixtures"
 import {
@@ -47,6 +48,11 @@ test("offline keeps the local library honest and recovers online without rerouti
   await expectNavigationReachability(page)
   await mobileQa.setNetwork("online")
   await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true)
-  await expectNoConsoleErrors(page, mobileQa.runtimeIssues)
-  expectNoUnexpectedNetworkFailures(page, mobileQa.runtimeIssues)
+  // This is the only test that deliberately forces the context offline and back.
+  // Mobile Playwright WebKit reports the overlay loads it drops on that
+  // transition as `WebKit encountered an internal error` (Chromium reports a
+  // clean net::ERR_*). Ignore that exact diagnostic here only; every other
+  // console error or failed request still fails.
+  expectNoConsoleErrors(page, mobileQa.runtimeIssues, { ignore: isWebkitOfflineInternalError })
+  expectNoUnexpectedNetworkFailures(page, mobileQa.runtimeIssues, { ignore: isWebkitOfflineInternalError })
 })

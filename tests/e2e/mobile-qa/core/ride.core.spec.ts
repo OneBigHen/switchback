@@ -51,7 +51,16 @@ test.describe("Level A mobile ride scenarios", () => {
     await mobileQa.setNetwork("online")
     await expect.poll(() => mobileQa.page.evaluate(() => navigator.onLine)).toBe(true)
     await mobileQa.page.getByRole("button", { name: "Exit ride mode" }).tap()
-    await expect(mobileQa.page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+    // Exiting guidance tears down the ride surface and returns to the planner
+    // with the ridden route still selected. On phones the deck replaces the
+    // "Where do you want to ride?" omnibox with the route surface whenever a
+    // route is selected, so assert the planner shell and the preserved route
+    // context rather than that (now hidden) omnibox heading.
+    await expect(mobileQa.page.getByRole("region", { name: /Ride (mode|preview) for/ })).toBeHidden()
+    await expect(mobileQa.page.getByRole("button", { name: "Exit ride mode" })).toBeHidden()
+    await expect(mobileQa.page.getByRole("complementary", { name: "Motorcycle route planner" })).toBeVisible()
+    await expect(mobileQa.page.getByRole("heading", { name: "Choose a route" })).toBeVisible()
+    await expect(mobileQa.page.getByRole("button", { name: "Edit route" })).toBeVisible()
   })
 
   test("off-route recovery presents a bounded rejoin action", async ({ mobileQa }, testInfo) => {

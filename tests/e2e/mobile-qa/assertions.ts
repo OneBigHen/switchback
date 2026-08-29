@@ -330,12 +330,45 @@ export function installRuntimeIssueCollector(page: Page, options: RuntimeIssueOp
   return collector
 }
 
-export function expectNoConsoleErrors(page: Page, collector = collectors.get(page)): void {
-  expect(collector?.consoleErrors ?? [], "unexpected browser console errors").toEqual([])
+/**
+ * Mobile Playwright WebKit (a Linux approximation of Safari) reports this
+ * generic text for the overlay loads it drops the instant the browsing
+ * context is forced offline — on the console as the full `Failed to load
+ * resource:` line, and on `requestfailed` as the bare `errorText`. Chromium
+ * reports a clean `net::ERR_*` for the same loads. Only the deliberate offline
+ * test may ignore it, by passing `isWebkitOfflineInternalError` as the `ignore`
+ * predicate, and only for that one intentional online→offline→online cycle.
+ */
+const WEBKIT_INTERNAL_ERROR_TEXT = "WebKit encountered an internal error"
+export const WEBKIT_OFFLINE_RESOURCE_DIAGNOSTIC = `Failed to load resource: ${WEBKIT_INTERNAL_ERROR_TEXT}`
+
+export function isWebkitOfflineInternalError(message: string): boolean {
+  const text = message.trim()
+  return text === WEBKIT_OFFLINE_RESOURCE_DIAGNOSTIC || text.endsWith(`failed: ${WEBKIT_INTERNAL_ERROR_TEXT}`)
 }
 
-export function expectNoUnexpectedNetworkFailures(page: Page, collector = collectors.get(page)): void {
-  expect((collector?.failedRequests ?? []).filter((failure) => !isExpectedProviderHealthAbort(failure)), "unexpected failed network requests").toEqual([])
+export interface RuntimeIssueExpectation {
+  /** Drop entries this predicate accepts before asserting. Use sparingly. */
+  readonly ignore?: (entry: string) => boolean
+}
+
+export function expectNoConsoleErrors(
+  page: Page,
+  collector = collectors.get(page),
+  options: RuntimeIssueExpectation = {},
+): void {
+  const errors = (collector?.consoleErrors ?? []).filter((message) => !options.ignore?.(message))
+  expect(errors, "unexpected browser console errors").toEqual([])
+}
+
+export function expectNoUnexpectedNetworkFailures(
+  page: Page,
+  collector = collectors.get(page),
+  options: RuntimeIssueExpectation = {},
+): void {
+  const failures = (collector?.failedRequests ?? [])
+    .filter((failure) => !isExpectedProviderHealthAbort(failure) && !options.ignore?.(failure))
+  expect(failures, "unexpected failed network requests").toEqual([])
 }
 
 export function isExpectedRouteWeatherAbort(failure: string): boolean {

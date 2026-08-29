@@ -122,7 +122,10 @@ test("destination planning sends the selected points and displays the final rout
       { lat: FIXTURE_FINISH.lat, lon: FIXTURE_FINISH.lon }
     ]
   })
-  await expect(page.getByText("Destination result")).toBeVisible()
+  // The route name renders both in the selected-route identity line and in
+  // the "Select <name>" slip button; assert the slip button specifically so
+  // the check stays unambiguous under strict mode.
+  await expect(page.getByRole("button", { name: "Select Destination result" })).toBeVisible()
 })
 
 test("loop planning uses one fixed start and completes with a non-empty geometry", async ({ page }) => {
@@ -226,8 +229,11 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
     requests,
     responses: requests.map((request, index) => ({ request, body: responses[Math.min(index, responses.length - 1)]! }))
   })
-  await expect(page.getByText("Fresh second result")).toBeVisible()
-  await expect(page.getByText("Stale first result")).toBeHidden()
+  // Route names render both in the selected-route identity line and in the
+  // "Select <name>" slip button; assert the slip buttons so the winning plan
+  // (present) vs the superseded stale plan (absent) check stays unambiguous.
+  await expect(page.getByRole("button", { name: "Select Fresh second result" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Select Stale first result" })).toBeHidden()
   expect(requests.length).toBeGreaterThanOrEqual(2)
 })
 
@@ -266,7 +272,17 @@ test("a saved route survives a reload and remains available in the library", asy
   await page.getByRole("button", { name: /Show route details/i }).click()
   await page.getByRole("button", { name: "Save route" }).click()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
-  await expect(page.getByRole("button", { name: /Library 1/ })).toBeVisible()
+  // The post-plan deck collapses the route editor (where the saved-count chip
+  // lives), so confirm the save landed via the canonical Library surface: the
+  // on-device list carries the route and its count in the same session.
+  const library = page.getByRole("dialog", { name: "Ride library" })
+  await page.getByRole("button", { name: "Library", exact: true }).click()
+  const onDeviceSection = library.locator(".library-section-title", { hasText: "On this device" })
+  await expect(onDeviceSection).toBeVisible()
+  await expect(onDeviceSection).toContainText("1")
+  await expect(library.getByText("Saved fixture route")).toBeVisible()
+  await page.getByRole("button", { name: "Close library" }).click()
+  await expect(library).toBeHidden()
   await page.reload()
   await page.getByRole("button", { name: "Library", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
