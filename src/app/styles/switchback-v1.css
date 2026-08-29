@@ -856,19 +856,32 @@
   color: var(--metal);
 }
 
+/* The unit label was rebound for dark mode but the value beside it kept its
+   hard-coded near-black, so a route's distance and duration disappeared into
+   the card exactly when the night map made dark mode the normal state. */
+:root[data-theme="dark"] .planner-deck .route-slip-metric strong {
+  color: var(--instrument);
+}
+
 @media (orientation: landscape) and (max-height: 520px) {
     .planner-shell {
       min-height: 0;
     }
 }
 
-.style-explorer {
+/* Each swatch previews what the mode actually looks like: a pale road canvas,
+   shaded relief, and imagery, each crossed by the Switchback route ribbon. */
+.style-terrain {
   background-color: #e6eddc;
-  background-image: linear-gradient(145deg, transparent 42%, #75a4c3 43%, #75a4c3 49%, transparent 50%), linear-gradient(25deg, transparent 48%, #c8a66d 49%, #c8a66d 53%, transparent 54%);
+  background-image:
+    linear-gradient(140deg, transparent 46%, #f36a2d 47%, #f36a2d 54%, transparent 55%),
+    linear-gradient(35deg, #b6c9a4 0%, #8fae7d 38%, #d9cba8 39%, #c2a97e 100%);
 }
 
-.style-night {
-  border-color: #303b37;
-  background-color: #17211e;
-  background-image: linear-gradient(145deg, transparent 42%, #567d83 43%, #567d83 49%, transparent 50%), linear-gradient(25deg, transparent 48%, #c56d42 49%, #c56d42 53%, transparent 54%);
+.style-satellite {
+  border-color: #2c3630;
+  background-color: #1d2620;
+  background-image:
+    linear-gradient(140deg, transparent 46%, #ff7a34 47%, #ff7a34 54%, transparent 55%),
+    radial-gradient(circle at 30% 25%, #4a5c3d 0%, #2f3d2c 45%, #1b2a33 100%);
 }

@@ -36,7 +36,7 @@ describe("Standard slot contract", () => {
 
   it("turns the experience config into Standard configuration properties", () => {
     const config = standardConfigProperties(
-      resolveMapExperience({ mode: "standard", surface: "ride", lightPreset: "dusk" })
+      resolveMapExperience({ experience: "standard", surface: "ride", lightPreset: "dusk" })
     )
     expect(config.lightPreset).toBe("dusk")
     expect(config.showPointOfInterestLabels).toBe(false)

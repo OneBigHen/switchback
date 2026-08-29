@@ -1,17 +1,13 @@
 import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl"
 import { createFallbackStyleImage } from "@/lib/client/map-style"
-import { mapStyleUrl, type MapStyleId } from "@/lib/client/map-layers"
+import { mapStyleUrl } from "@/lib/client/map-layers"
 import {
   mapboxRendererStatus,
   mapboxSlotFor,
   standardConfigProperties,
   type SwitchbackMapSlot
 } from "@/lib/client/mapbox-config"
-import {
-  lightPresetForMapStyle,
-  resolveMapExperience,
-  visualModeForMapStyle
-} from "@/lib/client/map-experience"
+import type { MapExperienceConfig } from "@/lib/client/map-experience"
 
 /**
  * Migration shim. Mapbox GL JS v3 and MapLibre GL JS 5 expose the same runtime
@@ -22,6 +18,51 @@ import {
  * 11 deletes MapLibre and this alias becomes the Mapbox map.
  */
 export type PlannerMap = MapLibreMap
+
+/** The DEM source backing 3D terrain. One per map, added on style load. */
+const TERRAIN_SOURCE = "mapbox-dem"
+
+/**
+ * Subtle horizon depth. Deliberately understated: atmosphere must never wash
+ * out the contrast between the route and the road network beneath it.
+ */
+const ATMOSPHERE = {
+  range: [1, 12],
+  "horizon-blend": 0.08,
+  color: "#E8EDF0",
+  "high-color": "#B9CBD8",
+  "space-color": "#0B0E0D",
+  "star-intensity": 0
+} as const
+
+let plannerMapsCreated = 0
+
+/**
+ * Every Mapbox `Map` is a billable map load, and ordinary mode or lighting
+ * switching must not create one (ADR 0015). The counter makes that assertable
+ * instead of assumed.
+ */
+export function countPlannerMapCreated(): number {
+  plannerMapsCreated += 1
+  return plannerMapsCreated
+}
+
+export function plannerMapsCreatedCount(): number {
+  return plannerMapsCreated
+}
+
+/**
+ * The pre-premium OpenFreeMap styles, chosen by the same experience the
+ * premium renderer reads. Night stays a lighting choice for the rider even
+ * though MapLibre can only express it as a different style.
+ */
+function maplibreStyleUrl(experience: MapExperienceConfig): string {
+  if (experience.lightPreset === "night") return mapStyleUrl("night")
+  if (experience.id === "standard") {
+    return process.env.NEXT_PUBLIC_MAP_STYLE_URL || mapStyleUrl("clean")
+  }
+  return mapStyleUrl("explorer")
+}
 
 export interface StageLayerPlacement {
   slot: SwitchbackMapSlot
@@ -42,7 +83,7 @@ export type PlannerMapModule = unknown
 
 export interface CreatePlannerMapOptions {
   container: HTMLDivElement
-  mapStyle: MapStyleId
+  experience: MapExperienceConfig
   center: [number, number]
   zoom: number
   onLocateMe(point: { lat: number; lon: number }): void
@@ -55,10 +96,17 @@ export interface PlannerMapRenderer {
   /** Mapbox does not support data-driven `line-dasharray`; MapLibre does. */
   supportsDataDrivenDash: boolean
   /**
-   * Styles that share a key share one map instance. Mapbox Standard expresses
-   * day/night as configuration, so switching does not cost another map load.
+   * Standard's lighting dims unlit custom layers at dusk and night, and
+   * `*-emissive-strength` is how a layer opts out. It is a Standard concept,
+   * so the fallback renderer simply has nothing to set.
    */
-  styleKey(mapStyle: MapStyleId): string
+  supportsEmissiveStrength: boolean
+  /**
+   * Experiences that share a key share one map instance. Mapbox Standard
+   * expresses mode and lighting as configuration, so ordinary switching costs
+   * no additional map load.
+   */
+  styleKey(experience: MapExperienceConfig): string
   /** Loads the renderer bundle. Safe to abandon: nothing is constructed yet. */
   load(): Promise<PlannerMapModule>
   /** Constructs the map. Only call this once the mount is known to be live. */
@@ -70,8 +118,8 @@ export interface PlannerMapRenderer {
    * because a cross-slot `beforeId` is rejected.
    */
   moveLayer(map: PlannerMap, layerId: string, beforeId: string): void
-  /** Applies the presentation profile for the current style and surface. */
-  applyExperience(map: PlannerMap, mapStyle: MapStyleId, surface: "planning" | "ride"): void
+  /** Applies the presentation profile to a live map. */
+  applyExperience(map: PlannerMap, experience: MapExperienceConfig): void
 }
 
 interface GlControls {
@@ -129,15 +177,14 @@ export const maplibreRenderer: PlannerMapRenderer = {
   id: "maplibre",
   boldFont: ["Noto Sans Bold"],
   supportsDataDrivenDash: true,
-  styleKey: (mapStyle) => `maplibre:${mapStyle}`,
+  supportsEmissiveStrength: false,
+  styleKey: (experience) => `maplibre:${maplibreStyleUrl(experience)}`,
   load: () => import("maplibre-gl"),
   create(module, options) {
     const maplibre = module as typeof import("maplibre-gl")
     const map = new maplibre.Map({
       container: options.container,
-      style: options.mapStyle === "clean" && process.env.NEXT_PUBLIC_MAP_STYLE_URL
-        ? process.env.NEXT_PUBLIC_MAP_STYLE_URL
-        : mapStyleUrl(options.mapStyle),
+      style: maplibreStyleUrl(options.experience),
       center: options.center,
       zoom: options.zoom,
       minZoom: 4,
@@ -154,7 +201,8 @@ export const maplibreRenderer: PlannerMapRenderer = {
     map.moveLayer(layerId, beforeId)
   },
   applyExperience() {
-    // MapLibre styles carry their own presentation; nothing to configure.
+    // A MapLibre style carries its own presentation, so a change of experience
+    // is a change of style URL — which `styleKey` already turns into a new map.
   }
 }
 
@@ -163,16 +211,11 @@ export const mapboxRenderer: PlannerMapRenderer = {
   // Standard's glyph endpoint serves the Mapbox font stack, not Noto.
   boldFont: ["DIN Pro Bold", "Arial Unicode MS Bold"],
   supportsDataDrivenDash: false,
-  styleKey(mapStyle) {
-    const experience = resolveMapExperience({
-      mode: visualModeForMapStyle(mapStyle),
-      surface: "planning",
-      lightPreset: "day"
-    })
-    // Day/night is configuration on the same Standard style, so only a real
-    // style change recreates the map.
-    return `mapbox:${experience.style}`
-  },
+  supportsEmissiveStrength: true,
+  // Mode and lighting are configuration on the style, so only Standard vs
+  // Standard Satellite is a genuinely different style — and therefore the only
+  // switch that costs another map load.
+  styleKey: (experience) => `mapbox:${experience.style}`,
   async load() {
     const status = mapboxRendererStatus()
     if (!status.enabled) throw new Error(`mapbox renderer unavailable: ${status.reason}`)
@@ -182,11 +225,8 @@ export const mapboxRenderer: PlannerMapRenderer = {
   },
   create(module, options) {
     const mapboxgl = module as (typeof import("mapbox-gl"))["default"]
-    const experience = resolveMapExperience({
-      mode: visualModeForMapStyle(options.mapStyle),
-      surface: "planning",
-      lightPreset: lightPresetForMapStyle(options.mapStyle, undefined)
-    })
+    const experience = options.experience
+    countPlannerMapCreated()
     const map = new mapboxgl.Map({
       container: options.container,
       style: experience.style,
@@ -198,6 +238,19 @@ export const mapboxRenderer: PlannerMapRenderer = {
       config: { basemap: standardConfigProperties(experience) }
     } as ConstructorParameters<(typeof import("mapbox-gl"))["default"]["Map"]>[0]) as unknown as PlannerMap
     addStandardControls(map, mapboxgl as unknown as GlControls, options)
+    // Terrain needs its DEM source, and the source outlives style config
+    // changes, so it is added once per map rather than per experience change.
+    map.on("style.load", () => {
+      if (!map.getSource(TERRAIN_SOURCE)) {
+        map.addSource(TERRAIN_SOURCE, {
+          type: "raster-dem",
+          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+          tileSize: 512,
+          maxzoom: 14
+        })
+      }
+      mapboxRenderer.applyExperience(map, experience)
+    })
     return map
   },
   addLayer(map, spec, placement) {
@@ -210,18 +263,26 @@ export const mapboxRenderer: PlannerMapRenderer = {
   moveLayer(map, layerId) {
     map.moveLayer(layerId)
   },
-  applyExperience(map, mapStyle, surface) {
-    const experience = resolveMapExperience({
-      mode: visualModeForMapStyle(mapStyle),
-      surface,
-      lightPreset: lightPresetForMapStyle(mapStyle, undefined)
-    })
-    const configurable = map as unknown as {
+  applyExperience(map, experience) {
+    const premium = map as unknown as {
       setConfigProperty(importId: string, name: string, value: unknown): void
+      setTerrain(terrain: { source?: string; exaggeration: number } | null): void
+      setFog(fog: Record<string, unknown> | null): void
+      getSource(id: string): unknown
     }
-    if (typeof configurable.setConfigProperty !== "function") return
+    if (typeof premium.setConfigProperty !== "function") return
     for (const [name, value] of Object.entries(standardConfigProperties(experience))) {
-      configurable.setConfigProperty("basemap", name, value)
+      premium.setConfigProperty("basemap", name, value)
+    }
+    // Terrain and atmosphere are map-level, not style config. Both are removed
+    // rather than flattened when the experience does not want them.
+    if (typeof premium.setTerrain === "function" && premium.getSource(TERRAIN_SOURCE)) {
+      premium.setTerrain(
+        experience.terrain ? { source: TERRAIN_SOURCE, exaggeration: experience.terrain.exaggeration } : null
+      )
+    }
+    if (typeof premium.setFog === "function") {
+      premium.setFog(experience.atmosphere ? ATMOSPHERE : null)
     }
   }
 }

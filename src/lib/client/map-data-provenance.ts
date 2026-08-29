@@ -139,7 +139,7 @@ export function verifyProvenance(): ProvenanceVerification {
   const allCatalogIds = new Set(layerCatalog.map((layer) => layer.id))
   const allDefinedIds = new Set<RiderLayerId>([
     "curvature", "unpaved", "topo", "satellite", "terrain",
-    "public-land", "private-land", "mvum", "closures", "traffic",
+    "public-land", "private-land", "mvum", "closures", "road-controls",
     "weather", "fuel", "food", "camping", "lodging", "repair",
     "cell-coverage"
   ])

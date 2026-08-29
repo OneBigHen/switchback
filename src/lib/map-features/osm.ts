@@ -77,7 +77,7 @@ const OVERPASS_SELECTORS: Partial<Record<RiderLayerId, string[]>> = {
     'way["highway"="construction"]',
     'way["construction"]["highway"]'
   ],
-  traffic: [
+  "road-controls": [
     'node["highway"="traffic_signals"]',
     'node["highway"="stop"]'
   ],
@@ -136,7 +136,7 @@ function featureLayer(element: OverpassElement, requested: RiderLayerId[]): Ride
   if (requested.includes("private-land") && (tags.access === "private" || tags.access === "no")) return "private-land"
   if (requested.includes("mvum") && (/forest service/i.test(tags.operator ?? "") || /^FS /i.test(tags.ref ?? ""))) return "mvum"
   if (requested.includes("closures") && (tags.highway === "construction" || Boolean(tags.construction))) return "closures"
-  if (requested.includes("traffic") && (tags.highway === "traffic_signals" || tags.highway === "stop")) return "traffic"
+  if (requested.includes("road-controls") && (tags.highway === "traffic_signals" || tags.highway === "stop")) return "road-controls"
   if (requested.includes("fuel") && tags.amenity === "fuel") return "fuel"
   if (requested.includes("food") && ["restaurant", "fast_food", "cafe"].includes(tags.amenity ?? "")) return "food"
   if (requested.includes("camping") && ["camp_site", "caravan_site"].includes(tags.tourism ?? "")) return "camping"
