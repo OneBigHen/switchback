@@ -103,11 +103,20 @@
   padding: 16px 18px;
 }
 
-/* The map's own controls sit bottom-right by default, which is exactly where
-   the panel now is; lift them clear of it. */
-.free-ride-hud ~ .map-stage .maplibregl-ctrl-bottom-right,
-.map-stage.is-free-ride .maplibregl-ctrl-bottom-right {
-  bottom: 320px;
+/* The map's zoom column sits bottom-right, which is where both riding HUDs put
+   their instruments, so on a large phone the buttons end up buried under them.
+   `expectInteractiveElementsUnclipped` reports them obscured at their centre on
+   Free Ride and on active navigation alike, and it predates this panel — it
+   only stayed invisible because the mobile-QA job never got past its earlier
+   failures to reach the large-phone layout suite.
+
+   Riding surfaces own the whole screen by design and the map follows the rider,
+   so the chrome goes rather than being pushed into the middle of the canvas —
+   the same call the planner already makes at the full sheet detent. Pinch zoom
+   still works and attribution stays. `ride-mode-active` is set on <body> by
+   both RideHud and FreeRideHud. */
+body.ride-mode-active .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+  display: none;
 }
 
 @media (max-width: 760px) {
