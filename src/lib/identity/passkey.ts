@@ -18,6 +18,26 @@ export interface StoredPasskeyCredential {
 const DEFAULT_CHALLENGE_TTL_MS = 5 * 60 * 1_000
 const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1_000
 
+export interface SessionConfigurationStatus {
+  ok: boolean
+  code?: "SWITCHBACK_SESSION_SECRET"
+  message?: string
+}
+
+export function getSessionConfigurationStatus(environment: {
+  NODE_ENV?: string
+  SWITCHBACK_SESSION_SECRET?: string
+} = process.env): SessionConfigurationStatus {
+  if (environment.NODE_ENV !== "production" || (environment.SWITCHBACK_SESSION_SECRET?.length ?? 0) >= 32) {
+    return { ok: true }
+  }
+  return {
+    ok: false,
+    code: "SWITCHBACK_SESSION_SECRET",
+    message: "SWITCHBACK_SESSION_SECRET must be configured with at least 32 characters."
+  }
+}
+
 function encode(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url")
 }

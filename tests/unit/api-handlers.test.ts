@@ -551,6 +551,27 @@ describe("supporting HTTP contracts", () => {
     })
   })
 
+  it("fails production health clearly when Switchback ID session signing is not configured", async () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("SWITCHBACK_SESSION_SECRET", "")
+    try {
+      const health = await getSystemHealth({
+        routerBaseUrl: "http://router.test",
+        fetcher: vi.fn(async () => new Response("OK", { status: 200 }))
+      })
+      expect(health).toMatchObject({
+        ok: false,
+        identity: {
+          ok: false,
+          code: "SWITCHBACK_SESSION_SECRET"
+        },
+        configurationIssues: ["SWITCHBACK_SESSION_SECRET"]
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it("reports Valhalla independently without making the optional provider a readiness gate", async () => {
     const fetcher = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)

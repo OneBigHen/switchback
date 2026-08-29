@@ -1,3 +1,4 @@
+import { getSessionConfigurationStatus } from "@/lib/identity/passkey"
 import { readServerRuntimeDiagnostics } from "@/lib/server/runtime-diagnostics"
 
 export interface HealthOptions {
@@ -51,11 +52,15 @@ export async function getSystemHealth(options: HealthOptions) {
   const degradedProviders = Object.entries(providers)
     .filter(([, provider]) => !provider.ok)
     .map(([name]) => name)
+  const identity = getSessionConfigurationStatus()
+  const configurationIssues = identity.ok || !identity.code ? [] : [identity.code]
 
   return {
-    ok: router.ok,
-    degraded: Boolean(valhalla && !valhalla.ok),
+    ok: router.ok && identity.ok,
+    degraded: Boolean(valhalla && !valhalla.ok) || !identity.ok,
     app: { ok: true },
+    identity,
+    configurationIssues,
     router,
     providers,
     degradedProviders,

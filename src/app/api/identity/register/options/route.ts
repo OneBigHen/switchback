@@ -3,6 +3,8 @@ import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { sanitizePlainText } from "@/lib/community/contracts"
 import { getIdentityRuntime, type IdentityRuntime } from "@/app/api/identity/context"
+import { getSessionConfigurationStatus } from "@/lib/identity/passkey"
+import { WebAuthnConfigError } from "@/lib/identity/webauthn"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -21,6 +23,10 @@ export async function handleIdentityRegistrationOptions(
 ): Promise<Response> {
   const requestId = readRequestId(request)
   try {
+    const sessionConfiguration = getSessionConfigurationStatus()
+    if (!sessionConfiguration.ok) {
+      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
+    }
     const body = await readBoundedJsonBody(request, 8 * 1024)
     const identityId = runtime.store.createIdentity(displayName(body))
     const challenge = runtime.challenges.issue("registration", identityId)
@@ -39,6 +45,7 @@ export async function handleIdentityRegistrationOptions(
     return jsonWithRequestId({ challengeId: challenge.id, options }, requestId)
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That passkey request is too large.", 413, requestId)
+    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
     return apiErrorResponse("INVALID_PASSKEY_OPTIONS", "Passkey registration could not start.", 400, requestId)
   }
 }

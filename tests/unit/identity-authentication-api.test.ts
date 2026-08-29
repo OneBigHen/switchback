@@ -13,7 +13,8 @@ const secret = "s".repeat(32)
 const resources: Array<{ repository: CommunityRepository; directory: string }> = []
 
 afterEach(() => {
-  process.env.SWITCHBACK_SESSION_SECRET = undefined
+  vi.unstubAllEnvs()
+  delete process.env.SWITCHBACK_SESSION_SECRET
   for (const resource of resources.splice(0)) {
     resource.repository.close()
     rmSync(resource.directory, { recursive: true, force: true })
@@ -125,5 +126,43 @@ describe("WebAuthn authentication API", () => {
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ error: { code: "PASSKEY_VERIFICATION_FAILED" } })
     expect(response.headers.get("set-cookie")).toBeNull()
+  })
+
+  it("fails clearly when production session configuration is missing", async () => {
+    const { context } = runtime()
+    const issued = await options(context)
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("SWITCHBACK_SESSION_SECRET", "")
+
+    const response = await handleIdentityAuthenticationVerify(new Request("http://localhost:3000/api/identity/authenticate/verify", {
+      method: "POST",
+      body: JSON.stringify({ challengeId: issued.challengeId, response: { id: "credential-auth-1" } })
+    }), context)
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toMatchObject({
+      error: {
+        code: "IDENTITY_CONFIGURATION_MISSING",
+        message: "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET."
+      }
+    })
+    expect(response.headers.get("set-cookie")).toBeNull()
+  })
+
+  it("does not issue a passkey challenge when production identity configuration is missing", async () => {
+    const { context } = runtime()
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("SWITCHBACK_SESSION_SECRET", "")
+
+    const response = await handleIdentityAuthenticationOptions(new Request("http://localhost:3000/api/identity/authenticate/options", {
+      method: "POST",
+      body: "{}"
+    }), context)
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toMatchObject({
+      error: { code: "IDENTITY_CONFIGURATION_MISSING" }
+    })
+    expect(context.challenges.size()).toBe(0)
   })
 })
