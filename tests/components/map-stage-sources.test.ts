@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import { updateReferenceMapSource } from "@/components/planner/map-stage-sources"
+import { maplibreRenderer } from "@/components/planner/planner-map-renderer"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 
 function referenceMap(): ReferenceMap {
@@ -33,7 +34,7 @@ describe("reference map source lifecycle", () => {
       removeSource: vi.fn()
     } as unknown as MapLibreMap
 
-    updateReferenceMapSource(map, referenceMap())
+    updateReferenceMapSource(map, referenceMap(), maplibreRenderer)
 
     expect(addSource).toHaveBeenCalledWith("switchback-reference-map", expect.objectContaining({
       type: "image",
@@ -56,7 +57,7 @@ describe("reference map source lifecycle", () => {
       removeSource
     } as unknown as MapLibreMap
 
-    updateReferenceMapSource(map, null)
+    updateReferenceMapSource(map, null, maplibreRenderer)
 
     expect(removeLayer).toHaveBeenCalledWith("switchback-reference-map-layer")
     expect(removeSource).toHaveBeenCalledWith("switchback-reference-map")

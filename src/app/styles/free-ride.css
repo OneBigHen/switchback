@@ -115,7 +115,8 @@
    the same call the planner already makes at the full sheet detent. Pinch zoom
    still works and attribution stays. `ride-mode-active` is set on <body> by
    both RideHud and FreeRideHud. */
-body.ride-mode-active .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+body.ride-mode-active .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group,
+body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
   display: none;
 }
 
