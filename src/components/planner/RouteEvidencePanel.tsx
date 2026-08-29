@@ -9,8 +9,15 @@ function unpavedPercent(route: PlannedRoute): number {
   ))
 }
 
+function hasKnownSurfaceData(route: PlannedRoute): boolean {
+  return Object.entries(route.surfaceMix).some(
+    ([surface, share]) => surface.toLowerCase() !== "unknown" && Number.isFinite(share) && share > 0
+  )
+}
+
 export function RouteEvidencePanel({ route }: { route: PlannedRoute }) {
   const official = route.officialUnpavedEvidence
+  const hasSurfaceData = hasKnownSurfaceData(route)
   return (
     <section className="route-evidence" aria-label="Why this route was chosen">
       <div className="section-heading compact">
@@ -21,7 +28,9 @@ export function RouteEvidencePanel({ route }: { route: PlannedRoute }) {
       </div>
       <ul>
         <li><CheckCircle aria-hidden="true" /><span><strong>Road character</strong>{Math.round(route.twistiness)}/100 curve signal · {route.turnCount} mapped turns</span></li>
-        <li><CheckCircle aria-hidden="true" /><span><strong>Surface mix</strong>{unpavedPercent(route)}% non-paved mix from routing tags; verify conditions before committing.</span></li>
+        <li>{hasSurfaceData ? <CheckCircle aria-hidden="true" /> : <Info aria-hidden="true" />}<span><strong>Surface mix</strong>{hasSurfaceData
+          ? `${unpavedPercent(route)}% non-paved mix from routing tags; verify conditions before committing.`
+          : "Surface data unavailable."}</span></li>
         <li>{official ? <CheckCircle aria-hidden="true" /> : <Info aria-hidden="true" />}<span><strong>Access evidence</strong>{official
           ? `${official.sharePercent.toFixed(1)}% aligns with official PA unpaved-road data.`
           : "No official access overlay matched this route in the current region."}</span></li>

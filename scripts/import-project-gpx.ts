@@ -4,7 +4,7 @@ import { createReadStream } from "node:fs"
 import { copyFile, mkdir, rename, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { analyzeGeometry, haversine } from "../src/lib/routing/scoring"
-import { areGpxFingerprintsNear, normalizeGpxDocument, type GpxGeometryFingerprint, type NormalizedGpxRoute } from "../src/lib/gpx/corpus-ingest"
+import { areGpxFingerprintsNear, splitGpxDocument, type GpxGeometryFingerprint, type NormalizedGpxRoute } from "../src/lib/gpx/corpus-ingest"
 import { mapMatchGpxStream, type GpxMapMatchResult } from "../src/lib/gpx/map-matching"
 import { analyzeGpxIntelligence, type GpxIntelligenceReport } from "../src/lib/gpx/intelligence"
 import { GpxStreamParser, type GpxStreamDocument } from "../src/lib/gpx/streaming-parser"
@@ -159,19 +159,34 @@ function routeWaypoints(normalized: NormalizedGpxRoute): Waypoint[] {
   ]
 }
 
-async function buildRouteArtifact(
+async function buildRouteArtifacts(
   group: SourceFileGroup,
   id: string,
   primary: string,
   sources: string[]
-): Promise<{ artifact: ImportedRouteArtifact; normalized: NormalizedGpxRoute }> {
+): Promise<{ artifact: ImportedRouteArtifact; normalized: NormalizedGpxRoute }[]> {
   if (!group.document) throw new Error(group.parseError ?? "GPX parsing failed")
-  const normalized = normalizeGpxDocument(group.document, { id, fileName: path.basename(primary) })
+  // Route-sharing exports often pack a rider's whole collection into one file.
+  // Flattened, those became a single implausible route made mostly of
+  // straight-line jumps between towns; split, each ride keeps its own geometry.
+  const rides = splitGpxDocument(group.document, { id, fileName: path.basename(primary) })
+  // Map matching consumes the source file as a whole, so a per-ride result is
+  // not available for a split file. Claiming the file-level match for each ride
+  // would attribute another ride's matched distance, so it is reported as such.
+  const mapMatch = rides.length > 1
+    ? { status: "unmatched" as const, provider: null, profile: null, message: "Source file contained several rides; matched per file, not per ride." }
+    : await mapMatchGpxStream(readGpxSource(primary), { endpoint: matchEndpoint, profile: matchProfile })
+  return rides.map((normalized) => buildOneArtifact(normalized, group, sources, mapMatch))
+}
+
+function buildOneArtifact(
+  normalized: NormalizedGpxRoute,
+  group: SourceFileGroup,
+  sources: string[],
+  mapMatch: GpxMapMatchResult
+): { artifact: ImportedRouteArtifact; normalized: NormalizedGpxRoute } {
+  const id = normalized.id
   const analysis = analyzeGeometry(normalized.geometry)
-  const mapMatch = await mapMatchGpxStream(readGpxSource(primary), {
-    endpoint: matchEndpoint,
-    profile: matchProfile
-  })
   const gpxIntelligence = analyzeGpxIntelligence(normalized, mapMatch)
   const artifact: ImportedRouteArtifact = {
     id,
@@ -318,13 +333,15 @@ for (const group of byHash.values()) {
   const primary = primaryPath(group.paths)
   const sources = group.paths.map(relativeSource).toSorted()
   try {
-    const { artifact, normalized } = await buildRouteArtifact(group, id, primary, sources)
+    const built = await buildRouteArtifacts(group, id, primary, sources)
+    // Sources are copied once per file, under the file's own id, however many
+    // rides came out of it.
     await copySources(group.paths, path.join(originalsDirectory, id))
-    entries.push({
+    for (const { artifact, normalized } of built) entries.push({
       artifact,
       fingerprint: normalized.fingerprint,
       summary: {
-        id,
+        id: artifact.id,
         name: artifact.name,
         distanceMiles: artifact.distanceMiles,
         durationMinutes: artifact.durationMinutes,

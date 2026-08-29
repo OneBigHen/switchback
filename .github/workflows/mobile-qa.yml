@@ -1,0 +1,48 @@
+name: Mobile QA Level A
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: switchback-mobile-qa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-qa:
+    name: WebKit and Chromium mobile QA
+    runs-on: ubuntu-latest
+    # FAST (50) + PREPARE (7) + FULL (110) on one worker. The original 25 was
+    # calibrated while the suite still failed early; a fully passing run needs
+    # roughly 28 minutes, so give it headroom rather than cancelling mid-FULL.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:e2e:mobile-qa
+      - name: Mobile QA PREPARE
+        env:
+          MOBILE_QA_ARTIFACT_ROOT: artifacts/mobile-qa/runs/prepare-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run test:e2e:mobile-qa:prepare
+      - name: Mobile QA FULL
+        env:
+          MOBILE_QA_ARTIFACT_ROOT: artifacts/mobile-qa/runs/full-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run test:e2e:mobile-qa:expanded
+      - name: Upload complete mobile QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-qa-level-a
+          path: artifacts/mobile-qa
+          if-no-files-found: error
+          retention-days: 14

@@ -279,6 +279,20 @@ npx playwright install chromium webkit
 npm run test:e2e
 ```
 
+For the routine Level A mobile gate (WebKit/iPhone approximation primary,
+Chromium comparison), see [the mobile QA contract](docs/quality/LEVEL_A_MOBILE_QA.md):
+
+```bash
+npx playwright install chromium webkit
+npm run test:e2e:mobile-qa
+# Full viewport/orientation matrix:
+npm run test:e2e:mobile-qa:expanded
+```
+
+Playwright WebKit is not iOS Safari and does not prove an installed iOS PWA;
+release summaries must keep those boundaries separate and use `NOT RUN` when
+real-device evidence is unavailable.
+
 Smoke-test a live Pennsylvania route through the public app boundary:
 
 ```bash

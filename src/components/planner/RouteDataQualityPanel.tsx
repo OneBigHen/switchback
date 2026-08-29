@@ -62,7 +62,7 @@ export function RouteDataQualityPanel({ route, segments, sourceMapUpdated }: Rou
         <div>
           <h3>
             <span data-tier={headlineTier}>{result.headlinePercent}%</span>
-            <small>data quality · lowest coverage</small>
+            <small>mapped data coverage</small>
           </h3>
         </div>
         {result.seasonalUncertainty ? (
@@ -76,12 +76,13 @@ export function RouteDataQualityPanel({ route, segments, sourceMapUpdated }: Rou
       <ul className="route-data-quality-bars" aria-label="Coverage bars">
         {BAR_LABELS.map(({ key, label, caveat }) => {
           const percent = coveragePercent(result, key)
-          const tier = tierData(percent)
+          const available = key !== "conditionCoveragePercent" || result.conditionCoverageAvailable
+          const tier = available ? tierData(percent) : "unavailable"
           return (
             <li key={key} className="route-data-quality-bar" data-tier={tier}>
               <div className="route-data-quality-bar-row">
                 <span>{label}</span>
-                <strong>{percent}%</strong>
+                <strong>{available ? `${percent}%` : "Unavailable"}</strong>
               </div>
               <div
                 className="route-data-quality-bar-track"
@@ -89,7 +90,8 @@ export function RouteDataQualityPanel({ route, segments, sourceMapUpdated }: Rou
                 aria-valuenow={percent}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`${label} coverage: ${percent} percent`}
+                aria-label={available ? `${label} coverage: ${percent} percent` : `${label} coverage unavailable`}
+                aria-valuetext={available ? `${percent} percent` : "Unavailable"}
                 title={caveat}
               >
                 <span style={{ width: `${percent}%` }} />

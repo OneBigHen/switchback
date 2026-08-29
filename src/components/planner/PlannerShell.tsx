@@ -74,6 +74,7 @@ import { usePlannerLocationSeed } from "./usePlannerLocationSeed"
 import { usePlannerRideActions } from "./usePlannerRideActions"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
+import { useProviderHealth } from "./ProviderHealthNotice"
 import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
 import { AppNavigation } from "@/components/shell/AppNavigation"
 import { AppShell } from "@/components/shell/AppShell"
@@ -109,6 +110,12 @@ function localPreferenceLearningSettings(): { enabled: boolean; bikeId: string }
   return { enabled: settings.learningEnabled, bikeId: bike.id }
 }
 
+const DISCARD_RECORDING_MESSAGE = "Discard this recording? It has not been saved."
+
+function confirmRecordingDiscard(points: number): boolean {
+  return points < 2 || window.confirm(DISCARD_RECORDING_MESSAGE)
+}
+
 export function PlannerShell() {
   const start = usePlannerStore((state) => state.start)
   const finish = usePlannerStore((state) => state.finish)
@@ -122,6 +129,7 @@ export function PlannerShell() {
   const status = usePlannerStore((state) => state.status)
   const plan = usePlannerStore((state) => state.plan)
   const selectedRouteId = usePlannerStore((state) => state.selectedRouteId)
+  const selectionSource = usePlannerStore((state) => state.selectionSource)
   const isRecalculating = usePlannerStore((state) => state.isRecalculating)
   const error = usePlannerStore((state) => state.error)
   const curvatureVisible = usePlannerStore((state) => state.curvatureVisible)
@@ -193,6 +201,9 @@ export function PlannerShell() {
   const [rideOriginalRouteId, setRideOriginalRouteId] = useState<string | null>(null)
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
+  const plannerVisible = surface !== "ride" && surface !== "free-ride"
+    && navigation.activeTab === "plan" && !sketching
+  const providerHealth = useProviderHealth(plannerVisible)
   const [planningSession] = useState(() => createPlanningSessionController({
     getPlanner: usePlannerStore.getState
   }))
@@ -233,7 +244,9 @@ export function PlannerShell() {
     () => routeEntityCache.getMany(plan?.routes.map((route) => route.id) ?? []),
     [plan]
   )
-  const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null
+  const selectedRoute = routes.length > 1 && selectionSource !== "user"
+    ? null
+    : routes.find((route) => route.id === selectedRouteId) ?? null
   const previousRoute = previousRouteId ? routeEntityCache.get(previousRouteId) ?? null : null
   const rideOriginalRoute = rideOriginalRouteId ? routeEntityCache.get(rideOriginalRouteId) ?? null : null
 
@@ -360,6 +373,7 @@ export function PlannerShell() {
       dispatchNavigation({ type: "restore_tab", tab })
       usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
     }
+    handleBack()
     window.addEventListener("popstate", handleBack)
     return () => window.removeEventListener("popstate", handleBack)
   }, [])
@@ -723,6 +737,7 @@ export function PlannerShell() {
   }
 
   const handleExitFreeRide = () => {
+    if (!confirmRecordingDiscard(recording.state.points.length)) return
     freeRideTransitionRef.current = false
     freeRideSessionRef.current = false
     recording.discard()
@@ -975,6 +990,7 @@ export function PlannerShell() {
       routes: [ride.route, actual],
       warnings: ["Actual ride replay loaded beside the planned route. Imported replay geometry is not silently re-routed."]
     })
+    usePlannerStore.getState().selectRoute(actual.id)
     // Attach the on-track comparison so the route details can show how much
     // of the plan the recorded ride actually followed.
     try {
@@ -1104,6 +1120,7 @@ export function PlannerShell() {
     routeRequestGate.invalidate()
     cancelRideResearch()
     usePlannerStore.getState().clearRoute()
+    usePlannerStore.setState({ selectionSource: "automatic" })
     setPlanMode("destination")
     setTargetMinutes(120)
     setAvoidHighways(false)
@@ -1136,7 +1153,7 @@ export function PlannerShell() {
         <MapCanvas>
           <MapStage
         routes={routes}
-        selectedRouteId={selectedRouteId}
+        selectedRouteId={selectedRoute?.id ?? null}
         start={start}
         finish={finish}
         via={via}
@@ -1256,7 +1273,8 @@ export function PlannerShell() {
             home,
             planningPhase,
             planningStartedAt,
-            isRecalculating
+            isRecalculating,
+            providerHealth
           })}
           commands={{
             waypoint: {
@@ -1387,6 +1405,7 @@ export function PlannerShell() {
             onClearRoute: handleClearRoute,
             onPlan: () => void handlePlan(),
             onCancelPlanning: planningSession.cancel,
+            onRetryProviderHealth: providerHealth.retry,
             onUseCurrentLocation: () => void handleUseCurrentLocation(),
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
@@ -1396,9 +1415,9 @@ export function PlannerShell() {
             onStartFreeRide: handleStartFreeRide,
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
           }}
-          comparison={routes.length > 0 && selectedRouteId ? {
+          comparison={routes.length > 0 ? {
               routes: routes,
-              selectedId: selectedRouteId,
+              selectedId: selectedRoute?.id ?? "",
               onSelect: (id) => usePlannerStore.getState().selectRoute(id),
               onSave: (route) => void handleSave(route),
               onExport: handleExport,
@@ -1454,7 +1473,7 @@ export function PlannerShell() {
           recordedRides={recordedRides}
           trips={savedTrips}
           projectRoutes={projectRoutes}
-          onClose={() => handleAppTab("plan")}
+          onClose={() => applyAppTab("plan", "replace")}
           onLoad={handleLoad}
           onLoadTrip={(trip) => handleLoad(trip.route, trip)}
           onDeleteTrip={(trip) => {
@@ -1532,7 +1551,7 @@ export function PlannerShell() {
           onDiscard={() => {
             // Destructive: discarding an unsaved recording needs a
             // confirmation (SB-027).
-            if (!window.confirm("Discard this recording? It has not been saved.")) return
+            if (!confirmRecordingDiscard(recording.state.points.length)) return
             recording.discard()
             usePlannerStore.getState().setSurface("planner")
           }}
@@ -1545,7 +1564,10 @@ export function PlannerShell() {
             navigationStore.clear()
             if (rideOriginalRouteId) routeEntityCache.release(rideOriginalRouteId)
             setRideOriginalRouteId(null)
-            usePlannerStore.getState().setSurface("planner")
+            // Guidance is an immersive child of the planning flow. Restore
+            // the owning Plan tab as well as the surface so an exit from a
+            // stale/deep-linked tab always returns to the route context.
+            applyAppTab("plan", "replace")
           }}
           onReroute={(rerouted) => {
             // A detour is a new navigable line, never an overwrite of the
@@ -1556,6 +1578,7 @@ export function PlannerShell() {
               routes: [rideOriginalRoute ?? selectedRoute, rerouted],
               warnings: ["Recovery line added. Your original planned route is preserved beside it."]
             })
+            usePlannerStore.getState().selectRoute(rerouted.id)
           }}
           onRideRecorded={(recorded) => {
             void rideJournalLibrary.save(recorded).then((saved) => {

@@ -6,6 +6,9 @@ Switchback is a calm, premium motorcycle-routing instrument: exploratory and
 tactile while planning, spare and high-contrast while riding. The map is the
 workspace. The signature is terrain-aware depth with restrained instrument
 surfaces that organize decisions without turning the ride into a dashboard.
+The primary product flow is Plan → Choose → Prepare → Ride → Recap. Route Atlas
+is a secondary Library collection for browsing and showing imported custom rides;
+it never displaces the map workspace as the product home.
 The existing `design/DESIGN-CONTRACT.md` remains the detailed historical
 reference; this file is the active CINCO implementation contract.
 
@@ -79,6 +82,8 @@ DOM box. Moving states use the `immersive` sheet detent.
 - **States:** default, expanded, collapsed, loading, empty, error.
 - **Accessibility:** 44px handle target, labelled region, focus-visible controls, reduced motion.
 - **Motion:** 220–320ms transform/opacity transition; no layout-property animation.
+- **Gesture:** a deliberate pointer release moves one detent in the drag direction;
+  tap, Enter, and Space provide the same progressive-disclosure path.
 
 ### RouteChoice
 
@@ -86,6 +91,26 @@ DOM box. Moving states use the `immersive` sheet detent.
 - **Variants:** Best Match, Twistiest, Flowiest, Scenic, Fastest baseline.
 - **States:** selected, alternative, loading, unavailable, explicitly selected.
 - **Accessibility:** route profile is not encoded by color alone.
+- **Hierarchy:** rider-language difference and relative tradeoff precede raw score;
+  directions and provenance begin collapsed; Start ride is the selected route's
+  primary action, with Edit and Prepare secondary.
+
+### RouteAtlas
+
+- **Structure:** collection introduction, intrinsic poster gallery, poster detail,
+  route story and facts, and an explicit path back to planning/Library.
+- **Variants:** populated collection, empty collection, full-geometry poster,
+  precomputed preview, and missing-geometry state.
+- **Rule:** poster art explains route shape and curvature but does not imply live
+  navigation, current conditions, or full offline readiness.
+- **Accessibility:** route identity is readable outside the SVG; metadata remains
+  legible at text zoom; the gallery never requires two-dimensional scrolling.
+
+### RiderSession
+
+- **Stages:** Plan, Choose, Prepare, Ride, Recap.
+- **Rule:** each stage exposes one dominant next action and preserves a clear exit
+  or recovery path. Advanced controls remain available one level deeper.
 
 ### RideHud
 

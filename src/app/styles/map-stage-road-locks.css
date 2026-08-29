@@ -262,10 +262,15 @@
 }
 
 @media (max-width: 760px) {
-  .map-road-lock-toggle {
-    top: auto;
-    bottom: max(70dvh + 12px, calc(env(safe-area-inset-bottom) + 70dvh));
-    right: max(16px, env(safe-area-inset-right));
+  /* Mirrors .map-tool-row across the map. Anchoring this to the sheet
+     clearance put it inside the bottom-right maplibre control column (a 156px
+     stack sharing the same baseline), which swallowed its tap target. The top
+     rail is free precisely because the tool row moved left to clear those same
+     controls, and it matches where desktop and short-landscape already sit. */
+  .planner-shell .map-road-lock-toggle {
+    top: max(72px, calc(env(safe-area-inset-top) + 64px));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: auto;
     min-width: 48px;
     padding: 0 10px;
   }

@@ -56,8 +56,7 @@ export function tabFromLocation(url: string): AppTab {
 }
 
 export function createInitialAppNavigationState(theme: ThemePreference): AppNavigationState {
-  const tab = typeof window === "undefined" ? "plan" : tabFromLocation(window.location.href)
-  return { activeTab: tab, overlays: [], backStack: [], theme }
+  return { activeTab: "plan", overlays: [], backStack: [], theme }
 }
 
 export function appNavigationReducer(

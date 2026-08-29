@@ -14,8 +14,7 @@ export type ContextSheetDetent =
   | "immersive"
   | "closed"
 
-/** Spec target: peek exposes roughly 100–130 CSS px of content. */
-export const CONTEXT_SHEET_PEEK_HEIGHT_PX = 112
+export const CONTEXT_SHEET_PEEK_HEIGHT_PX = 146
 /** Spec target: half covers roughly 45–55% of application content height. */
 export const CONTEXT_SHEET_HALF_FRACTION = 0.5
 /** Spec target: full covers roughly 85–92% of application content height. */

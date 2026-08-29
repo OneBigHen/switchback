@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRight, Eye, EyeSlash, FileArrowUp, Folder, Lock, MagnifyingGlass, MapTrifold, Path, Tag, Trash, X } from "@phosphor-icons/react"
+import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RoadLock, RoadLockMode } from "@/lib/roads/road-locks"
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
@@ -339,7 +340,7 @@ export function LibraryDrawer({
           <input
             type="search"
             aria-label="Search ride library"
-            placeholder={`Search ${projectRoutes.length + routes.length} rides`}
+            placeholder={`Search ${routes.length} saved rides and ${projectRoutes.length} imported variants`}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
@@ -465,6 +466,14 @@ export function LibraryDrawer({
               <option value="variants-desc">Most variants</option>
             </select>
           </div>
+        ) : null}
+
+        {projectRoutes.length > 0 ? (
+          <Link className="atlas-drawer-link" href="/gpx-library">
+            <span className="atlas-drawer-posters" aria-hidden="true"><i /><i /><i /></span>
+            <span className="atlas-drawer-copy"><strong>Route atlas</strong><small>{projectRoutes.length} imported route variants · browse unique route posters</small></span>
+            <ArrowRight aria-hidden="true" />
+          </Link>
         ) : null}
 
         {visibleSavedRoutes.length === 0 && projectLibrary.groups.length === 0 && recordedRides.length === 0 && visibleTrips.length === 0 ? (
@@ -607,7 +616,7 @@ export function LibraryDrawer({
             </section> : null}
             {projectLibrary.groups.length > 0 ? <section>
               <div className="library-section-title">
-                <span>Imported projects</span>
+                <span>Imported route variants</span>
                 <strong>{projectLibrary.visibleRoutes}</strong>
               </div>
               {projectSort === "name" ? (

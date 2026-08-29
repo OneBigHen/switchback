@@ -14,8 +14,7 @@
  */
 
 import {
-  CONTEXT_SHEET_FULL_FRACTION,
-  CONTEXT_SHEET_HALF_FRACTION,
+  sheetVisibleHeight,
   type ContextSheetDetent
 } from "./context-sheet-state"
 
@@ -73,8 +72,6 @@ const PLANNING_SHORT_LANDSCAPE_BOTTOM_INSET_PX = 170
  * (`bottom: calc(84px + safe-area)` in switchback-v1.css).
  */
 const PLANNING_PHONE_SHEET_ANCHOR_PX = 84
-/** Rendered peek height (`.planner-deck.is-minimized` in switchback-v1.css). */
-const PLANNING_PHONE_SHEET_PEEK_HEIGHT_PX = 146
 /** Keep at least a slim map strip (top inset + one gutter) when the full
  *  sheet math would otherwise consume the whole viewport. */
 const PLANNING_PHONE_FULL_MIN_MAP_PX = 60
@@ -147,13 +144,10 @@ function sheetDetentBottomInset(
       return PLANNING_PHONE_SHEET_BOTTOM_INSET_PX
     case "peek":
       // Rendered peek height plus the navigation-rail anchor it floats on.
-      return PLANNING_PHONE_SHEET_PEEK_HEIGHT_PX + PLANNING_PHONE_SHEET_ANCHOR_PX + MAP_VIEWPORT_GUTTER_PX
+      return sheetVisibleHeight(detent, viewportHeightPx) + PLANNING_PHONE_SHEET_ANCHOR_PX + MAP_VIEWPORT_GUTTER_PX
     case "half":
     case "full": {
-      const fraction = detent === "half"
-        ? CONTEXT_SHEET_HALF_FRACTION
-        : CONTEXT_SHEET_FULL_FRACTION
-      const sheetPx = Math.round(viewportHeightPx * fraction)
+      const sheetPx = sheetVisibleHeight(detent, viewportHeightPx)
       const inset = sheetPx + PLANNING_PHONE_SHEET_ANCHOR_PX + MAP_VIEWPORT_GUTTER_PX
       // The full sheet may mathematically cover the viewport; the camera
       // still needs a visible map strip to fit into.

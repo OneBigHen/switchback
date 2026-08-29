@@ -10,7 +10,15 @@
   border-radius: 18px;
   background: var(--machined);
   box-shadow: -30px 0 80px rgb(0 0 0 / 38%);
-  animation: drawer-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: library-drawer-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Keep geometry assertions and assistive hit testing truthful while the
+   drawer enters: translating an inset dialog briefly moves it outside the
+   visual viewport before the animation settles. */
+@keyframes library-drawer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .library-drawer > header {
@@ -58,6 +66,7 @@
   width: 1px;
   height: 1px;
   opacity: 0;
+  pointer-events: none;
 }
 
 .import-lock-wrap .import-lock-button {
@@ -534,7 +543,10 @@
   gap: 6px;
   border-color: var(--signal);
   background: var(--signal);
-  color: #fff;
+  /* `--signal` is tuned as a foreground on the dark HUD, so it is a pale blue.
+     Used as a fill it needs dark ink, not white — white on it measured 1.58:1,
+     on the one button the whole feature exists to offer. */
+  color: var(--machined);
 }
 
 .free-ride-empty {
@@ -1582,7 +1594,7 @@
 }
 
 .library-project-row .library-variant-select {
-  min-height: 38px;
+  min-height: var(--sb-touch-target);
   margin-bottom: 2px;
   border-color: transparent;
   background-color: #f4f1ec;
@@ -1663,10 +1675,10 @@
 
 @media (max-width: 760px) {
     .library-drawer {
-      top: 8px;
-      right: 8px;
+      top: max(8px, env(safe-area-inset-top));
+      right: max(8px, env(safe-area-inset-right));
       bottom: max(8px, env(safe-area-inset-bottom));
-      left: 8px;
+      left: max(8px, env(safe-area-inset-left));
       width: auto;
       padding: 18px 16px max(20px, env(safe-area-inset-bottom));
       border-radius: 22px;
@@ -1713,6 +1725,22 @@
       justify-content: center;
     }
 
+    .library-drawer .import-lock-wrap .import-lock-button {
+      width: var(--sb-touch-target);
+      min-width: var(--sb-touch-target);
+      min-height: var(--sb-touch-target);
+      justify-content: center;
+    }
+
+    .library-drawer .import-lock-wrap .import-lock-button > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
     .library-drawer .import-route-button > span {
       position: absolute;
       width: 1px;
@@ -1734,4 +1762,127 @@
     .library-load small {
       font-size: 8px;
     }
+}
+
+/* The shortest supported phone viewport needs a single, ordered Free Ride
+   stack. Keep this scoped to the HUD so the shared ride surfaces retain their
+   normal mobile geometry. */
+@media (max-width: 360px) and (max-height: 600px) {
+  .ride-hud.free-ride-hud .free-ride-topbar {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    left: max(8px, env(safe-area-inset-left));
+  }
+
+  .ride-hud.free-ride-hud .free-ride-main {
+    top: calc(124px + env(safe-area-inset-top));
+    gap: 4px;
+    width: calc(100vw - 16px);
+  }
+
+  .ride-hud.free-ride-hud .free-ride-speed {
+    width: 76px;
+    height: 76px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-speed strong {
+    font-size: 42px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-heading {
+    gap: 1px;
+    padding: 5px 10px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-heading strong {
+    font-size: 13px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion,
+  .ride-hud.free-ride-hud .free-ride-empty {
+    top: calc(268px + env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: auto;
+    left: max(8px, env(safe-area-inset-left));
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 8px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion h2 {
+    display: -webkit-box;
+    margin-top: 3px;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.15;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion-reasons {
+    display: block;
+    max-height: 14px;
+    margin: 4px 0;
+    overflow: hidden;
+    padding-left: 14px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion-reasons li:not(:first-child) {
+    display: none;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion-reasons li:first-child {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion-actions {
+    gap: 4px;
+    margin-top: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion-actions button {
+    min-width: 0;
+    min-height: var(--sb-touch-target);
+    padding: 0 4px;
+    font-size: 9px;
+    line-height: 1.1;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-suggestion-actions .free-ride-accept {
+    grid-column: auto;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-telemetry {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(var(--sb-touch-target) + var(--sb-space-4) + var(--sb-space-2) + env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    width: auto;
+    min-height: 62px;
+    padding: 8px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-telemetry span {
+    font-size: 7px;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-controls {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    width: auto;
+  }
+
+  .ride-hud.free-ride-hud .free-ride-controls button {
+    min-width: 0;
+    min-height: var(--sb-touch-target);
+    padding: 0 4px;
+    line-height: 1.1;
+  }
 }

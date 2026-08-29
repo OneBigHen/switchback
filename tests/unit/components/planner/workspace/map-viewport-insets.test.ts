@@ -4,6 +4,7 @@ import {
   calculateMapViewportInsets,
   calculateNavigationFollowInsets
 } from "@/components/planner/workspace/map-viewport-insets"
+import { CONTEXT_SHEET_PEEK_HEIGHT_PX } from "@/components/planner/workspace/context-sheet-state"
 
 /**
  * Golden values captured from the legacy implementations this module
@@ -54,13 +55,14 @@ describe("calculateMapViewportInsets — route-fit goldens", () => {
 
   it("reserves a distinct bottom occlusion per sheet detent (UX-004)", () => {
     const base = { ...PHONE_PORTRAIT, mode: "planning" as const }
-    // Peek reserves its rendered 146px sheet plus the 84px navigation-rail
+    expect(CONTEXT_SHEET_PEEK_HEIGHT_PX).toBe(146)
+    // Peek reserves its rendered sheet height plus the 84px navigation-rail
     // anchor and one gutter; half and full reserve their container fractions
     // (capped so the full sheet cannot consume the entire viewport).
     const peek = calculateMapViewportInsets({ ...base, sheetDetent: "peek" }).bottom
     const half = calculateMapViewportInsets({ ...base, sheetDetent: "half" }).bottom
     const full = calculateMapViewportInsets({ ...base, sheetDetent: "full" }).bottom
-    expect(peek).toBe(146 + 84 + MAP_VIEWPORT_GUTTER_PX)
+    expect(peek).toBe(CONTEXT_SHEET_PEEK_HEIGHT_PX + 84 + MAP_VIEWPORT_GUTTER_PX)
     expect(half).toBe(Math.round(PHONE_PORTRAIT.viewportHeightPx * 0.5) + 84 + MAP_VIEWPORT_GUTTER_PX)
     expect(full).toBe(Math.min(
       Math.round(PHONE_PORTRAIT.viewportHeightPx * 0.88) + 84 + MAP_VIEWPORT_GUTTER_PX,

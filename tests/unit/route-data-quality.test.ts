@@ -81,12 +81,27 @@ describe("route data quality", () => {
     const route = plannedRoute({ surfaceMix: {} })
     const result = computeRouteDataQuality({ route, segments: [] })
     expect(result.surfaceCoveragePercent).toBe(0)
-    expect(result.headlinePercent).toBe(0)
+    expect(result.headlinePercent).toBe(33)
+    expect(result.conditionCoverageAvailable).toBe(false)
   })
 
   it("carries the source map updated timestamp through", () => {
     const route = plannedRoute()
     const result = computeRouteDataQuality({ route, sourceMapUpdated: "2026-07-16T00:00:00Z" })
     expect(result.sourceMapUpdated).toBe("2026-07-16T00:00:00Z")
+  })
+
+  it("keeps segment coverage bounded by the route length", () => {
+    const result = computeRouteDataQuality({
+      route: plannedRoute({ distanceMiles: 10 }),
+      segments: [
+        { miles: 20, hasAccessTag: false, hasSurfaceTag: false, hasSmoothnessOrTracktype: false }
+      ]
+    })
+
+    expect(result.unknownSurfaceMiles).toBe(10)
+    expect(result.accessCoveragePercent).toBe(0)
+    expect(result.surfaceCoveragePercent).toBe(0)
+    expect(result.caveats).toContain("Access data is missing on 10.0 miles of this route.")
   })
 })

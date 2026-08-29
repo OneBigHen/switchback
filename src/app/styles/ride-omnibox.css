@@ -139,7 +139,7 @@
 }
 
 .plan-mode-switch button {
-  min-height: 42px;
+  min-height: var(--sb-touch-target);
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -265,6 +265,7 @@
 
 .ride-location-button {
   display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 5px;
   margin: 11px 0 0;
@@ -276,6 +277,16 @@
   font-size: 12px;
   text-align: left;
   cursor: pointer;
+}
+
+/* The label carries the chosen start ("Starting from ..."), which can be
+   longer than a 320px sheet. Flex text needs min-width:0 to shrink at all,
+   or the whole button overflows and gets clipped by the sheet. */
+.ride-location-button > span {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ride-location-button:hover,
@@ -331,8 +342,8 @@
 }
 
 .ride-omnibox .ride-voice-button {
-  width: 42px;
-  height: 48px;
+  width: var(--sb-touch-target);
+  height: var(--sb-touch-target);
   border-radius: 50%;
   background: transparent;
   color: var(--ride-forest);
@@ -368,7 +379,7 @@
 
 .ride-quick-intents button,
 .ride-understanding button {
-  min-height: 40px;
+  min-height: var(--sb-touch-target);
   flex: 0 0 auto;
   padding: 0 14px;
   border: 1px solid #a47850;
@@ -446,7 +457,6 @@
 }
 
 .ride-understanding button {
-  min-height: 34px;
   padding: 0 10px;
   border-color: #d4c9b9;
   color: #405045;
@@ -468,12 +478,8 @@
 
     .ride-omnibox {
       min-height: 64px;
-      grid-template-columns: 18px minmax(0, 1fr) 38px 48px;
+      grid-template-columns: 18px minmax(0, 1fr) 44px 48px;
       padding-left: 13px;
-    }
-
-    .ride-omnibox .ride-voice-button {
-      width: 38px;
     }
 
     .ride-omnibox > button[type="submit"] {

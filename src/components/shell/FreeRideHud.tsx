@@ -93,7 +93,6 @@ export function FreeRideHud({
         <div className="ride-route-name">
           <span className="live-dot" aria-hidden="true" />
           <span>
-            <small>Free Ride</small>
             <h1>Free Ride</h1>
             <strong>Experimental</strong>
           </span>
@@ -107,6 +106,11 @@ export function FreeRideHud({
         </button>
       </header>
 
+      {/* One bottom-anchored instrument panel. Everything the rider reads or
+          touches lives here in a single column, so the map above stays clear
+          and the stack order is DOM order rather than hand-tuned `bottom`
+          offsets that drifted apart per breakpoint. */}
+      <div className="free-ride-dock">
       <div className="free-ride-main">
         <div className="free-ride-speed" aria-label="Current speed">
           <strong>{unavailable ? "—" : Math.round(telemetry.currentSpeedMph ?? 0)}</strong>
@@ -135,7 +139,7 @@ export function FreeRideHud({
               {formatScore(suggestion.score.total)}
             </strong>
           </div>
-          <ul>
+          <ul className="free-ride-suggestion-reasons">
             {suggestion.reasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}
           </ul>
           <div className="free-ride-suggestion-actions">
@@ -156,11 +160,12 @@ export function FreeRideHud({
         </div>
       )}
 
+      {/* Heading is deliberately absent here — it already has a dedicated
+          readout above, and showing it twice made the panel read as noise. */}
       <footer className="ride-telemetry free-ride-telemetry">
         <div><strong>{telemetry.distanceMiles.toFixed(1)}</strong><span>miles ridden</span></div>
         <div><strong>{telemetry.averageSpeedMph == null ? "—" : telemetry.averageSpeedMph.toFixed(1)}</strong><span>avg mph</span></div>
         <div><strong>{feet(telemetry.currentAltitudeMeters)}</strong><span>feet elevation</span></div>
-        <div><strong>{telemetry.headingDegrees == null ? "—" : compassLabel(telemetry.headingDegrees)}</strong><span>heading</span></div>
       </footer>
 
       {state.error ? <div className="recording-error" role="alert">{state.error}</div> : null}
@@ -186,6 +191,7 @@ export function FreeRideHud({
         <button type="button" className="recording-discard" onClick={onExit}>
           <Record weight="fill" aria-hidden="true" /> Exit
         </button>
+      </div>
       </div>
     </section>
   )

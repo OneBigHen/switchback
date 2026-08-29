@@ -16,6 +16,34 @@
   color: #9c3d12;
 }
 
+.start-new-route-button {
+  display: inline-flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.start-new-route-button:hover,
+.start-new-route-button:focus-visible {
+  border-color: var(--sb-action);
+  color: var(--sb-action);
+}
+
+.start-new-route-button svg {
+  width: 17px;
+  height: 17px;
+}
+
 .planner-action-dock .clear-route-button {
   min-height: 58px;
   border-radius: 14px;
@@ -41,8 +69,26 @@
   backdrop-filter: blur(18px) saturate(1.1);
 }
 
+.planner-deck:has(> .planner-action-dock) .planner-scroll {
+  padding-block-end: var(--sb-space-4) !important;
+  scroll-padding-block-end: calc(var(--sb-route-dock-clearance) + var(--sb-space-4)) !important;
+}
+
 .planner-action-dock:has(.dock-ride-button) {
   grid-template-columns: minmax(108px, 0.72fr) minmax(160px, 1.28fr);
+}
+
+.planner-action-dock:has(.dock-ride-button):not(:has(.clear-route-button)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) .clear-route-button,
+.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) .dock-ride-button {
+  grid-area: auto;
 }
 
 .planner-action-dock:has(.offline-pack-button) {
@@ -140,10 +186,27 @@
     .replan-button {
       min-height: 56px;
     }
+
+    .planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .planner-deck:has(.directions-list) > .planner-action-dock {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    .planner-deck:has(.directions-list) .planner-action-dock > * {
+      min-width: 0;
+      grid-area: auto;
+    }
 }
 
 @media (max-width: 390px) {
     .planner-action-dock:has(.dock-ride-button) {
+      grid-template-columns: 96px minmax(0, 1fr);
+    }
+
+    .planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
       grid-template-columns: 96px minmax(0, 1fr);
     }
 
@@ -153,8 +216,23 @@
     }
 }
 
+
 .planner-action-dock:empty {
   display: none;
+}
+
+.planner-deck:has(> .planner-action-dock):not(:has(.dock-ride-button)) {
+  --sb-route-dock-clearance: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-6));
+}
+
+.planner-deck:has(> .planner-action-dock .dock-ride-button):not(.is-minimized) {
+  --sb-route-dock-clearance: calc(var(--sb-sheet-dock-expanded-height) + var(--sb-space-4));
+}
+
+@media (min-width: 761px) {
+  .planner-deck:not(.is-minimized):has(> .planner-action-dock) .planner-scroll {
+    height: calc(100% - var(--sb-route-dock-clearance)) !important;
+  }
 }
 
 .road-locks-dock-button {

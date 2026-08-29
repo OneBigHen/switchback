@@ -637,37 +637,29 @@
   .planner-deck,
   .planner-deck.is-minimized {
     right: 8px;
-    bottom: calc(84px + env(safe-area-inset-bottom));
+    bottom: var(--sb-mobile-sheet-bottom);
     left: 8px;
     width: auto;
-    height: min(70dvh, 680px);
-    max-height: min(70dvh, 680px);
+    height: var(--sb-sheet-half-height);
+    max-height: var(--sb-sheet-half-height);
     border-radius: 24px;
   }
 
   /* Half detent: ~50% of content height (spec 45–55%), keeping the map the
      primary canvas above the sheet. */
   .planner-deck:not(.is-minimized) {
-    height: min(50dvh, 560px);
-    max-height: min(50dvh, 560px);
+    height: var(--sb-sheet-half-height);
+    max-height: var(--sb-sheet-half-height);
   }
 
   /* Full detent: ~88% of content height (spec 85–92%), capped so the top
      edge and navigation rail stay visible. */
   .planner-deck[data-sheet-detent="full"] {
-    height: min(88dvh, calc(100dvh - 108px));
-    max-height: min(88dvh, calc(100dvh - 108px));
+    height: var(--sb-sheet-full-height);
+    max-height: var(--sb-sheet-full-height);
   }
 
-  .planner-deck .planner-scroll {
-    height: calc(100% - 82px);
-  }
-
-  .planner-deck.has-expanded-route-dock:not(.is-minimized) .planner-scroll {
-    height: calc(100% - 132px);
-  }
-
-  .planner-deck.is-minimized { height: 146px; }
+  .planner-deck.is-minimized { height: var(--sb-sheet-peek-height); }
   .planner-deck > .planner-action-dock { bottom: 0; }
 
   .destination-panel {
@@ -686,10 +678,21 @@
   .app-overlay-panel { max-height: calc(100dvh - 16px); border-radius: 22px; }
 }
 
-@media (min-width: 761px) and (max-width: 900px) and (orientation: portrait) {
+/* Portrait tablets run the desktop side-deck layout. At 768 the deck (400px)
+   plus the nav rail's 104px offset claimed two thirds of the screen, leaving
+   the map — the surface being planned on — as a strip too narrow to read a
+   route in. Narrow the deck and extend the range to 1024 so portrait iPad Pro
+   gets the same treatment instead of falling through to the 456px desktop
+   width. Collapsed, the deck spans the freed width as a proper bottom bar. */
+@media (min-width: 761px) and (max-width: 1024px) and (orientation: portrait) {
   .planner-deck,
   .destination-panel {
-    width: min(400px, calc(100vw - 112px));
+    width: min(360px, calc(100vw - 112px));
+  }
+
+  .planner-deck.is-minimized {
+    right: 20px;
+    width: auto;
   }
 }
 
@@ -725,22 +728,16 @@
   }
 
   .planner-deck .planner-scroll {
-    height: calc(100% - 72px);
     scroll-padding-block: 88px 80px;
+  }
+
+  .planner-deck.has-expanded-route-dock > .planner-action-dock .free-ride-button,
+  .planner-deck.has-expanded-route-dock > .planner-action-dock .road-locks-dock-button {
+    display: none;
   }
 
   .planner-deck .route-slip {
     scroll-margin-block: 88px 80px;
-  }
-
-  .planner-shell .planner-deck .route-actions {
-    position: static;
-    bottom: auto;
-    z-index: auto;
-    margin: 14px 0 0;
-    padding: 0;
-    background: transparent;
-    box-shadow: none;
   }
 
   .planner-deck > .planner-action-dock,
@@ -814,6 +811,22 @@
 :root[data-theme="dark"] .planner-deck .planner-action-dock {
   border-color: var(--line);
   background: var(--machined);
+  color: var(--instrument);
+}
+
+/* These two kept the light-theme surface hardcoded in planner-deck.css while
+   inheriting the dark theme's light icon colour, leaving the caret at roughly
+   1.02:1 against its own button — the planner's collapse control was
+   effectively invisible in dark mode. */
+:root[data-theme="dark"] .planner-deck .planner-minimize,
+:root[data-theme="dark"] .planner-deck .planner-full-map-tools {
+  background: var(--raised);
+  color: var(--instrument);
+}
+
+:root[data-theme="dark"] .planner-deck .planner-minimize:hover,
+:root[data-theme="dark"] .planner-deck .planner-full-map-tools:hover {
+  background: color-mix(in srgb, var(--raised) 80%, var(--instrument));
   color: var(--instrument);
 }
 

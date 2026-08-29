@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ArrowDown, Database, HardDrives, Lock, Warning } from "@phosphor-icons/react"
 import { formatRegionBytes } from "@/lib/offline/region-catalog"
 import {
@@ -50,9 +50,10 @@ export function StorageQuotaMeter({
   }, [])
 
   const packageBytes = pendingPackageBytes ?? 0
-  const projection: StorageQuotaProjection | null = snapshot
-    ? projectStorageQuota(snapshot, packageBytes)
-    : null
+  const projection: StorageQuotaProjection | null = useMemo(
+    () => snapshot ? projectStorageQuota(snapshot, packageBytes) : null,
+    [packageBytes, snapshot]
+  )
 
   useEffect(() => {
     onProjectionChange?.(projection)

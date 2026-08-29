@@ -9,6 +9,19 @@ import type { PlannerError, PlannerPointId, PlannerStatus, PlanningPhase } from 
 export type PlanMode = "destination" | "loop"
 export type RideIntentStatus = "idle" | "interpreting"
 
+export type PlannerProviderHealthStatus =
+  | "healthy"
+  | "unknown"
+  | "checking"
+  | "offline"
+  | "unverified"
+  | "graphhopper-unavailable"
+  | "valhalla-degraded"
+
+export interface PlannerProviderHealthViewModel {
+  status: PlannerProviderHealthStatus
+}
+
 export interface PlannerWaypointViewModel {
   start: Waypoint | null
   finish: Waypoint | null
@@ -68,6 +81,7 @@ export interface PlannerDeckViewModel {
   intent: PlannerIntentViewModel
   ui: PlannerUiViewModel
   lifecycle: PlannerLifecycleViewModel
+  providerHealth?: PlannerProviderHealthViewModel
 }
 
 const PHASE_LABELS: Record<PlanningPhase, string> = {
@@ -140,6 +154,7 @@ export interface PlannerDeckCommands {
   onStartFreeRide?(): void
   onSaveOffline?(route: PlannedRoute, options?: import("@/lib/client/offline-pack-coordinator").OfflinePackCorridorOptions): void
   onCancelPlanning(): void
+  onRetryProviderHealth?(): void
   /** Request the browser location and use it as the route start. */
   onUseCurrentLocation?(): void
 }
@@ -177,6 +192,7 @@ export function buildPlannerDeckViewModel(state: {
   planningPhase: PlanningPhase
   planningStartedAt: number | null
   isRecalculating: boolean
+  providerHealth?: PlannerProviderHealthViewModel
 }): PlannerDeckViewModel {
   return {
     waypoint: {
@@ -221,6 +237,7 @@ export function buildPlannerDeckViewModel(state: {
       startedAt: state.planningStartedAt,
       isRecalculating: state.isRecalculating,
       label: planningPhaseLabel(state.planningPhase)
-    }
+    },
+    providerHealth: state.providerHealth ?? { status: "unknown" }
   }
 }

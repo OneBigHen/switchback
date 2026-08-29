@@ -1,7 +1,9 @@
-import { expect, test } from "@playwright/test"
+import { devices, expect, test, type BrowserContext, type Page } from "@playwright/test"
 import { installPlannerServices, installRouteApi, makeRoute, tripPlan } from "./helpers/planner-fixtures"
+import { CANONICAL_HEALTH_RESPONSE } from "./helpers/health-fixtures"
 
 const appUrl = process.env.SWITCHBACK_E2E_URL ?? "/"
+const e2eBaseUrl = process.env.SWITCHBACK_E2E_URL ?? `http://localhost:${process.env.SWITCHBACK_E2E_PORT ?? "3110"}`
 
 const suggestion = {
   id: "ridge-e2e",
@@ -71,7 +73,7 @@ test("offers one bounded Free Ride suggestion and accepts it into live guidance"
     contentType: "application/json",
     body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#f2f0ea" } }] })
   }))
-  await page.route("**/api/health", (routeRequest) => routeRequest.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, app: { ok: true }, router: { ok: true } }) }))
+  await page.route("**/api/health", (routeRequest) => routeRequest.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(CANONICAL_HEALTH_RESPONSE) }))
   await page.route("**/api/curvature?**", (routeRequest) => routeRequest.fulfill({ status: 200, contentType: "application/geo+json", body: JSON.stringify({ type: "FeatureCollection", features: [] }) }))
   await page.route("**/api/map-features?**", (routeRequest) => routeRequest.fulfill({ status: 200, contentType: "application/geo+json", body: JSON.stringify({ type: "FeatureCollection", features: [] }) }))
   await page.route("**/api/gpx-library**", (routeRequest) => routeRequest.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ importedRoutes: 0, routes: [] }) }))
@@ -140,4 +142,112 @@ test("offers a saved local Home escape from Free Ride and routes to it", async (
     { lat: 40.2732, lon: -76.8867, label: "Current position" },
     { lat: 40.28, lon: -76.84, label: "Home" }
   ])
+})
+
+async function assertSmallFreeRideLayout(page: Page, expectedBrowser: "chromium" | "webkit"): Promise<void> {
+  await page.setViewportSize({ width: 320, height: 568 })
+  expect(page.context().browser()?.browserType().name()).toBe(expectedBrowser)
+  expect(page.viewportSize()).toEqual({ width: 320, height: 568 })
+  if (expectedBrowser === "chromium") {
+    expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0)
+  }
+
+  await installPlannerServices(page)
+  await page.route("**/api/free-ride/suggestions", (routeRequest) => routeRequest.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      source: "curvature-database",
+      suggestion: { ...suggestion, expiresAt: "2099-01-01T00:00:00.000Z" },
+      suppressed: false
+    })
+  }))
+  await installRouteApi(page, tripPlan([makeRoute("neural", { name: "Small accepted route" })]))
+
+  await page.goto(appUrl)
+  await page.getByRole("button", { name: "Free Ride" }).click()
+  await expect(page.getByRole("heading", { name: "Free Ride" })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("region", { name: "Suggested fun road" })).toBeVisible({ timeout: 15_000 })
+
+  const viewport = page.viewportSize()
+  const selectors = [
+    ".free-ride-speed",
+    ".free-ride-heading",
+    ".free-ride-instruction",
+    ".free-ride-suggestion",
+    ".free-ride-telemetry",
+    ".free-ride-controls"
+  ]
+  const boxes = await Object.fromEntries(await Promise.all(selectors.map(async (selector) => [
+    selector,
+    await page.locator(selector).boundingBox()
+  ]))) as Record<string, { x: number; y: number; width: number; height: number } | null>
+
+  expect(viewport).toEqual({ width: 320, height: 568 })
+  for (const selector of selectors) expect(boxes[selector], `${selector} must be measurable`).not.toBeNull()
+
+  const speed = boxes[".free-ride-speed"]!
+  const heading = boxes[".free-ride-heading"]!
+  const instruction = boxes[".free-ride-instruction"]!
+  const suggestionPanel = boxes[".free-ride-suggestion"]!
+  const telemetry = boxes[".free-ride-telemetry"]!
+  const controls = boxes[".free-ride-controls"]!
+  const reason = page.getByRole("listitem").first()
+  await expect(reason).toBeVisible()
+  await expect(reason).toContainText("Strong curvature")
+  expect(speed.y + speed.height).toBeLessThanOrEqual(heading.y)
+  expect(heading.y + heading.height).toBeLessThanOrEqual(instruction.y)
+  expect(instruction.y + instruction.height).toBeLessThanOrEqual(suggestionPanel.y)
+  expect(suggestionPanel.y + suggestionPanel.height).toBeLessThanOrEqual(telemetry.y)
+  expect(telemetry.y + telemetry.height).toBeLessThanOrEqual(controls.y)
+  expect(controls.y + controls.height).toBeLessThanOrEqual(viewport!.height)
+  expect(await page.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    bodyWidth: document.body.scrollWidth,
+    suggestionOverflow: getComputedStyle(document.querySelector(".free-ride-suggestion")!).overflowY
+  }))).toEqual({
+    documentWidth: viewport!.width,
+    bodyWidth: viewport!.width,
+    suggestionOverflow: "visible"
+  })
+
+  for (const button of await page.locator(".free-ride-suggestion-actions button, .free-ride-controls button").all()) {
+    const box = await button.boundingBox()
+    expect(box, "Free Ride controls must be measurable").not.toBeNull()
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+    await expect(button).toBeInViewport()
+  }
+
+  const accept = page.getByRole("button", { name: "Accept suggestion" })
+  await accept.tap()
+  await expect(page.getByRole("region", { name: /Ride mode|Ride preview/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText("Live guidance", { exact: true })).toBeVisible()
+}
+
+test("keeps the short small-phone Free Ride stack free of occlusion", async ({ page: fixturePage, browser }, testInfo) => {
+  let ownedContext: BrowserContext | undefined
+  const expectedBrowser = testInfo.project.name === "desktop-chromium" ? "chromium" : "webkit"
+  let page = fixturePage
+
+  try {
+    if (testInfo.project.name === "desktop-chromium") {
+      ownedContext = await browser.newContext({
+        ...devices["Pixel 5"],
+        baseURL: e2eBaseUrl,
+        viewport: { width: 320, height: 568 },
+        screen: { width: 320, height: 568 },
+        isMobile: true,
+        hasTouch: true,
+        geolocation: { latitude: 40.2732, longitude: -76.8867 },
+        permissions: ["geolocation"],
+        serviceWorkers: "block",
+        timezoneId: "America/New_York"
+      })
+      page = await ownedContext.newPage()
+    }
+    await assertSmallFreeRideLayout(page, expectedBrowser)
+  } finally {
+    await ownedContext?.close()
+  }
 })

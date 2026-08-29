@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { hydrateRoot } from "react-dom/client"
+import { renderToString } from "react-dom/server"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { PlannerDeck } from "@/components/planner/PlannerDeck"
@@ -7,6 +9,7 @@ import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import { usePlannerStore } from "@/stores/planner-store"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
+import type { ReactNode } from "react"
 
 const harrisburg: Waypoint = {
   lat: 40.2732,
@@ -35,10 +38,21 @@ const plannedRoute: PlannedRoute = {
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
   // The sheet detent override now lives in the shared planner store; a test
   // that minimizes the deck must not leak "peek" into later tests.
   usePlannerStore.setState({ sheetDetentOverride: null })
 })
+
+function stubPhoneViewport() {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(max-width: 760px)",
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  }))
+}
 
 function defaultViewModel(): PlannerDeckViewModel {
   return {
@@ -84,7 +98,8 @@ function defaultViewModel(): PlannerDeckViewModel {
       startedAt: null,
       isRecalculating: false,
       label: ""
-    }
+    },
+    providerHealth: { status: "unknown" }
   }
 }
 
@@ -131,12 +146,14 @@ function defaultCommands(): PlannerDeckCommands {
 }
 
 interface RenderDeckOverrides {
+  children?: ReactNode
   vm?: Partial<{
     waypoint: Partial<PlannerDeckViewModel["waypoint"]>
     rideConfig: Partial<PlannerDeckViewModel["rideConfig"]>
     intent: Partial<PlannerDeckViewModel["intent"]>
     ui: Partial<PlannerDeckViewModel["ui"]>
     lifecycle: Partial<PlannerDeckViewModel["lifecycle"]>
+    providerHealth: Partial<NonNullable<PlannerDeckViewModel["providerHealth"]>>
   }>
   cmds?: Partial<{
     waypoint: Partial<PlannerDeckCommands["waypoint"]>
@@ -151,6 +168,7 @@ interface RenderDeckOverrides {
     onClearHome: PlannerDeckCommands["onClearHome"]
     onStartRide: PlannerDeckCommands["onStartRide"]
     onSaveOffline: PlannerDeckCommands["onSaveOffline"]
+    onRetryProviderHealth: PlannerDeckCommands["onRetryProviderHealth"]
   }>
 }
 
@@ -164,6 +182,7 @@ function renderDeck(overrides: RenderDeckOverrides = {}) {
     if (overrides.vm.intent) Object.assign(vm.intent, overrides.vm.intent)
     if (overrides.vm.ui) Object.assign(vm.ui, overrides.vm.ui)
     if (overrides.vm.lifecycle) Object.assign(vm.lifecycle, overrides.vm.lifecycle)
+    if (overrides.vm.providerHealth) Object.assign(vm.providerHealth!, overrides.vm.providerHealth)
   }
   if (overrides.cmds) {
     if (overrides.cmds.waypoint) Object.assign(cmds.waypoint, overrides.cmds.waypoint)
@@ -178,13 +197,36 @@ function renderDeck(overrides: RenderDeckOverrides = {}) {
     if (overrides.cmds.onClearHome !== undefined) cmds.onClearHome = overrides.cmds.onClearHome
     if (overrides.cmds.onStartRide !== undefined) cmds.onStartRide = overrides.cmds.onStartRide
     if (overrides.cmds.onSaveOffline !== undefined) cmds.onSaveOffline = overrides.cmds.onSaveOffline
+    if (overrides.cmds.onRetryProviderHealth !== undefined) cmds.onRetryProviderHealth = overrides.cmds.onRetryProviderHealth
   }
 
-  render(<PlannerDeck viewModel={vm} commands={cmds} />)
-  return { vm, cmds }
+  const renderResult = render(<PlannerDeck viewModel={vm} commands={cmds}>{overrides.children}</PlannerDeck>)
+  return { vm, cmds, ...renderResult }
 }
 
 describe("planner ride composer", () => {
+  it("keeps the primary search and edit path reachable on a fresh phone planner", () => {
+    stubPhoneViewport()
+    renderDeck()
+
+    expect(screen.getByRole("textbox", { name: "Where do you want to ride?" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Edit route" })).toBeVisible()
+    expect(screen.queryByRole("button", { name: "Expand planner" })).not.toBeInTheDocument()
+  })
+
+  it("offers a reachable map-tools path while the full sheet owns the phone viewport", async () => {
+    const user = userEvent.setup()
+    usePlannerStore.setState({ sheetDetentOverride: "full" })
+    renderDeck()
+
+    const mapTools = screen.getByRole("button", { name: "Show map tools" })
+    expect(mapTools).toHaveAttribute("title", "Collapse planner to use map tools")
+    expect(screen.getByRole("link", { name: "OpenFreeMap" })).toBeInTheDocument()
+    await user.click(mapTools)
+
+    expect(usePlannerStore.getState().sheetDetentOverride).toBe("half")
+  })
+
   it("starts with one intent-first ride field and keeps routing machinery out of the first view", () => {
     renderDeck()
 
@@ -194,6 +236,44 @@ describe("planner ride composer", () => {
     expect(screen.queryByText("Router live")).not.toBeInTheDocument()
     expect(screen.queryByRole("combobox", { name: "Start" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Plan route" })).not.toBeInTheDocument()
+  })
+
+  it("keeps provider degradation out of the minimized peek surface", () => {
+    usePlannerStore.setState({ sheetDetentOverride: "peek" })
+    renderDeck({
+      vm: { providerHealth: { status: "graphhopper-unavailable" } },
+      cmds: { onRetryProviderHealth: vi.fn() }
+    })
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument()
+  })
+
+  it("passes a GraphHopper degradation and Retry command through the deck boundary", async () => {
+    const onRetryProviderHealth = vi.fn()
+    renderDeck({
+      vm: { providerHealth: { status: "graphhopper-unavailable" } },
+      cmds: { onRetryProviderHealth }
+    })
+
+    expect(screen.getByRole("alert")).toHaveTextContent("The route service is temporarily unavailable")
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+    expect(onRetryProviderHealth).toHaveBeenCalledOnce()
+  })
+
+  it("keeps the provider-health deck boundary deterministic through hydration", async () => {
+    usePlannerStore.setState({ sheetDetentOverride: null })
+    const viewModel = defaultViewModel()
+    const commands = defaultCommands()
+    const markup = renderToString(<PlannerDeck viewModel={viewModel} commands={commands} />)
+    document.body.innerHTML = markup
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const root = hydrateRoot(document.body, <PlannerDeck viewModel={viewModel} commands={commands} />)
+
+    await act(async () => undefined)
+    expect(consoleError.mock.calls.flat().join(" ")).not.toMatch(/hydration/i)
+    root.unmount()
+    consoleError.mockRestore()
   })
 
   it("does not pretend a missing start or unsaved Home destination is already configured", () => {
@@ -243,6 +323,42 @@ describe("planner ride composer", () => {
     expect(screen.getByRole("button", { name: "Plan route" })).toBeInTheDocument()
   })
 
+  it("does not scroll the selected-route identity away when opening the editor", async () => {
+    const user = userEvent.setup()
+    const scrollIntoView = vi.fn()
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+    const originalRequestAnimationFrame = window.requestAnimationFrame
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callback(0)
+      return 1
+    }) as typeof window.requestAnimationFrame
+
+    try {
+      stubPhoneViewport()
+      renderDeck({
+        vm: { ui: { selectedRoute: plannedRoute } },
+        cmds: { onStartRide: vi.fn(), onSaveOffline: vi.fn() },
+      })
+
+      await user.click(screen.getByRole("button", { name: "Edit route" }))
+      expect(screen.getByRole("button", { name: "Hide route editor" })).toBeVisible()
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScrollIntoView
+      window.requestAnimationFrame = originalRequestAnimationFrame
+    }
+  })
+
+  it("keeps the edit action before the selected route rack in document flow", () => {
+    const routeRack = <section className="route-rack" aria-label="Choose a route"><h2>Choose a route</h2></section>
+    renderDeck({ vm: { ui: { selectedRoute: plannedRoute } }, children: routeRack })
+
+    const edit = screen.getByRole("button", { name: "Edit route" })
+    const rack = screen.getByRole("region", { name: "Choose a route" })
+    expect(edit.compareDocumentPosition(rack) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it("lets a rider package the selected route for local offline recovery before starting", async () => {
     const user = userEvent.setup()
     const onSaveOffline = vi.fn()
@@ -279,6 +395,29 @@ describe("planner ride composer", () => {
 
     expect(onClearRoute).toHaveBeenCalledOnce()
     expect(ridePrompt).toHaveValue("")
+  })
+
+  it("keeps starting a new route available when a selected route is minimized", async () => {
+    const user = userEvent.setup()
+    const onClearRoute = vi.fn()
+    stubPhoneViewport()
+    renderDeck({
+      vm: { ui: { selectedRoute: plannedRoute } },
+      cmds: { onClearRoute, onStartRide: vi.fn() }
+    })
+
+    await user.click(screen.getByRole("button", { name: "Minimize planner" }))
+    expect(screen.getByRole("button", { name: "Start Twisty route" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Expand planner" })).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Expand planner" }))
+    expect(screen.getByRole("textbox", { name: "Where do you want to ride?" })).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Minimize planner" }))
+    await user.click(screen.getByRole("button", { name: "Start new route" }))
+
+    expect(onClearRoute).toHaveBeenCalledOnce()
+    expect(screen.queryByRole("button", { name: "1-hour loop" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Twisties" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Scenic" })).not.toBeInTheDocument()
   })
 
   it("keeps clear route beside replan and start route while editing", async () => {
@@ -605,6 +744,79 @@ describe("planner lifecycle progress (Phase 6)", () => {
 })
 
 describe("planner mobile flow stages (SB-025)", () => {
+  it("labels an explicitly selected alternative as Prepare instead of Choose", () => {
+    renderDeck({
+      vm: {
+        lifecycle: { phase: "ready", startedAt: null, label: "Ride ready" },
+        ui: { selectedRoute: plannedRoute, routesCount: 3 }
+      }
+    })
+
+    expect(screen.getByLabelText("Planning stage: Prepare")).toBeInTheDocument()
+  })
+
+  it("preserves the selected route identity when returning from edit to the minimized peek", async () => {
+    const user = userEvent.setup()
+    renderDeck({
+      vm: {
+        lifecycle: { phase: "ready", startedAt: null, label: "Ride ready" },
+        ui: { selectedRoute: plannedRoute, routesCount: 3 }
+      }
+    })
+
+    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Hide route editor" }))
+    await user.click(screen.getByRole("button", { name: "Minimize planner" }))
+
+    expect(screen.getByText("Deck route")).toBeInTheDocument()
+    expect(screen.getByLabelText("Planning stage: Prepare")).toBeInTheDocument()
+  })
+
+  it("returns the viewport to route choices when planning finishes after editing", async () => {
+    const user = userEvent.setup()
+    const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
+    const { vm, rerender } = renderDeck({ children: routeRack })
+
+    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
+
+    expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+
+    vm.lifecycle.phase = "ready"
+    vm.lifecycle.label = "Ride ready"
+    vm.ui.routesCount = 2
+    vm.ui.selectedRoute = null
+    rerender(<PlannerDeck viewModel={vm} commands={{ ...defaultCommands() }}>{routeRack}</PlannerDeck>)
+
+    await waitFor(() => {
+      expect(screen.queryByRole("combobox", { name: "Start" })).not.toBeInTheDocument()
+      expect(screen.getByLabelText("Planning stage: Choose")).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+    })
+  })
+
+  it("shows Choose and returns to the route rack while alternatives are still loading", async () => {
+    const user = userEvent.setup()
+    const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
+    const { vm, rerender } = renderDeck({ children: routeRack })
+
+    await user.click(screen.getByRole("button", { name: "Edit route" }))
+
+    expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+
+    vm.lifecycle.phase = "alternatives"
+    vm.lifecycle.label = "Adding alternatives…"
+    vm.ui.routesCount = 2
+    vm.ui.selectedRoute = null
+    rerender(<PlannerDeck viewModel={vm} commands={{ ...defaultCommands() }}>{routeRack}</PlannerDeck>)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Planning stage: Choose")).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+    })
+  })
+
   it("labels the intent home as Search", () => {
     renderDeck()
     expect(screen.getByLabelText("Planning stage: Search")).toBeInTheDocument()

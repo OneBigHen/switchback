@@ -20,6 +20,26 @@ npm run test:e2e:pwa
 npx playwright test --project=road-lock
 ```
 
+Run the routine Level A mobile gate (WebKit/iPhone approximation first,
+Chromium comparison second):
+
+```bash
+npx playwright install chromium webkit
+npm run test:e2e:mobile-qa
+```
+
+Use the full/expanded viewport/orientation matrix after significant mobile UI
+changes or before a release candidate:
+
+```bash
+npm run test:e2e:mobile-qa:prepare
+npm run test:e2e:mobile-qa:expanded
+```
+
+Prepare is a separate WebKit-primary seven-state gate. The complete selective
+device/state matrix, artifact paths, inspection rules, and Level B/C boundaries
+are in [Level A mobile QA](LEVEL_A_MOBILE_QA.md).
+
 The GitHub Actions workflow is [.github/workflows/quality.yml](../../.github/workflows/quality.yml).
 It runs the deterministic public checks on GitHub-hosted runners and uploads
 failure evidence only when a job fails. Trusted live-provider validation is a
@@ -33,3 +53,4 @@ Read next:
 - [Implementation status](IMPLEMENTATION_STATUS.md)
 - [Physical iPhone drill](PHYSICAL_DEVICE_DRILL.md)
 - [Failure policy](FAILURE_POLICY.md)
+- [Level A mobile QA](LEVEL_A_MOBILE_QA.md)

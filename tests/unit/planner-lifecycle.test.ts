@@ -30,6 +30,26 @@ beforeEach(() => {
 })
 
 describe("planner lifecycle phase", () => {
+  it("keeps recorded replay explicitly selected beside its planned route", () => {
+    const planned = plan("planned-route").routes[0]
+    const actual = { ...planned, id: "planned-route-actual", name: "Route · actual ride" }
+    const store = usePlannerStore.getState()
+    store.applyPlan({ selectedRouteId: actual.id, routes: [planned, actual], warnings: [] })
+    store.selectRoute(actual.id)
+
+    expect(usePlannerStore.getState()).toMatchObject({ selectedRouteId: actual.id, selectionSource: "user" })
+  })
+
+  it("keeps an active reroute explicitly selected when returning to the HUD", () => {
+    const original = plan("original-route").routes[0]
+    const rerouted = { ...original, id: "rerouted-route", name: "Rerouted route" }
+    const store = usePlannerStore.getState()
+    store.applyPlan({ selectedRouteId: rerouted.id, routes: [original, rerouted], warnings: [] })
+    store.selectRoute(rerouted.id)
+
+    expect(usePlannerStore.getState()).toMatchObject({ selectedRouteId: rerouted.id, selectionSource: "user" })
+  })
+
   it("retains the previous route (dimmed) while replanning and restores it on cancel", () => {
     const store = usePlannerStore.getState()
     store.applyPlan(plan("old-route"))

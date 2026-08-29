@@ -18,6 +18,16 @@
   --sb-radius-card: 16px;
   --sb-radius-sheet: 24px;
   --sb-motion-sheet: 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  --sb-mobile-edge: 8px;
+  --sb-mobile-nav-height: 68px;
+  --sb-mobile-nav-gap: 16px;
+  --sb-mobile-sheet-bottom: calc(var(--sb-mobile-nav-height) + var(--sb-mobile-nav-gap) + env(safe-area-inset-bottom));
+  --sb-sheet-peek-height: 146px;
+  --sb-sheet-half-height: min(50dvh, 560px);
+  --sb-sheet-full-height: min(88dvh, calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-2)));
+  --sb-sheet-dock-height: 82px;
+  --sb-sheet-dock-home-height: 134px;
+  --sb-sheet-dock-expanded-height: 132px;
 
   --background: 205.7 47% 97%;
   --foreground: 212 58% 15%;
@@ -157,12 +167,32 @@ h6,
 }
 
 @media (max-width: 760px) {
+  .planner-shell {
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-half-height) + var(--sb-space-2));
+  }
+
+  .planner-shell:has(.sb-bottom-sheet.is-minimized) {
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-peek-height) + var(--sb-space-2));
+  }
+
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) {
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-full-height) + var(--sb-space-2));
+  }
+
+  .planner-shell .app-navigation {
+    right: var(--sb-mobile-edge);
+    bottom: max(var(--sb-mobile-edge), env(safe-area-inset-bottom));
+    left: var(--sb-mobile-edge);
+    height: var(--sb-mobile-nav-height);
+  }
+
   .planner-shell .sb-bottom-sheet {
-    right: 8px;
-    bottom: calc(84px + env(safe-area-inset-bottom));
-    left: 8px;
+    right: var(--sb-mobile-edge);
+    bottom: var(--sb-mobile-sheet-bottom);
+    left: var(--sb-mobile-edge);
     width: auto;
-    max-height: min(78dvh, 760px);
+    height: var(--sb-sheet-half-height);
+    max-height: var(--sb-sheet-half-height);
     border-radius: var(--sb-radius-sheet) var(--sb-radius-sheet) 18px 18px;
     box-shadow: var(--sb-shadow);
   }
@@ -173,12 +203,71 @@ h6,
 
   .planner-shell .sb-bottom-sheet.is-minimized {
     top: auto;
-    height: 128px;
-    max-height: 128px;
+    height: var(--sb-sheet-peek-height);
+    max-height: var(--sb-sheet-peek-height);
+  }
+
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] {
+    height: var(--sb-sheet-full-height);
+    max-height: var(--sb-sheet-full-height);
   }
 
   .planner-shell .planner-sheet-handle {
     display: grid;
+    min-height: var(--sb-touch-target);
+  }
+
+  .planner-shell .sb-bottom-sheet .ride-deck-header {
+    display: none;
+  }
+
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .ride-deck-header {
+    display: flex;
+  }
+
+  .planner-shell .sb-bottom-sheet.is-minimized:has(.start-new-route-button):has(.dock-ride-button) .planner-action-dock {
+    min-height: 78px;
+    grid-template-columns: minmax(96px, 0.72fr) minmax(0, 1.28fr);
+    gap: 8px;
+    /* Keeps the compact peek gutters, but never below the safe-area floor the
+       less specific `.is-minimized .planner-action-dock` rule sets — this
+       selector outranks it, so a plain shorthand silently dropped the floor. */
+    padding: 8px 12px max(13px, env(safe-area-inset-bottom));
+  }
+
+  .planner-shell .sb-bottom-sheet.is-minimized .start-new-route-button {
+    min-width: var(--sb-touch-target);
+    min-height: var(--sb-touch-target);
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .planner-shell .sb-bottom-sheet.is-minimized .dock-ride-button {
+    min-height: 52px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .planner-shell .map-stage:not(.is-ride-mode) :where(
+    .maplibregl-ctrl-bottom-left,
+    .maplibregl-ctrl-bottom-right
+  ) {
+    bottom: var(--sb-map-sheet-clearance);
+  }
+
+  .planner-shell .sb-bottom-sheet :where(
+    .planner-minimize,
+    .planner-expand,
+    .via-point-actions button,
+    .segment-character-controls button,
+    .segment-character-controls select,
+    .gpx-export-variant select
+  ) {
+    min-width: var(--sb-touch-target);
+    min-height: var(--sb-touch-target);
+  }
+
+  .planner-shell .ride-research > button {
     min-height: var(--sb-touch-target);
   }
 }
@@ -195,13 +284,173 @@ h6,
   }
 
   .planner-shell .sb-bottom-sheet.is-minimized {
-    height: 128px;
-    max-height: 128px;
+    height: var(--sb-sheet-peek-height);
+    max-height: var(--sb-sheet-peek-height);
+  }
+
+  .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left {
+    bottom: calc(var(--sb-map-sheet-clearance) - var(--sb-space-10));
+    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 48vw) + var(--sb-space-2));
+  }
+
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left {
+    bottom: calc(var(--sb-map-sheet-clearance) - var(--sb-space-10) - var(--sb-space-10) - var(--sb-space-3));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .planner-shell .sb-bottom-sheet {
     transition: none;
+  }
+}
+
+.planner-shell .sb-bottom-sheet .planner-minimize {
+  width: var(--sb-touch-target);
+}
+
+.planner-full-map-tools,
+.planner-full-attribution {
+  display: none;
+}
+
+@media (min-width: 761px) and (max-width: 900px) and (orientation: portrait) {
+  .planner-shell .map-layer-control {
+    right: max(16px, env(safe-area-inset-right));
+    left: auto;
+  }
+
+  .planner-shell .map-tool-row {
+    width: 140px;
+  }
+
+  .planner-shell .map-tool-row .map-layers-button {
+    width: 46px;
+    min-width: 46px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .planner-shell .map-tool-row .map-layers-button > span:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .planner-shell .sb-bottom-sheet:not(.is-minimized) {
+    height: calc(100dvh - (var(--sb-space-2) * 2));
+    max-height: none;
+    min-height: 0;
+  }
+
+  .planner-shell .sb-bottom-sheet:not(.is-minimized):has(.free-ride-button):not(:has(.dock-ride-button)) .planner-scroll {
+    padding: 10px 12px 18px;
+  }
+
+  .planner-shell .sb-bottom-sheet .deck-header {
+    margin: 0 2px var(--sb-space-2);
+  }
+
+  .planner-shell .sb-bottom-sheet .ride-intent-heading h1 {
+    font-size: 18px;
+    line-height: 1.05;
+  }
+
+  .planner-shell .sb-bottom-sheet .ride-location-button,
+  .planner-shell .sb-bottom-sheet .ride-recents {
+    display: none;
+  }
+
+  .planner-shell .sb-bottom-sheet .ride-omnibox-section {
+    padding-bottom: var(--sb-space-3);
+  }
+
+  .planner-shell .sb-bottom-sheet .edit-route-button {
+    transform: translateY(calc(-1 * var(--sb-space-6)));
+  }
+
+  .planner-shell .map-layer-control {
+    top: var(--sb-space-2);
+    right: var(--sb-space-2);
+    left: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .planner-shell:has(.sb-bottom-sheet:not(.is-minimized)) .map-road-lock-toggle {
+    display: none;
+  }
+
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-layer-control,
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-road-lock-toggle,
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-group {
+    display: none;
+  }
+
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .planner-full-map-tools {
+    display: grid;
+    width: var(--sb-touch-target);
+    min-width: var(--sb-touch-target);
+    min-height: var(--sb-touch-target);
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--sb-border);
+    border-radius: var(--sb-radius-control);
+    background: var(--sb-surface-raised);
+    color: var(--sb-action);
+    cursor: pointer;
+  }
+
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .planner-full-map-tools svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .planner-full-attribution {
+    position: static !important;
+    flex: 0 0 auto;
+    right: var(--sb-space-4);
+    bottom: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-2));
+    left: var(--sb-space-4);
+    z-index: 7;
+    display: block;
+    width: auto;
+    margin: 0 var(--sb-space-4) var(--sb-space-2);
+    padding-block: var(--sb-space-1);
+    color: var(--sb-text-muted);
+    font-size: 9px;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .planner-full-attribution a {
+    color: var(--sb-text-muted);
+  }
+}
+
+@media (max-width: 760px) {
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) .planner-scroll {
+    flex: 1 1 0%;
+    min-height: 0;
+    height: auto !important;
+    padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;
+  }
+
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {
+    position: static;
+    flex: 0 0 auto;
+    inset: auto;
+  }
+
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock):not(:has(> .planner-action-dock .dock-ride-button)) > .planner-action-dock {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planner-shell .sb-bottom-sheet.is-minimized .planner-action-dock {
+    padding-bottom: max(13px, env(safe-area-inset-bottom));
   }
 }

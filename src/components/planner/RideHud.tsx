@@ -21,6 +21,7 @@ import { computeRouteDataQuality } from "@/lib/roads/route-data-quality"
 import { usePlannerStore } from "@/stores/planner-store"
 import { ManeuverGlyph } from "./maneuver-glyph"
 import { RideHudStatus } from "./RideHudStatus"
+import { RIDE_MAP_CONTROL_SLOT_ID, setRideMapControlSlot } from "./ride-map-control-slot"
 import { RideRecoveryActions } from "./RideRecoveryActions"
 import { RideWeatherAlert } from "./RideWeatherAlert"
 import { useRideFuelDetour } from "./useRideFuelDetour"
@@ -39,6 +40,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
       commands.selectFuelStop(fuelStop)
     }
   })
+
 
   useEffect(() => {
     const root = document.documentElement
@@ -208,7 +210,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
         </button>
         <button
           type="button"
-          className="ride-voice-toggle"
+          className="ride-guidance-toggle"
           aria-label={
             controller.guidancePaused
               ? "Resume guidance"
@@ -225,7 +227,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
         </button>
         <button
           type="button"
-          className="ride-voice-toggle"
+          className="ride-overnight-stop"
           aria-label="Pause for overnight stop"
           disabled={controller.guidancePaused}
           onClick={commands.pauseForOvernightStop}
@@ -262,7 +264,19 @@ export function RideHud(input: NavigationSessionControllerInput) {
         />
       ) : null}
 
-      <div className="ride-instruction">
+      {/* One layout owner for the lower ride surface. The instruction card's
+          height is legitimately variable — a wrapped turn line, or the whole
+          off-route recovery list — so the recenter control shares this stack
+          and is laid out above it with a real gap instead of guessing an
+          offset. MapStage portals the control into the slot; it keeps its own
+          state, this only owns where it sits. */}
+      <div className="ride-lower-deck">
+        <div
+          id={RIDE_MAP_CONTROL_SLOT_ID}
+          className="ride-map-control-slot"
+          ref={setRideMapControlSlot}
+        />
+        <div className="ride-instruction">
         <div className="maneuver-icon" aria-hidden="true">
           {trackGuidance ? (
             guidanceReady ? (
@@ -375,6 +389,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               Try GPS again
             </button>
           ) : null}
+          </div>
         </div>
       </div>
 

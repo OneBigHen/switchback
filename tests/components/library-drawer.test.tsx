@@ -177,6 +177,25 @@ describe("ride library drawer", () => {
     expect(onLoadProject).toHaveBeenCalledWith(projectRoute)
   })
 
+  it("labels the atlas link and collection count as imported route variants", () => {
+    render(
+      <LibraryDrawer
+        routes={[]}
+        projectRoutes={[projectRoute, { ...projectRoute, id: "project-gpx-second" }, { ...projectRoute, id: "project-gpx-third" }]}
+        onClose={vi.fn()}
+        onLoad={vi.fn()}
+        onLoadProject={vi.fn()}
+        onDelete={vi.fn()}
+        onImport={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("Imported route variants")).toBeVisible()
+    expect(screen.getByText("3", { selector: ".library-section-title strong" })).toBeVisible()
+    expect(screen.getByText("3 imported route variants · browse unique route posters")).toBeVisible()
+    expect(screen.queryByText(/drawn as posters/i)).not.toBeInTheDocument()
+  })
+
   it("collapses duplicate project variants by region and loads the canonical original", async () => {
     const user = userEvent.setup()
     const onLoadProject = vi.fn()
@@ -358,7 +377,7 @@ describe("ride library drawer", () => {
     const sort = screen.getByRole("combobox", { name: "Sort imported routes" })
     sort.focus()
     await user.tab()
-    expect(screen.getByLabelText("Import GPX, KML, or KMZ file")).toHaveFocus()
+    expect(screen.getByRole("link", { name: /route atlas/i })).toHaveFocus()
     await user.tab({ shift: true })
     expect(sort).toHaveFocus()
   })
