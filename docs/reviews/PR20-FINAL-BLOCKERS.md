@@ -312,12 +312,25 @@ project. It now asserts whichever affordance the layout actually ships — the h
 bottom-sheet projects, the Minimize/Expand round-trip on the side deck — so coverage is preserved
 rather than skipped.
 
-**B2 + B5 — instruction card vs recenter pill** (`planner-shell.css`, `ride-hud.css`).
-The recenter pill's offset was defined three times across two stylesheets; it is now one token,
-`--ride-recenter-bottom`, defined once per breakpoint on `:root`. `.ride-instruction` derives its
-`max-height` from that same token, so the bottom-anchored card cannot grow up into the pill, and its
-`h2`/`p` are line-clamped at the 760 px breakpoint exactly as the landscape rule already did. The two
-offsets can no longer drift apart, which is what B5 warned about.
+**B2 + B5 — instruction card vs recenter pill** (`planner-shell.css`, `ride-hud.css`,
+`RideHud.tsx`). The recenter pill's offset was defined three times across two stylesheets; it is now
+one token, `--ride-recenter-bottom`, defined once per breakpoint on `:root`, so the values B5 warned
+about can no longer drift apart.
+
+The first attempt at the collision itself was wrong and is worth recording. Capping
+`.ride-instruction` with a `max-height` derived from that token did make the pill reachable — and
+**cut the off-route recovery actions off the bottom of the card**. CI caught it on both engines
+(`ride.core.spec.ts:66`, "ride primary controls must not be obscured at their center") and the visual
+diff showed "Nearest rejoin", "Next stop" and "Skip next stop" sliced away. Trading a hidden control
+for three hidden controls is not a fix.
+
+The card's height legitimately swings from one wrapped turn line (~118 px) to the full recovery list
+(~420 px), so no fixed pill offset can clear it, and the two elements live in different components
+(`RideHud.tsx` and `MapStage.tsx`) with no shared layout box — CSS alone cannot express the
+relationship. `RideHud` now measures the card with a `ResizeObserver` and publishes
+`--ride-instruction-height`; the pill's offset is `140px + that height + 12px`. The pill clears the
+real card in every state and no rider-facing content is clipped. The measurement is guarded for
+environments without `ResizeObserver` and removes the property on unmount.
 
 **B3 — scroll-fold false positive** (`tests/e2e/mobile-qa/assertions.ts`).
 `expectInteractiveElementsUnclipped` no longer reports an overflow along an axis its ancestor can
@@ -357,6 +370,9 @@ cannot leak by default.
   and that a missing file still propagates so callers fall back to the empty state.
 - `tests/unit/gpx-catalog-api.test.ts` — the public detail payload keeps the rider-facing contract and
   drops every import-bookkeeping field, including a literal check that no host path survives.
+- `tests/components/ride-hud.test.tsx` — the instruction card is observed and its height published
+  while ride mode is mounted, and the property is removed on unmount so a stale value cannot push the
+  pill for a card that is gone.
 
 ### Deferred, with reasons
 - **D3** `SWITCHBACK_SESSION_SECRET` is unset in production, so registration/login 500s and everything

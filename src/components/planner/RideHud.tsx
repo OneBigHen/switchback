@@ -15,7 +15,7 @@ import {
   WarningCircle,
   X
 } from "@phosphor-icons/react"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { maneuverKind } from "@/lib/client/maneuver"
 import { computeRouteDataQuality } from "@/lib/roads/route-data-quality"
 import { usePlannerStore } from "@/stores/planner-store"
@@ -39,6 +39,31 @@ export function RideHud(input: NavigationSessionControllerInput) {
       commands.selectFuelStop(fuelStop)
     }
   })
+
+  // The instruction card is bottom-anchored and its height swings from one
+  // wrapped turn line to the full off-route recovery list. The recenter pill
+  // lives in MapStage and is pinned from the same edge, so it can only stay
+  // clear of the card if it knows the card's real height. Publish it; the
+  // pill's offset reads --ride-instruction-height (planner-shell.css).
+  const instructionRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const card = instructionRef.current
+    if (!card) return
+    const root = document.documentElement
+    const publish = () => {
+      root.style.setProperty("--ride-instruction-height", `${Math.round(card.getBoundingClientRect().height)}px`)
+    }
+    publish()
+    if (typeof ResizeObserver === "undefined") {
+      return () => root.style.removeProperty("--ride-instruction-height")
+    }
+    const observer = new ResizeObserver(publish)
+    observer.observe(card)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty("--ride-instruction-height")
+    }
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -262,7 +287,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
         />
       ) : null}
 
-      <div className="ride-instruction">
+      <div className="ride-instruction" ref={instructionRef}>
         <div className="maneuver-icon" aria-hidden="true">
           {trackGuidance ? (
             guidanceReady ? (

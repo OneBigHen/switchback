@@ -173,6 +173,35 @@ describe("ride HUD GPS safety", () => {
     expect(document.body).not.toHaveClass("ride-mode-active")
   })
 
+  it("publishes the instruction card height so the recenter pill can clear it", () => {
+    // The card is bottom-anchored and grows upward (a wrapped street name, or
+    // the whole off-route recovery list); the recenter pill is pinned from the
+    // same edge in MapStage. Without this measurement the pill has to guess a
+    // fixed offset and gets swallowed by a tall card.
+    const observed: Element[] = []
+    class TestResizeObserver {
+      constructor(private readonly callback: () => void) {}
+      observe(target: Element) {
+        observed.push(target)
+        this.callback()
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver)
+
+    const { unmount } = render(<RideHud route={route} onExit={vi.fn()} />)
+
+    expect(observed.map((node) => node.className)).toContain("ride-instruction")
+    expect(document.documentElement.style.getPropertyValue("--ride-instruction-height")).toMatch(/^\d+px$/)
+
+    unmount()
+
+    // Stale on a non-ride surface would push the pill for a card that is gone.
+    expect(document.documentElement.style.getPropertyValue("--ride-instruction-height")).toBe("")
+    vi.unstubAllGlobals()
+  })
+
   it("does not claim active guidance before an accurate GPS fix", async () => {
     render(<RideHud route={route} onExit={vi.fn()} />)
 
