@@ -124,6 +124,16 @@ export async function installPlannerServices(page: Page): Promise<void> {
     contentType: "application/json",
     body: JSON.stringify({ importedRoutes: 0, routes: [] })
   }))
+  // Background corridor-hint cache warming. The real endpoint is deliberately
+  // capped at 6/min per client key, and a suite sharing one origin blows that
+  // budget within a few specs — WebKit then logs the 429 as a failed resource
+  // and fails the "no console errors" contract. The response is ignored by the
+  // planner either way, so fulfil it like every other service above.
+  await page.route("**/api/ride-corridors", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ corridors: [] })
+  }))
   await page.route("**/api/geocode?**", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",

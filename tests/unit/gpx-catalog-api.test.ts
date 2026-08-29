@@ -69,6 +69,45 @@ describe("atlas-extended GPX catalog API", () => {
     expect(body.poster).toBeNull()
   })
 
+  it("redacts import bookkeeping and host paths from the public detail payload", async () => {
+    const detail = {
+      id: "project-gpx-abc123",
+      name: "Ridge Run",
+      distanceMiles: 42,
+      durationMinutes: 90,
+      twistiness: 72,
+      turnCount: 88,
+      geometry: [[-76, 40], [-76.01, 40.01]],
+      waypoints: [],
+      instructions: [],
+      navigationMode: "track-only",
+      // Everything below is server-side import bookkeeping.
+      sourceFiles: ["rideplanner/output/gpx/imported-gpx-8a77bc9d-gaia_high_detail.gpx"],
+      sourceContentSha256: "5f0c1d2e",
+      ingest: { sourceFormat: "gpx", segmentCount: 1 },
+      mapMatch: { status: "not-configured", message: "No GraphHopper map-matching endpoint is configured." }
+    }
+    const root = await makeCatalog([{ id: detail.id, name: detail.name }], detail)
+    const response = await handleGpxCatalogRequest(
+      new Request(`http://switchback.test/api/gpx-library?id=${detail.id}`),
+      root
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    // The rider-facing contract survives...
+    expect(body.id).toBe(detail.id)
+    expect(body.geometry).toEqual(detail.geometry)
+    expect(body.navigationMode).toBe("track-only")
+    expect(body.story.title).toBe("Ridge Run")
+    // ...while the import bookkeeping does not.
+    expect(body.sourceFiles).toBeUndefined()
+    expect(body.sourceContentSha256).toBeUndefined()
+    expect(body.ingest).toBeUndefined()
+    expect(body.mapMatch).toBeUndefined()
+    expect(JSON.stringify(body)).not.toContain("rideplanner/output")
+  })
+
   it("still rejects unknown route ids", async () => {
     const root = await makeCatalog([])
     const response = await handleGpxCatalogRequest(

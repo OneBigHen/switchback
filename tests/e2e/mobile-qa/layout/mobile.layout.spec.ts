@@ -57,9 +57,23 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
   await expectNavigationReachability(page)
   const sheet = page.locator("#planner-sheet")
   await expect(sheet).toHaveAttribute("data-sheet-detent", "half")
-  await page.getByRole("button", { name: "Expand planner sheet" }).tap()
-  await expect(sheet).toHaveAttribute("data-sheet-detent", "full")
+  // The drag handle is a bottom-sheet affordance: it is display:none by
+  // default and only enabled under max-width:760px (planner-deck.css:48,168).
+  // Phone landscape (844x390) is routed to the fixed-height side deck instead
+  // (design-system.css:275), where half and full render identically and the
+  // header's Minimize/Expand pair is the state control. Assert whichever
+  // affordance the layout actually ships rather than requiring the handle.
+  const usesSideDeck = testInfo.project.name === "webkit-standard-landscape"
+  if (!usesSideDeck) {
+    await page.getByRole("button", { name: "Expand planner sheet" }).tap()
+    await expect(sheet).toHaveAttribute("data-sheet-detent", "full")
+  }
   if (testInfo.project.name === "webkit-standard-landscape" || testInfo.project.name === "webkit-small") {
+    // Measure where the rider would actually see the row. Without this the
+    // landscape reachability check just reports that the row starts below a
+    // 390px-tall viewport (elementFromPoint returns null off-screen), which
+    // says nothing about whether the buttons are tappable once scrolled to.
+    await page.locator(".ride-quick-intents").scrollIntoViewIfNeeded()
     const quickIntentGeometry = await page.locator(".ride-quick-intents").evaluate((row) => {
       const rowBox = row.getBoundingClientRect()
       const buttons = Array.from(row.querySelectorAll<HTMLElement>("button"))
@@ -70,11 +84,15 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
         buttons: buttons.map((button) => {
           const box = button.getBoundingClientRect()
           const center = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+          const describe = (node: Element | null) => node === null
+            ? "nothing"
+            : `${node.tagName.toLowerCase()}${node.className ? `.${String(node.className).trim().split(/\s+/).join(".")}` : ""}`
           return {
             text: button.textContent?.trim(),
             width: box.width,
             height: box.height,
             centerIsReachable: center === button || button.contains(center),
+            centerOccludedBy: describe(center),
           }
         }),
       }
@@ -87,14 +105,23 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
       expect(button.width).toBeGreaterThanOrEqual(44)
       expect(button.height).toBeGreaterThanOrEqual(44)
       if (testInfo.project.name === "webkit-standard-landscape") {
-        expect(button.centerIsReachable, `${button.text} center should be reachable`).toBe(true)
+        expect(
+          button.centerIsReachable,
+          `${button.text} center should be reachable, but ${button.centerOccludedBy} is on top`
+        ).toBe(true)
       }
     }
   }
   await expectSheetsAndModalsInsideVisualViewport(page)
   await expectFixedAndStickyContainment(page)
   await expectDockClearance(page)
-  await page.getByRole("button", { name: "Collapse planner sheet" }).tap()
+  if (usesSideDeck) {
+    await page.getByRole("button", { name: "Minimize planner", exact: true }).tap()
+    await expect(sheet).toHaveAttribute("data-sheet-detent", "peek")
+    await page.getByRole("button", { name: "Expand planner", exact: true }).tap()
+  } else {
+    await page.getByRole("button", { name: "Collapse planner sheet" }).tap()
+  }
   await expect(sheet).toHaveAttribute("data-sheet-detent", "half")
   expectCleanRuntime(page, mobileQa.runtimeIssues)
 })

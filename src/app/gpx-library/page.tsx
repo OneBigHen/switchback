@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { readDerivedCached } from "@/lib/gpx/catalog-cache"
 import { atlasPathColor, readAtlasArt, curvatureBand } from "@/lib/gpx/atlas"
 import { summariseAtlas, type AtlasStandout, type AtlasSummary } from "@/lib/gpx/atlas-summary"
 import { buildRouteStory } from "@/lib/gpx/route-story"
+import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import type { AtlasRouteArt } from "@/lib/gpx/atlas"
 
 export const dynamic = "force-dynamic"
@@ -80,15 +81,23 @@ function isAtlasListingRoute(value: unknown): value is AtlasListingRoute {
     && typeof value.story.tone === "string"
 }
 
+function validateAtlasListing(parsed: unknown): { routes: AtlasListingRoute[]; generatedAt?: string } {
+  if (!isRecord(parsed) || !Array.isArray(parsed.routes)) return { routes: [] }
+  return {
+    routes: parsed.routes.filter(isAtlasListingRoute),
+    generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : undefined
+  }
+}
+
+/**
+ * The manifest is hundreds of kilobytes and this page is public and
+ * uncacheable, so the parse and the per-route validation are memoised against
+ * the file's mtime rather than repeated per request.
+ */
 async function loadAtlasRoutes(): Promise<{ routes: AtlasListingRoute[]; generatedAt?: string }> {
   try {
     const root = process.env.GPX_LIBRARY_PATH ?? path.join(process.cwd(), "data/gpx-library")
-    const parsed: unknown = JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8"))
-    if (!isRecord(parsed) || !Array.isArray(parsed.routes)) return { routes: [] }
-    return {
-      routes: parsed.routes.filter(isAtlasListingRoute),
-      generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : undefined
-    }
+    return await readDerivedCached(path.join(root, "manifest.json"), "atlas-listing", validateAtlasListing)
   } catch {
     return { routes: [] }
   }
@@ -269,6 +278,21 @@ function formatUpdated(value: string | undefined): string | null {
 }
 
 export default async function GpxLibraryAtlasPage() {
+  if (await isAtlasPageOverBudget()) {
+    return (
+      <main className="atlas-page">
+        <nav className="atlas-context" aria-label="Library context">
+          <Link href="/">Back to planner</Link>
+          <span aria-current="page">Library / Route atlas</span>
+        </nav>
+        <p className="atlas-empty">
+          <strong>Too many atlas requests from this address.</strong>
+          <span>Give it a minute and reload.</span>
+        </p>
+      </main>
+    )
+  }
+
   const [{ routes, generatedAt }, art] = await Promise.all([loadAtlasRoutes(), readAtlasArt()])
   const updatedLabel = formatUpdated(generatedAt)
 

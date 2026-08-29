@@ -290,9 +290,10 @@
 }
 
 @media (max-width: 760px) {
+  /* Offset comes from --ride-recenter-bottom in planner-shell.css so this
+     stays in lockstep with the instruction card's height cap below. */
   .ride-map-recenter {
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
     min-width: 48px;
     min-height: 48px;
     padding: 0 12px;
@@ -384,6 +385,11 @@
       left: 8px;
       width: auto;
       min-height: 118px;
+      /* Bottom-anchored, so it grows upward as the turn text wraps. Cap it
+         below the recenter pill's centre or a long street name hides the
+         control mid-ride. */
+      max-height: calc(var(--ride-recenter-bottom) - 130px);
+      overflow: hidden;
       grid-template-columns: 66px 1fr;
       gap: 12px;
       padding: 14px;
@@ -402,12 +408,20 @@
     }
 
     .ride-instruction h2 {
+      display: -webkit-box;
+      overflow: hidden;
       font-size: 20px;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     .ride-instruction p {
+      display: -webkit-box;
+      overflow: hidden;
       margin-top: 3px;
       font-size: 11px;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     .reroute-option {
@@ -528,6 +542,12 @@
       left: 8px;
       width: calc(60% - 12px);
       min-height: 132px;
+      /* Same cap as the portrait rule, from this breakpoint's own offsets: the
+         pill sits at --ride-recenter-bottom, the card at 8px. A landscape
+         phone under 760px wide matches both blocks, so this must be restated
+         or the portrait calc collapses the card here. */
+      max-height: calc(var(--ride-recenter-bottom) + 8px);
+      overflow: hidden;
       grid-template-columns: 58px minmax(0, 1fr);
       gap: 10px;
       padding: 12px;

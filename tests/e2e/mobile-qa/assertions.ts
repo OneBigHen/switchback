@@ -84,11 +84,30 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
         continue
       }
       for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
-        const overflow = getComputedStyle(ancestor).overflow
-        if (!/(hidden|clip|scroll|auto)/.test(overflow)) continue
+        const ancestorStyle = getComputedStyle(ancestor)
+        if (!/(hidden|clip|scroll|auto)/.test(ancestorStyle.overflow)) continue
         const ancestorRect = ancestor.getBoundingClientRect()
-        if (rect.left < ancestorRect.left - 1 || rect.right > ancestorRect.right + 1 || rect.top < ancestorRect.top - 1 || rect.bottom > ancestorRect.bottom + 1) {
-          problems.push(`${describe(element)} is clipped by ${ancestor.tagName.toLowerCase()}`)
+        // A scrollable ancestor does not clip along an axis it can actually
+        // scroll — content past the fold is reachable, and
+        // expectNoNestedScrollTrap separately proves those regions reach their
+        // extent. Only real hidden/clip containment counts as clipping, so a
+        // control that merely sits below the sheet's fold is not a defect.
+        const scrollsX = /(auto|scroll|overlay)/.test(ancestorStyle.overflowX)
+          && ancestor.scrollWidth > ancestor.clientWidth + 1
+        const scrollsY = /(auto|scroll|overlay)/.test(ancestorStyle.overflowY)
+          && ancestor.scrollHeight > ancestor.clientHeight + 1
+        // Name the offending edge and the overflow in px. Without it the
+        // failure only says "clipped by div", which is not enough to tell a
+        // horizontal overflow from an element sitting past a scroll fold.
+        const overflows = [
+          !scrollsX && rect.left < ancestorRect.left - 1 ? `left by ${Math.round(ancestorRect.left - rect.left)}px` : "",
+          !scrollsX && rect.right > ancestorRect.right + 1 ? `right by ${Math.round(rect.right - ancestorRect.right)}px` : "",
+          !scrollsY && rect.top < ancestorRect.top - 1 ? `top by ${Math.round(ancestorRect.top - rect.top)}px` : "",
+          !scrollsY && rect.bottom > ancestorRect.bottom + 1 ? `bottom by ${Math.round(rect.bottom - ancestorRect.bottom)}px` : ""
+        ].filter(Boolean)
+        if (overflows.length > 0) {
+          const owner = `${ancestor.tagName.toLowerCase()}${ancestor.className ? `.${String(ancestor.className).trim().split(/\s+/).join(".")}` : ""}`
+          problems.push(`${describe(element)} is clipped by ${owner} (overflows ${overflows.join(", ")})`)
           break
         }
       }

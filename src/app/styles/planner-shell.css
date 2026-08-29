@@ -472,9 +472,12 @@ h2 {
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
+    :root {
+      --ride-recenter-bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
+    }
+
     .ride-map-recenter {
       right: max(12px, env(safe-area-inset-right));
-      bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
     }
 
     .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
@@ -559,10 +562,17 @@ h2 {
   pointer-events: none;
 }
 
+/* One source of truth for how high the recenter pill floats above the map.
+   The ride instruction card is bottom-anchored and grows upward, so it sizes
+   itself from this same value and can never swallow the pill. */
+:root {
+  --ride-recenter-bottom: 218px;
+}
+
 .ride-map-recenter {
   position: absolute;
   right: 24px;
-  bottom: 218px;
+  bottom: var(--ride-recenter-bottom);
   z-index: 11;
   display: inline-flex;
   min-width: 52px;
@@ -742,9 +752,12 @@ h2 {
 }
 
 @media (max-width: 760px) {
+    :root {
+      --ride-recenter-bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
+    }
+
     .ride-map-recenter {
       right: max(12px, env(safe-area-inset-right));
-      bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
       min-width: 48px;
       min-height: 48px;
       padding: 0 12px;
@@ -752,8 +765,11 @@ h2 {
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
+    :root {
+      --ride-recenter-bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
+    }
+
     .ride-map-recenter {
       right: max(12px, env(safe-area-inset-right));
-      bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px));
     }
 }

@@ -1,10 +1,12 @@
+import { cache } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { readJsonCached } from "@/lib/gpx/catalog-cache"
 import { atlasPathColor, curvatureBand, readAtlasArt, type AtlasMiniPath } from "@/lib/gpx/atlas"
 import { buildPosterSpec } from "@/lib/gpx/poster"
 import { buildRouteStory } from "@/lib/gpx/route-story"
+import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import type { Coordinate } from "@/lib/routing/types"
 
 export const dynamic = "force-dynamic"
@@ -84,14 +86,17 @@ function manifestHasRoute(value: unknown, routeId: string): boolean {
     && value.routes.some((entry) => isRecord(entry) && entry.id === routeId)
 }
 
-async function loadRouteDetail(routeId: string): Promise<DetailLoad> {
+/**
+ * `cache()` so `generateMetadata` and the page body share one load per request
+ * instead of each re-reading the manifest, the route record and the atlas; the
+ * reads underneath are additionally memoised against each file's mtime.
+ */
+const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
   const root = process.env.GPX_LIBRARY_PATH ?? path.join(process.cwd(), "data/gpx-library")
   try {
-    const manifest: unknown = JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8"))
+    const manifest: unknown = await readJsonCached(path.join(root, "manifest.json"))
     if (!manifestHasRoute(manifest, routeId)) return { route: null, artPaths: [] }
-    const parsedRoute: unknown = JSON.parse(
-      await readFile(path.join(root, "routes", `${routeId}.json`), "utf8")
-    )
+    const parsedRoute: unknown = await readJsonCached(path.join(root, "routes", `${routeId}.json`))
     if (!isDetailRoute(parsedRoute) || parsedRoute.id !== routeId) return { route: null, artPaths: [] }
     const art = (await readAtlasArt())[routeId]
     return {
@@ -103,7 +108,7 @@ async function loadRouteDetail(routeId: string): Promise<DetailLoad> {
   } catch {
     return { route: null, artPaths: [] }
   }
-}
+})
 
 export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }) {
   const { routeId } = await params
@@ -115,8 +120,12 @@ export async function generateMetadata({ params }: { params: Promise<{ routeId: 
   }
 }
 
+// Constructing an Intl formatter is the expensive part; build it once, as the
+// listing page already does.
+const WHOLE_NUMBER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
+
 function formatMiles(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(value))
+  return WHOLE_NUMBER.format(Math.round(value))
 }
 
 function formatDuration(minutes: number): string {
@@ -131,6 +140,19 @@ function formatDuration(minutes: number): string {
 export default async function RouteAtlasPosterPage({ params }: { params: Promise<{ routeId: string }> }) {
   const { routeId } = await params
   if (routeId.length > 200 || !/^[A-Za-z0-9._-]+$/.test(routeId)) notFound()
+  if (await isAtlasPageOverBudget()) {
+    return (
+      <main className="atlas-page atlas-poster-page">
+        <nav className="atlas-context" aria-label="Library context">
+          <Link href="/gpx-library">Back to the atlas</Link>
+        </nav>
+        <p className="atlas-empty">
+          <strong>Too many atlas requests from this address.</strong>
+          <span>Give it a minute and reload.</span>
+        </p>
+      </main>
+    )
+  }
   const { route, artPaths, start, end } = await loadRouteDetail(routeId)
   if (!route) notFound()
 
