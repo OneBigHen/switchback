@@ -1,4 +1,5 @@
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl"
+import type { PlannerMapRenderer } from "./planner-map-renderer"
 import {
   buildRouteFeatures,
   buildRouteLabelFeatures,
@@ -60,7 +61,7 @@ function riderLayerColor(id: RiderLayerId): string {
   }
 }
 
-export function addRiderMapLayers(map: MapLibreMap) {
+export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer) {
   for (const definition of layerCatalog) {
     const runtime = mapLayerRuntime(definition.id)
     if (runtime?.kind !== "raster") continue
@@ -71,38 +72,42 @@ export function addRiderMapLayers(map: MapLibreMap) {
       attribution: runtime.attribution,
       maxzoom: runtime.maxzoom
     })
-    map.addLayer({
+    renderer.addLayer(map, {
       id: riderRasterLayerId(definition.id),
       type: "raster",
       source: `switchback-${definition.id}-raster-source`,
       layout: { visibility: "none" },
       paint: { "raster-opacity": 1, "raster-fade-duration": 0 }
-    }, "switchback-route-casing")
+    }, { slot: "bottom", beforeId: "switchback-route-casing" })
   }
 
   map.addSource(RIDER_FEATURE_SOURCE, { type: "geojson", data: emptyFeatureCollection() })
   for (const id of featureMapLayerIds) {
     const filter: ["==", string, string] = ["==", "layerId", id]
     const color = riderLayerColor(id)
-    map.addLayer({
+    renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[0], type: "fill", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none" },
       paint: { "fill-color": color, "fill-opacity": 0.16, "fill-outline-color": color }
-    }, "switchback-route-casing")
-    map.addLayer({
+    }, { slot: "bottom", beforeId: "switchback-route-casing" })
+    renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[1], type: "line", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
       paint: { "line-color": color, "line-width": 2.5, "line-opacity": 0.8 }
-    }, "switchback-route-casing")
-    map.addLayer({
+    }, { slot: "middle", beforeId: "switchback-route-casing" })
+    renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[2], type: "circle", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none" },
       paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 14, 7], "circle-color": color, "circle-stroke-color": "#101310", "circle-stroke-width": 1.5, "circle-opacity": 0.9 }
-    }, "switchback-route-casing")
+    }, { slot: "middle", beforeId: "switchback-route-casing" })
   }
 }
 
-export function updateRiderMapLayerPresentation(map: MapLibreMap, settings: readonly RiderLayerSetting[]) {
+export function updateRiderMapLayerPresentation(
+  map: MapLibreMap,
+  settings: readonly RiderLayerSetting[],
+  renderer: PlannerMapRenderer
+) {
   const byId = new Map(settings.map((setting) => [setting.id, setting]))
   const sorted = [...settings].sort((first, second) => first.order - second.order)
   for (const definition of layerCatalog) {
@@ -124,7 +129,10 @@ export function updateRiderMapLayerPresentation(map: MapLibreMap, settings: read
   for (const setting of sorted) {
     const runtime = mapLayerRuntime(setting.id)
     const ids = runtime?.kind === "raster" ? [riderRasterLayerId(setting.id)] : runtime?.kind === "features" ? riderFeatureLayerIds(setting.id) : []
-    for (const id of ids) map.moveLayer(id, "switchback-route-casing")
+    // Slot placement already keeps rider layers under the route; the move
+    // only reorders them among themselves. A cross-slot `beforeId` would be
+    // rejected, so the slotted renderer moves to the top of its own slot.
+    for (const id of ids) renderer.moveLayer(map, id, "switchback-route-casing")
   }
 }
 
@@ -145,7 +153,11 @@ export function updatePlannerSources(map: MapLibreMap, props: PlannerMapSourcePr
   geoJsonSource(map, "switchback-navigation")?.setData(props.navigationFrame ? buildNavigationMapFeatures(props.navigationFrame) : emptyFeatureCollection())
 }
 
-export function updateReferenceMapSource(map: MapLibreMap, reference: ReferenceMap | null) {
+export function updateReferenceMapSource(
+  map: MapLibreMap,
+  reference: ReferenceMap | null,
+  renderer: PlannerMapRenderer
+) {
   const sourceId = "switchback-reference-map"
   const layerId = "switchback-reference-map-layer"
   if (!reference) {
@@ -158,7 +170,11 @@ export function updateReferenceMapSource(map: MapLibreMap, reference: ReferenceM
   if (source?.updateImage) source.updateImage({ url: reference.url, coordinates: corners })
   else {
     map.addSource(sourceId, { type: "image", url: reference.url, coordinates: corners })
-    map.addLayer({ id: layerId, type: "raster", source: sourceId, paint: { "raster-opacity": reference.opacity, "raster-fade-duration": 0 } }, "switchback-route-casing")
+    renderer.addLayer(
+      map,
+      { id: layerId, type: "raster", source: sourceId, paint: { "raster-opacity": reference.opacity, "raster-fade-duration": 0 } },
+      { slot: "bottom", beforeId: "switchback-route-casing" }
+    )
   }
   map.setPaintProperty(layerId, "raster-opacity", reference.opacity)
 }

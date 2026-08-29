@@ -250,7 +250,9 @@ h6,
 
   .planner-shell .map-stage:not(.is-ride-mode) :where(
     .maplibregl-ctrl-bottom-left,
-    .maplibregl-ctrl-bottom-right
+    .maplibregl-ctrl-bottom-right,
+    .mapboxgl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-right
   ) {
     bottom: var(--sb-map-sheet-clearance);
   }
@@ -288,12 +290,14 @@ h6,
     max-height: var(--sb-sheet-peek-height);
   }
 
-  .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left {
+  .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
     bottom: calc(var(--sb-map-sheet-clearance) - var(--sb-space-10));
     left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 48vw) + var(--sb-space-2));
   }
 
-  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left {
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
     bottom: calc(var(--sb-map-sheet-clearance) - var(--sb-space-10) - var(--sb-space-10) - var(--sb-space-3));
   }
 }
@@ -382,7 +386,8 @@ h6,
 
   .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-layer-control,
   .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-road-lock-toggle,
-  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-group {
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-group,
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-group {
     display: none;
   }
 

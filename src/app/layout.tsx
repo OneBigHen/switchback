@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next"
+// Both renderer stylesheets ship while the premium migration runs (ADR 0015).
+// Their class prefixes differ, so neither can override the other.
 import "maplibre-gl/dist/maplibre-gl.css"
+import "mapbox-gl/dist/mapbox-gl.css"
 import "./globals.css"
 import "./styles/planner-shell.css"
 import "./styles/waypoint-field.css"
