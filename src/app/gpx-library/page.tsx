@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
@@ -7,6 +8,11 @@ import { buildRouteStory } from "@/lib/gpx/route-story"
 import type { AtlasRouteArt } from "@/lib/gpx/atlas"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+  title: "Route atlas",
+  description: "Every ride imported into Switchback, redrawn from its own GPS geometry — with the collection summarised by distance, corner mix and provenance."
+}
 
 interface AtlasListingRoute {
   id: string
@@ -88,8 +94,12 @@ async function loadAtlasRoutes(): Promise<{ routes: AtlasListingRoute[]; generat
   }
 }
 
+// Constructing an Intl formatter is the expensive part; these are shared by
+// every card on a 138-poster wall, so build each once.
+const WHOLE_NUMBER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
+
 function formatMiles(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(value))
+  return WHOLE_NUMBER.format(Math.round(value))
 }
 
 function formatDuration(minutes: number): string {
@@ -101,8 +111,10 @@ function formatDuration(minutes: number): string {
   return `${h} hr ${m} min`
 }
 
+const GROUPED_NUMBER = new Intl.NumberFormat("en-US")
+
 function formatCount(value: number): string {
-  return new Intl.NumberFormat("en-US").format(Math.round(value))
+  return GROUPED_NUMBER.format(Math.round(value))
 }
 
 /** The poster geometry at thumbnail size, for the standout cards. */
@@ -176,13 +188,13 @@ function AtlasSummaryPanel({ summary, art }: { summary: AtlasSummary; art: Recor
             <span>Share of {formatCount(rideable)} rideable routes by curvature band</span>
           </figcaption>
           <div className="atlas-mixbar" role="img" aria-label={summary.bands.map((slice) => `${slice.band} ${Math.round(slice.share * 100)}%`).join(", ")}>
-            {summary.bands.filter((slice) => slice.count > 0).map((slice) => (
+            {summary.bands.flatMap((slice) => slice.count === 0 ? [] : [(
               <span
                 key={slice.band}
                 className="atlas-mixbar-segment"
                 style={{ width: `${slice.share * 100}%`, background: atlasPathColor({ band: slice.band }) }}
               />
-            ))}
+            )])}
           </div>
           <ul className="atlas-mix-legend">
             {summary.bands.map((slice) => (
@@ -256,8 +268,7 @@ function formatUpdated(value: string | undefined): string | null {
 }
 
 export default async function GpxLibraryAtlasPage() {
-  const { routes, generatedAt } = await loadAtlasRoutes()
-  const art = await readAtlasArt()
+  const [{ routes, generatedAt }, art] = await Promise.all([loadAtlasRoutes(), readAtlasArt()])
   const updatedLabel = formatUpdated(generatedAt)
 
   // Poster wall: one poster per ride. Geometry-identical re-imports and
