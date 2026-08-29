@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { RideHud } from "@/components/planner/RideHud"
 import { RideRecoveryActions } from "@/components/planner/RideRecoveryActions"
 import { RideWeatherAlert } from "@/components/planner/RideWeatherAlert"
+import { getRideMapControlSlot } from "@/components/planner/ride-map-control-slot"
 import { startRideSession } from "@/lib/client/ride-session"
 import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather } from "@/lib/client/weather-client"
@@ -173,33 +174,47 @@ describe("ride HUD GPS safety", () => {
     expect(document.body).not.toHaveClass("ride-mode-active")
   })
 
-  it("publishes the instruction card height so the recenter pill can clear it", () => {
-    // The card is bottom-anchored and grows upward (a wrapped street name, or
-    // the whole off-route recovery list); the recenter pill is pinned from the
-    // same edge in MapStage. Without this measurement the pill has to guess a
-    // fixed offset and gets swallowed by a tall card.
-    const observed: Element[] = []
-    class TestResizeObserver {
-      constructor(private readonly callback: () => void) {}
-      observe(target: Element) {
-        observed.push(target)
-        this.callback()
-      }
-      disconnect() {}
-      unobserve() {}
-    }
-    vi.stubGlobal("ResizeObserver", TestResizeObserver)
+  it("gives the recenter control and the instruction card one layout owner", () => {
+    // The card's height is legitimately variable — one wrapped turn line, or
+    // the whole off-route recovery list. Nothing may be positioned against a
+    // guessed offset above it, so the recenter slot and the card are siblings
+    // in one deck and are laid out with a real gap instead.
+    const { container } = render(<RideHud route={route} onExit={vi.fn()} />)
 
-    const { unmount } = render(<RideHud route={route} onExit={vi.fn()} />)
+    const deck = container.querySelector(".ride-lower-deck")
+    expect(deck).not.toBeNull()
 
-    expect(observed.map((node) => node.className)).toContain("ride-instruction")
-    expect(document.documentElement.style.getPropertyValue("--ride-instruction-height")).toMatch(/^\d+px$/)
+    const slot = deck?.querySelector(".ride-map-control-slot")
+    const card = deck?.querySelector(".ride-instruction")
+    expect(slot).toBeTruthy()
+    expect(card).toBeTruthy()
+    if (!slot || !card) throw new Error("ride lower deck is missing a child")
+
+    // Order matters: the control sits above the card in the column.
+    expect(slot.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // MapStage portals the control here, so the slot must be addressable.
+    expect(slot.id).toBe("ride-map-control-slot")
+  })
+
+  it("republishes the recenter slot when the HUD remounts for a recovery line", () => {
+    // The HUD is keyed by route id, so an accepted rejoin replaces the whole
+    // component — including its slot element. MapStage subscribes to the
+    // published element rather than capturing one, or the portal would keep
+    // rendering into a detached node and the control would vanish mid-recovery.
+    const { container, unmount } = render(<RideHud route={route} onExit={vi.fn()} />)
+
+    const firstSlot = container.querySelector(".ride-map-control-slot")
+    expect(firstSlot).toBeTruthy()
+    expect(getRideMapControlSlot()).toBe(firstSlot)
 
     unmount()
+    expect(getRideMapControlSlot()).toBeNull()
 
-    // Stale on a non-ride surface would push the pill for a card that is gone.
-    expect(document.documentElement.style.getPropertyValue("--ride-instruction-height")).toBe("")
-    vi.unstubAllGlobals()
+    const rerendered = render(<RideHud route={{ ...route, id: "recovery-line" }} onExit={vi.fn()} />)
+    const secondSlot = rerendered.container.querySelector(".ride-map-control-slot")
+    expect(secondSlot).toBeTruthy()
+    expect(secondSlot).not.toBe(firstSlot)
+    expect(getRideMapControlSlot()).toBe(secondSlot)
   })
 
   it("does not claim active guidance before an accurate GPS fix", async () => {

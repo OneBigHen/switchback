@@ -2,7 +2,12 @@
 
 import type { Map as MapLibreMap } from "maplibre-gl"
 import { Crosshair, Lock, X } from "@phosphor-icons/react"
-import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactElement, useSyncExternalStore } from "react"
+import { createPortal } from "react-dom"
+import {
+  getRideMapControlSlot,
+  subscribeRideMapControlSlot
+} from "./ride-map-control-slot"
 import { buildWaypointFeatures, emptyFeatureCollection } from "@/lib/client/map-data"
 import { createFallbackStyleImage } from "@/lib/client/map-style"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
@@ -94,6 +99,16 @@ interface SketchScreenPoint {
   y: number
 }
 
+/**
+ * The ride HUD owns where the lower ride surface sits, so the recenter control
+ * renders into its slot. Until the slot exists (any surface that is not an
+ * active ride) the control falls back to its own absolute placement over the
+ * map, which is what every non-ride surface already expects.
+ */
+function renderIntoRideDeck(control: ReactElement, slot: HTMLElement | null) {
+  return slot ? createPortal(control, slot) : control
+}
+
 export function MapStage(props: MapStageProps) {
   const storedNavigationFrame = useNavigationFrame()
   const navigationFrame = props.navigationFrame ?? storedNavigationFrame
@@ -102,6 +117,17 @@ export function MapStage(props: MapStageProps) {
   const styleTimeoutRef = useRef<number | null>(null)
   const propsRef = useRef<LiveMapProps>(props)
   const navigationFollowingRef = useRef(true)
+
+  // The HUD publishes its slot element through a shared registry (a ref on the
+  // slot div), so the control follows the slot across HUD remounts — the HUD is
+  // keyed by route id, and an accepted rejoin replaces it mid-ride. Until a
+  // slot is published (any surface that is not an active ride) the control
+  // falls back to its own absolute placement over the map.
+  const rideDeckSlot = useSyncExternalStore(
+    subscribeRideMapControlSlot,
+    getRideMapControlSlot,
+    () => null
+  )
   const sketchPointsRef = useRef<SketchScreenPoint[]>([])
   const sketchDrawingRef = useRef(false)
   const avoidDrawingRef = useRef(false)
@@ -922,7 +948,7 @@ export function MapStage(props: MapStageProps) {
           <button type="button" className="map-feature-retry" onClick={retryRiderFeatures}>Retry</button>
         </div>
       ) : null}
-      {props.rideMode && navigationFrame ? (
+      {props.rideMode && navigationFrame ? renderIntoRideDeck(
         <button
           type="button"
           className={`ride-map-recenter${navigationFollowing ? " is-following" : ""}`}
@@ -937,7 +963,8 @@ export function MapStage(props: MapStageProps) {
         >
           <Crosshair weight="bold" aria-hidden="true" />
           <span>{navigationFollowing ? "Following" : "Recenter"}</span>
-        </button>
+        </button>,
+        rideDeckSlot
       ) : null}
       {!props.rideMode ? <MapStageLayerControl
         sketchMode={sketchMode}

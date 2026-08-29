@@ -753,15 +753,7 @@ h2 {
 
 @media (max-width: 760px) {
     :root {
-      /* The instruction card is bottom-anchored at 140px and grows upward with
-         its own content — a wrapped street name, or the off-route recovery
-         options. RideHud publishes its measured height, so the pill clears the
-         real card instead of a guessed one. The fallback matches the card's
-         min-height for the first paint. */
-      --ride-recenter-bottom: max(
-        calc(140px + var(--ride-instruction-height, 118px) + 12px),
-        calc(env(safe-area-inset-bottom) + 258px)
-      );
+      --ride-recenter-bottom: max(266px, calc(env(safe-area-inset-bottom) + 258px));
     }
 
     .ride-map-recenter {

@@ -75,6 +75,9 @@ test.describe("Level A mobile ride scenarios", () => {
     await expect(mobileQa.page.getByRole("heading", { name: "Finding a safe way back…" })).toBeVisible()
     await recovery.release()
     await expect(mobileQa.page.getByRole("region", { name: /Ride (mode|preview) for Recovery fixture route/ })).toBeVisible({ timeout: 30_000 })
+    // The HUD remounts for the recovery line (it is keyed by route id); the
+    // recenter control has to follow its replacement slot instead of vanishing.
+    await expect(mobileQa.page.getByRole("button", { name: "Recenter map on current location" })).toBeVisible()
     await captureRideState(mobileQa.page, testInfo, "off-route-recovery")
   })
 

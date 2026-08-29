@@ -113,7 +113,12 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
       }
       const center = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
       if (center === null || (!element.contains(center) && !center.contains(element))) {
-        problems.push(`${describe(element)} is obscured at its center`)
+        // Name what is on top; "obscured" alone does not say whether the
+        // control is behind a panel or simply off-screen (null).
+        const onTop = center === null
+          ? "nothing (its centre is outside the viewport)"
+          : `${center.tagName.toLowerCase()}${center.className ? `.${String(center.className).trim().split(/\s+/).join(".")}` : ""}`
+        problems.push(`${describe(element)} is obscured at its center by ${onTop}`)
       }
     }
     return problems

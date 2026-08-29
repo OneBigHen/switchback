@@ -904,3 +904,68 @@
       padding: 6px 9px;
     }
 }
+
+/* The lower ride surface has one layout owner.
+   .ride-instruction's height is legitimately variable — one wrapped turn line,
+   or the whole off-route recovery list — so nothing may be positioned against a
+   guessed offset above it. At phone widths this deck lays the recenter control
+   and the card out as a flex column with a real gap, which makes an overlap
+   impossible regardless of how tall the card gets. Everywhere else the deck is
+   transparent to layout and the existing per-element positioning applies. */
+.ride-lower-deck {
+  display: contents;
+}
+
+@media (max-width: 760px) {
+  .ride-lower-deck {
+    position: absolute;
+    right: 8px;
+    bottom: 140px;
+    left: 8px;
+    z-index: 11;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    pointer-events: none;
+  }
+
+  .ride-lower-deck > * {
+    pointer-events: auto;
+  }
+
+  .ride-lower-deck .ride-map-control-slot {
+    display: flex;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+
+  .ride-lower-deck .ride-map-recenter {
+    position: static;
+    pointer-events: auto;
+  }
+
+  /* Positioned by the deck now, not against the viewport. */
+  .ride-lower-deck .ride-instruction {
+    position: static;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: auto;
+  }
+}
+
+/* Phone landscape keeps its own side-by-side geometry. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .ride-lower-deck {
+    display: contents;
+  }
+
+  .ride-lower-deck .ride-map-recenter {
+    position: absolute;
+  }
+
+  .ride-lower-deck .ride-instruction {
+    position: absolute;
+  }
+}
