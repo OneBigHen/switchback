@@ -43,8 +43,10 @@ export interface NormalizeGpxOptions {
 }
 
 export interface SplitGpxOptions extends NormalizeGpxOptions {
-  /** Distance between two consecutive tracks above which they are separate rides. */
+  /** Distance between consecutive points above which they are separate rides. */
   splitGapMeters?: number
+  /** Pieces shorter than this are import debris, not rides. */
+  minimumRideMeters?: number
 }
 
 interface SourceGroup {
@@ -60,6 +62,21 @@ const FINGERPRINT_SAMPLE_COUNT = 32
  * whose geometry is mostly the straight-line jumps between towns.
  */
 const DEFAULT_TRACK_SPLIT_METERS = 5_000
+/** Shorter than this, a separated piece is a stray fragment rather than a ride. */
+const DEFAULT_MINIMUM_RIDE_METERS = 1_609
+/**
+ * Beyond this many separate rides, the file is a catalogue of roads rather than
+ * a record of riding them. Splitting those into hundreds of near-identical
+ * posters would bury the real rides, so they are rejected with a reason and
+ * kept for review instead.
+ */
+const MAX_RIDES_PER_FILE = 12
+/**
+ * A break has to be anomalous for its own file, not just far in absolute terms:
+ * planned routes list junctions kilometres apart, recorded traces list points
+ * metres apart.
+ */
+const SPARSE_SPACING_MULTIPLE = 20
 
 function fallbackName(fileName: string): string {
   return fileName.replace(/\.gpx$/i, "").replaceAll(/[-_]+/g, " ").trim() || "Imported ride"
@@ -206,24 +223,6 @@ export function areGpxFingerprintsNear(
   return left.samples.every((point, index) => haversine(point, right.samples[index]!) <= maxPointDistanceMeters)
 }
 
-function firstCoordinate(segments: GpxStreamSegment[]): Coordinate | null {
-  for (const segment of segments) {
-    for (const point of segment.points) if (point.coordinate) return point.coordinate
-  }
-  return null
-}
-
-function lastCoordinate(segments: GpxStreamSegment[]): Coordinate | null {
-  for (let index = segments.length - 1; index >= 0; index -= 1) {
-    const points = segments[index]?.points ?? []
-    for (let pointIndex = points.length - 1; pointIndex >= 0; pointIndex -= 1) {
-      const coordinate = points[pointIndex]?.coordinate
-      if (coordinate) return coordinate
-    }
-  }
-  return null
-}
-
 /**
  * Splits a document that holds several disjoint rides into one route each.
  *
@@ -238,43 +237,112 @@ export function splitGpxDocument(
   document: GpxStreamDocument,
   options: SplitGpxOptions
 ): NormalizedGpxRoute[] {
-  const sources = [...document.tracks, ...document.routes]
-    .filter((source) => source.segments.some((segment) => segment.points.some((point) => point.coordinate)))
-  if (sources.length <= 1) return [normalizeGpxDocument(document, options)]
-
   const splitGapMeters = options.splitGapMeters ?? DEFAULT_TRACK_SPLIT_METERS
-  const rides: (typeof sources)[] = []
-  let current: typeof sources = []
+  const minimumRideMeters = options.minimumRideMeters ?? DEFAULT_MINIMUM_RIDE_METERS
+  const sources = [...document.tracks, ...document.routes]
+
+  // Walk every point in document order and cut wherever the next one is too far
+  // to have been ridden to. The jumps that matter are not only between tracks:
+  // the worst file in the current library is a single <trkseg> holding 226
+  // disconnected roads, with a 299 km hop in the middle of it.
+  // A planned <rte> is sparse by design — its points are junctions, kilometres
+  // apart — so a fixed distance threshold would shred one into fragments. Scale
+  // the cut against the file's own median point spacing: on a dense GPS trace a
+  // 5 km hop is hundreds of times the norm, on a sparse planned route it is
+  // ordinary, and only an anomaly for that file counts as a break.
+  const spacings: number[] = []
+  let spacingPrevious: Coordinate | null = null
   for (const source of sources) {
-    const previousEnd = current.length === 0 ? null : lastCoordinate(current.at(-1)!.segments)
-    const start = firstCoordinate(source.segments)
-    const disjoint = previousEnd !== null && start !== null && haversine(previousEnd, start) > splitGapMeters
-    if (disjoint) {
-      rides.push(current)
-      current = []
+    for (const segment of source.segments) {
+      for (const point of segment.points) {
+        if (!point.coordinate) continue
+        if (spacingPrevious) spacings.push(haversine(spacingPrevious, point.coordinate))
+        spacingPrevious = point.coordinate
+      }
     }
-    current.push(source)
   }
-  if (current.length > 0) rides.push(current)
-  if (rides.length <= 1) return [normalizeGpxDocument(document, options)]
+  if (spacings.length === 0) return [normalizeGpxDocument(document, options)]
+  const medianSpacing = spacings.toSorted((a, b) => a - b)[Math.floor(spacings.length / 2)] ?? 0
+  const breakMeters = Math.max(splitGapMeters, medianSpacing * SPARSE_SPACING_MULTIPLE)
+
+  const runs: { name: string | null; points: GpxStreamPoint[] }[] = []
+  let run: GpxStreamPoint[] = []
+  let previous: Coordinate | null = null
+  let runName: string | null = null
+  const closeRun = () => {
+    if (run.length > 0) runs.push({ name: runName, points: run })
+    run = []
+  }
+  for (const source of sources) {
+    for (const segment of source.segments) {
+      for (const point of segment.points) {
+        if (!point.coordinate) continue
+        if (previous !== null && haversine(previous, point.coordinate) > breakMeters) {
+          closeRun()
+          runName = source.name
+        }
+        if (run.length === 0) runName = runName ?? source.name
+        run.push(point)
+        previous = point.coordinate
+      }
+    }
+  }
+  closeRun()
+
+  if (runs.length <= 1) return [normalizeGpxDocument(document, options)]
+
+  const rides = runs.filter((candidate) => runDistance(candidate.points) >= minimumRideMeters)
+  if (rides.length === 0) {
+    // The floor exists to drop debris sitting beside a real ride, not to
+    // discard a genuinely short file — several exports are a mile or two of
+    // geometry split across two segments. Only fragment soup is rejected.
+    if (runs.length > MAX_RIDES_PER_FILE) {
+      throw new Error(`The GPX document is a road collection, not a ride: ${runs.length} disconnected pieces`)
+    }
+    return [normalizeGpxDocument(document, options)]
+  }
+  if (rides.length === 1) {
+    // One real ride plus stray fragments: keep the ride under the file's own id.
+    return [normalizeGpxDocument(documentForRun(document, rides[0]!, document.waypoints), options)]
+  }
+  if (rides.length > MAX_RIDES_PER_FILE) {
+    throw new Error(`The GPX document is a road collection, not a ride: ${rides.length} disconnected pieces over ${Math.round(minimumRideMeters / 1609.344)} mi`)
+  }
 
   return rides.flatMap((ride, index) => {
-    // Waypoints belong to the file, not to any one ride, so they stay with the
-    // first — attaching every waypoint to every split would invent data.
-    const part: GpxStreamDocument = {
-      ...document,
-      metadataName: ride[0]?.name ?? (document.metadataName ? `${document.metadataName} (part ${index + 1})` : null),
-      tracks: ride.map((source) => ({ name: source.name, segments: source.segments })),
-      routes: [],
-      waypoints: index === 0 ? document.waypoints : []
-    }
     try {
+      // Waypoints belong to the file, not to any one ride, so they stay with
+      // the first — attaching every waypoint to every split would invent data.
+      const part = documentForRun(document, ride, index === 0 ? document.waypoints : [])
       return [normalizeGpxDocument(part, { ...options, id: `${options.id}--t${index + 1}` })]
     } catch {
-      // A track with no usable geometry drops out rather than failing the file.
       return []
     }
   })
+}
+
+function runDistance(points: GpxStreamPoint[]): number {
+  let total = 0
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1]?.coordinate
+    const current = points[index]?.coordinate
+    if (previous && current) total += haversine(previous, current)
+  }
+  return total
+}
+
+function documentForRun(
+  document: GpxStreamDocument,
+  run: { name: string | null; points: GpxStreamPoint[] },
+  waypoints: GpxStreamDocument["waypoints"]
+): GpxStreamDocument {
+  return {
+    ...document,
+    metadataName: run.name ?? document.metadataName,
+    tracks: [{ name: run.name, segments: [{ points: run.points }] }],
+    routes: [],
+    waypoints
+  }
 }
 
 export function normalizeGpxDocument(

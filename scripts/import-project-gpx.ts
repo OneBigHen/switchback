@@ -176,13 +176,12 @@ async function buildRouteArtifacts(
   const mapMatch = rides.length > 1
     ? { status: "unmatched" as const, provider: null, profile: null, message: "Source file contained several rides; matched per file, not per ride." }
     : await mapMatchGpxStream(readGpxSource(primary), { endpoint: matchEndpoint, profile: matchProfile })
-  return rides.map((normalized) => buildOneArtifact(normalized, group, primary, sources, mapMatch))
+  return rides.map((normalized) => buildOneArtifact(normalized, group, sources, mapMatch))
 }
 
 function buildOneArtifact(
   normalized: NormalizedGpxRoute,
   group: SourceFileGroup,
-  primary: string,
   sources: string[],
   mapMatch: GpxMapMatchResult
 ): { artifact: ImportedRouteArtifact; normalized: NormalizedGpxRoute } {

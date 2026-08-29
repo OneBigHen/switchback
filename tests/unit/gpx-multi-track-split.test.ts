@@ -38,6 +38,49 @@ const singleGpx = `<?xml version="1.0" encoding="UTF-8"?>
   </trkseg></trk>
 </gpx>`
 
+/** One track, one segment, two roads 90 km apart — the shape that broke the atlas. */
+const oneSegmentTwoRoadsGpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Two Roads</name></metadata>
+  <trk><name>Two Roads</name><trkseg>
+    <trkpt lat="40.00" lon="-76.00"/><trkpt lat="40.02" lon="-76.02"/><trkpt lat="40.04" lon="-76.04"/>
+    <trkpt lat="41.00" lon="-75.00"/><trkpt lat="41.02" lon="-75.02"/><trkpt lat="41.04" lon="-75.04"/>
+  </trkseg></trk>
+</gpx>`
+
+/** A real ride plus a stray two-point fragment left over from the export. */
+const rideWithDebrisGpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Ride Plus Debris</name></metadata>
+  <trk><name>Ride Plus Debris</name><trkseg>
+    <trkpt lat="40.00" lon="-76.00"/><trkpt lat="40.03" lon="-76.03"/>
+  </trkseg><trkseg>
+    <trkpt lat="45.00" lon="-70.00"/><trkpt lat="45.0001" lon="-70.0001"/>
+  </trkseg></trk>
+</gpx>`
+
+/** Twenty unrelated roads in one file: a catalogue, not a ride. */
+const roadCatalogueGpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Every Unpaved Road</name></metadata>
+  <trk><name>Every Unpaved Road</name><trkseg>
+${Array.from({ length: 20 }, (_unused, index) =>
+  `    <trkpt lat="${40 + index}" lon="-76.00"/><trkpt lat="${40 + index}.03" lon="-76.03"/>`
+).join("\n")}
+  </trkseg></trk>
+</gpx>`
+
+/** A planned route: junctions kilometres apart, which is normal for <rte>. */
+const sparsePlannedRouteGpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Planned Eighty Four</name></metadata>
+  <rte><name>Planned Eighty Four</name>
+    <rtept lat="40.00" lon="-76.00"/><rtept lat="40.10" lon="-76.10"/>
+    <rtept lat="40.20" lon="-76.22"/><rtept lat="40.32" lon="-76.30"/>
+    <rtept lat="40.44" lon="-76.41"/><rtept lat="40.55" lon="-76.55"/>
+  </rte>
+</gpx>`
+
 const options = { id: "import-1", fileName: "owner.gpx" }
 
 describe("splitGpxDocument", () => {
@@ -75,12 +118,40 @@ describe("splitGpxDocument", () => {
     expect(routes[0]?.name).toBe("Just One")
   })
 
-  it("honours a caller-supplied split distance", () => {
-    // The continuous file's legs are ~150 m apart; a 50 m threshold separates them.
-    const routes = splitGpxDocument(parseGpxXml(continuousGpx), { ...options, splitGapMeters: 50 })
+  it("splits a single segment that jumps between disconnected roads", () => {
+    // The worst file in the library is one <trkseg> holding many separate
+    // roads, so the cut has to happen inside a segment, not only between tracks.
+    const routes = splitGpxDocument(parseGpxXml(oneSegmentTwoRoadsGpx), options)
 
     expect(routes).toHaveLength(2)
-    expect(routes.map((route) => route.name)).toEqual(["Leg one", "Leg two"])
+    expect(routes[0]?.geometry).toHaveLength(3)
+    expect(routes[1]?.geometry).toHaveLength(3)
+    // Neither route carries the 90 km hop that joined them.
+    expect(routes.every((route) => route.distanceMeters < 10_000)).toBe(true)
+  })
+
+  it("drops fragments too short to be a ride and keeps the real one under the file id", () => {
+    const routes = splitGpxDocument(parseGpxXml(rideWithDebrisGpx), options)
+
+    expect(routes).toHaveLength(1)
+    expect(routes[0]?.id).toBe("import-1")
+    expect(routes[0]?.distanceMeters).toBeGreaterThan(1_609)
+  })
+
+  it("rejects a road catalogue rather than turning it into dozens of posters", () => {
+    expect(() => splitGpxDocument(parseGpxXml(roadCatalogueGpx), options))
+      .toThrow(/road collection, not a ride/)
+  })
+
+
+  it("keeps a sparse planned route whole instead of shredding it", () => {
+    // Its junctions are ~13 km apart, far beyond the 5 km floor. Cutting on the
+    // absolute distance alone turned real 84-mile routes into rejected debris.
+    const routes = splitGpxDocument(parseGpxXml(sparsePlannedRouteGpx), options)
+
+    expect(routes).toHaveLength(1)
+    expect(routes[0]?.id).toBe("import-1")
+    expect(routes[0]?.geometry).toHaveLength(6)
   })
 
   it("attaches file-level waypoints to the first ride only", () => {

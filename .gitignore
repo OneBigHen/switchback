@@ -45,3 +45,7 @@ data/graphhopper-legacy.yml
 data/next-3200.log
 data/.motorcycle-osm-*
 data/quality/
+
+# Transient backups the GPX import writes beside the library it replaces.
+data/gpx-library.previous-*/
+data/gpx-library.pending-*/

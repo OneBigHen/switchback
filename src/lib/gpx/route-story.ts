@@ -83,7 +83,7 @@ export function buildRouteStory(route: RouteStoryInput): RouteStory {
   // ride names, so they fall through to the generated title like any other
   // untitled import rather than being printed as a headline.
   const hasRealName = name.length > 0
-    && !/^untitled$|^imported$|^new$/i.test(name)
+    && !/^(?:untitled|imported|new|imported gpx|unnamed)$/i.test(name)
     && !/^[\d\s:_/.-]+$/.test(name)
     && !/^(?:track|route|activity|segment)[\s_-]*\d*$/i.test(name)
   const twist = twistWord(route.twistiness)

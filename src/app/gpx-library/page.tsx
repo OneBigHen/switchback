@@ -95,7 +95,7 @@ async function loadAtlasRoutes(): Promise<{ routes: AtlasListingRoute[]; generat
 }
 
 // Constructing an Intl formatter is the expensive part; these are shared by
-// every card on a 138-poster wall, so build each once.
+// every card on the poster wall, so build each once.
 const WHOLE_NUMBER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
 
 function formatMiles(value: number): string {
@@ -162,7 +162,7 @@ function AtlasSummaryPanel({ summary, art }: { summary: AtlasSummary; art: Recor
         <div className="atlas-kpi">
           <dt>Route posters</dt>
           <dd>{formatCount(summary.posters)}</dd>
-          <p>folded from {formatCount(summary.importedVariants)} imported files</p>
+          <p>folded from {formatCount(summary.importedVariants)} imported routes</p>
         </div>
         <div className="atlas-kpi">
           <dt>Miles catalogued</dt>
@@ -248,10 +248,11 @@ function AtlasSummaryPanel({ summary, art }: { summary: AtlasSummary; art: Recor
         </ul>
         {flagged > 0 ? (
           <p className="atlas-flagged">
-            {formatCount(flagged)} imported files sit outside the totals above
-            {summary.oversized > 0 ? ` — ${formatCount(summary.oversized)} look like whole ride collections saved as one track` : ""}
-            {summary.oversized > 0 && summary.empty > 0 ? ", and" : ""}
-            {summary.empty > 0 ? ` ${formatCount(summary.empty)} carry no rideable distance` : ""}. Their posters are still below.
+            {flagged === 1 ? "One route sits" : `${formatCount(flagged)} routes sit`} outside the totals above:{" "}
+            {[
+              summary.oversized > 0 ? `${formatCount(summary.oversized)} still ${summary.oversized === 1 ? "looks" : "look"} like a whole ride collection saved as one track` : null,
+              summary.empty > 0 ? `${formatCount(summary.empty)} ${summary.empty === 1 ? "carries" : "carry"} no rideable distance` : null
+            ].filter(Boolean).join(", and ")}. Their posters are still below.
           </p>
         ) : null}
       </div>
@@ -271,13 +272,17 @@ export default async function GpxLibraryAtlasPage() {
   const [{ routes, generatedAt }, art] = await Promise.all([loadAtlasRoutes(), readAtlasArt()])
   const updatedLabel = formatUpdated(generatedAt)
 
-  // Poster wall: one poster per ride. Geometry-identical re-imports and
-  // near-duplicate variants fold into their canonical poster.
-  const hiddenDuplicates = routes.filter(
-    (route) => route.duplicateFamilyRole === "near-duplicate" || art[route.id]?.duplicateOf
-  ).length
+  // Poster wall: one poster per ride, decided by the poster art alone.
+  //
+  // Two independent passes fold duplicates — the importer's fingerprint families
+  // in the manifest, and the atlas builder's geometry match — and they elect
+  // different canonicals for around a hundred families each. Requiring a route
+  // to be canonical in both discarded every route the two disagreed about, which
+  // was most of the wall. The art is authoritative here because it is what draws
+  // a poster: a route folded by the builder carries no paths of its own.
+  const hiddenDuplicates = routes.filter((route) => art[route.id]?.duplicateOf).length
   const ordered = routes
-    .filter((route) => route.duplicateFamilyRole !== "near-duplicate" && !art[route.id]?.duplicateOf)
+    .filter((route) => !art[route.id]?.duplicateOf)
     .sort((a, b) => b.distanceMiles - a.distanceMiles)
   const summary = summariseAtlas(ordered, {
     importedVariants: routes.length,
