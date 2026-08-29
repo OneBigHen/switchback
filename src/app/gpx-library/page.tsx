@@ -2,7 +2,9 @@ import Link from "next/link"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { atlasPathColor, readAtlasArt, curvatureBand } from "@/lib/gpx/atlas"
+import { summariseAtlas, type AtlasStandout, type AtlasSummary } from "@/lib/gpx/atlas-summary"
 import { buildRouteStory } from "@/lib/gpx/route-story"
+import type { AtlasRouteArt } from "@/lib/gpx/atlas"
 
 export const dynamic = "force-dynamic"
 
@@ -99,6 +101,152 @@ function formatDuration(minutes: number): string {
   return `${h} hr ${m} min`
 }
 
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en-US").format(Math.round(value))
+}
+
+/** The poster geometry at thumbnail size, for the standout cards. */
+function PosterMark({ art, label }: { art: AtlasRouteArt | undefined; label: string }) {
+  if (!art) return <span className="atlas-standout-mark is-empty" aria-hidden="true" />
+  return (
+    <svg className="atlas-standout-mark" viewBox="0 0 100 125" role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
+      {art.paths.map((piece, index) => (
+        <path key={index} d={piece.d} style={{ color: atlasPathColor(piece) }} />
+      ))}
+    </svg>
+  )
+}
+
+function StandoutCard({ art, standout, kicker, value, unit }: {
+  art: Record<string, AtlasRouteArt>
+  standout: AtlasStandout | null
+  kicker: string
+  value: string
+  unit: string
+}) {
+  if (!standout) return null
+  // Same title the poster wall shows, so an award and its card read as one ride.
+  const title = buildRouteStory(standout).title
+  return (
+    <Link href={`/gpx-library/${standout.id}`} className="atlas-standout">
+      <PosterMark art={art[standout.id]} label={`Poster map of ${title}`} />
+      <span className="atlas-standout-body">
+        <span className="atlas-standout-kicker">{kicker}</span>
+        <strong className="atlas-standout-value">{value}<em>{unit}</em></strong>
+        <span className="atlas-standout-name">{title}</span>
+      </span>
+    </Link>
+  )
+}
+
+function AtlasSummaryPanel({ summary, art }: { summary: AtlasSummary; art: Record<string, AtlasRouteArt> }) {
+  const rideable = summary.bands.reduce((total, slice) => total + slice.count, 0)
+  const busiestBin = Math.max(1, ...summary.lengths.map((bin) => bin.count))
+  const flagged = summary.oversized + summary.empty
+
+  return (
+    <section className="atlas-summary" aria-label="Collection summary">
+      <dl className="atlas-kpis">
+        <div className="atlas-kpi">
+          <dt>Route posters</dt>
+          <dd>{formatCount(summary.posters)}</dd>
+          <p>folded from {formatCount(summary.importedVariants)} imported files</p>
+        </div>
+        <div className="atlas-kpi">
+          <dt>Miles catalogued</dt>
+          <dd>{formatCount(summary.totalMiles)}</dd>
+          <p>{formatCount(summary.medianMiles)} mi median ride</p>
+        </div>
+        <div className="atlas-kpi">
+          <dt>Hours of riding</dt>
+          <dd>{formatCount(summary.totalHours)}</dd>
+          <p>moving time across the collection</p>
+        </div>
+        <div className="atlas-kpi">
+          <dt>Corners</dt>
+          <dd>{formatCount(summary.totalTurns)}</dd>
+          <p>turns counted from geometry</p>
+        </div>
+      </dl>
+
+      <div className="atlas-figures">
+        <figure className="atlas-figure">
+          <figcaption>
+            <strong>Corner mix</strong>
+            <span>Share of {formatCount(rideable)} rideable routes by curvature band</span>
+          </figcaption>
+          <div className="atlas-mixbar" role="img" aria-label={summary.bands.map((slice) => `${slice.band} ${Math.round(slice.share * 100)}%`).join(", ")}>
+            {summary.bands.filter((slice) => slice.count > 0).map((slice) => (
+              <span
+                key={slice.band}
+                className="atlas-mixbar-segment"
+                style={{ width: `${slice.share * 100}%`, background: atlasPathColor({ band: slice.band }) }}
+              />
+            ))}
+          </div>
+          <ul className="atlas-mix-legend">
+            {summary.bands.map((slice) => (
+              <li key={slice.band}>
+                <i aria-hidden="true" style={{ background: atlasPathColor({ band: slice.band }) }} />
+                <strong>{slice.band}</strong>
+                <em>{formatCount(slice.count)}</em>
+                <span>{Math.round(slice.share * 100)}%</span>
+              </li>
+            ))}
+          </ul>
+        </figure>
+
+        <figure className="atlas-figure">
+          <figcaption>
+            <strong>Route lengths</strong>
+            <span>How far a single ride in the atlas actually goes</span>
+          </figcaption>
+          <ul className="atlas-hist">
+            {summary.lengths.map((bin) => (
+              <li key={bin.label}>
+                <span className="atlas-hist-label">{bin.label}</span>
+                <span className="atlas-hist-track">
+                  <span className="atlas-hist-bar" style={{ width: `${bin.count / busiestBin * 100}%` }} />
+                </span>
+                <em>{formatCount(bin.count)}</em>
+              </li>
+            ))}
+          </ul>
+        </figure>
+      </div>
+
+      <div className="atlas-standouts">
+        <StandoutCard art={art} standout={summary.longest} kicker="Longest ride" value={formatCount(summary.longest?.distanceMiles ?? 0)} unit="mi" />
+        <StandoutCard art={art} standout={summary.mostTurns} kicker="Most corners" value={formatCount(summary.mostTurns?.turnCount ?? 0)} unit="turns" />
+        <StandoutCard art={art} standout={summary.twistiest} kicker="Twistiest" value={formatCount(summary.twistiest?.twistiness ?? 0)} unit="/100" />
+      </div>
+
+      <div className="atlas-provenance">
+        <h2>Where these came from</h2>
+        <ul className="atlas-sources">
+          {summary.sources.map((source) => (
+            <li key={source.project}>
+              <span className="atlas-source-name">{source.project}</span>
+              <span className="atlas-hist-track">
+                <span className="atlas-hist-bar" style={{ width: `${source.share * 100}%` }} />
+              </span>
+              <em>{formatCount(source.count)}</em>
+            </li>
+          ))}
+        </ul>
+        {flagged > 0 ? (
+          <p className="atlas-flagged">
+            {formatCount(flagged)} imported files sit outside the totals above
+            {summary.oversized > 0 ? ` — ${formatCount(summary.oversized)} look like whole ride collections saved as one track` : ""}
+            {summary.oversized > 0 && summary.empty > 0 ? ", and" : ""}
+            {summary.empty > 0 ? ` ${formatCount(summary.empty)} carry no rideable distance` : ""}. Their posters are still below.
+          </p>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 function formatUpdated(value: string | undefined): string | null {
   if (!value) return null
   const date = new Date(value)
@@ -120,9 +268,8 @@ export default async function GpxLibraryAtlasPage() {
   const ordered = routes
     .filter((route) => route.duplicateFamilyRole !== "near-duplicate" && !art[route.id]?.duplicateOf)
     .sort((a, b) => b.distanceMiles - a.distanceMiles)
-  const collectionCopy = buildAtlasCollectionCopy({
+  const summary = summariseAtlas(ordered, {
     importedVariants: routes.length,
-    uniquePosters: ordered.length,
     foldedVariants: hiddenDuplicates
   })
 
@@ -135,10 +282,11 @@ export default async function GpxLibraryAtlasPage() {
       <header className="atlas-hero">
         <p className="atlas-eyebrow">Route atlas</p>
         <h1>Unique route posters.</h1>
+        {/* The counts moved into the summary tiles below; the lede says what
+            the page is rather than repeating them. */}
         <p className="atlas-lede">
-          {collectionCopy} Each poster is redrawn from its route geometry — color follows the corners,
-          and every poster carries an honest summary of the ride. Inspired by prettymaps; built from Switchback
-          catalog data.
+          Every ride ever imported into Switchback, redrawn from its own GPS geometry — colour follows the
+          corners, so a poster shows you how a road actually rides before you read a single number.
         </p>
         {updatedLabel ? <p className="atlas-updated">{updatedLabel}</p> : null}
         <p className="atlas-legend" aria-label="Curvature color legend">
@@ -146,6 +294,8 @@ export default async function GpxLibraryAtlasPage() {
           calm → hairpin
         </p>
       </header>
+
+      {ordered.length > 0 ? <AtlasSummaryPanel summary={summary} art={art} /> : null}
 
       {ordered.length === 0 ? (
         <section className="atlas-empty">

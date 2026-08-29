@@ -36,7 +36,17 @@ function hours(durationMinutes: number): string {
 }
 
 function cleanName(name: string): string {
-  return name.trim().replace(/\.(gpx|kml|kmz)$/i, "")
+  return name
+    .trim()
+    .replace(/\.(gpx|kml|kmz)$/i, "")
+    // Route-sharing sites append their own credit to the track name
+    // ("… - created by someone on ADVHub.net"). It is the site's byline, not
+    // part of the ride's name, and it crowds out the name itself in a card.
+    .replace(/\s*[-–—]?\s*created by\b.*$/i, "")
+    // Leading catalogue numbers ("000 Armstrong County Loops") are filing
+    // artefacts from bulk exports.
+    .replace(/^\d{2,}[\s._-]+(?=\D)/, "")
+    .trim()
 }
 
 function titleCase(value: string): string {
@@ -68,7 +78,14 @@ function twistWord(twistiness: number): string {
 export function buildRouteStory(route: RouteStoryInput): RouteStory {
   const { tone, pace } = toneFor(route.distanceMiles)
   const name = cleanName(route.name)
-  const hasRealName = name.length > 0 && !/^untitled$|^imported$|^new$/i.test(name)
+  // A large share of imported files are named by their export timestamp
+  // ("2016-07-23 08:58:57") or a bare track number. Those are filenames, not
+  // ride names, so they fall through to the generated title like any other
+  // untitled import rather than being printed as a headline.
+  const hasRealName = name.length > 0
+    && !/^untitled$|^imported$|^new$/i.test(name)
+    && !/^[\d\s:_/.-]+$/.test(name)
+    && !/^(?:track|route|activity|segment)[\s_-]*\d*$/i.test(name)
   const twist = twistWord(route.twistiness)
   const turns = Math.max(0, Math.round(route.turnCount || 0))
 

@@ -442,3 +442,333 @@ em.band-dot.band-hairpin { color: var(--band-hairpin); }
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Collection summary — the atlas as an instrument panel.
+
+   The wall answers "what does this one ride look like"; nothing answered "what
+   is in this collection". These figures do, and they are deliberately honest:
+   the headline totals cover only routes that plausibly describe a single ride,
+   and the imports that don't are disclosed rather than quietly averaged in.
+
+   Colour discipline: the curvature ramp is the only multi-hue scale on the
+   page, and it is ordered (calm -> hairpin), reused verbatim from the posters
+   so the legend means the same thing as the artwork. Every other bar is a
+   single accent hue carrying magnitude only, with identity in the text label,
+   so nothing depends on colour alone.
+   --------------------------------------------------------------------------- */
+
+.atlas-summary {
+  display: grid;
+  gap: clamp(20px, 3vw, 32px);
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.atlas-kpis {
+  display: grid;
+  margin: 0;
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--sb-border);
+  border-radius: 16px;
+  background: var(--sb-border);
+}
+
+.atlas-kpi {
+  display: grid;
+  gap: 4px;
+  padding: clamp(14px, 2vw, 20px);
+  background: var(--sb-surface);
+  align-content: start;
+}
+
+.atlas-kpi dt {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.atlas-kpi dd {
+  margin: 0;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-kpi p {
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.atlas-figures {
+  display: grid;
+  gap: clamp(16px, 2vw, 24px);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.atlas-figure {
+  display: grid;
+  margin: 0;
+  gap: 14px;
+  padding: clamp(16px, 2vw, 22px);
+  align-content: start;
+  border: 1px solid var(--sb-border);
+  border-radius: 16px;
+  background: var(--sb-surface);
+}
+
+.atlas-figure figcaption {
+  display: grid;
+  gap: 3px;
+}
+
+.atlas-figure figcaption strong {
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 620;
+}
+
+.atlas-figure figcaption span {
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Ordered parts-of-a-whole. The 2px gaps are surface, not ink: adjacent bands
+   stay countable without a border darkening either colour. */
+.atlas-mixbar {
+  display: flex;
+  overflow: hidden;
+  height: 16px;
+  gap: 2px;
+  border-radius: 999px;
+}
+
+.atlas-mixbar-segment {
+  min-width: 3px;
+  border-radius: 2px;
+}
+
+.atlas-mixbar-segment:first-child { border-start-start-radius: 999px; border-end-start-radius: 999px; }
+.atlas-mixbar-segment:last-child { border-start-end-radius: 999px; border-end-end-radius: 999px; }
+
+.atlas-mix-legend {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 7px;
+  list-style: none;
+}
+
+.atlas-mix-legend li {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  font-size: 13px;
+}
+
+.atlas-mix-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.atlas-mix-legend strong {
+  color: var(--sb-text);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.atlas-mix-legend em {
+  color: var(--sb-text);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-mix-legend span {
+  min-width: 38px;
+  color: var(--sb-text-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Single-hue magnitude bars, shared by the length histogram and provenance. */
+.atlas-hist,
+.atlas-sources {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 9px;
+  list-style: none;
+}
+
+.atlas-hist li,
+.atlas-sources li {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  grid-template-columns: minmax(72px, 96px) minmax(0, 1fr) 34px;
+  font-size: 13px;
+}
+
+.atlas-hist-label,
+.atlas-source-name {
+  color: var(--sb-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-hist-track {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sb-text) 8%, transparent);
+}
+
+.atlas-hist-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  /* Neutral ink on purpose: the curvature ramp is the only scale on this page
+     that carries meaning through colour, so magnitude bars stay achromatic and
+     let the posters keep the saturation. */
+  background: color-mix(in srgb, var(--sb-text) 62%, transparent);
+}
+
+.atlas-hist em,
+.atlas-sources em {
+  color: var(--sb-text);
+  font-style: normal;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The fun part: three award cards, each carrying its own poster geometry. */
+.atlas-standouts {
+  display: grid;
+  gap: clamp(12px, 2vw, 18px);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.atlas-standout {
+  display: grid;
+  align-items: center;
+  gap: 14px;
+  grid-template-columns: 62px minmax(0, 1fr);
+  padding: 14px 16px;
+  border: 1px solid var(--sb-border);
+  border-radius: 16px;
+  background: var(--sb-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.atlas-standout:hover,
+.atlas-standout:focus-visible {
+  border-color: var(--sb-action);
+  transform: translateY(-2px);
+}
+
+.atlas-standout-mark {
+  width: 62px;
+  height: 78px;
+  padding: 5px;
+  border-radius: 10px;
+  background: var(--poster-paper);
+}
+
+.atlas-standout-mark path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.atlas-standout-mark.is-empty {
+  display: block;
+  background: color-mix(in srgb, var(--sb-text) 6%, transparent);
+}
+
+.atlas-standout-body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.atlas-standout-kicker {
+  color: var(--sb-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.atlas-standout-value {
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 620;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-standout-value em {
+  margin-left: 4px;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.atlas-standout-name {
+  overflow: hidden;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-provenance {
+  display: grid;
+  gap: 12px;
+  padding: clamp(16px, 2vw, 22px);
+  border: 1px solid var(--sb-border);
+  border-radius: 16px;
+  background: var(--sb-surface);
+}
+
+.atlas-provenance h2 {
+  margin: 0;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 620;
+}
+
+.atlas-flagged {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--sb-border);
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-standout { transition: none; }
+  .atlas-standout:hover,
+  .atlas-standout:focus-visible { transform: none; }
+}
