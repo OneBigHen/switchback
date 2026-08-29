@@ -10,7 +10,7 @@ commercial API keys; the hosted instance is enriched by optional providers.
 
 | Wave | Deliverable | Why now |
 |---|---|---|
-| 0 | Land PR #20 (route atlas + UX remediation) after ultra review and green core CI | Freeze the remediation campaign |
+| 0 | Land PR #20 (route atlas + UX remediation) after ultra review and green core CI — **landed 2026-08-29, merged as `082c549`** | Freeze the remediation campaign |
 | 1 | PostHog minimal telemetry (ADR 0011) | Baseline before new features so their value is measurable |
 | 2 | TomTom Traffic v1 (ADR 0014): flow overlay + incident corridor delay into route comparison | First "decide differently because of traffic" capability |
 | 3 | Traffic-signal / stop friction from OSM: lights-per-mile and an urban-friction metric | Cheap, uniquely rider-relevant, needs no provider |
