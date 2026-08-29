@@ -64,7 +64,10 @@ for (const scheme of ["light", "dark"] as const) {
       await page.getByRole("button", { name: "Show route details" }).first().tap()
       await page.getByRole("button", { name: "Save route" }).tap()
       await expect(page.getByText("Route saved on this device.")).toBeVisible()
-      await page.getByRole("button", { name: /Library 1/ }).tap()
+      // Primary navigation is the way into the library now that the planner
+      // deck's own counted button is not part of the route-result surface;
+      // both call the same handler. See mobile.layout.spec.ts.
+      await page.getByRole("button", { name: /^Library(\s+\d+)?$/ }).first().tap()
       await expect(page.getByRole("dialog", { name: "Ride library" })).toBeVisible()
       await captureState(page, mobileQa.projectName, scheme, "library")
     })

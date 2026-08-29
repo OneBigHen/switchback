@@ -126,7 +126,11 @@ test("saved Library survives the mobile drawer open and close path", async ({ pa
   await page.getByRole("button", { name: "Show route details" }).first().tap()
   await page.getByRole("button", { name: "Save route" }).tap()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
-  await page.getByRole("button", { name: /Library 1/ }).tap()
+  // The planner deck used to carry its own counted "Library 1" button beside
+  // the ride preferences; that block is no longer part of the route-result
+  // surface, and primary navigation is now the way in. Both call the same
+  // handler, so match either and stay honest about which affordance exists.
+  await page.getByRole("button", { name: /^Library(\s+\d+)?$/ }).first().tap()
   const library = page.getByRole("dialog", { name: "Ride library" })
   await expect(library).toBeVisible()
   await expect(page.getByText("Contract fixture route")).toBeVisible()
@@ -152,6 +156,11 @@ test("Free Ride controls remain inside the touch viewport and escape cleanly", a
   await expectInteractiveElementsUnclipped(page)
   await expectMinimumTouchTargetSize(page)
   await expectFixedAndStickyContainment(page)
+  // Leaving Free Ride discards an unsaved recording, which is deliberately
+  // confirmed (SB-027). Playwright dismisses dialogs by default, so without
+  // accepting it the exit is cancelled and the surface never changes — which
+  // reads as a broken escape rather than the guard doing its job.
+  page.once("dialog", (dialog) => void dialog.accept())
   await page.getByRole("button", { name: "Exit Free Ride" }).tap()
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
   expectCleanRuntime(page, mobileQa.runtimeIssues)
