@@ -17,7 +17,10 @@ jobs:
   mobile-qa:
     name: WebKit and Chromium mobile QA
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # FAST (50) + PREPARE (7) + FULL (110) on one worker. The original 25 was
+    # calibrated while the suite still failed early; a fully passing run needs
+    # roughly 28 minutes, so give it headroom rather than cancelling mid-FULL.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
