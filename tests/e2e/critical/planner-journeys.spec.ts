@@ -69,7 +69,12 @@ for (const suggestion of QUICK_SUGGESTIONS) {
       (element as HTMLButtonElement).click()
     })
     await expectRouteOutcome(page, capture)
-    await expect(page.getByText(new RegExp(`${suggestion.name} result`))).toBeVisible()
+    // The route name renders both in the selected-route identity line and in
+    // the "Select <name>" slip button; assert the slip button specifically so
+    // the check stays unambiguous.
+    await expect(
+      page.getByRole("button", { name: new RegExp(`Select ${suggestion.name} result`) })
+    ).toBeVisible()
   })
 }
 
@@ -96,7 +101,12 @@ for (const suggestion of PROMPT_EXAMPLES) {
     await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
     await prompt.press("Enter")
     await expectRouteOutcome(page, capture)
-    await expect(page.getByText(new RegExp(`${suggestion.name} result`))).toBeVisible()
+    // The route name renders both in the selected-route identity line and in
+    // the "Select <name>" slip button; assert the slip button specifically so
+    // the check stays unambiguous.
+    await expect(
+      page.getByRole("button", { name: new RegExp(`Select ${suggestion.name} result`) })
+    ).toBeVisible()
   })
 }
 

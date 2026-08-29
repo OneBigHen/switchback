@@ -5,13 +5,18 @@ const testMode = process.env.SWITCHBACK_E2E_MODE ?? "existing"
 const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111" : "3110")
 const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
-const qualitySuites = /\/(critical|real-router|pwa|visual)\//
+// The mobile-qa tree is owned exclusively by playwright.mobile.config.ts.
+// Everything here must ignore it, or its touch-only specs (and the
+// underscore-prefixed debug spec) get collected by the Desktop Chrome quality
+// projects and fail on `.tap()`.
+const mobileQaTree = /\/e2e\/mobile-qa\//
+const qualitySuites = /\/e2e\/(critical|real-router|pwa|visual)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const roadLockSpec = /\/road-lock\.spec\.ts$/
-const criticalMatch = /\/critical\/.*\.spec\.ts$/
-const realRouterMatch = /\/real-router\/.*\.spec\.ts$/
-const pwaMatch = /\/pwa\/.*\.spec\.ts$/
-const visualMatch = /\/visual\/.*\.spec\.ts$/
+const criticalMatch = /\/e2e\/critical\/.*\.spec\.ts$/
+const realRouterMatch = /\/e2e\/real-router\/.*\.spec\.ts$/
+const pwaMatch = /\/e2e\/pwa\/.*\.spec\.ts$/
+const visualMatch = /\/e2e\/visual\/.*\.spec\.ts$/
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -44,17 +49,17 @@ export default defineConfig({
   projects: [
     {
       name: "desktop-chromium",
-      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec, mobileQaTree],
       use: { ...devices["Desktop Chrome"] }
     },
     {
       name: "mobile-safari",
-      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec, mobileQaTree],
       use: { ...devices["iPhone 14"] }
     },
     {
       name: "mobile-landscape-wide",
-      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec, mobileQaTree],
       use: {
         ...devices["iPhone 14 landscape"],
         viewport: { width: 844, height: 390 },
@@ -63,7 +68,7 @@ export default defineConfig({
     },
     {
       name: "mobile-landscape-narrow",
-      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec],
+      testIgnore: [qualitySuites, memorySoakSpec, roadLockSpec, mobileQaTree],
       use: { ...devices["iPhone SE landscape"] }
     },
     {

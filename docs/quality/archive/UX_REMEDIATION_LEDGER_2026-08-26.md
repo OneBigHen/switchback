@@ -1,5 +1,12 @@
 # UX remediation ledger — 2026-08-26
 
+> **ARCHIVED 2026-08-28.** This campaign closed with PR #20. The document is
+> kept as historical evidence of what was found and fixed. It is **not** a live
+> work list — do not reopen its 27 "gates" or restart the campaign from it.
+> Current architecture and sequencing live in `docs/adr/` and
+> `docs/release/ROADMAP-WAVES.md`. Remaining operational gates (production
+> secret, GraphHopper health, real-iPhone smoke) are tracked in the roadmap.
+
 This is the authoritative release ledger for the current Switchback UX wave.
 It is a snapshot of the dirty checkout at `feature/route-poster-atlas` (HEAD
 `876bb75ef91f2dccc01b03531912a7dc428bda65`), not a claim that another branch,
