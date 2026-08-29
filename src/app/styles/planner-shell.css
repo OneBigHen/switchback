@@ -574,6 +574,9 @@ h2 {
   right: 24px;
   bottom: var(--ride-recenter-bottom);
   z-index: 11;
+  /* The ride HUD host is pointer-events:none (the map stays draggable); the
+     pill must opt back in wherever it renders, portrait deck or landscape. */
+  pointer-events: auto;
   display: inline-flex;
   min-width: 52px;
   min-height: 52px;
