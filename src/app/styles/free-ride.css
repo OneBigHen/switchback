@@ -1,0 +1,168 @@
+/* Free Ride instrument panel.
+   Free Ride used to scatter its speed dial, heading chip, status line,
+   suggestion card, telemetry strip and controls across five independent
+   absolute anchors, each with its own hand-tuned `bottom` offset per
+   breakpoint. On anything wider than a phone they drifted into the map and
+   into each other — the speed dial parked over the canvas, the telemetry card
+   landed under the zoom buttons. Everything now lives in one bottom-anchored
+   column, so the reading order is DOM order and the map above stays clear. */
+
+.free-ride-hud .free-ride-dock {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  left: 18px;
+  z-index: 6;
+  display: flex;
+  width: auto;
+  max-width: 520px;
+  flex-direction: column;
+  margin-inline: auto;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.free-ride-hud .free-ride-dock > * {
+  pointer-events: auto;
+}
+
+/* Every panel child is a plain block in the column; the historical absolute
+   offsets are neutralised in one place rather than per breakpoint. */
+.free-ride-hud .free-ride-dock .free-ride-main,
+.free-ride-hud .free-ride-dock .free-ride-suggestion,
+.free-ride-hud .free-ride-dock .free-ride-empty,
+.free-ride-hud .free-ride-dock .free-ride-telemetry,
+.free-ride-hud .free-ride-dock .free-ride-controls,
+.free-ride-hud .free-ride-dock .recording-error {
+  position: static;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  transform: none;
+}
+
+/* Speed + heading + status read as one instrument cluster. */
+.free-ride-hud .free-ride-dock .free-ride-main {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  justify-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--line);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-speed {
+  display: flex;
+  width: 100%;
+  height: auto;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 18px 10px;
+  border-radius: 0;
+  background: rgb(11 14 13 / 96%);
+  box-shadow: none;
+  place-content: initial;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-speed strong {
+  font-size: 52px;
+  line-height: 0.95;
+}
+
+/* Label left, value right — a thin strip under the speed, not a floating chip. */
+.free-ride-hud .free-ride-dock .free-ride-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 0;
+  background: rgb(11 14 13 / 96%);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-instruction {
+  padding: 9px 18px;
+  background: rgb(11 14 13 / 96%);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-telemetry {
+  min-height: 0;
+  padding: 12px 6px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-suggestion,
+.free-ride-hud .free-ride-dock .free-ride-empty {
+  padding: 16px 18px;
+}
+
+/* The map's own controls sit bottom-right by default, which is exactly where
+   the panel now is; lift them clear of it. */
+.free-ride-hud ~ .map-stage .maplibregl-ctrl-bottom-right,
+.map-stage.is-free-ride .maplibregl-ctrl-bottom-right {
+  bottom: 320px;
+}
+
+@media (max-width: 760px) {
+  .free-ride-hud .free-ride-dock {
+    right: 8px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 8px;
+    gap: 8px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-speed {
+    padding: 10px 14px 8px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-speed strong {
+    font-size: 42px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-heading,
+  .free-ride-hud .free-ride-dock .free-ride-instruction {
+    padding: 8px 14px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-suggestion,
+  .free-ride-hud .free-ride-dock .free-ride-empty {
+    padding: 12px 14px;
+  }
+}
+
+/* Short phones: the column still has to fit above the fold, so the speed
+   readout gives up height before anything actionable does. */
+@media (max-width: 760px) and (max-height: 720px) {
+  .free-ride-hud .free-ride-dock {
+    gap: 6px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-speed {
+    padding: 6px 14px 4px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-speed strong {
+    font-size: 32px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-heading,
+  .free-ride-hud .free-ride-dock .free-ride-instruction {
+    padding: 6px 14px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-telemetry {
+    padding: 8px 4px;
+  }
+
+  .free-ride-hud .free-ride-dock .free-ride-suggestion,
+  .free-ride-hud .free-ride-dock .free-ride-empty {
+    padding: 10px 12px;
+  }
+}

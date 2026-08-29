@@ -148,11 +148,17 @@ export async function expectPrepareContracts(page: Page): Promise<void> {
       rackVisible: getComputedStyle(rack).display !== "none",
     }
   })
-  expect(metrics.sheetDisplay).toBe("flex")
-  expect(metrics.sheetDirection).toBe("column")
   expect(["auto", "scroll"]).toContain(metrics.scrollOverflowY)
   expect(metrics.dockInSheet).toBe(true)
+  // The dock is kept clear of the scroll region by two deliberate mechanisms,
+  // so the layout primitive is asserted per side rather than globally. Phones
+  // stack a flex column and let the dock sit statically after the scroll;
+  // >=761px pins the dock absolutely to the deck and caps the scroll height
+  // instead (planner-action-dock.css `@media (min-width: 761px)`), which leaves
+  // the deck a plain block. Either way the scroll must not run under the dock.
   if (metrics.viewportWidth <= 760) {
+    expect(metrics.sheetDisplay).toBe("flex")
+    expect(metrics.sheetDirection).toBe("column")
     expect(metrics.dockPosition).toBe("static")
     expect(metrics.dockTop).toBeGreaterThanOrEqual(metrics.scrollBottom - 1)
   } else {

@@ -64,9 +64,16 @@ describe("mobile planner geometry contract", () => {
     )
   })
 
-  it("anchors the mobile road-lock control above the live sheet clearance", () => {
+  it("keeps the mobile road-lock control off the bottom rail entirely", () => {
+    // It used to hang off the sheet clearance, which put it inside the
+    // bottom-right maplibre control column — both anchored to the same
+    // baseline, so the zoom buttons swallowed its centre and the tap never
+    // reached it. Anchoring to the top rail is what keeps it clear of the
+    // sheet and the map controls at once, so the contract is "not bottom
+    // anchored" rather than a specific bottom offset.
     expect(roadLockStyles).toContain(".planner-shell .map-road-lock-toggle")
-    expect(roadLockStyles).toContain("bottom: calc(var(--sb-map-sheet-clearance) + var(--sb-space-2));")
+    expect(roadLockStyles).toContain("bottom: auto;")
+    expect(roadLockStyles).not.toContain("bottom: calc(var(--sb-map-sheet-clearance) + var(--sb-space-2));")
   })
 
   it("moves the duplicate map road-lock control out of an expanded sheet surface", () => {

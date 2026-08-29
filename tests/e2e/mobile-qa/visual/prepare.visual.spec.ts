@@ -83,6 +83,10 @@ for (const [state, viewport] of Object.entries(PREPARE_VIEWPORTS) as Array<[
     await planFixtureRoute(page, [route])
     await page.getByRole("button", { name: "Show route details" }).tap()
     await expect(page.getByRole("button", { name: "Hide route details" })).toBeVisible()
+    // Directions collapse by default, and expectPrepareContracts measures the
+    // maneuver type scale — so open them here, as planner.core.spec.ts does.
+    await page.getByRole("button", { name: "Show turn-by-turn directions" }).tap()
+    await expect(page.getByRole("region", { name: "Turn-by-turn directions" })).toBeVisible()
     await expectPrepareContracts(page)
     await expectDynamicViewportContracts(page)
     await capturePlannerState(page, testInfo, state)

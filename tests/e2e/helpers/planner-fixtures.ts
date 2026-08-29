@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test"
+import { expect, type Locator, type Page } from "@playwright/test"
 import type { PlannedRoute, RouteProfileId } from "../../../src/lib/routing/types"
 import { CANONICAL_HEALTH_RESPONSE } from "./health-fixtures"
 
@@ -178,12 +178,22 @@ export async function expandPhonePlanner(page: Page): Promise<void> {
   await expect(prompt, "mobile planner prompt must appear after expanding").toBeVisible({ timeout: 15_000 })
 }
 
+// These fixtures are shared by touch projects (mobile QA, critical-webkit) and
+// pointer-only ones (the Desktop Chrome `visual` project). `.tap()` throws
+// outright without `hasTouch`, so dispatch whichever input the context actually
+// supports instead of splitting every caller in two.
+async function pressControl(page: Page, target: Locator, options?: { timeout?: number }): Promise<void> {
+  const hasTouch = await page.evaluate(() => navigator.maxTouchPoints > 0)
+  if (hasTouch) await target.tap(options)
+  else await target.click(options)
+}
+
 export async function ensureFixtureStart(page: Page): Promise<void> {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if ((await start.inputValue()).length === 0) {
     const startButton = page.getByRole("button", { name: /current location/i })
     await expect(startButton, "fixture start must expose the current-location action").toBeVisible({ timeout: 15_000 })
-    await startButton.tap()
+    await pressControl(page, startButton)
   }
   await expect(start, "fixture start must be selected before routing").toHaveValue(/Current location|Fixture start/, { timeout: 15_000 })
 }
@@ -199,7 +209,7 @@ export async function tapAutocompleteOption(page: Page, name: string | RegExp): 
   const option = page.getByRole("option", { name })
   await expect(option, `autocomplete option ${String(name)} must become visible`).toBeVisible({ timeout: 15_000 })
   await expect(option, `autocomplete option ${String(name)} must be enabled`).toBeEnabled({ timeout: 15_000 })
-  await option.tap({ timeout: 15_000 })
+  await pressControl(page, option, { timeout: 15_000 })
 }
 
 export async function expectRouteOutcome(page: Page, capture: RouteCapture): Promise<void> {

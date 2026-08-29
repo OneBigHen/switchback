@@ -678,10 +678,21 @@
   .app-overlay-panel { max-height: calc(100dvh - 16px); border-radius: 22px; }
 }
 
-@media (min-width: 761px) and (max-width: 900px) and (orientation: portrait) {
+/* Portrait tablets run the desktop side-deck layout. At 768 the deck (400px)
+   plus the nav rail's 104px offset claimed two thirds of the screen, leaving
+   the map — the surface being planned on — as a strip too narrow to read a
+   route in. Narrow the deck and extend the range to 1024 so portrait iPad Pro
+   gets the same treatment instead of falling through to the 456px desktop
+   width. Collapsed, the deck spans the freed width as a proper bottom bar. */
+@media (min-width: 761px) and (max-width: 1024px) and (orientation: portrait) {
   .planner-deck,
   .destination-panel {
-    width: min(400px, calc(100vw - 112px));
+    width: min(360px, calc(100vw - 112px));
+  }
+
+  .planner-deck.is-minimized {
+    right: 20px;
+    width: auto;
   }
 }
 
@@ -800,6 +811,22 @@
 :root[data-theme="dark"] .planner-deck .planner-action-dock {
   border-color: var(--line);
   background: var(--machined);
+  color: var(--instrument);
+}
+
+/* These two kept the light-theme surface hardcoded in planner-deck.css while
+   inheriting the dark theme's light icon colour, leaving the caret at roughly
+   1.02:1 against its own button — the planner's collapse control was
+   effectively invisible in dark mode. */
+:root[data-theme="dark"] .planner-deck .planner-minimize,
+:root[data-theme="dark"] .planner-deck .planner-full-map-tools {
+  background: var(--raised);
+  color: var(--instrument);
+}
+
+:root[data-theme="dark"] .planner-deck .planner-minimize:hover,
+:root[data-theme="dark"] .planner-deck .planner-full-map-tools:hover {
+  background: color-mix(in srgb, var(--raised) 80%, var(--instrument));
   color: var(--instrument);
 }
 

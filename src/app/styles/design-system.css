@@ -229,7 +229,10 @@ h6,
     min-height: 78px;
     grid-template-columns: minmax(96px, 0.72fr) minmax(0, 1.28fr);
     gap: 8px;
-    padding: 8px 12px 10px;
+    /* Keeps the compact peek gutters, but never below the safe-area floor the
+       less specific `.is-minimized .planner-action-dock` rule sets — this
+       selector outranks it, so a plain shorthand silently dropped the floor. */
+    padding: 8px 12px max(13px, env(safe-area-inset-bottom));
   }
 
   .planner-shell .sb-bottom-sheet.is-minimized .start-new-route-button {

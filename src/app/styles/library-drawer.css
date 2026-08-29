@@ -543,7 +543,10 @@
   gap: 6px;
   border-color: var(--signal);
   background: var(--signal);
-  color: #fff;
+  /* `--signal` is tuned as a foreground on the dark HUD, so it is a pale blue.
+     Used as a fill it needs dark ink, not white — white on it measured 1.58:1,
+     on the one button the whole feature exists to offer. */
+  color: var(--machined);
 }
 
 .free-ride-empty {

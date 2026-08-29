@@ -26,6 +26,9 @@ import "./styles/switchback-v1.css"
 import "./styles/design-system.css"
 import "./styles/community.css"
 import "./styles/route-atlas.css"
+// Loads last: the Free Ride panel neutralises the older per-breakpoint
+// absolute offsets that its own earlier rules still declare.
+import "./styles/free-ride.css"
 
 export const metadata: Metadata = {
   title: "Switchback — Ride the better road",

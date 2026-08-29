@@ -261,16 +261,23 @@ export const uxState = {
     await uxState.ride(page)
     // Jump the virtual rider far off the fixture corridor. The navigation
     // engine requires OFF_ROUTE_FIXES_REQUIRED (3) consecutive fixes beyond
-    // MIN_OFF_ROUTE_METERS (35 m) before declaring off-route, so emit a
-    // matching series of distinct fixes.
-    for (let fix = 0; fix < 3; fix += 1) {
+    // MIN_OFF_ROUTE_METERS (35 m) before declaring off-route. Emitting those
+    // back to back sets the emulated position faster than watchPosition
+    // delivers callbacks, so the burst can land as fewer fixes than the engine
+    // counts; keep feeding distinct paced fixes — as real GPS would — until it
+    // declares off-route.
+    let fix = 0
+    const offRouteHud = page.locator(".ride-hud.is-off-route")
+    await expect.poll(async () => {
       await page.context().setGeolocation({
         latitude: FIXTURE_START.lat + 0.05 + fix * 0.0002,
         longitude: FIXTURE_START.lon - 0.05 - fix * 0.0002,
         accuracy: 10
       })
-    }
-    await expect(page.locator(".ride-hud.is-off-route")).toBeVisible({ timeout: 15_000 })
+      fix += 1
+      return await offRouteHud.isVisible().catch(() => false)
+    }, { timeout: 15_000, intervals: [250] }).toBe(true)
+    await expect(offRouteHud).toBeVisible()
   },
 
   /** State 9 — Free Ride idle (no suggestion ready). */
