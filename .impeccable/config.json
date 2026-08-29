@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "src/app/styles/route-atlas.css"
+        ],
+        "createdAt": "2026-08-29T19:16:57.053Z",
+        "reason": "pre-existing poster art direction, not from this change: .atlas-poster/.atlas-poster--large render GPS track SVG line-art on a dotted 'poster paper' texture (radial-gradient dot field, not ruled hairlines); the whole feature is an explicit print-poster wall. Plot/measurement surface exception."
+      }
+    ]
+  }
+}

@@ -32,6 +32,13 @@
   margin: 0 auto;
 }
 
+/* globals.css locks `html, body { overflow: hidden }` for the fixed planner
+   shell. The atlas is a tall document page, so it has to opt back into normal
+   page scrolling — same override the community pages use. */
+body:has(.atlas-page) {
+  overflow: auto;
+}
+
 :root[data-theme="dark"] .atlas-page {
   --poster-paper: #080e16;
   --poster-expedition: #060b12;
