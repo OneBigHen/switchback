@@ -2,9 +2,9 @@ import { apiErrorResponse, readRequestId, withRequestId } from "@/lib/server/api
 import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { createIdentitySessionResponse } from "@/lib/identity/csrf"
-import { nextPasskeyCounter } from "@/lib/identity/passkey"
+import { getSessionConfigurationStatus, nextPasskeyCounter } from "@/lib/identity/passkey"
 import { getIdentityRuntime, type IdentityRuntime } from "@/app/api/identity/context"
-import type { AuthenticationResponseJSON } from "@/lib/identity/webauthn"
+import { WebAuthnConfigError, type AuthenticationResponseJSON } from "@/lib/identity/webauthn"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -17,6 +17,10 @@ export async function handleIdentityAuthenticationVerify(
 ): Promise<Response> {
   const requestId = readRequestId(request)
   try {
+    const sessionConfiguration = getSessionConfigurationStatus()
+    if (!sessionConfiguration.ok) {
+      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
+    }
     const body = await readBoundedJsonBody(request, 64 * 1024)
     if (typeof body !== "object" || body === null || Array.isArray(body)) throw new Error("invalid body")
     const value = body as Record<string, unknown>
@@ -52,6 +56,7 @@ export async function handleIdentityAuthenticationVerify(
     return withRequestId(createIdentitySessionResponse(credential.identityId), requestId)
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That passkey response is too large.", 413, requestId)
+    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
     return apiErrorResponse("PASSKEY_VERIFICATION_FAILED", "The passkey response could not be verified.", 400, requestId)
   }
 }

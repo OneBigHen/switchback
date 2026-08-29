@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { requireMutationIdentity } from "@/app/api/community/context"
 import { createIdentitySessionResponse } from "@/lib/identity/csrf"
-import { PasskeyChallengeStore } from "@/lib/identity/passkey"
+import { getSessionConfigurationStatus, PasskeyChallengeStore } from "@/lib/identity/passkey"
 
 const identityId = "rider-12345678901234567890"
 const secret = "s".repeat(32)
@@ -38,6 +38,15 @@ describe("passkey identity ceremony boundary", () => {
     challenges.issue("authentication", null, 1_000)
 
     expect(() => challenges.issue("authentication", null, 1_001)).toThrow(/too many/i)
+  })
+
+  it("reports missing production session configuration without exposing a secret", () => {
+    expect(getSessionConfigurationStatus({ NODE_ENV: "production" })).toEqual({
+      ok: false,
+      code: "SWITCHBACK_SESSION_SECRET",
+      message: "SWITCHBACK_SESSION_SECRET must be configured with at least 32 characters."
+    })
+    expect(getSessionConfigurationStatus({ NODE_ENV: "production", SWITCHBACK_SESSION_SECRET: secret })).toEqual({ ok: true })
   })
 
   it("sets secure session and CSRF cookies after identity verification", () => {
