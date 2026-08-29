@@ -32,6 +32,14 @@ export interface StageLayerPlacement {
   beforeId?: string
 }
 
+/**
+ * The loaded renderer module. Loading and construction are separate so the
+ * stage can abandon a mount that was unmounted while the dynamic import was
+ * still in flight — constructing a map only to remove it aborts its own style
+ * request, which surfaces as a failed network request in the mobile QA gate.
+ */
+export type PlannerMapModule = unknown
+
 export interface CreatePlannerMapOptions {
   container: HTMLDivElement
   mapStyle: MapStyleId
@@ -51,7 +59,10 @@ export interface PlannerMapRenderer {
    * day/night as configuration, so switching does not cost another map load.
    */
   styleKey(mapStyle: MapStyleId): string
-  create(options: CreatePlannerMapOptions): Promise<PlannerMap>
+  /** Loads the renderer bundle. Safe to abandon: nothing is constructed yet. */
+  load(): Promise<PlannerMapModule>
+  /** Constructs the map. Only call this once the mount is known to be live. */
+  create(module: PlannerMapModule, options: CreatePlannerMapOptions): PlannerMap
   addLayer(map: PlannerMap, spec: LayerSpecification, placement: StageLayerPlacement): void
   /**
    * Reorders one Switchback layer. `beforeId` is only honoured by renderers
@@ -119,8 +130,9 @@ export const maplibreRenderer: PlannerMapRenderer = {
   boldFont: ["Noto Sans Bold"],
   supportsDataDrivenDash: true,
   styleKey: (mapStyle) => `maplibre:${mapStyle}`,
-  async create(options) {
-    const maplibre = await import("maplibre-gl")
+  load: () => import("maplibre-gl"),
+  create(module, options) {
+    const maplibre = module as typeof import("maplibre-gl")
     const map = new maplibre.Map({
       container: options.container,
       style: options.mapStyle === "clean" && process.env.NEXT_PUBLIC_MAP_STYLE_URL
@@ -161,11 +173,15 @@ export const mapboxRenderer: PlannerMapRenderer = {
     // style change recreates the map.
     return `mapbox:${experience.style}`
   },
-  async create(options) {
+  async load() {
     const status = mapboxRendererStatus()
     if (!status.enabled) throw new Error(`mapbox renderer unavailable: ${status.reason}`)
     const mapboxgl = (await import("mapbox-gl")).default
     mapboxgl.accessToken = status.token
+    return mapboxgl
+  },
+  create(module, options) {
+    const mapboxgl = module as (typeof import("mapbox-gl"))["default"]
     const experience = resolveMapExperience({
       mode: visualModeForMapStyle(options.mapStyle),
       surface: "planning",
@@ -180,7 +196,7 @@ export const mapboxRenderer: PlannerMapRenderer = {
       maxZoom: 18,
       attributionControl: false,
       config: { basemap: standardConfigProperties(experience) }
-    }) as unknown as PlannerMap
+    } as ConstructorParameters<(typeof import("mapbox-gl"))["default"]["Map"]>[0]) as unknown as PlannerMap
     addStandardControls(map, mapboxgl as unknown as GlControls, options)
     return map
   },

@@ -263,19 +263,18 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     let initialStyleLoaded = false
     const container = containerRef.current
     if (!container) return
-    const initialStart = propsRef.current.start
-    void renderer.create({
-      container,
-      mapStyle: props.mapStyle,
-      center: initialStart ? [initialStart.lon, initialStart.lat] : [-98.5795, 39.8283],
-      zoom: initialStart ? 10.5 : 3.8,
-      onLocateMe: (point) => propsRef.current.onLocateMe?.(point)
-    }).then((created) => {
-      if (disposed) {
-        created.remove()
-        return
-      }
-      map = created
+    void renderer.load().then((renderersModule) => {
+      // Abandon a mount that ended while the bundle was still loading:
+      // constructing a map only to remove it aborts its own style request.
+      if (disposed || !containerRef.current) return
+      const initialStart = propsRef.current.start
+      map = renderer.create(renderersModule, {
+        container,
+        mapStyle: props.mapStyle,
+        center: initialStart ? [initialStart.lon, initialStart.lat] : [-98.5795, 39.8283],
+        zoom: initialStart ? 10.5 : 3.8,
+        onLocateMe: (point) => propsRef.current.onLocateMe?.(point)
+      })
       mapRef.current = map
       releaseMapProbe = setMapRuntimeProbe(() => {
         const style = map?.getStyle()
