@@ -156,3 +156,50 @@ describe("map load cost", () => {
     expect(plannerMapsCreatedCount()).toBe(before + 1)
   })
 })
+
+describe("premium camera transitions", () => {
+  function premiumMap(pitch: number) {
+    const easeTo = vi.fn()
+    const map = {
+      easeTo,
+      getPitch: () => pitch,
+      setConfigProperty: vi.fn(),
+      setTerrain: vi.fn(),
+      setFog: vi.fn(),
+      getSource: vi.fn().mockReturnValue({})
+    } as unknown as MapLibreMap
+    return { map, easeTo }
+  }
+
+  const config = (surface: "explore" | "plan" | "ride") =>
+    resolveMapExperience({ experience: "terrain", surface, lightPreset: "day" })
+
+  it("moves the camera once when the tilt has to change", () => {
+    const { map, easeTo } = premiumMap(0)
+    mapboxRenderer.applyExperience(map, config("explore"))
+    expect(easeTo).toHaveBeenCalledTimes(1)
+    expect(easeTo.mock.calls[0][0]).toMatchObject({ pitch: config("explore").camera.pitch })
+  })
+
+  it("does not move the camera when the tilt already matches", () => {
+    // Every camera move ends in a `moveend`, which is what drives the
+    // viewport-scoped rider-layer fetches. A move that changes nothing
+    // cancels requests that were already in flight.
+    const target = config("plan").camera.pitch
+    const { map, easeTo } = premiumMap(target)
+    mapboxRenderer.applyExperience(map, config("plan"))
+    expect(easeTo).not.toHaveBeenCalled()
+  })
+
+  it("never moves the camera while riding", () => {
+    const { map, easeTo } = premiumMap(45)
+    mapboxRenderer.applyExperience(map, config("ride"))
+    expect(easeTo).not.toHaveBeenCalled()
+  })
+
+  it("leaves the camera alone on the fallback renderer", () => {
+    const { map, easeTo } = premiumMap(0)
+    maplibreRenderer.applyExperience(map, config("explore"))
+    expect(easeTo).not.toHaveBeenCalled()
+  })
+})
