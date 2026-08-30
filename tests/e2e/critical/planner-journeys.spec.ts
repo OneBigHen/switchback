@@ -208,7 +208,13 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
     const request = route.request().postDataJSON() as Record<string, unknown>
     requests.push(request)
     const response = responses[Math.min(requests.length - 1, responses.length - 1)]!
-    if (requests.length === 1) await new Promise((resolve) => setTimeout(resolve, 1_500))
+    // The stale response must still be in flight when the newer plan is
+    // submitted — that is the race under test. Five seconds keeps the
+    // window generous on a warm shared dev server (the quick-intent chips
+    // unmount the moment a route applies), while the client's latest-request
+    // gate aborts and discards this response exactly as it would in
+    // production.
+    if (requests.length === 1) await new Promise((resolve) => setTimeout(resolve, 5_000))
     try {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) })
     } catch {
