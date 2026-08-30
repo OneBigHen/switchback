@@ -1,18 +1,18 @@
 /* TASK-1.1: .profile-panel had no rule anywhere, so it painted under the
    map in normal document flow. Positioning matches the sibling detail
-   panel (.destination-panel in switchback-v1.css) — offset past the 72px
-   nav rail, same z-index — but uses the semantic --sb-* tokens per the
-   design contract rather than the legacy --machined/--line pair, which
-   only resolve correctly in dark theme. */
+   panel (.destination-panel in switchback-v1.css) — offset past the 64px
+   V2 nav rail (shell-v2.css), same z-index — but uses the semantic --sb-*
+   tokens per the design contract rather than the legacy --machined/--line
+   pair, which only resolve correctly in dark theme. */
 .profile-panel {
   position: absolute;
   top: 16px;
   bottom: 16px;
-  left: 104px;
+  left: 96px;
   z-index: 12;
   display: grid;
   gap: var(--sb-space-5);
-  width: min(480px, calc(100vw - 136px));
+  width: min(480px, calc(100vw - 128px));
   padding: var(--sb-space-6);
   overflow-y: auto;
   border: 1px solid var(--sb-border);

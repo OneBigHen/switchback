@@ -39,7 +39,9 @@
   --sb-surface: #FBF9F4;
   --sb-surface-raised: #EFE9DE;
   --sb-text: #161D1C;
-  --sb-text-muted: #68716F;
+  /* AA-adjusted Slate: raw Slate #68716F reaches only 4.4:1 on Canvas,
+     below the WCAG AA 4.5:1 floor the design contract §13 enforces. */
+  --sb-text-muted: #5F6967;
   --sb-border: #D8C8B7;
   --sb-action: var(--sb-ember-strong);
   --sb-focus-ring: #2A6175;
@@ -48,6 +50,10 @@
   --sb-warning: var(--sb-golden-hour);
   --sb-danger: #A83E32;
   --sb-success: #3E6B55;
+  /* Interactive text (links, eyebrows) on themed surfaces. Validated AA
+     (>= 4.5:1) on Canvas, Paper and Raised in both themes; raw brand Ember
+     and Signal reach only ~4.4:1 as text on Canvas. */
+  --sb-text-link: var(--sb-signal-strong);
 
   /* Geometry - 4px base grid. */
   --sb-space-1: 4px;
@@ -100,6 +106,8 @@
   --sb-shadow: 0 10px 28px rgb(0 0 0 / 26%);
   --sb-danger: #E57368;
   --sb-success: #72A98A;
+  /* Interactive text (links, eyebrows) — validated AA on Ink and Spruce. */
+  --sb-text-link: #7FB5C7;
 
   /* V1 carry-over aliases (dark). */
   --oled: var(--sb-ink);

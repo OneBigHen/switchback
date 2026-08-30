@@ -101,7 +101,7 @@ test("saved route remains available from IndexedDB after an offline reload", asy
   await page.context().setOffline(true)
   await page.reload({ waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-  await page.getByRole("button", { name: "Library", exact: true }).click()
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
   await expect(page.getByText("Offline saved route")).toBeVisible()
 

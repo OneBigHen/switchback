@@ -26,14 +26,13 @@ import {
 
 async function openLibrary(page: import("@playwright/test").Page): Promise<void> {
   if (await page.getByRole("heading", { name: "Ride library" }).isVisible().catch(() => false)) return
-  await page.getByRole("button", { name: "Library", exact: true }).tap()
-  await expect(page).toHaveURL(/tab=library/)
+  await page.getByRole("button", { name: "Rides", exact: true }).tap()
+  await expect(page).toHaveURL(/tab=rides/)
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
 }
 
-async function openProfile(page: import("@playwright/test").Page): Promise<void> {
-  await page.getByRole("button", { name: "Profile", exact: true }).tap()
-  await expect(page).toHaveURL(/tab=profile/)
+async function openSettings(page: import("@playwright/test").Page): Promise<void> {
+  await page.getByRole("button", { name: "Settings", exact: true }).tap()
   await expect(page.getByRole("heading", { name: "You and your bike" })).toBeVisible()
 }
 
@@ -96,7 +95,7 @@ test("saved route persists through reload in the local IndexedDB library", async
   await openLibrary(page)
   await expect(page.getByText(route.name)).toBeVisible()
   await page.reload()
-  await expectMobileAppReady(page, { tab: "library", heading: "Ride library" })
+  await expectMobileAppReady(page, { tab: "rides", heading: "Ride library" })
   const navigation = page.locator("nav.app-navigation")
   const mapWorkspace = page.locator('[data-map-workspace="true"]')
   await expect(mapWorkspace).toHaveAttribute("aria-hidden", "true")
@@ -106,7 +105,7 @@ test("saved route persists through reload in the local IndexedDB library", async
     return inertOwner?.dataset.mapWorkspace === "true"
       && inertOwner.getAttribute("aria-hidden") === "true"
   })).toBe(true)
-  await expect(navigation.locator("button[aria-current='page']")).toHaveText("Library")
+  await expect(navigation.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Rides")
   await expect(page.getByRole("dialog", { name: "Ride library" })).toBeVisible()
   await expect(page.getByText(route.name)).toBeVisible()
   expect(await readSavedRouteName(page, route.id)).toBe(route.name)
@@ -124,7 +123,7 @@ test("saved route persists through reload in the local IndexedDB library", async
 test("settings preserve a safe local preference and light/dark theme across reload", async ({ page, mobileQa }, testInfo) => {
   await installPlannerServices(page)
   await page.goto("/")
-  await openProfile(page)
+  await openSettings(page)
   await expect(page.getByLabel("Rider name")).toHaveValue("")
   await expectFocusedControlInVisualViewport(page, "Rider name")
   await page.getByLabel("Rider name").fill("Local mobile rider")
@@ -136,8 +135,11 @@ test("settings preserve a safe local preference and light/dark theme across relo
   await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe("dark")
   await captureMobileQaScreenshot(page, testInfo, "settings-dark")
   await page.reload()
-  await expectMobileAppReady(page, { tab: "profile", heading: "You and your bike" })
-  await expect(page.locator("nav.app-navigation button[aria-current='page']")).toHaveText("Profile")
+  // Settings is an overlay, not a URL destination: after a reload the app
+  // lands on Plan, so reopen the launcher before asserting persistence.
+  await expectMobileAppReady(page)
+  await expect(page.getByRole("heading", { name: "You and your bike" })).toBeHidden()
+  await openSettings(page)
   await expect(page.getByLabel("Rider name")).toHaveValue("Local mobile rider")
   await expect(page.getByLabel("Units")).toHaveValue("metric")
   await expect(page.getByLabel("Theme")).toHaveValue("dark")

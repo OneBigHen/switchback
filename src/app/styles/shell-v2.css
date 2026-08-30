@@ -1,0 +1,199 @@
+/* Switchback UX V2 shell chrome.
+ *
+ * Home of the primary navigation: exactly three destinations (Plan, Rides,
+ * Discover) plus the secondary activity/settings cluster. Consumes the
+ * canonical --sb-* tokens only. This layer replaces the retired nav blocks in
+ * switchback-v1.css and design-system.css; it is not an override layer.
+ */
+
+/* Desktop rail — 64px instrument rail (spec 56–64px). */
+.planner-shell .app-navigation {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 18;
+  display: flex;
+  width: 64px;
+  flex-direction: column;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-panel);
+  background: var(--sb-surface);
+  box-shadow: var(--sb-shadow);
+}
+
+.planner-shell[data-sketching="true"] .app-navigation {
+  pointer-events: none;
+}
+
+.app-navigation-brand {
+  display: grid;
+  min-height: 72px;
+  place-items: center;
+  padding: var(--sb-space-3) var(--sb-space-2);
+  border-bottom: 1px solid var(--sb-border);
+}
+
+.app-navigation-brand > span:last-child {
+  display: none;
+}
+
+.switchback-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  transform: skew(-8deg);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-ember);
+  color: var(--sb-paper);
+}
+
+.switchback-mark svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.25;
+}
+
+.app-navigation-primary {
+  display: grid;
+  gap: var(--sb-space-1);
+  padding: var(--sb-space-2) var(--sb-space-2) var(--sb-space-3);
+}
+
+.app-navigation-secondary {
+  display: grid;
+  gap: var(--sb-space-1);
+  margin-top: auto;
+  padding: var(--sb-space-2);
+  border-top: 1px solid var(--sb-border);
+}
+
+.app-navigation button {
+  display: grid;
+  min-width: var(--sb-touch-target);
+  min-height: 52px;
+  place-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--sb-radius-control);
+  background: transparent;
+  color: var(--sb-text-muted);
+  cursor: pointer;
+}
+
+.app-navigation button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.app-navigation button span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.app-navigation button.is-active {
+  background: var(--sb-surface-raised);
+  /* Label text must clear AA 4.5:1 on the raised fill; raw Ember reaches
+     only ~4.2:1. The icon keeps the brand accent (non-text, >= 3:1). */
+  color: var(--sb-text);
+}
+
+.app-navigation button.is-active svg {
+  color: var(--sb-action);
+}
+
+/* Phone — bottom bar: three primary destinations plus the compact secondary
+   cluster behind a divider. */
+@media (max-width: 760px) {
+  .planner-shell .app-navigation {
+    top: auto;
+    right: var(--sb-mobile-edge);
+    bottom: max(var(--sb-mobile-edge), env(safe-area-inset-bottom));
+    left: var(--sb-mobile-edge);
+    width: auto;
+    height: var(--sb-mobile-nav-height);
+    flex-direction: row;
+    align-items: stretch;
+    border-radius: var(--sb-radius-sheet);
+  }
+
+  .app-navigation-brand {
+    display: none;
+  }
+
+  .app-navigation-primary {
+    flex: 1;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sb-space-1);
+    padding: var(--sb-space-2);
+  }
+
+  .app-navigation-secondary {
+    margin-top: 0;
+    grid-auto-flow: column;
+    align-items: stretch;
+    padding: var(--sb-space-2);
+    border-top: 0;
+    border-left: 1px solid var(--sb-border);
+  }
+
+  .app-navigation button {
+    min-height: 48px;
+    padding: 4px 2px;
+  }
+}
+
+/* Short landscape (riding-adjacent handheld orientation) keeps the rail on
+   the left edge with tighter insets. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-shell .app-navigation {
+    top: 8px;
+    right: auto;
+    bottom: 8px;
+    width: 64px;
+    height: auto;
+  }
+
+  .app-navigation button {
+    min-height: 48px;
+  }
+}
+
+/* Discover destination placeholder — wired to the existing community Atlas
+   boundary until the dedicated Discover surface phase lands. */
+.discover-panel .discover-eyebrow {
+  margin: 0 0 var(--sb-space-2);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sb-text-muted);
+}
+
+.discover-panel h1 {
+  margin: 0 0 var(--sb-space-3);
+}
+
+.discover-panel header p:last-child {
+  margin: 0 0 var(--sb-space-6);
+  color: var(--sb-text-muted);
+}
+
+.discover-atlas-link {
+  display: grid;
+  min-height: var(--sb-touch-target);
+  place-items: center;
+  padding: 0 var(--sb-space-5);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-action);
+  color: var(--sb-paper);
+  font-weight: 600;
+  text-decoration: none;
+}

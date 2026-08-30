@@ -132,12 +132,7 @@ h6,
     --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-full-height) + var(--sb-space-2));
   }
 
-  .planner-shell .app-navigation {
-    right: var(--sb-mobile-edge);
-    bottom: max(var(--sb-mobile-edge), env(safe-area-inset-bottom));
-    left: var(--sb-mobile-edge);
-    height: var(--sb-mobile-nav-height);
-  }
+  /* Phone nav geometry lives in shell-v2.css. */
 
   .planner-shell .sb-bottom-sheet {
     right: var(--sb-mobile-edge);

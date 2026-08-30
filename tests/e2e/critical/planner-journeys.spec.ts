@@ -276,7 +276,7 @@ test("a saved route survives a reload and remains available in the library", asy
   // lives), so confirm the save landed via the canonical Library surface: the
   // on-device list carries the route and its count in the same session.
   const library = page.getByRole("dialog", { name: "Ride library" })
-  await page.getByRole("button", { name: "Library", exact: true }).click()
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
   const onDeviceSection = library.locator(".library-section-title", { hasText: "On this device" })
   await expect(onDeviceSection).toBeVisible()
   await expect(onDeviceSection).toContainText("1")
@@ -284,7 +284,7 @@ test("a saved route survives a reload and remains available in the library", asy
   await page.getByRole("button", { name: "Close library" }).click()
   await expect(library).toBeHidden()
   await page.reload()
-  await page.getByRole("button", { name: "Library", exact: true }).click()
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
   await expect(page.getByText("Saved fixture route")).toBeVisible()
 })
@@ -292,7 +292,7 @@ test("a saved route survives a reload and remains available in the library", asy
 test("valid GPX import appears in the route library", async ({ page }) => {
   await installPlannerServices(page)
   await page.goto("/")
-  await page.getByRole("button", { name: "Library", exact: true }).last().click()
+  await page.getByRole("button", { name: "Rides", exact: true }).last().click()
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
   await page.getByLabel("Import GPX, KML, or KMZ file").setInputFiles({
     name: "critical-import.gpx",

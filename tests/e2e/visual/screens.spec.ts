@@ -120,10 +120,10 @@ for (const viewport of VIEWPORTS) {
     test("Library screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Library", exact: true }).click()
+      await page.getByRole("button", { name: "Rides", exact: true }).click()
       const panel = page.locator(".library-drawer")
       await assertPanelVisible(panel)
-      await expect(page).toHaveScreenshot(`library-${viewport.name}.png`, screenshotOptions(page))
+      await expect(page).toHaveScreenshot(`rides-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Record screen", async ({ page }) => {
@@ -138,7 +138,7 @@ for (const viewport of VIEWPORTS) {
     test("Profile screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Profile", exact: true }).click()
+      await page.getByRole("button", { name: "Settings", exact: true }).click()
       const panel = page.locator(".profile-panel")
       // This is the exact check that would have caught TASK-1.1: the panel
       // rendered in the a11y tree with no visible content on any viewport.

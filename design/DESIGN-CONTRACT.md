@@ -69,13 +69,14 @@ Ember is not body text on Paper. Topo Sage is not body text on Paper. Golden Hou
 - Surface: `#FBF9F4`
 - Raised surface: `#EFE9DE`
 - Text: `#161D1C`
-- Muted text: `#68716F`
+- Muted text: `#5F6967` (AA-adjusted Slate; raw Slate `#68716F` reaches 4.4:1 on Canvas, below the AA floor, and stays reserved for borders/decorative fills)
 - Quiet text: `#776353`
 - Border: `#D8C8B7`
 - Primary route/accent: `#D65A36`
 - Primary filled action: `#BF4829`
 - Location/navigation info: `#397C96`
 - Focus ring: `#2A6175`
+- Link/interactive text: `#2A6175` (`--sb-text-link`; AA on Canvas/Paper/Raised)
 
 ### Dark planning theme
 
@@ -89,6 +90,7 @@ Ember is not body text on Paper. Topo Sage is not body text on Paper. Golden Hou
 - Primary action: `#D65A36`
 - Location/navigation info: `#5D9CB3`
 - Focus ring: `#7FB5C7`
+- Link/interactive text: `#7FB5C7` (`--sb-text-link`; AA on Ink/Spruce)
 
 ### Ride Focus theme
 

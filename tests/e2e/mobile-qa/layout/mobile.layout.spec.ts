@@ -211,20 +211,26 @@ test("primary navigation, settings sheet, and modal escape remain usable", async
   selectMatrix("settings", testInfo)
   await uxState.home(page)
   const navigation = page.locator("nav.app-navigation")
-  for (const tab of ["Library", "Record", "Profile", "Plan"] as const) {
-    const target = navigation.locator("button").filter({ hasText: tab }).first()
+  // V2 primary destinations: exactly three, each announced with aria-current.
+  for (const destination of ["Rides", "Discover", "Plan"] as const) {
+    const target = navigation.locator(".app-navigation-primary button").filter({ hasText: destination }).first()
     await target.tap()
     await expect(target).toHaveAttribute("aria-current", "page")
-    if (tab === "Library") {
+    if (destination === "Rides") {
       const library = page.getByRole("dialog", { name: "Ride library" })
       await expect(library).toBeVisible()
-      const isolatedLibraryNavigationButton = navigation.locator("button").filter({ hasText: tab }).first()
-      await expect(isolatedLibraryNavigationButton).toHaveAttribute("aria-current", "page")
+      await expect(target).toHaveAttribute("aria-current", "page")
       await page.getByRole("button", { name: "Close library" }).tap()
       await expect(library).toBeHidden()
     }
   }
-  await navigation.getByRole("button", { name: "Profile", exact: true }).tap()
+  // Record is an activity control in the secondary cluster, never a
+  // destination: it opens the preflight panel without claiming aria-current.
+  const recordControl = navigation.locator(".app-navigation-secondary button").filter({ hasText: "Record" }).first()
+  await recordControl.tap()
+  await expect(page.getByRole("heading", { name: "Record a ride" })).toBeVisible()
+  await expect(recordControl).not.toHaveAttribute("aria-current")
+  await navigation.getByRole("button", { name: "Settings", exact: true }).tap()
   await expect(page.getByRole("region", { name: "Profile and settings" })).toBeVisible()
   await expectMobileRuntimeContract(page, testInfo.project.name)
   await expectNoHorizontalOverflow(page)
@@ -262,15 +268,15 @@ test("saved route reloads and remains available while offline", async ({ page, m
   await page.getByRole("button", { name: "Show route details" }).first().tap()
   await page.getByRole("button", { name: "Save route" }).tap()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
-  await page.getByRole("button", { name: "Library", exact: true }).tap()
-  await expect(page).toHaveURL(/tab=library/)
+  await page.getByRole("button", { name: "Rides", exact: true }).tap()
+  await expect(page).toHaveURL(/tab=rides/)
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
   await page.reload()
-  await expectMobileAppReady(page, { tab: "library", heading: "Ride library" })
+  await expectMobileAppReady(page, { tab: "rides", heading: "Ride library" })
   const navigation = page.locator("nav.app-navigation")
   await expect(navigation).toHaveAttribute("aria-hidden", "true")
   await expect(navigation).toHaveJSProperty("inert", true)
-  await expect(navigation.locator("button[aria-current='page']")).toHaveText("Library")
+  await expect(navigation.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Rides")
   await expect(page.getByRole("dialog", { name: "Ride library" })).toBeVisible()
   await mobileQa.setNetwork("offline")
   await expect(page.getByText("Contract fixture route")).toBeVisible()

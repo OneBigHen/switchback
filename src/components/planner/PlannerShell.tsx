@@ -1,13 +1,14 @@
 "use client"
 
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react"
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import {
   appNavigationReducer,
   appModeForState,
   createInitialAppNavigationState,
-  tabFromLocation,
-  type AppTab,
+  destinationFromLocation,
+  type PrimaryDestination,
   type ThemePreference
 } from "@/lib/client/app-navigation"
 import { isNightTime } from "@/lib/client/day-phase"
@@ -209,7 +210,7 @@ export function PlannerShell() {
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
   const plannerVisible = surface !== "ride" && surface !== "free-ride"
-    && navigation.activeTab === "plan" && !sketching
+    && navigation.destination === "plan" && !sketching
   const providerHealth = useProviderHealth(plannerVisible)
   const [planningSession] = useState(() => createPlanningSessionController({
     getPlanner: usePlannerStore.getState
@@ -285,6 +286,9 @@ export function PlannerShell() {
   // so the store update never runs synchronously inside the effect.
   useEffect(() => {
     if (!recording.isActive || surface === "free-ride") return
+    // Leaving the record preflight: once the HUD owns the session the
+    // preflight overlay must not reappear behind the ride surface.
+    dispatchNavigation({ type: "close_overlay", overlay: "record" })
     const id = window.setTimeout(() => usePlannerStore.getState().setSurface("ride"), 0)
     return () => window.clearTimeout(id)
   }, [recording.isActive, surface])
@@ -358,13 +362,14 @@ export function PlannerShell() {
 
   useEffect(() => {
     const handleBack = () => {
-      // Browser Back / forward: re-derive the tab from the URL instead of
-      // only popping the internal stack, so the surface and the address bar
-      // can never desync (previously the URL kept ?tab=library while the UI
-      // showed the planner, and a reload would open the wrong tab).
-      const tab = tabFromLocation(window.location.href)
-      dispatchNavigation({ type: "restore_tab", tab })
-      usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+      // Browser Back / forward: re-derive the destination from the URL
+      // instead of only popping the internal stack, so the surface and the
+      // address bar can never desync (previously the URL kept ?tab=library
+      // while the UI showed the planner, and a reload would open the wrong
+      // surface). Legacy V1 tab values migrate inside destinationFromLocation.
+      const derived = destinationFromLocation(window.location.href)
+      dispatchNavigation({ type: "restore_destination", destination: derived.destination, overlays: derived.overlays })
+      usePlannerStore.getState().setSurface(derived.destination === "rides" ? "library" : "planner")
     }
     handleBack()
     window.addEventListener("popstate", handleBack)
@@ -561,14 +566,14 @@ export function PlannerShell() {
     onNotice: setNotice
   })
 
-  const applyAppTab = (tab: AppTab, historyMode: "push" | "replace" = "push") => {
-    dispatchNavigation({ type: "select_tab", tab })
-    usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+  const applyDestination = (destination: PrimaryDestination, historyMode: "push" | "replace" = "push") => {
+    dispatchNavigation({ type: "select_destination", destination })
+    usePlannerStore.getState().setSurface(destination === "rides" ? "library" : "planner")
     const url = new URL(window.location.href)
-    if (tab === "plan") url.searchParams.delete("tab")
-    else url.searchParams.set("tab", tab)
+    if (destination === "plan") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", destination)
     window.history[historyMode === "push" ? "pushState" : "replaceState"](
-      { switchbackTab: tab },
+      { switchbackTab: destination },
       "",
       `${url.pathname}${url.search}${url.hash}`
     )
@@ -597,7 +602,7 @@ export function PlannerShell() {
       routes: [route],
       warnings: []
     })
-    applyAppTab("plan", "replace")
+    applyDestination("plan", "replace")
   }
 
   const handleImportAsLock = async (file: File, options: GpxRoadLockImportOptions) => {
@@ -991,7 +996,7 @@ export function PlannerShell() {
     } catch {
       setReplayComparison(null)
     }
-    applyAppTab("plan", "replace")
+    applyDestination("plan", "replace")
     setNotice({ kind: "success", message: `Replay loaded: ${ride.points.length} recorded points, notes, and photo metadata remain on this device.` })
   }
 
@@ -1134,14 +1139,14 @@ export function PlannerShell() {
     setNotice({ kind: "success", message: "Route cleared. Choose a new ride whenever you’re ready." })
   }
 
-  const handleAppTab = (tab: AppTab) => {
-    applyAppTab(tab)
+  const handleDestination = (destination: PrimaryDestination) => {
+    applyDestination(destination)
   }
 
-  const appMode = appModeForState({ surface, activeTab: navigation.activeTab, hasPlan: Boolean(plan) })
+  const appMode = appModeForState({ surface, destination: navigation.destination, hasPlan: Boolean(plan) })
 
   return (
-    <AppShell mode={appMode} dataSketching={sketching}>
+    <AppShell mode={appMode} destination={navigation.destination} dataSketching={sketching}>
       <MapWorkspace mode={surface === "ride" ? "ride" : surface === "free-ride" ? "free-ride" : "planning"}>
         <MapCanvas>
           <MapStage
@@ -1229,10 +1234,23 @@ export function PlannerShell() {
         </MapCanvas>
 
         {surface !== "ride" && surface !== "free-ride" ? (
-          <AppNavigation activeTab={navigation.activeTab} onSelect={handleAppTab} />
+          <AppNavigation
+            activeDestination={navigation.destination}
+            onSelect={handleDestination}
+            onOpenRecord={() => {
+              // Record preflight and Settings are exclusive overlay panels;
+              // opening one dismisses the other so they never stack.
+              dispatchNavigation({ type: "close_overlay", overlay: "settings" })
+              dispatchNavigation({ type: "open_overlay", overlay: "record" })
+            }}
+            onOpenSettings={() => {
+              dispatchNavigation({ type: "close_overlay", overlay: "record" })
+              dispatchNavigation({ type: "open_overlay", overlay: "settings" })
+            }}
+          />
         ) : null}
 
-        {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
+        {surface !== "ride" && surface !== "free-ride" && navigation.destination === "plan" && !sketching ? (
           <PlannerComposition
           viewModel={buildPlannerDeckViewModel({
             plan,
@@ -1403,7 +1421,7 @@ export function PlannerShell() {
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
             onClearHome: clearHome,
-            onOpenLibrary: () => handleAppTab("library"),
+            onOpenLibrary: () => handleDestination("rides"),
             onStartRide: (route) => void handleStartRide(route),
             onStartFreeRide: handleStartFreeRide,
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
@@ -1460,13 +1478,15 @@ export function PlannerShell() {
           />
         ) : null}
       </MapWorkspace>
-      {surface === "library" && navigation.activeTab === "library" ? (
+      {/* Surface guard: a popstate during an active ride must never mount
+          the drawer over the live HUD (its a11y effect inerts the map). */}
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "rides" ? (
         <LibraryDrawer
           routes={savedRoutes}
           recordedRides={recordedRides}
           trips={savedTrips}
           projectRoutes={projectRoutes}
-          onClose={() => applyAppTab("plan", "replace")}
+          onClose={() => applyDestination("plan", "replace")}
           onLoad={handleLoad}
           onLoadTrip={(trip) => handleLoad(trip.route, trip)}
           onDeleteTrip={(trip) => {
@@ -1495,10 +1515,23 @@ export function PlannerShell() {
           onImportAsLock={handleImportAsLock}
         />
       ) : null}
-      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "record" ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (
+        <section className="destination-panel discover-panel" aria-labelledby="discover-title">
+          <header>
+            <p className="discover-eyebrow">Discover</p>
+            <h1 id="discover-title">Find a better road.</h1>
+            <p>
+              Rider-published routes and curated rides live here. Every line is the exact
+              sanitized artifact the owner chose to share.
+            </p>
+          </header>
+          <Link className="discover-atlas-link" href="/routes">Browse the community Atlas</Link>
+        </section>
+      ) : null}
+      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("record") ? (
         <RecordPanel controller={recording} />
       ) : null}
-      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "profile" ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("settings") ? (
         <ProfilePanel
           theme={navigation.theme}
           onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
@@ -1558,9 +1591,10 @@ export function PlannerShell() {
             if (rideOriginalRouteId) routeEntityCache.release(rideOriginalRouteId)
             setRideOriginalRouteId(null)
             // Guidance is an immersive child of the planning flow. Restore
-            // the owning Plan tab as well as the surface so an exit from a
-            // stale/deep-linked tab always returns to the route context.
-            applyAppTab("plan", "replace")
+            // the owning Plan destination as well as the surface so an exit
+            // from a stale/deep-linked destination always returns to the
+            // route context.
+            applyDestination("plan", "replace")
           }}
           onReroute={(rerouted) => {
             // A detour is a new navigable line, never an overwrite of the

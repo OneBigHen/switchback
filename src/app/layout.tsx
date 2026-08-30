@@ -27,6 +27,10 @@ import "./styles/route-rating.css";
 import "./styles/breakpoints.css";
 import "./styles/switchback-v1.css";
 import "./styles/design-system.css";
+// V2 shell chrome (primary navigation, settings launcher, discover
+// placeholder). Consumes tokens.css only; replaces the retired nav blocks
+// that previously lived in switchback-v1.css and design-system.css.
+import "./styles/shell-v2.css";
 import "./styles/community.css";
 import "./styles/route-atlas.css";
 // Loads last: the Free Ride panel neutralises the older per-breakpoint

@@ -99,7 +99,7 @@ export const test = mobileQaTest
 export { expect }
 
 export interface MobileAppReadyExpectation {
-  readonly tab?: "library" | "profile" | "plan"
+  readonly tab?: "plan" | "rides" | "discover"
   readonly heading?: string
 }
 

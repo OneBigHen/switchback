@@ -1,25 +1,37 @@
 "use client"
 
-import { FolderSimple, MapTrifold, Record, UserCircle } from "@phosphor-icons/react"
-import type { AppTab } from "@/lib/client/app-navigation"
+import { Compass, MapTrifold, Path, Record } from "@phosphor-icons/react"
+import type { PrimaryDestination } from "@/lib/client/app-navigation"
+import { SettingsLauncher } from "./SettingsLauncher"
 
-const items: Array<{
-  tab: AppTab
+const destinations: Array<{
+  destination: PrimaryDestination
   label: string
   icon: typeof MapTrifold
 }> = [
-  { tab: "plan", label: "Plan", icon: MapTrifold },
-  { tab: "library", label: "Library", icon: FolderSimple },
-  { tab: "record", label: "Record", icon: Record },
-  { tab: "profile", label: "Profile", icon: UserCircle }
+  { destination: "plan", label: "Plan", icon: MapTrifold },
+  { destination: "rides", label: "Rides", icon: Path },
+  { destination: "discover", label: "Discover", icon: Compass }
 ]
 
 interface AppNavigationProps {
-  activeTab: AppTab
-  onSelect(tab: AppTab): void
+  activeDestination: PrimaryDestination
+  onSelect(destination: PrimaryDestination): void
+  onOpenRecord(): void
+  onOpenSettings(): void
 }
 
-export function AppNavigation({ activeTab, onSelect }: AppNavigationProps) {
+/**
+ * Primary navigation: exactly the three V2 destinations. Recording is an
+ * activity and Settings a secondary launcher — both live in the secondary
+ * cluster and never appear as primary items.
+ */
+export function AppNavigation({
+  activeDestination,
+  onSelect,
+  onOpenRecord,
+  onOpenSettings
+}: AppNavigationProps) {
   return (
     <nav className="app-navigation" aria-label="Primary">
       <div className="app-navigation-brand">
@@ -31,19 +43,26 @@ export function AppNavigation({ activeTab, onSelect }: AppNavigationProps) {
         </span>
         <span><strong>Switchback</strong><small>Motorcycle routing</small></span>
       </div>
-      <div className="app-navigation-items">
-        {items.map(({ tab, label, icon: Icon }) => (
+      <div className="app-navigation-primary" role="group" aria-label="Primary destinations">
+        {destinations.map(({ destination, label, icon: Icon }) => (
           <button
-            key={tab}
+            key={destination}
             type="button"
-            className={activeTab === tab ? "is-active" : undefined}
-            aria-current={activeTab === tab ? "page" : undefined}
-            onClick={() => onSelect(tab)}
+            className={activeDestination === destination ? "is-active" : undefined}
+            aria-current={activeDestination === destination ? "page" : undefined}
+            onClick={() => onSelect(destination)}
           >
             <Icon aria-hidden="true" />
             <span>{label}</span>
           </button>
         ))}
+      </div>
+      <div className="app-navigation-secondary" data-nav-cluster="secondary">
+        <button type="button" onClick={onOpenRecord}>
+          <Record aria-hidden="true" />
+          <span>Record</span>
+        </button>
+        <SettingsLauncher onOpen={onOpenSettings} />
       </div>
     </nav>
   )

@@ -91,7 +91,7 @@ for (const scheme of ["light", "dark"] as const) {
     test("settings and sheet", async ({ page, mobileQa }, testInfo) => {
       selectMatrix("settings", testInfo)
       await uxState.home(page)
-      await page.getByRole("button", { name: "Profile", exact: true }).tap()
+      await page.getByRole("button", { name: "Settings", exact: true }).tap()
       await expect(page.getByRole("region", { name: "Profile and settings" })).toBeVisible()
       await captureState(page, mobileQa.projectName, scheme, "settings")
     })
