@@ -49,3 +49,5 @@ data/quality/
 # Transient backups the GPX import writes beside the library it replaces.
 data/gpx-library.previous-*/
 data/gpx-library.pending-*/
+# Local Pi runtime state
+.atl/
