@@ -170,3 +170,50 @@ export function calculateNavigationFollowInsets(ctx: WorkspaceMapContext): MapVi
   }
   return { top: 150, right: 88, bottom: 100, left: 430 }
 }
+
+/**
+ * Where the rider's own marker should sit down the usable map, as a fraction
+ * of viewport height. Low enough that most of the screen is road the rider has
+ * not reached yet, high enough that the marker never hides behind the ride
+ * HUD's lower deck.
+ */
+export const RIDE_FOLLOW_RIDER_SCREEN_FRACTION = 0.68
+
+/**
+ * Insets for the motorcycle follow camera.
+ *
+ * Two things separate these from `calculateNavigationFollowInsets`, which is
+ * kept for golden parity with the camera this replaced:
+ *
+ * - The rider is placed deliberately. Map padding moves the projection's
+ *   focal point, so solving `top` for the target fraction puts the marker
+ *   consistently low in frame instead of leaving it wherever the old table
+ *   happened to land it.
+ * - Ride mode has no full-height planning panel, so it no longer reserves one.
+ *   The old table's 430 px left inset pushed the rider off to the right of a
+ *   panel that is not on screen during a ride.
+ */
+export function calculateRideFollowInsets(ctx: WorkspaceMapContext): MapViewportInsets {
+  const height = ctx.viewportHeightPx
+  const base = isShortLandscape(ctx)
+    ? { right: 24, bottom: 96, left: 24 }
+    : ctx.viewportWidthPx < NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX
+      ? { right: 28, bottom: 260, left: 28 }
+      : { right: 88, bottom: 220, left: 88 }
+
+  // Mapbox places the camera target at the centre of the padded box, so a
+  // focal point at fraction `f` of the viewport needs `top = 2fH - H + bottom`.
+  // Measured against a live ride, the marker tracks the focal point closely at
+  // town speeds and rides a little above it at highway speeds, where the
+  // camera aims further along the route — so the focal point is set at the
+  // rider's own target and the drift stays inside the intended band.
+  const focalFraction = RIDE_FOLLOW_RIDER_SCREEN_FRACTION
+  const top = Math.round(2 * focalFraction * height - height + base.bottom)
+  return {
+    // Never let the solved padding collapse the usable map on a short screen.
+    top: Math.max(24, Math.min(top, Math.max(24, height - base.bottom - 120))),
+    right: base.right,
+    bottom: base.bottom,
+    left: base.left
+  }
+}

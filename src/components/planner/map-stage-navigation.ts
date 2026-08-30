@@ -1,6 +1,11 @@
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
-import { navigationCameraOptions } from "@/lib/client/navigation-map"
+import type { Coordinate as RouteCoordinate } from "@/lib/routing/types"
+import { calculateRideFollowInsets } from "./workspace/map-viewport-insets"
+import type {
+  FollowCameraMap,
+  NavigationCameraController
+} from "@/lib/client/navigation-camera-controller"
 import { usePlannerStore } from "@/stores/planner-store"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 import { calculateMapViewportInsets, type WorkspaceMapContext } from "./workspace/map-viewport-insets"
@@ -56,9 +61,29 @@ export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {
   )
 }
 
-export function followNavigationFrame(map: MapLibreMap, frame: NavigationFrame, immediate = false) {
-  map.easeTo({
-    ...navigationCameraOptions(frame, { width: window.innerWidth, height: window.innerHeight }),
-    duration: immediate ? 0 : 650
+
+
+/**
+ * Applies one navigation frame to the ride camera through the follow-camera
+ * controller. The controller owns the high-frequency state; this adapter only
+ * supplies what has to come from the DOM — the viewport insets that place the
+ * rider low in frame, and the selected route's geometry.
+ */
+export function followNavigationFrame(
+  map: MapLibreMap,
+  controller: NavigationCameraController,
+  frame: NavigationFrame,
+  options: { routeGeometry?: readonly RouteCoordinate[]; immediate?: boolean } = {}
+): boolean {
+  const padding = calculateRideFollowInsets({
+    viewportWidthPx: window.innerWidth,
+    viewportHeightPx: window.innerHeight,
+    mode: "ride"
   })
+  const context = { padding, routeGeometry: options.routeGeometry }
+  if (options.immediate) {
+    controller.recenter(map as unknown as FollowCameraMap, frame, context)
+    return true
+  }
+  return controller.update(map as unknown as FollowCameraMap, frame, context)
 }
