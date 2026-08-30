@@ -136,6 +136,9 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     surface: props.rideMode ? "ride" : props.routes.length > 0 ? "plan" : "explore",
     lightPreset: resolveLightPreset(props.lightPreference, dayPhase)
   })
+  // A whole new riderLayers array arrives on unrelated updates; only the road
+  // character's own opacity should repaint it.
+  const curvatureOpacity = props.riderLayers.find((layer) => layer.id === "curvature")?.opacity ?? 1
   const styleKey = renderer.styleKey(experience)
   const ready = readyStyleKey === styleKey
   // The map is constructed from whatever the experience is at construction
@@ -709,16 +712,9 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     for (const layer of routeRibbonLayers(renderer, experience, props.routeVisibility)) {
       repaintLayer(map, layer)
     }
-    repaintLayer(map, roadCharacterLayer(
-      renderer,
-      experience,
-      props.riderLayers.find((layer) => layer.id === "curvature")?.opacity ?? 1
-    ))
-    // Planning tilts to show relief; riding leaves the camera to the
-    // navigation controller.
-    if (experience.surface !== "ride" && !props.rideMode) {
-      map.easeTo({ pitch: experience.camera.pitch, duration: experience.transitionMillis })
-    }
+    repaintLayer(map, roadCharacterLayer(renderer, experience, curvatureOpacity))
+    // The camera belongs to the renderer that has a 3D environment to tilt
+    // for; `applyExperience` moves it only when the tilt must actually change.
     // `experience` is a fresh object each render; its identity is the styleKey
     // plus the fields below, which is what actually changes the presentation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -733,7 +729,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     experience.atmosphere,
     props.routeVisibility,
     props.rideMode,
-    props.riderLayers
+    curvatureOpacity
   ])
 
   useEffect(() => {

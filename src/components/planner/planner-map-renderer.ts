@@ -206,6 +206,19 @@ export const maplibreRenderer: PlannerMapRenderer = {
   }
 }
 
+/**
+ * Planning tilts to show relief. The camera only moves when the tilt actually
+ * has to change: every camera move ends in a `moveend`, which is what drives
+ * the viewport-scoped rider-layer fetches, so a needless move cancels requests
+ * that were already in flight.
+ */
+function applyCameraDefaults(map: PlannerMap, experience: MapExperienceConfig): void {
+  const target = experience.camera.pitch
+  if (experience.surface === "ride") return
+  if (Math.abs(map.getPitch() - target) < 1) return
+  map.easeTo({ pitch: target, duration: experience.transitionMillis })
+}
+
 export const mapboxRenderer: PlannerMapRenderer = {
   id: "mapbox",
   // Standard's glyph endpoint serves the Mapbox font stack, not Noto.
@@ -284,6 +297,7 @@ export const mapboxRenderer: PlannerMapRenderer = {
     if (typeof premium.setFog === "function") {
       premium.setFog(experience.atmosphere ? ATMOSPHERE : null)
     }
+    applyCameraDefaults(map, experience)
   }
 }
 
