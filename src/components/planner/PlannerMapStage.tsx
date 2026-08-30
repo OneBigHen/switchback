@@ -31,6 +31,7 @@ import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime
 import { usePlannerStore } from "@/stores/planner-store"
 import { useNavigationFrame } from "@/stores/navigation-store"
 import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"
+import { NavigationCameraController } from "@/lib/client/navigation-camera-controller"
 import {
   addRiderMapLayers,
   geoJsonSource,
@@ -84,6 +85,12 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   const styleTimeoutRef = useRef<number | null>(null)
   const propsRef = useRef<LiveMapProps>(props)
   const navigationFollowingRef = useRef(true)
+  // The follow camera's high-frequency state lives outside React: a GPS fix
+  // must be able to move the camera without re-rendering the planner.
+  const cameraControllerRef = useRef<NavigationCameraController | null>(null)
+  if (cameraControllerRef.current === null) {
+    cameraControllerRef.current = new NavigationCameraController()
+  }
 
   // The HUD publishes its slot element through a shared registry (a ref on the
   // slot div), so the control follows the slot across HUD remounts — the HUD is
@@ -311,11 +318,19 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           layerCount: style?.layers?.length ?? 0
         }
       })
-      map.on("dragstart", () => {
-        if (!propsRef.current.rideMode) return
+      // Any deliberate gesture suspends following, not only a drag: pinch
+      // zoom and two-finger rotate are just as much the rider taking over.
+      // `originalEvent` is what separates a real gesture from the camera's
+      // own programmatic movement.
+      const suspendFollowForGesture = (event: { originalEvent?: unknown }) => {
+        if (!propsRef.current.rideMode || !event?.originalEvent) return
+        cameraControllerRef.current?.suspend()
         navigationFollowingRef.current = false
         setNavigationFollowing(false)
-      })
+      }
+      for (const gesture of ["dragstart", "rotatestart", "pitchstart", "zoomstart"] as const) {
+        map.on(gesture, suspendFollowForGesture)
+      }
 
       let draggedWaypoint: { kind: "start" | "finish" | "via"; index: number } | null = null
       let suppressNextClick = false
@@ -770,6 +785,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
 
   useEffect(() => {
     if (!props.rideMode) return
+    cameraControllerRef.current?.reset()
     navigationFollowingRef.current = true
     const publishFollowing = window.setTimeout(() => setNavigationFollowing(true), 0)
     return () => window.clearTimeout(publishFollowing)
@@ -781,10 +797,13 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     geoJsonSource(map, "switchback-navigation")?.setData(
       navigationFrame ? buildNavigationMapFeatures(navigationFrame) : emptyFeatureCollection()
     )
-    if (props.rideMode && navigationFrame && navigationFollowingRef.current) {
-      followNavigationFrame(map, navigationFrame)
+    const controller = cameraControllerRef.current
+    if (props.rideMode && navigationFrame && controller && navigationFollowingRef.current) {
+      followNavigationFrame(map, controller, navigationFrame, {
+        routeGeometry: props.routes.find((route) => route.id === props.selectedRouteId)?.geometry
+      })
     }
-  }, [navigationFrame, props.rideMode, ready])
+  }, [navigationFrame, props.rideMode, props.routes, props.selectedRouteId, ready])
 
   // Recording session breadcrumb trail: draw the captured GPS trail and keep
   // the camera on the latest fix while riding. The trail is removed when the
@@ -839,14 +858,17 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       ]
     })
     // Follow the latest fix while recording so the rider can glance at the
-    // app and always see where they are.
+    // app and always see where they are — but never while the navigation
+    // follow camera owns the view, and never after the rider has taken the
+    // map over. Two cameras easing the same map fight on every fix.
+    if (navigationFrame || !navigationFollowingRef.current) return
     map.easeTo({
       center: head,
       zoom: Math.max(map.getZoom(), 14.5),
       duration: 650,
       essential: true
     })
-  }, [props.recordingTrail, props.rideMode, ready, renderer])
+  }, [props.recordingTrail, props.rideMode, ready, renderer, navigationFrame])
 
   useEffect(() => {
     const map = mapRef.current
@@ -875,11 +897,15 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     // Road character carries its own data-driven opacity; the experience
     // effect scales it by the rider's setting.
     map.setPaintProperty("switchback-unpaved-lines", "line-opacity", opacity("unpaved", 0.82))
-    map.setLayoutProperty("switchback-curvature-lines", "visibility", visible("curvature", props.curvatureVisible) ? "visible" : "none")
+    // Ride Focus: road character is a planning aid. Its data is deliberately
+    // not refreshed while riding, and at speed it competes with the route for
+    // the same colours, so it steps aside until the rider is planning again.
+    const roadCharacterVisible = visible("curvature", props.curvatureVisible) && !props.rideMode
+    map.setLayoutProperty("switchback-curvature-lines", "visibility", roadCharacterVisible ? "visible" : "none")
     map.setLayoutProperty("switchback-unpaved-lines", "visibility", visible("unpaved", props.unpavedVisible) ? "visible" : "none")
     updateRiderMapLayerPresentation(map, props.riderLayers, renderer)
     // Route width belongs to the ribbon, which the experience effect owns.
-  }, [props.riderLayers, props.curvatureVisible, props.unpavedVisible, ready, renderer])
+  }, [props.riderLayers, props.curvatureVisible, props.unpavedVisible, props.rideMode, ready, renderer])
 
   return (
     <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}${props.recalculating ? " is-recalculating" : ""}`} aria-label="Interactive route map" data-recalculating={props.recalculating ? "true" : "false"}>
@@ -918,7 +944,15 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             navigationFollowingRef.current = true
             setNavigationFollowing(true)
             const map = mapRef.current
-            if (map && navigationFrame) followNavigationFrame(map, navigationFrame, true)
+            const controller = cameraControllerRef.current
+            if (map && controller && navigationFrame) {
+              followNavigationFrame(map, controller, navigationFrame, {
+                routeGeometry: propsRef.current.routes.find(
+                  (route) => route.id === propsRef.current.selectedRouteId
+                )?.geometry,
+                immediate: true
+              })
+            }
           }}
         >
           <Crosshair weight="bold" aria-hidden="true" />

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  buildNavigationMapFeatures,
-  navigationCameraOptions
-} from "@/lib/client/navigation-map"
+import { buildNavigationMapFeatures } from "@/lib/client/navigation-map"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 
 const frame: NavigationFrame = {
@@ -30,31 +27,6 @@ const frame: NavigationFrame = {
 }
 
 describe("ride navigation map presentation", () => {
-  it("centers the camera on the actual GPS fix with heading and mobile look-ahead", () => {
-    expect(navigationCameraOptions(frame, { width: 390, height: 844 })).toEqual({
-      center: [-76.985, 40.001],
-      bearing: 92,
-      pitch: 52,
-      zoom: 16.1,
-      padding: { top: 220, right: 28, bottom: 92, left: 28 },
-      duration: 650,
-      essential: true
-    })
-  })
-
-  it("uses a compact camera rail in landscape without losing the live position", () => {
-    const options = navigationCameraOptions(
-      { ...frame, status: "off-route", headingDegrees: null },
-      { width: 844, height: 390 }
-    )
-
-    expect(options.center).toEqual(frame.rawCoordinate)
-    expect(options.bearing).toBeUndefined()
-    expect(options.pitch).toBe(28)
-    expect(options.zoom).toBeLessThan(16)
-    expect(options.padding).toEqual({ top: 112, right: 24, bottom: 52, left: 24 })
-  })
-
   it("renders both the raw rider fix and its route match without hiding deviation", () => {
     const features = buildNavigationMapFeatures(frame)
 
