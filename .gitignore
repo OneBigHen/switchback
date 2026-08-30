@@ -51,3 +51,5 @@ data/gpx-library.previous-*/
 data/gpx-library.pending-*/
 # Local Pi runtime state
 .atl/
+.pi/
+.pi-lens/
