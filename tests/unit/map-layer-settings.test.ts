@@ -68,7 +68,9 @@ describe("map layer settings", () => {
       layers: [{ id: "weather", visible: true, opacity: 0.75, order: 0 }]
     })
 
-    expect(pack.mapStyle).toBe("night")
+    // A pack saved as the old night style is a lighting choice, not a mode.
+    expect(pack.experience).toBe("standard")
+    expect(pack.lightPreference).toBe("night")
     expect(pack.routeVisibility).toBe("high-contrast")
     expect(pack.layers.find((layer) => layer.id === "weather")).toMatchObject({ visible: true, opacity: 0.75 })
     expect(pack.layers.find((layer) => layer.id === "curvature")).toBeDefined()

@@ -50,7 +50,7 @@ function riderLayerColor(id: RiderLayerId): string {
     case "camping": return "#3D8B55"
     case "private-land":
     case "closures": return "#C84432"
-    case "traffic":
+    case "road-controls":
     case "fuel":
     case "food": return "#E39D2D"
     case "weather":
@@ -78,7 +78,7 @@ export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer
       source: `switchback-${definition.id}-raster-source`,
       layout: { visibility: "none" },
       paint: { "raster-opacity": 1, "raster-fade-duration": 0 }
-    }, { slot: "bottom", beforeId: "switchback-route-casing" })
+    }, { slot: "bottom", beforeId: "switchback-route-shadow" })
   }
 
   map.addSource(RIDER_FEATURE_SOURCE, { type: "geojson", data: emptyFeatureCollection() })
@@ -89,17 +89,17 @@ export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer
       id: riderFeatureLayerIds(id)[0], type: "fill", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none" },
       paint: { "fill-color": color, "fill-opacity": 0.16, "fill-outline-color": color }
-    }, { slot: "bottom", beforeId: "switchback-route-casing" })
+    }, { slot: "bottom", beforeId: "switchback-route-shadow" })
     renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[1], type: "line", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
       paint: { "line-color": color, "line-width": 2.5, "line-opacity": 0.8 }
-    }, { slot: "middle", beforeId: "switchback-route-casing" })
+    }, { slot: "middle", beforeId: "switchback-route-shadow" })
     renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[2], type: "circle", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none" },
       paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 14, 7], "circle-color": color, "circle-stroke-color": "#101310", "circle-stroke-width": 1.5, "circle-opacity": 0.9 }
-    }, { slot: "middle", beforeId: "switchback-route-casing" })
+    }, { slot: "middle", beforeId: "switchback-route-shadow" })
   }
 }
 
@@ -132,7 +132,7 @@ export function updateRiderMapLayerPresentation(
     // Slot placement already keeps rider layers under the route; the move
     // only reorders them among themselves. A cross-slot `beforeId` would be
     // rejected, so the slotted renderer moves to the top of its own slot.
-    for (const id of ids) renderer.moveLayer(map, id, "switchback-route-casing")
+    for (const id of ids) renderer.moveLayer(map, id, "switchback-route-shadow")
   }
 }
 
@@ -173,7 +173,7 @@ export function updateReferenceMapSource(
     renderer.addLayer(
       map,
       { id: layerId, type: "raster", source: sourceId, paint: { "raster-opacity": reference.opacity, "raster-fade-duration": 0 } },
-      { slot: "bottom", beforeId: "switchback-route-casing" }
+      { slot: "bottom", beforeId: "switchback-route-shadow" }
     )
   }
   map.setPaintProperty(layerId, "raster-opacity", reference.opacity)

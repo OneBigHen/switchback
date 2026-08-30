@@ -23,7 +23,7 @@ describe("map data provenance", () => {
   it("returns a usable provenance record for a known layer id", () => {
     const record = provenanceForLayer("curvature")
     expect(record).not.toBeNull()
-    expect(record!.name).toBe("High-curvature roads")
+    expect(record!.name).toBe("Great roads")
     expect(record!.dataCategory).toBe("road-geometry")
     expect(record!.approximate).toBe(true)
   })

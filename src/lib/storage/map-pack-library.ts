@@ -1,14 +1,19 @@
 import Dexie, { type EntityTable } from "dexie"
 import {
   normalizeRiderLayerSettings,
-  type MapStyleId,
   type RiderLayerSettingInput,
   type RiderMapPack
 } from "@/lib/client/map-layers"
+import {
+  legacyMapStyleFor,
+  type MapExperienceId,
+  type MapLightPreference
+} from "@/lib/client/map-experience"
 
 export interface MapPackInput {
   name: string
-  mapStyle: MapStyleId
+  experience: MapExperienceId
+  lightPreference: MapLightPreference
   routeVisibility: RiderMapPack["routeVisibility"]
   layers: RiderLayerSettingInput[]
 }
@@ -47,7 +52,11 @@ export class MapPackLibrary {
     const pack: RiderMapPack = {
       id,
       name,
-      mapStyle: input.mapStyle,
+      // The legacy style is still written so a pack saved here stays readable
+      // by an older build; the premium fields are what this one reads back.
+      mapStyle: legacyMapStyleFor(input.experience, input.lightPreference),
+      experience: input.experience,
+      lightPreference: input.lightPreference,
       routeVisibility: input.routeVisibility,
       layers: normalizeRiderLayerSettings(input.layers),
       createdAt: existing?.createdAt ?? timestamp,

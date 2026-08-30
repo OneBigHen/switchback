@@ -43,7 +43,7 @@ describe("reference map source lifecycle", () => {
     expect(addLayer).toHaveBeenCalledWith(expect.objectContaining({
       id: "switchback-reference-map-layer",
       source: "switchback-reference-map"
-    }), "switchback-route-casing")
+    }), "switchback-route-shadow")
     expect(setPaintProperty).toHaveBeenCalledWith("switchback-reference-map-layer", "raster-opacity", 0.55)
   })
 

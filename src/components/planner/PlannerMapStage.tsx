@@ -15,8 +15,17 @@ import {
   shouldShowBaseMapFailure
 } from "@/lib/client/map-layers"
 import type { MapStageProps } from "./map-stage-props"
+import { resolveLightPreset, resolveMapExperience } from "@/lib/client/map-experience"
+import { useDayPhase } from "@/lib/client/day-phase"
 import type { PlannerMap, PlannerMapRenderer } from "./planner-map-renderer"
-import { roadLockDashPaint, roadLockLineFilter, roadLockLineLayerIds } from "./planner-map-layers"
+import {
+  repaintLayer,
+  roadCharacterLayer,
+  roadLockDashPaint,
+  roadLockLineFilter,
+  roadLockLineLayerIds,
+  routeRibbonLayers
+} from "./planner-map-layers"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime-diagnostics"
 import { usePlannerStore } from "@/stores/planner-store"
@@ -117,8 +126,27 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     setLockMode,
     setLockName
   } = useRoadLockDraft({ addRoadLock })
-  const styleKey = renderer.styleKey(props.mapStyle)
+  // Auto lighting follows the route start's own day phase, not the browser's
+  // clock alone; a fallback keeps the map lit before a start exists.
+  const dayPhase = useDayPhase(props.start?.lat ?? 40.2732, props.start?.lon ?? -76.8867)
+  const experience = resolveMapExperience({
+    experience: props.mapExperience,
+    // Explore is the map before a route exists; once routes are on the map
+    // they are what the rider is reading, so the profile steps back.
+    surface: props.rideMode ? "ride" : props.routes.length > 0 ? "plan" : "explore",
+    lightPreset: resolveLightPreset(props.lightPreference, dayPhase)
+  })
+  // A whole new riderLayers array arrives on unrelated updates; only the road
+  // character's own opacity should repaint it.
+  const curvatureOpacity = props.riderLayers.find((layer) => layer.id === "curvature")?.opacity ?? 1
+  const styleKey = renderer.styleKey(experience)
   const ready = readyStyleKey === styleKey
+  // The map is constructed from whatever the experience is at construction
+  // time; the effect below owns every later change.
+  const experienceRef = useRef(experience)
+  useEffect(() => {
+    experienceRef.current = experience
+  }, [experience])
   const {
     curvatureStatus,
     unpavedStatus,
@@ -270,7 +298,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       const initialStart = propsRef.current.start
       map = renderer.create(renderersModule, {
         container,
-        mapStyle: props.mapStyle,
+        experience: experienceRef.current,
         center: initialStart ? [initialStart.lon, initialStart.lat] : [-98.5795, 39.8283],
         zoom: initialStart ? 10.5 : 3.8,
         onLocateMe: (point) => propsRef.current.onLocateMe?.(point)
@@ -320,34 +348,9 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           type: "geojson",
           data: emptyFeatureCollection()
         })
-        renderer.addLayer(map, {
-          id: "switchback-route-casing",
-          type: "line",
-          source: "switchback-routes",
-          paint: {
-            "line-color": "#090B0A",
-            "line-width": ["case", ["get", "selected"], 9, 5],
-            "line-opacity": ["case", ["get", "traversed"], 0.3, 0.9]
-          },
-          layout: { "line-cap": "round", "line-join": "round" }
-        }, { slot: "top" })
-        renderer.addLayer(map, {
-          id: "switchback-route-lines",
-          type: "line",
-          source: "switchback-routes",
-          paint: {
-            "line-color": ["case",
-              ["get", "traversed"], "#5a5e5b",
-              ["get", "selected"], "#F36A2D", "#D5DAD6"
-            ],
-            "line-width": ["case", ["get", "selected"], 5, 2.5],
-            "line-opacity": ["case",
-              ["get", "traversed"], 0.35,
-              ["get", "selected"], 1, 0.72
-            ]
-          },
-          layout: { "line-cap": "round", "line-join": "round" }
-        }, { slot: "top" })
+        for (const layer of routeRibbonLayers(renderer, experienceRef.current)) {
+          renderer.addLayer(map, layer, { slot: "top" })
+        }
         map.addSource("switchback-route-labels", {
           type: "geojson",
           data: emptyFeatureCollection()
@@ -482,23 +485,16 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             "line-dasharray": [1.4, 1.1]
           },
           layout: { "line-cap": "round", "line-join": "round" }
-        }, { slot: "middle", beforeId: "switchback-route-casing" })
+        }, { slot: "middle", beforeId: "switchback-route-shadow" })
         map.addSource("switchback-curvature", {
           type: "geojson",
           data: emptyFeatureCollection()
         })
-        renderer.addLayer(map, {
-          id: "switchback-curvature-lines",
-          type: "line",
-          source: "switchback-curvature",
-          paint: {
-            "line-color": "#F36A2D",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1, 13, 3],
-            "line-opacity": 0.34,
-            "line-dasharray": [2, 2]
-          },
-          layout: { "line-cap": "round", "line-join": "round" }
-        }, { slot: "middle", beforeId: "switchback-route-casing" })
+        renderer.addLayer(
+          map,
+          roadCharacterLayer(renderer, experienceRef.current),
+          { slot: "middle", beforeId: "switchback-route-shadow" }
+        )
         addRiderMapLayers(map, renderer)
         map.addSource("switchback-road-locks", {
           type: "geojson",
@@ -528,7 +524,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
               ...roadLockDashPaint(renderer, id)
             },
             layout: { "line-cap": "round", "line-join": "round" }
-          }, { slot: "top", beforeId: "switchback-route-casing" })
+          }, { slot: "top", beforeId: "switchback-route-shadow" })
         }
         renderer.addLayer(map, {
           id: "switchback-road-lock-drift",
@@ -541,7 +537,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             "line-dasharray": [1.4, 1]
           },
           layout: { "line-cap": "round" }
-        }, { slot: "top", beforeId: "switchback-route-casing" })
+        }, { slot: "top", beforeId: "switchback-route-shadow" })
         renderer.addLayer(map, {
           id: "switchback-road-lock-anchors",
           type: "circle",
@@ -580,13 +576,13 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           type: "fill",
           source: "switchback-avoid-areas",
           paint: { "fill-color": "#C84432", "fill-opacity": 0.16 }
-        }, { slot: "middle", beforeId: "switchback-route-casing" })
+        }, { slot: "middle", beforeId: "switchback-route-shadow" })
         renderer.addLayer(map, {
           id: "switchback-avoid-area-outline",
           type: "line",
           source: "switchback-avoid-areas",
           paint: { "line-color": "#C84432", "line-width": 2.5, "line-dasharray": [1.3, 1] }
-        }, { slot: "middle", beforeId: "switchback-route-casing" })
+        }, { slot: "middle", beforeId: "switchback-route-shadow" })
         renderer.addLayer(map, {
           id: "switchback-waypoint-rings",
           type: "circle",
@@ -709,8 +705,32 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
-    renderer.applyExperience(map, props.mapStyle, props.rideMode ? "ride" : "planning")
-  }, [renderer, props.mapStyle, props.rideMode, ready])
+    renderer.applyExperience(map, experience)
+    // The ribbon and the road-character layer carry the experience's colour,
+    // weight, and emissive strength, so they are repainted in place — never
+    // rebuilt, which would blank their data for a frame.
+    for (const layer of routeRibbonLayers(renderer, experience, props.routeVisibility)) {
+      repaintLayer(map, layer)
+    }
+    repaintLayer(map, roadCharacterLayer(renderer, experience, curvatureOpacity))
+    // The camera belongs to the renderer that has a 3D environment to tilt
+    // for; `applyExperience` moves it only when the tilt must actually change.
+    // `experience` is a fresh object each render; its identity is the styleKey
+    // plus the fields below, which is what actually changes the presentation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    renderer,
+    ready,
+    styleKey,
+    experience.lightPreset,
+    experience.id,
+    experience.surface,
+    experience.terrain?.exaggeration,
+    experience.atmosphere,
+    props.routeVisibility,
+    props.rideMode,
+    curvatureOpacity
+  ])
 
   useEffect(() => {
     setRouteRuntimeMetrics({
@@ -852,19 +872,14 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       props.riderLayers.find((layer) => layer.id === id)?.opacity ?? fallback
     const visible = (id: RiderLayerId, fallback: boolean) =>
       props.riderLayers.find((layer) => layer.id === id)?.visible ?? fallback
-    map.setPaintProperty("switchback-curvature-lines", "line-opacity", opacity("curvature", 0.34))
+    // Road character carries its own data-driven opacity; the experience
+    // effect scales it by the rider's setting.
     map.setPaintProperty("switchback-unpaved-lines", "line-opacity", opacity("unpaved", 0.82))
     map.setLayoutProperty("switchback-curvature-lines", "visibility", visible("curvature", props.curvatureVisible) ? "visible" : "none")
     map.setLayoutProperty("switchback-unpaved-lines", "visibility", visible("unpaved", props.unpavedVisible) ? "visible" : "none")
     updateRiderMapLayerPresentation(map, props.riderLayers, renderer)
-    map.setPaintProperty(
-      "switchback-route-lines",
-      "line-width",
-      props.routeVisibility === "high-contrast"
-        ? ["case", ["get", "selected"], 6.5, 3.5]
-        : ["case", ["get", "selected"], 5, 2.5]
-    )
-  }, [props.riderLayers, props.curvatureVisible, props.unpavedVisible, props.routeVisibility, ready, renderer])
+    // Route width belongs to the ribbon, which the experience effect owns.
+  }, [props.riderLayers, props.curvatureVisible, props.unpavedVisible, ready, renderer])
 
   return (
     <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}${props.recalculating ? " is-recalculating" : ""}`} aria-label="Interactive route map" data-recalculating={props.recalculating ? "true" : "false"}>
@@ -914,7 +929,9 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       {!props.rideMode ? <MapStageLayerControl
         sketchMode={sketchMode}
         avoidMode={avoidMode}
-        mapStyle={props.mapStyle}
+        mapExperience={props.mapExperience}
+        lightPreference={props.lightPreference}
+        premiumExperiences={renderer.id === "mapbox"}
         riderLayers={props.riderLayers}
         routeVisibility={props.routeVisibility}
         mapPacks={props.mapPacks}
@@ -941,7 +958,8 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             propsRef.current.onSketchModeChange(true)
           }
         }}
-        onMapStyleChange={props.onMapStyleChange}
+        onMapExperienceChange={props.onMapExperienceChange}
+        onLightPreferenceChange={props.onLightPreferenceChange}
         onRiderLayerChange={props.onRiderLayerChange}
         onMoveRiderLayer={props.onMoveRiderLayer}
         onRouteVisibilityChange={props.onRouteVisibilityChange}

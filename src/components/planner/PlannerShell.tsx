@@ -11,12 +11,16 @@ import {
   type ThemePreference
 } from "@/lib/client/app-navigation"
 import { isNightTime } from "@/lib/client/day-phase"
+import {
+  legacyMapStyleFor,
+  type MapExperienceId,
+  type MapLightPreference
+} from "@/lib/client/map-experience"
 import { type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import {
   applyRiderMapPack,
   defaultRiderLayerSettings,
-  type MapStyleId,
   type RiderLayerId,
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
@@ -184,14 +188,17 @@ export function PlannerShell() {
   const [researchStatus, setResearchStatus] = useState<"idle" | "researching">("idle")
   const [researchSources, setResearchSources] = useState<RideResearchSource[]>([])
   const [unpavedVisible, setUnpavedVisible] = useState(true)
-  const [mapStyle, setMapStyle] = useState<MapStyleId>("clean")
+  const [mapExperience, setMapExperience] = useState<MapExperienceId>("standard")
+  const [lightPreference, setLightPreference] = useState<MapLightPreference>("auto")
+  const mapIsDark = lightPreference === "auto"
+    ? isNightTime(new Date(), start?.lat ?? finish?.lat ?? 40.2732, start?.lon ?? finish?.lon ?? -76.8867)
+    : lightPreference === "night" || lightPreference === "dusk"
   const [navigation, dispatchNavigation] = useReducer(
     appNavigationReducer,
     undefined,
     () => createInitialAppNavigationState(initialThemePreference())
   )
 
-  const autoNightRef = useRef(true)
   const [riderLayers, setRiderLayers] = useState<RiderLayerSetting[]>(() => defaultRiderLayerSettings().map((layer) => ({
     ...layer,
     visible: layer.id === "curvature" || layer.id === "unpaved"
@@ -338,30 +345,16 @@ export function PlannerShell() {
   }, [])
 
   useEffect(() => {
-    if (!autoNightRef.current) return
-    const check = () => {
-      const coord = start ?? finish
-      if (!coord) return
-      if (isNightTime(new Date(), coord.lat, coord.lon)) {
-        setMapStyle((prev) => (prev === "night" ? prev : "night"))
-      }
-    }
-    check()
-    const id = setInterval(check, 120_000)
-    return () => clearInterval(id)
-  }, [start, finish])
-
-  useEffect(() => {
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
     const hour = new Date().getHours()
     const afterDark = hour < 6 || hour >= 19
     const resolved = navigation.theme === "auto"
-      ? (mapStyle === "night" || prefersDark || afterDark ? "dark" : "light")
+      ? (mapIsDark || prefersDark || afterDark ? "dark" : "light")
       : navigation.theme
     document.documentElement.dataset.theme = resolved
     document.documentElement.dataset.themePreference = navigation.theme
     localStorage.setItem("switchback:theme", navigation.theme)
-  }, [mapStyle, navigation.theme])
+  }, [mapIsDark, navigation.theme])
 
   useEffect(() => {
     const handleBack = () => {
@@ -689,7 +682,7 @@ export function PlannerShell() {
     return buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
       return offlinePackLibraryRef.current!.save({
         route,
-        mapStyle,
+        mapStyle: legacyMapStyleFor(mapExperience, lightPreference),
         routeVisibility,
         activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
       }).then(() => corridor)
@@ -712,7 +705,7 @@ export function PlannerShell() {
       kind: "warning",
       message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
     }))
-  }, [mapStyle, routeVisibility, riderLayers])
+  }, [mapExperience, lightPreference, routeVisibility, riderLayers])
 
   const handleBuildCorridor = useCallback((pending: { id: string; waypoints: { lat: number; lon: number }[] }) => {
     const route = routes.find((candidate) => candidate.id === pending.id) ?? selectedRoute
@@ -1162,7 +1155,8 @@ export function PlannerShell() {
         recalculating={isRecalculating}
         curvatureVisible={curvatureVisible}
         unpavedVisible={unpavedVisible}
-        mapStyle={mapStyle}
+        mapExperience={mapExperience}
+        lightPreference={lightPreference}
         riderLayers={riderLayers}
         routeVisibility={routeVisibility}
         mapPacks={mapPacks}
@@ -1176,10 +1170,8 @@ export function PlannerShell() {
           setUnpavedVisible(visible)
           setRiderLayers((layers) => layers.map((layer) => layer.id === "unpaved" ? { ...layer, visible } : layer))
         }}
-        onMapStyleChange={(style) => {
-          autoNightRef.current = false
-          setMapStyle(style)
-        }}
+        onMapExperienceChange={setMapExperience}
+        onLightPreferenceChange={setLightPreference}
         onRiderLayerChange={(id: RiderLayerId, patch) => {
           setRiderLayers((layers) => layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer))
           if (id === "curvature" && typeof patch.visible === "boolean") usePlannerStore.getState().setCurvatureVisible(patch.visible)
@@ -1199,7 +1191,7 @@ export function PlannerShell() {
         }}
         onRouteVisibilityChange={setRouteVisibility}
         onSaveMapPack={(name) => {
-          void mapPackLibrary.save({ name, mapStyle, routeVisibility, layers: riderLayers })
+          void mapPackLibrary.save({ name, experience: mapExperience, lightPreference, routeVisibility, layers: riderLayers })
             .then(async (pack) => {
               await refreshMapPacks()
               setNotice({ kind: "success", message: `${pack.name} map pack saved on this device.` })
@@ -1210,7 +1202,8 @@ export function PlannerShell() {
           const pack = mapPacks.find((candidate) => candidate.id === id)
           if (!pack) return
           const applied = applyRiderMapPack(riderLayers, pack)
-          setMapStyle(applied.mapStyle)
+          setMapExperience(applied.experience)
+          setLightPreference(applied.lightPreference)
           setRouteVisibility(applied.routeVisibility)
           setRiderLayers(applied.layers)
           usePlannerStore.getState().setCurvatureVisible(applied.layers.find((layer) => layer.id === "curvature")?.visible ?? false)

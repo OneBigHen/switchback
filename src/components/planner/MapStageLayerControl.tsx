@@ -2,14 +2,22 @@
 
 import { PencilLine, Stack, X } from "@phosphor-icons/react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
-import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type MapStyleId, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
+import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
+import {
+  MAP_LIGHT_PREFERENCES,
+  type MapExperienceId,
+  type MapLightPreference
+} from "@/lib/client/map-experience"
 import { provenanceSummary } from "@/lib/client/map-data-provenance"
 import { useMapLayerMenu } from "./useMapLayerMenu"
 
 interface MapStageLayerControlProps {
   sketchMode: boolean
   avoidMode: boolean
-  mapStyle: MapStyleId
+  mapExperience: MapExperienceId
+  lightPreference: MapLightPreference
+  /** Satellite and runtime lighting exist only on the premium renderer. */
+  premiumExperiences: boolean
   riderLayers: RiderLayerSetting[]
   routeVisibility: "standard" | "high-contrast"
   mapPacks: RiderMapPack[]
@@ -22,7 +30,8 @@ interface MapStageLayerControlProps {
   referenceMessage: string
   onToggleSketch(): void
   onToggleAvoid(): void
-  onMapStyleChange(style: MapStyleId): void
+  onMapExperienceChange(experience: MapExperienceId): void
+  onLightPreferenceChange(preference: MapLightPreference): void
   onRiderLayerChange(id: RiderLayerId, patch: Partial<Pick<RiderLayerSetting, "visible" | "opacity">>): void
   onMoveRiderLayer(id: RiderLayerId, direction: "earlier" | "later"): void
   onRouteVisibilityChange(visibility: "standard" | "high-contrast"): void
@@ -36,10 +45,35 @@ interface MapStageLayerControlProps {
 
 const FEATURE_LAYER_SET: ReadonlySet<RiderLayerId> = new Set(featureMapLayerIds)
 
+const LIGHT_LABELS: Record<MapLightPreference, string> = {
+  auto: "Auto",
+  dawn: "Dawn",
+  day: "Day",
+  dusk: "Dusk",
+  night: "Night"
+}
+
+const EXPERIENCE_LABELS: Record<MapExperienceId, string> = {
+  standard: "Standard",
+  terrain: "Terrain",
+  satellite: "Satellite"
+}
+
+/**
+ * Satellite is a premium-renderer capability. Offering it on the fallback
+ * renderer would name a view Switchback cannot actually draw there.
+ */
+function mapExperienceChoices(premium: boolean): { id: MapExperienceId; label: string }[] {
+  const ids: MapExperienceId[] = premium ? ["standard", "terrain", "satellite"] : ["standard", "terrain"]
+  return ids.map((id) => ({ id, label: EXPERIENCE_LABELS[id] }))
+}
+
 export function MapStageLayerControl({
   sketchMode,
   avoidMode,
-  mapStyle,
+  mapExperience,
+  lightPreference,
+  premiumExperiences,
   riderLayers,
   routeVisibility,
   mapPacks,
@@ -52,7 +86,8 @@ export function MapStageLayerControl({
   referenceMessage,
   onToggleSketch,
   onToggleAvoid,
-  onMapStyleChange,
+  onMapExperienceChange,
+  onLightPreferenceChange,
   onRiderLayerChange,
   onMoveRiderLayer,
   onRouteVisibilityChange,
@@ -64,6 +99,7 @@ export function MapStageLayerControl({
   onRemoveReferenceMap
 }: MapStageLayerControlProps) {
   const catalogSettings = catalogLayerSettings(riderLayers)
+  const experienceChoices = mapExperienceChoices(premiumExperiences)
   const {
     layerButtonRef,
     layerMenuOpen,
@@ -101,9 +137,41 @@ export function MapStageLayerControl({
       </div>
       {layerMenuOpen ? <div className="map-layer-menu" role="dialog" aria-label="Map layers and style">
         <div>
-          <strong>Map style</strong>
-          <div className="map-style-options">{(["clean", "explorer", "night"] as const).map((style) => <button type="button" key={style} aria-pressed={mapStyle === style} onClick={() => onMapStyleChange(style)}><span className={`style-swatch style-${style}`} aria-hidden="true" />{style === "clean" ? "Clean" : style === "explorer" ? "Explore" : "Night"}</button>)}</div>
+          <strong>Map view</strong>
+          <div className="map-style-options" role="radiogroup" aria-label="Map view">
+            {experienceChoices.map((choice) => (
+              <button
+                type="button"
+                key={choice.id}
+                role="radio"
+                aria-checked={mapExperience === choice.id}
+                onClick={() => onMapExperienceChange(choice.id)}
+              >
+                <span className={`style-swatch style-${choice.id}`} aria-hidden="true" />
+                {choice.label}
+              </button>
+            ))}
+          </div>
         </div>
+        {premiumExperiences ? (
+          <div>
+            <strong>Lighting</strong>
+            <div className="map-light-options" role="radiogroup" aria-label="Map lighting">
+              {MAP_LIGHT_PREFERENCES.map((preference) => (
+                <button
+                  type="button"
+                  key={preference}
+                  role="radio"
+                  aria-checked={lightPreference === preference}
+                  onClick={() => onLightPreferenceChange(preference)}
+                >
+                  {LIGHT_LABELS[preference]}
+                </button>
+              ))}
+            </div>
+            <small className="map-light-note">Auto follows sunrise and sunset where your ride starts.</small>
+          </div>
+        ) : null}
         <div className="overlay-options">
           <div className="overlay-options-header">
             <strong>Rider map studio</strong>
