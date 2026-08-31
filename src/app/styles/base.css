@@ -17,6 +17,13 @@ body {
   color: var(--instrument);
 }
 
+/* The planner is a fixed viewport application, but the public route atlas is
+   a normal tall document. Opt the atlas back into page scrolling so the global
+   planner lock cannot clip /gpx-library or route-detail pages. */
+body:has(.atlas-page) {
+  overflow: auto;
+}
+
 html.ride-mode-active,
 body.ride-mode-active {
   width: 100%;
