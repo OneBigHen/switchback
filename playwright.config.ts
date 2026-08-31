@@ -6,14 +6,12 @@ const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111"
 const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
 // The mobile-qa tree is owned exclusively by playwright.mobile.config.ts.
-// Everything here must ignore it, or its touch-only specs (and the
-// underscore-prefixed debug spec) get collected by the Desktop Chrome quality
-// projects and fail on `.tap()`.
 const mobileQaTree = /\/e2e\/mobile-qa\//
 const qualitySuites = /\/e2e\/(critical|real-router|pwa|visual)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const roadLockSpec = /\/road-lock\.spec\.ts$/
-const criticalMatch = /\/e2e\/critical\/.*\.spec\.ts$/
+const criticalMainMatch = /\/e2e\/critical\/planner-journeys\.spec\.ts$/
+const criticalWebkitSmokeMatch = /\/e2e\/critical\/webkit-smoke\.spec\.ts$/
 const realRouterMatch = /\/e2e\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/e2e\/pwa\/.*\.spec\.ts$/
 const visualMatch = /\/e2e\/visual\/.*\.spec\.ts$/
@@ -32,15 +30,7 @@ export default defineConfig({
     baseURL: externalBaseUrl ?? localBaseUrl,
     geolocation: { latitude: 40.2732, longitude: -76.8867 },
     permissions: ["geolocation"],
-    // Matches the fixture geolocation (PA) and the explicit -04:00 offset
-    // baked into PINNED_CLOCK (ux-state-fixtures.ts). Without this, browser
-    // contexts inherit the host machine's own timezone, so local-time reads
-    // (Date#getHours, toString, etc.) drift with wherever the suite happens
-    // to run instead of staying pinned relative to the fixture location.
     timezoneId: "America/New_York",
-    // Production registers the offline PWA worker. Requests handled by a
-    // service worker bypass page.route(), so API fixtures become order- and
-    // viewport-dependent unless the worker is disabled for this matrix.
     serviceWorkers: "block",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -76,14 +66,23 @@ export default defineConfig({
       testMatch: memorySoakSpec,
       use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     },
+    // PR merge gate: run the real rider journeys once in Chromium. Repeating
+    // every journey in WebKit doubled noise without adding proportional signal.
     {
       name: "critical-chromium",
-      testMatch: criticalMatch,
+      testMatch: criticalMainMatch,
       use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     },
+    // PR compatibility gate: WebKit proves app boot/navigation plus one routed
+    // outcome. Full WebKit coverage remains available as a manual deep check.
     {
-      name: "critical-webkit",
-      testMatch: criticalMatch,
+      name: "critical-webkit-smoke",
+      testMatch: criticalWebkitSmokeMatch,
+      use: { ...devices["iPhone 14"], serviceWorkers: "block" }
+    },
+    {
+      name: "critical-webkit-full",
+      testMatch: criticalMainMatch,
       use: { ...devices["iPhone 14"], serviceWorkers: "block" }
     },
     {
@@ -112,8 +111,6 @@ export default defineConfig({
       ? `npx next start --hostname 127.0.0.1 --port ${testPort}`
       : `npx next dev --hostname 127.0.0.1 --port ${testPort}`}`,
     url: localBaseUrl,
-    // A dedicated port plus no reuse prevents a stale production process from
-    // turning an HTTP WebKit run into an HTTPS asset-loading failure.
     reuseExistingServer: false,
     timeout: 120000
   }
