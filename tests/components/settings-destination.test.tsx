@@ -20,8 +20,9 @@ describe("SettingsDestination", () => {
 
     expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "Settings", level: 1 })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Active motorcycle" })).toHaveTextContent("Ténéré 700")
-    expect(screen.getByText(/Adventure/)).toBeInTheDocument()
+    const activeMotorcycle = screen.getByRole("region", { name: "Active motorcycle" })
+    expect(activeMotorcycle).toHaveTextContent("Ténéré 700")
+    expect(activeMotorcycle).toHaveTextContent("Adventure")
     expect(document.querySelector(".profile-panel")).not.toBeInTheDocument()
   })
 
