@@ -9,6 +9,67 @@ vi.mock("maplibre-gl", () => ({}))
 afterEach(cleanup)
 
 describe("map layer controls", () => {
+  it("mounts the bounded V2 quick layer surface and keeps specialized controls behind Advanced", async () => {
+    const user = userEvent.setup()
+    render(
+      <MapStage
+        routes={[]}
+        selectedRouteId={null}
+        start={null}
+        finish={null}
+        via={[]}
+        armedPoint={null}
+        addingVia={false}
+        curvatureVisible
+        unpavedVisible
+        mapExperience="standard"
+        lightPreference="auto"
+        riderLayers={[
+          { id: "curvature", visible: true, opacity: 1, order: 0 },
+          { id: "unpaved", visible: false, opacity: 1, order: 1 },
+          { id: "closures", visible: false, opacity: 1, order: 2 },
+          { id: "road-controls", visible: false, opacity: 1, order: 3 },
+          { id: "satellite", visible: false, opacity: 1, order: 4 },
+          { id: "fuel", visible: false, opacity: 1, order: 5 }
+        ]}
+        routeVisibility="standard"
+        mapPacks={[]}
+        referenceMap={null}
+        rideMode={false}
+        onCurvatureChange={vi.fn()}
+        onUnpavedChange={vi.fn()}
+        onMapExperienceChange={vi.fn()}
+        onLightPreferenceChange={vi.fn()}
+        onRiderLayerChange={vi.fn()}
+        onMoveRiderLayer={vi.fn()}
+        onRouteVisibilityChange={vi.fn()}
+        onSaveMapPack={vi.fn()}
+        onApplyMapPack={vi.fn()}
+        onReferenceMapChange={vi.fn()}
+        onWaypointDrag={vi.fn()}
+        onMapPick={vi.fn()}
+        onRouteSketch={vi.fn()}
+        onSketchModeChange={vi.fn()}
+        avoidAreas={[]}
+        onAvoidArea={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Open map layers" }))
+    expect(screen.getByRole("region", { name: "Quick map layers" })).toBeVisible()
+    expect(screen.getByRole("radio", { name: "Standard" })).toBeVisible()
+    expect(screen.getByRole("radio", { name: "Terrain" })).toBeVisible()
+    // MapStage uses the renderer-neutral fallback; Satellite remains correctly
+    // capability-gated while the premium LayersSheet contract covers it.
+    expect(screen.queryByRole("radio", { name: "Satellite" })).not.toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Great roads" })).toBeVisible()
+    expect(screen.queryByText(/Switchback road-shape analysis/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
+    expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
+    expect(screen.getByRole("checkbox", { name: /Satellite imagery/i })).toBeVisible()
+  })
+
   it("exposes a touch-sized recenter control for the shared ride navigation frame", () => {
     const navigationFrame = {
       status: "navigating",
@@ -148,6 +209,7 @@ describe("map layer controls", () => {
     )
 
     await user.click(screen.getByRole("button", { name: "Open map layers" }))
+    await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
     expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
     expect(screen.getByText(/Legend: Satellite image overlay/i)).toBeVisible()
     expect(screen.getAllByText(/Confidence: Provider imagery coverage/i)).not.toHaveLength(0)

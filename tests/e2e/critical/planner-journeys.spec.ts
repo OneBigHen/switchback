@@ -70,6 +70,27 @@ test("Draw opens the typed sketch toolbar from the V2 composer", async ({ page }
   await expect(page.getByRole("region", { name: "Draw a rough route" })).toHaveCount(0)
 })
 
+test("Quick Layers keeps primary map choices bounded while Advanced preserves the map studio", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.goto("/")
+
+  await page.getByRole("button", { name: "Open map layers" }).click()
+  const quick = page.getByRole("region", { name: "Quick map layers" })
+  await expect(quick).toBeVisible()
+  await expect(quick.getByRole("radio", { name: "Standard" })).toBeVisible()
+  await expect(quick.getByRole("radio", { name: "Terrain" })).toBeVisible()
+  await expect(quick.getByRole("checkbox")).toHaveCount(4)
+  await expect(quick.getByRole("checkbox", { name: "Fuel" })).toHaveCount(0)
+
+  await quick.getByRole("button", { name: "Advanced map settings" }).click()
+  const dialog = page.getByRole("dialog", { name: "Map layers and style" })
+  await expect(dialog.getByRole("button", { name: "Back to quick map layers" })).toBeVisible()
+  await expect(dialog.getByRole("checkbox", { name: /Fuel/i })).toBeVisible()
+
+  await dialog.getByRole("button", { name: "Back to quick map layers" }).click()
+  await expect(quick).toBeVisible()
+})
+
 test("a free-form ride request reaches a routed outcome", async ({ page }) => {
   await installPlannerServices(page)
   await installRideIntentApi(page)
