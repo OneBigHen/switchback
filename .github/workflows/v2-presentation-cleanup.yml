@@ -1,0 +1,62 @@
+name: V2 presentation cleanup
+
+on:
+  push:
+    branches: [ux/v2-settings-integration]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/v2-settings-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Remove retired V1 authorities
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          profile = Path('src/components/shell/ProfilePanel.tsx')
+          text = profile.read_text()
+          text = text.replace('import type { ThemePreference } from "@/lib/client/app-navigation"\n', '')
+          legacy_props = '''  /** Kept during the V2 shell handoff so old callers remain type-safe. */\n  theme?: ThemePreference\n  /** Theme now lives in SettingsDestination; this is intentionally unused. */\n  onThemeChange?(theme: ThemePreference): void\n'''
+          if legacy_props not in text:
+              raise SystemExit('ProfilePanel compatibility prop block missing')
+          profile.write_text(text.replace(legacy_props, '', 1))
+
+          layout = Path('src/app/layout.tsx')
+          text = layout.read_text()
+          for retired in [
+              'import "./styles/library-drawer.css";\n',
+              'import "./styles/profile-panel.css";\n'
+          ]:
+              if retired not in text:
+                  raise SystemExit(f'layout import missing: {retired.strip()}')
+              text = text.replace(retired, '', 1)
+          text = text.replace('// V2 shell chrome (primary navigation, settings launcher, discover\n', '// V2 shell chrome (primary navigation and destination framing; discover\n')
+          layout.write_text(text)
+          PY
+          rm src/app/styles/library-drawer.css src/app/styles/profile-panel.css
+      - run: npm ci
+      - name: Verify focused presentation contracts
+        run: npx vitest run tests/components/rides-presentation-v2.test.tsx tests/components/library-drawer.test.tsx tests/components/library-drawer-road-locks.test.tsx tests/components/v2-presentation-primitives.test.tsx tests/components/settings-destination.test.tsx tests/components/settings-shell-authority.test.ts tests/components/profile-panel-v2.test.ts tests/components/app-navigation.test.tsx tests/unit/app-navigation.test.ts
+      - name: Verify repository
+        run: npm run verify
+      - name: Commit verified cleanup
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/v2-presentation-cleanup.yml
+          git add -A
+          git commit -m "refactor(ux-v2): remove retired presentation authorities"
+          git push origin HEAD:ux/v2-settings-integration
