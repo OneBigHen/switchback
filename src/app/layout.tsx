@@ -31,6 +31,7 @@ import "./styles/design-system.css";
 // placeholder). Consumes tokens.css only; replaces the retired nav blocks
 // that previously lived in switchback-v1.css and design-system.css.
 import "./styles/shell-v2.css";
+import "./styles/plan-v2.css";
 import "./styles/community.css";
 import "./styles/route-atlas.css";
 // Loads last: the Free Ride panel neutralises the older per-breakpoint

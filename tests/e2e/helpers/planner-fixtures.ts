@@ -170,7 +170,7 @@ export async function installRouteApi(
 }
 
 export async function openPlannerEditor(page: Page): Promise<void> {
-  const editor = page.getByRole("heading", { name: /Pick two points|Start here/i })
+  const editor = page.getByRole("combobox", { name: "Start", exact: true })
   if (await editor.isVisible().catch(() => false)) return
   await expandPhonePlanner(page)
   // A real tap must reach this control: a regression where the home-state
@@ -183,7 +183,7 @@ export async function openPlannerEditor(page: Page): Promise<void> {
 export async function expandPhonePlanner(page: Page): Promise<void> {
   if (!await page.evaluate(() => window.matchMedia("(max-width: 760px)").matches)) return
   const expand = page.getByRole("button", { name: "Expand planner" })
-  const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
+  const prompt = page.getByPlaceholder("Search a place or describe a ride")
   if (await expand.isVisible().catch(() => false)) await expand.click()
   await expect(prompt, "mobile planner prompt must appear after expanding").toBeVisible({ timeout: 15_000 })
 }

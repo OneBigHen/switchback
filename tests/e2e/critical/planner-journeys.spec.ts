@@ -12,17 +12,6 @@ import {
   type RouteCapture
 } from "../helpers/planner-fixtures"
 
-const QUICK_SUGGESTIONS = [
-  { label: "1-hour loop", name: "one-hour loop" },
-  { label: "Twisties", name: "Twisties" },
-  { label: "Scenic", name: "Scenic" }
-] as const
-
-const PROMPT_EXAMPLES = [
-  { prompt: "Twisty ride to Pine Creek Gorge", name: "Pine Creek Gorge" },
-  { prompt: "Scenic ride to New Hope with a coffee stop", name: "New Hope scenic route" }
-] as const
-
 async function ensureStart(page: import("@playwright/test").Page): Promise<void> {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if ((await start.inputValue()).length === 0) {
@@ -42,7 +31,7 @@ async function chooseFixtureFinish(page: import("@playwright/test").Page): Promi
 async function planDirectRoute(page: import("@playwright/test").Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
   await expandPhonePlanner(page)
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
@@ -50,65 +39,35 @@ async function planDirectRoute(page: import("@playwright/test").Page, capture: R
   await expectRouteOutcome(page, capture)
 }
 
-for (const suggestion of QUICK_SUGGESTIONS) {
-  test(`built-in ${suggestion.name} suggestion reaches a routed outcome`, async ({ page }) => {
-    await installPlannerServices(page)
-    await installRideIntentApi(page)
-    const capture = await installRouteApi(page, tripPlan([makeRoute(
-      suggestion.label === "Scenic" ? "scenic" : "twisty",
-      { name: `${suggestion.name} result` }
-    )]))
+test("the idle composer keeps trip shape and free-form planning discoverable", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.goto("/")
+  await expandPhonePlanner(page)
+  await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
+  const composer = page.locator(".plan-v2")
+  await expect(composer.getByRole("button", { name: "Destination" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Loop" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Draw" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Free Ride" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toHaveCount(0)
+  await expect(page.getByText("Try", { exact: true })).toHaveCount(0)
+})
 
-    await page.goto("/")
-    await expandPhonePlanner(page)
-    await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-    // These chips are intentionally removed as soon as the prompt is
-    // committed. Dispatch the user click without asking Playwright to keep
-    // re-resolving a DOM node that the product deliberately replaces.
-    await page.getByRole("button", { name: new RegExp(`^${suggestion.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }).evaluate((element) => {
-      (element as HTMLButtonElement).click()
-    })
-    await expectRouteOutcome(page, capture)
-    // The route name renders both in the selected-route identity line and in
-    // the "Select <name>" slip button; assert the slip button specifically so
-    // the check stays unambiguous.
-    await expect(
-      page.getByRole("button", { name: new RegExp(`Select ${suggestion.name} result`) })
-    ).toBeVisible()
-  })
-}
+test("a free-form ride request reaches a routed outcome", async ({ page }) => {
+  await installPlannerServices(page)
+  await installRideIntentApi(page)
+  const capture = await installRouteApi(page, tripPlan([makeRoute("twisty", { name: "Prompt result" })]))
 
-for (const suggestion of PROMPT_EXAMPLES) {
-  test(`ride example ${suggestion.name} reaches a routed outcome`, async ({ page }) => {
-    await installPlannerServices(page)
-    await installRideIntentApi(page)
-    const capture = await installRouteApi(page, tripPlan([makeRoute(
-      suggestion.name === "New Hope scenic route" ? "scenic" : "twisty",
-      { name: `${suggestion.name} result` }
-    )]))
-
-    await page.goto("/")
-    await expandPhonePlanner(page)
-    const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
-    // Type rather than fill(): Playwright's fill() dispatches a single
-    // synthetic input event that WebKit + this controlled input can drop,
-    // leaving React state empty while the DOM shows the text. Real keystrokes
-    // commit state reliably in every engine.
-    await prompt.click()
-    await page.keyboard.type(suggestion.prompt)
-    // Wait for the app to commit the typed value (submit enables only once
-    // the controlled state has caught up) before pressing Enter.
-    await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
-    await prompt.press("Enter")
-    await expectRouteOutcome(page, capture)
-    // The route name renders both in the selected-route identity line and in
-    // the "Select <name>" slip button; assert the slip button specifically so
-    // the check stays unambiguous.
-    await expect(
-      page.getByRole("button", { name: new RegExp(`Select ${suggestion.name} result`) })
-    ).toBeVisible()
-  })
-}
+  await page.goto("/")
+  await expandPhonePlanner(page)
+  const prompt = page.getByPlaceholder("Search a place or describe a ride")
+  await prompt.click()
+  await page.keyboard.type("a scenic ride to Fixture finish")
+  await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
+  await prompt.press("Enter")
+  await expectRouteOutcome(page, capture)
+  await expect(page.getByRole("button", { name: "Select Prompt result" })).toBeVisible()
+})
 
 test("destination planning sends the selected points and displays the final route", async ({ page }) => {
   await installPlannerServices(page)
@@ -145,7 +104,7 @@ test("loop planning uses one fixed start and completes with a non-empty geometry
   await page.goto("/")
   await openPlannerEditor(page)
   await ensureStart(page)
-  await page.getByRole("button", { name: "Loop ride" }).click()
+  await page.getByRole("button", { name: "Loop" }).click()
   await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
   await expectRouteOutcome(page, capture)
   expect(capture.requests[0]).toMatchObject({
@@ -161,7 +120,11 @@ test("location denial falls back to an honest approximate start and still reache
   await installRideIntentApi(page)
   const capture = await installRouteApi(page, tripPlan([makeRoute("twisty", { name: "Denied-location fallback" })]))
   await page.goto("/")
-  await page.getByRole("button", { name: "1-hour loop" }).click()
+  await expandPhonePlanner(page)
+  const prompt = page.getByPlaceholder("Search a place or describe a ride")
+  await prompt.click()
+  await page.keyboard.type("two-hour loop")
+  await prompt.press("Enter")
   await expectRouteOutcome(page, capture)
   await expect(page.getByText("Couldn't get a live location", { exact: false })).toBeVisible()
   expect(capture.requests[0]?.points).toEqual([{
@@ -210,10 +173,8 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
     const response = responses[Math.min(requests.length - 1, responses.length - 1)]!
     // The stale response must still be in flight when the newer plan is
     // submitted — that is the race under test. Five seconds keeps the
-    // window generous on a warm shared dev server (the quick-intent chips
-    // unmount the moment a route applies), while the client's latest-request
-    // gate aborts and discards this response exactly as it would in
-    // production.
+    // window generous on a warm shared dev server while the client's
+    // latest-request gate aborts and discards this response.
     if (requests.length === 1) await new Promise((resolve) => setTimeout(resolve, 5_000))
     try {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) })
@@ -230,7 +191,11 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
   await page.keyboard.type("first destination")
   await prompt.press("Enter")
   await expect.poll(() => requests.length).toBe(1)
-  await page.getByRole("button", { name: "Twisties", exact: true }).click()
+  await prompt.click()
+  await page.keyboard.press("ControlOrMeta+A")
+  await page.keyboard.type("second destination")
+  await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
+  await prompt.press("Enter")
   await expectRouteOutcome(page, {
     requests,
     responses: requests.map((request, index) => ({ request, body: responses[Math.min(index, responses.length - 1)]! }))

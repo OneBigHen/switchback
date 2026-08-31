@@ -47,6 +47,7 @@ import type {
   PlannerDeckViewModel
 } from "./PlannerDeckViewModel"
 import { ProviderHealthNotice } from "./ProviderHealthNotice"
+import { PlanComposer } from "./v2/PlanComposer"
 
 export type { PlanMode, RideIntentStatus } from "./PlannerDeckViewModel"
 import { isActivePlanningPhase } from "./PlannerDeckViewModel"
@@ -162,6 +163,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onClearHome = commands.onClearHome
   const onStartRide = commands.onStartRide
   const onStartFreeRide = commands.onStartFreeRide
+  const onStartDrawing = commands.onStartDrawing
   const onSaveOffline = commands.onSaveOffline
   const [ridePrompt, setRidePrompt] = useState("")
   const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
@@ -233,7 +235,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     // submit racing the controlled-input update (e.g. Enter immediately
     // after typing) used to send an empty prompt to the intent API.
     const prompt = (new FormData(event.currentTarget).get("ride-prompt") as string | null ?? ridePrompt).trim()
-    if (prompt.length >= 3 && intentStatus !== "interpreting") onRidePrompt(prompt)
+    if (prompt.length >= 3) onRidePrompt(prompt)
   }
   const planDisabled = !start || (planMode === "destination" && !finish) || status === "routing" || intentStatus === "interpreting"
   const planLabel = status === "routing"
@@ -310,13 +312,107 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                   <Sparkle weight="fill" aria-hidden="true" /> Free Ride
                 </button>
               ) : null}
-              <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("1-hour loop")}>1-hour loop</button>
-              <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Twisty roads")}>Twisties</button>
-              <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Scenic ride")}>Scenic</button>
             </div>
           ) : null}
         </>
       ) : (
+        <>
+        <div className="planner-scroll plan-v2-scroll">
+        <header className="deck-header ride-deck-header plan-v2-header">
+          <div className="deck-header-tools">
+            <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+              {planningStage}
+            </span>
+            {sheetDetent === "full" ? (
+              <button
+                type="button"
+                className="planner-full-map-tools"
+                aria-label="Show map tools"
+                title="Collapse planner to use map tools"
+                onClick={() => setSheetDetentOverride("half")}
+              >
+                <MapTrifold weight="bold" aria-hidden="true" />
+              </button>
+            ) : null}
+            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => {
+              if (selectedRoute) setEditing(false)
+              setSheetDetentOverride("peek")
+            }}>
+              <CaretDown aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+        <PlanComposer
+          planMode={planMode}
+          onPlanModeChange={onPlanModeChange}
+          onDraw={() => onStartDrawing?.()}
+          ridePrompt={ridePrompt}
+          onRidePromptChange={setRidePrompt}
+          onRidePromptSubmit={submitRidePrompt}
+          onStartVoiceInput={startVoiceInput}
+          onUseCurrentLocation={onUseCurrentLocation}
+          start={start}
+          finish={finish}
+          startQuery={startQuery}
+          finishQuery={finishQuery}
+          armedPoint={armedPoint}
+          via={via}
+          addingVia={addingVia}
+          canUndoRoutePoints={canUndoRoutePoints}
+          canRedoRoutePoints={canRedoRoutePoints}
+          profile={profile}
+          bikeProfile={rideConfig.bikeProfile}
+          curvatureVisible={curvatureVisible}
+          avoidHighways={avoidHighways}
+          targetMinutes={targetMinutes}
+          segmentProfiles={segmentProfiles}
+          avoidAreaCount={avoidAreaCount}
+          roadLockCount={rideConfig.roadLocks.length}
+          savedCount={savedCount}
+          home={home}
+          providerHealth={providerHealth}
+          onRetryProviderHealth={onRetryProviderHealth}
+          intentStatus={intentStatus}
+          planningPhase={lifecycle.phase}
+          lifecycleLabel={lifecycle.label}
+          elapsedSeconds={elapsedSeconds}
+          error={error}
+          editing={editing}
+          onEditingChange={setEditing}
+          onCancelPlanning={onCancelPlanning}
+          onPointChange={onPointChange}
+          onPointQueryChange={onPointQueryChange}
+          onArm={onArm}
+          onSwap={onSwap}
+          onToggleAddVia={onToggleAddVia}
+          onRemoveVia={onRemoveVia}
+          onMoveVia={onMoveVia}
+          onReverseRoute={onReverseRoute}
+          onUndoRoutePoints={onUndoRoutePoints}
+          onRedoRoutePoints={onRedoRoutePoints}
+          onToggleViaLock={onToggleViaLock}
+          onProfileChange={onProfileChange}
+          onBikeProfileChange={onBikeProfileChange}
+          onCurvatureChange={onCurvatureChange}
+          onAvoidHighwaysChange={onAvoidHighwaysChange}
+          onTargetMinutesChange={onTargetMinutesChange}
+          onSegmentProfileChange={onSegmentProfileChange}
+          onOpenRoadLocks={() => setRoadLocksOpen(true)}
+          onRemoveAvoidArea={onRemoveAvoidArea}
+          onOpenLibrary={onOpenLibrary}
+          onUseHome={onUseHome}
+          onSaveHome={onSaveHome}
+          onClearHome={onClearHome}
+          onStartFreeRide={onStartFreeRide}
+          stopIdeas={stopIdeas}
+          onChooseStopIdea={onChooseStopIdea}
+          researchStatus={researchStatus}
+          researchSources={researchSources}
+          onResearchRideIdea={onResearchRideIdea}
+        />
+        {children}
+        </div>
+        {false ? (
         <>
         <div className="planner-scroll">
         <header className="deck-header ride-deck-header">
@@ -363,7 +459,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               onClick={onUseCurrentLocation}
             >
               <MapPin weight="fill" aria-hidden="true" />
-              <span>{start ? `Starting from ${start.label ?? "selected start"}` : "Use my current location"}</span>
+              <span>{start ? `Starting from ${start?.label ?? "selected start"}` : "Use my current location"}</span>
               <ArrowRight weight="bold" aria-hidden="true" />
             </button>
           </div>
@@ -402,8 +498,8 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           ) : null}
           {error ? (
             <div className="planner-error" role="alert">
-              <strong>{error.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
-              <p>{error.message}</p>
+              <strong>{error?.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
+              <p>{error?.message}</p>
             </div>
           ) : null}
           {!selectedRoute ? (
@@ -430,11 +526,11 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           {stopIdeas ? (
             <div className="ride-stop-ideas" aria-label="Suggested route stops">
               <div>
-                <strong>{stopIdeas.rankedBy === "rider-fit" ? "Rider-fit stop ideas" : "Nearby stop ideas"}</strong>
-                <small>{stopIdeas.rankedBy === "rider-fit" ? "Quality, route proximity, and a mix of breweries, parks, and local stops" : "Nearby OpenStreetMap matches"}</small>
+                <strong>{stopIdeas?.rankedBy === "rider-fit" ? "Rider-fit stop ideas" : "Nearby stop ideas"}</strong>
+                <small>{stopIdeas?.rankedBy === "rider-fit" ? "Quality, route proximity, and a mix of breweries, parks, and local stops" : "Nearby OpenStreetMap matches"}</small>
               </div>
               <ol>
-                {stopIdeas.places.slice(0, 3).map((place) => (
+                {stopIdeas?.places.slice(0, 3).map((place) => (
                   <li key={place.id}>
                     <button
                       type="button"
@@ -763,14 +859,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
         </p>
       ) : null}
       </>
+      ) : null}
+      </>
       )}
       <div className="planner-action-dock" aria-label="Route actions">
-        {!minimized && onStartFreeRide ? (
-          <button type="button" className="free-ride-button" onClick={onStartFreeRide}>
-            <Sparkle weight="fill" aria-hidden="true" />
-            <span>Free Ride</span>
-          </button>
-        ) : null}
         {!minimized ? <button
           type="button"
           className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}

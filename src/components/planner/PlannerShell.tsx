@@ -1424,6 +1424,11 @@ export function PlannerShell() {
             onOpenLibrary: () => handleDestination("rides"),
             onStartRide: (route) => void handleStartRide(route),
             onStartFreeRide: handleStartFreeRide,
+            onStartDrawing: () => {
+              // Reuse the existing map sketch entry point so Draw retains its
+              // established map gestures, reset, and save behavior.
+              document.querySelector<HTMLButtonElement>(".map-sketch-button")?.click()
+            },
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
           }}
           comparison={routes.length > 0 ? {
