@@ -130,13 +130,10 @@ async function mockSharedPlannerServices(page: import("@playwright/test").Page) 
 }
 
 async function openRouteEditor(page: import("@playwright/test").Page) {
-  const editorHeading = page.getByRole("heading", { name: /Pick two points|Start here/i })
-  if (await editorHeading.isVisible().catch(() => false)) return
-
-  await expect(async () => {
-    await page.getByRole("button", { name: "Edit route" }).click()
-    await expect(editorHeading).toBeVisible({ timeout: 1_000 })
-  }).toPass()
+  const start = page.getByRole("combobox", { name: "Start", exact: true })
+  if (await start.isVisible().catch(() => false)) return
+  await page.getByRole("button", { name: "Options" }).click()
+  await expect(start).toBeVisible()
 }
 
 test("tap a road, save as Must use (graph-matched), and confirm the lock is forwarded with edge ids", async ({
@@ -186,11 +183,11 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   })
 
   await page.goto(startUrl)
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
   await openRouteEditor(page)
-  await expect(page.getByRole("heading", { name: /Pick two points/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Route points" })).toBeVisible()
 
-  await page.getByRole("button", { name: "Loop ride" }).click()
+  await page.getByRole("button", { name: "Loop", exact: true }).click()
   await expect(page.getByRole("button", { name: "Plan a 2-hour loop" })).toBeVisible()
 
   await page.getByRole("button", { name: "Lock a road corridor" }).click()
