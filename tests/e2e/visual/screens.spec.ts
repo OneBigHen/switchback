@@ -12,42 +12,18 @@ import {
 } from "../helpers/planner-fixtures"
 import { pinVisualClock } from "../helpers/ux-state-fixtures"
 
-// TASK-0.1: visual regression harness for the six primary screens. Every spec
-// asserts the screen's root panel is actually visible and non-zero-size in
-// addition to the pixel diff — a passing screenshot alone would not have
-// caught the Profile-panel outage (TASK-1.1), where the panel painted with
-// zero effective size but no test failed.
+// Visual regression harness for the primary V2 surfaces. Every spec asserts
+// the screen's semantic root is visible and non-zero-size in addition to the
+// pixel diff, so a selector cannot silently point at a retired V1 surface.
 
-// CINCO Phase 0: the shell resolves its theme from the wall clock (dark when
-// local hour < 6 or >= 19), so captures taken outside daylight hours drifted
-// wholesale against light-theme baselines. Pinning the clock to midday makes
-// theme — and therefore these baselines — deterministic (see
-// docs/cinco/UX_STATE_CONTRACT.md).
 test.beforeEach(async ({ page }) => {
   await pinVisualClock(page)
 })
 
-// TASK-2.3: Next.js's dev-mode indicator (a shadow-DOM toast, always
-// z-index: max) surfaces browser console warnings -- including "GPU stall
-// due to ReadPixels" driver messages from the software-rendered (SwiftShader)
-// WebGL context MapLibre uses in this headless test environment. Whether that
-// driver warning fires is sensitive to the exact timing of style
-// recalculation/layout passes, which shifts by a few milliseconds any time
-// the CSS is reorganized into more/fewer files -- with no change to actual
-// app markup or rendered values. It never appears in a production build
-// (`next build` has zero warnings), so it's not part of the UI under test;
-// mask it out rather than let dev-only chrome flip the suite red.
 function screenshotOptions(page: Page): { maxDiffPixelRatio: number; mask: Locator[] } {
-  // The toast's host element (<nextjs-portal>) is a 0x0 shadow-DOM anchor;
-  // the visible badge lives on the ".nextjs-toast" node inside its shadow
-  // root, which Playwright's CSS engine pierces into automatically.
   return { maxDiffPixelRatio: 0.02, mask: [page.locator(".nextjs-toast")] }
 }
 
-// CINCO Phase 0 required target viewports (docs/cinco/UX_STATE_CONTRACT.md):
-// every primary screen is evidenced on desktop, phone portrait/landscape, and
-// tablet portrait/landscape — intentionally different compositions, not
-// stretched variants.
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -56,10 +32,6 @@ const VIEWPORTS = [
   { name: "tablet-landscape", width: 1024, height: 768 }
 ] as const
 
-// Idle Plan is intentionally checked at the named release viewports. The
-// other destination screens keep the compact CINCO matrix above; they should
-// not inherit seven extra captures just because the idle planner has a
-// different map-dominance contract.
 const PLAN_EMPTY_VIEWPORTS = [
   { name: "320x700", width: 320, height: 700 },
   { name: "390x844", width: 390, height: 844 },
@@ -88,9 +60,6 @@ async function assertIdlePlanGeometry(page: Page, viewport: { width: number; hei
   const box = await panel.boundingBox()
   expect(box).not.toBeNull()
 
-  // The idle composer is a content-sized prompt, not a half/full detent. Keep
-  // the map as the dominant workspace while retaining the existing expanded
-  // detents for Options and route results.
   expect(box!.height).toBeLessThan(viewport!.height * 0.45)
   expect(box!.y).toBeGreaterThanOrEqual(0)
   expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height)
@@ -140,12 +109,13 @@ for (const viewport of VIEWPORTS) {
       await expect(page).toHaveScreenshot(`plan-result-${viewport.name}.png`, screenshotOptions(page))
     })
 
-    test("Library screen", async ({ page }) => {
+    test("Rides screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
       await page.getByRole("button", { name: "Rides", exact: true }).click()
-      const panel = page.locator(".library-drawer")
+      const panel = page.getByRole("main", { name: "Rides destination" })
       await assertPanelVisible(panel)
+      await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
       await expect(page).toHaveScreenshot(`rides-${viewport.name}.png`, screenshotOptions(page))
     })
 
@@ -158,14 +128,13 @@ for (const viewport of VIEWPORTS) {
       await expect(page).toHaveScreenshot(`record-${viewport.name}.png`, screenshotOptions(page))
     })
 
-    test("Profile screen", async ({ page }) => {
+    test("Settings screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
       await page.getByRole("button", { name: "Settings", exact: true }).click()
-      const panel = page.locator(".profile-panel")
-      // This is the exact check that would have caught TASK-1.1: the panel
-      // rendered in the a11y tree with no visible content on any viewport.
+      const panel = page.getByRole("main", { name: "Settings destination" })
       await assertPanelVisible(panel)
+      await expect(page.getByRole("region", { name: "Settings" })).toBeVisible()
       await expect(page).toHaveScreenshot(`profile-${viewport.name}.png`, screenshotOptions(page))
     })
 
