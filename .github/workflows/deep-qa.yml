@@ -13,7 +13,94 @@ concurrency:
 jobs:
   full-webkit:
     name: full-webkit
-    runs-on: ubu[K[]\İˆ[Y[İ][Z[]\ÎˆÌˆİ\Î‚ˆH\Ù\ÎˆXİ[ÛœËØÚXÚÛİ]ˆH\Ù\ÎˆXİ[ÛœËÜÙ]\[›ÙPˆÚ]‚ˆ›ÙK]™\œÚ[ÛˆˆØXÚNˆœBˆH[ˆœHÚBˆH[ˆœ^]ÜšYÚ[œİ[K]Ú]Y\ÈÙXšÚ]ˆH[ˆœ^]ÜšYÚ\İK\›Ú™XİXÜš]XØ[]ÙXšÚ]Y[ˆH˜[YNˆ\ØYÙX’Ú]˜Z[\™H]šY[˜ÙBˆYˆ˜Z[\™J
-Bˆ\Ù\ÎˆXİ[ÛœËİ\ØYX\Y˜XİˆÚ]‚ˆ˜[YNˆ[]ÙXšÚ]Y˜Z[\™Bˆ]ˆˆ\İ\™\İ[Âˆ^]ÜšYÚ\™\ÜˆY‹[›ËYš[\ËY›İ[™ˆYÛ›Ü™Bˆ™][[Û‹Y^\ÎˆÂ‚ˆš\İX[\™]šY]Î‚ˆ˜[YNˆš\İX[\™]šY]Âˆ[œË[ÛˆX[K[]\İˆ[Y[İ][Z[]\ÎˆBˆİ\Î‚ˆH\Ù\ÎˆXİ[ÛœËØÚXÚÛİ]ˆH\Ù\ÎˆXİ[ÛœËÜÙ]\[›ÙPˆÚ]‚ˆ›ÙK]™\œÚ[ÛˆˆØXÚNˆœBˆH[ˆœHÚBˆH[ˆœ^]ÜšYÚ[œİ[K]Ú]Y\ÈÚ›ÛZ][BˆH[ˆœ^]ÜšYÚ\İK\›Ú™Xİ]š\İX[ˆH˜[YNˆ\ØYš\İX[]šY[˜ÙBˆYˆ[Ø^\Ê
-Bˆ\Ù\ÎˆXİ[ÛœËİ\ØYX\Y˜XİˆÚ]‚ˆ˜[YNˆš\İX[\™]šY]Âˆ]ˆˆ\İ\™\İ[Âˆ^]ÜšYÚ\™\ÜˆY‹[›ËYš[\ËY›İ[™ˆYÛ›Ü™Bˆ™][[Û‹Y^\ÎˆÂ‚ˆ™X[\›İ]\‚ˆ˜[YNˆ™X[\›İ]\‚ˆ[œË[ÛˆX[K[]\İˆ[Y[İ][Z[]\ÎˆÌˆİ\Î‚ˆH\Ù\ÎˆXİ[ÛœËØÚXÚÛİ]ˆH\Ù\ÎˆXİ[ÛœËÜÙ]\[›ÙPˆÚ]‚ˆ›ÙK]™\œÚ[ÛˆˆØXÚNˆœBˆH\Ù\ÎˆXİ[ÛœËÜÙ]\Z˜]˜PˆÚ]‚ˆ\İšX][Ûˆ[]\š[‚ˆ˜]˜K]™\œÚ[ÛˆMÂˆH˜[YNˆ[œİ[š^\™HÛÛÂˆ[ˆİYÈ\YÙ]\]H	‰ˆİYÈ\YÙ][œİ[K^Y\ÈÜÛZ][K]ÛÛˆH[ˆœHÚBˆH˜[YNˆ[œİ[[›™YÜ˜\Ü\‚ˆ[ˆˆZÙ\ˆ\]Bˆİ\›KY˜Z[K\Ú[[K\ÚİËY\œ›ÜˆK[ØØ][ÛˆˆK[İ]]]KÙÜ˜\Ü\‹]ÙX‹LLKŒš˜\ˆˆÎ‹ËÜ™\ÌK›X]™[‹›Ü™ËÛX]™[Œ‹ØÛÛKÙÜ˜\Ü\‹ÙÜ˜\Ü\‹]ÙX‹ÌLKŒÙÜ˜\Ü\‹]ÙX‹LLKŒš˜\‚ˆXÚÈ	ØNXÌY™LMÌ™XÍ™XÎXŒÌÌ˜ÌÌLÎXÍNÍÙ˜ÙŒLÙMLÙŒLÙYˆ]KÙÜ˜\Ü\‹]ÙX‹LLKŒš˜\‰ÈÚLMœİ[HKXÚXÚÂˆH[ˆœ^]ÜšYÚ[œİ[K]Ú]Y\ÈÚ›ÛZ][BˆH[ˆØÜš\ËÜXKÜ™\\™K]\İ\›İ]\‹œÚˆH˜[YNˆ[ˆ™X[\›İ]\ˆœ›İÜÙ\ˆÚXÚÜÂˆ[ˆˆÙ]Y][È\Y˜Z[ˆ˜\	ÜØÜš\ËÜXKÜİÜ]\İ\›İ]\‹œÚ	ÈVUˆØÜš\ËÜXKÜİ\]\İ\›İ]\‹œÚˆÔTÔT—ÕT“Z‹ËÌLËŒŒŒNNNœH[ˆ\İ™L™Nœ™X[\›İ]\‚ˆH˜[YNˆ\ØY™X[\›İ]\ˆ˜Z[\™H]šY[˜ÙBˆYˆ˜Z[\™J
-Bˆ\Ù\ÎˆXİ[ÛœËİ\ØYX\Y˜XİˆÚ]‚ˆ˜[YNˆ™X[\›İ]\‹Y˜Z[\™Bˆ]ˆˆ\İ\™\İ[Âˆ^]ÜšYÚ\™\Üˆ]KÜ]X[]KÜİÚ]Ú˜XÚË]\İ\›İ]\‹›ÙÂˆY‹[›ËYš[\ËY›İ[™ˆYÛ›Ü™Bˆ™][[Û‹Y^\ÎˆÂ
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Full critical rider journeys in WebKit
+        run: npx playwright test --project=critical-webkit
+      - name: Upload WebKit failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-qa-webkit-failure
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  visual:
+    name: visual-deep-qa
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run visual regression matrix without updating baselines
+        run: npx playwright test --project=visual
+      - name: Upload visual failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-qa-visual-failure
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  real-router:
+    name: real-router-deep-qa
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install fixture tools
+        run: sudo apt-get update && sudo apt-get install --yes osmium-tool
+      - run: npm ci
+      - name: Install pinned GraphHopper
+        run: |
+          mkdir -p data
+          curl --fail --silent --show-error --location \
+            --output data/graphhopper-web-11.0.jar \
+            https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/11.0/graphhopper-web-11.0.jar
+          echo 'b59c024afe172ec6ec85b6327006c3138ec58c7d0bcd26253d0e42853f613def  data/graphhopper-web-11.0.jar' | sha256sum --check
+      - run: npx playwright install --with-deps chromium
+      - run: scripts/qa/prepare-test-router.sh
+      - name: Run real-router browser checks
+        run: |
+          set -euo pipefail
+          trap 'scripts/qa/stop-test-router.sh' EXIT
+          scripts/qa/start-test-router.sh
+          GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router
+      - name: Upload real-router failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-qa-real-router-failure
+          path: |
+            test-results
+            playwright-report
+            data/quality/switchback-test-router.log
+          if-no-files-found: ignore
+          retention-days: 7
