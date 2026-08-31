@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AppNavigation } from "@/components/shell/AppNavigation"
+import { destinationFromLocation, type PrimaryDestination } from "@/lib/client/app-navigation"
 
-function renderNav(activeDestination: "plan" | "rides" | "discover" = "plan") {
+function renderNav(activeDestination: PrimaryDestination = "plan") {
   const onSelect = vi.fn()
   const onOpenRecord = vi.fn()
   const onOpenSettings = vi.fn()
@@ -22,13 +23,13 @@ describe("AppNavigation", () => {
     cleanup()
   })
 
-  it("exposes exactly three primary destinations", () => {
+  it("exposes the four V2 destinations in the primary cluster", () => {
     renderNav()
 
     const primary = screen.getByRole("group", { name: "Primary destinations" })
     const items = within(primary).getAllByRole("button")
 
-    expect(items.map((item) => item.textContent)).toEqual(["Plan", "Rides", "Discover"])
+    expect(items.map((item) => item.textContent)).toEqual(["Plan", "Rides", "Discover", "Settings"])
   })
 
   it("announces the active destination", () => {
@@ -49,6 +50,16 @@ describe("AppNavigation", () => {
     expect(onSelect).toHaveBeenCalledWith("discover")
   })
 
+  it("selects Settings as a destination rather than opening an overlay", () => {
+    const { onSelect, onOpenSettings } = renderNav()
+
+    const primary = screen.getByRole("group", { name: "Primary destinations" })
+    fireEvent.click(within(primary).getByRole("button", { name: "Settings" }))
+
+    expect(onSelect).toHaveBeenCalledWith("settings")
+    expect(onOpenSettings).not.toHaveBeenCalled()
+  })
+
   it("offers record as an activity control, not a destination", () => {
     const { onOpenRecord } = renderNav()
 
@@ -61,11 +72,10 @@ describe("AppNavigation", () => {
     )
   })
 
-  it("opens settings through the secondary launcher", () => {
-    const { onOpenSettings } = renderNav()
-
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-
-    expect(onOpenSettings).toHaveBeenCalledOnce()
+  it("migrates legacy profile deep links to the Settings destination", () => {
+    expect(destinationFromLocation("https://switchback.test/?tab=profile")).toEqual({
+      destination: "settings",
+      overlays: []
+    })
   })
 })
