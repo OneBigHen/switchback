@@ -171,14 +171,14 @@ export function usePlannerRideIntent({
         planningId
       })
       setIntentSummary(`Understood: ${intent.summary}${intent.stopQuery ? ` with ${intent.stopQuery} stop ideas to choose from` : ""}.`)
+      // Interpretation is complete once the route request is built. Keep the
+      // omnibox available for a newer rider prompt while routing is in flight;
+      // the planning session gate cancels and discards stale route work.
+      setIntentStatus("idle")
       // The lifecycle phase continues into routing (primary, then
       // alternatives); the routing spinner no longer dies before the slow
       // work starts.
       const firstPlan = await runTripPlan(request)
-      // The ride prompt is fully consumed once planning has run, whether or
-      // not it committed: release the omnibox and replan buttons so the rider
-      // is never left with a permanently disabled form after a first plan.
-      setIntentStatus("idle")
       if (!firstPlan) return
       // runLatestTripPlan advanced the gate itself while routing; take a
       // fresh token so a manual edit during stop discovery still wins.

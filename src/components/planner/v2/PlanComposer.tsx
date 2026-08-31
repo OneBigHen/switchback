@@ -153,8 +153,13 @@ export function PlanComposer({
 }: PlanComposerProps) {
   const placeholder = planMode === "loop" ? "Where should the loop start?" : "Search a place or describe a ride"
   const planningBusy = !SETTLED_PLANNING_PHASES.has(planningPhase)
-  const requestBusy = intentStatus === "interpreting" || planningBusy
-  const canSubmitRequest = ridePrompt.trim().length >= 3 && !requestBusy
+  const intentBusy = intentStatus === "interpreting"
+  const requestBusy = intentBusy || planningBusy
+  // Route planning can be superseded by a newer rider prompt. Keep the
+  // interpretation request single-flight, but do not strand the omnibox
+  // while a provider response is still in flight; the planning gate owns
+  // stale-response cancellation and latest-intent selection.
+  const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
 
   return (
     <div className="plan-v2" data-plan-mode={planMode} data-editing={editing ? "true" : "false"}>

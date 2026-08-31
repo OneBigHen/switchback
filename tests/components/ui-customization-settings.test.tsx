@@ -1,7 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { UiCustomizationSettings } from "@/components/settings/UiCustomizationSettings"
 import { defaultRiderUiPreferences } from "@/lib/settings/rider-settings"
+
+afterEach(cleanup)
 
 describe("UiCustomizationSettings", () => {
   it("exposes only the curated customization groups and a reset action", () => {

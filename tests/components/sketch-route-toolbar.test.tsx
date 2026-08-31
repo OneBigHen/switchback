@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { SketchRouteToolbar } from "@/components/planner/v2/SketchRouteToolbar"
+
+afterEach(cleanup)
 
 describe("SketchRouteToolbar", () => {
   it("exposes the compact V2 draw actions with safe disabled states", () => {

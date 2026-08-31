@@ -211,7 +211,7 @@ describe("planner ride composer", () => {
     renderDeck()
 
     expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeVisible()
-    expect(screen.getByRole("button", { name: "Edit route" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Options", exact: true })).toBeVisible()
     expect(screen.queryByRole("button", { name: "Expand planner" })).not.toBeInTheDocument()
   })
 
@@ -296,7 +296,7 @@ describe("planner ride composer", () => {
       cmds: { onUseHome, onSaveHome, onClearHome }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     await user.click(screen.getByRole("button", { name: "Use Home" }))
     await user.click(screen.getByRole("button", { name: "Save start as Home" }))
     await user.click(screen.getByRole("button", { name: "Remove Home" }))
@@ -320,7 +320,7 @@ describe("planner ride composer", () => {
     const user = userEvent.setup()
     renderDeck()
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Plan route" })).toBeInTheDocument()
   })
@@ -343,8 +343,8 @@ describe("planner ride composer", () => {
         cmds: { onStartRide: vi.fn(), onSaveOffline: vi.fn() },
       })
 
-      await user.click(screen.getByRole("button", { name: "Edit route" }))
-      expect(screen.getByRole("button", { name: "Hide route editor" })).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
+    expect(screen.getByRole("button", { name: "Options", exact: true })).toHaveAttribute("aria-expanded", "true")
       expect(scrollIntoView).not.toHaveBeenCalled()
     } finally {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView
@@ -356,7 +356,7 @@ describe("planner ride composer", () => {
     const routeRack = <section className="route-rack" aria-label="Choose a route"><h2>Choose a route</h2></section>
     renderDeck({ vm: { ui: { selectedRoute: plannedRoute } }, children: routeRack })
 
-    const edit = screen.getByRole("button", { name: "Edit route" })
+    const edit = screen.getByRole("button", { name: "Options", exact: true })
     const rack = screen.getByRole("region", { name: "Choose a route" })
     expect(edit.compareDocumentPosition(rack) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -369,7 +369,7 @@ describe("planner ride composer", () => {
       cmds: { onStartRide: vi.fn(), onSaveOffline }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     await user.click(screen.getByRole("button", { name: "Offline pack" }))
 
     const dialog = await screen.findByRole("dialog", { name: `Offline pack for ${plannedRoute.name}` })
@@ -429,7 +429,7 @@ describe("planner ride composer", () => {
       cmds: { onStartRide: vi.fn(), onSaveOffline: vi.fn() }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
 
     expect(screen.getByRole("button", { name: "Clear route" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Replan" })).toBeVisible()
@@ -444,7 +444,7 @@ describe("planner ride composer", () => {
       cmds: { onPlan }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     const planBtn = screen.getByRole("button", { name: "Plan route" })
     expect(planBtn).toBeEnabled()
     expect(screen.getAllByRole("button", { name: /Minimize planner/i })).toHaveLength(1)
@@ -471,7 +471,7 @@ describe("planner ride composer", () => {
       }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     expect(screen.queryByRole("combobox", { name: "Finish" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /plan.*2.*hour.*loop/i })).toBeEnabled()
 
@@ -492,7 +492,7 @@ describe("planner ride composer", () => {
       cmds: { waypoint: { onToggleAddVia, onRemoveVia } }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     expect(screen.getByText("Brewery stop")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /add stop on map/i }))
     await user.click(screen.getByRole("button", { name: /remove brewery stop/i }))
@@ -522,7 +522,7 @@ describe("planner ride composer", () => {
       cmds: { waypoint: { onMoveVia, onReverseRoute, onUndoRoutePoints, onRedoRoutePoints } }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     await user.click(screen.getByRole("button", { name: "Move Overlook earlier" }))
     await user.click(screen.getByRole("button", { name: "Reverse route" }))
     await user.click(screen.getByRole("button", { name: "Undo route edit" }))
@@ -559,7 +559,7 @@ describe("planner ride composer", () => {
         }
       })
 
-      await user.click(screen.getByRole("button", { name: "Edit route" }))
+      await user.click(screen.getByRole("button", { name: "Options", exact: true }))
       await user.selectOptions(screen.getByLabelText("Ride style to Gravel connector"), "adventure")
       await user.click(screen.getByRole("button", { name: "Lock Gravel connector as must-use" }))
 
@@ -579,7 +579,7 @@ describe("planner ride composer", () => {
       cmds: { rideConfig: { onAvoidHighwaysChange } }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     const preference = screen.getByRole("checkbox", { name: /avoid highways/i })
     expect(preference).toBeChecked()
     await user.click(preference)
@@ -601,7 +601,7 @@ describe("planner ride composer", () => {
   it("keeps ride style and the library inside the explicit route editor", async () => {
     const user = userEvent.setup()
     renderDeck()
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
 
     const profileSwitch = screen.getByLabelText("Motorcycle routing profile")
     const library = screen.getByRole("button", { name: /Library/i })
@@ -665,14 +665,14 @@ describe("planner ride composer", () => {
     const user = userEvent.setup()
     renderDeck()
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
 
     expect(screen.getByRole("radiogroup", { name: /motorcycle bike profile preset/i })).toBeInTheDocument()
   })
 
-  it("shows the road locks action dock entry point always when the deck is rendered", () => {
+  it("does not show the road locks action dock entry point before a route is selected", () => {
     renderDeck()
-    expect(screen.getByRole("button", { name: /^Open road locks$/i })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^Open road locks$/i })).not.toBeInTheDocument()
   })
 
   it("badges the road locks dock button when a must-use lock is active", () => {
@@ -690,7 +690,7 @@ describe("planner ride composer", () => {
       accessSnapshot: { highwayClass: "secondary" as const, motorcycleAccess: "yes" as const, generalAccess: "yes" as const, surface: "asphalt" as const, smoothness: "good" as const, tracktype: "unknown" as const, maxweightTonnes: null, seasonalUndated: false, activeConditions: [], routable: true },
       createdAt: "2026-07-20T00:00:00.000Z"
     }
-    renderDeck({ vm: { rideConfig: { roadLocks: [mustLock] } } })
+    renderDeck({ vm: { ui: { selectedRoute: plannedRoute }, rideConfig: { roadLocks: [mustLock] } } })
 
     const button = screen.getByRole("button", { name: /Open road locks, 1 must-use lock active/i })
     expect(button.querySelector(".road-locks-dock-count")?.getAttribute("data-tier")).toBe("must")
@@ -699,7 +699,7 @@ describe("planner ride composer", () => {
 
   it("opens the road locks drawer when the dock entry is tapped", async () => {
     const user = userEvent.setup()
-    renderDeck()
+    renderDeck({ vm: { ui: { selectedRoute: plannedRoute } } })
 
     await user.click(screen.getByRole("button", { name: /^Open road locks$/i }))
 
@@ -766,9 +766,9 @@ describe("planner mobile flow stages (SB-025)", () => {
       }
     })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Hide route editor" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     await user.click(screen.getByRole("button", { name: "Minimize planner" }))
 
     expect(screen.getByText("Deck route")).toBeInTheDocument()
@@ -780,7 +780,7 @@ describe("planner mobile flow stages (SB-025)", () => {
     const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
     const { vm, rerender } = renderDeck({ children: routeRack })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
     expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
 
     expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
@@ -803,7 +803,7 @@ describe("planner mobile flow stages (SB-025)", () => {
     const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
     const { vm, rerender } = renderDeck({ children: routeRack })
 
-    await user.click(screen.getByRole("button", { name: "Edit route" }))
+    await user.click(screen.getByRole("button", { name: "Options", exact: true }))
 
     expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
 

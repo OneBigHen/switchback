@@ -31,8 +31,8 @@ describe("routeIntentFromSketch", () => {
     })
 
     expect(result.mode).toBe("destination")
-    expect(result.points.start).toMatchObject(openTrace[0]!)
-    expect(result.points.finish).toMatchObject(openTrace.at(-1)!)
+    expect(result.points.start).toMatchObject({ lat: openTrace[0]!.lat, lon: openTrace[0]!.lon, label: "Sketch start" })
+    expect(result.points.finish).toMatchObject({ lat: openTrace.at(-1)!.lat, lon: openTrace.at(-1)!.lon, label: "Sketch finish" })
     expect(result.points.via.length).toBeGreaterThan(0)
   })
 
@@ -46,7 +46,7 @@ describe("routeIntentFromSketch", () => {
     })
 
     expect(result.mode).toBe("loop")
-    expect(result.points.start).toMatchObject(closedTrace[0]!)
+    expect(result.points.start).toMatchObject({ lat: closedTrace[0]!.lat, lon: closedTrace[0]!.lon, label: "Sketch start" })
     expect(result.points.finish).toBeNull()
     expect(result.points.via.length).toBeGreaterThan(0)
   })

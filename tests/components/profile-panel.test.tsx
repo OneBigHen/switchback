@@ -45,7 +45,7 @@ describe("ProfilePanel", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Rider name" }), { target: { value: "Alex" } })
     // Edits persist immediately into the one versioned settings source (SB-023).
     expect(localStorage.getItem("switchback:rider-settings")).toContain("Alex")
-    expect(localStorage.getItem("switchback:rider-settings")).toContain('"version":1')
+    expect(localStorage.getItem("switchback:rider-settings")).toContain('"version":2')
   })
 
   it("opens offline download management from profile settings", () => {

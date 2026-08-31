@@ -23,7 +23,7 @@ describe("SettingsSurface", () => {
     expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument()
     expect(screen.getByText("CRF300L")).toBeInTheDocument()
-    expect(screen.getByText(/Dual sport/)).toBeInTheDocument()
+    expect(screen.getByText(/Dual Sport/)).toBeInTheDocument()
     expect(screen.getByText(/150 mi range/)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Change active bike" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Edit CRF300L" })).toBeInTheDocument()

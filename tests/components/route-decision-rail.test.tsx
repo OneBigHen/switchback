@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, within } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { RouteDecisionRail } from "@/components/planner/v2/RouteDecisionRail"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
+
+afterEach(cleanup)
 
 function route(id: string, profile: RouteProfileId, minutes: number, miles: number, twistiness: number): PlannedRoute {
   return {

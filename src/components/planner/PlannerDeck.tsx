@@ -189,7 +189,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const submitRidePrompt = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const prompt = (new FormData(event.currentTarget).get("ride-prompt") as string | null ?? ridePrompt).trim()
-    if (prompt.length < 3 || intentStatus === "interpreting" || planningActive) return
+    if (prompt.length < 3 || intentStatus === "interpreting") return
     onRidePrompt(prompt)
   }
 

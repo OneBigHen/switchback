@@ -1,7 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { LayersSheet } from "@/components/planner/v2/LayersSheet"
 import type { RiderLayerSetting } from "@/lib/client/map-layers"
+
+afterEach(cleanup)
 
 const layers: RiderLayerSetting[] = [
   { id: "curvature", visible: true, opacity: 1, order: 0 },

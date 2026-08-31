@@ -132,7 +132,7 @@ async function mockSharedPlannerServices(page: import("@playwright/test").Page) 
 async function openRouteEditor(page: import("@playwright/test").Page) {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if (await start.isVisible().catch(() => false)) return
-  await page.getByRole("button", { name: "Options" }).click()
+  await page.getByRole("button", { name: "Options", exact: true }).click()
   await expect(start).toBeVisible()
 }
 
