@@ -2,6 +2,7 @@
 
 import { ArrowRight, DotsThree } from "@phosphor-icons/react"
 import { useState } from "react"
+import { RouteGraphic } from "@/components/v2/RouteGraphic"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
 
@@ -15,6 +16,13 @@ function dateLabel(value: string | null): string | null {
 
 function parsedTags(value: string): string[] {
   return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))]
+}
+
+function kindLabel(item: RideLibraryItem): string {
+  if (item.kind === "saved-route") return "Planned"
+  if (item.kind === "recorded-ride") return "Recorded"
+  if (item.kind === "trip-plan") return "Trip"
+  return "Imported"
 }
 
 export interface RideListRowProps {
@@ -32,7 +40,7 @@ export function RideListRow({ item, onOpen, onMatchRoads, onOrganize, onDelete }
   const [tags, setTags] = useState(item.tags.join(", "))
   const [confirmDelete, setConfirmDelete] = useState(false)
   const management = item.management
-  const canManage = Boolean(management?.canDelete || management?.canMatchRoads || item.kind === "saved-route")
+  const canManage = Boolean(management?.canDelete || management?.canMatchRoads || (item.kind === "saved-route" && onOrganize))
   const deleteLabel = item.kind === "trip-plan" ? "trip" : "route"
 
   const toggleManagement = () => {
@@ -48,15 +56,19 @@ export function RideListRow({ item, onOpen, onMatchRoads, onOrganize, onDelete }
     <article className={styles.row} data-kind={item.kind}>
       <div className={styles.rowPrimary}>
         <button className={styles.openButton} type="button" aria-label={`Open ${item.name}`} onClick={() => onOpen(item)}>
+          <span className={styles.routeGraphic}>
+            <RouteGraphic seed={item.id} variant="route" />
+            <small>{kindLabel(item)}</small>
+          </span>
           <span className={styles.identity}>
             <small>{item.sourceLabel}</small>
             <strong>{item.name}</strong>
-            {item.tags.length > 0 ? <span>{item.tags.slice(0, 2).join(" · ")}</span> : null}
+            {item.tags.length > 0 ? <span>{item.tags.slice(0, 3).join(" · ")}</span> : <span className={styles.noTags}>Ready to ride</span>}
           </span>
           <span className={styles.metrics}>
             <b>{item.distanceMiles.toFixed(1)} mi</b>
             <span>{Math.round(item.durationMinutes)} min</span>
-            {updated ? <small>{updated}</small> : null}
+            {updated ? <small>{updated}</small> : <small>Project library</small>}
           </span>
           <ArrowRight weight="bold" aria-hidden="true" />
         </button>

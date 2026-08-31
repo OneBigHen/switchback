@@ -7,12 +7,15 @@ import { SettingRow } from "@/components/v2/SettingRow"
 afterEach(cleanup)
 
 describe("V2 presentation primitives", () => {
-  it("generates a deterministic route trace from stable object identity", () => {
+  it("generates a deterministic, bounded route trace from stable object identity", () => {
     const { container, rerender } = render(<RouteGraphic seed="saved:pine-creek" variant="route" label="Pine Creek route trace" />)
     const firstPath = container.querySelector("[data-route-trace]")?.getAttribute("d")
 
     expect(screen.getByRole("img", { name: "Pine Creek route trace" })).toBeInTheDocument()
     expect(firstPath).toMatch(/^M/)
+    const yValues = [...(firstPath?.matchAll(/[ML]\d+ (-?\d+)/g) ?? [])].map((match) => Number(match[1]))
+    expect(yValues).toHaveLength(7)
+    expect(yValues.every((value) => value >= 14 && value <= 68)).toBe(true)
 
     rerender(<RouteGraphic seed="saved:pine-creek" variant="route" label="Pine Creek route trace" />)
     expect(container.querySelector("[data-route-trace]")?.getAttribute("d")).toBe(firstPath)
