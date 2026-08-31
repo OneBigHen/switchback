@@ -1,7 +1,7 @@
 "use client"
 
 import { Stack, X } from "@phosphor-icons/react"
-import { useEffect, useState } from "react"
+import { useState, type KeyboardEvent } from "react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
 import {
@@ -121,10 +121,6 @@ export function MapStageLayerControl({
   const emptyLayerCount = Object.values(riderLayerStates).filter((state) => state === "empty").length
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
-  useEffect(() => {
-    if (!layerMenuOpen) setAdvancedOpen(false)
-  }, [layerMenuOpen])
-
   const closeMenu = () => {
     setAdvancedOpen(false)
     closeLayerMenu()
@@ -135,8 +131,13 @@ export function MapStageLayerControl({
     toggleLayerMenu()
   }
 
+  const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && layerMenuOpen) setAdvancedOpen(false)
+    handleLayerMenuKeyDown(event)
+  }
+
   return (
-    <div className="map-layer-control" onKeyDown={handleLayerMenuKeyDown}>
+    <div className="map-layer-control" onKeyDown={handleMenuKeyDown}>
       <div className="map-tool-row">
         <button type="button" className="map-layers-button map-avoid-button" aria-label={avoidMode ? "Cancel avoid area" : "Draw an avoid area"} aria-pressed={avoidMode} onClick={() => { closeMenu(); onToggleAvoid() }}>
           {avoidMode ? <X aria-hidden="true" /> : <span className="avoid-area-glyph" aria-hidden="true">▧</span>}
