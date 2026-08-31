@@ -99,7 +99,7 @@ export const test = mobileQaTest
 export { expect }
 
 export interface MobileAppReadyExpectation {
-  readonly tab?: "plan" | "rides" | "discover"
+  readonly tab?: "plan" | "rides" | "discover" | "settings"
   readonly heading?: string
 }
 
@@ -111,7 +111,7 @@ export async function expectMobileAppReady(page: Page, expected: MobileAppReadyE
     message: "mobile app must expose navigation or its restored modal surface after reload"
   }).toBe(true)
   if (expected.tab) await expect(page).toHaveURL(new RegExp(`[?&]tab=${expected.tab}(?:&|$)`))
-  if (expected.heading) await expect(page.getByRole("heading", { name: expected.heading })).toBeVisible()
+  if (expected.heading) await expect(page.getByRole("heading", { name: expected.heading, exact: true })).toBeVisible()
 }
 
 export {
