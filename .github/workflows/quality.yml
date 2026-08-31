@@ -131,7 +131,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.rider-journeys.result }}" = success
+      - run: test "${{ needs['rider-journeys'].result }}" = success
 
   road-lock-compat:
     name: road-lock
@@ -139,7 +139,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.rider-journeys.result }}" = success
+      - run: test "${{ needs['rider-journeys'].result }}" = success
 
   pwa-compat:
     name: pwa
@@ -147,7 +147,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.pwa-smoke.result }}" = success
+      - run: test "${{ needs['pwa-smoke'].result }}" = success
 
   # real-router and visual moved to deliberate Deep QA rather than routine PR
   # CI. These aliases keep the current protected-branch rule satisfiable while
@@ -159,7 +159,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.rider-journeys.result }}" = success
+      - run: test "${{ needs['rider-journeys'].result }}" = success
 
   visual-compat:
     name: visual
@@ -167,4 +167,4 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.rider-journeys.result }}" = success
+      - run: test "${{ needs['rider-journeys'].result }}" = success
