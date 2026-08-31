@@ -44,7 +44,7 @@ describe("RidesSurface", () => {
     expect(screen.getByRole("region", { name: "Rides" })).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "Rides" })).toBeInTheDocument()
     expect(screen.getByRole("searchbox", { name: "Search rides" })).toBeInTheDocument()
-    expect(screen.getByRole("tablist", { name: "Ride types" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Ride types" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Import ride" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument()
   })
@@ -52,11 +52,11 @@ describe("RidesSurface", () => {
   it("filters across normalized ride sources without changing their storage identity", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole("tab", { name: "Recorded" }))
+    fireEvent.click(screen.getByRole("button", { name: "Recorded 1" }))
     expect(screen.getByText("Sunday ride")).toBeInTheDocument()
     expect(screen.queryByText("Pine Creek back roads")).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("tab", { name: "All" }))
+    fireEvent.click(screen.getByRole("button", { name: "All 3" }))
     fireEvent.change(screen.getByRole("searchbox", { name: "Search rides" }), { target: { value: "MABDR" } })
     expect(screen.getByText("MABDR Section 3")).toBeInTheDocument()
     expect(screen.queryByText("Sunday ride")).not.toBeInTheDocument()
