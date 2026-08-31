@@ -53,11 +53,21 @@ export function RidesDestination(props: RidesDestinationProps) {
     projectRoutes
   })
 
+  const savedRouteFor = (item: RideLibraryItem) => {
+    const sourceId = item.sourceId ?? item.id
+    return props.routes.find((candidate) => candidate.id === sourceId)
+  }
+
+  const tripFor = (item: RideLibraryItem) => {
+    const sourceId = item.sourceId ?? item.id
+    return trips.find((candidate) => candidate.id === sourceId)
+  }
+
   const openItem = (item: RideLibraryItem) => {
     const sourceId = item.sourceId ?? item.id
 
     if (item.kind === "saved-route") {
-      const route = props.routes.find((candidate) => candidate.id === sourceId)
+      const route = savedRouteFor(item)
       if (route) props.onLoad(route)
       return
     }
@@ -69,7 +79,7 @@ export function RidesDestination(props: RidesDestinationProps) {
     }
 
     if (item.kind === "trip-plan") {
-      const trip = trips.find((candidate) => candidate.id === sourceId)
+      const trip = tripFor(item)
       if (trip) props.onLoadTrip?.(trip)
       return
     }
@@ -95,6 +105,25 @@ export function RidesDestination(props: RidesDestinationProps) {
           onOpen={openItem}
           onImport={props.onImport}
           onImportRoads={importRoads}
+          onMatchRoads={(item) => {
+            const route = savedRouteFor(item)
+            if (route) props.onMatchImported?.(route)
+          }}
+          onOrganize={(item, organization) => {
+            const route = savedRouteFor(item)
+            if (route) props.onOrganize?.(route, organization)
+          }}
+          onDelete={(item) => {
+            if (item.kind === "saved-route") {
+              const route = savedRouteFor(item)
+              if (route) props.onDelete(route)
+              return
+            }
+            if (item.kind === "trip-plan") {
+              const trip = tripFor(item)
+              if (trip) props.onDeleteTrip?.(trip)
+            }
+          }}
         />
       </div>
     </main>
