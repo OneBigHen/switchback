@@ -173,10 +173,11 @@ export async function openPlannerEditor(page: Page): Promise<void> {
   const editor = page.getByRole("combobox", { name: "Start", exact: true })
   if (await editor.isVisible().catch(() => false)) return
   await expandPhonePlanner(page)
-  // A real tap must reach this control: a regression where the home-state
-  // action dock occluded "Edit route" on phones used to require force here.
-  // An actionability failure now flags that overlap instead of masking it.
-  await page.getByRole("button", { name: "Edit route" }).click()
+  // V2 has one disclosure authority. A real tap must reach Options; force-click
+  // would hide the exact mobile overlap regression this helper is meant to catch.
+  const options = page.getByRole("button", { name: "Options", exact: true })
+  await expect(options).toBeVisible({ timeout: 15_000 })
+  await options.click()
   await expect(editor).toBeVisible()
 }
 

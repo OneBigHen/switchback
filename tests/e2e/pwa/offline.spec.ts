@@ -9,9 +9,14 @@ import {
 } from "../helpers/planner-fixtures"
 import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
+async function expectPlannerReady(page: import("@playwright/test").Page): Promise<void> {
+  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+}
+
 async function establishServiceWorker(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/")
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expectPlannerReady(page)
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready
   })
@@ -78,7 +83,7 @@ test("production shell survives offline reload and API requests are not cached a
   expect(apiProbe).toEqual({ ok: false, status: null })
 
   await page.reload({ waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expectPlannerReady(page)
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
 
   await page.context().setOffline(false)
@@ -88,7 +93,7 @@ test("production shell survives offline reload and API requests are not cached a
     body: JSON.stringify(CANONICAL_HEALTH_RESPONSE)
   }))
   await page.reload()
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expectPlannerReady(page)
 })
 
 test("saved route remains available from IndexedDB after an offline reload", async ({ page }) => {
@@ -100,7 +105,7 @@ test("saved route remains available from IndexedDB after an offline reload", asy
 
   await page.context().setOffline(true)
   await page.reload({ waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expectPlannerReady(page)
   await page.getByRole("button", { name: "Rides", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
   await expect(page.getByText("Offline saved route")).toBeVisible()
