@@ -11,7 +11,6 @@ import {
 } from "@phosphor-icons/react"
 import { QRCodeSVG } from "qrcode.react"
 import { useEffect, useMemo, useState } from "react"
-import type { ThemePreference } from "@/lib/client/app-navigation"
 import { loadRiderSettings } from "@/lib/settings/rider-settings"
 import { collectDiagnostics } from "@/lib/client/diagnostics"
 import { RegionDownloadClient } from "@/lib/storage/region-download-client"
@@ -24,10 +23,6 @@ import type { SyncStateRecord } from "@/lib/sync/client-store"
 import styles from "./ProfilePanel.module.css"
 
 interface ProfilePanelProps {
-  /** Kept during the V2 shell handoff so old callers remain type-safe. */
-  theme?: ThemePreference
-  /** Theme now lives in SettingsDestination; this is intentionally unused. */
-  onThemeChange?(theme: ThemePreference): void
   onOpenDownloads(): void
   onResetLearning?(): Promise<void> | void
   onExportLearning?(): Promise<unknown> | unknown

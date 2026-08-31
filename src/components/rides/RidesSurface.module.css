@@ -114,14 +114,14 @@
   line-height: 1;
 }
 
-.tabs button[aria-selected="true"] {
+.tabs button[aria-pressed="true"] {
   border-color: var(--sb-ink);
   background: var(--sb-ink);
   color: var(--sb-paper);
   box-shadow: inset 0 -2px 0 var(--sb-ember-strong);
 }
 
-.tabs button[aria-selected="true"] b {
+.tabs button[aria-pressed="true"] b {
   background: color-mix(in srgb, var(--sb-paper) 14%, transparent);
   color: var(--sb-paper);
 }

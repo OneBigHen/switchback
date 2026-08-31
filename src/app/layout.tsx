@@ -8,8 +8,6 @@ import "./styles/planner-shell.css";
 import "./styles/waypoint-field.css";
 import "./styles/planner-controls.css";
 import "./styles/route-comparison.css";
-import "./styles/library-drawer.css";
-import "./styles/profile-panel.css";
 import "./styles/ride-hud.css";
 import "./styles/storage-quota-meter.css";
 import "./styles/download-mode-picker.css";
@@ -27,7 +25,7 @@ import "./styles/route-rating.css";
 import "./styles/breakpoints.css";
 import "./styles/switchback-v1.css";
 import "./styles/design-system.css";
-// V2 shell chrome (primary navigation, settings launcher, discover
+// V2 shell chrome (primary navigation and destination framing; discover
 // placeholder). Consumes tokens.css only; replaces the retired nav blocks
 // that previously lived in switchback-v1.css and design-system.css.
 import "./styles/shell-v2.css";
