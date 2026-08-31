@@ -1,0 +1,102 @@
+name: V2 critical rides migration
+
+on:
+  push:
+    branches: [ux/v2-settings-integration]
+    paths:
+      - .github/workflows/v2-critical-rides-migration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/v2-settings-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Replace retired LibraryDrawer journeys
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/e2e/critical/planner-journeys.spec.ts')
+          text = path.read_text()
+          old_saved = '''  // The post-plan deck collapses the route editor (where the saved-count chip
+          // lives), so confirm the save landed via the canonical Library surface: the
+          // on-device list carries the route and its count in the same session.
+          const library = page.getByRole("dialog", { name: "Ride library" })
+          await page.getByRole("button", { name: "Rides", exact: true }).click()
+          const onDeviceSection = library.locator(".library-section-title", { hasText: "On this device" })
+          await expect(onDeviceSection).toBeVisible()
+          await expect(onDeviceSection).toContainText("1")
+          await expect(library.getByText("Saved fixture route")).toBeVisible()
+          await page.getByRole("button", { name: "Close library" }).click()
+          await expect(library).toBeHidden()
+          await page.reload()
+          await page.getByRole("button", { name: "Rides", exact: true }).click()
+          await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
+          await expect(page.getByText("Saved fixture route")).toBeVisible()
+          '''
+          new_saved = '''  // Rides is a persistent V2 destination, not the retired modal LibraryDrawer.
+          // Verify the saved object in the destination, then reload while that destination
+          // is active so persistence and URL-state restoration are covered together.
+          await page.getByRole("button", { name: "Rides", exact: true }).click()
+          const rides = page.getByRole("main", { name: "Rides destination" })
+          await expect(rides).toBeVisible()
+          await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+          await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
+          await page.reload()
+          await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
+          await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
+          await expect(page.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
+          '''
+          old_import = '''  await page.getByRole("button", { name: "Rides", exact: true }).last().click()
+          await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
+          await page.getByLabel("Import GPX, KML, or KMZ file").setInputFiles({
+          '''
+          new_import = '''  await page.getByRole("button", { name: "Rides", exact: true }).click()
+          await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+          await page.getByRole("button", { name: "Import ride" }).click()
+          await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({
+          '''
+          old_import_tail = '''  })
+          await expect(page.getByText("Critical imported loop imported to your library.")).toBeVisible()
+          await expect(page.locator(".library-load", { hasText: "Critical imported loop" })).toBeVisible()
+          '''
+          new_import_tail = '''  })
+          await page.getByRole("button", { name: "Open as a route" }).click()
+          await expect(page.getByText("Critical imported loop imported to your library.")).toBeVisible()
+          await expect(page.getByRole("button", { name: "Open Critical imported loop" })).toBeVisible()
+          '''
+          for old, new, label in [
+              (old_saved, new_saved, 'saved-route journey'),
+              (old_import, new_import, 'import entry'),
+              (old_import_tail, new_import_tail, 'import completion'),
+          ]:
+              if old not in text:
+                  raise SystemExit(f'expected {label} block not found')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Install critical browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Verify migrated critical rides journeys
+        run: npx playwright test tests/e2e/critical/planner-journeys.spec.ts --project=critical-chromium --project=critical-webkit --grep='saved route survives|valid GPX import'
+      - name: Commit verified migration
+        run: |
+          if git diff --quiet; then
+            echo 'No migration changes to commit.'
+            exit 0
+          fi
+          git config user.name 'switchback-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add tests/e2e/critical/planner-journeys.spec.ts
+          git commit -m 'test(ux-v2): migrate critical rides journeys'
+          git push origin HEAD:ux/v2-settings-integration
