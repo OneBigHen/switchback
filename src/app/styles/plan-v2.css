@@ -1,8 +1,8 @@
-/* Compact Plan composer and its progressive options. The map remains the
- * visual field; this chrome earns space only for an actionable rider choice. */
+/* V2 Plan composer: two idle rows, one disclosure surface, map first. */
 .plan-v2 {
   display: grid;
-  gap: var(--sb-space-2);
+  min-width: 0;
+  gap: 6px;
   color: var(--sb-text);
   font-family: var(--font-body);
 }
@@ -19,27 +19,18 @@
 
 .plan-v2__compact-rail {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--sb-space-2);
-  align-items: center;
-}
-
-.plan-v2__prompt-row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--sb-space-2);
   min-width: 0;
+  gap: 6px;
 }
 
 .plan-v2__search {
   display: grid;
   min-width: 0;
   min-height: 48px;
-  grid-template-columns: 20px minmax(0, 1fr) 40px 40px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
   align-items: center;
-  gap: 8px;
-  padding: 4px 5px 4px 13px;
+  gap: 2px;
+  padding: 2px 3px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-control);
   background: var(--sb-paper);
@@ -51,32 +42,31 @@
   box-shadow: 0 0 0 3px var(--sb-focus-fill), 0 2px 8px rgb(22 29 28 / 9%);
 }
 
-.plan-v2__search > svg {
-  width: 20px;
-  height: 20px;
-  color: var(--sb-signal-strong);
-}
-
 .plan-v2__search input {
   width: 100%;
   min-width: 0;
-  padding: 7px 0;
+  padding: 7px 4px;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--sb-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .plan-v2__search input::placeholder {
   color: var(--sb-text-muted);
+  opacity: 1;
 }
 
-.plan-v2__search button,
-.plan-v2__start-control,
-.plan-v2__free-ride {
+.plan-v2__location-control,
+.plan-v2__voice-control,
+.plan-v2__submit-control,
+.plan-v2__free-ride,
+.plan-v2__options-trigger {
   display: inline-flex;
+  min-width: 44px;
   min-height: var(--sb-touch-target);
   align-items: center;
   justify-content: center;
@@ -88,77 +78,111 @@
   font-weight: 700;
 }
 
-.plan-v2__search button {
-  width: 40px;
+.plan-v2__location-control,
+.plan-v2__voice-control {
   padding: 0;
   background: transparent;
   color: var(--sb-text-muted);
 }
 
-.plan-v2__search button:last-child {
+.plan-v2__location-control {
+  color: var(--sb-signal-strong);
+}
+
+.plan-v2__location-control:hover,
+.plan-v2__location-control:focus-visible,
+.plan-v2__voice-control:hover,
+.plan-v2__voice-control:focus-visible {
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+}
+
+.plan-v2__location-marker {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--sb-signal-strong);
+}
+
+.plan-v2__location-control svg,
+.plan-v2__location-marker svg,
+.plan-v2__voice-control svg,
+.plan-v2__submit-control svg {
+  width: 19px;
+  height: 19px;
+}
+
+.plan-v2__submit-control {
+  padding: 0;
   background: var(--sb-ember-strong);
   color: var(--sb-paper);
 }
 
-.plan-v2__search button:disabled {
+.plan-v2__submit-control:hover:not(:disabled),
+.plan-v2__submit-control:focus-visible:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.plan-v2__search button:disabled,
+.plan-v2__mode-selector button:disabled,
+.plan-v2__free-ride:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.plan-v2__submit-control:disabled {
   background: var(--sb-surface-raised);
   color: var(--sb-text-muted);
-  cursor: not-allowed;
+  opacity: 1;
 }
 
-.plan-v2__search button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.plan-v2__start-control {
-  gap: 5px;
-  padding: 0 10px;
-  border: 1px solid var(--sb-border);
-  background: var(--sb-surface-raised);
-  color: var(--sb-text-link);
-  white-space: nowrap;
-}
-
-.plan-v2__start-control svg {
-  width: 17px;
-  height: 17px;
+.plan-v2__action-rail {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: stretch;
 }
 
 .plan-v2__mode-selector {
   display: grid;
-  min-height: 38px;
+  min-width: 0;
+  min-height: 44px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3px;
-  padding: 3px;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-chip);
+  border-radius: var(--sb-radius-control);
   background: color-mix(in srgb, var(--sb-surface-raised) 88%, transparent);
 }
 
 .plan-v2__mode-selector button {
-  min-height: 32px;
-  padding: 0 7px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 7px;
   background: transparent;
   color: var(--sb-text-muted);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
+  line-height: 1;
 }
 
 .plan-v2__mode-selector button.is-selected {
-  background: var(--sb-paper);
-  color: var(--sb-text);
-  box-shadow: 0 1px 5px rgb(22 29 28 / 12%);
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+  box-shadow: 0 1px 4px rgb(22 29 28 / 14%);
 }
 
-.plan-v2__mode-selector button:disabled,
-.plan-v2__free-ride:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+.plan-v2__mode-selector button:not(.is-selected):hover:not(:disabled),
+.plan-v2__mode-selector button:not(.is-selected):focus-visible:not(:disabled) {
+  background: var(--sb-paper);
+  color: var(--sb-text);
 }
 
 .plan-v2__draw-mode {
@@ -169,8 +193,9 @@
 }
 
 .plan-v2__draw-mode svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 .plan-v2__free-ride {
@@ -179,10 +204,11 @@
   padding: 0 10px;
   background: var(--sb-spruce);
   color: var(--sb-paper);
+  white-space: nowrap;
 }
 
-.plan-v2__free-ride:hover,
-.plan-v2__free-ride:focus-visible {
+.plan-v2__free-ride:hover:not(:disabled),
+.plan-v2__free-ride:focus-visible:not(:disabled) {
   background: var(--sb-ink);
 }
 
@@ -191,81 +217,47 @@
   height: 17px;
 }
 
-.plan-v2__options {
-  display: grid;
-  gap: var(--sb-space-2);
-}
-
-.plan-v2__options-row {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--sb-space-2);
-  align-items: start;
-}
-
 .plan-v2__options-trigger {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 12px;
+  gap: 5px;
+  min-width: 84px;
+  padding: 0 9px;
   border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-control);
   background: var(--sb-surface);
   color: var(--sb-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 750;
-  text-align: left;
-}
-
-.plan-v2__options-trigger:hover,
-.plan-v2__options-trigger:focus-visible {
-  border-color: var(--sb-focus-ring);
-}
-
-.plan-v2__edit-toggle {
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-control);
-  background: transparent;
-  color: var(--sb-text-link);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
   white-space: nowrap;
 }
 
-.plan-v2__edit-toggle:hover,
-.plan-v2__edit-toggle:focus-visible {
+.plan-v2__options-trigger:hover,
+.plan-v2__options-trigger:focus-visible,
+.plan-v2__options-trigger[aria-expanded="true"] {
   border-color: var(--sb-focus-ring);
   background: var(--sb-surface-raised);
 }
 
 .plan-v2__options-trigger svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   color: var(--sb-text-muted);
 }
 
 .plan-v2__options-panel {
   display: grid;
-  gap: var(--sb-space-2);
-  padding: var(--sb-space-2);
+  grid-column: 1 / -1;
+  min-width: 0;
+  gap: 0;
+  margin-top: 2px;
+  padding: 4px 10px 8px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-control);
   background: var(--sb-surface-raised);
+  box-shadow: 0 6px 18px rgb(22 29 28 / 8%);
 }
 
 .plan-v2__option-group {
   display: grid;
-  gap: var(--sb-space-2);
-  padding: 12px;
+  min-width: 0;
+  gap: 9px;
+  padding: 14px 2px;
   border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
 }
 
@@ -277,8 +269,8 @@
   margin: 0;
   color: var(--sb-text);
   font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 550;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
@@ -287,25 +279,33 @@
   margin: 0;
   color: var(--sb-text-muted);
   font-size: 12px;
+  line-height: 1.4;
 }
 
-.plan-v2__profile-control {
+.plan-v2__profile-control,
+.plan-v2__waypoint-stack,
+.plan-v2__time-budget,
+.plan-v2__via-points {
   display: grid;
+  min-width: 0;
   gap: 8px;
 }
 
-.plan-v2__profile-list {
+.plan-v2__profile-list,
+.plan-v2__home-actions,
+.plan-v2__edit-actions,
+.plan-v2__time-presets {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
 .plan-v2__profile-list button,
-.plan-v2__time-budget button,
+.plan-v2__time-presets button,
 .plan-v2__edit-actions button,
 .plan-v2__home-actions button {
-  min-height: 40px;
-  padding: 0 10px;
+  min-height: var(--sb-touch-target);
+  padding: 0 11px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-chip);
   background: var(--sb-paper);
@@ -317,7 +317,7 @@
 }
 
 .plan-v2__profile-list button.is-selected,
-.plan-v2__time-budget button[aria-pressed="true"] {
+.plan-v2__time-presets button[aria-pressed="true"] {
   border-color: var(--sb-ember-strong);
   background: var(--sb-ember-strong);
   color: var(--sb-paper);
@@ -327,31 +327,27 @@
   display: flex;
   min-height: var(--sb-touch-target);
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   color: var(--sb-text);
   font-size: 13px;
 }
 
 .plan-v2__check-row input {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
   accent-color: var(--sb-ember-strong);
-}
-
-.plan-v2__waypoint-stack {
-  display: grid;
-  gap: 8px;
 }
 
 .plan-v2__inline-action,
 .plan-v2__road-locks {
   display: inline-flex;
+  width: 100%;
   min-height: var(--sb-touch-target);
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 0 10px;
+  gap: 7px;
+  padding: 0 11px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-chip);
   background: var(--sb-paper);
@@ -362,26 +358,22 @@
   font-weight: 700;
 }
 
+.plan-v2__inline-action:hover,
+.plan-v2__inline-action:focus-visible,
+.plan-v2__road-locks:hover,
+.plan-v2__road-locks:focus-visible {
+  border-color: var(--sb-focus-ring);
+}
+
 .plan-v2__inline-action svg,
 .plan-v2__road-locks svg {
   width: 17px;
   height: 17px;
 }
 
-.plan-v2__home-actions,
-.plan-v2__edit-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.plan-v2__time-budget {
-  display: grid;
-  gap: 8px;
-}
-
 .plan-v2__time-budget > span {
   display: flex;
+  min-height: 24px;
   align-items: center;
   gap: 6px;
   color: var(--sb-text-muted);
@@ -394,15 +386,31 @@
   height: 16px;
 }
 
-.plan-v2__time-budget > div {
+.plan-v2__custom-time {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: auto minmax(84px, 120px) 1fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  color: var(--sb-text-muted);
+  font-size: 12px;
 }
 
-.plan-v2__via-points {
-  display: grid;
-  gap: 6px;
+.plan-v2__custom-time input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-v2__custom-time small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
 }
 
 .plan-v2__via-points > div {
@@ -415,24 +423,32 @@
   font-size: 12px;
 }
 
+.plan-v2__via-points > div > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .plan-v2__via-actions {
   display: inline-flex;
+  flex: 0 0 auto;
   gap: 4px;
 }
 
 .plan-v2__via-actions button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--sb-border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--sb-paper);
   color: var(--sb-text);
   cursor: pointer;
+  font: inherit;
 }
 
 .plan-v2__via-actions button:disabled,
-.plan-v2__edit-actions button:disabled {
+.plan-v2__edit-actions button:disabled,
+.plan-v2__segment-row button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
@@ -443,11 +459,25 @@
 
 .plan-v2__road-locks > span {
   flex: 1;
+  min-width: 0;
   text-align: left;
+}
+
+.plan-v2__road-locks strong {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  font-size: 11px;
 }
 
 .plan-v2__avoid-area-summary {
   display: flex;
+  min-height: 44px;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -456,19 +486,21 @@
 }
 
 .plan-v2__avoid-area-summary button {
-  min-height: 36px;
-  padding: 0 8px;
+  min-height: 44px;
+  padding: 0 10px;
   border: 1px solid var(--sb-border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--sb-text-link);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
+  font-weight: 700;
 }
 
 .plan-v2__segment-row {
   display: grid;
+  min-width: 0;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto;
   gap: 6px;
   align-items: center;
@@ -476,12 +508,13 @@
   font-size: 12px;
 }
 
-.plan-v2__segment-row select {
-  min-height: 40px;
+.plan-v2__segment-row select,
+.plan-v2__segment-row button {
+  min-height: var(--sb-touch-target);
   min-width: 0;
-  padding: 0 7px;
+  padding: 0 9px;
   border: 1px solid var(--sb-border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--sb-paper);
   color: var(--sb-text);
   font: inherit;
@@ -489,15 +522,10 @@
 }
 
 .plan-v2__segment-row button {
-  min-height: 40px;
-  padding: 0 8px;
-  border: 1px solid var(--sb-border);
-  border-radius: 6px;
-  background: var(--sb-paper);
   color: var(--sb-text-link);
   cursor: pointer;
-  font: inherit;
   font-size: 11px;
+  font-weight: 700;
 }
 
 .plan-v2__status,
@@ -505,7 +533,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 11px;
+  padding: 8px 10px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-chip);
   background: var(--sb-surface-raised);
@@ -521,13 +549,14 @@
 
 .plan-v2__status span {
   flex: 1;
+  min-width: 0;
 }
 
 .plan-v2__status button {
-  min-height: 36px;
-  padding: 0 9px;
+  min-height: var(--sb-touch-target);
+  padding: 0 10px;
   border: 1px solid var(--sb-border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--sb-text-link);
   cursor: pointer;
@@ -555,7 +584,7 @@
 .plan-v2__research {
   display: grid;
   gap: 8px;
-  padding: 11px;
+  padding: 10px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-control);
   background: var(--sb-surface-raised);
@@ -573,14 +602,14 @@
 .plan-v2__stop-ideas button,
 .plan-v2__research > button {
   display: flex;
-  min-height: 44px;
   width: 100%;
+  min-height: var(--sb-touch-target);
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 7px 9px;
   border: 1px solid var(--sb-border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--sb-paper);
   color: var(--sb-text);
   cursor: pointer;
@@ -592,6 +621,7 @@
 .plan-v2__stop-ideas button span,
 .plan-v2__research li a {
   display: grid;
+  min-width: 0;
   gap: 2px;
 }
 
@@ -599,6 +629,14 @@
 .plan-v2__research li span {
   color: var(--sb-text-muted);
   font-size: 11px;
+  line-height: 1.35;
+}
+
+.plan-v2__research li a {
+  min-height: 44px;
+  justify-content: center;
+  color: var(--sb-text-link);
+  text-decoration: none;
 }
 
 .plan-v2 .provider-health-notice {
@@ -607,29 +645,96 @@
 
 @media (min-width: 761px) {
   .plan-v2 {
-    max-width: 420px;
-  }
-
-  .plan-v2__compact-rail {
-    grid-template-columns: minmax(0, 1fr) auto;
+    max-width: 440px;
   }
 }
 
 @media (max-width: 760px) {
-  .plan-v2 {
-    gap: 6px;
+  .plan-v2__action-rail {
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
-  .plan-v2__prompt-row {
+  .plan-v2__free-ride {
+    min-width: 84px;
+    padding-inline: 8px;
+  }
+
+  .plan-v2__options-trigger {
+    min-width: 78px;
+    padding-inline: 8px;
+  }
+
+  /* The planner sheet owns scrolling. Options must not create a second
+   * vertical scroller that can strand route/result content below it. */
+  .plan-v2__options-panel {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 390px) {
+  .plan-v2__search {
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+  }
+
+  .plan-v2__search input {
+    font-size: 13px;
+  }
+
+  .plan-v2__mode-selector button {
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .plan-v2__draw-mode {
+    gap: 3px;
+  }
+
+  .plan-v2__draw-mode svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .plan-v2__free-ride {
+    min-width: 76px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .plan-v2__free-ride svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .plan-v2__options-trigger {
+    min-width: 72px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .plan-v2__options-trigger svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .plan-v2__segment-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .plan-v2__start-control {
-    width: 44px;
-    padding: 0;
+  .plan-v2__segment-row > span {
+    grid-column: 1 / -1;
   }
 
-  .plan-v2__start-control span {
+  .plan-v2__custom-time {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .plan-v2__custom-time small {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 340px) {
+  .plan-v2__free-ride span {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -639,44 +744,13 @@
   }
 
   .plan-v2__free-ride {
-    min-width: 82px;
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
   }
 
-  .plan-v2__options-panel {
-    max-height: calc(100dvh - 112px);
-    overflow-y: auto;
-  }
-}
-
-@media (max-width: 390px) {
-  .plan-v2__search {
-    grid-template-columns: 18px minmax(0, 1fr) 36px 36px;
-    gap: 5px;
-    padding-left: 9px;
-  }
-
-  .plan-v2__search button {
-    width: 36px;
-  }
-
-  .plan-v2__search input {
-    font-size: 12px;
-  }
-
-  .plan-v2__mode-selector button {
-    padding: 0 4px;
-    font-size: 10px;
-  }
-
-  .plan-v2__free-ride {
-    min-width: 74px;
-    padding: 0 6px;
-    font-size: 10px;
-  }
-
-  .plan-v2__free-ride svg {
-    width: 15px;
-    height: 15px;
+  .plan-v2__options-trigger {
+    min-width: 68px;
   }
 }
 

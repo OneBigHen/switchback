@@ -1,14 +1,14 @@
 "use client"
 
 import { CaretDown, CaretUp, Clock, LockSimple, Plus, X } from "@phosphor-icons/react"
-import type { ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
+import { featureFlags } from "@/lib/domain/feature-flags"
 import { listProfiles } from "@/lib/routing/profiles"
-import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
+import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { PlannerPointId } from "@/stores/planner-store"
 import { BikeProfilePicker } from "../BikeProfilePicker"
 import { WaypointField } from "../WaypointField"
-import { featureFlags } from "@/lib/domain/feature-flags"
-import type { PlannerPointId } from "@/stores/planner-store"
 
 export interface PlanOptionsProps {
   open: boolean
@@ -58,32 +58,16 @@ export interface PlanOptionsProps {
   onClearHome?(): void
 }
 
+const LOOP_DURATION_PRESETS = [60, 90, 120, 180] as const
+const MIN_CUSTOM_MINUTES = 30
+const MAX_CUSTOM_MINUTES = 720
+
 function durationLabel(minutes: number): string {
   return minutes % 60 === 0 ? `${minutes / 60} hr` : `${minutes} min`
 }
 
-function RouteGroup({ children }: { children: ReactNode }) {
-  return <section className="plan-v2__option-group" role="group" aria-label="Route">{children}</section>
-}
-
-function BikeGroup({ children }: { children: ReactNode }) {
-  return <section className="plan-v2__option-group" role="group" aria-label="Bike">{children}</section>
-}
-
-function GeometryGroup({ children }: { children: ReactNode }) {
-  return <section className="plan-v2__option-group" role="group" aria-label="Geometry">{children}</section>
-}
-
-function RoadsGroup({ children }: { children: ReactNode }) {
-  return <section className="plan-v2__option-group" role="group" aria-label="Roads">{children}</section>
-}
-
-function TimingGroup({ children }: { children: ReactNode }) {
-  return <section className="plan-v2__option-group" role="group" aria-label="Timing">{children}</section>
-}
-
-function AdvancedGroup({ children }: { children: ReactNode }) {
-  return <section className="plan-v2__option-group" role="group" aria-label="Advanced">{children}</section>
+function OptionGroup({ name, children }: { name: string; children: ReactNode }) {
+  return <section className="plan-v2__option-group" role="group" aria-label={name}>{children}</section>
 }
 
 export function PlanOptions({
@@ -134,9 +118,30 @@ export function PlanOptions({
   onClearHome
 }: PlanOptionsProps) {
   const profiles = listProfiles()
+  const targetIsPreset = LOOP_DURATION_PRESETS.includes(targetMinutes as (typeof LOOP_DURATION_PRESETS)[number])
+  const [customTimingOpen, setCustomTimingOpen] = useState(!targetIsPreset)
+  const [customMinutes, setCustomMinutes] = useState(String(targetMinutes))
+
+  useEffect(() => {
+    if (!customTimingOpen) setCustomMinutes(String(targetMinutes))
+  }, [customTimingOpen, targetMinutes])
+
+  const choosePreset = (minutes: number) => {
+    setCustomTimingOpen(false)
+    setCustomMinutes(String(minutes))
+    onTargetMinutesChange(minutes)
+  }
+
+  const updateCustomMinutes = (raw: string) => {
+    setCustomMinutes(raw)
+    const minutes = Number(raw)
+    if (Number.isInteger(minutes) && minutes >= MIN_CUSTOM_MINUTES && minutes <= MAX_CUSTOM_MINUTES) {
+      onTargetMinutesChange(minutes)
+    }
+  }
 
   return (
-    <section className="plan-v2__options" aria-label="Plan options">
+    <>
       <button
         type="button"
         className="plan-v2__options-trigger"
@@ -147,9 +152,10 @@ export function PlanOptions({
         <span>Options</span>
         {open ? <CaretUp aria-hidden="true" /> : <CaretDown aria-hidden="true" />}
       </button>
+
       {open ? (
-        <div id="plan-v2-options-panel" className="plan-v2__options-panel">
-          <RouteGroup>
+        <section id="plan-v2-options-panel" className="plan-v2__options-panel" aria-label="Plan options">
+          <OptionGroup name="Route">
             <h3>Route</h3>
             <div className="plan-v2__profile-control" role="group" aria-label="Motorcycle routing profile">
               <span className="plan-v2__control-label">Route preference</span>
@@ -166,20 +172,20 @@ export function PlanOptions({
                   </button>
                 ))}
               </div>
-            <p>{profiles.find((item) => item.id === profile)?.description}</p>
-            {onOpenLibrary ? (
-              <button type="button" className="plan-v2__inline-action" onClick={onOpenLibrary}>
-                Library{savedCount > 0 ? ` · ${savedCount}` : ""}
-              </button>
-            ) : null}
+              <p>{profiles.find((item) => item.id === profile)?.description}</p>
+              {onOpenLibrary ? (
+                <button type="button" className="plan-v2__inline-action" onClick={onOpenLibrary}>
+                  Library{savedCount > 0 ? ` · ${savedCount}` : ""}
+                </button>
+              ) : null}
             </div>
             <label className="plan-v2__check-row">
               <input type="checkbox" checked={avoidHighways} onChange={(event) => onAvoidHighwaysChange(event.target.checked)} />
               <span>Avoid highways</span>
             </label>
-          </RouteGroup>
+          </OptionGroup>
 
-          <BikeGroup>
+          <OptionGroup name="Bike">
             <h3>Bike</h3>
             <BikeProfilePicker
               value={bikeProfile}
@@ -191,10 +197,10 @@ export function PlanOptions({
               <input type="checkbox" checked={curvatureVisible} onChange={(event) => onCurvatureChange(event.target.checked)} />
               <span>Show high-curvature roads</span>
             </label>
-          </BikeGroup>
+          </OptionGroup>
 
-          <GeometryGroup>
-            <h3>Geometry</h3>
+          <OptionGroup name="Geometry">
+            <h3>Route points</h3>
             <div className="plan-v2__waypoint-stack">
               <WaypointField
                 id="start"
@@ -254,30 +260,56 @@ export function PlanOptions({
               <button type="button" aria-label="Redo route edit" disabled={!canRedoRoutePoints} onClick={onRedoRoutePoints}>Redo</button>
               <button type="button" aria-label="Reverse route" disabled={planMode === "destination" ? !start || !finish : via.length === 0} onClick={onReverseRoute}>Reverse</button>
             </div>
-          </GeometryGroup>
+          </OptionGroup>
 
           {planMode === "loop" ? (
-            <TimingGroup>
+            <OptionGroup name="Timing">
               <h3>Timing</h3>
               <div className="plan-v2__time-budget" aria-label="Loop duration">
                 <span><Clock aria-hidden="true" /> Ride time</span>
-                <div>
-                  {[60, 90, 120, 180].map((minutes) => (
+                <div className="plan-v2__time-presets">
+                  {LOOP_DURATION_PRESETS.map((minutes) => (
                     <button
                       type="button"
                       key={minutes}
-                      aria-pressed={minutes === targetMinutes}
-                      onClick={() => onTargetMinutesChange(minutes)}
+                      aria-pressed={!customTimingOpen && minutes === targetMinutes}
+                      onClick={() => choosePreset(minutes)}
                     >
                       {durationLabel(minutes)}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    aria-pressed={customTimingOpen || !targetIsPreset}
+                    onClick={() => {
+                      setCustomMinutes(String(targetMinutes))
+                      setCustomTimingOpen(true)
+                    }}
+                  >
+                    Custom
+                  </button>
                 </div>
+                {customTimingOpen ? (
+                  <label className="plan-v2__custom-time">
+                    <span>Minutes</span>
+                    <input
+                      type="number"
+                      min={MIN_CUSTOM_MINUTES}
+                      max={MAX_CUSTOM_MINUTES}
+                      step={15}
+                      inputMode="numeric"
+                      aria-label="Custom loop duration in minutes"
+                      value={customMinutes}
+                      onChange={(event) => updateCustomMinutes(event.target.value)}
+                    />
+                    <small>30–720 min</small>
+                  </label>
+                ) : null}
               </div>
-            </TimingGroup>
+            </OptionGroup>
           ) : null}
 
-          <RoadsGroup>
+          <OptionGroup name="Roads">
             <h3>Roads</h3>
             <button type="button" className="plan-v2__road-locks" onClick={onOpenRoadLocks}>
               <LockSimple aria-hidden="true" />
@@ -290,10 +322,10 @@ export function PlanOptions({
                 <button type="button" onClick={onRemoveAvoidArea}>Clear latest</button>
               </div>
             ) : null}
-          </RoadsGroup>
+          </OptionGroup>
 
           {planMode === "destination" && start && finish && segmentProfiles.length > 0 ? (
-            <AdvancedGroup>
+            <OptionGroup name="Advanced">
               <h3>Advanced</h3>
               <p>Route character by leg</p>
               {via.map((point, index) => {
@@ -316,10 +348,10 @@ export function PlanOptions({
                   {profiles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </label>
-            </AdvancedGroup>
+            </OptionGroup>
           ) : null}
-        </div>
+        </section>
       ) : null}
-    </section>
+    </>
   )
 }
