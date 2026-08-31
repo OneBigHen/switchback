@@ -84,6 +84,7 @@ import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
 import { AppNavigation } from "@/components/shell/AppNavigation"
 import { AppShell } from "@/components/shell/AppShell"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
+import { SettingsDestination } from "@/components/settings/SettingsDestination"
 import { RecordPanel } from "@/components/shell/RecordPanel"
 import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
 import { FreeRideHud } from "@/components/shell/FreeRideHud"
@@ -1246,14 +1247,8 @@ export function PlannerShell() {
             activeDestination={navigation.destination}
             onSelect={handleDestination}
             onOpenRecord={() => {
-              // Record preflight and Settings are exclusive overlay panels;
-              // opening one dismisses the other so they never stack.
-              dispatchNavigation({ type: "close_overlay", overlay: "settings" })
+              dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })
               dispatchNavigation({ type: "open_overlay", overlay: "record" })
-            }}
-            onOpenSettings={() => {
-              dispatchNavigation({ type: "close_overlay", overlay: "record" })
-              dispatchNavigation({ type: "open_overlay", overlay: "settings" })
             }}
           />
         ) : null}
@@ -1526,6 +1521,16 @@ export function PlannerShell() {
           onImportAsLock={handleImportAsLock}
         />
       ) : null}
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "settings" ? (
+        <SettingsDestination
+          theme={navigation.theme}
+          onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
+          onOpenAdvancedSettings={() => {
+            dispatchNavigation({ type: "close_overlay", overlay: "record" })
+            dispatchNavigation({ type: "open_overlay", overlay: "advanced-settings" })
+          }}
+        />
+      ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (
         <section className="destination-panel discover-panel" aria-labelledby="discover-title">
           <header>
@@ -1542,19 +1547,16 @@ export function PlannerShell() {
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("record") ? (
         <RecordPanel controller={recording} />
       ) : null}
-      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("settings") ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("advanced-settings") ? (
         <ProfilePanel
-          theme={navigation.theme}
-          onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
           onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}
-            onResetLearning={() => {
-              // Destructive: wiping every learned preference needs a
-              // confirmation (SB-027).
-              if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
-              void riderPreferenceLibraryRef.current!.clear()
-            }}
-            onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
-          />
+          onResetLearning={() => {
+            if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
+            void riderPreferenceLibraryRef.current!.clear()
+          }}
+          onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
+          onClose={() => dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })}
+        />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("downloads") ? (
         <div className="app-overlay-scrim" role="dialog" aria-modal="true" aria-labelledby="downloads-overlay-title">

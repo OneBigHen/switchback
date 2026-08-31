@@ -18,8 +18,6 @@ interface AppNavigationProps {
   activeDestination: PrimaryDestination
   onSelect(destination: PrimaryDestination): void
   onOpenRecord(): void
-  /** Temporary compatibility input while PlannerShell's old Settings overlay is removed. */
-  onOpenSettings?(): void
 }
 
 /**

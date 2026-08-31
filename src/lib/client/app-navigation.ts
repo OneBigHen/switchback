@@ -13,8 +13,7 @@ export function appModeForState(input: {
 }
 
 export type AppOverlay =
-  /** Transitional token used only by PlannerShell until ProfilePanel is retired. */
-  | "settings"
+  | "advanced-settings"
   | "record"
   | "route-details"
   | "weather"
