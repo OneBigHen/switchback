@@ -165,6 +165,23 @@ describe("V2 compact Plan composer", () => {
     expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
   })
 
+  it("uses one progressive disclosure instead of duplicating the route editor", () => {
+    renderComposer()
+
+    expect(screen.getAllByRole("button", { name: "Options" })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: "Edit route" })).not.toBeInTheDocument()
+  })
+
+  it("keeps ride-request submission locked while intent interpretation is active", async () => {
+    const user = userEvent.setup()
+    renderComposer({ intent: { intentStatus: "interpreting" } })
+
+    const input = screen.getByPlaceholderText("Search a place or describe a ride")
+    await user.type(input, "A scenic ride to a river overlook")
+
+    expect(screen.getByRole("button", { name: /find ride options/i })).toBeDisabled()
+  })
+
   it("does not mix route personality or retired marketing content into idle Plan", () => {
     renderComposer()
 
