@@ -1,8 +1,10 @@
 "use client"
 
-import { ArrowRight, Motorcycle } from "@phosphor-icons/react"
+import { ArrowRight, GasPump, Mountains, Motorcycle } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 import { getActiveBike, type RiderSettings } from "@/lib/settings/rider-settings"
+import { DestinationHeader } from "@/components/v2/DestinationHeader"
+import { RouteGraphic } from "@/components/v2/RouteGraphic"
 import styles from "./SettingsSurface.module.css"
 
 function categoryLabel(category: string): string {
@@ -18,29 +20,52 @@ export interface SettingsSurfaceProps {
 
 export function SettingsSurface({ settings, onChangeBike, onEditBike, children }: SettingsSurfaceProps) {
   const activeBike = getActiveBike(settings)
+  const capability = activeBike.roughTracks
+    ? "Rough tracks enabled"
+    : activeBike.maintainedGravel
+      ? "Maintained gravel"
+      : "Paved-road setup"
 
   return (
     <section className={styles.surface} role="region" aria-label="Settings">
-      <header className={styles.header}>
-        <span>Rider setup</span>
-        <h1>Settings</h1>
-      </header>
+      <DestinationHeader
+        eyebrow="Rider setup"
+        title="Settings"
+        description="Tune the motorcycle, route defaults, and controls Switchback uses every time you plan or ride."
+        graphic={<RouteGraphic seed={activeBike.id} variant="bike" />}
+      />
 
-      <section className={styles.bikeSection} aria-label="Active bike">
-        <header><strong>Bike & routing</strong><small>Used for route and surface decisions</small></header>
+      <section className={styles.bikeSection} aria-label="Active motorcycle">
+        <header className={styles.sectionHeading}>
+          <div>
+            <span>Routing identity</span>
+            <h2>Your motorcycle</h2>
+          </div>
+          <small>Surface and range limits feed directly into route decisions.</small>
+        </header>
+
         <article className={styles.bikeCard}>
-          <span className={styles.bikeIcon} aria-hidden="true"><Motorcycle weight="fill" /></span>
-          <span className={styles.bikeIdentity}>
-            <strong>{activeBike.name}</strong>
-            <span>{categoryLabel(activeBike.category)} · {Math.round(activeBike.fuelRangeMiles)} mi range</span>
-            <small>{activeBike.maintainedGravel ? "Gravel capable" : "Paved-road setup"}{activeBike.roughTracks ? " · rough tracks enabled" : ""}</small>
-          </span>
-          <button type="button" aria-label={`Edit ${activeBike.name}`} onClick={onEditBike}>Edit</button>
+          <div className={styles.bikeIdentityBlock}>
+            <span className={styles.bikeIcon} aria-hidden="true"><Motorcycle weight="fill" /></span>
+            <span className={styles.bikeIdentity}>
+              <small>Active bike</small>
+              <strong>{activeBike.name}</strong>
+              <span>{categoryLabel(activeBike.category)}</span>
+            </span>
+          </div>
+
+          <div className={styles.bikeMetrics} aria-label="Bike routing capabilities">
+            <span><GasPump aria-hidden="true" /><b>{Math.round(activeBike.fuelRangeMiles)}</b><small>mi range</small></span>
+            <span><Mountains aria-hidden="true" /><b>{capability}</b><small>surface policy</small></span>
+          </div>
+
+          <div className={styles.bikeActions}>
+            <button type="button" className={styles.primaryAction} aria-label={`Edit ${activeBike.name}`} onClick={onEditBike}>Edit bike</button>
+            <button type="button" className={styles.secondaryAction} aria-label="Change active bike" onClick={onChangeBike}>
+              <span>Change</span><ArrowRight weight="bold" aria-hidden="true" />
+            </button>
+          </div>
         </article>
-        <button type="button" className={styles.changeBike} aria-label="Change active bike" onClick={onChangeBike}>
-          <span>Change active bike</span>
-          <ArrowRight weight="bold" aria-hidden="true" />
-        </button>
       </section>
 
       {children ? <div className={styles.sections}>{children}</div> : null}
