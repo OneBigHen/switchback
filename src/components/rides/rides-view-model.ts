@@ -40,7 +40,13 @@ export function normalizeRideLibrary({
       distanceMiles: route.distanceMiles,
       durationMinutes: route.durationMinutes,
       updatedAt: route.updatedAt,
-      tags: route.tags ?? []
+      tags: route.tags ?? [],
+      management: {
+        canDelete: true,
+        canMatchRoads: route.routingSource === "imported",
+        folder: route.folder,
+        visible: route.visible
+      }
     })),
     ...recordedRides.map((ride): RideLibraryItem => ({
       id: `recorded:${ride.id}`,
@@ -62,7 +68,8 @@ export function normalizeRideLibrary({
       distanceMiles: trip.route.distanceMiles,
       durationMinutes: trip.route.durationMinutes,
       updatedAt: trip.updatedAt,
-      tags: []
+      tags: [],
+      management: { canDelete: true }
     })),
     ...projectRoutes.map((route): RideLibraryItem => ({
       id: `project:${route.id}`,
