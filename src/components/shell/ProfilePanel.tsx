@@ -1,17 +1,18 @@
 "use client"
 
-import { DownloadSimple, HardDrives, Trash, UserCircle } from "@phosphor-icons/react"
+import {
+  DownloadSimple,
+  HardDrives,
+  Key,
+  ShieldCheck,
+  Trash,
+  Wrench,
+  X
+} from "@phosphor-icons/react"
 import { QRCodeSVG } from "qrcode.react"
 import { useEffect, useMemo, useState } from "react"
 import type { ThemePreference } from "@/lib/client/app-navigation"
-import {
-  getActiveBike,
-  loadRiderSettings,
-  saveRiderSettings,
-  type BikeCategory,
-  type RiderSettings,
-  type UnknownSurfacePolicy
-} from "@/lib/settings/rider-settings"
+import { loadRiderSettings } from "@/lib/settings/rider-settings"
 import { collectDiagnostics } from "@/lib/client/diagnostics"
 import { RegionDownloadClient } from "@/lib/storage/region-download-client"
 import type { DiagnosticsSnapshot } from "@/lib/domain/diagnostics"
@@ -20,23 +21,29 @@ import { authenticatePasskey, registerPasskey } from "@/lib/client/passkey"
 import { createSyncController } from "@/lib/client/sync-controller"
 import type { RecoveryKit } from "@/lib/sync/recovery-kit"
 import type { SyncStateRecord } from "@/lib/sync/client-store"
+import styles from "./ProfilePanel.module.css"
 
 interface ProfilePanelProps {
-  theme: ThemePreference
-  onThemeChange(theme: ThemePreference): void
+  /** Kept during the V2 shell handoff so old callers remain type-safe. */
+  theme?: ThemePreference
+  /** Theme now lives in SettingsDestination; this is intentionally unused. */
+  onThemeChange?(theme: ThemePreference): void
   onOpenDownloads(): void
   onResetLearning?(): Promise<void> | void
   onExportLearning?(): Promise<unknown> | unknown
+  onClose?(): void
 }
 
-export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLearning, onExportLearning }: ProfilePanelProps) {
-  // One versioned settings source (SB-023): the panel reads and writes the
-  // same store the planner and learning use, so edits are never orphaned.
-  const [settings, setSettings] = useState<RiderSettings>(() => {
-    if (typeof window === "undefined") return loadRiderSettings()
-    const loaded = loadRiderSettings()
-    return loaded
-  })
+/**
+ * Advanced account/data tools only. Everyday rider, bike, routing and theme
+ * preferences belong to SettingsDestination and must never be duplicated here.
+ */
+export function ProfilePanel({
+  onOpenDownloads,
+  onResetLearning,
+  onExportLearning,
+  onClose
+}: ProfilePanelProps) {
   const [notice, setNotice] = useState<string | null>(null)
   const [identityBusy, setIdentityBusy] = useState<"register" | "authenticate" | null>(null)
   const [diagnostics, setDiagnostics] = useState<DiagnosticsSnapshot | null>(null)
@@ -65,36 +72,22 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
     if (snapshot) setDiagnostics(snapshot)
   }
 
-  const update = (patch: Partial<RiderSettings> | ((current: RiderSettings) => RiderSettings)) => {
-    setSettings((current) => {
-      const next = typeof patch === "function" ? patch(current) : { ...current, ...patch }
-      saveRiderSettings(next)
-      return next
-    })
-  }
-
-  const updateActiveBike = (patch: Partial<ReturnType<typeof getActiveBike>>) => {
-    update((current) => ({
-      ...current,
-      bikes: current.bikes.map((bike) => bike.id === current.activeBikeId ? { ...bike, ...patch } : bike)
-    }))
-  }
-
-  const bike = getActiveBike(settings)
-
   const runIdentity = async (kind: "register" | "authenticate") => {
     setIdentityBusy(kind)
     setNotice(null)
     try {
-      if (kind === "register") await registerPasskey(settings.riderName || undefined)
+      const riderName = loadRiderSettings().riderName || undefined
+      if (kind === "register") await registerPasskey(riderName)
       else await authenticatePasskey()
-      setNotice(kind === "register" ? "Switchback ID ready for publishing and sync." : "Signed in with Switchback ID.")
       try {
         setSyncState(await syncController.linkCurrentSession())
+        setNotice(kind === "register"
+          ? "Switchback ID ready and this device is linked for encrypted sync."
+          : "Signed in and this device is linked for encrypted sync.")
       } catch {
         setNotice(kind === "register"
           ? "Switchback ID ready. Link this device below to enable encrypted sync."
-          : "Signed in with Switchback ID. Link this device below to enable encrypted sync.")
+          : "Signed in. Link this device below to enable encrypted sync.")
       }
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Passkey identity could not be completed.")
@@ -129,7 +122,7 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
     try {
       setSyncState(await syncController.store.importRecoveryKit(recoverySeed))
       setRecoveryKit(null)
-      setNotice("Recovery kit installed. Authenticate below to link this device before syncing.")
+      setNotice("Recovery kit installed. Authenticate and link this device before syncing.")
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Recovery seed could not be imported.")
     } finally {
@@ -161,208 +154,139 @@ export function ProfilePanel({ theme, onThemeChange, onOpenDownloads, onResetLea
     }
   }
 
-  const gravelLabel: Record<BikeCategory, string> = {
-    street: "none",
-    touring: "none",
-    adventure: "maintained",
-    "dual-sport": "all"
+  const exportLearning = () => {
+    void Promise.resolve(onExportLearning?.())
+      .then(() => setNotice("Learning profile exported."))
+      .catch(() => setNotice("Learning profile export failed."))
   }
-  const gravelToCategory: Record<string, BikeCategory> = {
-    none: "street",
-    maintained: "adventure",
-    all: "dual-sport"
+
+  const resetLearning = () => {
+    void Promise.resolve(onResetLearning?.())
+      .then(() => setNotice("Learning profile reset."))
+      .catch(() => setNotice("Learning profile reset failed."))
   }
-  const unknownSurfaceToPolicy = (gravel: string): UnknownSurfacePolicy =>
-    gravel === "all" ? "allow" : gravel === "maintained" ? "warn" : "warn"
 
   return (
-    <section className="profile-panel sb-bottom-sheet" aria-label="Profile and settings">
-      <header>
-        <UserCircle aria-hidden="true" weight="fill" />
-        <div>
-          <h2>You and your bike</h2>
-        </div>
-      </header>
-
-      <label>
-        Rider name
-        <input
-          aria-label="Rider name"
-          value={settings.riderName}
-          maxLength={80}
-          onChange={(event) => update({ riderName: event.currentTarget.value })}
-        />
-      </label>
-
-      <label>
-        Motorcycle name
-        <input
-          aria-label="Motorcycle name"
-          value={bike.name}
-          maxLength={80}
-          onChange={(event) => updateActiveBike({ name: event.currentTarget.value })}
-        />
-      </label>
-
-      <label>
-        Fuel range (miles)
-        <input
-          aria-label="Fuel range in miles"
-          type="number"
-          min={0}
-          max={1000}
-          value={bike.fuelRangeMiles}
-          onChange={(event) => {
-            const value = Number(event.currentTarget.value)
-            if (Number.isFinite(value) && value >= 0) updateActiveBike({ fuelRangeMiles: value })
-          }}
-        />
-      </label>
-
-      <label>
-        Gravel tolerance
-        <select
-          aria-label="Gravel tolerance"
-          value={gravelLabel[bike.category]}
-          onChange={(event) => {
-            const category = gravelToCategory[event.currentTarget.value] ?? "street"
-            updateActiveBike({
-              category,
-              maintainedGravel: category === "adventure" || category === "dual-sport",
-              roughTracks: category === "dual-sport",
-              unknownSurfacePolicy: unknownSurfaceToPolicy(event.currentTarget.value)
-            })
-          }}
-        >
-          <option value="none">None — paved only</option>
-          <option value="maintained">Maintained gravel</option>
-          <option value="all">All dirt and gravel</option>
-        </select>
-      </label>
-
-      <label>
-        Units
-        <select
-          aria-label="Units"
-          value={settings.units}
-          onChange={(event) => update({ units: event.currentTarget.value as RiderSettings["units"] })}
-        >
-          <option value="imperial">Miles</option>
-          <option value="metric">Kilometers</option>
-        </select>
-      </label>
-
-      <label>
-        Voice guidance
-        <input
-          type="checkbox"
-          aria-label="Voice guidance"
-          checked={settings.voiceGuidance}
-          onChange={(event) => update({ voiceGuidance: event.currentTarget.checked })}
-        />
-      </label>
-
-      <label>
-        Learn from my rides
-        <input
-          type="checkbox"
-          aria-label="Learn from my rides"
-          checked={settings.learningEnabled}
-          onChange={(event) => update({ learningEnabled: event.currentTarget.checked })}
-        />
-      </label>
-
-      <div className="profile-actions">
-        <button type="button" onClick={onOpenDownloads}>
-          <DownloadSimple aria-hidden="true" />
-          Offline regions
-        </button>
-        <button type="button" onClick={() => void Promise.resolve(onExportLearning?.()).then(() => setNotice("Learning profile exported.")).catch(() => setNotice("Export failed."))}>
-          <HardDrives aria-hidden="true" />
-          Export learning
-        </button>
-        <button
-          type="button"
-          className="danger"
-          onClick={() => {
-            if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
-            void Promise.resolve(onResetLearning?.()).then(() => setNotice("Learning profile reset.")).catch(() => setNotice("Reset failed."))
-          }}
-        >
-          <Trash aria-hidden="true" />
-          Reset learning
-        </button>
-      </div>
-
-      <section className="profile-identity" aria-labelledby="switchback-id-title">
-        <h3 id="switchback-id-title">Switchback ID</h3>
-        <p>Use a passkey for publishing and encrypted sync. Planning and riding stay on this device without an account.</p>
-        <div className="profile-actions">
-          <button type="button" className="primary-action" disabled={identityBusy !== null} onClick={() => void runIdentity("register")}>
-            {identityBusy === "register" ? "Creating…" : "Create Switchback ID"}
-          </button>
-          <button type="button" disabled={identityBusy !== null} onClick={() => void runIdentity("authenticate")}>
-            {identityBusy === "authenticate" ? "Checking…" : "Use existing passkey"}
-          </button>
-        </div>
-      </section>
-
-      <section className="profile-identity" aria-labelledby="sync-title">
-        <h3 id="sync-title">Saved routes and rider settings</h3>
-        <p>The recovery kit decrypts your local data. A verified Switchback ID still must link this device before the sync service can be used.</p>
-        <div className="profile-actions">
-          <button type="button" onClick={() => void exportSyncKit()} disabled={syncBusy !== null}>
-            {syncBusy === "export" ? "Preparing…" : "Export recovery kit"}
-          </button>
-          <button type="button" onClick={() => void linkSync()} disabled={syncBusy !== null}>
-            {syncBusy === "link" ? "Linking…" : syncState?.linked ? "Relink with passkey" : "Authenticate and link device"}
-          </button>
-          <button type="button" className="primary-action" onClick={() => void runSync()} disabled={syncBusy !== null || !syncState?.linked}>
-            {syncBusy === "sync" ? "Syncing…" : "Sync now"}
-          </button>
-        </div>
-        <label>
-          Recovery seed
-          <input
-            aria-label="Recovery seed"
-            value={recoverySeed}
-            onChange={(event) => setRecoverySeed(event.currentTarget.value)}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-        <button type="button" onClick={() => void importSyncKit()} disabled={syncBusy !== null || recoverySeed.trim().length === 0}>
-          {syncBusy === "import" ? "Importing…" : "Import recovery seed"}
-        </button>
-        {recoveryKit ? (
-          <div className="profile-recovery-kit" aria-label="Recovery kit">
-            <QRCodeSVG value={recoveryKit.qrPayload} size={192} level="M" marginSize={2} title="Switchback encrypted sync recovery QR code" />
-            <code>{recoveryKit.seed}</code>
+    <div className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="advanced-settings-title">
+      <section className={styles.panel} aria-label="Account, sync & rider data">
+        <header className={styles.header}>
+          <div className={styles.headerCopy}>
+            <span className={styles.eyebrow}>Advanced</span>
+            <h2 id="advanced-settings-title">Account, sync & rider data</h2>
+            <p>Identity, encrypted backup, offline maps and diagnostics. Riding still works without an account.</p>
           </div>
-        ) : null}
-        {syncState?.linked ? <p>Device linked for encrypted sync.</p> : <p>Device not linked. Sync remains disabled until passkey authentication succeeds.</p>}
+          {onClose ? (
+            <button className={styles.closeButton} type="button" aria-label="Close account and data" onClick={onClose}>
+              <X weight="bold" aria-hidden="true" />
+            </button>
+          ) : null}
+        </header>
+
+        <div className={styles.body}>
+          <section className={styles.section} aria-labelledby="switchback-id-title">
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionIcon} aria-hidden="true"><Key weight="bold" /></span>
+              <div>
+                <h3 id="switchback-id-title">Switchback ID</h3>
+                <p>Passkey identity for publishing and linking encrypted data across your devices.</p>
+              </div>
+            </div>
+            <div className={styles.actions}>
+              <button type="button" className={styles.primaryButton} disabled={identityBusy !== null} onClick={() => void runIdentity("register")}>
+                {identityBusy === "register" ? "Creating…" : "Create Switchback ID"}
+              </button>
+              <button type="button" disabled={identityBusy !== null} onClick={() => void runIdentity("authenticate")}>
+                {identityBusy === "authenticate" ? "Checking…" : "Use existing passkey"}
+              </button>
+            </div>
+          </section>
+
+          <section className={styles.section} aria-labelledby="encrypted-sync-title">
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionIcon} aria-hidden="true"><ShieldCheck weight="bold" /></span>
+              <div>
+                <h3 id="encrypted-sync-title">Encrypted sync</h3>
+                <p>Saved routes and rider settings are encrypted on this device before they leave it.</p>
+              </div>
+            </div>
+            <div className={styles.actions}>
+              <button type="button" onClick={() => void exportSyncKit()} disabled={syncBusy !== null}>
+                {syncBusy === "export" ? "Preparing…" : "Export recovery kit"}
+              </button>
+              <button type="button" onClick={() => void linkSync()} disabled={syncBusy !== null}>
+                {syncBusy === "link" ? "Linking…" : syncState?.linked ? "Relink with passkey" : "Authenticate and link device"}
+              </button>
+              <button type="button" className={styles.primaryButton} onClick={() => void runSync()} disabled={syncBusy !== null || !syncState?.linked}>
+                {syncBusy === "sync" ? "Syncing…" : "Sync now"}
+              </button>
+            </div>
+            <div className={styles.recovery}>
+              <label>
+                Recovery seed
+                <input
+                  aria-label="Recovery seed"
+                  value={recoverySeed}
+                  onChange={(event) => setRecoverySeed(event.currentTarget.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </label>
+              <button className={styles.importButton} type="button" onClick={() => void importSyncKit()} disabled={syncBusy !== null || recoverySeed.trim().length === 0}>
+                {syncBusy === "import" ? "Importing…" : "Import seed"}
+              </button>
+            </div>
+            {recoveryKit ? (
+              <div className={styles.recoveryKit} aria-label="Recovery kit">
+                <QRCodeSVG value={recoveryKit.qrPayload} size={192} level="M" marginSize={2} title="Switchback encrypted sync recovery QR code" />
+                <code>{recoveryKit.seed}</code>
+              </div>
+            ) : null}
+            <p className={styles.status}>{syncState?.linked ? "Device linked for encrypted sync." : "Device not linked. Sync stays disabled until passkey authentication succeeds."}</p>
+          </section>
+
+          <section className={styles.section} aria-labelledby="local-data-title">
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionIcon} aria-hidden="true"><HardDrives weight="bold" /></span>
+              <div>
+                <h3 id="local-data-title">Offline & local data</h3>
+                <p>Control map storage and your private preference-learning data without leaving the device-first workflow.</p>
+              </div>
+            </div>
+            <div className={styles.dataGrid}>
+              <button className={styles.dataAction} type="button" onClick={onOpenDownloads}>
+                <DownloadSimple weight="bold" aria-hidden="true" />
+                <strong>Offline regions</strong>
+              </button>
+              <button className={styles.dataAction} type="button" onClick={exportLearning} disabled={!onExportLearning}>
+                <HardDrives weight="bold" aria-hidden="true" />
+                <strong>Export learning</strong>
+              </button>
+              <button className={`${styles.dataAction} ${styles.dangerButton}`} type="button" onClick={resetLearning} disabled={!onResetLearning}>
+                <Trash weight="bold" aria-hidden="true" />
+                <strong>Reset learning</strong>
+              </button>
+            </div>
+          </section>
+
+          <section className={styles.section} aria-labelledby="diagnostics-title">
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionIcon} aria-hidden="true"><Wrench weight="bold" /></span>
+              <div>
+                <h3 id="diagnostics-title">Diagnostics</h3>
+                <p>Inspect local storage, service worker and provider health when something does not look right.</p>
+              </div>
+            </div>
+            <div className={styles.actions}>
+              <button className={styles.diagnosticsButton} type="button" aria-expanded={diagnosticsOpen} onClick={() => void openDiagnostics()}>
+                {diagnosticsOpen ? "Refresh diagnostics" : "Open diagnostics"}
+              </button>
+            </div>
+            {diagnosticsOpen ? (diagnostics ? <DiagnosticsPanel snapshot={diagnostics} /> : <p className={styles.status} role="status">Gathering diagnostics…</p>) : null}
+          </section>
+        </div>
+
+        {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
       </section>
-
-      <label className="profile-theme">
-        Theme
-        <select
-          aria-label="Theme"
-          value={theme}
-          onChange={(event) => onThemeChange(event.currentTarget.value as ThemePreference)}
-        >
-          <option value="auto">Auto</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
-
-      <button type="button" className="profile-diagnostics-toggle" onClick={() => void openDiagnostics()}>
-        Diagnostics
-      </button>
-
-      {diagnosticsOpen ? (diagnostics ? <DiagnosticsPanel snapshot={diagnostics} /> : <p role="status">Gathering diagnostics…</p>) : null}
-
-      {notice ? <p className="profile-notice" role="status">{notice}</p> : null}
-    </section>
+    </div>
   )
 }
