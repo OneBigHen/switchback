@@ -13,7 +13,7 @@
 }
 
 @media (max-width: 390px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
     }
 
@@ -161,7 +161,7 @@
 }
 
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
     }
 
@@ -695,7 +695,7 @@
 }
 
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       top: auto;
       right: 8px;
       bottom: max(8px, env(safe-area-inset-bottom));
@@ -730,7 +730,7 @@
 }
 
 @media (max-width: 390px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
     }
 
@@ -742,7 +742,7 @@
 /* The former sheet handle was decorative. The header chevron is now the real,
    keyboard-accessible minimize control. */
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       height: var(--sb-sheet-half-height);
     }
 
@@ -752,7 +752,7 @@
 }
 
 @media (max-width: 390px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       height: var(--sb-sheet-half-height);
     }
 }
@@ -816,7 +816,7 @@
 }
 
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       bottom: max(8px, env(safe-area-inset-bottom));
       max-height: var(--sb-sheet-half-height);
       height: auto;

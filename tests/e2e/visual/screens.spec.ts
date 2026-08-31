@@ -56,6 +56,20 @@ const VIEWPORTS = [
   { name: "tablet-landscape", width: 1024, height: 768 }
 ] as const
 
+// Idle Plan is intentionally checked at the named release viewports. The
+// other destination screens keep the compact CINCO matrix above; they should
+// not inherit seven extra captures just because the idle planner has a
+// different map-dominance contract.
+const PLAN_EMPTY_VIEWPORTS = [
+  { name: "320x700", width: 320, height: 700 },
+  { name: "390x844", width: 390, height: 844 },
+  { name: "430x932", width: 430, height: 932 },
+  { name: "768x1024", width: 768, height: 1024 },
+  { name: "1024x768", width: 1024, height: 768 },
+  { name: "1440x900", width: 1440, height: 900 },
+  { name: "1920x1080", width: 1920, height: 1080 }
+] as const
+
 async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<void> {
   await expect(locator).toBeVisible()
   const box = await locator.boundingBox()
@@ -67,6 +81,22 @@ async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<vo
 async function expectPlanReady(page: Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+}
+
+async function assertIdlePlanGeometry(page: Page, viewport: { width: number; height: number }): Promise<void> {
+  const panel = page.locator(".planner-deck")
+  const box = await panel.boundingBox()
+  expect(box).not.toBeNull()
+
+  // The idle composer is a content-sized prompt, not a half/full detent. Keep
+  // the map as the dominant workspace while retaining the existing expanded
+  // detents for Options and route results.
+  expect(box!.height).toBeLessThan(viewport!.height * 0.45)
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height)
+  if (viewport!.width > 760 && viewport!.width <= 800 && viewport!.height >= 900) {
+    expect(box!.width).toBe(360)
+  }
 }
 
 async function ensureStart(page: Page): Promise<void> {
@@ -99,18 +129,6 @@ async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.name} viewport`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } })
-
-    test("Plan screen (empty)", async ({ page }) => {
-      await installPlannerServices(page)
-      await page.goto("/")
-      if (viewport.name === "mobile") {
-        await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
-      } else {
-        await expectPlanReady(page)
-      }
-      await assertPanelVisible(page.locator(".planner-deck"), viewport.name === "mobile" ? 100 : 200)
-      await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
-    })
 
     test("Plan screen (route result)", async ({ page }) => {
       await installPlannerServices(page)
@@ -164,6 +182,26 @@ for (const viewport of VIEWPORTS) {
       await assertPanelVisible(panel)
       await expect(page.getByRole("region", { name: /Ride (mode|preview) for/ })).toBeVisible()
       await expect(page).toHaveScreenshot(`ride-hud-${viewport.name}.png`, screenshotOptions(page))
+    })
+  })
+}
+
+for (const viewport of PLAN_EMPTY_VIEWPORTS) {
+  test.describe(`Plan empty ${viewport.name}`, () => {
+    test.use({ viewport: { width: viewport.width, height: viewport.height } })
+
+    test("Plan screen (empty)", async ({ page }) => {
+      await installPlannerServices(page)
+      await page.goto("/")
+      if (viewport.width <= 760) {
+        await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
+      } else {
+        await expectPlanReady(page)
+      }
+      await assertPanelVisible(page.locator(".planner-deck"), 0)
+      await expect(page.locator(".planner-deck")).toHaveClass(/is-idle-plan/)
+      await assertIdlePlanGeometry(page, viewport)
+      await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
   })
 }

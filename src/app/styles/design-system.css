@@ -9,6 +9,7 @@
   --sb-mobile-nav-gap: 16px;
   --sb-mobile-sheet-bottom: calc(var(--sb-mobile-nav-height) + var(--sb-mobile-nav-gap) + env(safe-area-inset-bottom));
   --sb-sheet-peek-height: 146px;
+  --sb-sheet-idle-height: 300px;
   --sb-sheet-half-height: min(50dvh, 560px);
   --sb-sheet-full-height: min(88dvh, calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-2)));
   --sb-sheet-dock-height: 82px;
@@ -67,6 +68,24 @@ h6,
 .planner-shell .sb-bottom-sheet {
   transition: transform var(--sb-motion-sheet), opacity var(--sb-motion-sheet),
     filter var(--sb-motion-sheet);
+}
+
+/* The initial Plan prompt is a content-sized instrument. Detents remain the
+   layout contract for Options and route results, but an empty prompt must not
+   reserve a half/full viewport of blank Paper over the map. */
+.planner-shell .planner-deck.is-idle-plan {
+  top: 20px;
+  right: auto;
+  bottom: auto;
+  left: 96px;
+  width: min(456px, calc(100vw - 112px));
+  height: auto;
+  max-height: calc(100dvh - 40px);
+}
+
+.planner-shell .planner-deck.is-idle-plan .planner-scroll {
+  height: auto;
+  overflow-y: visible;
 }
 
 :root[data-theme="dark"] .planner-shell .sb-bottom-sheet {
@@ -132,6 +151,10 @@ h6,
     --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-full-height) + var(--sb-space-2));
   }
 
+  .planner-shell:has(.planner-deck.is-idle-plan) {
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-idle-height) + var(--sb-space-2));
+  }
+
   /* Phone nav geometry lives in shell-v2.css. */
 
   .planner-shell .sb-bottom-sheet {
@@ -143,6 +166,21 @@ h6,
     max-height: var(--sb-sheet-half-height);
     border-radius: var(--sb-radius-sheet) var(--sb-radius-sheet) 18px 18px;
     box-shadow: var(--sb-shadow);
+  }
+
+  .planner-shell .planner-deck.is-idle-plan {
+    top: auto;
+    right: var(--sb-mobile-edge);
+    bottom: var(--sb-mobile-sheet-bottom);
+    left: var(--sb-mobile-edge);
+    width: auto;
+    height: auto;
+    max-height: calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4));
+  }
+
+  .planner-shell .planner-deck.is-idle-plan .planner-scroll {
+    height: auto;
+    overflow-y: visible;
   }
 
   .planner-shell .sb-bottom-sheet:not(.is-minimized) {
@@ -284,6 +322,21 @@ h6,
 
   .planner-shell .map-tool-row .map-layers-button > span:last-child {
     display: none;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1024px) and (orientation: portrait) {
+  .planner-shell .planner-deck.is-idle-plan {
+    width: min(360px, calc(100vw - 112px));
+  }
+}
+
+/* Playwright's desktop project keeps its screen orientation independent from
+   the named viewport. Match the narrow portrait geometry by dimensions too,
+   so a 768x1024 browser cannot fall back to the wide desktop rail. */
+@media (min-width: 761px) and (max-width: 800px) and (min-height: 900px) {
+  .planner-shell .planner-deck.is-idle-plan {
+    width: min(360px, calc(100vw - 112px));
   }
 }
 

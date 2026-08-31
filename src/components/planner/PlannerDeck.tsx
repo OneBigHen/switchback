@@ -147,6 +147,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const sheetDetent = sheetDetentOverride ?? "half"
   const minimized = sheetDetent === "peek"
   const [editing, setEditing] = useState(false)
+  const isIdlePlan = !selectedRoute && !editing && ui.routesCount === 0
   const [roadLocksOpen, setRoadLocksOpen] = useState(false)
   const [offlinePackOpen, setOfflinePackOpen] = useState(false)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
@@ -237,7 +238,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   return (
     <ContextSheet
       id="planner-sheet"
-      className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
+      className={`planner-deck sb-bottom-sheet${isIdlePlan ? " is-idle-plan" : ""}${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
       detent={sheetDetent}
       onDetentChange={setSheetDetentOverride}
       label="Motorcycle route planner"

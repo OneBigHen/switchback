@@ -548,14 +548,12 @@
     bottom: var(--sb-mobile-sheet-bottom);
     left: 8px;
     width: auto;
-    height: var(--sb-sheet-half-height);
-    max-height: var(--sb-sheet-half-height);
     border-radius: 24px;
   }
 
   /* Half detent: ~50% of content height (spec 45–55%), keeping the map the
      primary canvas above the sheet. */
-  .planner-deck:not(.is-minimized) {
+  .planner-deck:not(.is-idle-plan):not(.is-minimized) {
     height: var(--sb-sheet-half-height);
     max-height: var(--sb-sheet-half-height);
   }
