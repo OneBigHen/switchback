@@ -1,4 +1,4 @@
-export type PrimaryDestination = "plan" | "rides" | "discover"
+export type PrimaryDestination = "plan" | "rides" | "discover" | "settings"
 
 export type AppMode = "explore" | "plan" | "ride" | "library"
 
@@ -13,7 +13,6 @@ export function appModeForState(input: {
 }
 
 export type AppOverlay =
-  | "settings"
   | "record"
   | "route-details"
   | "weather"
@@ -49,7 +48,7 @@ export type AppNavigationAction =
  * V2 destinations reachable through the ?tab= URL parameter. Legacy V1 tab
  * values are migrated by `destinationFromLocation`, never reintroduced here.
  */
-const DESTINATIONS_FROM_URL: ReadonlyArray<PrimaryDestination> = ["rides", "discover"]
+const DESTINATIONS_FROM_URL: ReadonlyArray<PrimaryDestination> = ["rides", "discover", "settings"]
 
 export interface LocationDestination {
   destination: PrimaryDestination
@@ -60,14 +59,14 @@ export interface LocationDestination {
  * Derive the V2 navigation state from a ?tab= URL parameter (deep links,
  * reloads, browser Back). Legacy V1 tabs migrate rather than break:
  * - ?tab=library → the Rides destination
- * - ?tab=profile → Plan with the settings overlay open
+ * - ?tab=profile → the Settings destination
  * - ?tab=record  → Plan; recording is an activity and never auto-starts
  */
 export function destinationFromLocation(url: string): LocationDestination {
   try {
     const tab = new URL(url).searchParams.get("tab")
     if (tab === "library") return { destination: "rides", overlays: [] }
-    if (tab === "profile") return { destination: "plan", overlays: ["settings"] }
+    if (tab === "profile") return { destination: "settings", overlays: [] }
     if (DESTINATIONS_FROM_URL.includes(tab as PrimaryDestination)) {
       return { destination: tab as PrimaryDestination, overlays: [] }
     }
@@ -88,9 +87,8 @@ export function appNavigationReducer(
   switch (action.type) {
     case "select_destination": {
       if (action.destination === state.destination) {
-        // Re-selecting the active destination dismisses overlay panels
-        // (e.g. a legacy ?tab=profile deep link leaves Settings open on
-        // Plan; tapping Plan returns the rider to the map).
+        // Re-selecting the active destination dismisses task overlays while
+        // keeping the rider on the same top-level surface.
         return state.overlays.length > 0 ? { ...state, overlays: [] } : state
       }
       return {
