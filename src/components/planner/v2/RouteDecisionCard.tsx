@@ -26,8 +26,11 @@ export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): 
   if (route.durationMinutes === fastestMinutes) return "Fastest Now"
 
   const maxTwistiness = Math.max(...routes.map((candidate) => candidate.twistiness))
-  if (route.twistiness === maxTwistiness && route.twistiness >= 70) return "Maximum Twisties"
+  if (route.profile === "twisty" && route.twistiness === maxTwistiness && route.twistiness >= 70) {
+    return "Maximum Twisties"
+  }
   if (route.profile === "scenic" || route.profile === "adventure" || route.profile === "gravel") return "Best Ride"
+  if (route.twistiness === maxTwistiness && route.twistiness >= 70) return "Maximum Twisties"
   return "Fast & Fun"
 }
 
