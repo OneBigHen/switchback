@@ -64,6 +64,11 @@ async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<vo
   expect(box!.height).toBeGreaterThan(minHeight)
 }
 
+async function expectPlanReady(page: Page): Promise<void> {
+  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+}
+
 async function ensureStart(page: Page): Promise<void> {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if ((await start.inputValue()).length === 0) {
@@ -83,7 +88,7 @@ async function chooseFixtureFinish(page: Page): Promise<void> {
 async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
   await expandPhonePlanner(page)
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expectPlanReady(page)
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
@@ -101,7 +106,7 @@ for (const viewport of VIEWPORTS) {
       if (viewport.name === "mobile") {
         await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
       } else {
-        await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+        await expectPlanReady(page)
       }
       await assertPanelVisible(page.locator(".planner-deck"), viewport.name === "mobile" ? 100 : 200)
       await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
