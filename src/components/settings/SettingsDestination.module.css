@@ -152,8 +152,9 @@
 }
 
 .switchControl input:focus-visible + span {
-  outline: 3px solid var(--sb-focus-fill);
+  outline: 2px solid var(--sb-focus-ring);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--sb-focus-fill);
 }
 
 .advanced {
@@ -210,8 +211,9 @@
 }
 
 .advanced button:focus-visible {
-  outline: 3px solid var(--sb-focus-fill);
+  outline: 2px solid var(--sb-focus-ring);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--sb-focus-fill);
 }
 
 @media (max-width: 760px) {
@@ -226,6 +228,14 @@
 
   .sectionHeader p {
     display: none;
+  }
+
+  /* Keep iOS Safari from auto-zooming the viewport when a rider edits a
+     setting. The 16px floor is intentionally phone-only so desktop density is
+     unchanged. */
+  .rows input:not([type="checkbox"]),
+  .rows select {
+    font-size: 16px;
   }
 
   .advanced {
