@@ -1,84 +1,110 @@
 .surface {
   display: grid;
-  gap: 18px;
-  width: 100%;
+  width: min(100%, 1120px);
   min-width: 0;
+  gap: 24px;
+  margin: 0 auto;
   color: var(--sb-text);
-}
-
-.header {
-  display: grid;
-  gap: 2px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--sb-border);
-}
-
-.header span {
-  color: var(--sb-ember-strong);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.header h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(26px, 4vw, 36px);
-  font-weight: 600;
-  line-height: 1;
 }
 
 .bikeSection {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
-.bikeSection > header {
+.sectionHeading {
   display: flex;
-  align-items: baseline;
+  align-items: end;
   justify-content: space-between;
-  gap: 8px;
+  gap: 20px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 76%, transparent);
 }
 
-.bikeSection > header strong {
+.sectionHeading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.sectionHeading span {
+  color: var(--sb-ember-strong);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  color: var(--sb-text);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 600;
+  line-height: 1;
 }
 
-.bikeSection > header small {
+.sectionHeading small {
+  max-width: 430px;
   color: var(--sb-text-muted);
   font-size: 10px;
+  line-height: 1.45;
+  text-align: right;
 }
 
 .bikeCard {
+  position: relative;
   display: grid;
-  min-height: 82px;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
+  min-height: 132px;
+  grid-template-columns: minmax(230px, 1.15fr) minmax(260px, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 11px;
-  border: 1px solid var(--sb-border);
-  border-radius: 12px;
-  background: var(--sb-paper);
-  box-shadow: 0 3px 12px rgb(22 29 28 / 8%);
+  gap: 24px;
+  overflow: hidden;
+  padding: 20px 22px;
+  border: 1px solid color-mix(in srgb, var(--sb-border) 82%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(112deg, var(--sb-paper) 0 62%, color-mix(in srgb, var(--sb-spruce) 9%, var(--sb-paper)) 100%);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--sb-ink) 7%, transparent);
+}
+
+.bikeCard::after {
+  position: absolute;
+  right: -34px;
+  bottom: -54px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid color-mix(in srgb, var(--sb-topo-sage, var(--sb-border)) 48%, transparent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 18px color-mix(in srgb, var(--sb-topo-sage, var(--sb-border)) 8%, transparent),
+    0 0 0 38px color-mix(in srgb, var(--sb-topo-sage, var(--sb-border)) 5%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.bikeIdentityBlock {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
 }
 
 .bikeIcon {
   display: inline-flex;
-  width: 46px;
-  height: 46px;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 15px;
   background: var(--sb-spruce);
   color: var(--sb-paper);
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--sb-ink) 18%, transparent);
 }
 
 .bikeIcon svg {
-  width: 25px;
-  height: 25px;
+  width: 31px;
+  height: 31px;
 }
 
 .bikeIdentity {
@@ -87,81 +113,177 @@
   gap: 2px;
 }
 
+.bikeIdentity small {
+  color: var(--sb-text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .bikeIdentity strong {
   overflow: hidden;
+  color: var(--sb-text);
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: clamp(22px, 3vw, 28px);
   font-weight: 600;
+  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .bikeIdentity span {
-  color: var(--sb-text);
-  font-size: 12px;
+  color: var(--sb-text-muted);
+  font-size: 11px;
   font-weight: 700;
 }
 
-.bikeIdentity small {
-  color: var(--sb-text-muted);
-  font-size: 10px;
+.bikeMetrics {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.75fr) minmax(150px, 1.25fr);
+  gap: 8px;
 }
 
-.bikeCard button,
-.changeBike {
+.bikeMetrics > span {
+  display: grid;
+  min-height: 72px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-content: center;
+  gap: 1px 8px;
+  padding: 9px 11px;
+  border-left: 1px solid color-mix(in srgb, var(--sb-border) 76%, transparent);
+}
+
+.bikeMetrics svg {
+  grid-row: 1 / 3;
+  width: 18px;
+  height: 18px;
+  align-self: center;
+  color: var(--sb-ember-strong);
+}
+
+.bikeMetrics b {
+  overflow: hidden;
+  color: var(--sb-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bikeMetrics small {
+  color: var(--sb-text-muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.bikeActions {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 104px;
+  gap: 7px;
+}
+
+.bikeActions button {
+  display: inline-flex;
   min-height: 44px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-chip, 8px);
-  background: var(--sb-surface-raised);
-  color: var(--sb-text-link);
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border-radius: 9px;
   cursor: pointer;
   font: inherit;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 800;
 }
 
-.bikeCard button {
-  padding: 0 11px;
+.primaryAction {
+  border: 1px solid var(--sb-ink);
+  background: var(--sb-ink);
+  color: var(--sb-paper);
 }
 
-.changeBike {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 12px;
-  background: transparent;
+.secondaryAction {
+  border: 1px solid var(--sb-border);
+  background: color-mix(in srgb, var(--sb-paper) 90%, transparent);
+  color: var(--sb-text-link);
 }
 
-.changeBike svg {
-  width: 16px;
-  height: 16px;
+.secondaryAction svg {
+  width: 15px;
+  height: 15px;
 }
 
-.bikeCard button:focus-visible,
-.changeBike:focus-visible {
+.bikeActions button:focus-visible {
   outline: 3px solid var(--sb-focus-fill);
   outline-offset: 2px;
 }
 
 .sections {
   display: grid;
-  gap: 18px;
-  padding-top: 2px;
+  gap: 24px;
 }
 
-@media (max-width: 520px) {
-  .bikeSection > header small {
+@media (max-width: 880px) {
+  .bikeCard {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .bikeMetrics {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 620px) {
+  .surface {
+    gap: 20px;
+  }
+
+  .sectionHeading small {
     display: none;
   }
 
   .bikeCard {
-    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 17px;
+  }
+
+  .bikeMetrics {
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bikeMetrics > span {
+    min-height: 60px;
+    padding-left: 8px;
+  }
+
+  .bikeActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 380px) {
+  .bikeIdentityBlock {
+    gap: 10px;
   }
 
   .bikeIcon {
-    width: 42px;
-    height: 42px;
+    width: 50px;
+    height: 50px;
+    flex-basis: 50px;
+  }
+
+  .bikeIdentity strong {
+    font-size: 21px;
+  }
+
+  .bikeMetrics {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
