@@ -174,7 +174,15 @@ describe("V2 compact Plan composer", () => {
 
   it("keeps ride-request submission locked while intent interpretation is active", async () => {
     const user = userEvent.setup()
-    renderComposer({ intent: { intentStatus: "interpreting" } })
+    renderComposer({
+      intent: {
+        intentStatus: "interpreting",
+        intentSummary: null,
+        stopIdeas: null,
+        researchStatus: "idle",
+        researchSources: []
+      }
+    })
 
     const input = screen.getByPlaceholderText("Search a place or describe a ride")
     await user.type(input, "A scenic ride to a river overlook")
