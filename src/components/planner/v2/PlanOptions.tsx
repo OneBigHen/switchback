@@ -1,7 +1,7 @@
 "use client"
 
 import { CaretDown, CaretUp, Clock, LockSimple, Plus, X } from "@phosphor-icons/react"
-import { useEffect, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import { listProfiles } from "@/lib/routing/profiles"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
@@ -121,10 +121,6 @@ export function PlanOptions({
   const targetIsPreset = LOOP_DURATION_PRESETS.includes(targetMinutes as (typeof LOOP_DURATION_PRESETS)[number])
   const [customTimingOpen, setCustomTimingOpen] = useState(!targetIsPreset)
   const [customMinutes, setCustomMinutes] = useState(String(targetMinutes))
-
-  useEffect(() => {
-    if (!customTimingOpen) setCustomMinutes(String(targetMinutes))
-  }, [customTimingOpen, targetMinutes])
 
   const choosePreset = (minutes: number) => {
     setCustomTimingOpen(false)
