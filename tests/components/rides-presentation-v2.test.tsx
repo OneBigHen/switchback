@@ -13,14 +13,14 @@ const items: RideLibraryItem[] = [
 afterEach(cleanup)
 
 describe("Rides V2 presentation", () => {
-  it("shows source counts in the filter controls and generated route identity graphics", () => {
+  it("shows source counts in accessible filter controls and generated route identity graphics", () => {
     const { container } = render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 
-    expect(screen.getByRole("tab", { name: /All 4/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /Planned 1/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /Recorded 1/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /Trips 1/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /Imported 1/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /All 4/i })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: /Planned 1/i })).toHaveAttribute("aria-pressed", "false")
+    expect(screen.getByRole("button", { name: /Recorded 1/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Trips 1/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Imported 1/i })).toBeInTheDocument()
     expect(container.querySelectorAll("[data-route-graphic]").length).toBeGreaterThanOrEqual(5)
   })
 

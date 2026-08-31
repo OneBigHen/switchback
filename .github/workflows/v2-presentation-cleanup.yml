@@ -45,11 +45,17 @@ jobs:
               text = text.replace(retired, '', 1)
           text = text.replace('// V2 shell chrome (primary navigation, settings launcher, discover\n', '// V2 shell chrome (primary navigation and destination framing; discover\n')
           layout.write_text(text)
+
+          rides_css = Path('src/components/rides/RidesSurface.module.css')
+          text = rides_css.read_text()
+          if '[aria-selected="true"]' not in text:
+              raise SystemExit('expected legacy filter selector missing')
+          rides_css.write_text(text.replace('[aria-selected="true"]', '[aria-pressed="true"]'))
           PY
           rm src/app/styles/library-drawer.css src/app/styles/profile-panel.css
       - run: npm ci
       - name: Verify focused presentation contracts
-        run: npx vitest run tests/components/rides-presentation-v2.test.tsx tests/components/library-drawer.test.tsx tests/components/library-drawer-road-locks.test.tsx tests/components/v2-presentation-primitives.test.tsx tests/components/settings-destination.test.tsx tests/components/settings-shell-authority.test.ts tests/components/profile-panel-v2.test.ts tests/components/app-navigation.test.tsx tests/unit/app-navigation.test.ts
+        run: npx vitest run tests/components/rides-presentation-v2.test.tsx tests/components/library-drawer.test.tsx tests/components/library-drawer-road-locks.test.tsx tests/components/v2-presentation-primitives.test.tsx tests/components/settings-destination.test.tsx tests/components/settings-shell-authority.test.ts tests/components/profile-panel-v2.test.ts tests/components/profile-panel.test.tsx tests/components/app-navigation.test.tsx tests/unit/app-navigation.test.ts
       - name: Verify repository
         run: npm run verify
       - name: Commit verified cleanup

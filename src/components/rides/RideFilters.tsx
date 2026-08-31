@@ -4,7 +4,6 @@ import { MagnifyingGlass } from "@phosphor-icons/react"
 import styles from "./RidesSurface.module.css"
 
 export type RideFilter = "all" | "planned" | "recorded" | "trips" | "imported"
-
 export type RideFilterCounts = Record<RideFilter, number>
 
 const FILTERS: ReadonlyArray<{ id: RideFilter; label: string }> = [
@@ -37,13 +36,12 @@ export function RideFilters({ value, query, counts, onChange, onQueryChange }: R
           onChange={(event) => onQueryChange(event.currentTarget.value)}
         />
       </label>
-      <div className={styles.tabs} role="tablist" aria-label="Ride types">
+      <div className={styles.tabs} role="group" aria-label="Ride types">
         {FILTERS.map((filter) => (
           <button
             key={filter.id}
             type="button"
-            role="tab"
-            aria-selected={filter.id === value}
+            aria-pressed={filter.id === value}
             aria-label={`${filter.label} ${counts[filter.id]}`}
             onClick={() => onChange(filter.id)}
           >
