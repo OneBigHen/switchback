@@ -15,13 +15,12 @@ import { installPlannerServices, makeRoute } from "../../helpers/planner-fixture
 import {
   captureMobileQaScreenshot,
   expectOfflineBrowserState,
-  openLocalRouteForOffline,
   readSavedRouteName,
   savedRouteSeed,
   seedSavedRoute
 } from "../persistence-mobile-states"
 
-test("offline keeps the local library honest and recovers online without rerouting", async ({ page, mobileQa }, testInfo) => {
+test("offline keeps the local Rides destination honest and recovers online without rerouting", async ({ page, mobileQa }, testInfo) => {
   const route = savedRouteSeed(makeRoute("balanced", { id: "mobile-offline-local", name: "Offline local route" }))
   await installPlannerServices(page)
   await seedSavedRoute(page, route)
@@ -30,12 +29,13 @@ test("offline keeps the local library honest and recovers online without rerouti
   await expectMobileAppReady(page)
   await page.getByRole("button", { name: "Rides", exact: true }).tap()
   await expect(page).toHaveURL(/tab=rides/)
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
-  await expect(page.getByText(route.name).first()).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  const localRoute = page.getByRole("button", { name: `Open ${route.name}` })
+  await expect(localRoute).toBeVisible()
   await mobileQa.setNetwork("offline")
   await expectOfflineBrowserState(page)
-  await expect(page.getByText("On this device")).toBeVisible()
-  await openLocalRouteForOffline(page, route.name)
+  await expect(localRoute).toBeVisible()
+  await localRoute.tap()
   await expect(page.getByText(route.name).first()).toBeVisible()
   await expect(page.getByText("Route unavailable")).toBeHidden()
   await captureMobileQaScreenshot(page, testInfo, "offline-local-library")
