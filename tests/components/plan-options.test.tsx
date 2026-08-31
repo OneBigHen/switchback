@@ -234,4 +234,20 @@ describe("V2 progressive Plan Options", () => {
     await user.click(screen.getByRole("button", { name: "Options" }))
     expect(screen.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
   })
+
+  it("offers a Custom loop duration inside Options", async () => {
+    const user = userEvent.setup()
+    const onTargetMinutesChange = vi.fn()
+    renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onTargetMinutesChange } })
+
+    expect(screen.queryByRole("button", { name: "Custom" })).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Custom" }))
+
+    const input = screen.getByRole("spinbutton", { name: "Custom loop duration in minutes" })
+    await user.clear(input)
+    await user.type(input, "150")
+
+    expect(onTargetMinutesChange).toHaveBeenLastCalledWith(150)
+  })
 })
