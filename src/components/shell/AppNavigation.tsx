@@ -1,8 +1,7 @@
 "use client"
 
-import { Compass, MapTrifold, Path, Record } from "@phosphor-icons/react"
+import { Compass, GearSix, MapTrifold, Path, Record } from "@phosphor-icons/react"
 import type { PrimaryDestination } from "@/lib/client/app-navigation"
-import { SettingsLauncher } from "./SettingsLauncher"
 
 const destinations: Array<{
   destination: PrimaryDestination
@@ -11,26 +10,25 @@ const destinations: Array<{
 }> = [
   { destination: "plan", label: "Plan", icon: MapTrifold },
   { destination: "rides", label: "Rides", icon: Path },
-  { destination: "discover", label: "Discover", icon: Compass }
+  { destination: "discover", label: "Discover", icon: Compass },
+  { destination: "settings", label: "Settings", icon: GearSix }
 ]
 
 interface AppNavigationProps {
   activeDestination: PrimaryDestination
   onSelect(destination: PrimaryDestination): void
   onOpenRecord(): void
-  onOpenSettings(): void
 }
 
 /**
- * Primary navigation: exactly the three V2 destinations. Recording is an
- * activity and Settings a secondary launcher — both live in the secondary
- * cluster and never appear as primary items.
+ * Primary navigation owns Switchback's four persistent destinations. Record is
+ * intentionally separate because it starts a task rather than changing the
+ * rider's top-level place in the application.
  */
 export function AppNavigation({
   activeDestination,
   onSelect,
-  onOpenRecord,
-  onOpenSettings
+  onOpenRecord
 }: AppNavigationProps) {
   return (
     <nav className="app-navigation" aria-label="Primary">
@@ -62,7 +60,6 @@ export function AppNavigation({
           <Record aria-hidden="true" />
           <span>Record</span>
         </button>
-        <SettingsLauncher onOpen={onOpenSettings} />
       </div>
     </nav>
   )
