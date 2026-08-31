@@ -130,8 +130,9 @@
 .tabs button:focus-visible,
 .row button:focus-visible,
 .management input:focus-visible {
-  outline: 3px solid var(--sb-focus-fill);
+  outline: 2px solid var(--sb-focus-ring);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--sb-focus-fill);
 }
 
 .summary {
@@ -226,7 +227,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--sb-paper) 88%, transparent);
   color: var(--sb-ink);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -310,7 +311,7 @@
 .metrics small {
   grid-column: 1 / -1;
   color: var(--sb-text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .openButton > svg {
@@ -459,6 +460,13 @@
 
   .summary small {
     display: none;
+  }
+
+  /* iOS Safari zooms the viewport when text inputs are below 16px. Keep the
+     touch interaction stable without changing desktop information density. */
+  .search input,
+  .organization input {
+    font-size: 16px;
   }
 
   .openButton {
