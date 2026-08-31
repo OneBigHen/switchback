@@ -12,13 +12,18 @@ import { expandPhonePlanner, installPlannerServices, installRouteApi, openPlanne
 import { settleMapDelay } from "../../helpers/ux-state-fixtures"
 import { expectOnlyDeliberateNetworkFailures } from "../persistence-mobile-states"
 
+async function expectIdleComposer(page: import("@playwright/test").Page): Promise<void> {
+  await expandPhonePlanner(page)
+  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+}
+
 test.describe("mobile planner Level A core states", () => {
   test("starts from a deterministic fresh planning state", async ({ page }, testInfo) => {
     await installPlannerServices(page)
     await page.goto("/")
     await settleMapDelay(page)
-    await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toBeVisible()
-    await expect(page.getByRole("textbox", { name: "Where do you want to ride?" })).toBeVisible()
+    await expectIdleComposer(page)
     await capturePlannerState(page, testInfo, "plan-fresh")
     await expectMobilePlannerContracts(page)
     expectCleanRuntime(page)
@@ -30,7 +35,8 @@ test.describe("mobile planner Level A core states", () => {
     await expect(page.getByRole("button", { name: "Reading the roads…" })).toBeVisible()
     await capturePlannerState(page, testInfo, "route-loading")
     await held.release()
-    await expect(page.getByRole("heading", { name: "Choose a route" })).toBeVisible()
+    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Pick the ride, not the algorithm." })).toBeVisible()
     expectCleanRuntime(page)
   })
 
@@ -43,62 +49,39 @@ test.describe("mobile planner Level A core states", () => {
     }))
     await page.goto("/")
     await expect(page.locator(".map-error")).toContainText("base map could not load", { timeout: 15_000 })
-    await expect(page.getByRole("textbox", { name: "Where do you want to ride?" })).toBeVisible()
+    await expectIdleComposer(page)
     await capturePlannerState(page, testInfo, "map-provider-failure")
     expectOnlyDeliberateNetworkFailures(mobileQa.runtimeIssues, { host: "tiles.openfreemap.org", pathname: "/styles/positron", status: 503 })
   })
 
-  test("renders three route cards in Choose without implying selection", async ({ page }, testInfo) => {
+  test("renders three V2 route decision cards without implying rider selection", async ({ page }, testInfo) => {
     await planFixtureRoute(page, readableRouteSet())
-    const cards = page.getByRole("button", { name: /^Select / })
+    const choices = page.getByRole("region", { name: "Route choices" })
+    const cards = choices.getByRole("button", { name: /^Select / })
     await expect(cards).toHaveCount(3)
-    await expect(page.getByRole("heading", { name: "Choose a route" })).toBeVisible()
-    await expect(page.getByLabel("Planning stage: Choose")).toBeVisible()
-    await expect(page.locator(".route-selection-identity")).toHaveCount(0)
-    await expect(page.getByRole("status")).toContainText("Choose a route above")
+    await expect(choices.getByRole("heading", { name: "Pick the ride, not the algorithm." })).toBeVisible()
     await expect(cards.first()).toHaveAttribute("aria-pressed", "false")
     await cards.first().tap()
     await expect(cards.first()).toHaveAttribute("aria-pressed", "true")
-    await expect(page.locator(".route-selection-identity")).toContainText("Twisty prepare route")
+    await expect(choices.getByRole("article").first()).toHaveAttribute("data-selected", "true")
     await capturePlannerState(page, testInfo, "choose-three")
     await expectMobilePlannerContracts(page)
     expectCleanRuntime(page)
   })
 
-  test("records a real tap selection and keeps the selected route identity reachable", async ({ page }, testInfo) => {
+  test("records a real tap selection and keeps the selected route reachable", async ({ page }, testInfo) => {
     await planFixtureRoute(page, readableRouteSet())
-    const selected = page.getByRole("button", { name: "Select Scenic prepare route" })
+    const choices = page.getByRole("region", { name: "Route choices" })
+    const scenicCard = choices.getByRole("article").filter({ hasText: "Scenic prepare route" })
+    const selected = scenicCard.getByRole("button", { name: /^Select / })
     await selected.tap()
     await expect(selected).toHaveAttribute("aria-pressed", "true")
-    await expect(page.getByLabel("Planning stage: Prepare")).toBeVisible()
-    const identity = page.locator(".route-selection-identity")
-    await expect(identity).toContainText("Scenic prepare route")
-    const expectIdentityInPlannerScroll = async () => {
-      const geometry = await page.evaluate(() => {
-        const identity = document.querySelector<HTMLElement>(".route-selection-identity")
-        const scroll = document.querySelector<HTMLElement>(".planner-scroll")
-        if (!identity || !scroll) throw new Error("selected route identity scroll nodes are missing")
-        const identityBox = identity.getBoundingClientRect()
-        const scrollBox = scroll.getBoundingClientRect()
-        return {
-          identityTop: identityBox.top,
-          identityBottom: identityBox.bottom,
-          scrollTop: scrollBox.top,
-          scrollBottom: scrollBox.bottom,
-        }
-      })
-      expect(geometry.identityTop).toBeGreaterThanOrEqual(geometry.scrollTop - 1)
-      expect(geometry.identityBottom).toBeLessThanOrEqual(geometry.scrollBottom + 1)
-    }
-    await expectIdentityInPlannerScroll()
-    await page.getByRole("button", { name: "Edit route" }).tap()
-    await expect(page.getByRole("button", { name: "Hide route editor" })).toBeVisible()
-    await expectIdentityInPlannerScroll()
+    await expect(scenicCard).toHaveAttribute("data-selected", "true")
+    await expect(scenicCard.getByText("Scenic prepare route", { exact: true })).toBeVisible()
     await page.getByRole("button", { name: "Minimize planner" }).tap()
     await expect(page.getByRole("button", { name: "Expand planner" })).toContainText("Scenic prepare route")
     await page.getByRole("button", { name: "Expand planner" }).tap()
-    await expect(identity).toContainText("Scenic prepare route")
-    await expectIdentityInPlannerScroll()
+    await expect(choices.getByText("Scenic prepare route", { exact: true })).toBeVisible()
     await capturePlannerState(page, testInfo, "route-selected")
     await expectMobilePlannerContracts(page)
     expectCleanRuntime(page)
@@ -125,7 +108,6 @@ test.describe("mobile planner Level A core states", () => {
       body: JSON.stringify({ error: { code: "PROVIDER_UNAVAILABLE", message: "The route service is temporarily unavailable. Try again in a moment." } }),
     }))
     await page.goto("/")
-    await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toBeVisible()
     await expandPhonePlanner(page)
     await openPlannerEditor(page)
     await submitFixturePlan(page)
@@ -142,7 +124,7 @@ test.describe("mobile planner Level A core states", () => {
     await installPlannerServices(page)
     await page.goto("/")
     await expandPhonePlanner(page)
-    const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
+    const prompt = page.getByRole("textbox", { name: "Ride request" })
     await prompt.tap()
     await page.keyboard.type("A scenic ride")
     await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
@@ -163,9 +145,9 @@ test.describe("mobile planner Level A core states", () => {
     await openPlannerEditor(page)
     await submitFixturePlan(page)
     await expect.poll(() => capture.requests.length).toBeGreaterThan(0)
-    await expect(page.locator(".route-rack")).toBeHidden()
+    await expect(page.getByRole("region", { name: "Route choices" })).toHaveCount(0)
     await expect(page.getByRole("button", { name: /^Select / })).toHaveCount(0)
-    await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
     await expect(page.getByRole("status", { name: "Ride planning progress" })).toBeHidden()
     await capturePlannerState(page, testInfo, "empty-no-results")
     await expectMobilePlannerContracts(page)
@@ -180,7 +162,7 @@ test.describe("mobile planner theme coverage", () => {
     await installPlannerServices(page)
     await page.goto("/")
     await settleMapDelay(page)
-    await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toBeVisible()
+    await expectIdleComposer(page)
     await capturePlannerState(page, testInfo, "plan-dark")
     await expectMobilePlannerContracts(page)
     expectCleanRuntime(page)
