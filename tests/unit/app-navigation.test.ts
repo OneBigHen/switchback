@@ -71,6 +71,14 @@ describe("typed application navigation", () => {
     expect(twice.overlays).toEqual(["advanced-settings"])
   })
 
+  it("replaces advanced settings when region downloads opens", () => {
+    const initial = createInitialAppNavigationState("dark")
+    const advanced = appNavigationReducer(initial, { type: "open_overlay", overlay: "advanced-settings" })
+    const downloads = appNavigationReducer(advanced, { type: "open_overlay", overlay: "downloads" })
+
+    expect(downloads.overlays).toEqual(["downloads"])
+  })
+
   it("closes overlays with back before changing destination", () => {
     const initial = createInitialAppNavigationState("auto")
     const rides = appNavigationReducer(initial, { type: "select_destination", destination: "rides" })

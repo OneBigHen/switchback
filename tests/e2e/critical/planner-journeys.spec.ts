@@ -113,7 +113,7 @@ test("destination planning sends the selected points and displays the final rout
   await planDirectRoute(page, capture)
 
   expect(capture.requests[0]).toMatchObject({
-    profile: "twisty",
+    profile: "balanced",
     points: [
       { lat: 40.2732, lon: -76.8867 },
       { lat: FIXTURE_FINISH.lat, lon: FIXTURE_FINISH.lon }

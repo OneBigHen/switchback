@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   RIDER_SETTINGS_VERSION,
+  bikeProfileFromRiderSettings,
   defaultRiderUiPreferences,
   migrateStoredRiderSettings,
   validateRiderUiPreferences
@@ -64,5 +65,18 @@ describe("Rider settings V2 migration", () => {
     expect(validated.routeDetailOrder.slice(0, 3)).toEqual(["weather", "overview", "actions"])
     expect(new Set(validated.routeDetailOrder).size).toBe(validated.routeDetailOrder.length)
     expect(validated.hiddenRouteDetailModules).toEqual(["weather"])
+  })
+
+  it("maps the active rider motorcycle into routing constraints", () => {
+    const settings = migrateStoredRiderSettings(v1)
+    expect(bikeProfileFromRiderSettings(settings)).toEqual({
+      name: "CRF300L",
+      category: "dual-sport",
+      fuelRangeMiles: 150,
+      reserveMiles: 25,
+      allowMaintainedGravel: true,
+      allowRoughTracks: true,
+      avoidUnknownSurface: false
+    })
   })
 })

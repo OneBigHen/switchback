@@ -39,6 +39,15 @@ describe("SettingsDestination", () => {
     expect(persisted.bikes[0]).toMatchObject({ id: "bike-tenere", name: "T7 World Raid", fuelRangeMiles: 215 })
   })
 
+  it("does not discard the active motorcycle while its name is edited", () => {
+    render(<SettingsDestination theme="auto" onThemeChange={vi.fn()} onOpenAdvancedSettings={vi.fn()} />)
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Motorcycle name" }), { target: { value: "" } })
+
+    expect(loadRiderSettings()).toMatchObject({ activeBikeId: "bike-tenere" })
+    expect(loadRiderSettings().bikes[0]).toMatchObject({ id: "bike-tenere", name: "Ténéré 700" })
+  })
+
   it("persists route defaults and keeps theme synchronized through the shell callback", () => {
     const onThemeChange = vi.fn()
     render(<SettingsDestination theme="auto" onThemeChange={onThemeChange} onOpenAdvancedSettings={vi.fn()} />)

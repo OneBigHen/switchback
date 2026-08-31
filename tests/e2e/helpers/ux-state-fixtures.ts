@@ -88,7 +88,9 @@ export async function settleMapDelay(page: Page): Promise<void> {
 }
 
 async function expectPlannerHomeReady(page: Page): Promise<void> {
-  const heading = page.getByRole("heading", { name: /Where do you want to ride/i })
+  // V2 replaced the "Where do you want to ride?" hero heading with the
+  // compact composer, whose form is the stable landmark for "planner home".
+  const heading = page.getByRole("form", { name: "Ride request" })
   const expand = page.getByRole("button", { name: "Expand planner" })
   await expect.poll(async () => (
     await heading.isVisible().catch(() => false)

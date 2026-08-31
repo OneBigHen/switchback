@@ -40,7 +40,7 @@ test("10 planner cycles keep measurable browser resources bounded", async ({ pag
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: click profile`)
     await page.getByRole("button", { name: "Twisty", exact: true }).click()
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: wait result`)
-    await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
     samples.push(await sampleBrowserMemory(page, cycle))
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: clear`)
     await page.getByRole("button", { name: "Clear route" }).click()

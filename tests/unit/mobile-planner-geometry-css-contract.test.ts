@@ -76,6 +76,11 @@ describe("mobile planner geometry contract", () => {
     expect(roadLockStyles).not.toContain("bottom: calc(var(--sb-map-sheet-clearance) + var(--sb-space-2));")
   })
 
+  it("keeps the desktop road-lock control below the Quick Layers toolbar", () => {
+    expect(roadLockStyles).toContain("@media (min-width: 761px)")
+    expect(roadLockStyles).toContain("top: 76px;")
+  })
+
   it("moves the duplicate map road-lock control out of an expanded sheet surface", () => {
     expect(designSystem).toContain(
       ".planner-shell:has(.sb-bottom-sheet:not(.is-minimized)) .map-road-lock-toggle {\n    display: none;"

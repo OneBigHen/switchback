@@ -197,10 +197,13 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   const mapStage = page.locator(".map-stage")
   const box = await mapStage.boundingBox()
   expect(box).not.toBeNull()
-  await page.mouse.click(box!.x + box!.width * 0.35, box!.y + box!.height * 0.4)
+  // The V2 desktop planner is a persistent map workspace, so the left 37%
+  // of the full map-stage box is intentionally covered by the planning rail.
+  // Choose anchors in the exposed canvas instead of clicking through chrome.
+  await page.mouse.click(box!.x + box!.width * 0.55, box!.y + box!.height * 0.4)
   await expect(page.getByText(/First anchor set/i)).toBeVisible()
 
-  await page.mouse.click(box!.x + box!.width * 0.65, box!.y + box!.height * 0.55)
+  await page.mouse.click(box!.x + box!.width * 0.7, box!.y + box!.height * 0.55)
   await expect(page.getByText(/Name and save this lock/i)).toBeVisible()
 
   // Road requirements are enabled: both modes are available and Must defaults.

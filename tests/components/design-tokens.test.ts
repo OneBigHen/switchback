@@ -10,6 +10,11 @@ import { describe, expect, it } from "vitest"
  */
 
 const tokensCss = readFileSync(resolve(process.cwd(), "src/app/styles/tokens.css"), "utf8")
+const v2SurfaceCss = [
+  "src/components/v2/DestinationHeader.module.css",
+  "src/components/v2/RouteGraphic.module.css",
+  "src/components/rides/RidesSurface.module.css"
+].map((path) => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n")
 
 describe("Switchback V2 design tokens", () => {
   it("declares the canonical brand palette", () => {
@@ -55,6 +60,24 @@ describe("Switchback V2 design tokens", () => {
   it("does not allow a second V2 override layer", () => {
     expect(existsSync(resolve(process.cwd(), "src/app/styles/switchback-v2-overrides.css"))).toBe(false)
     expect(tokensCss).not.toContain("switchback-v2-overrides")
+  })
+
+  it("does not load the retired V1 presentation authority", () => {
+    const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8")
+    expect(layout).not.toContain('import "./styles/switchback-v1.css"')
+  })
+
+  it("uses canonical V2 token names on migrated surfaces", () => {
+    expect(v2SurfaceCss).not.toMatch(/--sb-(?:deep-spruce|topo-sage|signal-blue)\b/)
+  })
+
+  it("uses a motorcycle-route glyph rather than sparkle iconography for Free Ride", () => {
+    const freeRideSources = [
+      "src/components/planner/PlannerDeck.tsx",
+      "src/components/shell/FreeRideHud.tsx"
+    ].map((path) => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n")
+    expect(freeRideSources).not.toMatch(/\bSparkle\b/)
+    expect(freeRideSources).toMatch(/\bRoadHorizon\b/)
   })
 
   it("keeps globals.css a thin import/reset layer without token definitions", () => {

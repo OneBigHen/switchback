@@ -21,7 +21,7 @@ import {
 } from "./layout-helpers"
 import { pinVisualClock, settleMapDelay, uxState } from "../../helpers/ux-state-fixtures"
 
-type LayoutState = "plan" | "prepare" | "library" | "free-ride" | "ride" | "settings" | "keyboard" | "offline"
+type LayoutState = "plan" | "prepare" | "rides" | "free-ride" | "ride" | "settings" | "keyboard" | "offline"
 
 const PROJECTS = new Set(MOBILE_QA_DEVICES.map((device) => device.id))
 const FAST_PROJECTS = new Set(["webkit-standard", "chromium-standard"])
@@ -29,7 +29,7 @@ const PORTRAIT_PROJECTS = new Set(MOBILE_QA_DEVICES.filter((device) => device.or
 const STATE_PROJECTS: Record<LayoutState, ReadonlySet<string>> = {
   plan: PROJECTS,
   prepare: new Set([...PORTRAIT_PROJECTS, "webkit-standard-landscape"]),
-  library: new Set([...FAST_PROJECTS, "webkit-small", "webkit-large", "webkit-standard-landscape"]),
+  rides: new Set([...FAST_PROJECTS, "webkit-small", "webkit-large", "webkit-standard-landscape"]),
   "free-ride": new Set([...PORTRAIT_PROJECTS, "webkit-standard-landscape"]),
   ride: new Set([...PORTRAIT_PROJECTS, "webkit-standard-landscape"]),
   settings: new Set([...PORTRAIT_PROJECTS]),
@@ -69,12 +69,11 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
     await expect(sheet).toHaveAttribute("data-sheet-detent", "full")
   }
   if (testInfo.project.name === "webkit-standard-landscape" || testInfo.project.name === "webkit-small") {
-    // Measure where the rider would actually see the row. Without this the
-    // landscape reachability check just reports that the row starts below a
-    // 390px-tall viewport (elementFromPoint returns null off-screen), which
-    // says nothing about whether the buttons are tappable once scrolled to.
-    await page.locator(".ride-quick-intents").scrollIntoViewIfNeeded()
-    const quickIntentGeometry = await page.locator(".ride-quick-intents").evaluate((row) => {
+    // V2 replaced the retired quick-intent row with the primary trip-shape
+    // group. Measure the current rider choice at the point of interaction.
+    const tripShape = page.getByRole("group", { name: "Trip shape" })
+    await tripShape.scrollIntoViewIfNeeded()
+    const quickIntentGeometry = await tripShape.evaluate((row) => {
       const rowBox = row.getBoundingClientRect()
       const buttons = Array.from(row.querySelectorAll<HTMLElement>("button"))
       return {
@@ -100,7 +99,6 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
     expect(quickIntentGeometry.row.left).toBeGreaterThanOrEqual(0)
     expect(quickIntentGeometry.row.right).toBeLessThanOrEqual(quickIntentGeometry.viewportWidth)
     expect(quickIntentGeometry.buttons).toHaveLength(3)
-    if (testInfo.project.name === "webkit-small") expect(quickIntentGeometry.overflowX).toBe("auto")
     for (const button of quickIntentGeometry.buttons) {
       expect(button.width).toBeGreaterThanOrEqual(44)
       expect(button.height).toBeGreaterThanOrEqual(44)
@@ -147,29 +145,27 @@ test("Prepare keeps static headings, dock, and scroll content reachable", async 
   expectCleanRuntime(page, mobileQa.runtimeIssues)
 })
 
-test("saved Library survives the mobile drawer open and close path", async ({ page, mobileQa }, testInfo) => {
-  selectMatrix("library", testInfo)
+test("a saved ride survives navigation through the Rides destination", async ({ page, mobileQa }, testInfo) => {
+  selectMatrix("rides", testInfo)
   await uxState.routeSelected(page)
   await page.getByRole("button", { name: "Show route details" }).first().tap()
   await page.getByRole("button", { name: "Save route" }).tap()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
-  // The planner deck used to carry its own counted "Library 1" button beside
-  // the ride preferences; that block is no longer part of the route-result
-  // surface, and primary navigation is now the way in. Both call the same
-  // handler, so match either and stay honest about which affordance exists.
-  await page.getByRole("button", { name: /^Library(\s+\d+)?$/ }).first().tap()
-  const library = page.getByRole("dialog", { name: "Ride library" })
-  await expect(library).toBeVisible()
+  await page.getByRole("button", { name: "Rides", exact: true }).tap()
+  const rides = page.getByRole("main", { name: "Rides destination" })
+  await expect(rides).toBeVisible()
   await expect(page.getByText("Contract fixture route")).toBeVisible()
   await expectMobileRuntimeContract(page, testInfo.project.name)
   await expectNoHorizontalOverflow(page)
   await expectSheetsAndModalsInsideVisualViewport(page)
   await expectFixedAndStickyContainment(page)
   await expectNavigationReachability(page)
-  await expectRealScrollOwner(page, ".library-drawer")
+  await expectRealScrollOwner(page, "[aria-label='Rides destination']")
   await expectNoNestedScrollTrap(page)
-  await page.getByRole("button", { name: "Close library" }).tap()
-  await expect(library).toBeHidden()
+  await page.getByRole("button", { name: "Plan", exact: true }).tap()
+  await expect(rides).toBeHidden()
+  await page.getByRole("button", { name: "Rides", exact: true }).tap()
+  await expect(page.getByText("Contract fixture route")).toBeVisible()
   expectCleanRuntime(page, mobileQa.runtimeIssues)
 })
 
@@ -189,7 +185,7 @@ test("Free Ride controls remain inside the touch viewport and escape cleanly", a
   // reads as a broken escape rather than the guard doing its job.
   page.once("dialog", (dialog) => void dialog.accept())
   await page.getByRole("button", { name: "Exit Free Ride" }).tap()
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   expectCleanRuntime(page, mobileQa.runtimeIssues)
 })
 
@@ -217,11 +213,10 @@ test("primary navigation, settings sheet, and modal escape remain usable", async
     await target.tap()
     await expect(target).toHaveAttribute("aria-current", "page")
     if (destination === "Rides") {
-      const library = page.getByRole("dialog", { name: "Ride library" })
-      await expect(library).toBeVisible()
+      // Rides is a destination now, not the retired drawer overlay: the tap
+      // renders the surface in place and primary navigation stays current.
+      await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
       await expect(target).toHaveAttribute("aria-current", "page")
-      await page.getByRole("button", { name: "Close library" }).tap()
-      await expect(library).toBeHidden()
     }
   }
   // Record is an activity control in the secondary cluster, never a
@@ -231,12 +226,17 @@ test("primary navigation, settings sheet, and modal escape remain usable", async
   await expect(page.getByRole("heading", { name: "Record a ride" })).toBeVisible()
   await expect(recordControl).not.toHaveAttribute("aria-current")
   await navigation.getByRole("button", { name: "Settings", exact: true }).tap()
-  await expect(page.getByRole("region", { name: "Profile and settings" })).toBeVisible()
+  // Settings is a destination in V2, not the V1 "Profile and settings" sheet.
+  await expect(page.getByRole("main", { name: "Settings destination" })).toBeVisible()
   await expectMobileRuntimeContract(page, testInfo.project.name)
   await expectNoHorizontalOverflow(page)
   await expectFixedAndStickyContainment(page)
   await expectSheetsAndModalsInsideVisualViewport(page)
-  await expectRealScrollOwner(page, ".profile-panel")
+  await expectRealScrollOwner(page, "[aria-label='Settings destination']")
+  // Account, sync and data now sits behind one advanced entry point. The
+  // region downloads modal opens from in there and must still escape cleanly.
+  await page.getByRole("button", { name: "Account, sync & data" }).tap()
+  await expect(page.getByRole("region", { name: "Account, sync & rider data" })).toBeVisible()
   await page.getByRole("button", { name: "Offline regions" }).tap()
   const downloads = page.getByRole("dialog", { name: "Region downloads" })
   await expect(downloads).toBeVisible()
@@ -270,14 +270,17 @@ test("saved route reloads and remains available while offline", async ({ page, m
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
   await page.getByRole("button", { name: "Rides", exact: true }).tap()
   await expect(page).toHaveURL(/tab=rides/)
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
   await page.reload()
-  await expectMobileAppReady(page, { tab: "rides", heading: "Ride library" })
+  await expectMobileAppReady(page, { tab: "rides", heading: "Rides" })
   const navigation = page.locator("nav.app-navigation")
-  await expect(navigation).toHaveAttribute("aria-hidden", "true")
-  await expect(navigation).toHaveJSProperty("inert", true)
+  // The retired drawer was a modal that inerted primary navigation. A
+  // destination must not: the rider can still leave Rides after a reload.
+  await expect(navigation).toBeVisible()
+  await expect(navigation).not.toHaveAttribute("aria-hidden", "true")
+  await expect(navigation).toHaveJSProperty("inert", false)
   await expect(navigation.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Rides")
-  await expect(page.getByRole("dialog", { name: "Ride library" })).toBeVisible()
+  await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
   await mobileQa.setNetwork("offline")
   await expect(page.getByText("Contract fixture route")).toBeVisible()
   await expectNoHorizontalOverflow(page)

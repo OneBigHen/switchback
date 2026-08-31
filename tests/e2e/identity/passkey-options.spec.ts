@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 test("passkey options are bounded and unauthenticated mutations fail closed", async ({ page, request }) => {
   await page.goto("/")
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   const browserSupport = await page.evaluate(() => typeof PublicKeyCredential !== "undefined")
   expect(browserSupport).toBe(true)
   const settingsButton = page.getByRole("button", { name: "Settings", exact: true })

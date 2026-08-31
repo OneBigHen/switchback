@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { RidesDestination } from "@/components/rides/RidesDestination"
 import type { SavedRoute } from "@/lib/storage/route-library"
 import type { TripPlan } from "@/lib/trip/trip-plan"
+import type { RecordedRide } from "@/lib/storage/ride-journal"
 
 afterEach(cleanup)
 
@@ -29,10 +30,21 @@ const trip = {
   updatedAt: "2026-08-29T12:00:00Z"
 } as unknown as TripPlan
 
+const recordedRide = {
+  id: "recorded-1",
+  routeName: "Sunday replay",
+  route: { name: "Sunday replay", distanceMiles: 42, durationMinutes: 70 },
+  startedAt: "2026-08-30T12:00:00Z",
+  endedAt: "2026-08-30T13:10:00Z",
+  updatedAt: "2026-08-30T13:10:00Z",
+  photos: []
+} as unknown as RecordedRide
+
 function renderDestination(overrides: Partial<React.ComponentProps<typeof RidesDestination>> = {}) {
   const props: React.ComponentProps<typeof RidesDestination> = {
     routes: [importedRoute],
     trips: [trip],
+    recordedRides: [recordedRide],
     onClose: vi.fn(),
     onLoad: vi.fn(),
     onDelete: vi.fn(),
@@ -40,6 +52,7 @@ function renderDestination(overrides: Partial<React.ComponentProps<typeof RidesD
     onMatchImported: vi.fn(),
     onOrganize: vi.fn(),
     onDeleteTrip: vi.fn(),
+    onDeleteRecorded: vi.fn(),
     ...overrides
   }
   render(<RidesDestination {...props} />)
@@ -85,5 +98,14 @@ describe("RidesDestination management", () => {
     expect(props.onDeleteTrip).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "Confirm delete trip" }))
     expect(props.onDeleteTrip).toHaveBeenCalledWith(trip)
+  })
+
+  it("deletes a recorded ride through its original journal object after confirmation", () => {
+    const props = renderDestination()
+    fireEvent.click(screen.getByRole("button", { name: "Manage Sunday replay" }))
+    fireEvent.click(screen.getByRole("button", { name: "Delete recording" }))
+    expect(props.onDeleteRecorded).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Confirm delete recording" }))
+    expect(props.onDeleteRecorded).toHaveBeenCalledWith(recordedRide)
   })
 })

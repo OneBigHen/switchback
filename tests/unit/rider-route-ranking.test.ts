@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { RiderPreference } from "@/lib/intelligence/rider-preferences"
 import type { PlannedRoute } from "@/lib/routing/types"
-import { rankRoutesForRider } from "@/lib/client/rider-route-ranking"
+import { canApplyRankedRouteSelection, rankRoutesForRider } from "@/lib/client/rider-route-ranking"
 
 function route(id: string, twistiness: number, durationMinutes: number, total: number): PlannedRoute {
   return {
@@ -65,5 +65,25 @@ describe("rider route ranking", () => {
 
     expect(ranked.map((candidate) => candidate.route.id)).toEqual(["curvy-preferred", "fast-but-flat"])
     expect(ranked[0]?.fit.reasons.join(" ")).toMatch(/Twistiness/)
+  })
+
+  it("rejects an async ranking result after the active plan changes", () => {
+    expect(canApplyRankedRouteSelection({
+      expectedPlanKey: "plan-old:route-old:bike",
+      currentPlanKey: "plan-new:route-new:bike",
+      currentRouteIds: ["route-new"],
+      rankedRouteId: "route-old",
+      selectionSource: "automatic"
+    })).toBe(false)
+  })
+
+  it("accepts a current automatic ranking for a route in the active plan", () => {
+    expect(canApplyRankedRouteSelection({
+      expectedPlanKey: "plan-current:route-a,route-b:bike",
+      currentPlanKey: "plan-current:route-a,route-b:bike",
+      currentRouteIds: ["route-a", "route-b"],
+      rankedRouteId: "route-b",
+      selectionSource: "automatic"
+    })).toBe(true)
   })
 })

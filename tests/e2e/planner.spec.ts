@@ -4,12 +4,6 @@ import { CANONICAL_HEALTH_RESPONSE } from "./helpers/health-fixtures"
 
 const appUrl = process.env.SWITCHBACK_E2E_URL ?? "/"
 
-async function waitForAnimations(locator: import("@playwright/test").Locator) {
-  await locator.evaluate(async (element) => {
-    await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
-  })
-}
-
 async function expectInsideViewport(
   page: import("@playwright/test").Page,
   locator: import("@playwright/test").Locator
@@ -284,7 +278,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   })
 
   await page.goto(appUrl)
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   await openRouteEditor(page)
   await expect(page.getByRole("heading", { name: /Pick two points/i })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Start" })).toHaveValue("Current location")
@@ -312,7 +306,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expectInsideViewport(page, planRouteButton)
   await planRouteButton.click()
   await page.getByRole("button", { name: "Twisty", exact: true }).click()
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(routeRequest).toMatchObject({ profile: "twisty", compare: false, candidateSet: "primary" })
   await page.getByRole("button", { name: /Show route details/i }).click()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
@@ -325,35 +319,41 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expect((await downloadPromise).suggestedFilename()).toMatch(/quick-route\.gpx$/)
 
   await page.getByRole("button", { name: "Save route" }).click()
-  await expect(page.getByRole("button", { name: /Library 2/ })).toBeVisible()
   await expect(page.getByText("Route saved on this device.")).toBeHidden({ timeout: 10_000 })
   await page.screenshot({
     path: `artifacts/screenshots/e2e-planner-${testInfo.project.name}.png`,
     fullPage: false
   })
 
-  await page.getByRole("button", { name: /Library 2/ }).click()
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
-  await waitForAnimations(page.getByRole("dialog", { name: "Ride library" }))
+  // Saved rides live on the Rides destination. The V1 counted "Library" button
+  // and its modal drawer are retired; primary navigation is the way in, and
+  // importing is a two-step flow (open the import panel, then choose what the
+  // file becomes) rather than a bare file input inside the drawer.
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  const rides = page.getByRole("main", { name: "Rides destination" })
+  await expect(rides).toBeVisible()
   if (testInfo.project.name.includes("landscape")) {
-    await expectInsideViewport(page, page.getByRole("dialog", { name: "Ride library" }))
+    await expectInsideViewport(page, rides)
   }
-  await expect(page.getByRole("button", { name: /Quick route 37.8 mi/ })).toBeVisible()
-  await expect(page.getByRole("button", { name: /Load Pine Ridge Ramble from LongWay/i })).toBeVisible()
-  await page.getByLabel("Import GPX, KML, or KMZ file").setInputFiles({
+  await expect(page.getByRole("button", { name: /^Open Quick route/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Open Pine Ridge Ramble/i })).toBeVisible()
+
+  await page.getByRole("button", { name: "Import ride" }).click()
+  await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({
     name: "imported-loop.gpx",
     mimeType: "application/gpx+xml",
     buffer: Buffer.from(`<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Imported Loop</name></metadata><trk><trkseg><trkpt lat="40.1" lon="-76.9"/><trkpt lat="40.2" lon="-76.8"/></trkseg></trk></gpx>`)
   })
+  await page.getByRole("button", { name: /Open as a route/ }).click()
   await expect(page.getByText("Imported Loop imported to your library.")).toBeVisible()
-  await expect(page.locator(".library-load", { hasText: "Imported Loop" })).toBeVisible()
   await page.screenshot({
     path: `artifacts/screenshots/e2e-library-${testInfo.project.name}.png`,
     fullPage: false
   })
 
   await expect(page.getByText("Imported Loop imported to your library.")).toBeHidden({ timeout: 10_000 })
-  await page.getByRole("button", { name: /Quick route 37.8 mi/ }).click()
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: /^Open Quick route/ }).click()
   await page.getByRole("button", { name: /Start .* route/i }).click()
   await expect(page.getByRole("region", { name: "Ride mode for Quick route" })).toBeVisible()
   await expect(page.getByText("Live guidance")).toBeVisible()
@@ -377,7 +377,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   })
 
   await page.getByRole("button", { name: "Exit ride mode" }).click()
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
 })
 
 test("turns a free-form timebox into a gravel loop with route intelligence", async ({ page }) => {
@@ -454,7 +454,7 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   await page.locator("#ride-prompt").pressSequentially("90 minutes of gravel, avoid highways")
   await page.getByRole("button", { name: "Find ride options" }).click()
 
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(intentRequest).toEqual({ prompt: "90 minutes of gravel, avoid highways" })
   expect(loopRequest).toMatchObject({
     profile: "adventure",
@@ -553,7 +553,7 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
   await expect(submit).toBeEnabled()
   await submit.click()
 
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(intentRequest).toEqual({
     prompt: "I want to ride from Harrisburg to Gettysburg via some twisty roads"
   })
