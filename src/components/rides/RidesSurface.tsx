@@ -10,6 +10,13 @@ import styles from "./RidesSurface.module.css"
 
 export type RideLibraryItemKind = "saved-route" | "recorded-ride" | "trip-plan" | "project-gpx"
 
+export interface RideLibraryManagement {
+  canDelete?: boolean
+  canMatchRoads?: boolean
+  folder?: string
+  visible?: boolean
+}
+
 export interface RideLibraryItem {
   id: string
   sourceId?: string
@@ -20,6 +27,7 @@ export interface RideLibraryItem {
   durationMinutes: number
   updatedAt: string | null
   tags: string[]
+  management?: RideLibraryManagement
 }
 
 export interface RidesSurfaceProps {
@@ -27,6 +35,9 @@ export interface RidesSurfaceProps {
   onOpen(item: RideLibraryItem): void
   onImport(file: File): void
   onImportRoads?(file: File, mode: RoadLockMode): void | Promise<void>
+  onMatchRoads?(item: RideLibraryItem): void
+  onOrganize?(item: RideLibraryItem, organization: { folder?: string; tags?: string[]; visible?: boolean }): void
+  onDelete?(item: RideLibraryItem): void
 }
 
 function itemMatchesFilter(item: RideLibraryItem, filter: RideFilter): boolean {
@@ -39,7 +50,7 @@ function itemMatchesFilter(item: RideLibraryItem, filter: RideFilter): boolean {
   }
 }
 
-export function RidesSurface({ items, onOpen, onImport, onImportRoads }: RidesSurfaceProps) {
+export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRoads, onOrganize, onDelete }: RidesSurfaceProps) {
   const [filter, setFilter] = useState<RideFilter>("all")
   const [query, setQuery] = useState("")
   const [importOpen, setImportOpen] = useState(false)
@@ -75,7 +86,16 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads }: RidesSu
 
       {visibleItems.length > 0 ? (
         <div className={styles.list} aria-label="Ride list">
-          {visibleItems.map((item) => <RideListRow key={item.id} item={item} onOpen={onOpen} />)}
+          {visibleItems.map((item) => (
+            <RideListRow
+              key={item.id}
+              item={item}
+              onOpen={onOpen}
+              onMatchRoads={onMatchRoads}
+              onOrganize={onOrganize}
+              onDelete={onDelete}
+            />
+          ))}
         </div>
       ) : (
         <div className={styles.empty}>
