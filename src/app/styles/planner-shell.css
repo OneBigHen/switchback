@@ -753,6 +753,19 @@ h2 {
   line-height: 1.35;
 }
 
+.map-sketch-toolbar {
+  position: absolute;
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+  left: 50%;
+  z-index: 1;
+  width: min(360px, calc(100vw - 24px));
+  transform: translateX(-50%);
+}
+
+.map-sketch-toolbar > [role="toolbar"] {
+  width: 100%;
+}
+
 @media (max-width: 760px) {
     .maplibregl-ctrl-bottom-left,
     .maplibregl-ctrl-bottom-right,

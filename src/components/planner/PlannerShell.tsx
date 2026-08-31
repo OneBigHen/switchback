@@ -38,7 +38,7 @@ import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
-import { routePointsFromSketch } from "@/lib/planner/route-sketch"
+import { routeIntentFromSketch, type RoutePointSnapshot } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
@@ -209,6 +209,9 @@ export function PlannerShell() {
   const [rideOriginalRouteId, setRideOriginalRouteId] = useState<string | null>(null)
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
+  // Monotonic command token: PlannerMapStage remains the sole owner of the
+  // in-progress screen draft while the V2 composer can enter it directly.
+  const [drawCommandId, setDrawCommandId] = useState(0)
   const plannerVisible = surface !== "ride" && surface !== "free-ride"
     && navigation.destination === "plan" && !sketching
   const providerHealth = useProviderHealth(plannerVisible)
@@ -477,23 +480,25 @@ export function PlannerShell() {
     }
   }
 
-  const handlePlan = async () => {
+  const handlePlan = async (override?: { mode: PlanMode; points: RoutePointSnapshot }) => {
     const current = usePlannerStore.getState()
+    const mode = override?.mode ?? planMode
+    const points = override?.points
     try {
       loopSeed.current += 1
-      const customSegmentProfiles = planMode === "destination" && activeSegmentProfiles.some((item) => item !== current.profile)
+      const customSegmentProfiles = mode === "destination" && !points && activeSegmentProfiles.some((item) => item !== current.profile)
         ? activeSegmentProfiles
         : undefined
       await runTripPlan(buildRideTripRequest({
-        mode: planMode,
-        start: current.start,
-        finish: current.finish,
+        mode,
+        start: points?.start ?? current.start,
+        finish: points?.finish ?? current.finish,
         profile: current.profile,
         bikeProfile: current.bikeProfile,
         roadLocks: current.roadLocks,
         targetMinutes,
         seed: loopSeed.current,
-        via: current.via,
+        via: points?.via ?? current.via,
         avoidHighways,
         avoidAreas,
         segmentProfiles: customSegmentProfiles,
@@ -1077,19 +1082,21 @@ export function PlannerShell() {
     routeRequestGate.invalidate()
     try {
       const current = usePlannerStore.getState()
-      const points = routePointsFromSketch({
-        mode: planMode,
+      const intent = routeIntentFromSketch({
+        currentMode: planMode,
         start: current.start,
         finish: current.finish,
-        trace
+        trace,
+        hasExistingRoute: Boolean(current.plan)
       })
-      current.replaceRoutePoints(points)
+      current.replaceRoutePoints(intent.points)
+      setPlanMode(intent.mode)
       setSegmentProfiles([])
       setAddingVia(false)
-      await handlePlan()
+      await handlePlan({ mode: intent.mode, points: intent.points })
       setNotice({
         kind: "success",
-        message: `Rough line converted to ${points.via.length} editable shaping stop${points.via.length === 1 ? "" : "s"}.`
+        message: `Rough line converted to ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}.`
       })
     } catch (caught) {
       setNotice({
@@ -1224,6 +1231,7 @@ export function PlannerShell() {
           : null}
         onRouteSketch={(trace) => void handleRouteSketch(trace)}
         onSketchModeChange={setSketching}
+        drawCommand={drawCommandId > 0 ? { type: "start", id: drawCommandId } : null}
         avoidAreas={avoidAreas}
         onAvoidArea={(area) => {
           routeRequestGate.invalidate()
@@ -1425,9 +1433,7 @@ export function PlannerShell() {
             onStartRide: (route) => void handleStartRide(route),
             onStartFreeRide: handleStartFreeRide,
             onStartDrawing: () => {
-              // Reuse the existing map sketch entry point so Draw retains its
-              // established map gestures, reset, and save behavior.
-              document.querySelector<HTMLButtonElement>(".map-sketch-button")?.click()
+              setDrawCommandId((current) => current + 1)
             },
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
           }}

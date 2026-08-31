@@ -1,6 +1,6 @@
 "use client"
 
-import { PencilLine, Stack, X } from "@phosphor-icons/react"
+import { Stack, X } from "@phosphor-icons/react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
 import {
@@ -12,7 +12,6 @@ import { provenanceSummary } from "@/lib/client/map-data-provenance"
 import { useMapLayerMenu } from "./useMapLayerMenu"
 
 interface MapStageLayerControlProps {
-  sketchMode: boolean
   avoidMode: boolean
   mapExperience: MapExperienceId
   lightPreference: MapLightPreference
@@ -28,7 +27,6 @@ interface MapStageLayerControlProps {
   onRetryRiderLayers(): void
   referenceMap: ReferenceMap | null
   referenceMessage: string
-  onToggleSketch(): void
   onToggleAvoid(): void
   onMapExperienceChange(experience: MapExperienceId): void
   onLightPreferenceChange(preference: MapLightPreference): void
@@ -69,7 +67,6 @@ function mapExperienceChoices(premium: boolean): { id: MapExperienceId; label: s
 }
 
 export function MapStageLayerControl({
-  sketchMode,
   avoidMode,
   mapExperience,
   lightPreference,
@@ -84,7 +81,6 @@ export function MapStageLayerControl({
   onRetryRiderLayers,
   referenceMap,
   referenceMessage,
-  onToggleSketch,
   onToggleAvoid,
   onMapExperienceChange,
   onLightPreferenceChange,
@@ -121,15 +117,11 @@ export function MapStageLayerControl({
   return (
     <div className="map-layer-control" onKeyDown={handleLayerMenuKeyDown}>
       <div className="map-tool-row">
-        <button type="button" className="map-layers-button map-sketch-button" aria-label={sketchMode ? "Cancel route sketch" : "Sketch a rough route"} aria-pressed={sketchMode} onClick={() => { closeLayerMenu(); onToggleSketch() }}>
-          {sketchMode ? <X aria-hidden="true" /> : <PencilLine weight="bold" aria-hidden="true" />}
-          <span>{sketchMode ? "Cancel" : "Sketch route"}</span>
-        </button>
         <button type="button" className="map-layers-button map-avoid-button" aria-label={avoidMode ? "Cancel avoid area" : "Draw an avoid area"} aria-pressed={avoidMode} onClick={() => { closeLayerMenu(); onToggleAvoid() }}>
           {avoidMode ? <X aria-hidden="true" /> : <span className="avoid-area-glyph" aria-hidden="true">▧</span>}
           <span>{avoidMode ? "Cancel" : "Avoid area"}</span>
         </button>
-        <button ref={layerButtonRef} type="button" className={`map-layers-button${loadingLayerCount > 0 ? " is-loading" : ""}${errorLayerCount > 0 ? " has-error" : ""}`} aria-label={layerMenuOpen ? "Close map layers" : "Open map layers"} aria-expanded={layerMenuOpen} onClick={() => { if (sketchMode) onToggleSketch(); if (avoidMode) onToggleAvoid(); toggleLayerMenu() }}>
+        <button ref={layerButtonRef} type="button" className={`map-layers-button${loadingLayerCount > 0 ? " is-loading" : ""}${errorLayerCount > 0 ? " has-error" : ""}`} aria-label={layerMenuOpen ? "Close map layers" : "Open map layers"} aria-expanded={layerMenuOpen} onClick={() => { if (avoidMode) onToggleAvoid(); toggleLayerMenu() }}>
           {layerMenuOpen ? <X aria-hidden="true" /> : <Stack weight="fill" aria-hidden="true" />}
           <span>Layers</span>
           {loadingLayerCount > 0 ? <span className="map-layer-spinner map-layers-button-spinner" aria-hidden="true" /> : null}

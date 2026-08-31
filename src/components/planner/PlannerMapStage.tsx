@@ -54,6 +54,7 @@ import {
   resolveRoadLockMatchColorMap
 } from "./map-drawing"
 import { MapStageLayerControl } from "./MapStageLayerControl"
+import { SketchRouteToolbar } from "./v2/SketchRouteToolbar"
 
 type LiveMapProps = PlannerMapStageProps
 
@@ -114,6 +115,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   const [avoidEnd, setAvoidEnd] = useState<SketchScreenPoint | null>(null)
   const [sketchPoints, setSketchPoints] = useState<SketchScreenPoint[]>([])
   const [sketchMessage, setSketchMessage] = useState("")
+  const lastDrawCommandIdRef = useRef<number | null>(null)
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
   const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
@@ -208,10 +210,14 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     if (points !== sketchPointsRef.current) setCurrentSketchPoints(points)
   }
 
-  const finishSketch = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const finishSketchStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!sketchDrawingRef.current) return
     event.preventDefault()
     sketchDrawingRef.current = false
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }
+
+  const completeSketch = () => {
     const points = sketchPointsRef.current
     const map = mapRef.current
     if (!map || !ready) {
@@ -262,6 +268,15 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     setAvoidMode(false)
     propsRef.current.onSketchModeChange(false)
   }
+
+  useEffect(() => {
+    const command = props.drawCommand
+    if (!command || command.id === lastDrawCommandIdRef.current) return
+    lastDrawCommandIdRef.current = command.id
+    setSketchMessage("")
+    setSketchMode(true)
+    propsRef.current.onSketchModeChange(true)
+  }, [props.drawCommand])
 
   const finishAvoidArea = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!avoidDrawingRef.current) return
@@ -961,7 +976,6 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
         rideDeckSlot
       ) : null}
       {!props.rideMode ? <MapStageLayerControl
-        sketchMode={sketchMode}
         avoidMode={avoidMode}
         mapExperience={props.mapExperience}
         lightPreference={props.lightPreference}
@@ -976,14 +990,6 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
         onRetryRiderLayers={retryRiderFeatures}
         referenceMap={props.referenceMap}
         referenceMessage={referenceMessage}
-        onToggleSketch={() => {
-          if (sketchMode) cancelSketch()
-          else {
-            setSketchMode(true)
-            setSketchMessage("")
-            propsRef.current.onSketchModeChange(true)
-          }
-        }}
         onToggleAvoid={() => {
           if (avoidMode) cancelAvoidArea()
           else {
@@ -1011,7 +1017,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           aria-label="Draw a rough route"
           onPointerDown={beginSketch}
           onPointerMove={continueSketch}
-          onPointerUp={finishSketch}
+          onPointerUp={finishSketchStroke}
           onPointerCancel={cancelSketch}
         >
           <svg className="map-sketch-line" aria-hidden="true">
@@ -1021,6 +1027,19 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             <strong>Draw the road you mean</strong>
             <span>{sketchMessage || "Drag one line through the roads or areas you want to ride."}</span>
             <small>Switchback will snap it to legal roads and keep the shaping stops editable.</small>
+          </div>
+          <div className="map-sketch-toolbar" onPointerDown={(event) => event.stopPropagation()}>
+            <SketchRouteToolbar
+              canUndo={sketchPoints.length > 0}
+              canFinish={hasUsableSketch(sketchPoints)}
+              onUndo={() => setCurrentSketchPoints(sketchPointsRef.current.slice(0, -1))}
+              onClear={() => {
+                setCurrentSketchPoints([])
+                setSketchMessage("")
+              }}
+              onDone={completeSketch}
+              onCancel={cancelSketch}
+            />
           </div>
         </div>
       ) : null}

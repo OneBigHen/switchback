@@ -9,6 +9,12 @@ import type { MapExperienceId, MapLightPreference } from "@/lib/client/map-exper
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
 
+/** One-way command from the planner surface; the map stage owns the draft. */
+export interface MapStageDrawCommand {
+  id: number
+  type: "start"
+}
+
 /**
  * The planner's map contract. It lives apart from the stage components so the
  * renderer-neutral stage, the Mapbox stage, and PlannerShell can share it
@@ -48,6 +54,7 @@ export interface MapStageProps {
   onMapPick(point: Waypoint): void
   onRouteSketch(trace: Waypoint[]): void
   onSketchModeChange(active: boolean): void
+  drawCommand?: MapStageDrawCommand | null
   avoidAreas: AvoidArea[]
   onAvoidArea(area: AvoidArea): void
   /** A browser "locate me" fix was produced; the planner should adopt it as the start. */

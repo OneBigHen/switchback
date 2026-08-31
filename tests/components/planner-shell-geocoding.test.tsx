@@ -56,12 +56,14 @@ vi.mock("@/lib/storage/route-library", () => ({
   }
 }))
 vi.mock("@/components/planner/MapStage", () => ({
-  MapStage: ({ onRouteSketch, onSketchModeChange, onWaypointDrag }: {
+  MapStage: ({ onRouteSketch, onSketchModeChange, onWaypointDrag, drawCommand }: {
     onRouteSketch(trace: Waypoint[]): void
     onSketchModeChange(active: boolean): void
     onWaypointDrag(kind: "start" | "finish" | "via", index: number, point: Waypoint): void
+    drawCommand?: { id: number; type: "start" } | null
   }) => (
     <div>
+      <output data-testid="draw-command">{drawCommand?.id ?? "none"}</output>
       <button type="button" onClick={() => onSketchModeChange(true)}>Enter rough sketch</button>
       <button type="button" onClick={() => onSketchModeChange(false)}>Cancel rough sketch</button>
       <button type="button" onClick={() => onRouteSketch([
@@ -70,6 +72,18 @@ vi.mock("@/components/planner/MapStage", () => ({
         { lat: 40.04, lon: -77.1 },
         plannerTestFinish
       ])}>Complete rough sketch</button>
+      <button type="button" onClick={() => onRouteSketch([
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.3, lon: -76.83 },
+        { lat: 40.335, lon: -76.77 }
+      ])}>Complete inferred open sketch</button>
+      <button type="button" onClick={() => onRouteSketch([
+        { lat: 40.2732, lon: -76.8867 },
+        { lat: 40.31, lon: -76.84 },
+        { lat: 40.315, lon: -76.87 },
+        { lat: 40.28, lon: -76.9 },
+        { lat: 40.274, lon: -76.887 }
+      ])}>Complete inferred loop sketch</button>
       <button type="button" onClick={() => onWaypointDrag("via", 0, { lat: 40.44, lon: -76.66, label: "Dragged connector" })}>Drag first stop</button>
     </div>
   )
@@ -129,6 +143,7 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
         onUndoRoutePoints(): void
         onRedoRoutePoints(): void
       }
+      onStartDrawing?(): void
       onClearRoute(): void
       onStartRide?(route: PlannedRoute): void
       onStartFreeRide?(): void
@@ -151,6 +166,7 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
         <button type="button" onClick={waypoint.onRedoRoutePoints}>Redo edit</button>
         <button type="button" onClick={() => intent.onResearchRideIdea("first request")}>Research first request</button>
         <button type="button" onClick={() => intent.onResearchRideIdea("second request")}>Research second request</button>
+        <button type="button" onClick={() => commands.onStartDrawing?.()}>Start draw mode</button>
         <output data-testid="research-source-count">{researchSources.length}</output>
         <output data-testid="shell-selected-route">{selectedRoute?.id ?? "none"}</output>
         <output data-testid="shell-selection-source">{usePlannerStore.getState().selectionSource}</output>
@@ -584,6 +600,47 @@ describe("free-form planner place resolution", () => {
         { lat: 40.04, lon: -77.1, label: "Sketch stop 2" },
         plannerTestFinish
       ]
+    }), expect.anything(), expect.anything())
+  })
+
+  it("passes the compact Draw command to the map without a DOM bridge", async () => {
+    const user = userEvent.setup()
+
+    render(<PlannerShell />)
+    expect(screen.getByTestId("draw-command")).toHaveTextContent("none")
+
+    await user.click(screen.getByRole("button", { name: "Start draw mode" }))
+
+    expect(screen.getByTestId("draw-command")).toHaveTextContent("1")
+  })
+
+  it("routes an open sketch with no preselected endpoints through destination planning", async () => {
+    const user = userEvent.setup()
+    usePlannerStore.setState({ ...plannerTestState, start: null, finish: null, startQuery: "", finishQuery: "" })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Complete inferred open sketch" }))
+
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalled())
+    expect(requestTripPlan).toHaveBeenCalledWith(expect.objectContaining({
+      points: expect.arrayContaining([
+        expect.objectContaining({ lat: 40.2732, lon: -76.8867, label: "Sketch start" }),
+        expect.objectContaining({ lat: 40.335, lon: -76.77, label: "Sketch finish" })
+      ])
+    }), expect.anything(), expect.anything())
+  })
+
+  it("routes a near-closed sketch with no preselected endpoints through loop planning", async () => {
+    const user = userEvent.setup()
+    usePlannerStore.setState({ ...plannerTestState, start: null, finish: null, startQuery: "", finishQuery: "" })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Complete inferred loop sketch" }))
+
+    await waitFor(() => expect(requestTripPlan).toHaveBeenCalled())
+    expect(requestTripPlan).toHaveBeenCalledWith(expect.objectContaining({
+      loopTargetMinutes: 120,
+      points: expect.arrayContaining([expect.objectContaining({ lat: 40.2732, lon: -76.8867, label: "Sketch start" })])
     }), expect.anything(), expect.anything())
   })
 

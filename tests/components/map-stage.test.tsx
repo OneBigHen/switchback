@@ -160,7 +160,7 @@ describe("map layer controls", () => {
     expect(onSaveMapPack).toHaveBeenCalledWith("Gravel scouting")
   })
 
-  it("opens and cancels a touch-first route sketch surface", async () => {
+  it("opens and cancels the V2 route sketch surface from a typed draw command", async () => {
     const user = userEvent.setup()
     const onSketchModeChange = vi.fn()
     render(
@@ -195,19 +195,21 @@ describe("map layer controls", () => {
         onMapPick={vi.fn()}
         onRouteSketch={vi.fn()}
         onSketchModeChange={onSketchModeChange}
+        drawCommand={{ type: "start", id: 1 }}
         avoidAreas={[]}
         onAvoidArea={vi.fn()}
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Sketch a rough route" }))
-
+    expect(screen.queryByRole("button", { name: "Sketch a rough route" })).not.toBeInTheDocument()
     expect(onSketchModeChange).toHaveBeenCalledWith(true)
     expect(screen.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
     expect(screen.getByText(/drag one line through the roads or areas/i)).toBeVisible()
     expect(screen.getByText(/switchback will snap it to legal roads/i)).toBeVisible()
+    expect(screen.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
 
-    await user.click(screen.getByRole("button", { name: "Cancel route sketch" }))
+    await user.click(screen.getByRole("button", { name: "Cancel drawing" }))
+
     expect(onSketchModeChange).toHaveBeenLastCalledWith(false)
     expect(screen.queryByRole("region", { name: "Draw a rough route" })).not.toBeInTheDocument()
   })

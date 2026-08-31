@@ -53,6 +53,23 @@ test("the idle composer keeps trip shape and free-form planning discoverable", a
   await expect(page.getByText("Try", { exact: true })).toHaveCount(0)
 })
 
+test("Draw opens the typed sketch toolbar from the V2 composer", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.goto("/")
+  await expandPhonePlanner(page)
+
+  await page.getByRole("button", { name: "Draw", exact: true }).click()
+
+  await expect(page.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
+  await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Undo drawing point" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Finish drawing" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Sketch a rough route" })).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Cancel drawing" }).click()
+  await expect(page.getByRole("region", { name: "Draw a rough route" })).toHaveCount(0)
+})
+
 test("a free-form ride request reaches a routed outcome", async ({ page }) => {
   await installPlannerServices(page)
   await installRideIntentApi(page)
