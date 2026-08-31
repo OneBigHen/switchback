@@ -6,16 +6,14 @@ import { destinationFromLocation, type PrimaryDestination } from "@/lib/client/a
 function renderNav(activeDestination: PrimaryDestination = "plan") {
   const onSelect = vi.fn()
   const onOpenRecord = vi.fn()
-  const onOpenSettings = vi.fn()
   render(
     <AppNavigation
       activeDestination={activeDestination}
       onSelect={onSelect}
       onOpenRecord={onOpenRecord}
-      onOpenSettings={onOpenSettings}
     />
   )
-  return { onSelect, onOpenRecord, onOpenSettings }
+  return { onSelect, onOpenRecord }
 }
 
 describe("AppNavigation", () => {
@@ -50,14 +48,14 @@ describe("AppNavigation", () => {
     expect(onSelect).toHaveBeenCalledWith("discover")
   })
 
-  it("selects Settings as a destination rather than opening an overlay", () => {
-    const { onSelect, onOpenSettings } = renderNav()
+  it("selects Settings as a destination rather than a secondary launcher", () => {
+    const { onSelect } = renderNav()
 
     const primary = screen.getByRole("group", { name: "Primary destinations" })
     fireEvent.click(within(primary).getByRole("button", { name: "Settings" }))
 
     expect(onSelect).toHaveBeenCalledWith("settings")
-    expect(onOpenSettings).not.toHaveBeenCalled()
+    expect(within(screen.getByRole("navigation", { name: "Primary" })).queryByRole("button", { name: /open settings/i })).not.toBeInTheDocument()
   })
 
   it("offers record as an activity control, not a destination", () => {

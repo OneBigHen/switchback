@@ -15,7 +15,7 @@ describe("typed application navigation", () => {
     expect(initial.backStack).toEqual([])
   })
 
-  it("moves plan → rides → discover without duplicating routing state", () => {
+  it("moves plan → rides → discover → settings without duplicating routing state", () => {
     const initial = createInitialAppNavigationState("auto")
     const rides = appNavigationReducer(initial, { type: "select_destination", destination: "rides" })
 
@@ -24,15 +24,18 @@ describe("typed application navigation", () => {
     expect(rides.backStack.at(-1)).toEqual({ kind: "destination", destination: "plan" })
 
     const discover = appNavigationReducer(rides, { type: "select_destination", destination: "discover" })
-
     expect(discover.destination).toBe("discover")
     expect(discover.backStack.at(-1)).toEqual({ kind: "destination", destination: "rides" })
+
+    const settings = appNavigationReducer(discover, { type: "select_destination", destination: "settings" })
+    expect(settings.destination).toBe("settings")
+    expect(settings.backStack.at(-1)).toEqual({ kind: "destination", destination: "discover" })
   })
 
-  it("clears open overlays when the destination changes", () => {
+  it("clears open advanced overlays when the destination changes", () => {
     const initial = createInitialAppNavigationState("auto")
-    const withSettings = appNavigationReducer(initial, { type: "open_overlay", overlay: "settings" })
-    const rides = appNavigationReducer(withSettings, { type: "select_destination", destination: "rides" })
+    const withAdvanced = appNavigationReducer(initial, { type: "open_overlay", overlay: "advanced-settings" })
+    const rides = appNavigationReducer(withAdvanced, { type: "select_destination", destination: "rides" })
 
     expect(rides.destination).toBe("rides")
     expect(rides.overlays).toEqual([])
@@ -43,8 +46,8 @@ describe("typed application navigation", () => {
 
     expect(appNavigationReducer(initial, { type: "select_destination", destination: "plan" })).toBe(initial)
 
-    const withSettings = appNavigationReducer(initial, { type: "open_overlay", overlay: "settings" })
-    const dismissed = appNavigationReducer(withSettings, { type: "select_destination", destination: "plan" })
+    const withAdvanced = appNavigationReducer(initial, { type: "open_overlay", overlay: "advanced-settings" })
+    const dismissed = appNavigationReducer(withAdvanced, { type: "select_destination", destination: "plan" })
 
     expect(dismissed.destination).toBe("plan")
     expect(dismissed.overlays).toEqual([])
@@ -62,20 +65,19 @@ describe("typed application navigation", () => {
 
   it("does not add the same overlay twice", () => {
     const initial = createInitialAppNavigationState("dark")
-    const once = appNavigationReducer(initial, { type: "open_overlay", overlay: "settings" })
-    const twice = appNavigationReducer(once, { type: "open_overlay", overlay: "settings" })
+    const once = appNavigationReducer(initial, { type: "open_overlay", overlay: "advanced-settings" })
+    const twice = appNavigationReducer(once, { type: "open_overlay", overlay: "advanced-settings" })
 
-    expect(twice.overlays).toEqual(["settings"])
+    expect(twice.overlays).toEqual(["advanced-settings"])
   })
 
   it("closes overlays with back before changing destination", () => {
     const initial = createInitialAppNavigationState("auto")
     const rides = appNavigationReducer(initial, { type: "select_destination", destination: "rides" })
-    const withSettings = appNavigationReducer(rides, { type: "open_overlay", overlay: "settings" })
+    const withAdvanced = appNavigationReducer(rides, { type: "open_overlay", overlay: "advanced-settings" })
 
-    const afterBack = appNavigationReducer(withSettings, { type: "back" })
+    const afterBack = appNavigationReducer(withAdvanced, { type: "back" })
 
-    // First back closes the overlay; the destination is untouched.
     expect(afterBack.overlays).toEqual([])
     expect(afterBack.destination).toBe("rides")
 
@@ -92,10 +94,10 @@ describe("typed application navigation", () => {
     })
   })
 
-  it("maps legacy ?tab=profile to plan with the settings overlay open", () => {
+  it("maps legacy ?tab=profile to the Settings destination", () => {
     expect(destinationFromLocation("https://switchback.app/?tab=profile")).toEqual({
-      destination: "plan",
-      overlays: ["settings"]
+      destination: "settings",
+      overlays: []
     })
   })
 
@@ -107,29 +109,18 @@ describe("typed application navigation", () => {
   })
 
   it("reads V2 destinations and rejects unknown tab values", () => {
-    expect(destinationFromLocation("https://switchback.app/?tab=rides")).toEqual({
-      destination: "rides",
-      overlays: []
-    })
-    expect(destinationFromLocation("https://switchback.app/?tab=discover")).toEqual({
-      destination: "discover",
-      overlays: []
-    })
-    expect(destinationFromLocation("https://switchback.app/?tab=not-a-tab")).toEqual({
-      destination: "plan",
-      overlays: []
-    })
-    expect(destinationFromLocation("https://switchback.app/plan")).toEqual({
-      destination: "plan",
-      overlays: []
-    })
+    expect(destinationFromLocation("https://switchback.app/?tab=rides")).toEqual({ destination: "rides", overlays: [] })
+    expect(destinationFromLocation("https://switchback.app/?tab=discover")).toEqual({ destination: "discover", overlays: [] })
+    expect(destinationFromLocation("https://switchback.app/?tab=settings")).toEqual({ destination: "settings", overlays: [] })
+    expect(destinationFromLocation("https://switchback.app/?tab=not-a-tab")).toEqual({ destination: "plan", overlays: [] })
+    expect(destinationFromLocation("https://switchback.app/plan")).toEqual({ destination: "plan", overlays: [] })
   })
 
   it("restores a URL-derived destination and replaces overlays without pushing history", () => {
     const initial = createInitialAppNavigationState("auto")
-    const withSettings = appNavigationReducer(initial, { type: "open_overlay", overlay: "settings" })
+    const withAdvanced = appNavigationReducer(initial, { type: "open_overlay", overlay: "advanced-settings" })
 
-    const restored = appNavigationReducer(withSettings, {
+    const restored = appNavigationReducer(withAdvanced, {
       type: "restore_destination",
       destination: "rides",
       overlays: []
@@ -140,17 +131,18 @@ describe("typed application navigation", () => {
     expect(restored.backStack).toEqual([])
   })
 
-  it("restores the settings overlay for a legacy profile deep link", () => {
+  it("restores the Settings destination for a legacy profile deep link", () => {
     const initial = createInitialAppNavigationState("auto")
+    const derived = destinationFromLocation("https://switchback.app/?tab=profile")
 
     const restored = appNavigationReducer(initial, {
       type: "restore_destination",
-      destination: "plan",
-      overlays: ["settings"]
+      destination: derived.destination,
+      overlays: derived.overlays
     })
 
-    expect(restored.destination).toBe("plan")
-    expect(restored.overlays).toEqual(["settings"])
+    expect(restored.destination).toBe("settings")
+    expect(restored.overlays).toEqual([])
   })
 
   it("derives shell modes from destination state", () => {
@@ -158,6 +150,7 @@ describe("typed application navigation", () => {
     expect(appModeForState({ surface: "planner", destination: "plan", hasPlan: true })).toBe("plan")
     expect(appModeForState({ surface: "ride", destination: "plan", hasPlan: true })).toBe("ride")
     expect(appModeForState({ surface: "planner", destination: "rides", hasPlan: false })).toBe("library")
+    expect(appModeForState({ surface: "planner", destination: "settings", hasPlan: false })).toBe("explore")
   })
 
   it("keeps theme preference typed and independent from navigation", () => {

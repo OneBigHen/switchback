@@ -48,7 +48,7 @@ jobs:
           replace_once(
               "src/components/planner/PlannerShell.tsx",
               '''      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (\n''',
-              '''      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "settings" ? (\n        <SettingsDestination\n          onOpenAdvancedSettings={() => {\n            dispatchNavigation({ type: "close_overlay", overlay: "record" })\n            dispatchNavigation({ type: "open_overlay", overlay: "advanced-settings" })\n          }}\n        />\n      ) : null}\n      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (\n'''
+              '''      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "settings" ? (\n        <SettingsDestination\n          theme={navigation.theme}\n          onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}\n          onOpenAdvancedSettings={() => {\n            dispatchNavigation({ type: "close_overlay", overlay: "record" })\n            dispatchNavigation({ type: "open_overlay", overlay: "advanced-settings" })\n          }}\n        />\n      ) : null}\n      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (\n'''
           )
 
           replace_once(
@@ -71,13 +71,13 @@ jobs:
           PY
       - run: npm ci
       - name: Verify Settings authority handoff
-        run: npx vitest run tests/components/app-navigation.test.tsx tests/components/settings-destination.test.tsx tests/components/profile-panel-v2.test.ts tests/components/settings-shell-authority.test.ts
+        run: npx vitest run tests/components/app-navigation.test.tsx tests/components/settings-destination.test.tsx tests/components/profile-panel-v2.test.ts tests/components/settings-shell-authority.test.ts tests/unit/app-navigation.test.ts
       - run: npm run typecheck
       - name: Commit verified handoff
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git rm .github/workflows/presentation-shell-handoff.yml
-          git add src/components/planner/PlannerShell.tsx src/lib/client/app-navigation.ts src/components/shell/AppNavigation.tsx
+          git add src/components/planner/PlannerShell.tsx src/lib/client/app-navigation.ts src/components/shell/AppNavigation.tsx tests/components/app-navigation.test.tsx tests/unit/app-navigation.test.ts
           git commit -m "refactor(ux-v2): hand Settings authority to destination"
           git push origin HEAD:ux/v2-settings-integration
