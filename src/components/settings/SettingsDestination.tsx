@@ -20,6 +20,7 @@ export interface SettingsDestinationProps {
   theme: ThemePreference
   onThemeChange(theme: ThemePreference): void
   onOpenAdvancedSettings(): void
+  onSettingsChange?(settings: RiderSettings): void
 }
 
 const categoryOptions: Array<{ value: BikeCategory; label: string }> = [
@@ -39,17 +40,22 @@ function bikeForCategory(bike: RiderBike, category: BikeCategory): RiderBike {
   }
 }
 
-export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettings }: SettingsDestinationProps) {
+export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettings, onSettingsChange }: SettingsDestinationProps) {
   const [settings, setSettings] = useState<RiderSettings>(() => loadRiderSettings())
   const activeBikeSelectRef = useRef<HTMLSelectElement | null>(null)
   const motorcycleNameRef = useRef<HTMLInputElement | null>(null)
 
+  // Persisting and notifying the parent are side effects, so they must not run
+  // inside the state updater: React may call an updater during render, and
+  // onSettingsChange sets state in PlannerShell — which React reports as
+  // "Cannot update a component while rendering a different component".
+  // These handlers all run from discrete user events, so deriving the next
+  // value from the current render's state is safe.
   const update = (patch: Partial<RiderSettings> | ((current: RiderSettings) => RiderSettings)) => {
-    setSettings((current) => {
-      const next = typeof patch === "function" ? patch(current) : { ...current, ...patch }
-      saveRiderSettings(next)
-      return next
-    })
+    const next = typeof patch === "function" ? patch(settings) : { ...settings, ...patch }
+    saveRiderSettings(next)
+    setSettings(next)
+    onSettingsChange?.(next)
   }
 
   const updateBike = (patch: Partial<RiderBike> | ((bike: RiderBike) => RiderBike)) => {
@@ -108,7 +114,11 @@ export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettin
                 aria-label="Motorcycle name"
                 value={activeBike.name}
                 maxLength={80}
-                onChange={(event) => updateBike({ name: event.currentTarget.value })}
+                required
+                onChange={(event) => {
+                  const name = event.currentTarget.value
+                  if (name.trim()) updateBike({ name })
+                }}
               />
             </SettingRow>
 
@@ -219,11 +229,11 @@ export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettin
           onChange={(uiPreferences) => update({ uiPreferences })}
         />
 
-        <section className={`${styles.section} ${styles.advanced}`} aria-labelledby="advanced-settings-title">
+        <section className={`${styles.section} ${styles.advanced}`} aria-labelledby="settings-advanced-entry-title">
           <div className={styles.advancedIcon} aria-hidden="true"><SlidersHorizontal weight="bold" /></div>
           <div>
             <span>Private tools</span>
-            <h2 id="advanced-settings-title">Account, sync & data</h2>
+            <h2 id="settings-advanced-entry-title">Account, sync & data</h2>
             <p>Switchback ID, encrypted recovery, offline regions, learning export/reset, and diagnostics stay behind one advanced entry point.</p>
           </div>
           <button type="button" onClick={onOpenAdvancedSettings}>

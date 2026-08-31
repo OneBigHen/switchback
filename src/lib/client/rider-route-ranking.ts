@@ -7,6 +7,18 @@ export interface RiderRankedRoute {
   rankingScore: number
 }
 
+export function canApplyRankedRouteSelection(input: {
+  expectedPlanKey: string
+  currentPlanKey: string | null
+  currentRouteIds: string[]
+  rankedRouteId: string
+  selectionSource: "automatic" | "user"
+}): boolean {
+  return input.selectionSource !== "user"
+    && input.currentPlanKey === input.expectedPlanKey
+    && input.currentRouteIds.includes(input.rankedRouteId)
+}
+
 /**
  * Blend deterministic route quality with explicit local rider history. The
  * provider score remains the anchor; learning can choose among legal

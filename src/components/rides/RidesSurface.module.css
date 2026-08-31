@@ -210,7 +210,7 @@
   border: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
   border-radius: calc(var(--sb-radius-card, 12px) - 2px);
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--sb-topo-sage) 14%, transparent), transparent 62%),
+    linear-gradient(145deg, color-mix(in srgb, var(--sb-sage) 14%, transparent), transparent 62%),
     var(--sb-surface);
 }
 

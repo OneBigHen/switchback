@@ -57,7 +57,8 @@ export function normalizeRideLibrary({
       distanceMiles: ride.route.distanceMiles,
       durationMinutes: recordedDurationMinutes(ride),
       updatedAt: ride.endedAt || ride.updatedAt,
-      tags: ride.photos.length > 0 ? [`${ride.photos.length} photo${ride.photos.length === 1 ? "" : "s"}`] : []
+      tags: ride.photos.length > 0 ? [`${ride.photos.length} photo${ride.photos.length === 1 ? "" : "s"}`] : [],
+      management: { canDelete: true }
     })),
     ...trips.map((trip): RideLibraryItem => ({
       id: `trip:${trip.id}`,

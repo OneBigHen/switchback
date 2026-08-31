@@ -21,6 +21,7 @@ import { createSyncController } from "@/lib/client/sync-controller"
 import type { RecoveryKit } from "@/lib/sync/recovery-kit"
 import type { SyncStateRecord } from "@/lib/sync/client-store"
 import styles from "./ProfilePanel.module.css"
+import { ModalFocusScope } from "@/components/planner/a11y/ModalFocusScope"
 
 interface ProfilePanelProps {
   onOpenDownloads(): void
@@ -162,6 +163,7 @@ export function ProfilePanel({
   }
 
   return (
+    <ModalFocusScope onEscape={() => onClose?.()}>
     <div className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="advanced-settings-title">
       <section className={styles.panel} aria-label="Account, sync & rider data">
         <header className={styles.header}>
@@ -283,5 +285,6 @@ export function ProfilePanel({
         {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
       </section>
     </div>
+    </ModalFocusScope>
   )
 }

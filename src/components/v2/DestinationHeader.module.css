@@ -10,7 +10,7 @@
   border: 1px solid color-mix(in srgb, var(--sb-border) 82%, transparent);
   border-radius: 18px;
   background:
-    linear-gradient(122deg, color-mix(in srgb, var(--sb-paper) 96%, transparent) 0 58%, color-mix(in srgb, var(--sb-deep-spruce) 9%, var(--sb-paper)) 100%);
+    linear-gradient(122deg, color-mix(in srgb, var(--sb-paper) 96%, transparent) 0 58%, color-mix(in srgb, var(--sb-spruce) 9%, var(--sb-paper)) 100%);
   box-shadow: 0 16px 38px color-mix(in srgb, var(--sb-ink) 8%, transparent);
 }
 

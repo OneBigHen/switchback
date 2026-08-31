@@ -1,5 +1,6 @@
 import { layerCatalog, type RiderLayerId } from "@/lib/client/map-layers"
 import type { RouteProfileId } from "@/lib/routing/types"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
 
 /**
  * One versioned operational settings source (SB-011/SB-023).
@@ -303,4 +304,17 @@ export function saveRiderSettings(settings: RiderSettings): void {
 
 export function getActiveBike(settings: RiderSettings): RiderBike {
   return settings.bikes.find((bike) => bike.id === settings.activeBikeId) ?? settings.bikes[0]!
+}
+
+export function bikeProfileFromRiderSettings(settings: RiderSettings): BikeProfile {
+  const bike = getActiveBike(settings)
+  return {
+    name: bike.name,
+    category: bike.category,
+    fuelRangeMiles: bike.fuelRangeMiles,
+    reserveMiles: bike.reserveMiles,
+    allowMaintainedGravel: bike.maintainedGravel,
+    allowRoughTracks: bike.roughTracks,
+    avoidUnknownSurface: bike.unknownSurfacePolicy === "avoid"
+  }
 }

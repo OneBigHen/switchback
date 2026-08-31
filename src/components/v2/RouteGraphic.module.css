@@ -15,7 +15,7 @@
 }
 
 .topo {
-  stroke: color-mix(in srgb, var(--sb-topo-sage) 48%, transparent);
+  stroke: color-mix(in srgb, var(--sb-sage) 48%, transparent);
   stroke-width: 1;
   stroke-dasharray: 2 4;
 }
@@ -47,7 +47,7 @@
 }
 
 .bike .trace {
-  stroke: var(--sb-signal-blue);
+  stroke: var(--sb-signal);
 }
 
 .library .trace {

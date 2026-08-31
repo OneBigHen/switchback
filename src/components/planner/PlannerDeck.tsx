@@ -8,7 +8,7 @@ import {
   MapTrifold,
   NavigationArrow,
   Path,
-  Sparkle,
+  RoadHorizon,
   SpinnerGap,
   WarningCircle,
   X
@@ -268,7 +268,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           {!selectedRoute && onStartFreeRide ? (
             <div className="planner-peek-actions" aria-label="Quick ride actions">
               <button type="button" className="planner-peek-action is-primary" onClick={onStartFreeRide}>
-                <Sparkle weight="fill" aria-hidden="true" /> Free Ride
+                <RoadHorizon weight="fill" aria-hidden="true" /> Free Ride
               </button>
             </div>
           ) : null}

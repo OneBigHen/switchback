@@ -45,7 +45,7 @@ import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { AvoidArea, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
-import { loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
+import { bikeProfileFromRiderSettings, loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
 
 import { TripPlanLibrary } from "@/lib/storage/trip-plan-library"
 import { createTripPlan } from "@/lib/trip/trip-plan"
@@ -61,7 +61,7 @@ import {
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { buildOfflinePackCorridor, type OfflinePackCorridorOptions } from "@/lib/client/offline-pack-coordinator"
 import { comparePlannedVsActual, type ReplayComparisonResult } from "@/lib/client/replay-comparison"
-import { rankRoutesForRider } from "@/lib/client/rider-route-ranking"
+import { canApplyRankedRouteSelection, rankRoutesForRider } from "@/lib/client/rider-route-ranking"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
@@ -81,6 +81,7 @@ import type { RideResearchSource } from "@/lib/ai/ride-research"
 import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { useProviderHealth } from "./ProviderHealthNotice"
 import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
+import { ModalFocusScope } from "./a11y/ModalFocusScope"
 import { AppNavigation } from "@/components/shell/AppNavigation"
 import { AppShell } from "@/components/shell/AppShell"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
@@ -102,6 +103,18 @@ function initialThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "auto"
   const stored = localStorage.getItem("switchback:theme")
   return stored === "light" || stored === "dark" ? stored : "auto"
+}
+
+/**
+ * Seed the highway preference from saved rider settings, but only for a
+ * pristine planner. A rehydrated store already carries the choice the rider
+ * made for that plan, and must not be overwritten by the global default.
+ */
+function initialAvoidHighways(): boolean {
+  if (typeof window === "undefined") return false
+  const store = usePlannerStore.getState()
+  if (store.plan || store.start || store.finish || store.status !== "idle") return false
+  return loadRiderSettings().defaultAvoidHighways
 }
 
 /**
@@ -181,7 +194,7 @@ export function PlannerShell() {
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [planMode, setPlanMode] = useState<PlanMode>("destination")
   const [targetMinutes, setTargetMinutes] = useState(120)
-  const [avoidHighways, setAvoidHighways] = useState(false)
+  const [avoidHighways, setAvoidHighways] = useState(initialAvoidHighways)
   const [avoidAreas, setAvoidAreas] = useState<AvoidArea[]>([])
   const [segmentProfiles, setSegmentProfiles] = useState<RouteProfileId[]>([])
   const [intentStatus, setIntentStatus] = useState<RideIntentStatus>("idle")
@@ -200,6 +213,17 @@ export function PlannerShell() {
     undefined,
     () => createInitialAppNavigationState(initialThemePreference())
   )
+
+  // Seeding the planner store is an external-system sync, so it belongs in an
+  // effect; the React-owned highway flag is seeded by its state initializer
+  // instead, which keeps this effect free of cascading renders.
+  useEffect(() => {
+    const store = usePlannerStore.getState()
+    if (store.plan || store.start || store.finish || store.status !== "idle") return
+    const settings = loadRiderSettings()
+    store.setProfile(settings.defaultProfile)
+    store.setBikeProfile(bikeProfileFromRiderSettings(settings))
+  }, [])
 
   const [riderLayers, setRiderLayers] = useState<RiderLayerSetting[]>(() => defaultRiderLayerSettings().map((layer) => ({
     ...layer,
@@ -277,9 +301,18 @@ export function PlannerShell() {
     void riderPreferenceLibraryRef.current!.get(settings.bikeId, profile).then((preference) => {
       if (!preference) return
       const store = usePlannerStore.getState()
-      if (store.selectionSource === "user") return
       const best = rankRoutesForRider(routes, preference)[0]
-      if (best && store.selectedRouteId !== best.route.id) {
+      const currentRouteIds = store.plan?.routes.map((route) => route.id) ?? []
+      const currentPlanKey = store.plan
+        ? `${store.plan.planningId ?? "plan"}:${currentRouteIds.join(",")}:${localPreferenceLearningSettings().bikeId}`
+        : null
+      if (best && canApplyRankedRouteSelection({
+        expectedPlanKey: key,
+        currentPlanKey,
+        currentRouteIds,
+        rankedRouteId: best.route.id,
+        selectionSource: store.selectionSource
+      }) && store.selectedRouteId !== best.route.id) {
         store.applyAutomaticRouteSelection(best.route.id)
       }
     }).catch(() => undefined)
@@ -1503,6 +1536,12 @@ export function PlannerShell() {
             }).catch(() => setNotice({ kind: "warning", message: "That saved trip could not be removed." }))
           }}
           onLoadRecorded={handleLoadRecordedRide}
+          onDeleteRecorded={(ride) => {
+            void rideJournalLibrary.remove(ride.id).then(async () => {
+              await refreshRideJournal()
+              setNotice({ kind: "success", message: `${ride.routeName || ride.route.name} was removed from this device.` })
+            }).catch(() => setNotice({ kind: "warning", message: "That recording could not be removed." }))
+          }}
           onMatchImported={(route) => void handleMatchImported(route)}
           onLoadProject={(route) => void handleLoadProject(route)}
           onDelete={(route) => void handleDelete(route)}
@@ -1525,6 +1564,12 @@ export function PlannerShell() {
         <SettingsDestination
           theme={navigation.theme}
           onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
+          onSettingsChange={(settings) => {
+            const store = usePlannerStore.getState()
+            store.setProfile(settings.defaultProfile)
+            store.setBikeProfile(bikeProfileFromRiderSettings(settings))
+            setAvoidHighways(settings.defaultAvoidHighways)
+          }}
           onOpenAdvancedSettings={() => {
             dispatchNavigation({ type: "close_overlay", overlay: "record" })
             dispatchNavigation({ type: "open_overlay", overlay: "advanced-settings" })
@@ -1559,6 +1604,7 @@ export function PlannerShell() {
         />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("downloads") ? (
+        <ModalFocusScope onEscape={() => dispatchNavigation({ type: "close_overlay", overlay: "downloads" })}>
         <div className="app-overlay-scrim" role="dialog" aria-modal="true" aria-labelledby="downloads-overlay-title">
           <section className="app-overlay-panel">
             <header><h2 id="downloads-overlay-title">Region downloads</h2><button type="button" aria-label="Close region downloads" onClick={() => dispatchNavigation({ type: "close_overlay", overlay: "downloads" })}>×</button></header>
@@ -1569,6 +1615,7 @@ export function PlannerShell() {
             />
           </section>
         </div>
+        </ModalFocusScope>
       ) : null}
       {surface === "free-ride" ? (
         <FreeRideHud

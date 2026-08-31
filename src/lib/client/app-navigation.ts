@@ -101,6 +101,12 @@ export function appNavigationReducer(
     }
     case "open_overlay":
       if (state.overlays.includes(action.overlay)) return state
+      if (action.overlay === "downloads") {
+        return {
+          ...state,
+          overlays: [...state.overlays.filter((overlay) => overlay !== "advanced-settings"), action.overlay]
+        }
+      }
       return { ...state, overlays: [...state.overlays, action.overlay] }
     case "close_overlay": {
       if (state.overlays.length === 0) return state

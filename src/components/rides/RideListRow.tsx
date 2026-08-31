@@ -41,7 +41,7 @@ export function RideListRow({ item, onOpen, onMatchRoads, onOrganize, onDelete }
   const [confirmDelete, setConfirmDelete] = useState(false)
   const management = item.management
   const canManage = Boolean(management?.canDelete || management?.canMatchRoads || (item.kind === "saved-route" && onOrganize))
-  const deleteLabel = item.kind === "trip-plan" ? "trip" : "route"
+  const deleteLabel = item.kind === "trip-plan" ? "trip" : item.kind === "recorded-ride" ? "recording" : "route"
 
   const toggleManagement = () => {
     if (!manageOpen) {

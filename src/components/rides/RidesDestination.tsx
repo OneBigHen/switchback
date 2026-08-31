@@ -27,6 +27,7 @@ export interface RidesDestinationProps {
   onDeleteTrip?(trip: TripPlan): void
   onMatchImported?(route: SavedRoute): void
   onLoadRecorded?(ride: RecordedRide): void
+  onDeleteRecorded?(ride: RecordedRide): void
   onLoadProject?(route: ProjectGpxRouteSummary): void
   onDelete(route: SavedRoute): void
   onOrganize?(route: SavedRoute, organization: {
@@ -61,6 +62,11 @@ export function RidesDestination(props: RidesDestinationProps) {
   const tripFor = (item: RideLibraryItem) => {
     const sourceId = item.sourceId ?? item.id
     return trips.find((candidate) => candidate.id === sourceId)
+  }
+
+  const recordedRideFor = (item: RideLibraryItem) => {
+    const sourceId = item.sourceId ?? item.id
+    return recordedRides.find((candidate) => candidate.id === sourceId)
   }
 
   const openItem = (item: RideLibraryItem) => {
@@ -122,6 +128,11 @@ export function RidesDestination(props: RidesDestinationProps) {
             if (item.kind === "trip-plan") {
               const trip = tripFor(item)
               if (trip) props.onDeleteTrip?.(trip)
+              return
+            }
+            if (item.kind === "recorded-ride") {
+              const ride = recordedRideFor(item)
+              if (ride) props.onDeleteRecorded?.(ride)
             }
           }}
         />
