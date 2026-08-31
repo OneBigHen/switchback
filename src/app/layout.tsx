@@ -23,7 +23,14 @@ import "./styles/route-evidence-panel.css";
 import "./styles/route-weather.css";
 import "./styles/route-rating.css";
 import "./styles/breakpoints.css";
-import "./styles/switchback-v1.css";
+// Record preflight + shared destination-panel surface, recovered from the
+// retired switchback-v1.css. Loads before design-system.css so the V2
+// design layer keeps the last word.
+import "./styles/record-panel.css";
+// Recovered from library-drawer.css / profile-panel.css, which were deleted
+// as retired authorities while these surfaces were still live.
+import "./styles/ride-recording-hud.css";
+import "./styles/diagnostics-panel.css";
 import "./styles/design-system.css";
 // V2 shell chrome (primary navigation and destination framing; discover
 // placeholder). Consumes tokens.css only; replaces the retired nav blocks

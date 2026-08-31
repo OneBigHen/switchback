@@ -194,7 +194,9 @@
     }
 
     .planner-scroll {
-      padding-top: 28px;
+      /* The drag target is a full 44px touch target. Keep the first composer
+         control below it so the handle never owns the input's hit area. */
+      padding-top: 44px;
     }
 
 

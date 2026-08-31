@@ -429,7 +429,10 @@ h6,
   }
 
   .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .planner-full-attribution a {
+    display: inline-block;
+    min-height: 12px;
     color: var(--sb-text-muted);
+    line-height: 1.5;
   }
 }
 
@@ -446,6 +449,12 @@ h6,
     padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;
   }
 
+  .planner-shell .planner-deck:not(.is-minimized) .planner-scroll {
+    /* planner-deck.css has older compact padding rules later in its file.
+       The V2 44px drag target owns this inset at the final design layer. */
+    padding-top: var(--sb-touch-target);
+  }
+
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {
     position: static;
     flex: 0 0 auto;
@@ -459,4 +468,58 @@ h6,
   .planner-shell .sb-bottom-sheet.is-minimized .planner-action-dock {
     padding-bottom: max(13px, env(safe-area-inset-bottom));
   }
+}
+
+/* Generic app overlay (region downloads).
+   .app-overlay-scrim / .app-overlay-panel were defined only in the retired
+   switchback-v1.css, so this modal shipped completely unstyled once that sheet
+   was dropped: an in-flow div with no scrim, no centring and no height cap,
+   which overflowed the visual viewport. Fixed positioning — not V1's absolute
+   — keeps it anchored to the visual viewport even when the destination
+   underneath it scrolls. */
+.app-overlay-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: max(var(--sb-space-5), env(safe-area-inset-top)) max(var(--sb-space-5), env(safe-area-inset-right)) max(var(--sb-space-5), env(safe-area-inset-bottom)) max(var(--sb-space-5), env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--sb-ink) 48%, transparent);
+}
+
+.app-overlay-panel {
+  width: min(760px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-sheet);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  box-shadow: var(--sb-shadow);
+}
+
+.app-overlay-panel > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sb-space-3);
+  padding: var(--sb-space-4) var(--sb-space-5);
+  border-bottom: 1px solid var(--sb-border);
+  background: var(--sb-surface);
+}
+
+.app-overlay-panel > header h2 {
+  margin: 0;
+}
+
+.app-overlay-panel > header button {
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
 }

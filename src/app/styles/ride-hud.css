@@ -1,3 +1,22 @@
+/* Ride mode's HUD needs its own stacking context.
+   .map-stage is absolutely positioned inside a relative .planner-shell, so a
+   static .ride-hud sibling always paints underneath the maplibre canvas and
+   every topbar control is unclickable at its center. Mirror .free-ride-hud:
+   one full-bleed transparent layer above the map, with the map still
+   reachable everywhere the HUD is not drawing a control. */
+.ride-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.ride-hud button,
+.ride-hud a,
+.ride-hud input,
+.ride-hud select {
+  pointer-events: auto;
+}
 
 .ride-reroute-card {
   margin-top: 14px;
