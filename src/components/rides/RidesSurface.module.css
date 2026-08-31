@@ -227,7 +227,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--sb-paper) 88%, transparent);
   color: var(--sb-ink);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -535,5 +535,15 @@
 
   .openButton {
     grid-template-columns: 72px minmax(0, 1fr) 16px;
+  }
+}
+
+/* iOS Safari zooms the whole viewport when a focused text control renders
+   below 16px, which throws the rider out of the map-first layout and needs a
+   manual pinch back. Scoped to real touch devices, so desktop density is
+   unchanged — the previous phone-only breakpoint missed iPad, which zooms too. */
+@media (pointer: coarse) {
+  .search input {
+    font-size: 16px;
   }
 }

@@ -647,6 +647,14 @@
   .plan-v2 {
     max-width: 440px;
   }
+
+  /* Destination / Loop / Draw are primary planning controls and must stay
+     44px touch targets. The deck is capped at 440px here, so the selector's
+     1fr track collapsed each button to 38px on tablets — narrower than the
+     same control on a phone, on a device that is still touch-first. */
+  .plan-v2__mode-selector {
+    min-width: 144px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -762,5 +770,15 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* iOS Safari zooms the whole viewport when a focused text control renders
+   below 16px, which throws the rider out of the map-first layout and needs a
+   manual pinch back. Scoped to real touch devices, so desktop density is
+   unchanged — the previous phone-only breakpoint missed iPad, which zooms too. */
+@media (pointer: coarse) {
+  .plan-v2__search input {
+    font-size: 16px;
   }
 }

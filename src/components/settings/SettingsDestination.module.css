@@ -33,7 +33,7 @@
 .sectionHeader span,
 .advanced > div:nth-child(2) > span {
   color: var(--sb-ember-strong);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -257,5 +257,16 @@
   .rows input:not([type="checkbox"]),
   .rows select {
     width: 100%;
+  }
+}
+
+/* iOS Safari zooms the whole viewport when a focused text control renders
+   below 16px, which throws the rider out of the map-first layout and needs a
+   manual pinch back. Scoped to real touch devices, so desktop density is
+   unchanged — the previous phone-only breakpoint missed iPad, which zooms too. */
+@media (pointer: coarse) {
+  .rows input:not([type="checkbox"]),
+  .rows select {
+    font-size: 16px;
   }
 }

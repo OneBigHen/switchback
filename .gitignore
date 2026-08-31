@@ -32,6 +32,7 @@ public/workbox-*.js
 artifacts/routing-rework/raw/
 artifacts/quality/
 artifacts/mobile-qa/
+artifacts/audit/
 
 # Multi-agent orchestrator scratch/evidence dir
 .omo/

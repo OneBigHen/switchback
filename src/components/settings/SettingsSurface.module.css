@@ -28,7 +28,7 @@
 
 .sectionHeading span {
   color: var(--sb-ember-strong);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -115,7 +115,7 @@
 
 .bikeIdentity small {
   color: var(--sb-text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -173,7 +173,7 @@
 
 .bikeMetrics small {
   color: var(--sb-text-muted);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
 }
 
