@@ -280,35 +280,37 @@ test("a saved route survives a reload and remains available in the library", asy
   await page.getByRole("button", { name: /Show route details/i }).click()
   await page.getByRole("button", { name: "Save route" }).click()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
-  // The post-plan deck collapses the route editor (where the saved-count chip
-  // lives), so confirm the save landed via the canonical Library surface: the
-  // on-device list carries the route and its count in the same session.
-  const library = page.getByRole("dialog", { name: "Ride library" })
+
+  // Rides is a persistent V2 destination, not the retired modal LibraryDrawer.
+  // Verify the saved object in the destination, then reload while that destination
+  // is active so persistence and URL-state restoration are covered together.
   await page.getByRole("button", { name: "Rides", exact: true }).click()
-  const onDeviceSection = library.locator(".library-section-title", { hasText: "On this device" })
-  await expect(onDeviceSection).toBeVisible()
-  await expect(onDeviceSection).toContainText("1")
-  await expect(library.getByText("Saved fixture route")).toBeVisible()
-  await page.getByRole("button", { name: "Close library" }).click()
-  await expect(library).toBeHidden()
+  const rides = page.getByRole("main", { name: "Rides destination" })
+  await expect(rides).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
+
   await page.reload()
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
-  await expect(page.getByText("Saved fixture route")).toBeVisible()
+  await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
+  const restoredRides = page.getByRole("main", { name: "Rides destination" })
+  await expect(restoredRides).toBeVisible()
+  await expect(restoredRides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 })
 
 test("valid GPX import appears in the route library", async ({ page }) => {
   await installPlannerServices(page)
   await page.goto("/")
-  await page.getByRole("button", { name: "Rides", exact: true }).last().click()
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
-  await page.getByLabel("Import GPX, KML, or KMZ file").setInputFiles({
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Import ride" }).click()
+  await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({
     name: "critical-import.gpx",
     mimeType: "application/gpx+xml",
     buffer: Buffer.from(`<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Critical imported loop</name></metadata><trk><trkseg><trkpt lat="40.2732" lon="-76.8867"/><trkpt lat="40.31" lon="-76.82"/></trkseg></trk></gpx>`)
   })
+  await page.getByRole("button", { name: "Open as a route" }).click()
   await expect(page.getByText("Critical imported loop imported to your library.")).toBeVisible()
-  await expect(page.locator(".library-load", { hasText: "Critical imported loop" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Open Critical imported loop" })).toBeVisible()
 })
 
 test("Free Ride accepts one suggestion into a normal guided Ride", async ({ page }) => {
