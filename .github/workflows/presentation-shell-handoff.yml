@@ -1,0 +1,83 @@
+name: Presentation shell handoff
+
+on:
+  push:
+    branches: [ux/v2-settings-integration]
+
+permissions:
+  contents: write
+
+jobs:
+  handoff:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/v2-settings-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply bounded shell handoff
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected shell handoff anchor missing: {path}: {old[:80]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/components/planner/PlannerShell.tsx",
+              'import { ProfilePanel } from "@/components/shell/ProfilePanel"\n',
+              'import { ProfilePanel } from "@/components/shell/ProfilePanel"\nimport { SettingsDestination } from "@/components/settings/SettingsDestination"\n'
+          )
+
+          replace_once(
+              "src/components/planner/PlannerShell.tsx",
+              '''            onOpenRecord={() => {\n              // Record preflight and Settings are exclusive overlay panels;\n              // opening one dismisses the other so they never stack.\n              dispatchNavigation({ type: "close_overlay", overlay: "settings" })\n              dispatchNavigation({ type: "open_overlay", overlay: "record" })\n            }}\n            onOpenSettings={() => {\n              dispatchNavigation({ type: "close_overlay", overlay: "record" })\n              dispatchNavigation({ type: "open_overlay", overlay: "settings" })\n            }}\n''',
+              '''            onOpenRecord={() => {\n              dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })\n              dispatchNavigation({ type: "open_overlay", overlay: "record" })\n            }}\n'''
+          )
+
+          replace_once(
+              "src/components/planner/PlannerShell.tsx",
+              '''      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (\n''',
+              '''      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "settings" ? (\n        <SettingsDestination\n          onOpenAdvancedSettings={() => {\n            dispatchNavigation({ type: "close_overlay", overlay: "record" })\n            dispatchNavigation({ type: "open_overlay", overlay: "advanced-settings" })\n          }}\n        />\n      ) : null}\n      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (\n'''
+          )
+
+          replace_once(
+              "src/components/planner/PlannerShell.tsx",
+              '''      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("settings") ? (\n        <ProfilePanel\n          theme={navigation.theme}\n          onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}\n          onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}\n            onResetLearning={() => {\n              // Destructive: wiping every learned preference needs a\n              // confirmation (SB-027).\n              if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return\n              void riderPreferenceLibraryRef.current!.clear()\n            }}\n            onExportLearning={() => riderPreferenceLibraryRef.current!.list()}\n          />\n      ) : null}\n''',
+              '''      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("advanced-settings") ? (\n        <ProfilePanel\n          onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}\n          onResetLearning={() => {\n            if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return\n            void riderPreferenceLibraryRef.current!.clear()\n          }}\n          onExportLearning={() => riderPreferenceLibraryRef.current!.list()}\n          onClose={() => dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })}\n        />\n      ) : null}\n'''
+          )
+
+          replace_once(
+              "src/lib/client/app-navigation.ts",
+              '''export type AppOverlay =\n  /** Transitional token used only by PlannerShell until ProfilePanel is retired. */\n  | "settings"\n''',
+              '''export type AppOverlay =\n  | "advanced-settings"\n'''
+          )
+
+          replace_once(
+              "src/components/shell/AppNavigation.tsx",
+              '''  onOpenRecord(): void\n  /** Temporary compatibility input while PlannerShell's old Settings overlay is removed. */\n  onOpenSettings?(): void\n''',
+              '''  onOpenRecord(): void\n'''
+          )
+          PY
+      - run: npm ci
+      - name: Verify Settings authority handoff
+        run: npx vitest run tests/components/app-navigation.test.tsx tests/components/settings-destination.test.tsx tests/components/profile-panel-v2.test.ts tests/components/settings-shell-authority.test.ts
+      - run: npm run typecheck
+      - name: Commit verified handoff
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/presentation-shell-handoff.yml
+          git add src/components/planner/PlannerShell.tsx src/lib/client/app-navigation.ts src/components/shell/AppNavigation.tsx
+          git commit -m "refactor(ux-v2): hand Settings authority to destination"
+          git push origin HEAD:ux/v2-settings-integration
