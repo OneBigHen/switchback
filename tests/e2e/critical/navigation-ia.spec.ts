@@ -10,9 +10,8 @@ import { installPlannerServices } from "../helpers/planner-fixtures"
 // keeps its `?tab=` value so a reload re-migrates to the same state, while a
 // rider-selected destination rewrites the address bar to the V2 value.
 //
-// The Rides destination is an aria-modal dialog, so the nav is hidden from
-// the accessibility tree while it is open; the active-destination checks use
-// the same CSS locator contract as the mobile QA suite.
+// Rides is a primary destination, not a modal. Navigation therefore remains
+// reachable while the rider searches, opens, imports, or filters their rides.
 
 const activeDestination = (page: Page) =>
   page.locator(".app-navigation-primary button[aria-current='page']")
@@ -38,11 +37,10 @@ test("moving between destinations updates the URL and the visible surface", asyn
 
   await primary.getByRole("button", { name: "Rides" }).click()
   await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+  await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
   await expect(activeDestination(page)).toHaveText("Rides")
-
-  await page.getByRole("button", { name: "Close library" }).click()
-  await expect(primary.getByRole("button", { name: "Discover" })).toBeVisible()
 
   await primary.getByRole("button", { name: "Discover" }).click()
   await expect(page).toHaveURL(/[?&]tab=discover(?:&|$)/)
@@ -57,9 +55,11 @@ test("moving between destinations updates the URL and the visible surface", asyn
 test("legacy ?tab=library deep link lands on the Rides destination", async ({ page }) => {
   await page.goto("/?tab=library")
 
-  // The library surface is restored, the legacy value is preserved for
+  // The Rides destination is restored, the legacy value is preserved for
   // reload-stable migration, and the V2 nav marks Rides as active.
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+  await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
   await expect(page).toHaveURL(/[?&]tab=library(?:&|$)/)
   await expect(activeDestination(page)).toHaveText("Rides")
 })
