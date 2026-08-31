@@ -226,7 +226,7 @@ export async function tapAutocompleteOption(page: Page, name: string | RegExp): 
 export async function expectRouteOutcome(page: Page, capture: RouteCapture): Promise<void> {
   await expect.poll(() => capture.requests.length, { timeout: 30_000 }).toBeGreaterThan(0)
   expectFixtureRequestStart(capture)
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible({ timeout: 30_000 })
   const successful = capture.responses.at(-1)?.body.routes ?? []
   expect(successful.length).toBeGreaterThan(0)
   expect(successful[0]?.geometry.length ?? 0).toBeGreaterThanOrEqual(2)

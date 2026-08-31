@@ -1,7 +1,14 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RouteDecisionRail } from "@/components/planner/v2/RouteDecisionRail"
+import { PlannerComposition } from "@/components/planner/PlannerComposition"
+import type { PlannerDeckCommands, PlannerDeckViewModel } from "@/components/planner/PlannerDeckViewModel"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
+import type { ReactNode } from "react"
+
+vi.mock("@/components/planner/PlannerDeck", () => ({
+  PlannerDeck: ({ children }: { children?: ReactNode }) => <div data-testid="planner-deck">{children}</div>
+}))
 
 afterEach(cleanup)
 
@@ -80,5 +87,30 @@ describe("RouteDecisionRail", () => {
 
     const card = screen.getByRole("article", { name: /Best Ride/i })
     expect(within(card).getAllByTestId("route-decision-warning")).toHaveLength(1)
+  })
+
+  it("is the primary choice surface while legacy comparison remains preparation details", () => {
+    const comparison = {
+      routes,
+      selectedId: "twisty",
+      onSelect: vi.fn(),
+      onSave: vi.fn(),
+      onExport: vi.fn(),
+      onRide: vi.fn()
+    }
+
+    render(
+      <PlannerComposition
+        viewModel={{} as PlannerDeckViewModel}
+        commands={{} as PlannerDeckCommands}
+        comparison={comparison}
+      />
+    )
+
+    expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
+    expect(screen.getByRole("article", { name: /Maximum Twisties route option/i })).toHaveAttribute("data-selected", "true")
+    expect(screen.queryByRole("heading", { name: "Choose a route" })).not.toBeInTheDocument()
+    expect(screen.getByText("Selected route")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Show turn-by-turn directions" })).toBeInTheDocument()
   })
 })

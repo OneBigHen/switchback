@@ -83,7 +83,7 @@ test("a free-form ride request reaches a routed outcome", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
   await prompt.press("Enter")
   await expectRouteOutcome(page, capture)
-  await expect(page.getByRole("button", { name: "Select Prompt result" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Route choices" }).getByText("Prompt result", { exact: true })).toBeVisible()
 })
 
 test("destination planning sends the selected points and displays the final route", async ({ page }) => {
@@ -98,10 +98,8 @@ test("destination planning sends the selected points and displays the final rout
       { lat: FIXTURE_FINISH.lat, lon: FIXTURE_FINISH.lon }
     ]
   })
-  // The route name renders both in the selected-route identity line and in
-  // the "Select <name>" slip button; assert the slip button specifically so
-  // the check stays unambiguous under strict mode.
-  await expect(page.getByRole("button", { name: "Select Destination result" })).toBeVisible()
+  // The V2 rail owns primary selection; assert the route name inside its card.
+  await expect(page.getByRole("region", { name: "Route choices" }).getByText("Destination result", { exact: true })).toBeVisible()
 })
 
 test("loop planning uses one fixed start and completes with a non-empty geometry", async ({ page }) => {
@@ -217,11 +215,11 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
     requests,
     responses: requests.map((request, index) => ({ request, body: responses[Math.min(index, responses.length - 1)]! }))
   })
-  // Route names render both in the selected-route identity line and in the
-  // "Select <name>" slip button; assert the slip buttons so the winning plan
-  // (present) vs the superseded stale plan (absent) check stays unambiguous.
-  await expect(page.getByRole("button", { name: "Select Fresh second result" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Select Stale first result" })).toBeHidden()
+  // The V2 rail owns primary selection; assert the winning card is present and
+  // the superseded card is absent without relying on the retired V1 slip label.
+  const choices = page.getByRole("region", { name: "Route choices" })
+  await expect(choices.getByText("Fresh second result", { exact: true })).toBeVisible()
+  await expect(choices.getByText("Stale first result", { exact: true })).toBeHidden()
   expect(requests.length).toBeGreaterThanOrEqual(2)
 })
 
@@ -247,9 +245,10 @@ test("route alternatives arrive after the primary and selection updates the visi
   })
   await planDirectRoute(page, capture)
   await expect.poll(() => capture.requests.filter((request) => request.candidateSet === "alternatives").length).toBeGreaterThan(0)
-  await expect(page.getByRole("button", { name: "Select Scenic alternative" })).toBeVisible()
-  await page.getByRole("button", { name: "Select Scenic alternative" }).click()
-  await expect(page.getByRole("button", { name: "Select Scenic alternative" })).toHaveAttribute("aria-pressed", "true")
+  const choices = page.getByRole("region", { name: "Route choices" })
+  await expect(choices.getByText("Scenic alternative", { exact: true })).toBeVisible()
+  await choices.getByText("Scenic alternative", { exact: true }).click()
+  await expect(choices.getByRole("article", { name: /Best Ride route option/i })).toHaveAttribute("data-selected", "true")
   await expect(page.getByText("9.6")).toBeVisible()
 })
 
@@ -352,7 +351,7 @@ test("desktop and iPhone-sized planner layouts keep controls and route outcome i
   }))
   expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.width + 1)
   expect(metrics.bodyWidth).toBeLessThanOrEqual(metrics.width + 1)
-  const routeRack = page.getByRole("heading", { name: "Choose a route" })
+  const routeRack = page.getByRole("region", { name: "Route choices" })
   const box = await routeRack.boundingBox()
   expect(box).not.toBeNull()
   expect(box!.x).toBeGreaterThanOrEqual(0)

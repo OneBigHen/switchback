@@ -216,7 +216,7 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   expect(matchRequest?.end).toBeDefined()
 
   await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
 
   expect(routeRequest).toBeDefined()
   expect(Array.isArray(routeRequest?.roadLocks)).toBe(true)
