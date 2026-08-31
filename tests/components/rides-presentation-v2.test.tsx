@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest"
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { cleanup, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { RidesSurface, type RideLibraryItem } from "@/components/rides/RidesSurface"
 
 const items: RideLibraryItem[] = [
@@ -9,6 +9,8 @@ const items: RideLibraryItem[] = [
   { id: "trip:3", sourceId: "3", kind: "trip-plan", name: "Allegheny Weekend", sourceLabel: "Trip plan · 2 days", distanceMiles: 301, durationMinutes: 470, updatedAt: "2026-08-28T12:00:00Z", tags: [] },
   { id: "project:4", sourceId: "4", kind: "project-gpx", name: "Bald Eagle Track", sourceLabel: "Project GPX · ADV", distanceMiles: 48, durationMinutes: 92, updatedAt: null, tags: ["high confidence"] }
 ]
+
+afterEach(cleanup)
 
 describe("Rides V2 presentation", () => {
   it("shows source counts in the filter controls and generated route identity graphics", () => {
