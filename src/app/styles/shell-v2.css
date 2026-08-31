@@ -1,7 +1,7 @@
 /* Switchback UX V2 shell chrome.
  *
- * Home of the primary navigation: exactly three destinations (Plan, Rides,
- * Discover) plus the secondary activity/settings cluster. Consumes the
+ * Home of the primary navigation: four persistent destinations (Plan, Rides,
+ * Discover, Settings) plus the secondary Record activity. Consumes the
  * canonical --sb-* tokens only. This layer replaces the retired nav blocks in
  * switchback-v1.css and design-system.css; it is not an override layer.
  */
@@ -108,8 +108,7 @@
   color: var(--sb-action);
 }
 
-/* Phone — bottom bar: three primary destinations plus the compact secondary
-   cluster behind a divider. */
+/* Phone — bottom bar: four primary destinations plus Record behind a divider. */
 @media (max-width: 760px) {
   .planner-shell .app-navigation {
     top: auto;
@@ -128,13 +127,15 @@
   }
 
   .app-navigation-primary {
-    flex: 1;
-    grid-template-columns: repeat(3, 1fr);
+    min-width: 0;
+    flex: 1 1 auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--sb-space-1);
     padding: var(--sb-space-2);
   }
 
   .app-navigation-secondary {
+    flex: 0 0 auto;
     margin-top: 0;
     grid-auto-flow: column;
     align-items: stretch;
