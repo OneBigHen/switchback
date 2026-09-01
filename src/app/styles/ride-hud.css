@@ -308,6 +308,13 @@
   }
 }
 
+@media (max-width: 760px) and (orientation: portrait),
+  (max-width: 760px) and (orientation: landscape) and (min-height: 521px) {
+  .planner-shell {
+    min-height: 520px;
+  }
+}
+
 @media (max-width: 760px) {
   /* Offset comes from --ride-recenter-bottom in planner-shell.css so this
      stays in lockstep with the instruction card's height cap below. */
@@ -316,10 +323,6 @@
     min-width: 48px;
     min-height: 48px;
     padding: 0 12px;
-  }
-
-  .planner-shell {
-    min-height: 520px;
   }
 
   .planner-deck {

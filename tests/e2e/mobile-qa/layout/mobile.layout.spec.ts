@@ -42,6 +42,60 @@ function selectMatrix(state: LayoutState, testInfo: TestInfo): void {
   test.skip(!STATE_PROJECTS[state].has(testInfo.project.name), `selective mobile matrix excludes ${state} on ${testInfo.project.name}`)
 }
 
+async function expectShortLandscapeShellAndNavigation(page: import("@playwright/test").Page): Promise<void> {
+  const geometry = await page.evaluate(() => {
+    const rect = (element: HTMLElement | null, name: string) => {
+      if (!element) throw new Error(`${name} is missing`)
+      const box = element.getBoundingClientRect()
+      return {
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+        width: box.width,
+        height: box.height,
+      }
+    }
+    const shell = document.querySelector<HTMLElement>(".planner-shell")
+    const nav = document.querySelector<HTMLElement>("nav.app-navigation")
+    const buttons = Array.from(nav?.querySelectorAll<HTMLElement>("button") ?? []).map((button) => {
+      const box = button.getBoundingClientRect()
+      const center = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      return {
+        label: button.textContent?.trim(),
+        rect: { top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height },
+        centerIsReachable: center === button || button.contains(center),
+      }
+    })
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      shell: rect(shell, "planner shell"),
+      shellMinHeight: shell ? getComputedStyle(shell).minHeight : "",
+      nav: rect(nav, "app navigation"),
+      navClientHeight: nav?.clientHeight ?? 0,
+      navScrollHeight: nav?.scrollHeight ?? 0,
+      brandDisplay: getComputedStyle(document.querySelector<HTMLElement>(".app-navigation-brand")!).display,
+      buttons,
+    }
+  })
+
+  expect(geometry.shellMinHeight, "short landscape must release the base shell floor").toBe("0px")
+  expect(geometry.shell.top).toBeGreaterThanOrEqual(0)
+  expect(geometry.shell.height).toBeGreaterThanOrEqual(geometry.viewport.height - 1)
+  expect(geometry.shell.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1)
+  expect(geometry.nav.top).toBeGreaterThanOrEqual(0)
+  expect(geometry.nav.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1)
+  expect(geometry.navScrollHeight).toBeLessThanOrEqual(geometry.navClientHeight + 1)
+  expect(geometry.brandDisplay).toBe("none")
+  expect(geometry.buttons.map(({ label }) => label)).toEqual(["Plan", "Rides", "Discover", "Settings", "Record"])
+  for (const button of geometry.buttons) {
+    expect(button.rect.width, `${button.label} width`).toBeGreaterThanOrEqual(44)
+    expect(button.rect.height, `${button.label} height`).toBeGreaterThanOrEqual(44)
+    expect(button.rect.top, `${button.label} top`).toBeGreaterThanOrEqual(0)
+    expect(button.rect.bottom, `${button.label} bottom`).toBeLessThanOrEqual(geometry.viewport.height + 1)
+    expect(button.centerIsReachable, `${button.label} center must be hit-testable`).toBe(true)
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await pinVisualClock(page)
 })
@@ -55,6 +109,20 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
   await expectInteractiveElementsUnclipped(page)
   await expectMinimumTouchTargetSize(page)
   await expectNavigationReachability(page)
+  const usesSideDeck = testInfo.project.name === "webkit-standard-landscape"
+  if (usesSideDeck) {
+    await expectShortLandscapeShellAndNavigation(page)
+    const navigation = page.locator("nav.app-navigation")
+    for (const destination of ["Plan", "Rides", "Discover", "Settings"] as const) {
+      const button = navigation.getByRole("button", { name: destination, exact: true })
+      await button.tap()
+      await expect(button).toHaveAttribute("aria-current", "page")
+    }
+    await navigation.getByRole("button", { name: "Record", exact: true }).tap()
+    await expect(page.getByRole("heading", { name: "Record a ride" })).toBeVisible()
+    await navigation.getByRole("button", { name: "Plan", exact: true }).tap()
+    await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
+  }
   const sheet = page.locator("#planner-sheet")
   await expect(sheet).toHaveAttribute("data-sheet-detent", "half")
   // The drag handle is a bottom-sheet affordance: it is display:none by
@@ -63,7 +131,6 @@ test("Plan sheet geometry and browser containment (not physical safe-area proof)
   // (design-system.css:275), where half and full render identically and the
   // header's Minimize/Expand pair is the state control. Assert whichever
   // affordance the layout actually ships rather than requiring the handle.
-  const usesSideDeck = testInfo.project.name === "webkit-standard-landscape"
   if (!usesSideDeck) {
     await page.getByRole("button", { name: "Expand planner sheet" }).tap()
     await expect(sheet).toHaveAttribute("data-sheet-detent", "full")

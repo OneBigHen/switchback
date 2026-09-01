@@ -5,6 +5,8 @@ const baseURL = `http://localhost:${port}`
 
 export default defineConfig({
   testDir: "./tests/audit",
+  // Audit files are Playwright-only and must never be collected by Vitest.
+  testMatch: /.*\.pw\.ts$/,
   timeout: 120_000,
   fullyParallel: false,
   workers: 1,

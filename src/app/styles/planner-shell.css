@@ -2,9 +2,19 @@
   position: relative;
   width: 100vw;
   height: 100dvh;
+  /* Preserve the desktop and portrait composition's minimum canvas. The
+     short-landscape override below releases this floor before the shell clips
+     bottom-anchored surfaces out of the visual viewport. */
   min-height: 560px;
   overflow: hidden;
   background: var(--oled);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-shell {
+    min-height: 0;
+    height: 100dvh;
+  }
 }
 
 .map-stage,

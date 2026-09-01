@@ -56,13 +56,15 @@ async function expectRideViewportLocked(page: import("@playwright/test").Page) {
 }
 
 async function openRouteEditor(page: import("@playwright/test").Page) {
-  const editorHeading = page.getByRole("heading", { name: /Pick two points|Start here/i })
-  if (await editorHeading.isVisible().catch(() => false)) return
+  const startField = page.getByRole("combobox", { name: "Start", exact: true })
+  if (await startField.isVisible().catch(() => false)) return
 
+  const options = page.getByRole("button", { name: "Options", exact: true })
   await expect(async () => {
-    await page.getByRole("button", { name: "Edit route" }).click()
-    await expect(editorHeading).toBeVisible({ timeout: 1_000 })
-  }).toPass()
+    await expect(options).toBeVisible({ timeout: 1_000 })
+    if (await options.getAttribute("aria-expanded") !== "true") await options.click()
+    await expect(startField).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
 }
 
 function plannedRoute(
@@ -280,7 +282,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await page.goto(appUrl)
   await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   await openRouteEditor(page)
-  await expect(page.getByRole("heading", { name: /Pick two points/i })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Start" })).toHaveValue("Current location")
   await expect(page.getByRole("combobox", { name: "Finish" })).toHaveValue("")
   if (testInfo.project.name.includes("landscape")) {
@@ -299,21 +301,29 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
   await expectInsideViewport(page, page.getByRole("button", { name: "Plan route" }))
   await page.getByRole("button", { name: "Expand planner" }).click()
-  await expect(page.getByRole("heading", { name: /Pick two points/i })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible()
 
-  await page.getByRole("button", { name: "Loop ride" }).click()
-  const planRouteButton = page.getByRole("button", { name: "Plan a 2-hour loop" })
+  await page.getByRole("button", { name: "Loop", exact: true }).click()
+  const options = page.getByRole("button", { name: "Options", exact: true })
+  if (await options.getAttribute("aria-expanded") !== "true") await options.click()
+  // The V2 timing control presents the 120-minute preset as “2 hr”. Selecting
+  // it explicitly keeps this behavioral journey independent of the old CTA.
+  await page.getByLabel("Loop duration").getByRole("button", { name: "2 hr", exact: true }).click()
+  await page.getByRole("button", { name: "Twisty", exact: true }).click()
+  const planRouteButton = page.locator(".planner-action-dock .plan-button")
+  await expect(planRouteButton).toHaveAccessibleName(/Plan/)
   await expectInsideViewport(page, planRouteButton)
   await planRouteButton.click()
-  await page.getByRole("button", { name: "Twisty", exact: true }).click()
   await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(routeRequest).toMatchObject({ profile: "twisty", compare: false, candidateSet: "primary" })
-  await page.getByRole("button", { name: /Show route details/i }).click()
+  await page.getByRole("button", { name: "Select Maximum Twisties", exact: true }).click()
+  const showRouteDetails = page.getByRole("button", { name: /Show route details/i })
+  if (await showRouteDetails.isVisible().catch(() => false)) await showRouteDetails.click()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
   await expect(page.getByText("Clear and mild")).toBeVisible()
   await expectInsideViewport(page, page.getByRole("button", { name: /Start .* route/i }).last())
 
-  await page.getByRole("button", { name: "Select Quick route" }).click()
+  await page.getByRole("button", { name: "Select Fastest Now", exact: true }).click()
   const downloadPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "Export GPX" }).click()
   await expect((await downloadPromise).suggestedFilename()).toMatch(/quick-route\.gpx$/)
@@ -464,18 +474,20 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
     roundTrip: { targetMinutes: 90 }
   })
   await openRouteEditor(page)
-  await expect(page.getByRole("button", { name: "Loop ride" })).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("button", { name: "Loop", exact: true })).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
+  const options = page.getByRole("button", { name: "Options", exact: true })
+  if (await options.getAttribute("aria-expanded") === "true") await options.click()
   await page.getByRole("button", { name: /Show route details/i }).click()
   await expect(page.getByRole("button", { name: /Start .* route/i })).toBeVisible()
-  await expect(page.getByText("Understood: 90-minute adventure loop.")).toBeVisible()
-  await expect(page.getByText("72% unpaved")).toBeVisible()
+  await expect(page.getByText(/72% non-paved mix/)).toBeVisible()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
 
   await page.getByRole("button", { name: "Open map layers" }).click()
-  await expect(page.getByRole("dialog", { name: "Map layers and style" })).toBeVisible()
+  const layers = page.getByRole("dialog", { name: "Map layers and style" })
+  await expect(layers).toBeVisible()
   await expect.poll(() => paRequestCount).toBeGreaterThan(0)
-  await expect(page.getByText(/1 in view · official PASDA/i)).toBeVisible()
+  await expect(layers.getByRole("checkbox", { name: "PA unpaved roads" })).toBeChecked()
 })
 
 test("interprets a free-form destination ride without live geocoding", async ({ page }) => {
@@ -566,7 +578,6 @@ test("interprets a free-form destination ride without live geocoding", async ({ 
       { lat: 39.8309, lon: -77.2311, label: "Gettysburg, Pennsylvania" }
     ]
   })
-  await expect(page.getByText("Understood: twisty ride from Harrisburg to Gettysburg.")).toBeVisible()
   await openRouteEditor(page)
   await expect(page.getByRole("combobox", { name: "Start" })).toHaveValue("Harrisburg, Pennsylvania")
   await expect(page.getByRole("combobox", { name: "Finish", exact: true })).toHaveValue("Gettysburg, Pennsylvania")
@@ -598,8 +609,8 @@ test("draws a rough route on the map and snaps it into editable route points", a
 
   await page.goto(appUrl)
   await openRouteEditor(page)
-  await page.getByRole("button", { name: "Loop ride" }).click()
-  await page.getByRole("button", { name: "Sketch a rough route" }).click()
+  await expect(page.locator(".map-loading")).toBeHidden({ timeout: 15_000 })
+  await page.getByRole("button", { name: "Draw", exact: true }).click()
   const surface = page.getByRole("region", { name: "Draw a rough route" })
   await expect(surface).toBeVisible()
   if (testInfo.project.name === "mobile-safari") {
@@ -615,6 +626,7 @@ test("draws a rough route on the map and snaps it into editable route points", a
   await page.mouse.move(box!.x + box!.width * 0.75, box!.y + box!.height * 0.62, { steps: 8 })
   await page.mouse.up()
 
+  await page.getByRole("button", { name: "Finish drawing" }).click()
   await expect(surface).toBeHidden()
   await expect(page.getByText(/rough line converted to .* editable shaping stop/i)).toBeVisible()
   await expect.poll(() => routeRequests[0]?.points?.length ?? 0).toBeGreaterThan(3)
@@ -627,23 +639,29 @@ test("draws a rough route on the map and snaps it into editable route points", a
   // PlannerDeck remounts after sketch ends, so the editor toggle state resets.
   // Re-open the editor to expose the via-points list before asserting count.
   await openRouteEditor(page)
-  await expect(page.locator(".via-points > span")).toHaveCount(6)
+  await expect(page.getByLabel("Shaping stops").locator(":scope > div > span:first-child")).toHaveCount(6)
 
   await page.getByRole("button", { name: "Move Sketch stop 2 earlier" }).click()
   await expect.poll(() => routeRequests.length).toBe(2)
   expect(routeRequests[1]?.points?.[1]).toMatchObject({ label: "Sketch stop 2" })
 
+  await openRouteEditor(page)
   await page.getByRole("button", { name: "Undo route edit" }).click()
   await expect.poll(() => routeRequests.length).toBe(3)
   expect(routeRequests[2]?.points?.[1]).toMatchObject({ label: "Sketch stop 1" })
 
+  await openRouteEditor(page)
   await page.getByRole("button", { name: "Redo route edit" }).click()
   await expect.poll(() => routeRequests.length).toBe(4)
   expect(routeRequests[3]?.points?.[1]).toMatchObject({ label: "Sketch stop 2" })
 
+  await openRouteEditor(page)
   await page.getByRole("button", { name: "Reverse route" }).click()
   await expect.poll(() => routeRequests.length).toBe(5)
-  expect(routeRequests[4]?.points?.[0]).toMatchObject({ lat: 40.2732, lon: -76.8867 })
+  const beforeReverse = routeRequests[3]?.points
+  const afterReverse = routeRequests[4]?.points
+  expect(beforeReverse).toBeDefined()
+  expect(afterReverse).toEqual([...beforeReverse!].reverse())
   if (testInfo.project.name === "mobile-safari") {
     await page.screenshot({ path: "artifacts/screenshots/e2e-sketch-result-mobile-safari.png", fullPage: false })
   }

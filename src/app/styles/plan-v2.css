@@ -323,6 +323,23 @@
   color: var(--sb-paper);
 }
 
+/* In dark theme --sb-paper is the light text token. Keep unselected control
+   surfaces on the raised dark token so labels do not disappear into a pale
+   paper fill; the selected state below remains the ember action. */
+:root[data-theme="dark"] .plan-v2__profile-list button,
+:root[data-theme="dark"] .plan-v2__time-presets button,
+:root[data-theme="dark"] .plan-v2__edit-actions button,
+:root[data-theme="dark"] .plan-v2__home-actions button {
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .plan-v2__profile-list button.is-selected,
+:root[data-theme="dark"] .plan-v2__time-presets button[aria-pressed="true"] {
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+}
+
 .plan-v2__check-row {
   display: flex;
   min-height: var(--sb-touch-target);

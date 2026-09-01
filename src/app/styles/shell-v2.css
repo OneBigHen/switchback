@@ -151,7 +151,19 @@
 }
 
 /* Short landscape (riding-adjacent handheld orientation) keeps the rail on
-   the left edge with tighter insets. */
+   the left edge with tighter insets.
+ *
+ * This band is wider than the phone bottom-bar breakpoint, so it inherits the
+ * desktop rail — including the brand block, which the bottom bar hides. At
+ * 844x390 the rail's content needed 542px against 374px of usable height, and
+ * because a column flex container's automatic minimum size is its min-content
+ * height, the rail grew past its own top/bottom insets instead of compressing:
+ * Record landed at y=495 in a 390px viewport, completely unreachable.
+ *
+ * The composition is tightened rather than the information architecture: the
+ * brand mark is decorative here and yields first, then gaps and padding. All
+ * four destinations and the secondary Record survive, and every control keeps
+ * the 44px contract minimum. */
 @media (orientation: landscape) and (max-height: 520px) {
   .planner-shell .app-navigation {
     top: 8px;
@@ -159,10 +171,37 @@
     bottom: 8px;
     width: 64px;
     height: auto;
+    flex-direction: column;
+  }
+
+  .app-navigation-brand {
+    display: none;
+  }
+
+  .app-navigation-primary {
+    flex: 0 0 auto;
+    gap: 2px;
+    grid-template-columns: 1fr;
+    padding: var(--sb-space-1);
+  }
+
+  .app-navigation-secondary {
+    flex: 0 0 auto;
+    margin-top: auto;
+    grid-auto-flow: row;
+    padding: var(--sb-space-1);
+    border-top: 1px solid var(--sb-border);
+    border-left: 0;
   }
 
   .app-navigation button {
-    min-height: 48px;
+    min-height: var(--sb-touch-target);
+    padding: 2px;
+  }
+
+  .app-navigation button svg {
+    width: 20px;
+    height: 20px;
   }
 }
 
