@@ -10,6 +10,8 @@ on:
 permissions:
   contents: write
 
+# Temporary release-candidate helper. Remove after the approved Linux baselines
+# are regenerated successfully on the same runner image used by Deep QA.
 jobs:
   refresh:
     if: github.actor != 'github-actions[bot]'
