@@ -87,10 +87,10 @@ describe("mobile planner geometry contract", () => {
     )
   })
 
-  it("promotes a newly ready route to the full mobile workspace", () => {
+  it("keeps a newly ready route at half height so the map remains visible", () => {
     expect(plannerDeck).toContain("function isPhoneViewport(): boolean")
     expect(plannerDeck).toContain('typeof window.matchMedia === "function"')
-    expect(plannerDeck).toContain('if (isPhoneViewport()) setSheetDetentOverride("full")')
+    expect(plannerDeck).toContain('if (isPhoneViewport()) setSheetDetentOverride("half")')
     expect(plannerDeck).toContain('onClick={() => setSheetDetentOverride(selectedRoute ? "full" : "half")}')
   })
 })
