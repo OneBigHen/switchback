@@ -244,6 +244,15 @@
     inset 0 1px 0 rgb(255 255 255 / 4%);
 }
 
+/* The rail owns the first 80px of the desktop canvas. Route-result decks keep
+   the same width, but need the same 16px breathing room as the compact idle
+   composer so route choices and their controls cannot sit underneath the rail. */
+@media (min-width: 761px) {
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: 96px;
+  }
+}
+
 .planner-deck::before {
   position: absolute;
   inset: 5px;

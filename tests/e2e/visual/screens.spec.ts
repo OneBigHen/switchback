@@ -68,6 +68,18 @@ async function assertIdlePlanGeometry(page: Page, viewport: { width: number; hei
   }
 }
 
+async function assertPlannerDeckClearsNavigation(page: Page): Promise<void> {
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  if (viewport!.width <= 760) return
+
+  const navigation = await page.locator(".app-navigation").boundingBox()
+  const deck = await page.locator(".planner-deck").boundingBox()
+  expect(navigation).not.toBeNull()
+  expect(deck).not.toBeNull()
+  expect(deck!.x).toBeGreaterThanOrEqual(navigation!.x + navigation!.width + 8)
+}
+
 async function ensureStart(page: Page): Promise<void> {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if ((await start.inputValue()).length === 0) {
@@ -106,6 +118,7 @@ for (const viewport of VIEWPORTS) {
       ]))
       await planFixtureRoute(page, capture)
       await assertPanelVisible(page.locator(".planner-deck"))
+      await assertPlannerDeckClearsNavigation(page)
       await expect(page).toHaveScreenshot(`plan-result-${viewport.name}.png`, screenshotOptions(page))
     })
 
