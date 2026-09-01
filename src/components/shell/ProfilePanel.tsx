@@ -151,8 +151,18 @@ export function ProfilePanel({
   }
 
   const exportLearning = () => {
+    setNotice(null)
     void Promise.resolve(onExportLearning?.())
-      .then(() => setNotice("Learning profile exported."))
+      .then((profile) => {
+        const blob = new Blob([JSON.stringify(profile, null, 2)], { type: "application/json" })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement("a")
+        anchor.href = url
+        anchor.download = "switchback-learning-profile.json"
+        anchor.click()
+        URL.revokeObjectURL(url)
+        setNotice("Learning profile exported.")
+      })
       .catch(() => setNotice("Learning profile export failed."))
   }
 
