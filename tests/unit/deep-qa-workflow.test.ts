@@ -14,7 +14,7 @@ describe("manual Deep QA workflow", () => {
   it("keeps release-level checks manual, outside the pull-request gate", () => {
     expect(workflow).toContain("workflow_dispatch:")
     expect(workflow).not.toContain("pull_request:")
-    expect(workflow).toContain("--project=critical-webkit")
+    expect(workflow).toContain("--project=critical-webkit-full")
     expect(workflow).toContain("--project=visual")
     expect(workflow).toContain("npm run test:e2e:real-router")
   })

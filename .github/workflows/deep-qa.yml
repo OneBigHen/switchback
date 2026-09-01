@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps webkit
       - name: Full critical rider journeys in WebKit
-        run: npx playwright test --project=critical-webkit
+        run: npx playwright test --project=critical-webkit-full
       - name: Upload WebKit failure evidence
         if: failure()
         uses: actions/upload-artifact@v4

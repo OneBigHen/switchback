@@ -19,7 +19,7 @@
     "test:e2e:mobile-qa:prepare": "MOBILE_QA_EXPECTED_PROJECTS=webkit-prepare playwright test --config=playwright.mobile.config.ts --project=webkit-prepare",
     "test:e2e:mobile-qa:expanded": "MOBILE_QA_EXPECTED_PROJECTS=webkit-small,webkit-standard,webkit-large,webkit-standard-landscape,chromium-standard playwright test --config=playwright.mobile.config.ts --project=webkit-small --project=webkit-standard --project=webkit-large --project=webkit-standard-landscape --project=chromium-standard",
     "report:mobile-qa": "tsx scripts/qa/report-mobile-qa.ts",
-    "test:e2e:critical": "playwright test --project=critical-chromium --project=critical-webkit",
+    "test:e2e:critical": "playwright test --project=critical-chromium --project=critical-webkit-smoke",
     "test:e2e:real-router": "SWITCHBACK_E2E_MODE=real-router VALHALLA_URL= VALHALLA_ELEVATION_URL= playwright test --project=real-router",
     "test:e2e:pwa": "SWITCHBACK_E2E_MODE=pwa playwright test --project=pwa",
     "test:e2e:memory-soak": "playwright test tests/e2e/memory-soak.spec.ts --project=memory-soak",
