@@ -42,6 +42,9 @@ import "./styles/route-atlas.css";
 // Loads last: the Free Ride panel neutralises the older per-breakpoint
 // absolute offsets that its own earlier rules still declare.
 import "./styles/free-ride.css";
+// Placement target geometry depends on V2 sheet detents and intentionally
+// overrides the stale fixed-deck crosshair offsets from planner-shell.css.
+import "./styles/map-placement.css";
 
 export const metadata: Metadata = {
 	title: "Switchback — Ride the better road",
