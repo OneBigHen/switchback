@@ -23,7 +23,7 @@
 .copy span {
   max-width: 600px;
   color: var(--sb-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
