@@ -4,9 +4,9 @@
   gap: 8px 12px;
   margin-top: 14px;
   padding: 13px;
-  border: 1px solid #e3ded5;
+  border: 1px solid var(--sb-border);
   border-radius: 15px;
-  background: #fffdf9;
+  background: var(--sb-surface);
 }
 
 .route-rating > div:first-child {
@@ -16,14 +16,14 @@
 }
 
 .route-rating strong {
-  color: #302e2b;
+  color: var(--sb-text);
   font-size: 12px;
 }
 
 .route-rating label {
   display: grid;
   gap: 4px;
-  color: #77736c;
+  color: var(--sb-text-muted);
   font-size: 9px;
   font-weight: 700;
 }
@@ -31,10 +31,10 @@
 .route-rating input {
   min-height: 32px;
   padding: 0 8px;
-  border: 1px solid #ded8cf;
+  border: 1px solid var(--sb-border);
   border-radius: 8px;
-  background: #fff;
-  color: #242321;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font: inherit;
   font-size: 11px;
 }
@@ -49,16 +49,16 @@
   width: 32px;
   height: 32px;
   place-items: center;
-  border: 1px solid #ded8cf;
+  border: 1px solid var(--sb-border);
   border-radius: 8px;
-  background: #fff;
-  color: #8d877d;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
 }
 
 .route-rating-buttons button[aria-pressed="true"] {
-  border-color: #e85f2c;
-  background: #fff1e9;
-  color: #e85f2c;
+  border-color: var(--sb-action);
+  background: color-mix(in srgb, var(--sb-action) 16%, var(--sb-surface));
+  color: var(--sb-action);
 }
 
 .route-rating-buttons svg {
@@ -68,7 +68,7 @@
 
 .route-rating > small {
   grid-column: 1 / -1;
-  color: #77736c;
+  color: var(--sb-text-muted);
   font-size: 9px;
   line-height: 1.35;
 }
@@ -78,13 +78,13 @@
   gap: 3px;
   padding: 9px;
   border-radius: 8px;
-  background: #f2eee7;
-  color: #67625c;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
   font-size: 10px;
   line-height: 1.35;
 }
 
 .route-fit-explanation strong {
-  color: #3f5347;
+  color: var(--sb-text);
   font-size: 10px;
 }

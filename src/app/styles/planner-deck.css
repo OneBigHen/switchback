@@ -666,9 +666,9 @@
 
 .library-button,
 .tool-button {
-  border-color: #ded8cf;
-  background: #fff;
-  color: #5f5b55;
+  border-color: var(--sb-border);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font-size: 11px;
 }
 

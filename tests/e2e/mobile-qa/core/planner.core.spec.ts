@@ -176,6 +176,33 @@ test.describe("mobile planner theme coverage", () => {
     await page.getByRole("button", { name: "Show turn-by-turn directions" }).tap()
     await expect(page.getByRole("region", { name: "Turn-by-turn directions" })).toBeVisible()
     await expectPrepareContracts(page)
+    const preparationColors = await page.locator([
+      '[aria-label="Route choices"] article',
+      ".directions-panel",
+      ".directions-toggle",
+      ".route-share-panel > label input",
+      ".route-share-panel > label textarea",
+      ".route-share-panel > label select",
+      ".gpx-export-variant select",
+      ".route-actions .tool-button",
+      '[aria-label^="Open road locks"]',
+    ].join(", ")).evaluateAll((elements) => elements.map((element) => ({
+      selector: element.className,
+      tagName: element.tagName,
+      background: getComputedStyle(element).backgroundColor,
+      color: getComputedStyle(element).color,
+      appearance: getComputedStyle(element).appearance,
+    })))
+    expect(preparationColors.length).toBeGreaterThan(0)
+    expect(preparationColors.every(({ background }) => ![
+      "rgb(255, 255, 255)",
+      "rgb(255, 255, 253)",
+      "rgb(255, 253, 249)",
+      "rgb(250, 250, 250)",
+    ].includes(background))).toBe(true)
+    expect(preparationColors
+      .filter(({ tagName }) => tagName === "SELECT")
+      .every(({ appearance }) => appearance === "none")).toBe(true)
     await capturePlannerState(page, testInfo, "prepare-dark")
     expectCleanRuntime(page)
   })
