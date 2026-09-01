@@ -777,6 +777,7 @@ describe("planner mobile flow stages (SB-025)", () => {
 
   it("returns the viewport to route choices when planning finishes after editing", async () => {
     const user = userEvent.setup()
+    stubPhoneViewport()
     const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
     const { vm, rerender } = renderDeck({ children: routeRack })
 
@@ -795,6 +796,7 @@ describe("planner mobile flow stages (SB-025)", () => {
       expect(screen.queryByRole("combobox", { name: "Start" })).not.toBeInTheDocument()
       expect(screen.getByLabelText("Planning stage: Choose")).toBeInTheDocument()
       expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+      expect(usePlannerStore.getState().sheetDetentOverride).toBe("half")
     })
   })
 
