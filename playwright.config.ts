@@ -10,7 +10,7 @@ const mobileQaTree = /\/e2e\/mobile-qa\//
 const qualitySuites = /\/e2e\/(critical|real-router|pwa|visual)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const roadLockSpec = /\/road-lock\.spec\.ts$/
-const criticalMainMatch = /\/e2e\/critical\/planner-journeys\.spec\.ts$/
+const criticalMainMatch = /\/e2e\/critical\/(planner-journeys|navigation-ia)\.spec\.ts$/
 const criticalWebkitSmokeMatch = /\/e2e\/critical\/webkit-smoke\.spec\.ts$/
 const realRouterMatch = /\/e2e\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/e2e\/pwa\/.*\.spec\.ts$/
@@ -66,8 +66,9 @@ export default defineConfig({
       testMatch: memorySoakSpec,
       use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     },
-    // PR merge gate: run the real rider journeys once in Chromium. Repeating
-    // every journey in WebKit doubled noise without adding proportional signal.
+    // PR merge gate: run the real rider journeys plus destination/IA coverage
+    // once in Chromium. Repeating every journey in WebKit doubled noise
+    // without adding proportional signal.
     {
       name: "critical-chromium",
       testMatch: criticalMainMatch,
