@@ -18,6 +18,20 @@
   pointer-events: auto;
 }
 
+.ride-route-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.ride-route-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .ride-reroute-card {
   margin-top: 14px;
   border-radius: 12px;
