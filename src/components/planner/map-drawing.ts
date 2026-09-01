@@ -283,11 +283,85 @@ export function hasUsableSketch(points: readonly ScreenPoint[]): boolean {
   return length >= 24
 }
 
+const SKETCH_MIN_POINT_DISTANCE_PX = 12
+const SKETCH_SIMPLIFY_TOLERANCE_PX = 5
+export const MAX_SKETCH_WAYPOINTS = 12
+
+function screenDistance(a: ScreenPoint, b: ScreenPoint): number {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function distanceFromSegment(point: ScreenPoint, start: ScreenPoint, end: ScreenPoint): number {
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  if (dx === 0 && dy === 0) return screenDistance(point, start)
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)))
+  return screenDistance(point, { x: start.x + t * dx, y: start.y + t * dy })
+}
+
+function distanceFilterSketch(points: readonly ScreenPoint[]): ScreenPoint[] {
+  if (points.length <= 2) return [...points]
+  const kept: ScreenPoint[] = [points[0]!]
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const point = points[index]!
+    if (screenDistance(kept.at(-1)!, point) >= SKETCH_MIN_POINT_DISTANCE_PX) kept.push(point)
+  }
+  const last = points.at(-1)!
+  if (kept.at(-1) !== last) kept.push(last)
+  return kept
+}
+
+function douglasPeucker(points: readonly ScreenPoint[], tolerance: number): ScreenPoint[] {
+  if (points.length <= 2) return [...points]
+  const start = points[0]!
+  const end = points.at(-1)!
+  let maxDistance = 0
+  let splitIndex = -1
+
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const distance = distanceFromSegment(points[index]!, start, end)
+    if (distance > maxDistance) {
+      maxDistance = distance
+      splitIndex = index
+    }
+  }
+
+  if (splitIndex < 0 || maxDistance <= tolerance) return [start, end]
+  const left = douglasPeucker(points.slice(0, splitIndex + 1), tolerance)
+  const right = douglasPeucker(points.slice(splitIndex), tolerance)
+  return [...left.slice(0, -1), ...right]
+}
+
+function capSketchPoints(points: readonly ScreenPoint[], maxPoints: number): ScreenPoint[] {
+  if (points.length <= maxPoints) return [...points]
+  const capped: ScreenPoint[] = []
+  for (let index = 0; index < maxPoints; index += 1) {
+    const sourceIndex = Math.round(index * (points.length - 1) / (maxPoints - 1))
+    const point = points[sourceIndex]!
+    if (capped.at(-1) !== point) capped.push(point)
+  }
+  const last = points.at(-1)!
+  if (capped.at(-1) !== last) capped[capped.length - 1] = last
+  return capped
+}
+
+/**
+ * Reduce a dense finger stroke to routing intent. Screen-space filtering keeps
+ * tiny touch jitter out, Douglas-Peucker preserves meaningful bends, and the
+ * hard cap prevents a normal sketch from becoming dozens of via stops.
+ */
+export function simplifyRouteSketch(points: readonly ScreenPoint[]): ScreenPoint[] {
+  if (points.length <= 2) return [...points]
+  const distanceFiltered = distanceFilterSketch(points)
+  const simplified = douglasPeucker(distanceFiltered, SKETCH_SIMPLIFY_TOLERANCE_PX)
+  return capSketchPoints(simplified, MAX_SKETCH_WAYPOINTS)
+}
+
 export function routeSketchWaypoints(
   map: Pick<MapLibreMap, "unproject">,
   points: readonly ScreenPoint[]
 ): Waypoint[] {
-  return points.map((point) => {
+  return simplifyRouteSketch(points).map((point) => {
     const coordinate = map.unproject([point.x, point.y])
     return { lat: Number(coordinate.lat.toFixed(6)), lon: Number(coordinate.lng.toFixed(6)) }
   })
