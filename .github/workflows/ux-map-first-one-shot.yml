@@ -1,0 +1,94 @@
+name: One-shot map-first route result fix
+
+on:
+  push:
+    branches:
+      - ux/v2-final-integration
+    paths:
+      - .github/workflows/ux-map-first-one-shot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/v2-final-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Prove route-result map regression and fix it
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/components/planner-deck.test.tsx')
+          text = path.read_text()
+          first = '''  it("returns the viewport to route choices when planning finishes after editing", async () => {
+            const user = userEvent.setup()
+'''
+          replacement = '''  it("returns the viewport to route choices when planning finishes after editing", async () => {
+            const user = userEvent.setup()
+            stubPhoneViewport()
+'''
+          if text.count(first) != 1:
+              raise SystemExit(f'expected one mobile route-result test header, found {text.count(first)}')
+          text = text.replace(first, replacement, 1)
+
+          boundary = '''      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+            })
+          })
+
+          it("shows Choose and returns to the route rack while alternatives are still loading", async () => {'''
+          boundary_replacement = '''      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+              expect(usePlannerStore.getState().sheetDetentOverride).toBe("half")
+            })
+          })
+
+          it("shows Choose and returns to the route rack while alternatives are still loading", async () => {'''
+          if text.count(boundary) != 1:
+              raise SystemExit(f'expected one route-result assertion boundary, found {text.count(boundary)}')
+          path.write_text(text.replace(boundary, boundary_replacement, 1))
+          PY
+
+          set +e
+          npm test -- tests/components/planner-deck.test.tsx --reporter=dot 2>&1 | tee /tmp/planner-red.log
+          red_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$red_status" -eq 0 ]; then
+            echo "Expected map-first regression test to fail before production fix"
+            exit 1
+          fi
+          grep -q 'expected.*half' /tmp/planner-red.log || grep -q 'half' /tmp/planner-red.log
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/components/planner-deck.test.tsx
+          git commit -m "test(planner): keep map visible for route choices"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/planner/PlannerDeck.tsx')
+          text = path.read_text()
+          old = 'if (isPhoneViewport()) setSheetDetentOverride("full")'
+          new = 'if (isPhoneViewport()) setSheetDetentOverride("half")'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one phone result detent, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+          npm test -- tests/components/planner-deck.test.tsx --reporter=dot
+          rm .github/workflows/ux-map-first-one-shot.yml
+          git add src/components/planner/PlannerDeck.tsx .github/workflows/ux-map-first-one-shot.yml
+          git diff --cached --check
+          git commit -m "fix(planner): keep route results map-first on phones"
+          git push origin HEAD:ux/v2-final-integration
