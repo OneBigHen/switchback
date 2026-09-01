@@ -46,7 +46,7 @@
 .sectionHeading small {
   max-width: 430px;
   color: var(--sb-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
   text-align: right;
 }
@@ -242,8 +242,17 @@
     gap: 20px;
   }
 
+  .sectionHeading {
+    align-items: start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .sectionHeading small {
-    display: none;
+    display: block;
+    max-width: 52ch;
+    font-size: 11px;
+    text-align: left;
   }
 
   .bikeCard {
