@@ -175,12 +175,12 @@ h6,
     left: var(--sb-mobile-edge);
     width: auto;
     height: auto;
-    max-height: calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4));
+    max-height: min(var(--sb-sheet-idle-height), calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4)));
   }
 
   .planner-shell .planner-deck.is-idle-plan .planner-scroll {
     height: auto;
-    overflow-y: visible;
+    overflow-y: auto;
   }
 
   .planner-shell .sb-bottom-sheet:not(.is-minimized) {
