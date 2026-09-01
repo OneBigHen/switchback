@@ -334,21 +334,26 @@ function douglasPeucker(points: readonly ScreenPoint[], tolerance: number): Scre
 
 function capSketchPoints(points: readonly ScreenPoint[], maxPoints: number): ScreenPoint[] {
   if (points.length <= maxPoints) return [...points]
-  const capped: ScreenPoint[] = []
-  for (let index = 0; index < maxPoints; index += 1) {
-    const sourceIndex = Math.round(index * (points.length - 1) / (maxPoints - 1))
-    const point = points[sourceIndex]!
-    if (capped.at(-1) !== point) capped.push(point)
+  const capped = [...points]
+  while (capped.length > maxPoints) {
+    let weakestIndex = 1
+    let weakestBend = Number.POSITIVE_INFINITY
+    for (let index = 1; index < capped.length - 1; index += 1) {
+      const bend = distanceFromSegment(capped[index]!, capped[index - 1]!, capped[index + 1]!)
+      if (bend < weakestBend) {
+        weakestBend = bend
+        weakestIndex = index
+      }
+    }
+    capped.splice(weakestIndex, 1)
   }
-  const last = points.at(-1)!
-  if (capped.at(-1) !== last) capped[capped.length - 1] = last
   return capped
 }
 
 /**
  * Reduce a dense finger stroke to routing intent. Screen-space filtering keeps
  * tiny touch jitter out, Douglas-Peucker preserves meaningful bends, and the
- * hard cap prevents a normal sketch from becoming dozens of via stops.
+ * hard cap prunes the least-significant remaining bends before creating stops.
  */
 export function simplifyRouteSketch(points: readonly ScreenPoint[]): ScreenPoint[] {
   if (points.length <= 2) return [...points]
