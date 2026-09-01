@@ -27,7 +27,7 @@ describe("normalizeRideLibrary", () => {
 
   it("does not label normally planned saved routes as imported", () => {
     const [item] = normalizeRideLibrary({
-      savedRoutes: [savedRoute({ routingSource: "graphhopper" })]
+      savedRoutes: [savedRoute({ routingSource: "live" })]
     })
 
     expect(item?.management?.imported).toBe(false)
