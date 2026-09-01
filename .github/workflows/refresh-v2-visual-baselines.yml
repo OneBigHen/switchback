@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git add 'tests/e2e/visual/**/*-snapshots/*.png'
+          git add tests/e2e/visual/*-snapshots/*.png
           if git diff --cached --quiet; then
             echo 'No visual baseline changes were produced.'
             exit 0
