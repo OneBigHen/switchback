@@ -6,6 +6,15 @@
    761px+  -- desktop / tablet-landscape (default layout, min-width query when needed)
    landscape, max-height: 520px -- short-landscape phones (map-first layouts collapse chrome) */
 
+/* The idle planner is intentionally more map-first than route-result sheets.
+   Cap its natural content height below the visual geometry gate so very short
+   portrait phones (notably 320x700) keep more than 55% of the map visible. */
+@media (max-width: 760px) {
+    .planner-deck.is-idle-plan:not(.is-minimized) {
+      max-height: 44dvh;
+    }
+}
+
 /* TASK-2.4 justified exception: a reduced-motion reset must win over any
    component's own specificity by design -- the standard pattern for this
    universal selector forces every match, not a cascade fight. */
