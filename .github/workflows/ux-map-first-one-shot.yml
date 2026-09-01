@@ -32,31 +32,24 @@ jobs:
 
           path = Path('tests/components/planner-deck.test.tsx')
           text = path.read_text()
-          first = '''  it("returns the viewport to route choices when planning finishes after editing", async () => {
-            const user = userEvent.setup()
-'''
-          replacement = '''  it("returns the viewport to route choices when planning finishes after editing", async () => {
-            const user = userEvent.setup()
-            stubPhoneViewport()
-'''
-          if text.count(first) != 1:
-              raise SystemExit(f'expected one mobile route-result test header, found {text.count(first)}')
-          text = text.replace(first, replacement, 1)
-
-          boundary = '''      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
-            })
-          })
-
-          it("shows Choose and returns to the route rack while alternatives are still loading", async () => {'''
-          boundary_replacement = '''      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
-              expect(usePlannerStore.getState().sheetDetentOverride).toBe("half")
-            })
-          })
-
-          it("shows Choose and returns to the route rack while alternatives are still loading", async () => {'''
-          if text.count(boundary) != 1:
-              raise SystemExit(f'expected one route-result assertion boundary, found {text.count(boundary)}')
-          path.write_text(text.replace(boundary, boundary_replacement, 1))
+          marker = '  it("returns the viewport to route choices when planning finishes after editing", async () => {'
+          next_marker = '  it("shows Choose and returns to the route rack while alternatives are still loading", async () => {'
+          start = text.find(marker)
+          end = text.find(next_marker, start + 1)
+          if start < 0 or end < 0:
+              raise SystemExit('mobile route-result test block not found')
+          block = text[start:end]
+          user_line = '    const user = userEvent.setup()\n'
+          if block.count(user_line) != 1:
+              raise SystemExit(f'expected one user setup line, found {block.count(user_line)}')
+          block = block.replace(user_line, user_line + '    stubPhoneViewport()\n', 1)
+          needle = '      expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()\n'
+          position = block.rfind(needle)
+          if position < 0:
+              raise SystemExit('route choice assertion not found')
+          insert_at = position + len(needle)
+          block = block[:insert_at] + '      expect(usePlannerStore.getState().sheetDetentOverride).toBe("half")\n' + block[insert_at:]
+          path.write_text(text[:start] + block + text[end:])
           PY
 
           set +e
@@ -67,7 +60,7 @@ jobs:
             echo "Expected map-first regression test to fail before production fix"
             exit 1
           fi
-          grep -q 'expected.*half' /tmp/planner-red.log || grep -q 'half' /tmp/planner-red.log
+          grep -q 'half' /tmp/planner-red.log
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
