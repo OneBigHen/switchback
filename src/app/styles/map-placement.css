@@ -1,0 +1,100 @@
+/*
+ * Placement target geometry belongs to the visible map viewport, not the raw
+ * browser viewport. The legacy V1 rule in planner-shell.css assumed a fixed
+ * 420px desktop deck and used `left: calc(50% + 210px)`. V2 has explicit map
+ * occlusion contracts, so keep this small override aligned with those values.
+ */
+
+/* Desktop planning reserves a 500px left workspace inset. The midpoint of
+ * the remaining map is therefore viewport centre + 250px. */
+.planner-shell .map-crosshair {
+  left: calc(50% + 250px);
+  top: 50%;
+}
+
+.plan-v2__placement-cancel {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--machined);
+  color: var(--instrument);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.plan-v2__placement-cancel:hover,
+.plan-v2__placement-cancel:focus-visible {
+  border-color: var(--signal);
+  outline: none;
+}
+
+.plan-v2__placement-cancel svg {
+  width: 17px;
+  height: 17px;
+  color: var(--signal);
+}
+
+.plan-v2__placement-cancel kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--metal);
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+/* Phone portrait uses the same top/bottom occlusion numbers as
+ * calculateMapViewportInsets(): top 90px, side gutters 34px, and a bottom
+ * inset derived from the ContextSheet detent. These formulas place the target
+ * at the vertical midpoint of the map that is actually visible above the
+ * sheet instead of letting it fall behind the sheet. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .planner-shell .map-crosshair {
+    left: 50%;
+    /* Legacy/unknown sheet state: bottom inset 450px. */
+    top: calc(50dvh - 180px);
+  }
+
+  .planner-shell:has(.sb-context-sheet[data-sheet-detent="peek"]) .map-crosshair {
+    /* 146px peek + 84px nav anchor + 24px gutter = 254px bottom inset. */
+    top: calc(50dvh - 82px);
+  }
+
+  .planner-shell:has(.sb-context-sheet[data-sheet-detent="half"]) .map-crosshair {
+    /* Half sheet = 50dvh, plus 84px anchor + 24px gutter. */
+    top: calc(25dvh - 9px);
+  }
+
+  .planner-shell:has(.sb-context-sheet[data-sheet-detent="full"]) .map-crosshair {
+    /* Full-sheet camera math intentionally preserves a 60px visible map strip. */
+    top: 120px;
+  }
+
+  .planner-shell:has(.sb-context-sheet[data-sheet-detent="closed"]) .map-crosshair,
+  .planner-shell:has(.sb-context-sheet[data-sheet-detent="immersive"]) .map-crosshair {
+    /* 90px top and 34px bottom gutters. */
+    top: calc(50dvh + 28px);
+  }
+
+  .plan-v2__placement-cancel {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* Short landscape phones are wider than the portrait breakpoint but still
+ * use the compact planning sheet. Mirror the centralized short-landscape
+ * insets (24px top, 170px bottom) rather than applying the desktop offset. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-shell .map-crosshair {
+    left: 50%;
+    top: calc(50dvh - 73px);
+  }
+}
