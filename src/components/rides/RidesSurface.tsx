@@ -15,6 +15,7 @@ export type RideLibraryItemKind = "saved-route" | "recorded-ride" | "trip-plan" 
 export interface RideLibraryManagement {
   canDelete?: boolean
   canMatchRoads?: boolean
+  imported?: boolean
   folder?: string
   visible?: boolean
 }
@@ -42,23 +43,27 @@ export interface RidesSurfaceProps {
   onDelete?(item: RideLibraryItem): void
 }
 
-function itemMatchesFilter(item: RideLibraryItem, filter: RideFilter): boolean {
+export function isImportedRideLibraryItem(item: RideLibraryItem): boolean {
+  return item.kind === "project-gpx" || item.management?.imported === true
+}
+
+export function itemMatchesRideFilter(item: RideLibraryItem, filter: RideFilter): boolean {
   switch (filter) {
-    case "planned": return item.kind === "saved-route"
+    case "planned": return item.kind === "saved-route" && !isImportedRideLibraryItem(item)
     case "recorded": return item.kind === "recorded-ride"
     case "trips": return item.kind === "trip-plan"
-    case "imported": return item.kind === "project-gpx"
+    case "imported": return isImportedRideLibraryItem(item)
     default: return true
   }
 }
 
-function countsFor(items: RideLibraryItem[]): RideFilterCounts {
+export function countsForRideFilters(items: RideLibraryItem[]): RideFilterCounts {
   return items.reduce<RideFilterCounts>((counts, item) => {
     counts.all += 1
-    if (item.kind === "saved-route") counts.planned += 1
+    if (isImportedRideLibraryItem(item)) counts.imported += 1
+    else if (item.kind === "saved-route") counts.planned += 1
     else if (item.kind === "recorded-ride") counts.recorded += 1
     else if (item.kind === "trip-plan") counts.trips += 1
-    else counts.imported += 1
     return counts
   }, { all: 0, planned: 0, recorded: 0, trips: 0, imported: 0 })
 }
@@ -68,9 +73,9 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
   const [query, setQuery] = useState("")
   const [importOpen, setImportOpen] = useState(false)
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const counts = useMemo(() => countsFor(items), [items])
+  const counts = useMemo(() => countsForRideFilters(items), [items])
   const visibleItems = useMemo(() => items.filter((item) => {
-    if (!itemMatchesFilter(item, filter)) return false
+    if (!itemMatchesRideFilter(item, filter)) return false
     if (!normalizedQuery) return true
     return `${item.name} ${item.sourceLabel} ${item.tags.join(" ")}`.toLocaleLowerCase().includes(normalizedQuery)
   }), [filter, items, normalizedQuery])
