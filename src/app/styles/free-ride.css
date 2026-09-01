@@ -67,6 +67,7 @@
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--line);
+  color: var(--sb-paper);
   box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
 }
 
