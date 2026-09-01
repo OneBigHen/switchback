@@ -47,10 +47,26 @@ describe("ProfilePanel advanced account and data tools", () => {
     expect(onOpenDownloads).toHaveBeenCalledOnce()
   })
 
-  it("delegates learned-preference reset to the shell authority", () => {
-    const onResetLearning = vi.fn()
+  it("keeps learned preferences when the rider cancels reset confirmation", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false)
+    const onResetLearning = vi.fn(async () => undefined)
     render(<ProfilePanel onOpenDownloads={vi.fn()} onResetLearning={onResetLearning} />)
+
     fireEvent.click(screen.getByRole("button", { name: "Reset learning" }))
+
+    expect(confirm).toHaveBeenCalledWith("Reset all learned preferences? This cannot be undone.")
+    expect(onResetLearning).not.toHaveBeenCalled()
+    expect(screen.queryByText("Learning profile reset.")).not.toBeInTheDocument()
+  })
+
+  it("reports the actual learned-preference reset result", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true)
+    const onResetLearning = vi.fn().mockRejectedValue(new Error("storage failed"))
+    render(<ProfilePanel onOpenDownloads={vi.fn()} onResetLearning={onResetLearning} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset learning" }))
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Learning profile reset failed."))
     expect(onResetLearning).toHaveBeenCalledOnce()
   })
 
