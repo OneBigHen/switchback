@@ -1595,10 +1595,7 @@ export function PlannerShell() {
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("advanced-settings") ? (
         <ProfilePanel
           onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}
-          onResetLearning={() => {
-            if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
-            void riderPreferenceLibraryRef.current!.clear()
-          }}
+          onResetLearning={() => riderPreferenceLibraryRef.current!.clear()}
           onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
           onClose={() => dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })}
         />
