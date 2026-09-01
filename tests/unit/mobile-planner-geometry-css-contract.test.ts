@@ -64,6 +64,16 @@ describe("mobile planner geometry contract", () => {
     )
   })
 
+  it("caps the idle mobile planner at the shared map-first height and keeps overflow reachable", () => {
+    expect(designSystem).toContain("--sb-sheet-idle-height: 300px;")
+    expect(designSystem).toContain(
+      "max-height: min(var(--sb-sheet-idle-height), calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4)));"
+    )
+    expect(designSystem).toContain(
+      ".planner-shell .planner-deck.is-idle-plan .planner-scroll {\n    height: auto;\n    overflow-y: auto;\n  }"
+    )
+  })
+
   it("keeps the mobile road-lock control off the bottom rail entirely", () => {
     // It used to hang off the sheet clearance, which put it inside the
     // bottom-right maplibre control column — both anchored to the same
