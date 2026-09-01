@@ -54,7 +54,7 @@
   max-width: 510px;
   margin: 0;
   color: var(--sb-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -224,10 +224,15 @@
 
   .sectionHeader {
     align-items: start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .sectionHeader p {
-    display: none;
+    display: block;
+    max-width: 52ch;
+    font-size: 11px;
+    text-align: left;
   }
 
   /* Keep iOS Safari from auto-zooming the viewport when a rider edits a
