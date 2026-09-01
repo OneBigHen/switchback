@@ -1,0 +1,23 @@
+name: V2 focused RED check
+
+on:
+  push:
+    branches:
+      - ux/v2-final-integration
+
+permissions:
+  contents: read
+
+jobs:
+  red-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run new UX contracts
+        run: npx vitest run tests/components/route-decision-rail.test.tsx tests/components/ui-customization-settings.test.tsx tests/unit/free-ride-readability-css-contract.test.ts --reporter=verbose
