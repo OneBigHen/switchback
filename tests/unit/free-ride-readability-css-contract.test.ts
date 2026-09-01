@@ -12,4 +12,10 @@ describe("Free Ride readability contract", () => {
     expect(freeRideStyles).toContain(".free-ride-hud .free-ride-dock .free-ride-heading")
     expect(freeRideStyles).toContain(".free-ride-hud .free-ride-dock .free-ride-instruction")
   })
+
+  it("never renders the experimental suggestion warning as microtype", () => {
+    const warningRule = freeRideStyles.match(/\.free-ride-suggestion-warning\s*\{([^}]*)\}/)?.[1] ?? ""
+    expect(warningRule).toContain("font-size: 10px;")
+    expect(warningRule).not.toContain("font-size: 8px;")
+  })
 })
