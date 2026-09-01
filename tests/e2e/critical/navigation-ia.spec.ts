@@ -43,9 +43,51 @@ test("moving between destinations updates the URL and the visible surface", asyn
   await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
   await expect(activeDestination(page)).toHaveText("Rides")
 
+  await page.route(/\/api\/community\/routes\?limit=24$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        routes: [
+          {
+            id: "ridge-runner",
+            revisionId: "ridge-runner-r1",
+            title: "Ridge Runner",
+            description: "A flowing ridge-road loop with long sight lines.",
+            routeFingerprint: "ridge-fingerprint",
+            stats: { distanceMiles: 54.2, durationMinutes: 87 },
+            provenanceClass: "rider-recorded",
+            visibility: "public",
+            updatedAt: "2026-08-31T12:00:00.000Z"
+          },
+          {
+            id: "forest-switchbacks",
+            revisionId: "forest-switchbacks-r1",
+            title: "Forest Switchbacks",
+            description: "Tighter paved switchbacks through shaded back roads.",
+            routeFingerprint: "forest-fingerprint",
+            stats: { distanceMiles: 38.7, durationMinutes: 74 },
+            provenanceClass: "built-and-verified",
+            visibility: "public",
+            updatedAt: "2026-08-30T12:00:00.000Z"
+          }
+        ]
+      })
+    })
+  })
+
   await primary.getByRole("button", { name: "Discover" }).click()
   await expect(page).toHaveURL(/[?&]tab=discover(?:&|$)/)
+  await expect(page.getByRole("region", { name: "Discover" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Find a better road." })).toBeVisible()
+  await expect(page.getByRole("searchbox", { name: "Search community routes" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Ridge Runner" })).toBeVisible()
+  await expect(page.getByText("54.2 mi")).toBeVisible()
+  await expect(page.getByRole("link", { name: "Forest Switchbacks" })).toBeVisible()
+
+  await page.getByRole("searchbox", { name: "Search community routes" }).fill("ridge")
+  await expect(page.getByRole("link", { name: "Ridge Runner" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Forest Switchbacks" })).toHaveCount(0)
   await expect(activeDestination(page)).toHaveText("Discover")
 
   await primary.getByRole("button", { name: "Settings" }).click()
