@@ -53,6 +53,7 @@ describe("RouteDecisionRail", () => {
 
     const selected = screen.getByRole("article", { name: /Maximum Twisties/i })
     expect(selected).toHaveAttribute("data-selected", "true")
+    expect(within(selected).getByText("Selected")).toBeInTheDocument()
     expect(within(selected).getByText("+9 min")).toBeInTheDocument()
     expect(within(selected).getByText("71 min")).toBeInTheDocument()
     expect(within(selected).getByText("44.8 mi")).toBeInTheDocument()
