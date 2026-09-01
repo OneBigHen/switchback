@@ -67,6 +67,8 @@ interface RouteComparisonProps {
   onExportRecordedRide?(ride: RecordedRide): void
   onPrepareJoin?(route: PlannedRoute): Promise<GpxJoinPreview | null>
   onJoin?(route: PlannedRoute, preview: GpxJoinPreview, choice: GpxJoinChoice): Promise<void>
+  /** Keep the legacy route rack available as preparation details during V2 migration. */
+  showRouteChoices?: boolean
 }
 
 function dominantMix(mix: Record<string, number>): string {
@@ -167,7 +169,8 @@ export function RouteComparison({
   recordedRide,
   onExportRecordedRide,
   onPrepareJoin,
-  onJoin
+  onJoin,
+  showRouteChoices = true
 }: RouteComparisonProps) {
   const [directionsOpen, setDirectionsOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -218,7 +221,7 @@ export function RouteComparison({
     <section className="route-rack" aria-labelledby="route-rack-title">
       <div className="section-heading">
         <div>
-          <h2 id="route-rack-title">Choose a route</h2>
+          <h2 id="route-rack-title">{showRouteChoices ? "Choose a route" : "Route details"}</h2>
           {selectedRoute ? (
             <p ref={selectedRouteIdentityRef} className="route-selection-identity">
               <span>Selected route</span>
@@ -228,59 +231,61 @@ export function RouteComparison({
         </div>
       </div>
 
-      <div className="route-slips">
-        {routes.map((route, index) => {
-          const selected = route.id === selectedId
-          const officialUnpaved = officialUnpavedLabel(route)
-          const unknownSurfaceLabel = formatUnknownSurfaceMiles(route, units)
-          const skippedSatisfaction = hasSkippedPreferLock(route)
-          const hasSurfaceData = hasKnownSurfaceData(route.surfaceMix)
-          const routeDistance = formatDistanceMiles(route.distanceMiles, units)
-          return (
-            <button
-              className={`route-slip${selected ? " is-selected" : ""}`}
-              type="button"
-              key={route.id}
-              aria-label={`Select ${route.name}`}
-              aria-pressed={selected}
-              onClick={() => onSelect(route.id)}
-            >
-              <span className="route-slip-index">{index + 1}.</span>
-              <span className="route-slip-body">
-                <span className="route-slip-name">
-                  <strong>{route.name}</strong>
-                  <small>{routeReason(route)}</small>
-                  <small className="route-slip-tradeoff">{routeTradeoff(route, routes, units)}</small>
-                </span>
-                <span className="route-character">
-                  <span>{dominantMix(route.roadMix)}</span>
-                  <span>{hasSurfaceData ? `${unpavedPercent(route.surfaceMix)}% unpaved` : "Surface data unavailable"}</span>
-                  {unknownSurfaceLabel ? (
-                    <span className="route-character-unknown">~{unknownSurfaceLabel} unknown surface</span>
+      {showRouteChoices ? (
+        <div className="route-slips">
+          {routes.map((route, index) => {
+            const selected = route.id === selectedId
+            const officialUnpaved = officialUnpavedLabel(route)
+            const unknownSurfaceLabel = formatUnknownSurfaceMiles(route, units)
+            const skippedSatisfaction = hasSkippedPreferLock(route)
+            const hasSurfaceData = hasKnownSurfaceData(route.surfaceMix)
+            const routeDistance = formatDistanceMiles(route.distanceMiles, units)
+            return (
+              <button
+                className={`route-slip${selected ? " is-selected" : ""}`}
+                type="button"
+                key={route.id}
+                aria-label={`Select ${route.name}`}
+                aria-pressed={selected}
+                onClick={() => onSelect(route.id)}
+              >
+                <span className="route-slip-index">{index + 1}.</span>
+                <span className="route-slip-body">
+                  <span className="route-slip-name">
+                    <strong>{route.name}</strong>
+                    <small>{routeReason(route)}</small>
+                    <small className="route-slip-tradeoff">{routeTradeoff(route, routes, units)}</small>
+                  </span>
+                  <span className="route-character">
+                    <span>{dominantMix(route.roadMix)}</span>
+                    <span>{hasSurfaceData ? `${unpavedPercent(route.surfaceMix)}% unpaved` : "Surface data unavailable"}</span>
+                    {unknownSurfaceLabel ? (
+                      <span className="route-character-unknown">~{unknownSurfaceLabel} unknown surface</span>
+                    ) : null}
+                    {officialUnpaved ? <span className="official-unpaved">{officialUnpaved}</span> : null}
+                    {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
+                      <span>{Math.round(100 - route.overlapPercent)}% different</span>
+                    ) : null}
+                  </span>
+                  {skippedSatisfaction ? (
+                    <RoadLockSatisfactionBadge satisfaction={skippedSatisfaction} displayName={route.name} />
                   ) : null}
-                  {officialUnpaved ? <span className="official-unpaved">{officialUnpaved}</span> : null}
-                  {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
-                    <span>{Math.round(100 - route.overlapPercent)}% different</span>
-                  ) : null}
                 </span>
-                {skippedSatisfaction ? (
-                  <RoadLockSatisfactionBadge satisfaction={skippedSatisfaction} displayName={route.name} />
-                ) : null}
-              </span>
-              <span className="route-slip-stats">
-                <span className="route-slip-metric">
-                    <strong>{routeDistance.value}</strong>
-                    <small>{routeDistance.unit || "distance"}</small>
+                <span className="route-slip-stats">
+                  <span className="route-slip-metric">
+                      <strong>{routeDistance.value}</strong>
+                      <small>{routeDistance.unit || "distance"}</small>
+                  </span>
+                  <span className="route-slip-metric">
+                    <strong>{Math.round(route.durationMinutes)}</strong>
+                    <small>min</small>
+                  </span>
                 </span>
-                <span className="route-slip-metric">
-                  <strong>{Math.round(route.durationMinutes)}</strong>
-                  <small>min</small>
-                </span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
 
       {selectedRoute ? <>
 

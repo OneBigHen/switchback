@@ -261,6 +261,18 @@
   color: var(--signal);
 }
 
+@media (min-width: 761px) {
+  .planner-shell .map-road-lock-toggle {
+    top: 76px;
+    z-index: 7;
+  }
+
+  .planner-shell .map-road-lock-panel {
+    top: 136px;
+    z-index: 7;
+  }
+}
+
 @media (max-width: 760px) {
   /* Mirrors .map-tool-row across the map. Anchoring this to the sheet
      clearance put it inside the bottom-right maplibre control column (a 156px

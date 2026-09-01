@@ -64,6 +64,16 @@ describe("mobile planner geometry contract", () => {
     )
   })
 
+  it("caps the idle mobile planner at the shared map-first height and keeps overflow reachable", () => {
+    expect(designSystem).toContain("--sb-sheet-idle-height: 300px;")
+    expect(designSystem).toContain(
+      "max-height: min(var(--sb-sheet-idle-height), calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4)));"
+    )
+    expect(designSystem).toContain(
+      ".planner-shell .planner-deck.is-idle-plan .planner-scroll {\n    height: auto;\n    overflow-y: auto;\n  }"
+    )
+  })
+
   it("keeps the mobile road-lock control off the bottom rail entirely", () => {
     // It used to hang off the sheet clearance, which put it inside the
     // bottom-right maplibre control column — both anchored to the same
@@ -76,16 +86,37 @@ describe("mobile planner geometry contract", () => {
     expect(roadLockStyles).not.toContain("bottom: calc(var(--sb-map-sheet-clearance) + var(--sb-space-2));")
   })
 
+  it("keeps the desktop road-lock control below the Quick Layers toolbar", () => {
+    expect(roadLockStyles).toContain("@media (min-width: 761px)")
+    expect(roadLockStyles).toContain("top: 76px;")
+  })
+
   it("moves the duplicate map road-lock control out of an expanded sheet surface", () => {
     expect(designSystem).toContain(
       ".planner-shell:has(.sb-bottom-sheet:not(.is-minimized)) .map-road-lock-toggle {\n    display: none;"
     )
   })
 
-  it("promotes a newly ready route to the full mobile workspace", () => {
+  it("keeps a newly ready route at half height so the map remains visible", () => {
     expect(plannerDeck).toContain("function isPhoneViewport(): boolean")
     expect(plannerDeck).toContain('typeof window.matchMedia === "function"')
-    expect(plannerDeck).toContain('if (isPhoneViewport()) setSheetDetentOverride("full")')
+    expect(plannerDeck).toContain('if (isPhoneViewport()) setSheetDetentOverride("half")')
     expect(plannerDeck).toContain('onClick={() => setSheetDetentOverride(selectedRoute ? "full" : "half")}')
+  })
+
+  it("keeps the drag handle in flow so scrolled content cannot slide under it", () => {
+    // The handle used to be an absolutely-positioned, transparent strip
+    // z-indexed over the sheet content. Any scroll put a control underneath
+    // it and the invisible band stole the tap (WebKit full critical caught
+    // this on the route-details toggle). In-flow layout reserves the band,
+    // so no hit area can ever be covered.
+    const handleRule = [...sheetStyles.matchAll(/\.planner-sheet-handle\s*\{([^}]*)\}/g)]
+      .map((match) => match[1])
+      .find((rule) => rule.includes("display: grid")) ?? ""
+    expect(handleRule).toContain("position: relative;")
+    expect(handleRule).toContain("height: var(--sb-touch-target);")
+    expect(handleRule).not.toMatch(/position:\s*absolute/)
+    expect(handleRule).not.toContain("z-index: 22")
+    expect(handleRule).not.toContain("transform: translateX(-50%)")
   })
 })

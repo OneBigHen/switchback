@@ -1,65 +1,20 @@
-/* P19: the small, shared contract for the map workspace and its sheet. Keep
-   semantic values here; feature CSS should describe layout, not invent new
-   brand colors or touch sizes. */
+/* P19: the shared structural contract for the map workspace and its sheet.
+   Brand, theme, typography, geometry, and focus values live in tokens.css;
+   this layer keeps only the sheet/layout metrics and behavior rules that
+   belong to the map workspace. Feature CSS describes layout and consumes
+   tokens - it does not invent new brand colors or touch sizes. */
 :root {
-  --font-body: "DM Sans Variable", "DM Sans", sans-serif;
-  --font-display: "Sora Variable", "Sora", sans-serif;
-
-  --sb-space-1: 4px;
-  --sb-space-2: 8px;
-  --sb-space-3: 12px;
-  --sb-space-4: 16px;
-  --sb-space-5: 20px;
-  --sb-space-6: 24px;
-  --sb-space-8: 32px;
-  --sb-space-10: 40px;
-  --sb-touch-target: 44px;
-  --sb-radius-control: 12px;
-  --sb-radius-card: 16px;
-  --sb-radius-sheet: 24px;
-  --sb-motion-sheet: 280ms cubic-bezier(0.22, 1, 0.36, 1);
   --sb-mobile-edge: 8px;
   --sb-mobile-nav-height: 68px;
   --sb-mobile-nav-gap: 16px;
   --sb-mobile-sheet-bottom: calc(var(--sb-mobile-nav-height) + var(--sb-mobile-nav-gap) + env(safe-area-inset-bottom));
   --sb-sheet-peek-height: 146px;
+  --sb-sheet-idle-height: 300px;
   --sb-sheet-half-height: min(50dvh, 560px);
   --sb-sheet-full-height: min(88dvh, calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-2)));
   --sb-sheet-dock-height: 82px;
   --sb-sheet-dock-home-height: 134px;
   --sb-sheet-dock-expanded-height: 132px;
-
-  --background: 205.7 47% 97%;
-  --foreground: 212 58% 15%;
-  --primary: 214.9 70% 47%;
-  --accent: 214.9 70% 47%;
-  --sb-canvas: #f4f8fb;
-  --sb-surface: #ffffff;
-  --sb-surface-raised: #f0f4f8;
-  --sb-text: #10253d;
-  --sb-text-muted: #607287;
-  --sb-border: #d8e2ea;
-  --sb-action: #246bce;
-  --sb-focus-fill: #e7f1ff;
-  --sb-shadow: 0 8px 28px rgb(16 37 61 / 12%);
-  --sb-warning: #c87808;
-}
-
-:root[data-theme="dark"] {
-  --background: 208 62% 7%;
-  --foreground: 204 26% 97%;
-  --primary: 215 86% 63%;
-  --accent: 215 86% 63%;
-  --sb-canvas: #07121e;
-  --sb-surface: #0e1d2c;
-  --sb-surface-raised: #14283a;
-  --sb-text: #f3f7fa;
-  --sb-text-muted: #9fb0c0;
-  --sb-border: #294156;
-  --sb-action: #4d91f2;
-  --sb-focus-fill: #173b61;
-  --sb-shadow: 0 12px 32px rgb(0 0 0 / 32%);
-  --sb-warning: #f0a52c;
 }
 
 html,
@@ -105,9 +60,9 @@ h6,
 }
 
 .planner-shell :where(button, a, input, select):focus-visible {
-  outline: 2px solid var(--sb-action);
+  outline: 2px solid var(--sb-focus-ring);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sb-focus-fill) 88%, transparent);
+  box-shadow: 0 0 0 4px var(--sb-focus-fill);
 }
 
 .planner-shell .sb-bottom-sheet {
@@ -115,12 +70,29 @@ h6,
     filter var(--sb-motion-sheet);
 }
 
+/* The initial Plan prompt is a content-sized instrument. Detents remain the
+   layout contract for Options and route results, but an empty prompt must not
+   reserve a half/full viewport of blank Paper over the map. */
+.planner-shell .planner-deck.is-idle-plan {
+  top: 20px;
+  right: auto;
+  bottom: auto;
+  left: 96px;
+  width: min(456px, calc(100vw - 112px));
+  height: auto;
+  max-height: calc(100dvh - 40px);
+}
+
+.planner-shell .planner-deck.is-idle-plan .planner-scroll {
+  height: auto;
+  overflow-y: visible;
+}
+
 :root[data-theme="dark"] .planner-shell .sb-bottom-sheet {
   --ride-forest: var(--sb-text);
   --ride-ink: var(--sb-text);
   --ride-cream: var(--sb-surface);
   --ride-line: var(--sb-border);
-  --ride-orange: #ff573d;
   color: var(--sb-text);
 }
 
@@ -179,12 +151,11 @@ h6,
     --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-full-height) + var(--sb-space-2));
   }
 
-  .planner-shell .app-navigation {
-    right: var(--sb-mobile-edge);
-    bottom: max(var(--sb-mobile-edge), env(safe-area-inset-bottom));
-    left: var(--sb-mobile-edge);
-    height: var(--sb-mobile-nav-height);
+  .planner-shell:has(.planner-deck.is-idle-plan) {
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-sheet-idle-height) + var(--sb-space-2));
   }
+
+  /* Phone nav geometry lives in shell-v2.css. */
 
   .planner-shell .sb-bottom-sheet {
     right: var(--sb-mobile-edge);
@@ -195,6 +166,21 @@ h6,
     max-height: var(--sb-sheet-half-height);
     border-radius: var(--sb-radius-sheet) var(--sb-radius-sheet) 18px 18px;
     box-shadow: var(--sb-shadow);
+  }
+
+  .planner-shell .planner-deck.is-idle-plan {
+    top: auto;
+    right: var(--sb-mobile-edge);
+    bottom: var(--sb-mobile-sheet-bottom);
+    left: var(--sb-mobile-edge);
+    width: auto;
+    height: auto;
+    max-height: min(var(--sb-sheet-idle-height), calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4)));
+  }
+
+  .planner-shell .planner-deck.is-idle-plan .planner-scroll {
+    height: auto;
+    overflow-y: auto;
   }
 
   .planner-shell .sb-bottom-sheet:not(.is-minimized) {
@@ -339,6 +325,21 @@ h6,
   }
 }
 
+@media (min-width: 761px) and (max-width: 1024px) and (orientation: portrait) {
+  .planner-shell .planner-deck.is-idle-plan {
+    width: min(360px, calc(100vw - 112px));
+  }
+}
+
+/* Playwright's desktop project keeps its screen orientation independent from
+   the named viewport. Match the narrow portrait geometry by dimensions too,
+   so a 768x1024 browser cannot fall back to the wide desktop rail. */
+@media (min-width: 761px) and (max-width: 800px) and (min-height: 900px) {
+  .planner-shell .planner-deck.is-idle-plan {
+    width: min(360px, calc(100vw - 112px));
+  }
+}
+
 @media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
   .planner-shell .sb-bottom-sheet:not(.is-minimized) {
     height: calc(100dvh - (var(--sb-space-2) * 2));
@@ -428,7 +429,10 @@ h6,
   }
 
   .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] .planner-full-attribution a {
+    display: inline-block;
+    min-height: 12px;
     color: var(--sb-text-muted);
+    line-height: 1.5;
   }
 }
 
@@ -458,4 +462,58 @@ h6,
   .planner-shell .sb-bottom-sheet.is-minimized .planner-action-dock {
     padding-bottom: max(13px, env(safe-area-inset-bottom));
   }
+}
+
+/* Generic app overlay (region downloads).
+   .app-overlay-scrim / .app-overlay-panel were defined only in the retired
+   switchback-v1.css, so this modal shipped completely unstyled once that sheet
+   was dropped: an in-flow div with no scrim, no centring and no height cap,
+   which overflowed the visual viewport. Fixed positioning — not V1's absolute
+   — keeps it anchored to the visual viewport even when the destination
+   underneath it scrolls. */
+.app-overlay-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: max(var(--sb-space-5), env(safe-area-inset-top)) max(var(--sb-space-5), env(safe-area-inset-right)) max(var(--sb-space-5), env(safe-area-inset-bottom)) max(var(--sb-space-5), env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--sb-ink) 48%, transparent);
+}
+
+.app-overlay-panel {
+  width: min(760px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-sheet);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  box-shadow: var(--sb-shadow);
+}
+
+.app-overlay-panel > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sb-space-3);
+  padding: var(--sb-space-4) var(--sb-space-5);
+  border-bottom: 1px solid var(--sb-border);
+  background: var(--sb-surface);
+}
+
+.app-overlay-panel > header h2 {
+  margin: 0;
+}
+
+.app-overlay-panel > header button {
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
 }

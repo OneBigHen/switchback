@@ -152,6 +152,8 @@ export interface PlannerDeckCommands {
   onClearHome?(): void
   onStartRide?(route: PlannedRoute): void
   onStartFreeRide?(): void
+  /** Enter the existing map sketch surface from the compact Plan composer. */
+  onStartDrawing?(): void
   onSaveOffline?(route: PlannedRoute, options?: import("@/lib/client/offline-pack-coordinator").OfflinePackCorridorOptions): void
   onCancelPlanning(): void
   onRetryProviderHealth?(): void

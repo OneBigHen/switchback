@@ -1,0 +1,97 @@
+/* Document reset and global behavior. Token values live in tokens.css;
+ * this layer only applies them. Import order: fonts -> tokens.css -> base.css,
+ * all from globals.css, before the feature stylesheets layout.tsx pulls in.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--oled);
+  color: var(--instrument);
+}
+
+/* The planner is a fixed viewport application, but the public route atlas is
+   a normal tall document. Opt the atlas back into page scrolling so the global
+   planner lock cannot clip /gpx-library or route-detail pages. */
+body:has(.atlas-page) {
+  overflow: auto;
+}
+
+html.ride-mode-active,
+body.ride-mode-active {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.ride-mode-active {
+  position: fixed;
+  inset: 0;
+}
+
+.ride-mode-active .planner-shell {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body,
+button,
+input,
+select {
+  font-family: var(--font-body);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button,
+a,
+input,
+label {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+.brand-lockup strong {
+  font-family: var(--font-display);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

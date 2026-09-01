@@ -2,9 +2,19 @@
   position: relative;
   width: 100vw;
   height: 100dvh;
+  /* Preserve the desktop and portrait composition's minimum canvas. The
+     short-landscape override below releases this floor before the shell clips
+     bottom-anchored surfaces out of the visual viewport. */
   min-height: 560px;
   overflow: hidden;
   background: var(--oled);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-shell {
+    min-height: 0;
+    height: 100dvh;
+  }
 }
 
 .map-stage,
@@ -232,6 +242,15 @@
   box-shadow:
     0 30px 80px rgb(0 0 0 / 44%),
     inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+
+/* The rail owns the first 80px of the desktop canvas. Route-result decks keep
+   the same width, but need the same 16px breathing room as the compact idle
+   composer so route choices and their controls cannot sit underneath the rail. */
+@media (min-width: 761px) {
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: 96px;
+  }
 }
 
 .planner-deck::before {
@@ -751,6 +770,19 @@ h2 {
   color: rgb(255 255 255 / 58%);
   font-size: 10px;
   line-height: 1.35;
+}
+
+.map-sketch-toolbar {
+  position: absolute;
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+  left: 50%;
+  z-index: 1;
+  width: min(360px, calc(100vw - 24px));
+  transform: translateX(-50%);
+}
+
+.map-sketch-toolbar > [role="toolbar"] {
+  width: 100%;
 }
 
 @media (max-width: 760px) {

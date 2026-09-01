@@ -23,8 +23,11 @@ const fixture = `<?xml version="1.0" encoding="UTF-8"?>
   <relation id="100"><member type="way" ref="10" role="from"/><member type="node" ref="2" role="via"/><member type="way" ref="11" role="to"/><tag k="type" v="restriction"/><tag k="restriction" v="no_right_turn"/></relation>
 </osm>`
 
+const osmiumAvailable = spawnSync("osmium", ["--version"], { encoding: "utf8" }).status === 0
+const itWithOsmium = osmiumAvailable ? it : it.skip
+
 describe("offline PBF builder v2", () => {
-  it("extracts every eligible road segment and restrictions without sampled routes", async () => {
+  itWithOsmium("extracts every eligible road segment and restrictions without sampled routes", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "switchback-pbf-builder-"))
     const xml = join(workspace, "fixture.osm")
     const pbf = join(workspace, "fixture.osm.pbf")

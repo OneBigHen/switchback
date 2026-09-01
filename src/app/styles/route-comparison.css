@@ -398,9 +398,9 @@
 .directions-panel {
   margin-top: 14px;
   overflow: hidden;
-  border: 1px solid #e3ded5;
+  border: 1px solid var(--sb-border);
   border-radius: 15px;
-  background: #fff;
+  background: var(--sb-surface);
 }
 
 .directions-toggle {
@@ -412,8 +412,8 @@
   gap: 12px;
   padding: 0 14px;
   border: 0;
-  background: #fff;
-  color: #34312e;
+  background: var(--sb-surface);
+  color: var(--sb-text);
   cursor: pointer;
 }
 
@@ -429,7 +429,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #7d7870;
+  color: var(--sb-text-muted);
   font-size: 10px;
   font-weight: 620;
 }
@@ -437,7 +437,7 @@
 .directions-toggle svg {
   width: 18px;
   height: 18px;
-  color: #d95629;
+  color: var(--sb-ember-strong);
 }
 
 .directions-toggle > span:nth-child(2) svg {
@@ -449,7 +449,7 @@
 .directions-list {
   max-height: 360px;
   overflow-y: auto;
-  border-top: 1px solid #ebe6de;
+  border-top: 1px solid var(--sb-border);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -467,7 +467,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 1px solid #f0ece5;
+  border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
   transition: background-color 120ms ease;
 }
 
@@ -476,7 +476,7 @@
 }
 
 .directions-list li:hover {
-  background: #faf8f4;
+  background: var(--sb-surface-raised);
 }
 
 .directions-list .directions-icon {
@@ -485,8 +485,8 @@
   height: 36px;
   place-items: center;
   border-radius: 10px;
-  background: linear-gradient(135deg, #f1eee8, #ebe6de);
-  color: #d95629;
+  background: var(--sb-surface-raised);
+  color: var(--sb-ember-strong);
 }
 
 .directions-list .directions-icon svg {
@@ -501,7 +501,7 @@
 }
 
 .directions-list .directions-text strong {
-  color: #302e2b;
+  color: var(--sb-text);
   font-size: 13px;
   font-weight: 680;
   line-height: 1.35;
@@ -509,7 +509,7 @@
 }
 
 .directions-list .directions-text small {
-  color: #858078;
+  color: var(--sb-text-muted);
   font-size: 10px;
   font-weight: 580;
   text-transform: uppercase;
@@ -517,7 +517,7 @@
 }
 
 .directions-list .directions-distance {
-  color: #d95629;
+  color: var(--sb-ember-strong);
   font-size: 11px;
   font-weight: 720;
   white-space: nowrap;
@@ -542,7 +542,7 @@
 .gpx-export-variant {
   display: grid;
   gap: 3px;
-  color: #77736c;
+  color: var(--sb-text-muted);
   font-size: 8px;
   font-weight: 720;
   letter-spacing: .05em;
@@ -552,10 +552,10 @@
 .gpx-export-variant select {
   min-height: var(--sb-touch-target);
   padding: 0 24px 0 8px;
-  border: 1px solid #ded8cf;
+  border: 1px solid var(--sb-border);
   border-radius: 8px;
-  background: #fff;
-  color: #4d4943;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font: 650 10px/1.2 var(--font-body);
 }
 
@@ -575,16 +575,16 @@
   grid-template-columns: 24px minmax(0, 1fr) auto;
   gap: 10px;
   padding: 13px;
-  border: 1px solid #e5e0d8;
+  border: 1px solid var(--sb-border);
   border-radius: 15px;
-  background: #fff;
-  color: #242321;
+  background: var(--sb-surface);
+  color: var(--sb-text);
   box-shadow: 0 2px 10px rgb(57 49 38 / 4%);
 }
 
 .route-slip:hover {
-  border-color: #cfc8bd;
-  background: #fff;
+  border-color: var(--sb-border);
+  background: var(--sb-surface-raised);
 }
 
 .route-slip-index {
@@ -607,13 +607,13 @@
 }
 
 .route-slip-name strong {
-  color: #242321;
+  color: var(--sb-text);
   font-size: 14px;
 }
 
 .route-slip-name small {
   overflow: hidden;
-  color: #6f6b64;
+  color: var(--sb-text-muted);
   font-size: 11px;
   font-weight: 520;
   letter-spacing: 0;
@@ -656,12 +656,12 @@
 }
 
 .route-slip-metric strong {
-  color: #292725;
+  color: var(--sb-text);
   font-size: 14px;
 }
 
 .route-slip-metric small {
-  color: #8b867e;
+  color: var(--sb-text-muted);
   font-size: 8px;
 }
 
@@ -681,14 +681,14 @@
 }
 
 .tool-button:hover {
-  border-color: #aaa39a;
-  color: #242321;
+  border-color: var(--sb-focus-ring);
+  color: var(--sb-text);
 }
 
 .ride-button {
-  border-color: #242321;
-  background: #242321;
-  color: #fff;
+  border-color: var(--sb-action);
+  background: var(--sb-action);
+  color: var(--sb-paper);
 }
 
 @media (max-width: 390px) {
@@ -711,7 +711,7 @@
 .route-slip {
   min-height: 108px;
   border-radius: 18px;
-  background: #fffdf8;
+  background: var(--sb-surface);
 }
 
 .route-slip-name strong {
@@ -721,8 +721,8 @@
 }
 
 .route-character > span {
-  background: #f3ede2;
-  color: #526054;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
 }
 
 .route-details-toggle {

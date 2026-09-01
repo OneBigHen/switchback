@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest"
 const routeStyles = readFileSync(resolve(process.cwd(), "src/app/styles/route-comparison.css"), "utf8")
 const qualityStyles = readFileSync(resolve(process.cwd(), "src/app/styles/route-data-quality-panel.css"), "utf8")
 const dockStyles = readFileSync(resolve(process.cwd(), "src/app/styles/planner-action-dock.css"), "utf8")
+const routeDecisionStyles = readFileSync(resolve(process.cwd(), "src/components/planner/v2/RouteDecisionCard.module.css"), "utf8")
+const routeShareStyles = readFileSync(resolve(process.cwd(), "src/app/styles/route-share-panel.css"), "utf8")
 
 function lastRule(styles: string, selector: string): string {
   return [...styles.matchAll(/([^{}]+)\{([^{}]*)}/gs)]
@@ -15,6 +17,21 @@ function lastRule(styles: string, selector: string): string {
 }
 
 describe("route preparation readability contract", () => {
+  it("keeps route cards and preparation form controls on themed surfaces", () => {
+    expect(routeDecisionStyles).toContain("background: var(--sb-surface);")
+    expect(routeStyles).toContain(".directions-panel")
+    expect(routeStyles).toContain("background: var(--sb-surface);")
+    expect(routeStyles).toContain(".gpx-export-variant select")
+    expect(routeStyles).toContain("background: var(--sb-surface-raised);")
+    expect(routeShareStyles).toContain(".route-share-panel > label input")
+    expect(routeShareStyles).toContain(".route-share-panel > label textarea")
+    expect(routeShareStyles).toContain(".route-share-panel > label select")
+    expect(routeShareStyles).toContain("background: var(--sb-surface-raised);")
+    expect(dockStyles).toContain(".road-locks-dock-button")
+    expect(dockStyles).toContain("background: var(--sb-surface-raised);")
+    expect(dockStyles).toContain("color: var(--sb-text);")
+  })
+
   it("uses a shared 14px floor for rider-visible route metadata and explanations", () => {
     expect(routeStyles).toContain("--sb-route-meta-size: 14px")
     expect(routeStyles).toContain("--sb-route-value-size: 15px")

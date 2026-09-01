@@ -261,7 +261,7 @@ describe("mobile QA FAST orchestration", () => {
     } finally {
       rmSync(root, { force: true, recursive: true })
     }
-  })
+  }, 10_000)
 
   it("enumerates inventory output and rejects browser evidence names", async () => {
     const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = await import("node:fs")

@@ -9,6 +9,67 @@ vi.mock("maplibre-gl", () => ({}))
 afterEach(cleanup)
 
 describe("map layer controls", () => {
+  it("mounts the bounded V2 quick layer surface and keeps specialized controls behind Advanced", async () => {
+    const user = userEvent.setup()
+    render(
+      <MapStage
+        routes={[]}
+        selectedRouteId={null}
+        start={null}
+        finish={null}
+        via={[]}
+        armedPoint={null}
+        addingVia={false}
+        curvatureVisible
+        unpavedVisible
+        mapExperience="standard"
+        lightPreference="auto"
+        riderLayers={[
+          { id: "curvature", visible: true, opacity: 1, order: 0 },
+          { id: "unpaved", visible: false, opacity: 1, order: 1 },
+          { id: "closures", visible: false, opacity: 1, order: 2 },
+          { id: "road-controls", visible: false, opacity: 1, order: 3 },
+          { id: "satellite", visible: false, opacity: 1, order: 4 },
+          { id: "fuel", visible: false, opacity: 1, order: 5 }
+        ]}
+        routeVisibility="standard"
+        mapPacks={[]}
+        referenceMap={null}
+        rideMode={false}
+        onCurvatureChange={vi.fn()}
+        onUnpavedChange={vi.fn()}
+        onMapExperienceChange={vi.fn()}
+        onLightPreferenceChange={vi.fn()}
+        onRiderLayerChange={vi.fn()}
+        onMoveRiderLayer={vi.fn()}
+        onRouteVisibilityChange={vi.fn()}
+        onSaveMapPack={vi.fn()}
+        onApplyMapPack={vi.fn()}
+        onReferenceMapChange={vi.fn()}
+        onWaypointDrag={vi.fn()}
+        onMapPick={vi.fn()}
+        onRouteSketch={vi.fn()}
+        onSketchModeChange={vi.fn()}
+        avoidAreas={[]}
+        onAvoidArea={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Open map layers" }))
+    expect(screen.getByRole("region", { name: "Quick map layers" })).toBeVisible()
+    expect(screen.getByRole("radio", { name: "Standard" })).toBeVisible()
+    expect(screen.getByRole("radio", { name: "Terrain" })).toBeVisible()
+    // MapStage uses the renderer-neutral fallback; Satellite remains correctly
+    // capability-gated while the premium LayersSheet contract covers it.
+    expect(screen.queryByRole("radio", { name: "Satellite" })).not.toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Great roads" })).toBeVisible()
+    expect(screen.queryByText(/Switchback road-shape analysis/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
+    expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
+    expect(screen.getByRole("checkbox", { name: /Satellite imagery/i })).toBeVisible()
+  })
+
   it("exposes a touch-sized recenter control for the shared ride navigation frame", () => {
     const navigationFrame = {
       status: "navigating",
@@ -148,6 +209,7 @@ describe("map layer controls", () => {
     )
 
     await user.click(screen.getByRole("button", { name: "Open map layers" }))
+    await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
     expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
     expect(screen.getByText(/Legend: Satellite image overlay/i)).toBeVisible()
     expect(screen.getAllByText(/Confidence: Provider imagery coverage/i)).not.toHaveLength(0)
@@ -160,7 +222,7 @@ describe("map layer controls", () => {
     expect(onSaveMapPack).toHaveBeenCalledWith("Gravel scouting")
   })
 
-  it("opens and cancels a touch-first route sketch surface", async () => {
+  it("opens and cancels the V2 route sketch surface from a typed draw command", async () => {
     const user = userEvent.setup()
     const onSketchModeChange = vi.fn()
     render(
@@ -195,19 +257,21 @@ describe("map layer controls", () => {
         onMapPick={vi.fn()}
         onRouteSketch={vi.fn()}
         onSketchModeChange={onSketchModeChange}
+        drawCommand={{ type: "start", id: 1 }}
         avoidAreas={[]}
         onAvoidArea={vi.fn()}
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Sketch a rough route" }))
-
+    expect(screen.queryByRole("button", { name: "Sketch a rough route" })).not.toBeInTheDocument()
     expect(onSketchModeChange).toHaveBeenCalledWith(true)
     expect(screen.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
     expect(screen.getByText(/drag one line through the roads or areas/i)).toBeVisible()
     expect(screen.getByText(/switchback will snap it to legal roads/i)).toBeVisible()
+    expect(screen.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
 
-    await user.click(screen.getByRole("button", { name: "Cancel route sketch" }))
+    await user.click(screen.getByRole("button", { name: "Cancel drawing" }))
+
     expect(onSketchModeChange).toHaveBeenLastCalledWith(false)
     expect(screen.queryByRole("region", { name: "Draw a rough route" })).not.toBeInTheDocument()
   })

@@ -1,20 +1,48 @@
+import { layerCatalog, type RiderLayerId } from "@/lib/client/map-layers"
 import type { RouteProfileId } from "@/lib/routing/types"
+import type { BikeProfile } from "@/lib/routing/bike-profiles"
 
 /**
  * One versioned operational settings source (SB-011/SB-023).
  *
  * Every visible setting is operational: the active bike enters route
  * constraints, defaults initialize the planner, units affect all values,
- * and learning uses the stable `bike.id` — never the mutable display name.
+ * learning uses the stable `bike.id`, and V2 UI preferences are curated lists
+ * rather than arbitrary dashboard layout state.
  */
 
-export const RIDER_SETTINGS_VERSION = 1
+export const RIDER_SETTINGS_VERSION = 2
 const STORAGE_KEY = "switchback:rider-settings"
 
 export type BikeCategory = "street" | "touring" | "adventure" | "dual-sport"
 export type UnknownSurfacePolicy = "allow" | "warn" | "avoid"
 export type UnitSystem = "imperial" | "metric"
 export type ThemePreference = "auto" | "light" | "dark"
+export type PlanQuickActionId = "free-ride" | "record" | "home-loop" | "saved-place"
+export type RideMetricId = "eta" | "remaining-distance" | "speed" | "elevation" | "elapsed"
+export type RecordingMetricId = "distance" | "speed" | "elevation" | "elapsed"
+export type RouteDetailModuleId =
+  | "overview"
+  | "road-character"
+  | "surface-elevation"
+  | "weather"
+  | "traffic"
+  | "stops"
+  | "directions"
+  | "offline"
+  | "actions"
+  | "evidence"
+  | "trip"
+  | "rating-publish"
+
+export interface RiderUiPreferences {
+  planQuickActions: PlanQuickActionId[]
+  quickLayers: RiderLayerId[]
+  rideMetrics: RideMetricId[]
+  recordingMetrics: RecordingMetricId[]
+  routeDetailOrder: RouteDetailModuleId[]
+  hiddenRouteDetailModules: RouteDetailModuleId[]
+}
 
 export interface RiderBike {
   id: string
@@ -28,7 +56,7 @@ export interface RiderBike {
 }
 
 export interface RiderSettings {
-  version: number
+  version: typeof RIDER_SETTINGS_VERSION
   riderName: string
   activeBikeId: string
   bikes: RiderBike[]
@@ -39,6 +67,88 @@ export interface RiderSettings {
   theme: ThemePreference
   mapStyle: string
   learningEnabled: boolean
+  uiPreferences: RiderUiPreferences
+}
+
+const PLAN_QUICK_ACTIONS: readonly PlanQuickActionId[] = ["free-ride", "record", "home-loop", "saved-place"]
+const RIDE_METRICS: readonly RideMetricId[] = ["eta", "remaining-distance", "speed", "elevation", "elapsed"]
+const RECORDING_METRICS: readonly RecordingMetricId[] = ["distance", "speed", "elevation", "elapsed"]
+export const ROUTE_DETAIL_ORDER: readonly RouteDetailModuleId[] = [
+  "overview",
+  "road-character",
+  "surface-elevation",
+  "weather",
+  "traffic",
+  "stops",
+  "directions",
+  "offline",
+  "actions",
+  "evidence",
+  "trip",
+  "rating-publish"
+]
+const REQUIRED_ROUTE_DETAIL_MODULES = new Set<RouteDetailModuleId>(["overview", "actions"])
+const ROUTE_PROFILES = new Set<RouteProfileId>([
+  "quick",
+  "balanced",
+  "twisty",
+  "scenic",
+  "adventure",
+  "gravel",
+  "avoid-highways",
+  "neural"
+])
+const RIDER_LAYER_IDS = new Set<RiderLayerId>(layerCatalog.map((layer) => layer.id))
+
+function boundedKnownValues<T extends string>(value: unknown, allowed: ReadonlySet<T>, max?: number): T[] {
+  if (!Array.isArray(value)) return []
+  const result: T[] = []
+  for (const candidate of value) {
+    if (typeof candidate !== "string" || !allowed.has(candidate as T) || result.includes(candidate as T)) continue
+    result.push(candidate as T)
+    if (max !== undefined && result.length >= max) break
+  }
+  return result
+}
+
+export function defaultRiderUiPreferences(): RiderUiPreferences {
+  return {
+    planQuickActions: ["free-ride", "record"],
+    quickLayers: ["curvature", "unpaved"],
+    rideMetrics: ["eta", "remaining-distance", "speed"],
+    recordingMetrics: ["elapsed", "distance", "speed"],
+    routeDetailOrder: [...ROUTE_DETAIL_ORDER],
+    hiddenRouteDetailModules: []
+  }
+}
+
+export function validateRiderUiPreferences(value: unknown): RiderUiPreferences {
+  const defaults = defaultRiderUiPreferences()
+  if (!value || typeof value !== "object") return defaults
+  const input = value as Record<string, unknown>
+
+  const planQuickActions = boundedKnownValues(input.planQuickActions, new Set(PLAN_QUICK_ACTIONS), 4)
+  const quickLayers = boundedKnownValues(input.quickLayers, RIDER_LAYER_IDS, 4)
+  const rideMetrics = boundedKnownValues(input.rideMetrics, new Set(RIDE_METRICS), 3)
+  const recordingMetrics = boundedKnownValues(input.recordingMetrics, new Set(RECORDING_METRICS), 3)
+  const suppliedOrder = boundedKnownValues(input.routeDetailOrder, new Set(ROUTE_DETAIL_ORDER))
+  const routeDetailOrder = [
+    ...suppliedOrder,
+    ...ROUTE_DETAIL_ORDER.filter((module) => !suppliedOrder.includes(module))
+  ]
+  const hiddenRouteDetailModules = boundedKnownValues(
+    input.hiddenRouteDetailModules,
+    new Set(ROUTE_DETAIL_ORDER)
+  ).filter((module) => !REQUIRED_ROUTE_DETAIL_MODULES.has(module))
+
+  return {
+    planQuickActions: planQuickActions.length > 0 ? planQuickActions : defaults.planQuickActions,
+    quickLayers: quickLayers.length > 0 ? quickLayers : defaults.quickLayers,
+    rideMetrics: rideMetrics.length > 0 ? rideMetrics : defaults.rideMetrics,
+    recordingMetrics: recordingMetrics.length > 0 ? recordingMetrics : defaults.recordingMetrics,
+    routeDetailOrder,
+    hiddenRouteDetailModules
+  }
 }
 
 export function createDefaultBike(id: string, name: string, category: BikeCategory): RiderBike {
@@ -67,7 +177,55 @@ export function createDefaultSettings(): RiderSettings {
     voiceGuidance: false,
     theme: "auto",
     mapStyle: "standard",
-    learningEnabled: true
+    learningEnabled: true,
+    uiPreferences: defaultRiderUiPreferences()
+  }
+}
+
+function isRiderBike(value: unknown): value is RiderBike {
+  if (!value || typeof value !== "object") return false
+  const bike = value as Partial<RiderBike>
+  return typeof bike.id === "string" && bike.id.length > 0 &&
+    typeof bike.name === "string" && bike.name.length > 0 &&
+    (bike.category === "street" || bike.category === "touring" || bike.category === "adventure" || bike.category === "dual-sport") &&
+    typeof bike.fuelRangeMiles === "number" && Number.isFinite(bike.fuelRangeMiles) && bike.fuelRangeMiles > 0 &&
+    typeof bike.reserveMiles === "number" && Number.isFinite(bike.reserveMiles) && bike.reserveMiles >= 0 &&
+    typeof bike.maintainedGravel === "boolean" && typeof bike.roughTracks === "boolean" &&
+    (bike.unknownSurfacePolicy === "allow" || bike.unknownSurfacePolicy === "warn" || bike.unknownSurfacePolicy === "avoid")
+}
+
+/**
+ * Upgrades a stored V1/V2 settings object without discarding valid rider data.
+ * Unknown/corrupt individual fields fall back independently instead of causing
+ * a whole-record reset.
+ */
+export function migrateStoredRiderSettings(value: unknown): RiderSettings {
+  const defaults = createDefaultSettings()
+  if (!value || typeof value !== "object") return defaults
+  const input = value as Record<string, unknown>
+  const bikes = Array.isArray(input.bikes) ? input.bikes.filter(isRiderBike).map((bike) => ({ ...bike })) : []
+  const safeBikes = bikes.length > 0 ? bikes : defaults.bikes
+  const requestedActiveBike = typeof input.activeBikeId === "string" ? input.activeBikeId : ""
+  const activeBikeId = safeBikes.some((bike) => bike.id === requestedActiveBike)
+    ? requestedActiveBike
+    : safeBikes[0]!.id
+  const requestedProfile = input.defaultProfile
+
+  return {
+    version: RIDER_SETTINGS_VERSION,
+    riderName: typeof input.riderName === "string" ? input.riderName.trim().slice(0, 80) : defaults.riderName,
+    activeBikeId,
+    bikes: safeBikes,
+    defaultProfile: typeof requestedProfile === "string" && ROUTE_PROFILES.has(requestedProfile as RouteProfileId)
+      ? requestedProfile as RouteProfileId
+      : defaults.defaultProfile,
+    defaultAvoidHighways: typeof input.defaultAvoidHighways === "boolean" ? input.defaultAvoidHighways : defaults.defaultAvoidHighways,
+    units: input.units === "metric" || input.units === "imperial" ? input.units : defaults.units,
+    voiceGuidance: typeof input.voiceGuidance === "boolean" ? input.voiceGuidance : defaults.voiceGuidance,
+    theme: input.theme === "auto" || input.theme === "light" || input.theme === "dark" ? input.theme : defaults.theme,
+    mapStyle: typeof input.mapStyle === "string" && input.mapStyle.trim() ? input.mapStyle : defaults.mapStyle,
+    learningEnabled: typeof input.learningEnabled === "boolean" ? input.learningEnabled : defaults.learningEnabled,
+    uiPreferences: validateRiderUiPreferences(input.uiPreferences)
   }
 }
 
@@ -78,10 +236,9 @@ function stableBikeIdFromName(name: string, index: number): string {
 }
 
 /**
- * Migrate legacy per-bike fields (rider profile / motorcycle name + fuel /
- * gravel/rough options) into stable RiderBike records. The generated ids are
- * persisted, so later renames of the display name never change the identity
- * used for preference learning or route constraints (SB-011).
+ * Migrate the pre-versioned rider-profile record into the versioned settings
+ * source. This remains separate from migrateStoredRiderSettings because the
+ * old record used different field names.
  */
 export function migrateLegacySettings(legacy: {
   riderName?: unknown
@@ -127,11 +284,9 @@ export function loadRiderSettings(): RiderSettings {
       saveRiderSettings(migrated)
       return migrated
     }
-    const parsed = JSON.parse(raw) as RiderSettings
-    if (!parsed || parsed.version !== RIDER_SETTINGS_VERSION || !Array.isArray(parsed.bikes)) {
-      return createDefaultSettings()
-    }
-    return parsed
+    const migrated = migrateStoredRiderSettings(JSON.parse(raw) as unknown)
+    saveRiderSettings(migrated)
+    return migrated
   } catch {
     return createDefaultSettings()
   }
@@ -140,7 +295,8 @@ export function loadRiderSettings(): RiderSettings {
 export function saveRiderSettings(settings: RiderSettings): void {
   if (typeof window === "undefined") return
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, version: RIDER_SETTINGS_VERSION }))
+    const validated = migrateStoredRiderSettings(settings)
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(validated))
   } catch {
     // Storage unavailable (private mode): settings are in-memory only.
   }
@@ -148,4 +304,17 @@ export function saveRiderSettings(settings: RiderSettings): void {
 
 export function getActiveBike(settings: RiderSettings): RiderBike {
   return settings.bikes.find((bike) => bike.id === settings.activeBikeId) ?? settings.bikes[0]!
+}
+
+export function bikeProfileFromRiderSettings(settings: RiderSettings): BikeProfile {
+  const bike = getActiveBike(settings)
+  return {
+    name: bike.name,
+    category: bike.category,
+    fuelRangeMiles: bike.fuelRangeMiles,
+    reserveMiles: bike.reserveMiles,
+    allowMaintainedGravel: bike.maintainedGravel,
+    allowRoughTracks: bike.roughTracks,
+    avoidUnknownSurface: bike.unknownSurfacePolicy === "avoid"
+  }
 }

@@ -38,4 +38,15 @@ describe("ride HUD mobile control geometry", () => {
     expect(controlRule).toContain("min-width: var(--sb-touch-target)")
     expect(controlRule).toContain("min-height: var(--sb-touch-target)")
   })
+
+  it("keeps the ride status and route name on separate readable lines", () => {
+    expect(rideHud).toContain('className="ride-route-copy"')
+
+    const copyRule = rideHudStyles.match(
+      /\.ride-route-copy\s*\{([^}]*)\}/s
+    )?.[1] ?? ""
+
+    expect(copyRule).toContain("display: flex")
+    expect(copyRule).toContain("flex-direction: column")
+  })
 })

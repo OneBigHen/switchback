@@ -180,7 +180,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
       <header className="ride-topbar">
         <div className="ride-route-name">
           <span className="live-dot" aria-hidden="true" />
-          <span>
+          <span className="ride-route-copy">
             <small>{headerLabel}</small>
             <strong>{route.name}</strong>
           </span>

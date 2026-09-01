@@ -1,9 +1,9 @@
 .route-evidence {
   margin-top: 14px;
   padding: 15px;
-  border: 1px solid #e5e0d8;
+  border: 1px solid var(--sb-border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--sb-surface);
 }
 
 .route-evidence .section-heading {
@@ -13,12 +13,12 @@
 .route-evidence .section-heading > svg {
   width: 18px;
   height: 18px;
-  color: #d95629;
+  color: var(--sb-action);
 }
 
 .route-evidence h3 {
   margin: 2px 0 0;
-  color: #2c2a27;
+  color: var(--sb-text);
   font-size: 14px;
 }
 
@@ -35,7 +35,7 @@
   grid-template-columns: 16px minmax(0, 1fr);
   gap: 8px;
   align-items: start;
-  color: #6d6861;
+  color: var(--sb-text-muted);
   font-size: 10px;
   line-height: 1.4;
 }
@@ -53,7 +53,7 @@
 .route-evidence strong {
   display: block;
   margin-bottom: 1px;
-  color: #46423d;
+  color: var(--sb-text);
   font-size: 10px;
 }
 

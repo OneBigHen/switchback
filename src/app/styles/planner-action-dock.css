@@ -241,10 +241,10 @@
   align-items: center;
   gap: 7px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--sb-border);
   border-radius: 12px;
-  background: var(--machined);
-  color: var(--metal);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font-family: var(--font-body);
   font-size: 11px;
   font-weight: 700;
@@ -256,14 +256,14 @@
 .road-locks-dock-button:hover,
 .road-locks-dock-button:focus-visible,
 .road-locks-dock-button[aria-expanded="true"] {
-  border-color: var(--signal);
-  color: var(--instrument);
+  border-color: var(--sb-action);
+  color: var(--sb-text);
 }
 
 .road-locks-dock-button.has-must-locks {
-  border-color: rgb(243 106 45 / 60%);
-  background: rgb(243 106 45 / 12%);
-  color: var(--signal);
+  border-color: color-mix(in srgb, var(--sb-action) 60%, var(--sb-border));
+  background: color-mix(in srgb, var(--sb-action) 12%, var(--sb-surface-raised));
+  color: var(--sb-action);
 }
 
 .road-locks-dock-button svg {
@@ -279,8 +279,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--metal);
-  color: var(--oled);
+  background: var(--sb-text-muted);
+  color: var(--sb-surface);
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 720;
@@ -288,8 +288,8 @@
 }
 
 .road-locks-dock-count[data-tier="must"] {
-  background: var(--signal);
-  color: var(--oled);
+  background: var(--sb-action);
+  color: var(--sb-surface);
 }
 
 .offline-pack-modal-scrim {

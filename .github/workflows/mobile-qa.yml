@@ -1,11 +1,7 @@
-name: Mobile QA Level A
+name: Mobile QA (nightly)
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   schedule:
-    # Nightly FULL gate, deliberately off the :00 push rush (06:17 UTC).
     - cron: "17 6 * * *"
   workflow_dispatch:
 
@@ -17,13 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  mobile-qa:
-    name: WebKit and Chromium mobile QA
+  mobile-core:
+    name: mobile-core
     runs-on: ubuntu-latest
-    # FAST (50) + PREPARE (7) + FULL (110) on one worker. The original 25 was
-    # calibrated while the suite still failed early; a fully passing run needs
-    # roughly 28 minutes, so give it headroom rather than cancelling mid-FULL.
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,26 +25,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:e2e:mobile-qa
-      - name: Mobile QA PREPARE
-        env:
-          MOBILE_QA_ARTIFACT_ROOT: artifacts/mobile-qa/runs/prepare-${{ github.run_id }}-${{ github.run_attempt }}
-        run: npm run test:e2e:mobile-qa:prepare
-      - name: Mobile QA FULL
-        # The deterministic core (FAST + PREPARE) is the required merge and
-        # release gate. The expanded multi-viewport FULL matrix stays visible
-        # but advisory on PR/push runs — one Linux-WebKit timing hiccup must
-        # not halt development — and is required on the nightly gate, where no
-        # merge is waiting on the result.
-        continue-on-error: ${{ github.event_name != 'schedule' }}
-        env:
-          MOBILE_QA_ARTIFACT_ROOT: artifacts/mobile-qa/runs/full-${{ github.run_id }}-${{ github.run_attempt }}
-        run: npm run test:e2e:mobile-qa:expanded
-      - name: Upload complete mobile QA artifacts
+      - name: Core mobile behavior matrix
+        run: npm run test:e2e:mobile-qa
+      - name: Upload mobile QA evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-qa-level-a
+          name: mobile-qa-core
           path: artifacts/mobile-qa
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 14

@@ -12,42 +12,18 @@ import {
 } from "../helpers/planner-fixtures"
 import { pinVisualClock } from "../helpers/ux-state-fixtures"
 
-// TASK-0.1: visual regression harness for the six primary screens. Every spec
-// asserts the screen's root panel is actually visible and non-zero-size in
-// addition to the pixel diff — a passing screenshot alone would not have
-// caught the Profile-panel outage (TASK-1.1), where the panel painted with
-// zero effective size but no test failed.
+// Visual regression harness for the primary V2 surfaces. Every spec asserts
+// the screen's semantic root is visible and non-zero-size in addition to the
+// pixel diff, so a selector cannot silently point at a retired V1 surface.
 
-// CINCO Phase 0: the shell resolves its theme from the wall clock (dark when
-// local hour < 6 or >= 19), so captures taken outside daylight hours drifted
-// wholesale against light-theme baselines. Pinning the clock to midday makes
-// theme — and therefore these baselines — deterministic (see
-// docs/cinco/UX_STATE_CONTRACT.md).
 test.beforeEach(async ({ page }) => {
   await pinVisualClock(page)
 })
 
-// TASK-2.3: Next.js's dev-mode indicator (a shadow-DOM toast, always
-// z-index: max) surfaces browser console warnings -- including "GPU stall
-// due to ReadPixels" driver messages from the software-rendered (SwiftShader)
-// WebGL context MapLibre uses in this headless test environment. Whether that
-// driver warning fires is sensitive to the exact timing of style
-// recalculation/layout passes, which shifts by a few milliseconds any time
-// the CSS is reorganized into more/fewer files -- with no change to actual
-// app markup or rendered values. It never appears in a production build
-// (`next build` has zero warnings), so it's not part of the UI under test;
-// mask it out rather than let dev-only chrome flip the suite red.
 function screenshotOptions(page: Page): { maxDiffPixelRatio: number; mask: Locator[] } {
-  // The toast's host element (<nextjs-portal>) is a 0x0 shadow-DOM anchor;
-  // the visible badge lives on the ".nextjs-toast" node inside its shadow
-  // root, which Playwright's CSS engine pierces into automatically.
   return { maxDiffPixelRatio: 0.02, mask: [page.locator(".nextjs-toast")] }
 }
 
-// CINCO Phase 0 required target viewports (docs/cinco/UX_STATE_CONTRACT.md):
-// every primary screen is evidenced on desktop, phone portrait/landscape, and
-// tablet portrait/landscape — intentionally different compositions, not
-// stretched variants.
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -56,12 +32,52 @@ const VIEWPORTS = [
   { name: "tablet-landscape", width: 1024, height: 768 }
 ] as const
 
+const PLAN_EMPTY_VIEWPORTS = [
+  { name: "320x700", width: 320, height: 700 },
+  { name: "390x844", width: 390, height: 844 },
+  { name: "430x932", width: 430, height: 932 },
+  { name: "768x1024", width: 768, height: 1024 },
+  { name: "1024x768", width: 1024, height: 768 },
+  { name: "1440x900", width: 1440, height: 900 },
+  { name: "1920x1080", width: 1920, height: 1080 }
+] as const
+
 async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<void> {
   await expect(locator).toBeVisible()
   const box = await locator.boundingBox()
   expect(box).not.toBeNull()
   expect(box!.width).toBeGreaterThan(0)
   expect(box!.height).toBeGreaterThan(minHeight)
+}
+
+async function expectPlanReady(page: Page): Promise<void> {
+  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+}
+
+async function assertIdlePlanGeometry(page: Page, viewport: { width: number; height: number }): Promise<void> {
+  const panel = page.locator(".planner-deck")
+  const box = await panel.boundingBox()
+  expect(box).not.toBeNull()
+
+  expect(box!.height).toBeLessThan(viewport!.height * 0.45)
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height)
+  if (viewport!.width > 760 && viewport!.width <= 800 && viewport!.height >= 900) {
+    expect(box!.width).toBe(360)
+  }
+}
+
+async function assertPlannerDeckClearsNavigation(page: Page): Promise<void> {
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  if (viewport!.width <= 760) return
+
+  const navigation = await page.locator(".app-navigation").boundingBox()
+  const deck = await page.locator(".planner-deck").boundingBox()
+  expect(navigation).not.toBeNull()
+  expect(deck).not.toBeNull()
+  expect(deck!.x).toBeGreaterThanOrEqual(navigation!.x + navigation!.width + 8)
 }
 
 async function ensureStart(page: Page): Promise<void> {
@@ -83,7 +99,7 @@ async function chooseFixtureFinish(page: Page): Promise<void> {
 async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
   await expandPhonePlanner(page)
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expectPlanReady(page)
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
@@ -95,18 +111,6 @@ for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.name} viewport`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } })
 
-    test("Plan screen (empty)", async ({ page }) => {
-      await installPlannerServices(page)
-      await page.goto("/")
-      if (viewport.name === "mobile") {
-        await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
-      } else {
-        await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-      }
-      await assertPanelVisible(page.locator(".planner-deck"), viewport.name === "mobile" ? 100 : 200)
-      await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
-    })
-
     test("Plan screen (route result)", async ({ page }) => {
       await installPlannerServices(page)
       const capture = await installRouteApi(page, tripPlan([
@@ -114,16 +118,18 @@ for (const viewport of VIEWPORTS) {
       ]))
       await planFixtureRoute(page, capture)
       await assertPanelVisible(page.locator(".planner-deck"))
+      await assertPlannerDeckClearsNavigation(page)
       await expect(page).toHaveScreenshot(`plan-result-${viewport.name}.png`, screenshotOptions(page))
     })
 
-    test("Library screen", async ({ page }) => {
+    test("Rides screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Library", exact: true }).click()
-      const panel = page.locator(".library-drawer")
+      await page.getByRole("button", { name: "Rides", exact: true }).click()
+      const panel = page.getByRole("main", { name: "Rides destination" })
       await assertPanelVisible(panel)
-      await expect(page).toHaveScreenshot(`library-${viewport.name}.png`, screenshotOptions(page))
+      await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+      await expect(page).toHaveScreenshot(`rides-${viewport.name}.png`, screenshotOptions(page))
     })
 
     test("Record screen", async ({ page }) => {
@@ -135,14 +141,13 @@ for (const viewport of VIEWPORTS) {
       await expect(page).toHaveScreenshot(`record-${viewport.name}.png`, screenshotOptions(page))
     })
 
-    test("Profile screen", async ({ page }) => {
+    test("Settings screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Profile", exact: true }).click()
-      const panel = page.locator(".profile-panel")
-      // This is the exact check that would have caught TASK-1.1: the panel
-      // rendered in the a11y tree with no visible content on any viewport.
+      await page.getByRole("button", { name: "Settings", exact: true }).click()
+      const panel = page.getByRole("main", { name: "Settings destination" })
       await assertPanelVisible(panel)
+      await expect(page.getByRole("region", { name: "Settings" })).toBeVisible()
       await expect(page).toHaveScreenshot(`profile-${viewport.name}.png`, screenshotOptions(page))
     })
 
@@ -159,6 +164,26 @@ for (const viewport of VIEWPORTS) {
       await assertPanelVisible(panel)
       await expect(page.getByRole("region", { name: /Ride (mode|preview) for/ })).toBeVisible()
       await expect(page).toHaveScreenshot(`ride-hud-${viewport.name}.png`, screenshotOptions(page))
+    })
+  })
+}
+
+for (const viewport of PLAN_EMPTY_VIEWPORTS) {
+  test.describe(`Plan empty ${viewport.name}`, () => {
+    test.use({ viewport: { width: viewport.width, height: viewport.height } })
+
+    test("Plan screen (empty)", async ({ page }) => {
+      await installPlannerServices(page)
+      await page.goto("/")
+      if (viewport.width <= 760) {
+        await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
+      } else {
+        await expectPlanReady(page)
+      }
+      await assertPanelVisible(page.locator(".planner-deck"), 0)
+      await expect(page.locator(".planner-deck")).toHaveClass(/is-idle-plan/)
+      await assertIdlePlanGeometry(page, viewport)
+      await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
   })
 }

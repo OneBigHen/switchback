@@ -2,7 +2,10 @@
   min-height: 100dvh;
   padding: 32px max(20px, 5vw) 64px;
   overflow-y: auto;
-  background: var(--sb-canvas, var(--oled));
+  /* --oled is the theme-aware app background (Canvas in light, Ink in
+     dark). Pinning the brand --sb-canvas directly left dark mode with
+     Paper text on a light map background (1.1:1). */
+  background: var(--oled, var(--sb-canvas));
   color: var(--sb-text, var(--instrument));
 }
 
@@ -44,7 +47,9 @@ body:has(.community-page) {
 }
 
 .community-eyebrow {
-  color: var(--sb-action, var(--signal));
+  /* Ember fails AA as text on Canvas (4.4:1); category markers use the
+     theme-aware interactive-text token instead. */
+  color: var(--sb-text-link, var(--signal));
   font-size: 11px;
   font-weight: 750;
   letter-spacing: .08em;
@@ -54,7 +59,7 @@ body:has(.community-page) {
 .community-back-link,
 .community-route-actions a,
 .community-route-card a {
-  color: var(--sb-action, var(--signal));
+  color: var(--sb-text-link, var(--signal));
   font-weight: 700;
   text-decoration: none;
 }
