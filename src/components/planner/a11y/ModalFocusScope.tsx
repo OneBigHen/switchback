@@ -13,6 +13,11 @@ const FOCUSABLE = [
 
 export function ModalFocusScope({ children, onEscape }: { children: ReactNode; onEscape(): void }) {
   const scopeRef = useRef<HTMLDivElement | null>(null)
+  const onEscapeRef = useRef(onEscape)
+
+  useEffect(() => {
+    onEscapeRef.current = onEscape
+  }, [onEscape])
 
   useEffect(() => {
     const returnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -22,7 +27,7 @@ export function ModalFocusScope({ children, onEscape }: { children: ReactNode; o
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault()
-        onEscape()
+        onEscapeRef.current()
         return
       }
       if (event.key !== "Tab") return
@@ -43,7 +48,7 @@ export function ModalFocusScope({ children, onEscape }: { children: ReactNode; o
       scope?.removeEventListener("keydown", onKeyDown)
       returnTarget?.focus()
     }
-  }, [onEscape])
+  }, [])
 
   return <div ref={scopeRef} style={{ display: "contents" }}>{children}</div>
 }
