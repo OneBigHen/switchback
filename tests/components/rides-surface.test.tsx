@@ -62,6 +62,30 @@ describe("RidesSurface", () => {
     expect(screen.queryByText("Sunday ride")).not.toBeInTheDocument()
   })
 
+  it("keeps an imported saved GPX in Imported and out of Planned", () => {
+    const importedSaved: RideLibraryItem = {
+      id: "saved-imported-1",
+      kind: "saved-route",
+      name: "Imported Allegheny track",
+      sourceLabel: "Saved route",
+      distanceMiles: 58.2,
+      durationMinutes: 122,
+      updatedAt: "2026-09-01T12:00:00Z",
+      tags: [],
+      management: { imported: true, canMatchRoads: true }
+    }
+    render(<RidesSurface items={[...items, importedSaved]} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Imported 2" }))
+    expect(screen.getByText("Imported Allegheny track")).toBeInTheDocument()
+    expect(screen.getByText("MABDR Section 3")).toBeInTheDocument()
+    expect(screen.queryByText("Pine Creek back roads")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Planned 1" }))
+    expect(screen.getByText("Pine Creek back roads")).toBeInTheDocument()
+    expect(screen.queryByText("Imported Allegheny track")).not.toBeInTheDocument()
+  })
+
   it("opens the exact normalized item selected by the rider", () => {
     const onOpen = vi.fn()
     render(<RidesSurface items={items} onOpen={onOpen} onImport={vi.fn()} />)
