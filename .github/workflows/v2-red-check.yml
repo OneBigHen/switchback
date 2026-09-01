@@ -11,7 +11,7 @@ permissions:
 jobs:
   red-contracts:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,5 +19,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Run new UX contracts
+      - name: Run new UX unit contracts
         run: npx vitest run tests/components/route-decision-rail.test.tsx tests/components/ui-customization-settings.test.tsx tests/unit/free-ride-readability-css-contract.test.ts --reporter=verbose
+      - name: Install Chromium
+        if: always()
+        run: npx playwright install --with-deps chromium
+      - name: Prove Discover placeholder is insufficient
+        if: always()
+        run: npx playwright test tests/e2e/critical/navigation-ia.spec.ts --project=critical-chromium --workers=1 --retries=0
