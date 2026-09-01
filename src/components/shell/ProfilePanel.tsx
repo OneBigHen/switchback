@@ -157,6 +157,8 @@ export function ProfilePanel({
   }
 
   const resetLearning = () => {
+    if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
+    setNotice(null)
     void Promise.resolve(onResetLearning?.())
       .then(() => setNotice("Learning profile reset."))
       .catch(() => setNotice("Learning profile reset failed."))
