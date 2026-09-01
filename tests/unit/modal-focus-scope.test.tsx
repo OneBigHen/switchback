@@ -32,4 +32,30 @@ describe("ModalFocusScope", () => {
     expect(launcher).toHaveFocus()
     launcher.remove()
   })
+
+  it("preserves the rider's focused control when the escape callback identity changes", () => {
+    const firstEscape = vi.fn()
+    const view = render(
+      <ModalFocusScope onEscape={firstEscape}>
+        <button>First</button>
+        <button>Last</button>
+      </ModalFocusScope>
+    )
+    const last = screen.getByRole("button", { name: "Last" })
+    last.focus()
+    expect(last).toHaveFocus()
+
+    const nextEscape = vi.fn()
+    view.rerender(
+      <ModalFocusScope onEscape={nextEscape}>
+        <button>First</button>
+        <button>Last</button>
+      </ModalFocusScope>
+    )
+
+    expect(last).toHaveFocus()
+    fireEvent.keyDown(last, { key: "Escape" })
+    expect(firstEscape).not.toHaveBeenCalled()
+    expect(nextEscape).toHaveBeenCalledOnce()
+  })
 })
