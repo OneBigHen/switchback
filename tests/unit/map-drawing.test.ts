@@ -14,7 +14,7 @@ describe("routeSketchWaypoints", () => {
       y: 120 + Math.sin(index / 3) * 18
     }))
 
-    const waypoints = routeSketchWaypoints(map, points)
+    const waypoints = routeSketchWaypoints(map as never, points)
 
     expect(waypoints.length).toBeGreaterThanOrEqual(2)
     expect(waypoints.length).toBeLessThanOrEqual(12)
@@ -28,7 +28,7 @@ describe("routeSketchWaypoints", () => {
       ...Array.from({ length: 10 }, (_, index) => ({ x: 100, y: 110 + index * 10 }))
     ]
 
-    const waypoints = routeSketchWaypoints(map, points)
+    const waypoints = routeSketchWaypoints(map as never, points)
 
     expect(waypoints.length).toBeLessThanOrEqual(12)
     expect(waypoints).toContainEqual({ lon: 0.1, lat: 0.1 })
