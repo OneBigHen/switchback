@@ -449,12 +449,6 @@ h6,
     padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;
   }
 
-  .planner-shell .planner-deck:not(.is-minimized) .planner-scroll {
-    /* planner-deck.css has older compact padding rules later in its file.
-       The V2 44px drag target owns this inset at the final design layer. */
-    padding-top: var(--sb-touch-target);
-  }
-
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {
     position: static;
     flex: 0 0 auto;

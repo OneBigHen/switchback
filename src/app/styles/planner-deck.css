@@ -166,20 +166,17 @@
     }
 
     .planner-sheet-handle {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      z-index: 22;
+      position: relative;
+      z-index: auto;
       display: grid;
-      width: 92px;
-      height: 32px;
+      width: 100%;
+      height: var(--sb-touch-target);
       padding: 0;
       place-items: center;
       border: 0;
       background: transparent;
       cursor: grab;
       touch-action: none;
-      transform: translateX(-50%);
     }
 
     .planner-sheet-handle:active {
@@ -194,9 +191,9 @@
     }
 
     .planner-scroll {
-      /* The drag target is a full 44px touch target. Keep the first composer
-         control below it so the handle never owns the input's hit area. */
-      padding-top: 44px;
+      /* The handle is an in-flow 44px band above the scroll owner, so sheet
+         content can never slide under its hit area while scrolling. */
+      padding-top: 8px;
     }
 
 

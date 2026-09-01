@@ -93,4 +93,20 @@ describe("mobile planner geometry contract", () => {
     expect(plannerDeck).toContain('if (isPhoneViewport()) setSheetDetentOverride("half")')
     expect(plannerDeck).toContain('onClick={() => setSheetDetentOverride(selectedRoute ? "full" : "half")}')
   })
+
+  it("keeps the drag handle in flow so scrolled content cannot slide under it", () => {
+    // The handle used to be an absolutely-positioned, transparent strip
+    // z-indexed over the sheet content. Any scroll put a control underneath
+    // it and the invisible band stole the tap (WebKit full critical caught
+    // this on the route-details toggle). In-flow layout reserves the band,
+    // so no hit area can ever be covered.
+    const handleRule = [...sheetStyles.matchAll(/\.planner-sheet-handle\s*\{([^}]*)\}/g)]
+      .map((match) => match[1])
+      .find((rule) => rule.includes("display: grid")) ?? ""
+    expect(handleRule).toContain("position: relative;")
+    expect(handleRule).toContain("height: var(--sb-touch-target);")
+    expect(handleRule).not.toMatch(/position:\s*absolute/)
+    expect(handleRule).not.toContain("z-index: 22")
+    expect(handleRule).not.toContain("transform: translateX(-50%)")
+  })
 })
