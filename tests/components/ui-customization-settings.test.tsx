@@ -5,11 +5,24 @@ import { defaultRiderUiPreferences } from "@/lib/settings/rider-settings"
 
 afterEach(cleanup)
 
+function openCustomization() {
+  const trigger = screen.getByRole("button", { name: "Customize controls" })
+  expect(trigger).toHaveAttribute("aria-expanded", "false")
+  fireEvent.click(trigger)
+  expect(trigger).toHaveAttribute("aria-expanded", "true")
+}
+
 describe("UiCustomizationSettings", () => {
-  it("exposes only the curated customization groups and a reset action", () => {
+  it("keeps dense customization controls progressively disclosed by default", () => {
     render(<UiCustomizationSettings value={defaultRiderUiPreferences()} onChange={vi.fn()} />)
 
     expect(screen.getByRole("heading", { name: "Customize" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Customize controls" })).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("group", { name: "Plan quick actions" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reset to Switchback defaults" })).not.toBeInTheDocument()
+
+    openCustomization()
+
     expect(screen.getByRole("group", { name: "Plan quick actions" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Quick layers" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Ride HUD metrics" })).toBeInTheDocument()
@@ -24,6 +37,7 @@ describe("UiCustomizationSettings", () => {
     const original = structuredClone(value)
     const onChange = vi.fn()
     render(<UiCustomizationSettings value={value} onChange={onChange} />)
+    openCustomization()
 
     fireEvent.click(screen.getByRole("button", { name: "Move Record earlier" }))
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
@@ -34,6 +48,7 @@ describe("UiCustomizationSettings", () => {
 
   it("does not allow required route-detail modules to be hidden", () => {
     render(<UiCustomizationSettings value={defaultRiderUiPreferences()} onChange={vi.fn()} />)
+    openCustomization()
 
     expect(screen.getByRole("checkbox", { name: "Show Overview" })).toBeDisabled()
     expect(screen.getByRole("checkbox", { name: "Show Start & actions" })).toBeDisabled()
