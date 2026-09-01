@@ -799,3 +799,12 @@
     font-size: 16px;
   }
 }
+
+/* Short landscape planning status stays compact while preserving the
+   cancel action and the map-first left-sheet composition. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .plan-v2 { gap: 5px; }
+  .plan-v2__compact-rail { gap: 5px; }
+  .plan-v2__status { min-height: 44px; padding: 7px 10px; }
+  .plan-v2__contextual-content { gap: 8px; }
+}

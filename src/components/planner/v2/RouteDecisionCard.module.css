@@ -11,10 +11,12 @@
 
 .card[data-selected="true"] {
   border-color: var(--sb-ember-strong);
+  background: color-mix(in srgb, var(--sb-ember-strong) 5%, var(--sb-surface));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sb-ember-strong) 18%, transparent), 0 5px 16px rgb(22 29 28 / 12%);
 }
 
 .select {
+  position: relative;
   display: grid;
   gap: 8px;
   min-height: 132px;
@@ -40,19 +42,38 @@
 .role {
   color: var(--sb-ember-strong);
   font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .heading strong {
   overflow: hidden;
   color: var(--sb-text);
-  font-size: 13px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.selectedMarker {
+  position: absolute;
+  top: 11px;
+  right: 12px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.card[data-selected="true"] .heading {
+  padding-right: 72px;
 }
 
 .metrics {

@@ -1,6 +1,6 @@
 # Switchback V2 — Claude release handoff
 
-Updated: 2026-08-31
+Updated: 2026-09-01
 
 ## Authoritative integration
 
@@ -31,6 +31,21 @@ The current branch contains the accumulated V2 UX work through the presentation-
 - four-destination phone navigation
 - mobile Safari input zoom prevention in Rides/Settings
 - consistent focus-ring treatment in the new destination surfaces
+
+The final V2 hardening pass also includes:
+
+- a real, searchable Discover destination backed by the existing community Atlas API
+- explicit loading, empty, failure, retry, and route-summary states in Discover
+- map-first half-height route results with a stronger selected-route cue and route-name hierarchy
+- Settings customization collapsed by default behind progressive disclosure
+- 10px minimum Free Ride warning copy without expanding the HUD footprint
+- dedicated short-landscape composition for planning status, route choices, Free Ride, Settings, and Discover
+- removal of the temporary one-shot implementation workflows and patch script after their product changes were applied
+- focused component coverage for Discover success/filtering and failure/retry behavior
+
+For a lower-cost release agent, dispatch the bounded runbook in
+`docs/release/V2-RELEASE-AGENT-PROMPT.md` rather than asking it to infer merge,
+deployment, rollback, and evidence requirements from chat history.
 
 ## CI: important repository quirk
 

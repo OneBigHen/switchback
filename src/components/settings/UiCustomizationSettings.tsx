@@ -1,6 +1,7 @@
 "use client"
 
-import { ArrowDown, ArrowUp, DotsSixVertical } from "@phosphor-icons/react"
+import { ArrowDown, ArrowUp, CaretDown, DotsSixVertical } from "@phosphor-icons/react"
+import { useState } from "react"
 import { layerCatalog } from "@/lib/client/map-layers"
 import {
   defaultRiderUiPreferences,
@@ -94,6 +95,7 @@ export interface UiCustomizationSettingsProps {
 }
 
 export function UiCustomizationSettings({ value, onChange }: UiCustomizationSettingsProps) {
+  const [expanded, setExpanded] = useState(false)
   const patch = <K extends keyof RiderUiPreferences>(key: K, next: RiderUiPreferences[K]) => {
     onChange({ ...value, [key]: next })
   }
@@ -107,52 +109,71 @@ export function UiCustomizationSettings({ value, onChange }: UiCustomizationSett
         <div>
           <span>Curated controls</span>
           <h2>Customize</h2>
-          <p>Choose what is easiest to reach. Switchback keeps the safety-critical layout fixed.</p>
+          <p>Choose what is easiest to reach. Safety-critical riding controls stay fixed.</p>
         </div>
-        <button type="button" onClick={() => onChange(defaultRiderUiPreferences())}>Reset to Switchback defaults</button>
+        <button
+          type="button"
+          className={styles.toggleButton}
+          aria-expanded={expanded}
+          aria-controls="ui-customization-controls"
+          onClick={() => setExpanded((open) => !open)}
+        >
+          <span>Customize controls</span>
+          <CaretDown aria-hidden="true" />
+        </button>
       </header>
 
-      <ReorderList label="Plan quick actions" items={value.planQuickActions} itemLabel={(id) => PLAN_LABELS[id]} onChange={(next) => patch("planQuickActions", next)} />
-      <ReorderList label="Quick layers" items={value.quickLayers} itemLabel={layerName} onChange={(next) => patch("quickLayers", next)} />
-      <ReorderList label="Ride HUD metrics" items={value.rideMetrics} itemLabel={(id) => RIDE_METRIC_LABELS[id]} onChange={(next) => patch("rideMetrics", next)} />
-      <ReorderList label="Recording metrics" items={value.recordingMetrics} itemLabel={(id) => RECORDING_METRIC_LABELS[id]} onChange={(next) => patch("recordingMetrics", next)} />
+      {expanded ? (
+        <div id="ui-customization-controls" className={styles.controls}>
+          <div className={styles.resetRow}>
+            <button className={styles.resetButton} type="button" onClick={() => onChange(defaultRiderUiPreferences())}>
+              Reset to Switchback defaults
+            </button>
+          </div>
 
-      <section className={styles.group} role="group" aria-label="Route details">
-        <header><strong>Route details</strong><small>Order and visibility</small></header>
-        <ol>
-          {value.routeDetailOrder.map((module, index) => {
-            const label = ROUTE_DETAIL_LABELS[module]
-            const required = REQUIRED_ROUTE_DETAILS.has(module)
-            const visible = required || !value.hiddenRouteDetailModules.includes(module)
-            return (
-              <li key={module}>
-                <DotsSixVertical className={styles.grip} aria-hidden="true" />
-                <label className={styles.visibility}>
-                  <input
-                    type="checkbox"
-                    aria-label={`Show ${label}`}
-                    checked={visible}
-                    disabled={required}
-                    onChange={(event) => {
-                      const hidden = event.currentTarget.checked
-                        ? value.hiddenRouteDetailModules.filter((id) => id !== module)
-                        : [...value.hiddenRouteDetailModules, module]
-                      patch("hiddenRouteDetailModules", hidden)
-                    }}
-                  />
-                  <span>{label}</span>
-                </label>
-                <button type="button" aria-label={`Move ${label} earlier`} disabled={index === 0} onClick={() => patch("routeDetailOrder", moved(value.routeDetailOrder, index, -1))}>
-                  <ArrowUp aria-hidden="true" />
-                </button>
-                <button type="button" aria-label={`Move ${label} later`} disabled={index === value.routeDetailOrder.length - 1} onClick={() => patch("routeDetailOrder", moved(value.routeDetailOrder, index, 1))}>
-                  <ArrowDown aria-hidden="true" />
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-      </section>
+          <ReorderList label="Plan quick actions" items={value.planQuickActions} itemLabel={(id) => PLAN_LABELS[id]} onChange={(next) => patch("planQuickActions", next)} />
+          <ReorderList label="Quick layers" items={value.quickLayers} itemLabel={layerName} onChange={(next) => patch("quickLayers", next)} />
+          <ReorderList label="Ride HUD metrics" items={value.rideMetrics} itemLabel={(id) => RIDE_METRIC_LABELS[id]} onChange={(next) => patch("rideMetrics", next)} />
+          <ReorderList label="Recording metrics" items={value.recordingMetrics} itemLabel={(id) => RECORDING_METRIC_LABELS[id]} onChange={(next) => patch("recordingMetrics", next)} />
+
+          <section className={styles.group} role="group" aria-label="Route details">
+            <header><strong>Route details</strong><small>Order and visibility</small></header>
+            <ol>
+              {value.routeDetailOrder.map((module, index) => {
+                const label = ROUTE_DETAIL_LABELS[module]
+                const required = REQUIRED_ROUTE_DETAILS.has(module)
+                const visible = required || !value.hiddenRouteDetailModules.includes(module)
+                return (
+                  <li key={module}>
+                    <DotsSixVertical className={styles.grip} aria-hidden="true" />
+                    <label className={styles.visibility}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Show ${label}`}
+                        checked={visible}
+                        disabled={required}
+                        onChange={(event) => {
+                          const hidden = event.currentTarget.checked
+                            ? value.hiddenRouteDetailModules.filter((id) => id !== module)
+                            : [...value.hiddenRouteDetailModules, module]
+                          patch("hiddenRouteDetailModules", hidden)
+                        }}
+                      />
+                      <span>{label}</span>
+                    </label>
+                    <button type="button" aria-label={`Move ${label} earlier`} disabled={index === 0} onClick={() => patch("routeDetailOrder", moved(value.routeDetailOrder, index, -1))}>
+                      <ArrowUp aria-hidden="true" />
+                    </button>
+                    <button type="button" aria-label={`Move ${label} later`} disabled={index === value.routeDetailOrder.length - 1} onClick={() => patch("routeDetailOrder", moved(value.routeDetailOrder, index, 1))}>
+                      <ArrowDown aria-hidden="true" />
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          </section>
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -225,9 +225,10 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
   align-items: center;
   gap: 5px;
   color: var(--sb-warning);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 750;
-  letter-spacing: 0.13em;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -363,4 +364,24 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
 
 .free-ride-hud .free-ride-dock .free-ride-controls.has-home {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Short landscape keeps the riding instrument cluster glanceable without
+   taking over the route map or the left destination rail. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .free-ride-hud .free-ride-dock {
+    right: 10px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: auto;
+    width: min(430px, calc(100vw - 98px));
+    margin: 0;
+    gap: 6px;
+  }
+  .free-ride-hud .free-ride-dock .free-ride-speed { padding: 6px 12px 4px; }
+  .free-ride-hud .free-ride-dock .free-ride-speed strong { font-size: 34px; }
+  .free-ride-hud .free-ride-dock .free-ride-heading,
+  .free-ride-hud .free-ride-dock .free-ride-instruction { padding: 6px 12px; }
+  .free-ride-hud .free-ride-dock .free-ride-telemetry { padding: 8px 4px; }
+  .free-ride-hud .free-ride-dock .free-ride-suggestion,
+  .free-ride-hud .free-ride-dock .free-ride-empty { padding: 10px 12px; }
 }

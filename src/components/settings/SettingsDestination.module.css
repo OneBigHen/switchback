@@ -275,3 +275,11 @@
     font-size: 16px;
   }
 }
+
+/* Short landscape keeps Settings beside the rail instead of spending
+   scarce height on desktop-scale destination padding. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .destination { inset: 0 0 0 84px; padding: 12px 18px 28px; }
+  .sectionHeader { gap: 5px; padding-bottom: 6px; }
+  .advanced { padding: 12px 14px; }
+}

@@ -75,3 +75,21 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Short landscape uses one dominant route choice at a time. A two-column
+   tablet grid inside the 48vw planner sheet made both cards unreadably narrow. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .header small { display: none; }
+  .rail {
+    grid-auto-columns: minmax(82%, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 1px 12% 5px 1px;
+    scroll-padding-inline: 1px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+}

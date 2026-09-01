@@ -1,7 +1,6 @@
 "use client"
 
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react"
-import Link from "next/link"
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import {
   appNavigationReducer,
@@ -86,6 +85,7 @@ import { AppNavigation } from "@/components/shell/AppNavigation"
 import { AppShell } from "@/components/shell/AppShell"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
 import { SettingsDestination } from "@/components/settings/SettingsDestination"
+import { DiscoverDestination } from "@/components/discover/DiscoverDestination"
 import { RecordPanel } from "@/components/shell/RecordPanel"
 import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
 import { FreeRideHud } from "@/components/shell/FreeRideHud"
@@ -1577,17 +1577,7 @@ export function PlannerShell() {
         />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (
-        <section className="destination-panel discover-panel" aria-labelledby="discover-title">
-          <header>
-            <p className="discover-eyebrow">Discover</p>
-            <h1 id="discover-title">Find a better road.</h1>
-            <p>
-              Rider-published routes and curated rides live here. Every line is the exact
-              sanitized artifact the owner chose to share.
-            </p>
-          </header>
-          <Link className="discover-atlas-link" href="/routes">Browse the community Atlas</Link>
-        </section>
+        <DiscoverDestination />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("record") ? (
         <RecordPanel controller={recording} />

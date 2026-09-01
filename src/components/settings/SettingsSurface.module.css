@@ -296,3 +296,26 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Short landscape restores the bike summary to one compact row. The
+   880px tablet rule otherwise turns 844x390 into a tall two-row card. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .surface { gap: 16px; }
+  .bikeSection { gap: 8px; }
+  .sectionHeading { padding-bottom: 6px; }
+  .bikeCard {
+    min-height: 104px;
+    grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr) auto;
+    gap: 14px;
+    padding: 12px 16px;
+  }
+  .bikeIcon { width: 48px; height: 48px; flex-basis: 48px; }
+  .bikeIcon svg { width: 26px; height: 26px; }
+  .bikeMetrics {
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-columns: minmax(90px, 0.75fr) minmax(130px, 1.25fr);
+  }
+  .bikeMetrics > span { min-height: 54px; padding: 7px 9px; }
+  .sections { gap: 16px; }
+}

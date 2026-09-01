@@ -92,6 +92,7 @@ export function RouteDecisionCard({ route, routes, selected, onSelect, onOpenDet
           <span className={styles.role}>{presentation.role}</span>
           <strong>{route.name}</strong>
         </span>
+        {selected ? <span className={styles.selectedMarker}>Selected</span> : null}
         <span className={styles.metrics} aria-label={`${presentation.timeLabel}, ${presentation.distanceLabel}`}>
           <b>{presentation.timeLabel}</b>
           <span>{presentation.distanceLabel}</span>
