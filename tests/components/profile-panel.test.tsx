@@ -70,6 +70,19 @@ describe("ProfilePanel advanced account and data tools", () => {
     expect(onResetLearning).toHaveBeenCalledOnce()
   })
 
+  it("downloads the actual learned-preference profile before reporting export success", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    const onExportLearning = vi.fn(async () => [{ bikeId: "bike-1", profile: "neural", sampleCount: 3 }])
+    render(<ProfilePanel onOpenDownloads={vi.fn()} onExportLearning={onExportLearning} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Export learning" }))
+
+    await waitFor(() => expect(click).toHaveBeenCalledOnce())
+    expect(URL.createObjectURL).toHaveBeenCalledOnce()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:recovery")
+    expect(screen.getByRole("status")).toHaveTextContent("Learning profile exported.")
+  })
+
   it("offers optional passkey identity without reintroducing rider settings controls", async () => {
     render(<ProfilePanel onOpenDownloads={vi.fn()} />)
 
