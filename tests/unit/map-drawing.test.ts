@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { routeSketchWaypoints, type ScreenPoint } from "@/components/planner/map-drawing"
+import { routeSketchWaypoints, simplifyRouteSketch, type ScreenPoint } from "@/components/planner/map-drawing"
 
 const map = {
   unproject([x, y]: [number, number]) {
@@ -34,5 +34,19 @@ describe("routeSketchWaypoints", () => {
     expect(waypoints).toContainEqual({ lon: 0.1, lat: 0.1 })
     expect(waypoints[0]).toEqual({ lon: 0, lat: 0.1 })
     expect(waypoints.at(-1)).toEqual({ lon: 0.1, lat: 0.2 })
+  })
+
+  it("keeps the strongest bend when complex input must be capped", () => {
+    const points: ScreenPoint[] = Array.from({ length: 25 }, (_, index) => ({
+      x: index * 20,
+      y: index === 12 ? 180 : index % 2 === 0 ? 0 : 20
+    }))
+
+    const simplified = simplifyRouteSketch(points)
+
+    expect(simplified).toHaveLength(12)
+    expect(simplified[0]).toEqual(points[0])
+    expect(simplified.at(-1)).toEqual(points.at(-1))
+    expect(simplified).toContainEqual({ x: 240, y: 180 })
   })
 })
