@@ -23,17 +23,21 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('src/components/planner/PlannerShell.tsx')
           text = path.read_text()
-          old = '''          onResetLearning={() => {
-            if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
-            void riderPreferenceLibraryRef.current!.clear()
-          }}'''
-          new = '''          onResetLearning={() => riderPreferenceLibraryRef.current!.clear()}'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected exactly one reset callback, found {text.count(old)}')
-          path.write_text(text.replace(old, new))
+          pattern = re.compile(
+              r'onResetLearning=\{\(\) => \{\s*'
+              r'if \(!window\.confirm\("Reset all learned preferences\? This cannot be undone\."\)\) return\s*'
+              r'void riderPreferenceLibraryRef\.current!\.clear\(\)\s*'
+              r'\}\}'
+          )
+          matches = list(pattern.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f'expected exactly one reset callback, found {len(matches)}')
+          text = pattern.sub('onResetLearning={() => riderPreferenceLibraryRef.current!.clear()}', text, count=1)
+          path.write_text(text)
           Path('.github/workflows/patch-planner-reset.yml').unlink()
           PY
           git config user.name "github-actions[bot]"
