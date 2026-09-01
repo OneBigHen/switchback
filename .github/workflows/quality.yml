@@ -88,11 +88,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Temporary compatibility aliases for the repository's existing protected
-  # branch check names. They do not duplicate the test work above: each alias
-  # reflects the consolidated gate that now owns that contract. Once main's
-  # branch protection is migrated to verify/rider-journeys/pwa-smoke, these
-  # aliases can be removed.
+  # Compatibility names retained for branch protection while the consolidated
+  # jobs above own these exact contracts.
   typecheck-compat:
     name: typecheck
     needs: verify
@@ -149,22 +146,73 @@ jobs:
     steps:
       - run: test "${{ needs['pwa-smoke'].result }}" = success
 
-  # real-router and visual moved to deliberate Deep QA rather than routine PR
-  # CI. These aliases keep the current protected-branch rule satisfiable while
-  # that repository setting is migrated; release work must still execute and
-  # inspect Deep QA before merge/deploy.
-  real-router-compat:
+  # These protected names used to mirror rider-journeys and could pass without
+  # exercising their own contract. Keep the names, but run the actual suites.
+  real-router:
     name: real-router
-    needs: rider-journeys
-    if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
-      - run: test "${{ needs['rider-journeys'].result }}" = success
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install fixture tools
+        run: sudo apt-get update && sudo apt-get install --yes osmium-tool
+      - run: npm ci
+      - name: Install pinned GraphHopper
+        run: |
+          mkdir -p data
+          curl --fail --silent --show-error --location \
+            --output data/graphhopper-web-11.0.jar \
+            https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/11.0/graphhopper-web-11.0.jar
+          echo 'b59c024afe172ec6ec85b6327006c3138ec58c7d0bcd26253d0e42853f613def  data/graphhopper-web-11.0.jar' | sha256sum --check
+      - run: npx playwright install --with-deps chromium
+      - run: scripts/qa/prepare-test-router.sh
+      - name: Run real-router browser checks
+        run: |
+          set -euo pipefail
+          trap 'scripts/qa/stop-test-router.sh' EXIT
+          scripts/qa/start-test-router.sh
+          GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router
+      - name: Upload real-router failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-router-failure
+          path: |
+            test-results
+            playwright-report
+            data/quality/switchback-test-router.log
+          if-no-files-found: ignore
+          retention-days: 7
 
-  visual-compat:
+  visual:
     name: visual
-    needs: rider-journeys
-    if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - run: test "${{ needs['rider-journeys'].result }}" = success
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run visual regression matrix without updating baselines
+        run: npx playwright test --project=visual
+      - name: Upload visual failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-failure
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
