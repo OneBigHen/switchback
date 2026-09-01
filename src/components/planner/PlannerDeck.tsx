@@ -180,7 +180,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     if (!routeReady) return
 
     setEditing(false)
-    if (isPhoneViewport()) setSheetDetentOverride("full")
+    if (isPhoneViewport()) setSheetDetentOverride("half")
     const frame = window.requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(".route-rack")?.scrollIntoView?.({ block: "start", behavior: "auto" })
     })
