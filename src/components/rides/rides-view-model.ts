@@ -1,4 +1,6 @@
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
+import { centerOfBbox, centerOfPath } from "@/lib/client/geo"
+import type { Coordinate } from "@/lib/routing/types"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { SavedRoute } from "@/lib/storage/route-library"
 import type { TripPlan } from "@/lib/trip/trip-plan"
@@ -10,6 +12,11 @@ function recordedDurationMinutes(ride: RecordedRide): number {
   return Number.isFinite(start) && Number.isFinite(end)
     ? Math.max(0, Math.round((end - start) / 60_000))
     : ride.route.durationMinutes
+}
+
+/** Representative point for "distance from me" ordering; null when unplaceable. */
+function centerOf(geometry: Coordinate[] | undefined): readonly [number, number] | null {
+  return Array.isArray(geometry) ? centerOfPath(geometry) : null
 }
 
 export interface NormalizeRidesInput {
@@ -40,6 +47,7 @@ export function normalizeRideLibrary({
       distanceMiles: route.distanceMiles,
       durationMinutes: route.durationMinutes,
       updatedAt: route.updatedAt,
+      center: centerOf(route.geometry),
       tags: route.tags ?? [],
       management: {
         canDelete: true,
@@ -58,6 +66,7 @@ export function normalizeRideLibrary({
       distanceMiles: ride.route.distanceMiles,
       durationMinutes: recordedDurationMinutes(ride),
       updatedAt: ride.endedAt || ride.updatedAt,
+      center: centerOf(ride.route.geometry),
       tags: ride.photos.length > 0 ? [`${ride.photos.length} photo${ride.photos.length === 1 ? "" : "s"}`] : [],
       management: { canDelete: true }
     })),
@@ -70,6 +79,7 @@ export function normalizeRideLibrary({
       distanceMiles: trip.route.distanceMiles,
       durationMinutes: trip.route.durationMinutes,
       updatedAt: trip.updatedAt,
+      center: centerOf(trip.route.geometry),
       tags: [],
       management: { canDelete: true }
     })),
@@ -82,6 +92,7 @@ export function normalizeRideLibrary({
       distanceMiles: route.distanceMiles,
       durationMinutes: route.durationMinutes,
       updatedAt: null,
+      center: route.bbox ? centerOfBbox(route.bbox) : null,
       tags: route.dataConfidenceLevel ? [`${route.dataConfidenceLevel} confidence`] : [],
       management: { imported: true }
     }))

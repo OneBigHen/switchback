@@ -665,6 +665,35 @@ export function PlannerShell() {
     onLoad: handleLoad
   })
 
+  // Deep link from the route atlas: `/?ride=<libraryRouteId>` loads that
+  // imported route straight into the planner, then strips the param so a
+  // reload does not re-trigger it. One-shot on mount, like the portable
+  // share loader above.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const rideId = params.get("ride")
+    if (!rideId) return
+    params.delete("ride")
+    const rest = params.toString()
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`
+    )
+    if (!/^[A-Za-z0-9._-]{1,200}$/.test(rideId)) return
+    void handleLoadProject({
+      id: rideId,
+      name: "",
+      distanceMiles: 0,
+      durationMinutes: 0,
+      twistiness: 0,
+      turnCount: 0,
+      sourceProject: ""
+    })
+    // Mount-only: the loader closure captured here stays valid for a one-shot load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const { startRide: handleStartRide, matchImported: handleMatchImported } = usePlannerRideActions({
     runTripPlan,
     invalidateRequests: routeRequestGate.invalidate,

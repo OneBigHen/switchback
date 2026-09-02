@@ -152,6 +152,26 @@ async function main() {
       : []
     if (geo.length < 2) continue
 
+    // Real-world extent in lon/lat, so the atlas listing can sort rides by
+    // distance from the rider and cluster them by area without re-reading
+    // every per-route geometry file. Four rounded numbers per route.
+    let west = Infinity
+    let south = Infinity
+    let east = -Infinity
+    let north = -Infinity
+    for (const [lon, lat] of geo) {
+      if (lon < west) west = lon
+      if (lon > east) east = lon
+      if (lat < south) south = lat
+      if (lat > north) north = lat
+    }
+    const bbox = [
+      Number(west.toFixed(5)),
+      Number(south.toFixed(5)),
+      Number(east.toFixed(5)),
+      Number(north.toFixed(5))
+    ]
+
     const projected = geo.map(([lon, lat]) => [lon, mercatorY(lat)])
     const xs = projected.map((p) => p[0])
     const ys = projected.map((p) => p[1])
@@ -203,6 +223,7 @@ async function main() {
 
     out.routes[summary.id] = {
       aspect: Number((spanX / spanY).toFixed(4)),
+      bbox,
       paths,
       start: [Number(view[0][0].toFixed(1)), Number(view[0][1].toFixed(1))],
       end: [Number(view[view.length - 1][0].toFixed(1)), Number(view[view.length - 1][1].toFixed(1))]

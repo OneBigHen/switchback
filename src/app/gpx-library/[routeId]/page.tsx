@@ -7,9 +7,13 @@ import { atlasPathColor, curvatureBand, readAtlasArt, type AtlasMiniPath } from 
 import { buildPosterSpec } from "@/lib/gpx/poster"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
+import { isGpxIntelligenceReport, type GpxIntelligenceReport } from "@/lib/gpx/intelligence"
+import { GpxIntelligencePanel } from "@/components/planner/GpxIntelligencePanel"
 import type { Coordinate } from "@/lib/routing/types"
 
 export const dynamic = "force-dynamic"
+
+type SurfaceMix = Record<string, number>
 
 interface AtlasDetailRoute {
   id: string
@@ -25,6 +29,9 @@ interface AtlasDetailRoute {
   routingSource?: string | null
   previewOnly?: boolean
   geometry?: Coordinate[]
+  roadMix?: SurfaceMix
+  surfaceMix?: SurfaceMix
+  gpxIntelligence?: GpxIntelligenceReport
   story?: {
     title: string
     summary: string
@@ -55,6 +62,10 @@ function isCoordinate(value: unknown): value is Coordinate {
     && isFiniteNumber(value[1])
 }
 
+function isSurfaceMix(value: unknown): value is SurfaceMix {
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "number" && Number.isFinite(entry))
+}
+
 function isDetailRoute(value: unknown): value is AtlasDetailRoute {
   if (!isRecord(value)) return false
   if (
@@ -72,6 +83,9 @@ function isDetailRoute(value: unknown): value is AtlasDetailRoute {
   if (value.routingSource !== undefined && value.routingSource !== null && typeof value.routingSource !== "string") return false
   if (value.previewOnly !== undefined && typeof value.previewOnly !== "boolean") return false
   if (value.geometry !== undefined && (!Array.isArray(value.geometry) || !value.geometry.every(isCoordinate))) return false
+  if (value.roadMix !== undefined && !isSurfaceMix(value.roadMix)) return false
+  if (value.surfaceMix !== undefined && !isSurfaceMix(value.surfaceMix)) return false
+  if (value.gpxIntelligence !== undefined && !isGpxIntelligenceReport(value.gpxIntelligence)) return false
   if (value.story === undefined) return true
   return isRecord(value.story)
     && typeof value.story.title === "string"
@@ -128,13 +142,64 @@ function formatMiles(value: number): string {
   return WHOLE_NUMBER.format(Math.round(value))
 }
 
-function formatDuration(minutes: number): string {
+function formatDuration(minutes: number): string | null {
   const total = Math.max(0, Math.round(minutes))
+  if (total <= 0) return null
   const h = Math.floor(total / 60)
   const m = total % 60
   if (h === 0) return `${m} min`
   if (m === 0) return `${h} hr`
   return `${h} hr ${m} min`
+}
+
+/** Plain-language climb character from total ascent over the ride's length. */
+function climbCharacter(ascentMeters: number | null | undefined, distanceMiles: number): string | null {
+  if (typeof ascentMeters !== "number" || ascentMeters <= 0 || distanceMiles <= 0) return null
+  const feetPerMile = (ascentMeters * 3.28084) / distanceMiles
+  if (feetPerMile < 30) return "Flat — barely any climbing"
+  if (feetPerMile < 70) return "Rolling — gentle grades"
+  if (feetPerMile < 130) return "Hilly — steady climbing throughout"
+  return "Mountainous — sustained, serious climbs"
+}
+
+function turnCharacter(turnsPerTenMiles: number): string {
+  if (turnsPerTenMiles < 10) return "Open road — long straights, few decisions"
+  if (turnsPerTenMiles < 30) return "A flowing mix of bends and straights"
+  if (turnsPerTenMiles < 70) return "Corner after corner — steady rhythm"
+  return "Relentless — technical, tight, full attention"
+}
+
+/** Prefer the measured GPX evidence, fall back to the coarse stored mix. */
+function surfaceEntries(route: AtlasDetailRoute): Array<[string, number]> {
+  const evidence = route.gpxIntelligence?.surface
+  const source = evidence && evidence.status === "known" && Object.keys(evidence.distribution).length > 0
+    ? evidence.distribution
+    : route.surfaceMix
+  if (!source || Object.keys(source).length === 0) return []
+  const total = Object.values(source).reduce((sum, value) => sum + Math.max(0, value), 0)
+  if (total <= 0) return []
+  return Object.entries(source)
+    .map(([name, value]): [string, number] => [name.replaceAll("_", " "), (Math.max(0, value) / total) * 100])
+    .filter(([, share]) => share >= 0.5)
+    .sort((left, right) => right[1] - left[1])
+}
+
+const SURFACE_TINT: Record<string, string> = {
+  asphalt: "var(--sb-signal)",
+  paved: "var(--sb-signal)",
+  concrete: "var(--sb-slate)",
+  gravel: "var(--sb-trail-brown)",
+  unpaved: "var(--sb-trail-brown)",
+  dirt: "var(--sb-trail-brown)",
+  ground: "var(--sb-trail-brown)",
+  compacted: "var(--sb-golden-hour)",
+  sand: "var(--sb-golden-hour)",
+  grass: "var(--sb-moss)"
+}
+
+function surfaceTint(name: string, index: number): string {
+  const key = name.split(" ")[0]?.toLowerCase() ?? ""
+  return SURFACE_TINT[key] ?? ["var(--sb-moss)", "var(--sb-slate)", "var(--sb-golden-hour)", "var(--sb-trail-brown)"][index % 4]!
 }
 
 export default async function RouteAtlasPosterPage({ params }: { params: Promise<{ routeId: string }> }) {
@@ -173,6 +238,14 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
   })
   const band = curvatureBand(route.twistiness)
   const hasDrawableGeometry = spec !== null || artPaths.length > 0
+  const canOpenInPlanner = Array.isArray(route.geometry) && route.geometry.length > 1
+
+  const timeLabel = formatDuration(route.durationMinutes)
+  const turnsPerTenMiles = route.distanceMiles > 0 ? (route.turnCount / route.distanceMiles) * 10 : 0
+  const ascent = typeof route.ascentMeters === "number" && route.ascentMeters > 0 ? route.ascentMeters : null
+  const descent = typeof route.descentMeters === "number" && route.descentMeters > 0 ? route.descentMeters : null
+  const climb = climbCharacter(ascent, route.distanceMiles)
+  const surfaces = surfaceEntries(route)
 
   return (
     <main className="atlas-page atlas-poster-page">
@@ -219,27 +292,75 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
           <p className="atlas-lede">{story.summary}</p>
           <p>{story.body}</p>
 
+          <div className="atlas-launch">
+            {canOpenInPlanner ? (
+              <Link href={`/?ride=${encodeURIComponent(route.id)}`} className="atlas-launch-primary">
+                Open in the planner
+              </Link>
+            ) : (
+              <span className="atlas-launch-primary is-disabled" aria-disabled="true">Geometry not retained</span>
+            )}
+            <Link href="/gpx-library" className="atlas-launch-secondary">Back to the atlas</Link>
+          </div>
+          <p className="atlas-note">
+            Opening it drops the imported line into the planner as a track — edit it, add an approach from where
+            you are, or start the ride from there.
+          </p>
+
           <dl className="atlas-facts">
             <div><dt>Distance</dt><dd>{formatMiles(route.distanceMiles)} mi</dd></div>
-            <div><dt>Time</dt><dd>{formatDuration(route.durationMinutes)}</dd></div>
+            {timeLabel ? <div><dt>Recorded time</dt><dd>{timeLabel}</dd></div> : null}
             <div><dt>Turns</dt><dd>{formatMiles(route.turnCount)}</dd></div>
-            <div><dt>Twistiness</dt><dd><span className={`band-dot band-${band}`}>{band}</span></dd></div>
-            {typeof route.ascentMeters === "number" && route.ascentMeters > 0 ? (
-              <div><dt>Climbing</dt><dd>{formatMiles(route.ascentMeters)} m</dd></div>
+            <div><dt>Turn density</dt><dd>{turnsPerTenMiles.toFixed(turnsPerTenMiles < 10 ? 1 : 0)} / 10 mi</dd></div>
+            <div><dt>Corners</dt><dd><span className={`band-dot band-${band}`}>{band}</span></dd></div>
+            {ascent ? (
+              <div>
+                <dt>Climb</dt>
+                <dd>&uarr; {formatMiles(ascent)} m{descent ? ` · ↓ ${formatMiles(descent)} m` : ""}</dd>
+              </div>
             ) : null}
             {route.profile ? <div><dt>Profile</dt><dd>{route.profile}</dd></div> : null}
             {route.sourceProject ? <div><dt>Imported from</dt><dd>{route.sourceProject}</dd></div> : null}
           </dl>
 
+          <ul className="atlas-read">
+            <li>{turnCharacter(turnsPerTenMiles)}.</li>
+            {climb ? <li>{climb}.</li> : null}
+          </ul>
+
+          {surfaces.length > 0 ? (
+            <div className="atlas-mix" aria-label="Surface mix">
+              <p className="atlas-mix-title">Surface</p>
+              <div className="atlas-mix-bar" role="img" aria-label={surfaces.map(([name, share]) => `${Math.round(share)}% ${name}`).join(", ")}>
+                {surfaces.map(([name, share], index) => (
+                  <span key={name} style={{ width: `${share}%`, background: surfaceTint(name, index) }} />
+                ))}
+              </div>
+              <ul className="atlas-mix-legend">
+                {surfaces.map(([name, share], index) => (
+                  <li key={name}>
+                    <i aria-hidden="true" style={{ background: surfaceTint(name, index) }} />
+                    <span>{name}</span>
+                    <em>{Math.round(share)}%</em>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="atlas-note">Surface breakdown was not recoverable from this GPX.</p>
+          )}
+
           {route.previewOnly ? (
             <p className="atlas-note">This is a preview import — the full line wasn&apos;t stored.</p>
           ) : null}
-          <p className="atlas-note">
-            Posters are generated from the route&apos;s own geometry, prettymaps-style — color follows curvature,
-            not a basemap.
-          </p>
         </section>
       </div>
+
+      {route.gpxIntelligence ? (
+        <section className="atlas-detail-report" aria-label="Measured track report">
+          <GpxIntelligencePanel report={route.gpxIntelligence} />
+        </section>
+      ) : null}
     </main>
   )
 }

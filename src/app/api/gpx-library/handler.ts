@@ -23,6 +23,12 @@ export interface PublicAtlasRoute {
   profile?: string
   story: ReturnType<typeof buildRouteStory>
   art: boolean
+  /**
+   * Real-world extent as `[west, south, east, north]` in degrees, present when
+   * poster art was generated for this route. Lets a client sort the library by
+   * distance from the rider without downloading every route's geometry.
+   */
+  bbox?: readonly [number, number, number, number]
 }
 
 /** Story + art metadata for a listed route; never host paths or geometry. */
@@ -33,7 +39,8 @@ type AtlasListingInput = RouteStoryInput & {
 
 function publicAtlasRoute(
   route: AtlasListingInput,
-  hasArt: boolean
+  hasArt: boolean,
+  bbox: readonly [number, number, number, number] | undefined
 ): PublicAtlasRoute {
   return {
     id: route.id,
@@ -45,7 +52,8 @@ function publicAtlasRoute(
     sourceProject: route.sourceProject,
     ...(route.profile ? { profile: route.profile } : {}),
     story: buildRouteStory(route),
-    art: hasArt
+    art: hasArt,
+    ...(bbox ? { bbox } : {})
   }
 }
 
@@ -112,7 +120,7 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
         duplicateFamilies: manifest.duplicateFamilies ?? 0,
         nearDuplicateFamilies: manifest.nearDuplicateFamilies ?? 0,
         nearDuplicateRoutes: manifest.nearDuplicateRoutes ?? 0,
-        routes: manifest.routes.map((route) => publicAtlasRoute(route, Boolean(atlasArt[route.id])))
+        routes: manifest.routes.map((route) => publicAtlasRoute(route, Boolean(atlasArt[route.id]), atlasArt[route.id]?.bbox))
       })
     }
 
