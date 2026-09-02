@@ -1,9 +1,12 @@
-name: Mobile QA
+name: Mobile QA (nightly)
 
+# Advisory only. The mobile-qa matrix is a deep behavioural suite for a
+# small, self-hosted, vibe-coded app; several of its assertions are stricter
+# than the product needs and it is not a merge gate. It runs on a nightly
+# schedule and on demand. Do not add pull_request / push triggers back
+# without a decision to make it blocking — see docs/release/ROADMAP-WAVES.md
+# ("the expanded Mobile QA matrix stays advisory").
 on:
-  pull_request:
-  push:
-    branches: [main]
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch:
