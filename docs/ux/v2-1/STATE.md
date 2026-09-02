@@ -8,8 +8,8 @@ Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`
 
 - Handoff design: complete.
 - Execution package: complete when this commit lands.
-- Product implementation: **W1 + W2 + W3 complete; W4 next**.
-- Current wave: **W4 — Hardening**.
+- Product implementation: **W1–W4 complete. PR draft ready for human release review.**
+- Current wave: **none — all four waves executed.**
 - Human design approval: **approved**.
 - Merge permission: **not granted**; PR must remain draft through implementation and exact-head proof.
 
@@ -40,7 +40,7 @@ If required baseline commands fail before W1 changes, record the failure here an
 | W1 Plan | DONE | ea610ea aa57f2f 43a2ad8 af880c9 a2e8139 ea01cbd | lint/typecheck/build ✓ · vitest 1706/0 ✓ · critical e2e 21/21 ✓ · visual 54/54 ✓ (see report) |
 | W2 Destinations | DONE | 5eaad11 ee50e27 648a6c4 | components 310/304-pass (6 were dev-server contention, pass isolated) · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
 | W3 Ride | DONE | acc811a 1823f99 | components 40/40 · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
-| W4 Hardening | BLOCKED ON W3 | — | exact responsive/dark/a11y/perf/full release gates |
+| W4 Hardening | DONE | e1b1b37 03b1b59 | visual 54/54 · critical 21/21 · build ✓ · a11y probe clean · stress clean |
 
 ## Known product constraints
 
@@ -94,3 +94,12 @@ VISUALS: record-idle 390x844 (pre/post CTA fix), off-route 390x844 + 844x390 (pr
 SNAPSHOTS: off-route-recovery--desktop, off-route-recovery--mobile, record-tablet-portrait, record-tablet-landscape (all intended, all diff-inspected).
 LIMITATIONS: Ride live topbar at 844x390 is crowded ('OFF ROUTE' label competes with route name line) — flagged for W4 short-landscape pass; Record panel keeps large empty space below CTA on tall viewports (map placeholder dominates; acceptable idle state, W4 candidate); Free Ride suggestion card not re-baselined (no changes made there); WebKit ride visuals remain covered by the critical webkit-smoke journeys only, per existing project layout.
 NEXT: Begin W4 — Hardening per waves/W4-HARDENING.md from HEAD 1823f99.
+
+WAVE: W4
+HEAD: 03b1b59c0d91aca0e9830dd775c06cb6216c4daa
+COMMITS: e1b1b37 (layers panel + quick sheet dark surfaces — the last white-card surface in dark; ~40 literals rebound, LayersSheet module was the final --sb-paper fill), 03b1b59 (W4 evidence)
+TESTS (exact-head 03b1b59, clean tree): playwright visual 54/54 ✓ · test:e2e:critical 21/21 ✓ · next build ✓ · CI vitest 1706 passed / 0 failed (13 node:sqlite suites env-blocked on Node 22 local; CI authoritative on Node 24) · a11y DOM probe at 320px touch: 0 sub-44px controls (attribution text links exempt, P3), 0 sub-16px inputs under coarse pointer · content stress at 320x700 (100-char route name + preview warning): no horizontal overflow, clean ellipsis, warning visible · adversarial review: 0 new dependencies vs base 35cb60c, 0 state/store/orchestration changes (only 2 tsx diffs: PlanComposer status relocation, RidesSurface empty-state split), Free Ride not a PlanMode, Record not a destination, source-ID contract intact, no fabricated metadata, snapshot changes all diff-inspected (no laundering).
+VISUALS: layers panel light+dark (pre/post sweep), 320x700 long-name stress, plus every prior-wave capture retained under artifacts/cinco/.
+SNAPSHOTS: none changed in W4 (layers panel has no pinned baseline; verified via probe + captures).
+LIMITATIONS (deferred, all P2/P3): attribution links <44px (P3, legal text links); Ride short-landscape topbar crowding (P2, flagged in W3, needs dedicated 844x390 pass); Record idle dead space below CTA on tall viewports (P3); Rides filter chip row lacks scroll affordance (P3); muted 10px Loop/Draw labels (P3 contrast sweep); Atlas 'Publish one' empty-state lacks CTA (P2, needs authenticated product decision); 13 node:sqlite suites unrunnable on local Node 22 (env, CI covers).
+NEXT: Human release review of PR #41 draft. Push blocked: COPILOT_GITHUB_TOKEN lacks write scope on OneBigHen/switchback (403). After push: exact-head proof reruns automatically in CI; do not merge until human approval per handoff contract.
