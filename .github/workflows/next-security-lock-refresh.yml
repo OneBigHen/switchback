@@ -1,4 +1,4 @@
-name: Temporary dependency audit diagnostic
+name: Temporary dependency remediation
 
 on:
   push:
@@ -6,27 +6,39 @@ on:
       - ux/v2-1-premium-mobile-polish
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  remediate:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ux/v2-1-premium-mobile-polish
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - name: Trace browserslist dependency and fix plan
+      - name: Apply lockfile-only audit remediation
         run: |
-          set +e
-          echo '=== browserslist tree ==='
-          npm ls browserslist --all
-          echo '=== current and latest browserslist ==='
-          node -e 'const p=require("./package-lock.json"); console.log("locked",p.packages["node_modules/browserslist"]?.version)'
-          npm view browserslist version
-          echo '=== audit fix dry run ==='
-          npm audit fix --package-lock-only --ignore-scripts --dry-run
-          exit 0
+          set -euo pipefail
+          cp package.json /tmp/package.json.before
+          npm audit fix --package-lock-only --ignore-scripts
+          cmp --silent package.json /tmp/package.json.before
+          node -e 'const p=require("./package-lock.json"); const v=p.packages["node_modules/browserslist"]?.version; console.log(`browserslist=${v}`); if (!v) process.exit(1); const [a,b,c]=v.split(".").map(Number); if (a<4 || (a===4 && b<28) || (a===4 && b===28 && c<7)) process.exit(1)'
+          npm audit --audit-level=high
+          git diff --check
+      - name: Commit remediated lockfile
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "No lockfile change produced"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(security): update vulnerable browserslist transitive"
+          git push origin HEAD:ux/v2-1-premium-mobile-polish
