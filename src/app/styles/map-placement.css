@@ -98,3 +98,61 @@
     top: calc(50dvh - 73px);
   }
 }
+
+/* --- Base-map credit + scale: bottom of the map, per map convention -------
+ *
+ * On phones the MapLibre / Mapbox bottom-LEFT control stack holds only the
+ * base-map attribution and the scale bar; zoom and locate are bottom-RIGHT
+ * and keep dodging the planning sheet on their own. Earlier waves lifted the
+ * whole stack ~70-80dvh up the screen, which parked the "© OpenMapTiles"
+ * credit and the "200 mi" scale bar near the TOP of the visible map. Standard
+ * map convention is the bottom: seat the credit against the bottom edge of
+ * the map that is actually visible above the sheet, clear of the sheet
+ * handle, the phone nav and the safe-area inset. Desktop already anchors this
+ * stack at bottom: 0 and needs no change.
+ *
+ * `bottom` comes from --sb-map-sheet-clearance (design-system.css), which is
+ * already resolved per detent — peek, half, full and the idle composer each
+ * set their own value so the credit hugs whatever sheet is showing. The stale
+ * `calc(70dvh + …)` rules in planner-shell.css parked it near the top; pin the
+ * shared clearance here so it wins at every mobile width.
+ */
+@media (max-width: 760px) {
+  .planner-shell .map-stage:not(.is-ride-mode) :where(
+    .maplibregl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-left,
+    .maplibregl-ctrl-bottom-right,
+    .mapboxgl-ctrl-bottom-right
+  ) {
+    bottom: var(--sb-map-sheet-clearance);
+  }
+
+  .planner-shell .map-stage:not(.is-ride-mode) :where(
+    .maplibregl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-left
+  ) {
+    left: max(var(--sb-mobile-edge), env(safe-area-inset-left));
+  }
+
+  /* The full-height sheet moves the credit into its own footer
+     (.planner-full-attribution); hide the on-map copy so it is not shown
+     twice or stranded behind the sheet. */
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) :where(
+    .maplibregl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-left
+  ) {
+    display: none;
+  }
+}
+
+/* The scale bar rides the same bottom-left stack as the credit. Its stock
+ * colours assume a dark basemap; give it a legible chip so it reads on the
+ * light planning basemap and the night preset alike. Ride mode keeps its own
+ * dark-HUD scale styling. */
+.map-stage:not(.is-ride-mode) :where(.maplibregl-ctrl-scale, .mapboxgl-ctrl-scale) {
+  border-color: color-mix(in srgb, var(--sb-ink) 34%, transparent);
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+  background: color-mix(in srgb, var(--sb-paper) 66%, transparent);
+  color: color-mix(in srgb, var(--sb-ink) 82%, transparent);
+}

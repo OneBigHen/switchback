@@ -3,6 +3,7 @@
 import { ArrowRight, DotsThree } from "@phosphor-icons/react"
 import { useState } from "react"
 import { RouteGraphic } from "@/components/v2/RouteGraphic"
+import { formatAway } from "@/lib/client/geo"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
 
@@ -27,13 +28,15 @@ function kindLabel(item: RideLibraryItem): string {
 
 export interface RideListRowProps {
   item: RideLibraryItem
+  /** Miles from the rider, shown when the library is sorted by distance. */
+  distanceAwayMiles?: number
   onOpen(item: RideLibraryItem): void
   onMatchRoads?(item: RideLibraryItem): void
   onOrganize?(item: RideLibraryItem, organization: { folder?: string; tags?: string[]; visible?: boolean }): void
   onDelete?(item: RideLibraryItem): void
 }
 
-export function RideListRow({ item, onOpen, onMatchRoads, onOrganize, onDelete }: RideListRowProps) {
+export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onOrganize, onDelete }: RideListRowProps) {
   const updated = dateLabel(item.updatedAt)
   const [manageOpen, setManageOpen] = useState(false)
   const [folder, setFolder] = useState(item.management?.folder ?? "")
@@ -68,7 +71,9 @@ export function RideListRow({ item, onOpen, onMatchRoads, onOrganize, onDelete }
           <span className={styles.metrics}>
             <b>{item.distanceMiles.toFixed(1)} mi</b>
             <span>{Math.round(item.durationMinutes)} min</span>
-            {updated ? <small>{updated}</small> : <small>Project library</small>}
+            {typeof distanceAwayMiles === "number" ? (
+              <small className={styles.away}>{formatAway(distanceAwayMiles)}</small>
+            ) : updated ? <small>{updated}</small> : <small>Project library</small>}
           </span>
           <ArrowRight weight="bold" aria-hidden="true" />
         </button>

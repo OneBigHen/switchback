@@ -19,6 +19,13 @@ export interface ProjectGpxRouteSummary {
   unmatchedPercent?: number | null
   unmatchedSpanCount?: number
   dataConfidenceLevel?: "high" | "medium" | "low"
+  /**
+   * Real-world extent as `[west, south, east, north]` in degrees, echoed from
+   * the atlas art so the Rides library can order imports by distance from the
+   * rider without downloading every route's geometry. Absent when no poster art
+   * exists for the route.
+   */
+  bbox?: readonly [number, number, number, number]
 }
 
 export interface ProjectGpxCatalog {

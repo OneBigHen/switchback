@@ -93,8 +93,10 @@ export function buildRouteStory(route: RouteStoryInput): RouteStory {
   const summary = `${titleCase(pace)} that stays ${twist} start to finish.`
 
   const lines: string[] = []
+  // Many imports carry no timing at all; claim a duration only when there is one.
+  const timePhrase = route.durationMinutes > 0 ? ` in about ${hours(route.durationMinutes)}` : ""
   lines.push(
-    `${NUMBER_FORMAT.format(Math.round(route.distanceMiles))} miles in about ${hours(route.durationMinutes)}${
+    `${NUMBER_FORMAT.format(Math.round(route.distanceMiles))} miles${timePhrase}${
       turns > 0 ? `, with roughly ${NUMBER_FORMAT.format(turns)} notable turns` : ""
     }.`
   )

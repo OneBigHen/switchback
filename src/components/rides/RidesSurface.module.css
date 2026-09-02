@@ -78,6 +78,10 @@
   gap: 5px;
   overflow-x: auto;
   scrollbar-width: none;
+  /* Fade the trailing edge so a clipped chip row reads as scrollable. */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+  scroll-padding-inline-end: 24px;
 }
 
 .tabs::-webkit-scrollbar {
@@ -560,4 +564,117 @@
   .search input {
     font-size: 16px;
   }
+}
+
+/* Sort + near-me row --------------------------------------------------- */
+
+.sortBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.sortField {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--sb-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.sortSelect {
+  min-height: 38px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip, 8px);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 13px center, right 8px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.sortSelect:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
+.nearMeButton {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--sb-signal);
+  border-radius: var(--sb-radius-chip, 8px);
+  background: color-mix(in srgb, var(--sb-signal) 12%, var(--sb-surface));
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.nearMeButton:disabled {
+  opacity: .65;
+  cursor: progress;
+}
+
+.nearMeButton svg {
+  width: 15px;
+  height: 15px;
+  color: var(--sb-signal);
+}
+
+.nearMeQuiet {
+  border-color: var(--sb-border);
+  background: transparent;
+  color: var(--sb-text-muted);
+  font-weight: 650;
+}
+
+.away {
+  color: var(--sb-signal) !important;
+  font-weight: 750 !important;
+}
+
+/* Incremental list window -------------------------------------------- */
+
+.showMore {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 14px 0 4px;
+}
+
+.showMore button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control, 10px);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.showMore button:hover {
+  border-color: var(--sb-ink);
+}
+
+.showMore small {
+  color: var(--sb-text-muted);
+  font-size: 10px;
 }

@@ -38,6 +38,12 @@ export interface AtlasMiniPath {
 export interface AtlasRouteArt {
   /** Width/height of the route's Mercator bounding shape (for card framing). */
   readonly aspect?: number
+  /**
+   * Real-world extent of the route as `[west, south, east, north]` in degrees.
+   * Lets the atlas listing sort rides by distance from the rider and cluster
+   * them by area without re-reading every per-route geometry file.
+   */
+  readonly bbox?: readonly [number, number, number, number]
   /** Curvature-colored path pieces, ordered along the route. */
   readonly paths: readonly AtlasMiniPath[]
   /** Start marker position in viewbox units. */
@@ -103,6 +109,14 @@ function isPoint(value: unknown): value is readonly [number, number] {
     && Number.isFinite(value[1])
 }
 
+function isBbox(value: unknown): value is readonly [number, number, number, number] {
+  return Array.isArray(value)
+    && value.length === 4
+    && value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+    && value[0] <= value[2]
+    && value[1] <= value[3]
+}
+
 function isBand(value: unknown): value is CurvatureBand {
   return typeof value === "string" && CURVATURE_BAND_SET.has(value)
 }
@@ -117,12 +131,14 @@ function parseRouteArt(value: unknown): AtlasRouteArt | null {
   if (!isRecord(value) || !Array.isArray(value.paths) || value.paths.length === 0) return null
   if (!value.paths.every(isMiniPath)) return null
   if (value.aspect !== undefined && (typeof value.aspect !== "number" || !Number.isFinite(value.aspect))) return null
+  if (value.bbox !== undefined && !isBbox(value.bbox)) return null
   if (value.start !== undefined && !isPoint(value.start)) return null
   if (value.end !== undefined && !isPoint(value.end)) return null
   if (value.duplicateOf !== undefined && typeof value.duplicateOf !== "string") return null
   return {
     paths: value.paths,
     ...(typeof value.aspect === "number" ? { aspect: value.aspect } : {}),
+    ...(isBbox(value.bbox) ? { bbox: value.bbox } : {}),
     ...(isPoint(value.start) ? { start: value.start } : {}),
     ...(isPoint(value.end) ? { end: value.end } : {}),
     ...(typeof value.duplicateOf === "string" ? { duplicateOf: value.duplicateOf } : {})
