@@ -1,4 +1,5 @@
 import { cache } from "react"
+import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import path from "node:path"
@@ -124,7 +125,7 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
   }
 })
 
-export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }): Promise<Metadata> {
   const { routeId } = await params
   const { route } = await loadRouteDetail(routeId)
   if (!route) return { title: "Route not found — Switchback" }

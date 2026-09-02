@@ -683,16 +683,6 @@
   font-size: 14px;
 }
 
-.planner-error {
-  border-radius: 10px;
-  background: #fff2ef;
-}
-
-.planner-error p {
-  color: #7e5149;
-  font-size: 12px;
-}
-
 @media (max-width: 760px) {
     .planner-deck:not(.is-idle-plan) {
       top: auto;

@@ -45,9 +45,9 @@ function countLabel(count: number, singular: string): string {
 }
 
 /**
- * Kept for `tests/unit/atlas-copy.test.ts` and reused in the atlas header: a
- * plain-language summary of how many imported variants folded into how many
- * distinct route shapes.
+ * Plain-language summary of how many imported variants folded into how many
+ * distinct route shapes. Retained for `tests/unit/atlas-copy.test.ts`; the V2
+ * browser header does not currently surface it.
  */
 export function buildAtlasCollectionCopy({
   importedVariants,
