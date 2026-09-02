@@ -1,4 +1,20 @@
-export type MapStyleId = "clean" | "explorer" | "night"
+/**
+ * The pre-premium map styles. Kept only so stored map packs, rider settings,
+ * and offline packs written before the premium wave can still be read; new
+ * state is a `MapExperienceId` plus a `MapLightPreference` (ADR 0015).
+ */
+import {
+  isMapExperienceId,
+  isMapLightPreference,
+  migrateLegacyMapStyle,
+  type MapExperienceId,
+  type MapLightPreference
+} from "./map-experience"
+
+export type LegacyMapStyleId = "clean" | "explorer" | "night"
+
+/** @deprecated Use `MapExperienceId` and `MapLightPreference`. */
+export type MapStyleId = LegacyMapStyleId
 
 export type RiderLayerId =
   | "curvature"
@@ -10,7 +26,7 @@ export type RiderLayerId =
   | "private-land"
   | "mvum"
   | "closures"
-  | "traffic"
+  | "road-controls"
   | "weather"
   | "fuel"
   | "food"
@@ -86,7 +102,13 @@ export interface RiderMapPack {
   name: string
   createdAt: string
   updatedAt: string
-  mapStyle: MapStyleId
+  /**
+   * Packs written before the premium wave carry only a legacy style. It is
+   * still written so an older build can read a pack this one saved.
+   */
+  mapStyle: LegacyMapStyleId
+  experience?: MapExperienceId
+  lightPreference?: MapLightPreference
   routeVisibility: "standard" | "high-contrast"
   layers: RiderLayerSetting[]
 }
@@ -129,7 +151,7 @@ export const featureMapLayerIds = [
   "private-land",
   "mvum",
   "closures",
-  "traffic",
+  "road-controls",
   "weather",
   "fuel",
   "food",
@@ -157,12 +179,12 @@ export function riderLayerConfidence(definition: RiderLayerDefinition): string {
 
 export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
-    id: "curvature", name: "High-curvature roads", category: "roads", status: "live",
+    id: "curvature", name: "Great roads", category: "roads", status: "live",
     source: "Switchback road-shape analysis",
     provenance: "Computed heuristically from OpenStreetMap road geometry using bend-density scoring. Approximate — not ground-truthed.",
     dataCategory: "road-geometry",
     freshness: "Computed from local road geometry", coverage: "Current routing region",
-    legend: "Orange dashed line = high bend density", minZoom: 7
+    legend: "Warmer, heavier line = denser bends", minZoom: 7
   },
   {
     id: "unpaved", name: "PA unpaved roads", category: "roads", status: "regional",
@@ -229,12 +251,12 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
     legend: "Red markers = mapped road construction, not a live closure feed", minZoom: 9
   },
   {
-    id: "traffic", name: "Traffic signals and restrictions", category: "conditions", status: "live",
+    id: "road-controls", name: "Road controls", category: "conditions", status: "live",
     source: "OpenStreetMap traffic-control tags",
     provenance: "OpenStreetMap highway=traffic_signals and restriction relations. Community-mapped infrastructure, not real-time traffic data.",
     dataCategory: "conditions-traffic",
     freshness: "Community-maintained", coverage: "Mapped controls",
-    legend: "Amber markers = mapped traffic controls; not real-time traffic", minZoom: 11
+    legend: "Amber markers = mapped signals and stops; not live congestion", minZoom: 11
   },
   {
     id: "weather", name: "Active weather alerts", category: "conditions", status: "regional",
@@ -322,11 +344,27 @@ export function catalogLayerSettings(settings: readonly RiderLayerSetting[]): Ca
   })).sort((first, second) => first.setting.order - second.setting.order)
 }
 
+/**
+ * Layer ids that have been renamed. A rider's saved choice must survive the
+ * rename: `traffic` was always OSM signals and stops, never live congestion,
+ * and it is called `road-controls` now that real traffic is arriving as its
+ * own thing. Dropping the old id would silently reset a saved map pack.
+ */
+const RENAMED_LAYER_IDS: Record<string, RiderLayerId> = {
+  traffic: "road-controls"
+}
+
+export function migrateRiderLayerId(id: string): RiderLayerId | null {
+  const renamed = RENAMED_LAYER_IDS[id]
+  if (renamed) return renamed
+  return catalogIds.has(id as RiderLayerId) ? id as RiderLayerId : null
+}
+
 export function normalizeRiderLayerSettings(settings: readonly RiderLayerSettingInput[] | null | undefined): RiderLayerSetting[] {
   const selected = new Map<RiderLayerId, RiderLayerSetting>()
   for (const setting of settings ?? []) {
-    const id = setting.id as RiderLayerId
-    if (!catalogIds.has(id) || selected.has(id)) continue
+    const id = migrateRiderLayerId(setting.id)
+    if (!id || selected.has(id)) continue
     selected.set(id, {
       id,
       visible: Boolean(setting.visible),
@@ -343,14 +381,28 @@ export function normalizeRiderLayerSettings(settings: readonly RiderLayerSetting
     .map((setting, order) => ({ ...setting, order }))
 }
 
+export interface AppliedRiderMapPack {
+  experience: MapExperienceId
+  lightPreference: MapLightPreference
+  routeVisibility: RiderMapPack["routeVisibility"]
+  layers: RiderLayerSetting[]
+}
+
+/**
+ * A pack saved before the premium wave only knows a legacy style, so it is
+ * migrated on read: `clean` becomes Standard, `explorer` becomes Terrain, and
+ * `night` becomes Standard under the night lighting the rider actually chose.
+ */
 export function applyRiderMapPack(
   currentLayers: readonly RiderLayerSetting[],
   pack: RiderMapPack
-): Pick<RiderMapPack, "mapStyle" | "routeVisibility" | "layers"> {
+): AppliedRiderMapPack {
   const overrides = new Map(normalizeRiderLayerSettings(pack.layers).map((layer) => [layer.id, layer]))
   const source = normalizeRiderLayerSettings(currentLayers)
+  const legacy = migrateLegacyMapStyle(pack.mapStyle)
   return {
-    mapStyle: pack.mapStyle,
+    experience: isMapExperienceId(pack.experience) ? pack.experience : legacy.experience,
+    lightPreference: isMapLightPreference(pack.lightPreference) ? pack.lightPreference : legacy.lightPreference,
     routeVisibility: pack.routeVisibility,
     layers: source.map((layer) => overrides.get(layer.id) ?? layer)
   }

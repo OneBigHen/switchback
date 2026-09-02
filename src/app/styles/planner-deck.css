@@ -13,7 +13,7 @@
 }
 
 @media (max-width: 390px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
     }
 
@@ -161,25 +161,22 @@
 }
 
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
     }
 
     .planner-sheet-handle {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      z-index: 22;
+      position: relative;
+      z-index: auto;
       display: grid;
-      width: 92px;
-      height: 32px;
+      width: 100%;
+      height: var(--sb-touch-target);
       padding: 0;
       place-items: center;
       border: 0;
       background: transparent;
       cursor: grab;
       touch-action: none;
-      transform: translateX(-50%);
     }
 
     .planner-sheet-handle:active {
@@ -194,7 +191,9 @@
     }
 
     .planner-scroll {
-      padding-top: 28px;
+      /* The handle is an in-flow 44px band above the scroll owner, so sheet
+         content can never slide under its hit area while scrolling. */
+      padding-top: 8px;
     }
 
 
@@ -664,9 +663,9 @@
 
 .library-button,
 .tool-button {
-  border-color: #ded8cf;
-  background: #fff;
-  color: #5f5b55;
+  border-color: var(--sb-border);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
   font-size: 11px;
 }
 
@@ -695,7 +694,7 @@
 }
 
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       top: auto;
       right: 8px;
       bottom: max(8px, env(safe-area-inset-bottom));
@@ -730,7 +729,7 @@
 }
 
 @media (max-width: 390px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
     }
 
@@ -742,7 +741,7 @@
 /* The former sheet handle was decorative. The header chevron is now the real,
    keyboard-accessible minimize control. */
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       height: var(--sb-sheet-half-height);
     }
 
@@ -752,7 +751,7 @@
 }
 
 @media (max-width: 390px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       height: var(--sb-sheet-half-height);
     }
 }
@@ -816,7 +815,7 @@
 }
 
 @media (max-width: 760px) {
-    .planner-deck {
+    .planner-deck:not(.is-idle-plan) {
       bottom: max(8px, env(safe-area-inset-bottom));
       max-height: var(--sb-sheet-half-height);
       height: auto;

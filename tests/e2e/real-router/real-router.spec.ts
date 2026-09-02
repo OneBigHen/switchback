@@ -95,7 +95,7 @@ test("the planner UI reaches the real GraphHopper fixture and preserves live evi
   expect(route.distanceMiles).toBeGreaterThan(0)
   expect(route.durationMinutes).toBeGreaterThan(0)
   expect(route.tollEvidence?.known).toBe(true)
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   await expect(page.getByText("Route unavailable")).toBeHidden()
 })
 

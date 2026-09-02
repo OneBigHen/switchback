@@ -170,20 +170,21 @@ export async function installRouteApi(
 }
 
 export async function openPlannerEditor(page: Page): Promise<void> {
-  const editor = page.getByRole("heading", { name: /Pick two points|Start here/i })
+  const editor = page.getByRole("combobox", { name: "Start", exact: true })
   if (await editor.isVisible().catch(() => false)) return
   await expandPhonePlanner(page)
-  // A real tap must reach this control: a regression where the home-state
-  // action dock occluded "Edit route" on phones used to require force here.
-  // An actionability failure now flags that overlap instead of masking it.
-  await page.getByRole("button", { name: "Edit route" }).click()
+  // V2 has one disclosure authority. A real tap must reach Options; force-click
+  // would hide the exact mobile overlap regression this helper is meant to catch.
+  const options = page.getByRole("button", { name: "Options", exact: true })
+  await expect(options).toBeVisible({ timeout: 15_000 })
+  await options.click()
   await expect(editor).toBeVisible()
 }
 
 export async function expandPhonePlanner(page: Page): Promise<void> {
   if (!await page.evaluate(() => window.matchMedia("(max-width: 760px)").matches)) return
   const expand = page.getByRole("button", { name: "Expand planner" })
-  const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
+  const prompt = page.getByPlaceholder("Search a place or describe a ride")
   if (await expand.isVisible().catch(() => false)) await expand.click()
   await expect(prompt, "mobile planner prompt must appear after expanding").toBeVisible({ timeout: 15_000 })
 }
@@ -225,7 +226,7 @@ export async function tapAutocompleteOption(page: Page, name: string | RegExp): 
 export async function expectRouteOutcome(page: Page, capture: RouteCapture): Promise<void> {
   await expect.poll(() => capture.requests.length, { timeout: 30_000 }).toBeGreaterThan(0)
   expectFixtureRequestStart(capture)
-  await expect(page.getByRole("heading", { name: /Choose a route/i })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible({ timeout: 30_000 })
   const successful = capture.responses.at(-1)?.body.routes ?? []
   expect(successful.length).toBeGreaterThan(0)
   expect(successful[0]?.geometry.length ?? 0).toBeGreaterThanOrEqual(2)

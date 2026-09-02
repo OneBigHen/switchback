@@ -2,13 +2,13 @@ import { expect, test } from "@playwright/test"
 
 test("passkey options are bounded and unauthenticated mutations fail closed", async ({ page, request }) => {
   await page.goto("/")
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   const browserSupport = await page.evaluate(() => typeof PublicKeyCredential !== "undefined")
   expect(browserSupport).toBe(true)
-  const profileButton = page.getByRole("button", { name: "Profile", exact: true })
-  const profileBox = await profileButton.boundingBox()
-  expect(profileBox).not.toBeNull()
-  await profileButton.click({ position: { x: (profileBox?.width ?? 1) - 8, y: (profileBox?.height ?? 1) / 2 } })
+  const settingsButton = page.getByRole("button", { name: "Settings", exact: true })
+  const settingsBox = await settingsButton.boundingBox()
+  expect(settingsBox).not.toBeNull()
+  await settingsButton.click({ position: { x: (settingsBox?.width ?? 1) - 8, y: (settingsBox?.height ?? 1) / 2 } })
   await expect(page.getByRole("button", { name: "Create Switchback ID" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Use existing passkey" })).toBeVisible()
 

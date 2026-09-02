@@ -16,6 +16,7 @@ interface WaypointFieldProps {
   onSelect(point: Waypoint): void
   onQueryChange(query: string): void
   onArm(): void
+  placeholder?: string
 }
 
 export function WaypointField({
@@ -26,7 +27,8 @@ export function WaypointField({
   armed,
   onSelect,
   onQueryChange,
-  onArm
+  onArm,
+  placeholder
 }: WaypointFieldProps) {
   const listboxId = useId()
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([])
@@ -97,7 +99,7 @@ export function WaypointField({
           aria-invalid={visibleSearchError ? true : undefined}
           autoComplete="off"
           value={query}
-          placeholder={id === "start" ? "Where from?" : "Where to?"}
+          placeholder={placeholder ?? (id === "start" ? "Where from?" : "Where to?")}
           onChange={(event) => {
             const value = event.target.value
             onQueryChange(value)

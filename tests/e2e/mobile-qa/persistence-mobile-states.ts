@@ -136,16 +136,18 @@ export function expectOnlyDeliberateNetworkFailures(
 
 export async function expectOfflineBrowserState(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false)
-  await expect(page.getByText(/offline|local|device/i).first()).toBeVisible()
-}
-
-export async function openLocalRouteForOffline(page: Page, routeName: string): Promise<void> {
-  await page.locator(".library-load").filter({ hasText: routeName }).tap()
-  await expect(page).toHaveURL(/\/$/)
+  // Match only rendered copy. Without the visible filter this binds to the
+  // first DOM match, which can be a surface the rider has navigated away from
+  // (it stays mounted but hidden) — a hidden node then fails the assertion
+  // even though the offline messaging is on screen.
+  await expect(page.getByText(/offline|local|device/i).filter({ visible: true }).first()).toBeVisible()
 }
 
 export async function expectFocusedControlInVisualViewport(page: Page, label: string): Promise<void> {
-  const control = page.getByLabel(label)
+  // Narrow to the form control. A SettingRow wraps each control in a
+  // role="group" carrying the same aria-label, so a bare getByLabel matches
+  // both the group and the control and trips strict mode.
+  const control = page.locator("input, select, textarea").and(page.getByLabel(label))
   await control.focus()
   await expect.poll(() => control.evaluate((element) => {
     const rect = element.getBoundingClientRect()

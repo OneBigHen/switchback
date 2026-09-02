@@ -98,28 +98,35 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
 
   const isLockDrawActive = useCallback(() => lockDrawRef.current.active, [])
 
+  // Advancing the draft step and message are separate state updates, so they
+  // must not run inside the setLockAnchors updater: React may invoke an
+  // updater during render (and does so twice under StrictMode), which turns
+  // them into "setState while rendering a different component". The draft ref
+  // already mirrors the committed anchors and step — this handler was already
+  // reading `step` from it — so the whole transition is decided here and each
+  // piece of state is set once, from the event.
   const handleLockDrawTap = useCallback((point: { lat: number; lon: number }) => {
     const coordinate: Coordinate = [point.lon, point.lat]
     const snap = snapRouteTapToRoutableEdge(coordinate)
-    setLockAnchors((previous) => {
-      if (lockDrawRef.current.step === "first") {
-        const next = [snap.coordinate] as Coordinate[]
-        setLockDraftStep("second")
-        setLockDraftMessage("First anchor set. Choose the corridor end.")
-        return next
+    const { step, anchors } = lockDrawRef.current
+
+    if (step === "first") {
+      setLockAnchors([snap.coordinate])
+      setLockDraftStep("second")
+      setLockDraftMessage("First anchor set. Choose the corridor end.")
+      return
+    }
+
+    if (step === "second") {
+      // Reject a duplicate first/last tap; the rider must place two distinct anchors.
+      const first = anchors[0]
+      if (anchors.length === 1 && first && snap.coordinate[0] === first[0] && snap.coordinate[1] === first[1]) {
+        return
       }
-      if (lockDrawRef.current.step === "second") {
-        // Reject a duplicate first/last tap; the rider must place two distinct anchors.
-        if (previous.length === 1 && snap.coordinate[0] === previous[0]![0] && snap.coordinate[1] === previous[0]![1]) {
-          return previous
-        }
-        const next = [...previous, snap.coordinate] as Coordinate[]
-        setLockDraftStep("naming")
-        setLockDraftMessage("Name the lock (optional) and save.")
-        return next
-      }
-      return previous
-    })
+      setLockAnchors([...anchors, snap.coordinate])
+      setLockDraftStep("naming")
+      setLockDraftMessage("Name the lock (optional) and save.")
+    }
   }, [])
 
   const commitLockDraft = useCallback(async () => {

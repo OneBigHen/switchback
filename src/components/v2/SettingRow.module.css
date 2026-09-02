@@ -1,0 +1,75 @@
+.row {
+  display: grid;
+  min-height: 68px;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, auto);
+  align-items: center;
+  gap: 18px;
+  padding: 11px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
+}
+
+.copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.copy strong {
+  color: var(--sb-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.copy span {
+  max-width: 600px;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.control :is(button, select, input:not([type="checkbox"]), a) {
+  min-height: 44px;
+}
+
+.control :is(button, select, input) {
+  font: inherit;
+}
+
+.control :is(select, input:not([type="checkbox"])) {
+  max-width: min(320px, 42vw);
+}
+
+.control input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--sb-ember-strong);
+}
+
+.danger .copy strong {
+  color: var(--sb-danger, #a43e2b);
+}
+
+@media (max-width: 620px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    padding: 14px 0;
+  }
+
+  .control {
+    justify-content: flex-start;
+  }
+
+  .control :is(select, input:not([type="checkbox"])) {
+    width: 100%;
+    max-width: none;
+  }
+}

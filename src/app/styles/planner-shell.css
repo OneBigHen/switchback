@@ -2,9 +2,19 @@
   position: relative;
   width: 100vw;
   height: 100dvh;
+  /* Preserve the desktop and portrait composition's minimum canvas. The
+     short-landscape override below releases this floor before the shell clips
+     bottom-anchored surfaces out of the visual viewport. */
   min-height: 560px;
   overflow: hidden;
   background: var(--oled);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-shell {
+    min-height: 0;
+    height: 100dvh;
+  }
 }
 
 .map-stage,
@@ -152,11 +162,16 @@
   text-transform: uppercase;
 }
 
-.maplibregl-map {
+.maplibregl-map,
+.mapboxgl-map,
+/* Mapbox GL JS v3 does not stamp a class on the map container, so the map
+   font is anchored to Switchback's own container element as well. */
+.map-canvas {
   font-family: var(--font-body);
 }
 
-.maplibregl-ctrl-group {
+.maplibregl-ctrl-group,
+.mapboxgl-ctrl-group {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -164,36 +179,43 @@
   box-shadow: 0 8px 28px rgb(0 0 0 / 28%);
 }
 
-.maplibregl-ctrl-group button {
+.maplibregl-ctrl-group button,
+.mapboxgl-ctrl-group button {
   width: 44px;
   height: 44px;
   background-color: var(--machined);
 }
 
-.maplibregl-ctrl-group button + button {
+.maplibregl-ctrl-group button + button,
+.mapboxgl-ctrl-group button + button {
   border-top-color: var(--line);
 }
 
-.maplibregl-ctrl-group button span {
+.maplibregl-ctrl-group button span,
+.mapboxgl-ctrl-group button span {
   filter: invert(1) opacity(0.82);
 }
 
-.maplibregl-ctrl-bottom-left {
+.maplibregl-ctrl-bottom-left,
+.mapboxgl-ctrl-bottom-left {
   left: 466px;
 }
 
-.is-ride-mode .maplibregl-ctrl-bottom-left {
+.is-ride-mode .maplibregl-ctrl-bottom-left,
+.is-ride-mode .mapboxgl-ctrl-bottom-left {
   left: 0;
 }
 
-.maplibregl-ctrl-scale {
+.maplibregl-ctrl-scale,
+.mapboxgl-ctrl-scale {
   border-color: rgb(243 239 230 / 46%);
   background: transparent;
   color: rgb(243 239 230 / 70%);
   font-size: 9px;
 }
 
-.maplibregl-ctrl-attrib {
+.maplibregl-ctrl-attrib,
+.mapboxgl-ctrl-attrib {
   border: 1px solid var(--line);
   border-radius: 5px;
   background: rgb(11 14 13 / 86%);
@@ -201,7 +223,8 @@
   font-size: 10px;
 }
 
-.maplibregl-ctrl-attrib a {
+.maplibregl-ctrl-attrib a,
+.mapboxgl-ctrl-attrib a {
   color: var(--instrument);
 }
 
@@ -219,6 +242,15 @@
   box-shadow:
     0 30px 80px rgb(0 0 0 / 44%),
     inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+
+/* The rail owns the first 80px of the desktop canvas. Route-result decks keep
+   the same width, but need the same 16px breathing room as the compact idle
+   composer so route choices and their controls cannot sit underneath the rail. */
+@media (min-width: 761px) {
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: 96px;
+  }
 }
 
 .planner-deck::before {
@@ -420,17 +452,21 @@ h2 {
       left: 50%;
     }
 
-    .maplibregl-ctrl-bottom-left {
+    .maplibregl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-left {
       bottom: calc(70dvh + 8px);
       left: 0;
     }
 
-    .maplibregl-ctrl-bottom-right {
+    .maplibregl-ctrl-bottom-right,
+    .mapboxgl-ctrl-bottom-right {
       bottom: calc(70dvh + 8px);
     }
 
     .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
-    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-right {
+    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-right,
+    .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-left,
+    .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-right {
       bottom: 260px;
     }
 
@@ -466,7 +502,9 @@ h2 {
 
 @media (max-width: 390px) {
     .maplibregl-ctrl-bottom-left,
-    .maplibregl-ctrl-bottom-right {
+    .maplibregl-ctrl-bottom-right,
+    .mapboxgl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-right {
       bottom: calc(74dvh + 8px);
     }
 }
@@ -481,7 +519,9 @@ h2 {
     }
 
     .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
-    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-right {
+    .map-stage.is-ride-mode .maplibregl-ctrl-bottom-right,
+    .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-left,
+    .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-right {
       bottom: 148px;
     }
 }
@@ -605,23 +645,28 @@ h2 {
   height: 21px;
 }
 
-.map-stage.is-ride-mode .maplibregl-ctrl-geolocate {
+.map-stage.is-ride-mode .maplibregl-ctrl-geolocate,
+.map-stage.is-ride-mode .mapboxgl-ctrl-geolocate {
   display: none;
 }
 
 .map-stage:not(.is-ride-mode) .maplibregl-ctrl-group,
-.map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib {
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib,
+.map-stage:not(.is-ride-mode) .mapboxgl-ctrl-group,
+.map-stage:not(.is-ride-mode) .mapboxgl-ctrl-attrib {
   border-color: rgb(66 58 47 / 12%);
   background: rgb(255 255 255 / 92%);
   color: #615d57;
   box-shadow: 0 4px 14px rgb(49 42 33 / 10%);
 }
 
-.map-stage:not(.is-ride-mode) .maplibregl-ctrl-group button {
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-group button,
+.map-stage:not(.is-ride-mode) .mapboxgl-ctrl-group button {
   filter: none;
 }
 
-.map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib a {
+.map-stage:not(.is-ride-mode) .maplibregl-ctrl-attrib a,
+.map-stage:not(.is-ride-mode) .mapboxgl-ctrl-attrib a {
   color: #3e3b37;
 }
 
@@ -727,9 +772,24 @@ h2 {
   line-height: 1.35;
 }
 
+.map-sketch-toolbar {
+  position: absolute;
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+  left: 50%;
+  z-index: 1;
+  width: min(360px, calc(100vw - 24px));
+  transform: translateX(-50%);
+}
+
+.map-sketch-toolbar > [role="toolbar"] {
+  width: 100%;
+}
+
 @media (max-width: 760px) {
     .maplibregl-ctrl-bottom-left,
-    .maplibregl-ctrl-bottom-right {
+    .maplibregl-ctrl-bottom-right,
+    .mapboxgl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-right {
       bottom: calc(77dvh + 8px);
     }
 
@@ -749,7 +809,9 @@ h2 {
 
 @media (max-width: 390px) {
     .maplibregl-ctrl-bottom-left,
-    .maplibregl-ctrl-bottom-right {
+    .maplibregl-ctrl-bottom-right,
+    .mapboxgl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-right {
       bottom: calc(80dvh + 8px);
     }
 }

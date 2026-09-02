@@ -59,8 +59,11 @@ test.describe("Level A mobile ride scenarios", () => {
     await expect(mobileQa.page.getByRole("region", { name: /Ride (mode|preview) for/ })).toBeHidden()
     await expect(mobileQa.page.getByRole("button", { name: "Exit ride mode" })).toBeHidden()
     await expect(mobileQa.page.getByRole("complementary", { name: "Motorcycle route planner" })).toBeVisible()
-    await expect(mobileQa.page.getByRole("heading", { name: "Choose a route" })).toBeVisible()
-    await expect(mobileQa.page.getByRole("button", { name: "Edit route" })).toBeVisible()
+    await expect(mobileQa.page.getByRole("region", { name: "Route choices" })).toBeVisible()
+    // V2 retired the "Edit route" affordance. "Clear route" only renders for
+    // an expanded deck with a selected route, so it carries the same proof the
+    // ridden route survived the exit.
+    await expect(mobileQa.page.getByRole("button", { name: "Clear route" })).toBeVisible()
   })
 
   test("off-route recovery presents a bounded rejoin action", async ({ mobileQa }, testInfo) => {

@@ -12,17 +12,6 @@ import {
   type RouteCapture
 } from "../helpers/planner-fixtures"
 
-const QUICK_SUGGESTIONS = [
-  { label: "1-hour loop", name: "one-hour loop" },
-  { label: "Twisties", name: "Twisties" },
-  { label: "Scenic", name: "Scenic" }
-] as const
-
-const PROMPT_EXAMPLES = [
-  { prompt: "Twisty ride to Pine Creek Gorge", name: "Pine Creek Gorge" },
-  { prompt: "Scenic ride to New Hope with a coffee stop", name: "New Hope scenic route" }
-] as const
-
 async function ensureStart(page: import("@playwright/test").Page): Promise<void> {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if ((await start.inputValue()).length === 0) {
@@ -42,7 +31,7 @@ async function chooseFixtureFinish(page: import("@playwright/test").Page): Promi
 async function planDirectRoute(page: import("@playwright/test").Page, capture: RouteCapture): Promise<void> {
   await page.goto("/")
   await expandPhonePlanner(page)
-  await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
+  await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
@@ -50,65 +39,73 @@ async function planDirectRoute(page: import("@playwright/test").Page, capture: R
   await expectRouteOutcome(page, capture)
 }
 
-for (const suggestion of QUICK_SUGGESTIONS) {
-  test(`built-in ${suggestion.name} suggestion reaches a routed outcome`, async ({ page }) => {
-    await installPlannerServices(page)
-    await installRideIntentApi(page)
-    const capture = await installRouteApi(page, tripPlan([makeRoute(
-      suggestion.label === "Scenic" ? "scenic" : "twisty",
-      { name: `${suggestion.name} result` }
-    )]))
+test("the idle composer keeps trip shape and free-form planning discoverable", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.goto("/")
+  await expandPhonePlanner(page)
+  await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
+  const composer = page.locator(".plan-v2")
+  await expect(composer.getByRole("button", { name: "Destination" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Loop" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Draw" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Free Ride" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toHaveCount(0)
+  await expect(page.getByText("Try", { exact: true })).toHaveCount(0)
+})
 
-    await page.goto("/")
-    await expandPhonePlanner(page)
-    await expect(page.getByRole("heading", { name: /Where do you want to ride/i })).toBeVisible()
-    // These chips are intentionally removed as soon as the prompt is
-    // committed. Dispatch the user click without asking Playwright to keep
-    // re-resolving a DOM node that the product deliberately replaces.
-    await page.getByRole("button", { name: new RegExp(`^${suggestion.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }).evaluate((element) => {
-      (element as HTMLButtonElement).click()
-    })
-    await expectRouteOutcome(page, capture)
-    // The route name renders both in the selected-route identity line and in
-    // the "Select <name>" slip button; assert the slip button specifically so
-    // the check stays unambiguous.
-    await expect(
-      page.getByRole("button", { name: new RegExp(`Select ${suggestion.name} result`) })
-    ).toBeVisible()
-  })
-}
+test("Draw opens the typed sketch toolbar from the V2 composer", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.goto("/")
+  await expandPhonePlanner(page)
 
-for (const suggestion of PROMPT_EXAMPLES) {
-  test(`ride example ${suggestion.name} reaches a routed outcome`, async ({ page }) => {
-    await installPlannerServices(page)
-    await installRideIntentApi(page)
-    const capture = await installRouteApi(page, tripPlan([makeRoute(
-      suggestion.name === "New Hope scenic route" ? "scenic" : "twisty",
-      { name: `${suggestion.name} result` }
-    )]))
+  await page.getByRole("button", { name: "Draw", exact: true }).click()
 
-    await page.goto("/")
-    await expandPhonePlanner(page)
-    const prompt = page.getByRole("textbox", { name: "Where do you want to ride?" })
-    // Type rather than fill(): Playwright's fill() dispatches a single
-    // synthetic input event that WebKit + this controlled input can drop,
-    // leaving React state empty while the DOM shows the text. Real keystrokes
-    // commit state reliably in every engine.
-    await prompt.click()
-    await page.keyboard.type(suggestion.prompt)
-    // Wait for the app to commit the typed value (submit enables only once
-    // the controlled state has caught up) before pressing Enter.
-    await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
-    await prompt.press("Enter")
-    await expectRouteOutcome(page, capture)
-    // The route name renders both in the selected-route identity line and in
-    // the "Select <name>" slip button; assert the slip button specifically so
-    // the check stays unambiguous.
-    await expect(
-      page.getByRole("button", { name: new RegExp(`Select ${suggestion.name} result`) })
-    ).toBeVisible()
-  })
-}
+  await expect(page.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
+  await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Undo drawing point" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Finish drawing" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Sketch a rough route" })).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Cancel drawing" }).click()
+  await expect(page.getByRole("region", { name: "Draw a rough route" })).toHaveCount(0)
+})
+
+test("Quick Layers keeps primary map choices bounded while Advanced preserves the map studio", async ({ page }) => {
+  await installPlannerServices(page)
+  await page.goto("/")
+
+  await page.getByRole("button", { name: "Open map layers" }).click()
+  const quick = page.getByRole("region", { name: "Quick map layers" })
+  await expect(quick).toBeVisible()
+  await expect(quick.getByRole("radio", { name: "Standard" })).toBeVisible()
+  await expect(quick.getByRole("radio", { name: "Terrain" })).toBeVisible()
+  await expect(quick.getByRole("checkbox")).toHaveCount(4)
+  await expect(quick.getByRole("checkbox", { name: "Fuel" })).toHaveCount(0)
+
+  await quick.getByRole("button", { name: "Advanced map settings" }).click()
+  const dialog = page.getByRole("dialog", { name: "Map layers and style" })
+  await expect(dialog.getByRole("button", { name: "Back to quick map layers" })).toBeVisible()
+  await expect(dialog.getByRole("checkbox", { name: /Fuel/i })).toBeVisible()
+
+  await dialog.getByRole("button", { name: "Back to quick map layers" }).click()
+  await expect(quick).toBeVisible()
+})
+
+test("a free-form ride request reaches a routed outcome", async ({ page }) => {
+  await installPlannerServices(page)
+  await installRideIntentApi(page)
+  const capture = await installRouteApi(page, tripPlan([makeRoute("twisty", { name: "Prompt result" })]))
+
+  await page.goto("/")
+  await expandPhonePlanner(page)
+  const prompt = page.getByPlaceholder("Search a place or describe a ride")
+  await prompt.click()
+  await page.keyboard.type("a scenic ride to Fixture finish")
+  await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
+  await prompt.press("Enter")
+  await expectRouteOutcome(page, capture)
+  await expect(page.getByRole("region", { name: "Route choices" }).getByText("Prompt result", { exact: true })).toBeVisible()
+})
 
 test("destination planning sends the selected points and displays the final route", async ({ page }) => {
   await installPlannerServices(page)
@@ -116,16 +113,14 @@ test("destination planning sends the selected points and displays the final rout
   await planDirectRoute(page, capture)
 
   expect(capture.requests[0]).toMatchObject({
-    profile: "twisty",
+    profile: "balanced",
     points: [
       { lat: 40.2732, lon: -76.8867 },
       { lat: FIXTURE_FINISH.lat, lon: FIXTURE_FINISH.lon }
     ]
   })
-  // The route name renders both in the selected-route identity line and in
-  // the "Select <name>" slip button; assert the slip button specifically so
-  // the check stays unambiguous under strict mode.
-  await expect(page.getByRole("button", { name: "Select Destination result" })).toBeVisible()
+  // The V2 rail owns primary selection; assert the route name inside its card.
+  await expect(page.getByRole("region", { name: "Route choices" }).getByText("Destination result", { exact: true })).toBeVisible()
 })
 
 test("loop planning uses one fixed start and completes with a non-empty geometry", async ({ page }) => {
@@ -145,7 +140,7 @@ test("loop planning uses one fixed start and completes with a non-empty geometry
   await page.goto("/")
   await openPlannerEditor(page)
   await ensureStart(page)
-  await page.getByRole("button", { name: "Loop ride" }).click()
+  await page.getByRole("button", { name: "Loop" }).click()
   await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
   await expectRouteOutcome(page, capture)
   expect(capture.requests[0]).toMatchObject({
@@ -161,7 +156,11 @@ test("location denial falls back to an honest approximate start and still reache
   await installRideIntentApi(page)
   const capture = await installRouteApi(page, tripPlan([makeRoute("twisty", { name: "Denied-location fallback" })]))
   await page.goto("/")
-  await page.getByRole("button", { name: "1-hour loop" }).click()
+  await expandPhonePlanner(page)
+  const prompt = page.getByPlaceholder("Search a place or describe a ride")
+  await prompt.click()
+  await page.keyboard.type("two-hour loop")
+  await prompt.press("Enter")
   await expectRouteOutcome(page, capture)
   await expect(page.getByText("Couldn't get a live location", { exact: false })).toBeVisible()
   expect(capture.requests[0]?.points).toEqual([{
@@ -208,7 +207,11 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
     const request = route.request().postDataJSON() as Record<string, unknown>
     requests.push(request)
     const response = responses[Math.min(requests.length - 1, responses.length - 1)]!
-    if (requests.length === 1) await new Promise((resolve) => setTimeout(resolve, 1_500))
+    // The stale response must still be in flight when the newer plan is
+    // submitted — that is the race under test. Five seconds keeps the
+    // window generous on a warm shared dev server while the client's
+    // latest-request gate aborts and discards this response.
+    if (requests.length === 1) await new Promise((resolve) => setTimeout(resolve, 5_000))
     try {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) })
     } catch {
@@ -224,16 +227,20 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
   await page.keyboard.type("first destination")
   await prompt.press("Enter")
   await expect.poll(() => requests.length).toBe(1)
-  await page.getByRole("button", { name: "Twisties", exact: true }).click()
+  await prompt.click()
+  await page.keyboard.press("ControlOrMeta+A")
+  await page.keyboard.type("second destination")
+  await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
+  await prompt.press("Enter")
   await expectRouteOutcome(page, {
     requests,
     responses: requests.map((request, index) => ({ request, body: responses[Math.min(index, responses.length - 1)]! }))
   })
-  // Route names render both in the selected-route identity line and in the
-  // "Select <name>" slip button; assert the slip buttons so the winning plan
-  // (present) vs the superseded stale plan (absent) check stays unambiguous.
-  await expect(page.getByRole("button", { name: "Select Fresh second result" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Select Stale first result" })).toBeHidden()
+  // The V2 rail owns primary selection; assert the winning card is present and
+  // the superseded card is absent without relying on the retired V1 slip label.
+  const choices = page.getByRole("region", { name: "Route choices" })
+  await expect(choices.getByText("Fresh second result", { exact: true })).toBeVisible()
+  await expect(choices.getByText("Stale first result", { exact: true })).toBeHidden()
   expect(requests.length).toBeGreaterThanOrEqual(2)
 })
 
@@ -259,9 +266,10 @@ test("route alternatives arrive after the primary and selection updates the visi
   })
   await planDirectRoute(page, capture)
   await expect.poll(() => capture.requests.filter((request) => request.candidateSet === "alternatives").length).toBeGreaterThan(0)
-  await expect(page.getByRole("button", { name: "Select Scenic alternative" })).toBeVisible()
-  await page.getByRole("button", { name: "Select Scenic alternative" }).click()
-  await expect(page.getByRole("button", { name: "Select Scenic alternative" })).toHaveAttribute("aria-pressed", "true")
+  const choices = page.getByRole("region", { name: "Route choices" })
+  await expect(choices.getByText("Scenic alternative", { exact: true })).toBeVisible()
+  await choices.getByText("Scenic alternative", { exact: true }).click()
+  await expect(choices.getByRole("article", { name: /Best Ride route option/i })).toHaveAttribute("data-selected", "true")
   await expect(page.getByText("9.6")).toBeVisible()
 })
 
@@ -272,35 +280,37 @@ test("a saved route survives a reload and remains available in the library", asy
   await page.getByRole("button", { name: /Show route details/i }).click()
   await page.getByRole("button", { name: "Save route" }).click()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
-  // The post-plan deck collapses the route editor (where the saved-count chip
-  // lives), so confirm the save landed via the canonical Library surface: the
-  // on-device list carries the route and its count in the same session.
-  const library = page.getByRole("dialog", { name: "Ride library" })
-  await page.getByRole("button", { name: "Library", exact: true }).click()
-  const onDeviceSection = library.locator(".library-section-title", { hasText: "On this device" })
-  await expect(onDeviceSection).toBeVisible()
-  await expect(onDeviceSection).toContainText("1")
-  await expect(library.getByText("Saved fixture route")).toBeVisible()
-  await page.getByRole("button", { name: "Close library" }).click()
-  await expect(library).toBeHidden()
+
+  // Rides is a persistent V2 destination, not the retired modal LibraryDrawer.
+  // Verify the saved object in the destination, then reload while that destination
+  // is active so persistence and URL-state restoration are covered together.
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  const rides = page.getByRole("main", { name: "Rides destination" })
+  await expect(rides).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
+
   await page.reload()
-  await page.getByRole("button", { name: "Library", exact: true }).click()
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
-  await expect(page.getByText("Saved fixture route")).toBeVisible()
+  await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
+  const restoredRides = page.getByRole("main", { name: "Rides destination" })
+  await expect(restoredRides).toBeVisible()
+  await expect(restoredRides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 })
 
 test("valid GPX import appears in the route library", async ({ page }) => {
   await installPlannerServices(page)
   await page.goto("/")
-  await page.getByRole("button", { name: "Library", exact: true }).last().click()
-  await expect(page.getByRole("heading", { name: "Ride library" })).toBeVisible()
-  await page.getByLabel("Import GPX, KML, or KMZ file").setInputFiles({
+  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Import ride" }).click()
+  await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({
     name: "critical-import.gpx",
     mimeType: "application/gpx+xml",
     buffer: Buffer.from(`<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Critical imported loop</name></metadata><trk><trkseg><trkpt lat="40.2732" lon="-76.8867"/><trkpt lat="40.31" lon="-76.82"/></trkseg></trk></gpx>`)
   })
+  await page.getByRole("button", { name: "Open as a route" }).click()
   await expect(page.getByText("Critical imported loop imported to your library.")).toBeVisible()
-  await expect(page.locator(".library-load", { hasText: "Critical imported loop" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Open Critical imported loop" })).toBeVisible()
 })
 
 test("Free Ride accepts one suggestion into a normal guided Ride", async ({ page }) => {
@@ -364,7 +374,7 @@ test("desktop and iPhone-sized planner layouts keep controls and route outcome i
   }))
   expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.width + 1)
   expect(metrics.bodyWidth).toBeLessThanOrEqual(metrics.width + 1)
-  const routeRack = page.getByRole("heading", { name: "Choose a route" })
+  const routeRack = page.getByRole("region", { name: "Route choices" })
   const box = await routeRack.boundingBox()
   expect(box).not.toBeNull()
   expect(box!.x).toBeGreaterThanOrEqual(0)

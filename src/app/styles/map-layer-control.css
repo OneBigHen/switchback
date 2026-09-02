@@ -51,11 +51,6 @@
   border-left: 1px solid rgb(66 58 47 / 13%);
 }
 
-.map-sketch-button[aria-pressed="true"] {
-  background: #fff1eb;
-  color: #a63f1e;
-}
-
 .map-layers-button svg {
   width: 19px;
   height: 19px;
@@ -82,6 +77,10 @@
 .map-layer-menu {
   width: min(342px, calc(100vw - 40px));
   max-height: min(70vh, 620px);
+  /* The map stage is its own stacking context beneath the context sheet, so a
+     panel taller than the map's visible strip scrolls its lower half under an
+     opaque sheet. Bound it to the space the sheet actually leaves. */
+  max-height: min(70vh, 620px, calc(100dvh - var(--sb-map-sheet-clearance, 0px) - 132px));
   padding: 16px;
   border: 1px solid rgb(66 58 47 / 13%);
   border-radius: 18px;
@@ -90,6 +89,27 @@
   box-shadow: 0 18px 50px rgb(49 42 33 / 20%);
   overflow-y: auto;
   backdrop-filter: blur(18px);
+}
+
+.map-layer-advanced-back {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #e7e2da;
+  background: transparent;
+  color: #a83224;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-layer-advanced-back:focus-visible {
+  outline: 3px solid #f0a078;
+  outline-offset: 2px;
 }
 
 .map-layer-menu > div + div {
@@ -139,7 +159,45 @@
   border: 1px solid rgb(0 0 0 / 9%);
   border-radius: 7px;
   background-color: #efede8;
-  background-image: linear-gradient(145deg, transparent 42%, #91acc4 43%, #91acc4 49%, transparent 50%), linear-gradient(25deg, transparent 48%, #d7c7a9 49%, #d7c7a9 53%, transparent 54%);
+  background-image:
+    linear-gradient(140deg, transparent 46%, #f36a2d 47%, #f36a2d 54%, transparent 55%),
+    linear-gradient(25deg, #f4f2ed 0%, #e4e6e2 55%, #dfe6ea 100%);
+}
+
+/* Lighting is a row of words, not map previews: the map itself is the preview,
+   and it changes the instant one is chosen. */
+.map-light-options {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #e0dbd2;
+  border-radius: 999px;
+  background: #f4f2ed;
+}
+
+.map-light-options button {
+  padding: 7px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #625e58;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.map-light-options button[aria-checked="true"] {
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  color: #242321;
+}
+
+.map-light-note {
+  display: block;
+  margin-top: 6px;
+  color: #8b867e;
+  font-size: 10px;
 }
 
 .overlay-options label {
@@ -558,4 +616,33 @@
   color: var(--metal);
   font-size: 9px;
   line-height: 1.4;
+}
+
+/* The map's visible strip on a phone is whatever the context sheet leaves, so
+   the two premium controls are compacted to fit inside it rather than being
+   pushed below the fold of a panel that already has to scroll. */
+@media (max-width: 760px) {
+  .map-layer-menu > div + div {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .map-style-options button {
+    min-height: 56px;
+    gap: 4px;
+  }
+
+  .style-swatch {
+    width: 38px;
+    height: 22px;
+  }
+
+  .map-light-options button {
+    padding: 6px 1px;
+    font-size: 9px;
+  }
+
+  .map-light-note {
+    display: none;
+  }
 }

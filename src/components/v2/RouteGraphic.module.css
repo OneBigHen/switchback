@@ -1,0 +1,62 @@
+.graphic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 72px;
+  overflow: visible;
+}
+
+.topo,
+.topoSecondary,
+.traceHalo,
+.trace {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.topo {
+  stroke: color-mix(in srgb, var(--sb-sage) 48%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.topoSecondary {
+  stroke: color-mix(in srgb, var(--sb-sandstone) 62%, transparent);
+  stroke-width: 1;
+}
+
+.traceHalo {
+  stroke: color-mix(in srgb, var(--sb-paper) 88%, transparent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trace {
+  stroke: var(--sb-ember-strong);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.start {
+  fill: var(--sb-paper);
+  stroke: var(--sb-ink);
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.bike .trace {
+  stroke: var(--sb-signal);
+}
+
+.library .trace {
+  stroke: var(--sb-ember-strong);
+  stroke-width: 3;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .trace {
+    transition: stroke-width 160ms ease;
+  }
+}

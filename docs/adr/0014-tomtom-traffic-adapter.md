@@ -1,5 +1,11 @@
 # ADR 0014: TomTom as the hosted traffic and incident adapter
 
+## Status
+
+The traffic decision stands. The deferred thrilling / traffic-aware routing
+benchmark is advanced to an adopted candidate source by
+[ADR 0018](0018-tomtom-premium-adapters.md).
+
 ## Decision
 
 The hosted instance uses TomTom for live traffic under ADR 0002's optional-

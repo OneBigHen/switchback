@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie"
-import type { MapStyleId, RiderLayerId } from "@/lib/client/map-layers"
+import { migrateRiderLayerId, type LegacyMapStyleId, type RiderLayerId } from "@/lib/client/map-layers"
 import type { PlannedRoute, RouteInstruction } from "@/lib/routing/types"
 import type { OfflinePackManifest } from "@/lib/storage/offline-contracts"
 
@@ -42,7 +42,7 @@ export interface OfflineRoutePackV2Shape {
   routeName: string
   createdAt: string
   updatedAt: string
-  mapStyle: MapStyleId
+  mapStyle: LegacyMapStyleId
   routeVisibility: "standard" | "high-contrast"
   activeLayerIds: RiderLayerId[]
   route: PlannedRoute
@@ -59,7 +59,7 @@ export interface OfflineRoutePack {
   routeName: string
   createdAt: string
   updatedAt: string
-  mapStyle: MapStyleId
+  mapStyle: LegacyMapStyleId
   routeVisibility: "standard" | "high-contrast"
   activeLayerIds: RiderLayerId[]
   route: PlannedRoute
@@ -83,7 +83,7 @@ export interface OfflineRoutePack {
 
 export interface OfflineRoutePackInput {
   route: PlannedRoute
-  mapStyle: MapStyleId
+  mapStyle: LegacyMapStyleId
   routeVisibility: OfflineRoutePack["routeVisibility"]
   activeLayerIds: RiderLayerId[]
   /** Overrides the default window during which the pack is considered fresh. */
@@ -128,7 +128,11 @@ export function migrateOfflineRoutePackV2toV3(
     updatedAt: pack.updatedAt,
     mapStyle: pack.mapStyle,
     routeVisibility: pack.routeVisibility,
-    activeLayerIds: [...pack.activeLayerIds],
+    // A pack saved before a layer rename still names the old id; migrate on
+    // read so a restored pack keeps the layers the rider actually chose.
+    activeLayerIds: pack.activeLayerIds
+      .map((id) => migrateRiderLayerId(id))
+      .filter((id): id is RiderLayerId => id !== null),
     route: structuredClone(pack.route),
     cues: structuredClone(pack.cues),
     navigationMode: pack.navigationMode,

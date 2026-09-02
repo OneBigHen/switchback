@@ -32,6 +32,7 @@ public/workbox-*.js
 artifacts/routing-rework/raw/
 artifacts/quality/
 artifacts/mobile-qa/
+artifacts/audit/
 
 # Multi-agent orchestrator scratch/evidence dir
 .omo/
@@ -49,3 +50,7 @@ data/quality/
 # Transient backups the GPX import writes beside the library it replaces.
 data/gpx-library.previous-*/
 data/gpx-library.pending-*/
+# Local Pi runtime state
+.atl/
+.pi/
+.pi-lens/

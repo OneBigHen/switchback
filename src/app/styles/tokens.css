@@ -1,0 +1,129 @@
+/* Switchback UX V2 - canonical token layer.
+ *
+ * Single source of truth for brand color, semantic theme, typography,
+ * geometry, motion, and focus values (design/DESIGN-CONTRACT.md v2.0).
+ * Feature CSS consumes these variables; it never redefines them. Debt is
+ * deleted on migrate, never layered behind a new override stylesheet.
+ *
+ * The "V1 carry-over aliases" block maps the variable names that unmigrated
+ * stylesheets still consume onto V2 truth. Each alias is retired when its
+ * last consumer migrates.
+ */
+
+:root {
+  /* Brand palette - extracted from the approved boards, theme-independent. */
+  --sb-ink: #161D1C;
+  --sb-spruce: #243A35;
+  --sb-moss: #65745D;
+  --sb-sage: #9DA98F;
+  --sb-canvas: #F4F0E7;
+  --sb-paper: #FBF9F4;
+  --sb-sandstone: #D8C8B7;
+  --sb-slate: #68716F;
+  --sb-ember: #D65A36;
+  --sb-signal: #397C96;
+  --sb-golden-hour: #C99A46;
+  --sb-trail-brown: #776353;
+
+  /* Functional accessibility variants - exist only where contrast requires. */
+  --sb-ember-strong: #BF4829;
+  --sb-signal-strong: #2A6175;
+  --sb-border-dark: #3B4945;
+  --sb-dark-raised: #1C2825;
+
+  /* Typography - bundled locally via @fontsource-variable (see globals.css). */
+  --font-display: "Oswald Variable", "Oswald", sans-serif;
+  --font-body: "Inter Variable", "Inter", sans-serif;
+
+  /* Light planning theme. */
+  --sb-surface: #FBF9F4;
+  --sb-surface-raised: #EFE9DE;
+  --sb-text: #161D1C;
+  /* AA-adjusted Slate: raw Slate #68716F reaches only 4.4:1 on Canvas,
+     below the WCAG AA 4.5:1 floor the design contract §13 enforces. */
+  --sb-text-muted: #5F6967;
+  --sb-border: #D8C8B7;
+  --sb-action: var(--sb-ember-strong);
+  --sb-focus-ring: #2A6175;
+  --sb-focus-fill: color-mix(in srgb, var(--sb-focus-ring) 22%, transparent);
+  --sb-shadow: 0 8px 24px rgb(22 29 28 / 10%);
+  --sb-warning: var(--sb-golden-hour);
+  --sb-danger: #A83E32;
+  --sb-success: #3E6B55;
+  /* Interactive text (links, eyebrows) on themed surfaces. Validated AA
+     (>= 4.5:1) on Canvas, Paper and Raised in both themes; raw brand Ember
+     and Signal reach only ~4.4:1 as text on Canvas. */
+  --sb-text-link: var(--sb-signal-strong);
+
+  /* Geometry - 4px base grid. */
+  --sb-space-1: 4px;
+  --sb-space-2: 8px;
+  --sb-space-3: 12px;
+  --sb-space-4: 16px;
+  --sb-space-5: 20px;
+  --sb-space-6: 24px;
+  --sb-space-8: 32px;
+  --sb-space-10: 40px;
+  --sb-touch-target: 44px;
+  --sb-radius-chip: 8px;
+  --sb-radius-control: 10px;
+  --sb-radius-card: 12px;
+  --sb-radius-panel: 14px;
+  --sb-radius-sheet: 18px;
+  --sb-motion-sheet: 280ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* V1 carry-over aliases mapped to V2 truth. Retire per surface on migrate. */
+  --oled: var(--sb-canvas);
+  --machined: var(--sb-surface);
+  --raised: var(--sb-surface-raised);
+  --instrument: var(--sb-text);
+  --metal: var(--sb-text-muted);
+  --line: var(--sb-border);
+  --signal: var(--sb-signal);
+  --ride-orange: var(--sb-ember);
+  --twisty: var(--sb-ember);
+  --danger: var(--sb-danger);
+  --success: var(--sb-success);
+  --warning: var(--sb-golden-hour);
+  /* Route-role colors carry over from V1 until the route phases re-decide them. */
+  --scenic: #10a6a6;
+  --adventure: #e99400;
+  --direct: #8d9aaa;
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  /* Dark planning theme. */
+  --sb-surface: var(--sb-dark-raised);
+  --sb-surface-raised: var(--sb-spruce);
+  --sb-text: var(--sb-paper);
+  --sb-text-muted: #B9B6AB;
+  --sb-border: var(--sb-border-dark);
+  --sb-action: var(--sb-ember);
+  --sb-focus-ring: #7FB5C7;
+  --sb-focus-fill: color-mix(in srgb, var(--sb-focus-ring) 26%, transparent);
+  --sb-shadow: 0 10px 28px rgb(0 0 0 / 26%);
+  --sb-danger: #E57368;
+  --sb-success: #72A98A;
+  /* Interactive text (links, eyebrows) — validated AA on Ink and Spruce. */
+  --sb-text-link: #7FB5C7;
+
+  /* V1 carry-over aliases (dark). */
+  --oled: var(--sb-ink);
+  --machined: var(--sb-dark-raised);
+  --raised: var(--sb-spruce);
+  --instrument: var(--sb-paper);
+  --metal: var(--sb-text-muted);
+  --line: var(--sb-border-dark);
+  --signal: #5D9CB3;
+  --ride-orange: #E56A45;
+  --twisty: #E56A45;
+  --danger: var(--sb-danger);
+  --success: var(--sb-success);
+  --scenic: #31C7C7;
+  --adventure: #F4B138;
+  --direct: #7F90A3;
+
+  color-scheme: dark;
+}

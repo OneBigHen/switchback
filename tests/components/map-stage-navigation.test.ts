@@ -6,6 +6,11 @@ import {
   fitSelectedRoute,
   followNavigationFrame
 } from "@/components/planner/map-stage-navigation"
+import {
+  FOLLOW_EASE_ID,
+  NavigationCameraController
+} from "@/lib/client/navigation-camera-controller"
+import { calculateRideFollowInsets } from "@/components/planner/workspace/map-viewport-insets"
 
 interface RecordedFitBounds {
   bounds: [[number, number], [number, number]]
@@ -31,7 +36,12 @@ function createFakeMap(): FakeMap {
     }),
     easeTo: vi.fn((options) => {
       easeToCalls.push({ options })
-    })
+    }),
+    // The follow camera reads the live pose back off the map.
+    getBearing: () => 0,
+    getPitch: () => 0,
+    getZoom: () => 15,
+    getCenter: () => ({ lng: -77, lat: 40 })
   } as unknown as MapLibreMap
   return { map, fitBoundsCalls, easeToCalls }
 }
@@ -186,64 +196,86 @@ describe("fitSelectedRoute", () => {
 })
 
 describe("followNavigationFrame", () => {
-  it("eases the map to the rider raw coordinate with the frame heading as bearing", () => {
-    const frame = makeFrame({
-      rawCoordinate: [-77.1, 40.3],
-      headingDegrees: 92
-    })
+  function controller() {
+    return new NavigationCameraController()
+  }
+
+  it("frames the rider through the shared navigation inset model", () => {
+    const frame = makeFrame({ rawCoordinate: [-77.1, 40.3], headingDegrees: 92 })
     const fake = createFakeMap()
 
-    followNavigationFrame(fake.map, frame)
+    followNavigationFrame(fake.map, controller(), frame)
 
     expect(fake.easeToCalls).toHaveLength(1)
     const options = fake.easeToCalls[0].options
-    expect(options.center).toEqual([-77.1, 40.3])
-    expect(options.bearing).toBe(92)
-    expect(options.duration).toBe(650)
     expect(options.essential).toBe(true)
+    // The padding is what places the rider low in frame; it must come from
+    // the tested inset model rather than a second hardcoded table.
+    expect(options.padding).toEqual(
+      calculateRideFollowInsets({
+        viewportWidthPx: window.innerWidth,
+        viewportHeightPx: window.innerHeight,
+        mode: "ride"
+      })
+    )
   })
 
-  it("omits the bearing option when the frame has no heading", () => {
-    const frame = makeFrame({ headingDegrees: null })
+  it("keeps chained follow eases free of move events", () => {
     const fake = createFakeMap()
 
-    followNavigationFrame(fake.map, frame)
+    followNavigationFrame(fake.map, controller(), makeFrame())
 
-    expect(fake.easeToCalls).toHaveLength(1)
-    const options = fake.easeToCalls[0].options
-    expect("bearing" in options).toBe(false)
-    expect(options.duration).toBe(650)
-    expect(options.essential).toBe(true)
+    const options = fake.easeToCalls[0].options as Record<string, unknown>
+    // Interrupting an ease that shares an id emits no movestart/moveend, and
+    // those events are what drive the viewport-scoped layer fetches.
+    expect(options.easeId).toBe(FOLLOW_EASE_ID)
+    expect(options.noMoveStart).toBe(true)
   })
 
-  it("snaps immediately with duration 0 when the immediate flag is set", () => {
+  it("snaps immediately when recentring", () => {
     const frame = makeFrame({ rawCoordinate: [-77.1, 40.3] })
     const fake = createFakeMap()
 
-    followNavigationFrame(fake.map, frame, true)
+    followNavigationFrame(fake.map, controller(), frame, { immediate: true })
 
     expect(fake.easeToCalls).toHaveLength(1)
-    const options = fake.easeToCalls[0].options
-    expect(options.duration).toBe(0)
-    expect(options.center).toEqual([-77.1, 40.3])
+    expect(fake.easeToCalls[0].options.duration).toBe(0)
   })
 
-  it("animates with duration 650 by default", () => {
-    const frame = makeFrame()
+  it("still follows a rider with no heading at all", () => {
+    const frame = makeFrame({ headingDegrees: null, routeBearingDegrees: undefined })
     const fake = createFakeMap()
 
-    followNavigationFrame(fake.map, frame)
-
+    expect(followNavigationFrame(fake.map, controller(), frame)).toBe(true)
     expect(fake.easeToCalls).toHaveLength(1)
-    expect(fake.easeToCalls[0].options.duration).toBe(650)
+    expect(Number.isFinite(fake.easeToCalls[0].options.bearing as number)).toBe(true)
   })
 
   it("does not call fitBounds", () => {
-    const frame = makeFrame()
     const fake = createFakeMap()
 
-    followNavigationFrame(fake.map, frame)
+    followNavigationFrame(fake.map, controller(), makeFrame())
 
     expect(fake.fitBoundsCalls).toHaveLength(0)
+  })
+
+  it("reports that it made no move once the rider has stopped moving", () => {
+    const fake = createFakeMap()
+    const shared = controller()
+    const frame = makeFrame()
+
+    expect(followNavigationFrame(fake.map, shared, frame)).toBe(true)
+    // An identical frame must not cost a second camera move.
+    expect(followNavigationFrame(fake.map, shared, { ...frame, timestamp: frame.timestamp + 1000 })).toBe(false)
+    expect(fake.easeToCalls).toHaveLength(1)
+  })
+
+  it("stops moving the map once the rider takes it over", () => {
+    const fake = createFakeMap()
+    const shared = controller()
+    shared.suspend()
+
+    expect(followNavigationFrame(fake.map, shared, makeFrame())).toBe(false)
+    expect(fake.easeToCalls).toHaveLength(0)
   })
 })

@@ -1,0 +1,78 @@
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sb-space-1, 4px);
+  width: min(100%, 360px);
+  padding: var(--sb-space-1, 4px);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control, 10px);
+  background: color-mix(in srgb, var(--sb-ink) 92%, transparent);
+  box-shadow: 0 8px 24px rgb(22 29 28 / 22%);
+}
+
+.toolbar button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: var(--sb-touch-target, 44px);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: var(--sb-radius-chip, 8px);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.toolbar button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.secondary {
+  background: color-mix(in srgb, var(--sb-paper) 10%, transparent);
+  color: var(--sb-paper);
+}
+
+.primary {
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+}
+
+.cancel {
+  background: transparent;
+  color: color-mix(in srgb, var(--sb-paper) 82%, transparent);
+}
+
+.toolbar button:hover:not(:disabled),
+.toolbar button:focus-visible {
+  border-color: color-mix(in srgb, var(--sb-paper) 48%, transparent);
+  outline: none;
+}
+
+.toolbar button:focus-visible {
+  box-shadow: 0 0 0 3px var(--sb-focus-fill);
+}
+
+.toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+@media (max-width: 360px) {
+  .toolbar button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

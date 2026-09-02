@@ -3,13 +3,14 @@ import {
   createDefaultSettings,
   getActiveBike,
   migrateLegacySettings,
+  RIDER_SETTINGS_VERSION,
   type RiderSettings
 } from "@/lib/settings/rider-settings"
 
 describe("rider settings and stable bike identity (SB-011/SB-023)", () => {
   it("creates a default settings object with one stable street bike", () => {
     const settings = createDefaultSettings()
-    expect(settings.version).toBe(1)
+    expect(settings.version).toBe(RIDER_SETTINGS_VERSION)
     expect(settings.bikes).toHaveLength(1)
     expect(settings.bikes[0]?.id).toBe("bike-default-street")
     expect(getActiveBike(settings).id).toBe("bike-default-street")

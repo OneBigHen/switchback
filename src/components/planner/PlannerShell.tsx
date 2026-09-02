@@ -6,17 +6,21 @@ import {
   appNavigationReducer,
   appModeForState,
   createInitialAppNavigationState,
-  tabFromLocation,
-  type AppTab,
+  destinationFromLocation,
+  type PrimaryDestination,
   type ThemePreference
 } from "@/lib/client/app-navigation"
 import { isNightTime } from "@/lib/client/day-phase"
+import {
+  legacyMapStyleFor,
+  type MapExperienceId,
+  type MapLightPreference
+} from "@/lib/client/map-experience"
 import { type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import {
   applyRiderMapPack,
   defaultRiderLayerSettings,
-  type MapStyleId,
   type RiderLayerId,
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
@@ -33,14 +37,14 @@ import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
-import { routePointsFromSketch } from "@/lib/planner/route-sketch"
+import { routeIntentFromSketch, type RoutePointSnapshot } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { AvoidArea, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
-import { loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
+import { bikeProfileFromRiderSettings, loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
 
 import { TripPlanLibrary } from "@/lib/storage/trip-plan-library"
 import { createTripPlan } from "@/lib/trip/trip-plan"
@@ -56,7 +60,7 @@ import {
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { buildOfflinePackCorridor, type OfflinePackCorridorOptions } from "@/lib/client/offline-pack-coordinator"
 import { comparePlannedVsActual, type ReplayComparisonResult } from "@/lib/client/replay-comparison"
-import { rankRoutesForRider } from "@/lib/client/rider-route-ranking"
+import { canApplyRankedRouteSelection, rankRoutesForRider } from "@/lib/client/rider-route-ranking"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
@@ -76,9 +80,12 @@ import type { RideResearchSource } from "@/lib/ai/ride-research"
 import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { useProviderHealth } from "./ProviderHealthNotice"
 import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
+import { ModalFocusScope } from "./a11y/ModalFocusScope"
 import { AppNavigation } from "@/components/shell/AppNavigation"
 import { AppShell } from "@/components/shell/AppShell"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
+import { SettingsDestination } from "@/components/settings/SettingsDestination"
+import { DiscoverDestination } from "@/components/discover/DiscoverDestination"
 import { RecordPanel } from "@/components/shell/RecordPanel"
 import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
 import { FreeRideHud } from "@/components/shell/FreeRideHud"
@@ -96,6 +103,18 @@ function initialThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "auto"
   const stored = localStorage.getItem("switchback:theme")
   return stored === "light" || stored === "dark" ? stored : "auto"
+}
+
+/**
+ * Seed the highway preference from saved rider settings, but only for a
+ * pristine planner. A rehydrated store already carries the choice the rider
+ * made for that plan, and must not be overwritten by the global default.
+ */
+function initialAvoidHighways(): boolean {
+  if (typeof window === "undefined") return false
+  const store = usePlannerStore.getState()
+  if (store.plan || store.start || store.finish || store.status !== "idle") return false
+  return loadRiderSettings().defaultAvoidHighways
 }
 
 /**
@@ -175,7 +194,7 @@ export function PlannerShell() {
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [planMode, setPlanMode] = useState<PlanMode>("destination")
   const [targetMinutes, setTargetMinutes] = useState(120)
-  const [avoidHighways, setAvoidHighways] = useState(false)
+  const [avoidHighways, setAvoidHighways] = useState(initialAvoidHighways)
   const [avoidAreas, setAvoidAreas] = useState<AvoidArea[]>([])
   const [segmentProfiles, setSegmentProfiles] = useState<RouteProfileId[]>([])
   const [intentStatus, setIntentStatus] = useState<RideIntentStatus>("idle")
@@ -184,14 +203,28 @@ export function PlannerShell() {
   const [researchStatus, setResearchStatus] = useState<"idle" | "researching">("idle")
   const [researchSources, setResearchSources] = useState<RideResearchSource[]>([])
   const [unpavedVisible, setUnpavedVisible] = useState(true)
-  const [mapStyle, setMapStyle] = useState<MapStyleId>("clean")
+  const [mapExperience, setMapExperience] = useState<MapExperienceId>("standard")
+  const [lightPreference, setLightPreference] = useState<MapLightPreference>("auto")
+  const mapIsDark = lightPreference === "auto"
+    ? isNightTime(new Date(), start?.lat ?? finish?.lat ?? 40.2732, start?.lon ?? finish?.lon ?? -76.8867)
+    : lightPreference === "night" || lightPreference === "dusk"
   const [navigation, dispatchNavigation] = useReducer(
     appNavigationReducer,
     undefined,
     () => createInitialAppNavigationState(initialThemePreference())
   )
 
-  const autoNightRef = useRef(true)
+  // Seeding the planner store is an external-system sync, so it belongs in an
+  // effect; the React-owned highway flag is seeded by its state initializer
+  // instead, which keeps this effect free of cascading renders.
+  useEffect(() => {
+    const store = usePlannerStore.getState()
+    if (store.plan || store.start || store.finish || store.status !== "idle") return
+    const settings = loadRiderSettings()
+    store.setProfile(settings.defaultProfile)
+    store.setBikeProfile(bikeProfileFromRiderSettings(settings))
+  }, [])
+
   const [riderLayers, setRiderLayers] = useState<RiderLayerSetting[]>(() => defaultRiderLayerSettings().map((layer) => ({
     ...layer,
     visible: layer.id === "curvature" || layer.id === "unpaved"
@@ -201,8 +234,11 @@ export function PlannerShell() {
   const [rideOriginalRouteId, setRideOriginalRouteId] = useState<string | null>(null)
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
+  // Monotonic command token: PlannerMapStage remains the sole owner of the
+  // in-progress screen draft while the V2 composer can enter it directly.
+  const [drawCommandId, setDrawCommandId] = useState(0)
   const plannerVisible = surface !== "ride" && surface !== "free-ride"
-    && navigation.activeTab === "plan" && !sketching
+    && navigation.destination === "plan" && !sketching
   const providerHealth = useProviderHealth(plannerVisible)
   const [planningSession] = useState(() => createPlanningSessionController({
     getPlanner: usePlannerStore.getState
@@ -265,9 +301,18 @@ export function PlannerShell() {
     void riderPreferenceLibraryRef.current!.get(settings.bikeId, profile).then((preference) => {
       if (!preference) return
       const store = usePlannerStore.getState()
-      if (store.selectionSource === "user") return
       const best = rankRoutesForRider(routes, preference)[0]
-      if (best && store.selectedRouteId !== best.route.id) {
+      const currentRouteIds = store.plan?.routes.map((route) => route.id) ?? []
+      const currentPlanKey = store.plan
+        ? `${store.plan.planningId ?? "plan"}:${currentRouteIds.join(",")}:${localPreferenceLearningSettings().bikeId}`
+        : null
+      if (best && canApplyRankedRouteSelection({
+        expectedPlanKey: key,
+        currentPlanKey,
+        currentRouteIds,
+        rankedRouteId: best.route.id,
+        selectionSource: store.selectionSource
+      }) && store.selectedRouteId !== best.route.id) {
         store.applyAutomaticRouteSelection(best.route.id)
       }
     }).catch(() => undefined)
@@ -278,6 +323,9 @@ export function PlannerShell() {
   // so the store update never runs synchronously inside the effect.
   useEffect(() => {
     if (!recording.isActive || surface === "free-ride") return
+    // Leaving the record preflight: once the HUD owns the session the
+    // preflight overlay must not reappear behind the ride surface.
+    dispatchNavigation({ type: "close_overlay", overlay: "record" })
     const id = window.setTimeout(() => usePlannerStore.getState().setSurface("ride"), 0)
     return () => window.clearTimeout(id)
   }, [recording.isActive, surface])
@@ -338,40 +386,27 @@ export function PlannerShell() {
   }, [])
 
   useEffect(() => {
-    if (!autoNightRef.current) return
-    const check = () => {
-      const coord = start ?? finish
-      if (!coord) return
-      if (isNightTime(new Date(), coord.lat, coord.lon)) {
-        setMapStyle((prev) => (prev === "night" ? prev : "night"))
-      }
-    }
-    check()
-    const id = setInterval(check, 120_000)
-    return () => clearInterval(id)
-  }, [start, finish])
-
-  useEffect(() => {
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
     const hour = new Date().getHours()
     const afterDark = hour < 6 || hour >= 19
     const resolved = navigation.theme === "auto"
-      ? (mapStyle === "night" || prefersDark || afterDark ? "dark" : "light")
+      ? (mapIsDark || prefersDark || afterDark ? "dark" : "light")
       : navigation.theme
     document.documentElement.dataset.theme = resolved
     document.documentElement.dataset.themePreference = navigation.theme
     localStorage.setItem("switchback:theme", navigation.theme)
-  }, [mapStyle, navigation.theme])
+  }, [mapIsDark, navigation.theme])
 
   useEffect(() => {
     const handleBack = () => {
-      // Browser Back / forward: re-derive the tab from the URL instead of
-      // only popping the internal stack, so the surface and the address bar
-      // can never desync (previously the URL kept ?tab=library while the UI
-      // showed the planner, and a reload would open the wrong tab).
-      const tab = tabFromLocation(window.location.href)
-      dispatchNavigation({ type: "restore_tab", tab })
-      usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+      // Browser Back / forward: re-derive the destination from the URL
+      // instead of only popping the internal stack, so the surface and the
+      // address bar can never desync (previously the URL kept ?tab=library
+      // while the UI showed the planner, and a reload would open the wrong
+      // surface). Legacy V1 tab values migrate inside destinationFromLocation.
+      const derived = destinationFromLocation(window.location.href)
+      dispatchNavigation({ type: "restore_destination", destination: derived.destination, overlays: derived.overlays })
+      usePlannerStore.getState().setSurface(derived.destination === "rides" ? "library" : "planner")
     }
     handleBack()
     window.addEventListener("popstate", handleBack)
@@ -479,23 +514,25 @@ export function PlannerShell() {
     }
   }
 
-  const handlePlan = async () => {
+  const handlePlan = async (override?: { mode: PlanMode; points: RoutePointSnapshot }) => {
     const current = usePlannerStore.getState()
+    const mode = override?.mode ?? planMode
+    const points = override?.points
     try {
       loopSeed.current += 1
-      const customSegmentProfiles = planMode === "destination" && activeSegmentProfiles.some((item) => item !== current.profile)
+      const customSegmentProfiles = mode === "destination" && !points && activeSegmentProfiles.some((item) => item !== current.profile)
         ? activeSegmentProfiles
         : undefined
       await runTripPlan(buildRideTripRequest({
-        mode: planMode,
-        start: current.start,
-        finish: current.finish,
+        mode,
+        start: points?.start ?? current.start,
+        finish: points?.finish ?? current.finish,
         profile: current.profile,
         bikeProfile: current.bikeProfile,
         roadLocks: current.roadLocks,
         targetMinutes,
         seed: loopSeed.current,
-        via: current.via,
+        via: points?.via ?? current.via,
         avoidHighways,
         avoidAreas,
         segmentProfiles: customSegmentProfiles,
@@ -568,14 +605,14 @@ export function PlannerShell() {
     onNotice: setNotice
   })
 
-  const applyAppTab = (tab: AppTab, historyMode: "push" | "replace" = "push") => {
-    dispatchNavigation({ type: "select_tab", tab })
-    usePlannerStore.getState().setSurface(tab === "library" ? "library" : "planner")
+  const applyDestination = (destination: PrimaryDestination, historyMode: "push" | "replace" = "push") => {
+    dispatchNavigation({ type: "select_destination", destination })
+    usePlannerStore.getState().setSurface(destination === "rides" ? "library" : "planner")
     const url = new URL(window.location.href)
-    if (tab === "plan") url.searchParams.delete("tab")
-    else url.searchParams.set("tab", tab)
+    if (destination === "plan") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", destination)
     window.history[historyMode === "push" ? "pushState" : "replaceState"](
-      { switchbackTab: tab },
+      { switchbackTab: destination },
       "",
       `${url.pathname}${url.search}${url.hash}`
     )
@@ -604,7 +641,7 @@ export function PlannerShell() {
       routes: [route],
       warnings: []
     })
-    applyAppTab("plan", "replace")
+    applyDestination("plan", "replace")
   }
 
   const handleImportAsLock = async (file: File, options: GpxRoadLockImportOptions) => {
@@ -689,7 +726,7 @@ export function PlannerShell() {
     return buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
       return offlinePackLibraryRef.current!.save({
         route,
-        mapStyle,
+        mapStyle: legacyMapStyleFor(mapExperience, lightPreference),
         routeVisibility,
         activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
       }).then(() => corridor)
@@ -712,7 +749,7 @@ export function PlannerShell() {
       kind: "warning",
       message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
     }))
-  }, [mapStyle, routeVisibility, riderLayers])
+  }, [mapExperience, lightPreference, routeVisibility, riderLayers])
 
   const handleBuildCorridor = useCallback((pending: { id: string; waypoints: { lat: number; lon: number }[] }) => {
     const route = routes.find((candidate) => candidate.id === pending.id) ?? selectedRoute
@@ -998,7 +1035,7 @@ export function PlannerShell() {
     } catch {
       setReplayComparison(null)
     }
-    applyAppTab("plan", "replace")
+    applyDestination("plan", "replace")
     setNotice({ kind: "success", message: `Replay loaded: ${ride.points.length} recorded points, notes, and photo metadata remain on this device.` })
   }
 
@@ -1079,19 +1116,21 @@ export function PlannerShell() {
     routeRequestGate.invalidate()
     try {
       const current = usePlannerStore.getState()
-      const points = routePointsFromSketch({
-        mode: planMode,
+      const intent = routeIntentFromSketch({
+        currentMode: planMode,
         start: current.start,
         finish: current.finish,
-        trace
+        trace,
+        hasExistingRoute: Boolean(current.plan)
       })
-      current.replaceRoutePoints(points)
+      current.replaceRoutePoints(intent.points)
+      setPlanMode(intent.mode)
       setSegmentProfiles([])
       setAddingVia(false)
-      await handlePlan()
+      await handlePlan({ mode: intent.mode, points: intent.points })
       setNotice({
         kind: "success",
-        message: `Rough line converted to ${points.via.length} editable shaping stop${points.via.length === 1 ? "" : "s"}.`
+        message: `Rough line converted to ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}.`
       })
     } catch (caught) {
       setNotice({
@@ -1141,14 +1180,14 @@ export function PlannerShell() {
     setNotice({ kind: "success", message: "Route cleared. Choose a new ride whenever you’re ready." })
   }
 
-  const handleAppTab = (tab: AppTab) => {
-    applyAppTab(tab)
+  const handleDestination = (destination: PrimaryDestination) => {
+    applyDestination(destination)
   }
 
-  const appMode = appModeForState({ surface, activeTab: navigation.activeTab, hasPlan: Boolean(plan) })
+  const appMode = appModeForState({ surface, destination: navigation.destination, hasPlan: Boolean(plan) })
 
   return (
-    <AppShell mode={appMode} dataSketching={sketching}>
+    <AppShell mode={appMode} destination={navigation.destination} dataSketching={sketching}>
       <MapWorkspace mode={surface === "ride" ? "ride" : surface === "free-ride" ? "free-ride" : "planning"}>
         <MapCanvas>
           <MapStage
@@ -1162,7 +1201,8 @@ export function PlannerShell() {
         recalculating={isRecalculating}
         curvatureVisible={curvatureVisible}
         unpavedVisible={unpavedVisible}
-        mapStyle={mapStyle}
+        mapExperience={mapExperience}
+        lightPreference={lightPreference}
         riderLayers={riderLayers}
         routeVisibility={routeVisibility}
         mapPacks={mapPacks}
@@ -1176,10 +1216,8 @@ export function PlannerShell() {
           setUnpavedVisible(visible)
           setRiderLayers((layers) => layers.map((layer) => layer.id === "unpaved" ? { ...layer, visible } : layer))
         }}
-        onMapStyleChange={(style) => {
-          autoNightRef.current = false
-          setMapStyle(style)
-        }}
+        onMapExperienceChange={setMapExperience}
+        onLightPreferenceChange={setLightPreference}
         onRiderLayerChange={(id: RiderLayerId, patch) => {
           setRiderLayers((layers) => layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer))
           if (id === "curvature" && typeof patch.visible === "boolean") usePlannerStore.getState().setCurvatureVisible(patch.visible)
@@ -1199,7 +1237,7 @@ export function PlannerShell() {
         }}
         onRouteVisibilityChange={setRouteVisibility}
         onSaveMapPack={(name) => {
-          void mapPackLibrary.save({ name, mapStyle, routeVisibility, layers: riderLayers })
+          void mapPackLibrary.save({ name, experience: mapExperience, lightPreference, routeVisibility, layers: riderLayers })
             .then(async (pack) => {
               await refreshMapPacks()
               setNotice({ kind: "success", message: `${pack.name} map pack saved on this device.` })
@@ -1210,7 +1248,8 @@ export function PlannerShell() {
           const pack = mapPacks.find((candidate) => candidate.id === id)
           if (!pack) return
           const applied = applyRiderMapPack(riderLayers, pack)
-          setMapStyle(applied.mapStyle)
+          setMapExperience(applied.experience)
+          setLightPreference(applied.lightPreference)
           setRouteVisibility(applied.routeVisibility)
           setRiderLayers(applied.layers)
           usePlannerStore.getState().setCurvatureVisible(applied.layers.find((layer) => layer.id === "curvature")?.visible ?? false)
@@ -1226,6 +1265,7 @@ export function PlannerShell() {
           : null}
         onRouteSketch={(trace) => void handleRouteSketch(trace)}
         onSketchModeChange={setSketching}
+        drawCommand={drawCommandId > 0 ? { type: "start", id: drawCommandId } : null}
         avoidAreas={avoidAreas}
         onAvoidArea={(area) => {
           routeRequestGate.invalidate()
@@ -1236,10 +1276,17 @@ export function PlannerShell() {
         </MapCanvas>
 
         {surface !== "ride" && surface !== "free-ride" ? (
-          <AppNavigation activeTab={navigation.activeTab} onSelect={handleAppTab} />
+          <AppNavigation
+            activeDestination={navigation.destination}
+            onSelect={handleDestination}
+            onOpenRecord={() => {
+              dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })
+              dispatchNavigation({ type: "open_overlay", overlay: "record" })
+            }}
+          />
         ) : null}
 
-        {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "plan" && !sketching ? (
+        {surface !== "ride" && surface !== "free-ride" && navigation.destination === "plan" && !sketching ? (
           <PlannerComposition
           viewModel={buildPlannerDeckViewModel({
             plan,
@@ -1410,9 +1457,12 @@ export function PlannerShell() {
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
             onClearHome: clearHome,
-            onOpenLibrary: () => handleAppTab("library"),
+            onOpenLibrary: () => handleDestination("rides"),
             onStartRide: (route) => void handleStartRide(route),
             onStartFreeRide: handleStartFreeRide,
+            onStartDrawing: () => {
+              setDrawCommandId((current) => current + 1)
+            },
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
           }}
           comparison={routes.length > 0 ? {
@@ -1467,13 +1517,15 @@ export function PlannerShell() {
           />
         ) : null}
       </MapWorkspace>
-      {surface === "library" && navigation.activeTab === "library" ? (
+      {/* Surface guard: a popstate during an active ride must never mount
+          the drawer over the live HUD (its a11y effect inerts the map). */}
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "rides" ? (
         <LibraryDrawer
           routes={savedRoutes}
           recordedRides={recordedRides}
           trips={savedTrips}
           projectRoutes={projectRoutes}
-          onClose={() => applyAppTab("plan", "replace")}
+          onClose={() => applyDestination("plan", "replace")}
           onLoad={handleLoad}
           onLoadTrip={(trip) => handleLoad(trip.route, trip)}
           onDeleteTrip={(trip) => {
@@ -1484,6 +1536,12 @@ export function PlannerShell() {
             }).catch(() => setNotice({ kind: "warning", message: "That saved trip could not be removed." }))
           }}
           onLoadRecorded={handleLoadRecordedRide}
+          onDeleteRecorded={(ride) => {
+            void rideJournalLibrary.remove(ride.id).then(async () => {
+              await refreshRideJournal()
+              setNotice({ kind: "success", message: `${ride.routeName || ride.route.name} was removed from this device.` })
+            }).catch(() => setNotice({ kind: "warning", message: "That recording could not be removed." }))
+          }}
           onMatchImported={(route) => void handleMatchImported(route)}
           onLoadProject={(route) => void handleLoadProject(route)}
           onDelete={(route) => void handleDelete(route)}
@@ -1502,24 +1560,38 @@ export function PlannerShell() {
           onImportAsLock={handleImportAsLock}
         />
       ) : null}
-      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "record" ? (
-        <RecordPanel controller={recording} />
-      ) : null}
-      {surface !== "ride" && surface !== "free-ride" && navigation.activeTab === "profile" ? (
-        <ProfilePanel
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "settings" ? (
+        <SettingsDestination
           theme={navigation.theme}
           onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
+          onSettingsChange={(settings) => {
+            const store = usePlannerStore.getState()
+            store.setProfile(settings.defaultProfile)
+            store.setBikeProfile(bikeProfileFromRiderSettings(settings))
+            setAvoidHighways(settings.defaultAvoidHighways)
+          }}
+          onOpenAdvancedSettings={() => {
+            dispatchNavigation({ type: "close_overlay", overlay: "record" })
+            dispatchNavigation({ type: "open_overlay", overlay: "advanced-settings" })
+          }}
+        />
+      ) : null}
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (
+        <DiscoverDestination />
+      ) : null}
+      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("record") ? (
+        <RecordPanel controller={recording} />
+      ) : null}
+      {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("advanced-settings") ? (
+        <ProfilePanel
           onOpenDownloads={() => dispatchNavigation({ type: "open_overlay", overlay: "downloads" })}
-            onResetLearning={() => {
-              // Destructive: wiping every learned preference needs a
-              // confirmation (SB-027).
-              if (!window.confirm("Reset all learned preferences? This cannot be undone.")) return
-              void riderPreferenceLibraryRef.current!.clear()
-            }}
-            onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
-          />
+          onResetLearning={() => riderPreferenceLibraryRef.current!.clear()}
+          onExportLearning={() => riderPreferenceLibraryRef.current!.list()}
+          onClose={() => dispatchNavigation({ type: "close_overlay", overlay: "advanced-settings" })}
+        />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("downloads") ? (
+        <ModalFocusScope onEscape={() => dispatchNavigation({ type: "close_overlay", overlay: "downloads" })}>
         <div className="app-overlay-scrim" role="dialog" aria-modal="true" aria-labelledby="downloads-overlay-title">
           <section className="app-overlay-panel">
             <header><h2 id="downloads-overlay-title">Region downloads</h2><button type="button" aria-label="Close region downloads" onClick={() => dispatchNavigation({ type: "close_overlay", overlay: "downloads" })}>×</button></header>
@@ -1530,6 +1602,7 @@ export function PlannerShell() {
             />
           </section>
         </div>
+        </ModalFocusScope>
       ) : null}
       {surface === "free-ride" ? (
         <FreeRideHud
@@ -1565,9 +1638,10 @@ export function PlannerShell() {
             if (rideOriginalRouteId) routeEntityCache.release(rideOriginalRouteId)
             setRideOriginalRouteId(null)
             // Guidance is an immersive child of the planning flow. Restore
-            // the owning Plan tab as well as the surface so an exit from a
-            // stale/deep-linked tab always returns to the route context.
-            applyAppTab("plan", "replace")
+            // the owning Plan destination as well as the surface so an exit
+            // from a stale/deep-linked destination always returns to the
+            // route context.
+            applyDestination("plan", "replace")
           }}
           onReroute={(rerouted) => {
             // A detour is a new navigable line, never an overwrite of the

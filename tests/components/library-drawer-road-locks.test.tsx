@@ -1,171 +1,73 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { LibraryDrawer } from "@/components/planner/LibraryDrawer"
-import { usePlannerStore } from "@/stores/planner-store"
-import type { SavedRoute } from "@/lib/storage/route-library"
 
-const savedRoute: SavedRoute = {
-  id: "saved-loop",
-  name: "Sunday loop",
-  profile: "twisty",
-  geometry: [[-76.9, 40.2], [-76.8, 40.3]],
-  waypoints: [
-    { lat: 40.2, lon: -76.9, label: "Start" },
-    { lat: 40.3, lon: -76.8, label: "Finish" }
-  ],
-  instructions: [],
-  distanceMiles: 42.5,
-  durationMinutes: 68,
-  ascentMeters: 320,
-  descentMeters: 300,
-  twistiness: 78,
-  turnCount: 24,
-  roadMix: { secondary: 80, primary: 20 },
-  surfaceMix: { asphalt: 100 },
-  routingSource: "live",
-  previewOnly: false,
-  notes: "",
-  folder: "Unfiled",
-  tags: [],
-  visible: true,
-  createdAt: "2026-07-13T12:00:00.000Z",
-  updatedAt: "2026-07-13T12:00:00.000Z"
+afterEach(cleanup)
+
+function renderLibrary(onImportAsLock = vi.fn().mockResolvedValue(null), onImport = vi.fn()) {
+  render(
+    <LibraryDrawer
+      routes={[]}
+      onClose={vi.fn()}
+      onLoad={vi.fn()}
+      onDelete={vi.fn()}
+      onImport={onImport}
+      onImportAsLock={onImportAsLock}
+    />
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Import ride" }))
+  return { onImportAsLock, onImport }
 }
 
-afterEach(() => {
-  cleanup()
-  usePlannerStore.getState().clearRoadLocks()
-})
+function chooseFile(name = "ridge-road.gpx") {
+  const file = new File(["<gpx />"], name, { type: "application/gpx+xml" })
+  fireEvent.change(screen.getByLabelText("Choose GPX, KML, or KMZ file"), { target: { files: [file] } })
+  return file
+}
 
-describe("LibraryDrawer Import as lock affordance", () => {
-  it("renders the Import as lock button next to Import route", () => {
-    render(
-      <LibraryDrawer
-        routes={[]}
-        onClose={vi.fn()}
-        onLoad={vi.fn()}
-        onDelete={vi.fn()}
-        onImport={vi.fn()}
-      />
-    )
-    expect(screen.getByRole("button", { name: "Import as road lock" })).toBeInTheDocument()
-    expect(screen.getByLabelText("Import GPX, KML, or KMZ file")).toBeInTheDocument()
+describe("Rides V2 road-lock import", () => {
+  it("offers route, Prefer and Require choices from the single import flow", () => {
+    renderLibrary()
+    chooseFile()
+
+    expect(screen.getByRole("button", { name: /Open as a route/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Prefer these roads/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Require these roads/i })).toBeInTheDocument()
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument()
   })
 
-  it("opens the inline mode picker after a GPX file is chosen", () => {
-    render(
-      <LibraryDrawer
-        routes={[savedRoute]}
-        onClose={vi.fn()}
-        onLoad={vi.fn()}
-        onDelete={vi.fn()}
-        onImport={vi.fn()}
-      />
-    )
-    const file = new File(["<gpx />"], "lock.gpx", { type: "application/gpx+xml" })
-    fireEvent.change(screen.getByLabelText("Import a GPX, KML, or KMZ file as a road lock"), { target: { files: [file] } })
-    expect(screen.getByText("Import as road lock")).toBeInTheDocument()
-    expect(screen.getByText("lock.gpx")).toBeInTheDocument()
-    expect(screen.getByRole("radio", { name: /Must use/i })).toBeChecked()
-    expect(screen.getByRole("radio", { name: /Prefer/i })).not.toBeChecked()
-    expect(screen.getByRole("button", { name: /Save road lock/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument()
-  })
+  it("imports a preferred corridor with a filename-derived display name", async () => {
+    const onImportAsLock = vi.fn().mockResolvedValue(null)
+    renderLibrary(onImportAsLock)
+    const file = chooseFile("Ridge Crest.gpx")
 
-  it("refuses a third mode beyond Must use/Prefer", () => {
-    render(
-      <LibraryDrawer
-        routes={[]}
-        onClose={vi.fn()}
-        onLoad={vi.fn()}
-        onDelete={vi.fn()}
-        onImport={vi.fn()}
-      />
-    )
-    const file = new File(["<gpx />"], "lock.gpx", { type: "application/gpx+xml" })
-    fireEvent.change(screen.getByLabelText("Import a GPX, KML, or KMZ file as a road lock"), { target: { files: [file] } })
-    const radios = screen.getAllByRole("radio")
-    expect(radios).toHaveLength(2)
-    const values = radios.map((radio) => (radio as HTMLInputElement).value).sort()
-    expect(values).toEqual(["must", "prefer"])
-  })
-
-  it("delegates the resulting lock to the supplied importer without persisting it", async () => {
-    const onImportAsLock = vi.fn().mockResolvedValue({
-      id: "lock-from-store",
+    fireEvent.click(screen.getByRole("button", { name: /Prefer these roads/i }))
+    await waitFor(() => expect(onImportAsLock).toHaveBeenCalledTimes(1))
+    expect(onImportAsLock).toHaveBeenCalledWith(file, {
       mode: "prefer",
-      displayName: "Imported ridge",
-      confidence: "matched",
-      source: "gpx",
-      edgeIds: [],
-      geometry: { type: "LineString", coordinates: [[-77, 40], [-76.8, 40.1]] },
-      orderedAnchors: [[-77, 40], [-76.8, 40.1]],
-      fallbackToleranceMeters: 50,
-      sourceRegionId: "gpx-import",
-      sourceGraphVersion: "gpx-import",
-      accessSnapshot: {
-        highwayClass: "unknown",
-        motorcycleAccess: "unknown",
-        generalAccess: "unknown",
-        surface: "unknown",
-        smoothness: "unknown",
-        tracktype: "unknown",
-        maxweightTonnes: null,
-        seasonalUndated: false,
-        activeConditions: [],
-        routable: true
-      },
-      createdAt: "2025-01-01T00:00:00.000Z"
+      displayName: "Ridge Crest"
     })
-
-    render(
-      <LibraryDrawer
-        routes={[]}
-        onClose={vi.fn()}
-        onLoad={vi.fn()}
-        onDelete={vi.fn()}
-        onImport={vi.fn()}
-        onImportAsLock={onImportAsLock}
-      />
-    )
-
-    const file = new File(["<gpx />"], "ridge.gpx", { type: "application/gpx+xml" })
-    fireEvent.change(screen.getByLabelText("Import a GPX, KML, or KMZ file as a road lock"), { target: { files: [file] } })
-    const preferRadio = screen.getByRole("radio", { name: /Prefer/i })
-    fireEvent.click(preferRadio)
-    fireEvent.change(screen.getByPlaceholderText("Best section of PA-125"), { target: { value: "Ridge crest" } })
-    fireEvent.click(screen.getByRole("button", { name: /Save road lock/i }))
-
-    await vi.waitFor(() => {
-      expect(onImportAsLock).toHaveBeenCalledTimes(1)
-    })
-    expect(onImportAsLock.mock.calls[0]![0]).toBe(file)
-    const options = onImportAsLock.mock.calls[0]![1]
-    expect(options.mode).toBe("prefer")
-    expect(options.displayName).toBe("Ridge crest")
-    expect(usePlannerStore.getState().roadLocks).toEqual([])
-    await vi.waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/imported as a preferred road lock/i))
   })
 
-  it("keeps importer errors visible without mutating planner state", async () => {
-    const onImportAsLock = vi.fn().mockRejectedValue(new Error("The GPX track is invalid."))
-    render(
-      <LibraryDrawer
-        routes={[]}
-        onClose={vi.fn()}
-        onLoad={vi.fn()}
-        onDelete={vi.fn()}
-        onImport={vi.fn()}
-        onImportAsLock={onImportAsLock}
-      />
-    )
+  it("imports a required corridor without inventing a third road-lock mode", async () => {
+    const onImportAsLock = vi.fn().mockResolvedValue(null)
+    renderLibrary(onImportAsLock)
+    const file = chooseFile("must-use.kml")
 
-    const file = new File(["<gpx />"], "invalid.gpx", { type: "application/gpx+xml" })
-    fireEvent.change(screen.getByLabelText("Import a GPX, KML, or KMZ file as a road lock"), { target: { files: [file] } })
-    fireEvent.click(screen.getByRole("button", { name: /Save road lock/i }))
+    fireEvent.click(screen.getByRole("button", { name: /Require these roads/i }))
+    await waitFor(() => expect(onImportAsLock).toHaveBeenCalledTimes(1))
+    expect(onImportAsLock).toHaveBeenCalledWith(file, {
+      mode: "must",
+      displayName: "must-use"
+    })
+  })
 
-    await vi.waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("The GPX track is invalid."))
-    expect(onImportAsLock).toHaveBeenCalledOnce()
-    expect(usePlannerStore.getState().roadLocks).toEqual([])
+  it("keeps normal route import available from the same selected file", () => {
+    const onImport = vi.fn()
+    renderLibrary(vi.fn().mockResolvedValue(null), onImport)
+    const file = chooseFile("weekend.kmz")
+
+    fireEvent.click(screen.getByRole("button", { name: /Open as a route/i }))
+    expect(onImport).toHaveBeenCalledWith(file)
   })
 })

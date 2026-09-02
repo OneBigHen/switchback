@@ -1,3 +1,36 @@
+/* Ride mode's HUD needs its own stacking context.
+   .map-stage is absolutely positioned inside a relative .planner-shell, so a
+   static .ride-hud sibling always paints underneath the maplibre canvas and
+   every topbar control is unclickable at its center. Mirror .free-ride-hud:
+   one full-bleed transparent layer above the map, with the map still
+   reachable everywhere the HUD is not drawing a control. */
+.ride-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.ride-hud button,
+.ride-hud a,
+.ride-hud input,
+.ride-hud select {
+  pointer-events: auto;
+}
+
+.ride-route-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.ride-route-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
 
 .ride-reroute-card {
   margin-top: 14px;
@@ -289,6 +322,13 @@
   }
 }
 
+@media (max-width: 760px) and (orientation: portrait),
+  (max-width: 760px) and (orientation: landscape) and (min-height: 521px) {
+  .planner-shell {
+    min-height: 520px;
+  }
+}
+
 @media (max-width: 760px) {
   /* Offset comes from --ride-recenter-bottom in planner-shell.css so this
      stays in lockstep with the instruction card's height cap below. */
@@ -297,10 +337,6 @@
     min-width: 48px;
     min-height: 48px;
     padding: 0 12px;
-  }
-
-  .planner-shell {
-    min-height: 520px;
   }
 
   .planner-deck {

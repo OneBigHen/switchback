@@ -1,0 +1,810 @@
+/* V2 Plan composer: two idle rows, one disclosure surface, map first. */
+.plan-v2 {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--sb-text);
+  font-family: var(--font-body);
+}
+
+.plan-v2-scroll {
+  scrollbar-width: thin;
+}
+
+.plan-v2-header {
+  min-height: 42px;
+  justify-content: flex-end;
+  border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 62%, transparent);
+}
+
+.plan-v2__compact-rail {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.plan-v2__search {
+  display: grid;
+  min-width: 0;
+  min-height: 48px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 3px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-paper);
+  box-shadow: 0 2px 8px rgb(22 29 28 / 9%);
+}
+
+.plan-v2__search:focus-within {
+  border-color: var(--sb-focus-ring);
+  box-shadow: 0 0 0 3px var(--sb-focus-fill), 0 2px 8px rgb(22 29 28 / 9%);
+}
+
+.plan-v2__search input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 4px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.plan-v2__search input::placeholder {
+  color: var(--sb-text-muted);
+  opacity: 1;
+}
+
+.plan-v2__location-control,
+.plan-v2__voice-control,
+.plan-v2__submit-control,
+.plan-v2__free-ride,
+.plan-v2__options-trigger {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--sb-radius-chip);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.plan-v2__location-control,
+.plan-v2__voice-control {
+  padding: 0;
+  background: transparent;
+  color: var(--sb-text-muted);
+}
+
+.plan-v2__location-control {
+  color: var(--sb-signal-strong);
+}
+
+.plan-v2__location-control:hover,
+.plan-v2__location-control:focus-visible,
+.plan-v2__voice-control:hover,
+.plan-v2__voice-control:focus-visible {
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+}
+
+.plan-v2__location-marker {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--sb-signal-strong);
+}
+
+.plan-v2__location-control svg,
+.plan-v2__location-marker svg,
+.plan-v2__voice-control svg,
+.plan-v2__submit-control svg {
+  width: 19px;
+  height: 19px;
+}
+
+.plan-v2__submit-control {
+  padding: 0;
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+}
+
+.plan-v2__submit-control:hover:not(:disabled),
+.plan-v2__submit-control:focus-visible:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.plan-v2__search button:disabled,
+.plan-v2__mode-selector button:disabled,
+.plan-v2__free-ride:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.plan-v2__submit-control:disabled {
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
+  opacity: 1;
+}
+
+.plan-v2__action-rail {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.plan-v2__mode-selector {
+  display: grid;
+  min-width: 0;
+  min-height: 44px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  background: color-mix(in srgb, var(--sb-surface-raised) 88%, transparent);
+}
+
+.plan-v2__mode-selector button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.plan-v2__mode-selector button.is-selected {
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+  box-shadow: 0 1px 4px rgb(22 29 28 / 14%);
+}
+
+.plan-v2__mode-selector button:not(.is-selected):hover:not(:disabled),
+.plan-v2__mode-selector button:not(.is-selected):focus-visible:not(:disabled) {
+  background: var(--sb-paper);
+  color: var(--sb-text);
+}
+
+.plan-v2__draw-mode {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.plan-v2__draw-mode svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.plan-v2__free-ride {
+  gap: 5px;
+  min-width: 92px;
+  padding: 0 10px;
+  background: var(--sb-spruce);
+  color: var(--sb-paper);
+  white-space: nowrap;
+}
+
+.plan-v2__free-ride:hover:not(:disabled),
+.plan-v2__free-ride:focus-visible:not(:disabled) {
+  background: var(--sb-ink);
+}
+
+.plan-v2__free-ride svg {
+  width: 17px;
+  height: 17px;
+}
+
+.plan-v2__options-trigger {
+  gap: 5px;
+  min-width: 84px;
+  padding: 0 9px;
+  border: 1px solid var(--sb-border);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  white-space: nowrap;
+}
+
+.plan-v2__options-trigger:hover,
+.plan-v2__options-trigger:focus-visible,
+.plan-v2__options-trigger[aria-expanded="true"] {
+  border-color: var(--sb-focus-ring);
+  background: var(--sb-surface-raised);
+}
+
+.plan-v2__options-trigger svg {
+  width: 16px;
+  height: 16px;
+  color: var(--sb-text-muted);
+}
+
+.plan-v2__options-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  gap: 0;
+  margin-top: 2px;
+  padding: 4px 10px 8px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-surface-raised);
+  box-shadow: 0 6px 18px rgb(22 29 28 / 8%);
+}
+
+.plan-v2__option-group {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 14px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
+}
+
+.plan-v2__option-group:last-child {
+  border-bottom: 0;
+}
+
+.plan-v2__option-group h3 {
+  margin: 0;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.plan-v2__option-group p,
+.plan-v2__control-label {
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.plan-v2__profile-control,
+.plan-v2__waypoint-stack,
+.plan-v2__time-budget,
+.plan-v2__via-points {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.plan-v2__profile-list,
+.plan-v2__home-actions,
+.plan-v2__edit-actions,
+.plan-v2__time-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plan-v2__profile-list button,
+.plan-v2__time-presets button,
+.plan-v2__edit-actions button,
+.plan-v2__home-actions button {
+  min-height: var(--sb-touch-target);
+  padding: 0 11px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.plan-v2__profile-list button.is-selected,
+.plan-v2__time-presets button[aria-pressed="true"] {
+  border-color: var(--sb-ember-strong);
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+}
+
+/* In dark theme --sb-paper is the light text token. Keep unselected control
+   surfaces on the raised dark token so labels do not disappear into a pale
+   paper fill; the selected state below remains the ember action. */
+:root[data-theme="dark"] .plan-v2__profile-list button,
+:root[data-theme="dark"] .plan-v2__time-presets button,
+:root[data-theme="dark"] .plan-v2__edit-actions button,
+:root[data-theme="dark"] .plan-v2__home-actions button {
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .plan-v2__profile-list button.is-selected,
+:root[data-theme="dark"] .plan-v2__time-presets button[aria-pressed="true"] {
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+}
+
+.plan-v2__check-row {
+  display: flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  gap: 10px;
+  color: var(--sb-text);
+  font-size: 13px;
+}
+
+.plan-v2__check-row input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--sb-ember-strong);
+}
+
+.plan-v2__inline-action,
+.plan-v2__road-locks {
+  display: inline-flex;
+  width: 100%;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-paper);
+  color: var(--sb-text-link);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.plan-v2__inline-action:hover,
+.plan-v2__inline-action:focus-visible,
+.plan-v2__road-locks:hover,
+.plan-v2__road-locks:focus-visible {
+  border-color: var(--sb-focus-ring);
+}
+
+.plan-v2__inline-action svg,
+.plan-v2__road-locks svg {
+  width: 17px;
+  height: 17px;
+}
+
+.plan-v2__time-budget > span {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 6px;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.plan-v2__time-budget > span svg {
+  width: 16px;
+  height: 16px;
+}
+
+.plan-v2__custom-time {
+  display: grid;
+  grid-template-columns: auto minmax(84px, 120px) 1fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+}
+
+.plan-v2__custom-time input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-v2__custom-time small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+}
+
+.plan-v2__via-points > div {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--sb-text);
+  font-size: 12px;
+}
+
+.plan-v2__via-points > div > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.plan-v2__via-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.plan-v2__via-actions button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--sb-border);
+  border-radius: 7px;
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.plan-v2__via-actions button:disabled,
+.plan-v2__edit-actions button:disabled,
+.plan-v2__segment-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.plan-v2__road-locks {
+  justify-content: space-between;
+}
+
+.plan-v2__road-locks > span {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.plan-v2__road-locks strong {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  font-size: 11px;
+}
+
+.plan-v2__avoid-area-summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--sb-text);
+  font-size: 12px;
+}
+
+.plan-v2__avoid-area-summary button {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--sb-text-link);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plan-v2__segment-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  gap: 6px;
+  align-items: center;
+  color: var(--sb-text);
+  font-size: 12px;
+}
+
+.plan-v2__segment-row select,
+.plan-v2__segment-row button {
+  min-height: var(--sb-touch-target);
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid var(--sb-border);
+  border-radius: 7px;
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.plan-v2__segment-row button {
+  color: var(--sb-text-link);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plan-v2__status,
+.plan-v2__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  font-size: 12px;
+}
+
+.plan-v2__status > svg {
+  width: 17px;
+  height: 17px;
+  color: var(--sb-ember-strong);
+}
+
+.plan-v2__status span {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-v2__status button {
+  min-height: var(--sb-touch-target);
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--sb-text-link);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plan-v2__error {
+  display: grid;
+  gap: 3px;
+  border-color: color-mix(in srgb, var(--sb-danger) 44%, var(--sb-border));
+}
+
+.plan-v2__error p {
+  margin: 0;
+  color: var(--sb-text-muted);
+}
+
+.plan-v2__contextual-content:empty {
+  display: none;
+}
+
+.plan-v2__stop-ideas,
+.plan-v2__research {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-surface-raised);
+}
+
+.plan-v2__stop-ideas ol,
+.plan-v2__research ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-v2__stop-ideas button,
+.plan-v2__research > button {
+  display: flex;
+  width: 100%;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--sb-border);
+  border-radius: 7px;
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.plan-v2__stop-ideas button span,
+.plan-v2__research li a {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.plan-v2__stop-ideas small,
+.plan-v2__research li span {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.plan-v2__research li a {
+  min-height: 44px;
+  justify-content: center;
+  color: var(--sb-text-link);
+  text-decoration: none;
+}
+
+.plan-v2 .provider-health-notice {
+  margin: 0;
+}
+
+@media (min-width: 761px) {
+  .plan-v2 {
+    max-width: 440px;
+  }
+
+  /* Destination / Loop / Draw are primary planning controls and must stay
+     44px touch targets. The deck is capped at 440px here, so the selector's
+     1fr track collapsed each button to 38px on tablets — narrower than the
+     same control on a phone, on a device that is still touch-first. */
+  .plan-v2__mode-selector {
+    min-width: 144px;
+  }
+}
+
+@media (max-width: 760px) {
+  .plan-v2__action-rail {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .plan-v2__free-ride {
+    min-width: 84px;
+    padding-inline: 8px;
+  }
+
+  .plan-v2__options-trigger {
+    min-width: 78px;
+    padding-inline: 8px;
+  }
+
+  /* The planner sheet owns scrolling. Options must not create a second
+   * vertical scroller that can strand route/result content below it. */
+  .plan-v2__options-panel {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 390px) {
+  .plan-v2__search {
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+  }
+
+  .plan-v2__search input {
+    font-size: 13px;
+  }
+
+  .plan-v2__mode-selector button {
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .plan-v2__draw-mode {
+    gap: 3px;
+  }
+
+  .plan-v2__draw-mode svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .plan-v2__free-ride {
+    min-width: 76px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .plan-v2__free-ride svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .plan-v2__options-trigger {
+    min-width: 72px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .plan-v2__options-trigger svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .plan-v2__segment-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .plan-v2__segment-row > span {
+    grid-column: 1 / -1;
+  }
+
+  .plan-v2__custom-time {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .plan-v2__custom-time small {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 340px) {
+  .plan-v2__free-ride span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .plan-v2__free-ride {
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
+  }
+
+  .plan-v2__options-trigger {
+    min-width: 68px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-v2 *,
+  .plan-v2 *::before,
+  .plan-v2 *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* iOS Safari zooms the whole viewport when a focused text control renders
+   below 16px, which throws the rider out of the map-first layout and needs a
+   manual pinch back. Scoped to real touch devices, so desktop density is
+   unchanged — the previous phone-only breakpoint missed iPad, which zooms too. */
+@media (pointer: coarse) {
+  .plan-v2__search input {
+    font-size: 16px;
+  }
+}
+
+/* Short landscape planning status stays compact while preserving the
+   cancel action and the map-first left-sheet composition. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .plan-v2 { gap: 5px; }
+  .plan-v2__compact-rail { gap: 5px; }
+  .plan-v2__status { min-height: 44px; padding: 7px 10px; }
+  .plan-v2__contextual-content { gap: 8px; }
+}

@@ -1,0 +1,109 @@
+.flow {
+  display: grid;
+  gap: 10px;
+}
+
+.filePicker {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px dashed color-mix(in srgb, var(--sb-ember-strong) 58%, var(--sb-border));
+  border-radius: var(--sb-radius-control, 10px);
+  background: color-mix(in srgb, var(--sb-ember-strong) 5%, var(--sb-paper));
+  color: var(--sb-text-link);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.filePicker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.filePicker:has(input:focus-visible) {
+  outline: 3px solid var(--sb-focus-fill);
+  outline-offset: 2px;
+}
+
+.filePicker svg {
+  width: 18px;
+  height: 18px;
+}
+
+.choices {
+  display: grid;
+  gap: 6px;
+}
+
+.choices header {
+  display: grid;
+  gap: 2px;
+  padding: 2px 2px 5px;
+}
+
+.choices header strong {
+  overflow: hidden;
+  color: var(--sb-text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choices header small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+}
+
+.choices button {
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip, 8px);
+  background: var(--sb-paper);
+  color: var(--sb-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.choices button:hover,
+.choices button:focus-visible {
+  border-color: var(--sb-ember-strong);
+  outline: none;
+}
+
+.choices button:focus-visible {
+  box-shadow: 0 0 0 3px var(--sb-focus-fill);
+}
+
+.choices button > svg {
+  width: 21px;
+  height: 21px;
+  color: var(--sb-ember-strong);
+}
+
+.choices button > span {
+  display: grid;
+  gap: 2px;
+}
+
+.choices button b {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.choices button small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}

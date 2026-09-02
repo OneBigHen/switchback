@@ -1,23 +1,15 @@
 "use client"
 
 import {
-  ArrowRight,
-  ArrowsDownUp,
-  BookOpen,
   CaretDown,
   CaretUp,
-  Clock,
   DownloadSimple,
   LockSimple,
-  NavigationArrow,
-  Microphone,
-  MapPin,
   MapTrifold,
+  NavigationArrow,
   Path,
-  Plus,
+  RoadHorizon,
   SpinnerGap,
-  Sparkle,
-  WaveSine,
   WarningCircle,
   X
 } from "@phosphor-icons/react"
@@ -29,27 +21,16 @@ import {
   type ReactNode
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
-import { featureFlags } from "@/lib/domain/feature-flags"
 import { usePlannerStore } from "@/stores/planner-store"
-import type { RouteProfileId } from "@/lib/routing/types"
-import { BikeProfilePicker } from "./BikeProfilePicker"
-import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
-import { WaypointField } from "./WaypointField"
-import {
-  DOWNLOAD_MODE_PICKER_DEFAULT,
-  DownloadModePicker,
-  type DownloadModePickerValue
-} from "./DownloadModePicker"
+import { DownloadModePicker, DOWNLOAD_MODE_PICKER_DEFAULT, type DownloadModePickerValue } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
 import { ContextSheet } from "./workspace/ContextSheet"
-import type {
-  PlannerDeckCommands,
-  PlannerDeckViewModel
-} from "./PlannerDeckViewModel"
-import { ProviderHealthNotice } from "./ProviderHealthNotice"
+import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
+import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
+import { isActivePlanningPhase } from "./PlannerDeckViewModel"
+import { PlanComposer } from "./v2/PlanComposer"
 
 export type { PlanMode, RideIntentStatus } from "./PlannerDeckViewModel"
-import { isActivePlanningPhase } from "./PlannerDeckViewModel"
 
 interface VoiceRecognitionResultEvent {
   results: ArrayLike<ArrayLike<{ transcript: string }>>
@@ -80,7 +61,6 @@ interface PlannerDeckProps {
 }
 
 export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps) {
-  /* ── viewModel destructuring ── */
   const { waypoint, rideConfig, intent, ui, lifecycle, providerHealth } = viewModel
 
   const start = waypoint.start
@@ -104,15 +84,13 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const planMode = rideConfig.planMode
   const targetMinutes = rideConfig.targetMinutes
   const intentStatus = intent.intentStatus
-  const intentSummary = intent.intentSummary
   const stopIdeas = intent.stopIdeas
   const researchStatus = intent.researchStatus
   const researchSources = intent.researchSources
   const selectedRoute = ui.selectedRoute ?? null
   const home = ui.home ?? null
   const planningActive = isActivePlanningPhase(lifecycle.phase)
-  // Elapsed seconds must come from state, not Date.now() during render
-  // (react-hooks/purity): a 1s interval drives the ticker while planning.
+
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!planningActive) return
@@ -123,7 +101,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     ? Math.max(0, Math.floor((now - lifecycle.startedAt) / 1000))
     : 0
 
-  /* ── commands destructuring ── */
   const { waypoint: wc, rideConfig: rc, intent: ic } = commands
   const onCancelPlanning = commands.onCancelPlanning
   const onRetryProviderHealth = commands.onRetryProviderHealth
@@ -153,7 +130,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onChooseStopIdea = ic.onChooseStopIdea
   const onResearchRideIdea = ic.onResearchRideIdea
   const onUseCurrentLocation = commands.onUseCurrentLocation
-
   const onClearRoute = commands.onClearRoute
   const onPlan = commands.onPlan
   const onOpenLibrary = commands.onOpenLibrary
@@ -162,44 +138,30 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onClearHome = commands.onClearHome
   const onStartRide = commands.onStartRide
   const onStartFreeRide = commands.onStartFreeRide
+  const onStartDrawing = commands.onStartDrawing
   const onSaveOffline = commands.onSaveOffline
+
   const [ridePrompt, setRidePrompt] = useState("")
   const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
   const setSheetDetentOverride = usePlannerStore((state) => state.setSheetDetentOverride)
   const sheetDetent = sheetDetentOverride ?? "half"
   const minimized = sheetDetent === "peek"
   const [editing, setEditing] = useState(false)
-  // Mobile planning flow stages (SB-025): Search → Choose → Edit → Prepare.
+  const isIdlePlan = !selectedRoute && !editing && ui.routesCount === 0
+  const [roadLocksOpen, setRoadLocksOpen] = useState(false)
+  const [offlinePackOpen, setOfflinePackOpen] = useState(false)
+  const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
+  const previousReadyStateRef = useRef({ phase: lifecycle.phase, routesCount: ui.routesCount })
+
   const planningStage: "Search" | "Choose" | "Edit" | "Prepare" = editing
     ? "Edit"
     : selectedRoute ? "Prepare"
     : (lifecycle.phase === "ready" || lifecycle.phase === "alternatives") && ui.routesCount > 1 ? "Choose"
     : "Search"
-  const [exampleIndex, setExampleIndex] = useState(0)
-  const [roadLocksOpen, setRoadLocksOpen] = useState(false)
-  const [offlinePackOpen, setOfflinePackOpen] = useState(false)
-  const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
-  const previousReadyStateRef = useRef({ phase: lifecycle.phase, routesCount: ui.routesCount })
-  const profiles = listProfiles()
-  const activeProfile = profiles.find((item) => item.id === profile) ?? profiles[0]
+
   const durationLabel = targetMinutes % 60 === 0
     ? `${targetMinutes / 60}-hour`
     : `${targetMinutes}-minute`
-  const examples = [
-    "A scenic ride to a river overlook",
-    "Two-hour twisty loop",
-    "Scenic ride to New Hope with a coffee stop",
-    "123 Market St, Philadelphia, PA",
-    "Find gravel roads within 45 minutes",
-    "Ride somewhere good for lunch"
-  ]
-  const intentChips = [
-    planMode === "destination" && finish?.label ? finish.label : null,
-    planMode === "loop" ? `${durationLabel} loop` : null,
-    activeProfile.label,
-    via.length > 0 ? `${via.length} ${via.length === 1 ? "stop" : "stops"}` : null,
-    avoidHighways ? "No highways" : null
-  ].filter((chip): chip is string => Boolean(chip))
   const mustLockCount = rideConfig.roadLocks.filter((lock) => lock.mode === "must").length
   const bikeProfileMismatch = Boolean(selectedRoute) && (() => {
     const bikeCategory = rideConfig.bikeProfile.category
@@ -208,10 +170,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     if (bikeCategory === "adventure") return false
     return routeProfile !== "adventure"
   })()
-  useEffect(() => {
-    const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % examples.length), 4200)
-    return () => window.clearInterval(timer)
-  }, [examples.length])
+
   useEffect(() => {
     const previous = previousReadyStateRef.current
     const routeReady = (lifecycle.phase === "ready" || lifecycle.phase === "alternatives")
@@ -221,31 +180,30 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     if (!routeReady) return
 
     setEditing(false)
-    if (isPhoneViewport()) setSheetDetentOverride("full")
+    if (isPhoneViewport()) setSheetDetentOverride("half")
     const frame = window.requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(".route-rack")?.scrollIntoView?.({ block: "start", behavior: "auto" })
     })
     return () => window.cancelAnimationFrame(frame)
   }, [lifecycle.phase, setSheetDetentOverride, ui.routesCount])
+
   const submitRidePrompt = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    // Read the live field value rather than possibly-unflushed state: a
-    // submit racing the controlled-input update (e.g. Enter immediately
-    // after typing) used to send an empty prompt to the intent API.
     const prompt = (new FormData(event.currentTarget).get("ride-prompt") as string | null ?? ridePrompt).trim()
-    if (prompt.length >= 3 && intentStatus !== "interpreting") onRidePrompt(prompt)
+    if (prompt.length < 3 || intentStatus === "interpreting") return
+    onRidePrompt(prompt)
   }
-  const planDisabled = !start || (planMode === "destination" && !finish) || status === "routing" || intentStatus === "interpreting"
+
+  const planDisabled = !start
+    || (planMode === "destination" && !finish)
+    || status === "routing"
+    || intentStatus === "interpreting"
   const planLabel = status === "routing"
     ? "Reading the roads…"
     : planMode === "loop"
       ? `Plan a ${durationLabel} loop`
       : "Plan route"
-  const submitQuickIntent = (prompt: string) => {
-    setRidePrompt(prompt)
-    setSheetDetentOverride("half")
-    onRidePrompt(prompt)
-  }
+
   const voiceSessionRef = useRef(false)
   const startVoiceInput = () => {
     if (voiceSessionRef.current) return
@@ -264,8 +222,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     recognition.maxAlternatives = 1
     recognition.onresult = (event) => setRidePrompt(event.results[0]?.[0]?.transcript ?? "")
     recognition.onerror = () => {
-      // A denied or failed speech session leaves the typed input editable;
-      // there is no session state to clean up beyond the overlap guard.
+      // The typed input remains the fallback if speech permission or capture fails.
     }
     recognition.onend = () => {
       voiceSessionRef.current = false
@@ -274,8 +231,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       voiceSessionRef.current = true
       recognition.start()
     } catch {
-      // Some browsers throw synchronously when a session cannot start
-      // (e.g. permission denied); never leave the guard stuck.
       voiceSessionRef.current = false
     }
   }
@@ -283,7 +238,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   return (
     <ContextSheet
       id="planner-sheet"
-      className={`planner-deck sb-bottom-sheet${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
+      className={`planner-deck sb-bottom-sheet${isIdlePlan ? " is-idle-plan" : ""}${minimized ? " is-minimized" : ""}${selectedRoute && onStartRide && onSaveOffline ? " has-expanded-route-dock" : ""}`}
       detent={sheetDetent}
       onDetentChange={setSheetDetentOverride}
       label="Motorcycle route planner"
@@ -291,7 +246,14 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       {minimized ? (
         <>
           <div className="planner-mini-header">
-            <button type="button" className="planner-expand" aria-label="Expand planner" aria-controls="planner-sheet" aria-expanded={false} onClick={() => setSheetDetentOverride(selectedRoute ? "full" : "half")}>
+            <button
+              type="button"
+              className="planner-expand"
+              aria-label="Expand planner"
+              aria-controls="planner-sheet"
+              aria-expanded={false}
+              onClick={() => setSheetDetentOverride(selectedRoute ? "full" : "half")}
+            >
               <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
               <span>
                 <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
@@ -303,494 +265,151 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <CaretUp aria-hidden="true" />
             </button>
           </div>
-          {!selectedRoute ? (
+          {!selectedRoute && onStartFreeRide ? (
             <div className="planner-peek-actions" aria-label="Quick ride actions">
-              {onStartFreeRide ? (
-                <button type="button" className="planner-peek-action is-primary" onClick={onStartFreeRide}>
-                  <Sparkle weight="fill" aria-hidden="true" /> Free Ride
-                </button>
-              ) : null}
-              <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("1-hour loop")}>1-hour loop</button>
-              <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Twisty roads")}>Twisties</button>
-              <button type="button" className="planner-peek-action" onClick={() => submitQuickIntent("Scenic ride")}>Scenic</button>
+              <button type="button" className="planner-peek-action is-primary" onClick={onStartFreeRide}>
+                <RoadHorizon weight="fill" aria-hidden="true" /> Free Ride
+              </button>
             </div>
           ) : null}
         </>
       ) : (
         <>
-        <div className="planner-scroll">
-        <header className="deck-header ride-deck-header">
-          <a className="brand-lockup" href="#top" aria-label="Switchback home">
-            <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
-            <span>
-              <strong>Switchback</strong>
-              <small>Ride the better road</small>
-            </span>
-          </a>
-          <div className="deck-header-tools">
-            <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
-              {planningStage}
-            </span>
-            {sheetDetent === "full" ? (
-              <button
-                type="button"
-                className="planner-full-map-tools"
-                aria-label="Show map tools"
-                title="Collapse planner to use map tools"
-                onClick={() => setSheetDetentOverride("half")}
-              >
-                <MapTrifold weight="bold" aria-hidden="true" />
-              </button>
-            ) : null}
-            <button type="button" className="planner-minimize" aria-label="Minimize planner" aria-controls="planner-sheet" aria-expanded={true} onClick={() => {
-              if (selectedRoute) setEditing(false)
-              setSheetDetentOverride("peek")
-            }}>
-              <CaretDown aria-hidden="true" />
-            </button>
-          </div>
-        </header>
-
-        <div className="deck-section ride-omnibox-section">
-          <ProviderHealthNotice health={providerHealth} onRetry={onRetryProviderHealth} />
-          <div className="ride-intent-heading">
-            <span>Ride</span>
-            <h1>Where do you want to ride?</h1>
-            <button
-              type="button"
-              className="ride-location-button"
-              aria-label={start ? "Update the route start to my current location" : "Use my current location as the route start"}
-              onClick={onUseCurrentLocation}
-            >
-              <MapPin weight="fill" aria-hidden="true" />
-              <span>{start ? `Starting from ${start.label ?? "selected start"}` : "Use my current location"}</span>
-              <ArrowRight weight="bold" aria-hidden="true" />
-            </button>
-          </div>
-          <form className="ride-omnibox" aria-label="Where do you want to ride?" onSubmit={submitRidePrompt}>
-            <MapPin weight="fill" aria-hidden="true" />
-            <label className="sr-only" htmlFor="ride-prompt">Where do you want to ride?</label>
-            <input
-              id="ride-prompt"
-              name="ride-prompt"
-              value={ridePrompt}
-              onChange={(event) => setRidePrompt(event.target.value)}
-              placeholder={examples[exampleIndex]}
-              autoComplete="off"
-            />
-            <button type="button" className="ride-voice-button" aria-label="Start voice input" onClick={startVoiceInput}>
-              <Microphone weight="fill" aria-hidden="true" />
-            </button>
-            <button
-              type="submit"
-              aria-label="Find ride options"
-              disabled={ridePrompt.trim().length < 3 || intentStatus === "interpreting" || planningActive}
-            >
-              {intentStatus === "interpreting" || planningActive
-                ? <SpinnerGap className="spin" aria-hidden="true" />
-                : <ArrowRight weight="bold" aria-hidden="true" />}
-            </button>
-          </form>
-          {planningActive ? (
-            <div className="planner-lifecycle-status" role="status" aria-live="polite" aria-label="Ride planning progress">
-              <SpinnerGap className="spin" aria-hidden="true" />
-              <span>{lifecycle.label}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
-              <button type="button" className="planner-lifecycle-cancel" onClick={onCancelPlanning} aria-label="Cancel planning">
-                <X weight="bold" aria-hidden="true" /> Cancel
-              </button>
-            </div>
-          ) : null}
-          {error ? (
-            <div className="planner-error" role="alert">
-              <strong>{error.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
-              <p>{error.message}</p>
-            </div>
-          ) : null}
-          {!selectedRoute ? (
-            <div className="ride-quick-intents" aria-label="Quick ride ideas">
-              <button type="button" onClick={() => submitQuickIntent("1-hour loop")}>1-hour loop</button>
-              <button type="button" onClick={() => submitQuickIntent("Twisty roads")}>Twisties</button>
-              <button type="button" onClick={() => submitQuickIntent("Scenic ride")}>Scenic</button>
-            </div>
-          ) : null}
-          {!selectedRoute ? (
-            intentChips.length > 0 && intentSummary ? (
-              <div className="ride-understanding" aria-label="What Switchback understood">
-                <p>{intentSummary}</p>
-                <div>{intentChips.map((chip) => <button key={chip} type="button" onClick={() => setEditing(true)}>{chip}</button>)}</div>
-              </div>
-            ) : (
-              <div className="ride-recents" aria-label="Ride examples">
-                <span>Try</span>
-                <button type="button" onClick={() => submitQuickIntent("Twisty ride to Pine Creek Gorge")}>Pine Creek Gorge <ArrowRight aria-hidden="true" /></button>
-                <button type="button" onClick={() => submitQuickIntent("Scenic ride to New Hope with a coffee stop")}>New Hope scenic route <ArrowRight aria-hidden="true" /></button>
-              </div>
-            )
-          ) : null}
-          {stopIdeas ? (
-            <div className="ride-stop-ideas" aria-label="Suggested route stops">
-              <div>
-                <strong>{stopIdeas.rankedBy === "rider-fit" ? "Rider-fit stop ideas" : "Nearby stop ideas"}</strong>
-                <small>{stopIdeas.rankedBy === "rider-fit" ? "Quality, route proximity, and a mix of breweries, parks, and local stops" : "Nearby OpenStreetMap matches"}</small>
-              </div>
-              <ol>
-                {stopIdeas.places.slice(0, 3).map((place) => (
-                  <li key={place.id}>
-                    <button
-                      type="button"
-                      onClick={() => onChooseStopIdea({ lat: place.lat, lon: place.lon, label: place.label })}
-                    >
-                      <span>
-                        <b>{place.name}</b>
-                        <small>{place.riderReason ?? (place.rating ? `${place.rating.toFixed(1)} stars` : "Place match")}{place.rating && place.riderReason ? ` · ${place.rating.toFixed(1)} stars` : ""}{place.reviewCount !== undefined ? ` · ${place.reviewCount.toLocaleString()} Google reviews` : ""}</small>
-                      </span>
-                      <ArrowRight weight="bold" aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-          {editing ? <div className="ride-research">
-            <button
-              type="button"
-              disabled={ridePrompt.trim().length < 3 || researchStatus === "researching"}
-              onClick={() => onResearchRideIdea(ridePrompt.trim())}
-            >
-              {researchStatus === "researching" ? <SpinnerGap className="spin" aria-hidden="true" /> : null}
-              {researchStatus === "researching" ? "Researching ideas…" : "Research road & stop ideas"}
-            </button>
-            <small>Uses current web sources only when you ask for research.</small>
-            {researchSources.length > 0 ? (
-              <ul aria-label="Web research sources">
-                {researchSources.map((source) => (
-                  <li key={source.url}>
-                    {/* Defense in depth: the server normalizes source URLs,
-                        but never hand an unchecked scheme to href. */}
-                    {/^https?:\/\//i.test(source.url) ? (
-                      <a href={source.url} target="_blank" rel="noopener noreferrer">
-                        <b>{source.title}</b>
-                        <span>{source.summary}</span>
-                      </a>
-                    ) : (
-                      <span>
-                        <b>{source.title}</b>
-                        <span>{source.summary}</span>
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div> : null}
-        </div>
-
-        <button type="button" className="edit-route-button" onClick={() => setEditing((current) => !current)}>
-          {editing ? "Hide route editor" : "Edit route"}
-        </button>
-
-        {children}
-
-        {editing ? <>
-        <div className="deck-section profile-section">
-          <div className="section-heading compact">
-            <div>
-              <h2>{activeProfile.label}</h2>
-            </div>
-            <span className="profile-glyph"><WaveSine aria-hidden="true" /></span>
-          </div>
-          <div className="profile-switch" aria-label="Motorcycle routing profile">
-            {profiles.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                aria-pressed={item.id === profile}
-                onClick={() => onProfileChange(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <p className="profile-description">{activeProfile.description}</p>
-
-          <BikeProfilePicker
-            value={rideConfig.bikeProfile}
-            onChange={(next) => onBikeProfileChange(next)}
-            routingProfile={rideConfig.profile}
-            id="bike-profile-picker"
-          />
-
-          <div className="planner-controls">
-            <div className="planner-preferences">
-              <label className="curve-toggle">
-                <input
-                  type="checkbox"
-                  checked={curvatureVisible}
-                  onChange={(event) => onCurvatureChange(event.target.checked)}
-                />
-                <span aria-hidden="true" />
-                Show high-curvature roads
-              </label>
-              <label className="curve-toggle highway-toggle">
-                <input
-                  type="checkbox"
-                  checked={avoidHighways}
-                  onChange={(event) => onAvoidHighwaysChange(event.target.checked)}
-                />
-                <span aria-hidden="true" />
-                Avoid highways
-              </label>
-            </div>
-            <button type="button" className="library-button" onClick={onOpenLibrary}>
-              <BookOpen aria-hidden="true" />
-              Library
-              {savedCount > 0 ? <span>{savedCount}</span> : null}
-            </button>
-          </div>
-        </div>
-
-        <div className="deck-section waypoint-composer">
-          <div className="plan-mode-switch" aria-label="Trip shape">
-            <button
-              type="button"
-              aria-pressed={planMode === "loop"}
-              onClick={() => onPlanModeChange("loop")}
-            >
-              Loop ride
-            </button>
-            <button
-              type="button"
-              aria-pressed={planMode === "destination"}
-              onClick={() => onPlanModeChange("destination")}
-            >
-              A to B
-            </button>
-          </div>
-          <div className="section-heading compact">
-            <div>
-              <h1>{planMode === "loop" ? <>Start here.<br />Come home happier.</> : <>Pick two points.<br />Find the fun part.</>}</h1>
-            </div>
-            {planMode === "destination" ? (
-              <button type="button" className="icon-tool" aria-label="Swap start and finish" onClick={onSwap}>
-                <ArrowsDownUp aria-hidden="true" />
-              </button>
-            ) : null}
-          </div>
-          <div className="waypoint-stack">
-            <WaypointField
-              id="start"
-              label="Start"
-              point={start}
-              query={startQuery}
-              armed={armedPoint === "start"}
-              onSelect={(point) => onPointChange("start", point)}
-              onQueryChange={(query) => onPointQueryChange("start", query)}
-              onArm={() => onArm("start")}
-            />
-            {planMode === "destination" ? (
-              <WaypointField
-                id="finish"
-                label="Finish"
-                point={finish}
-                query={finishQuery}
-                armed={armedPoint === "finish"}
-                onSelect={(point) => onPointChange("finish", point)}
-                onQueryChange={(query) => onPointQueryChange("finish", query)}
-                onArm={() => onArm("finish")}
-              />
-            ) : null}
-          </div>
-          {home || start ? (
-            <div className="route-edit-toolbar" aria-label="Home location">
-              {home ? <button type="button" onClick={onUseHome}>Use Home</button> : null}
-              {start ? <button type="button" onClick={onSaveHome}>Save start as Home</button> : null}
-              {home ? <button type="button" onClick={onClearHome}>Remove Home</button> : null}
-            </div>
-          ) : null}
-          {planMode === "loop" ? (
-            <div className="time-budget" aria-label="Loop duration">
-              <span><Clock aria-hidden="true" /> Ride time</span>
-              <div>
-                {[60, 90, 120, 180].map((minutes) => (
+          <div className="planner-scroll plan-v2-scroll">
+            <header className="deck-header ride-deck-header plan-v2-header">
+              <div className="deck-header-tools">
+                <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+                  {planningStage}
+                </span>
+                {sheetDetent === "full" ? (
                   <button
                     type="button"
-                    key={minutes}
-                    aria-pressed={minutes === targetMinutes}
-                    onClick={() => onTargetMinutesChange(minutes)}
+                    className="planner-full-map-tools"
+                    aria-label="Show map tools"
+                    title="Collapse planner to use map tools"
+                    onClick={() => setSheetDetentOverride("half")}
                   >
-                    {minutes < 60 ? `${minutes} min` : minutes % 60 === 0 ? `${minutes / 60} hr` : `${minutes} min`}
+                    <MapTrifold weight="bold" aria-hidden="true" />
                   </button>
-                ))}
+                ) : null}
+                <button
+                  type="button"
+                  className="planner-minimize"
+                  aria-label="Minimize planner"
+                  aria-controls="planner-sheet"
+                  aria-expanded={true}
+                  onClick={() => {
+                    if (selectedRoute) setEditing(false)
+                    setSheetDetentOverride("peek")
+                  }}
+                >
+                  <CaretDown aria-hidden="true" />
+                </button>
               </div>
-            </div>
-          ) : null}
-          <div className="route-shaping-tools">
-            <button
-              type="button"
-              className="add-via-button"
-              aria-pressed={addingVia}
-              onClick={onToggleAddVia}
-            >
-              {addingVia ? <X aria-hidden="true" /> : <Plus weight="bold" aria-hidden="true" />}
-              {addingVia ? "Cancel map pick" : "Add stop on map"}
-            </button>
-            <div className="route-edit-toolbar" aria-label="Route edit history">
-              <button
-                type="button"
-                aria-label="Undo route edit"
-                disabled={!canUndoRoutePoints}
-                onClick={onUndoRoutePoints}
-              >
-                Undo
-              </button>
-              <button
-                type="button"
-                aria-label="Redo route edit"
-                disabled={!canRedoRoutePoints}
-                onClick={onRedoRoutePoints}
-              >
-                Redo
-              </button>
-              <button
-                type="button"
-                aria-label="Reverse route"
-                disabled={planMode === "destination" ? !start || !finish : via.length === 0}
-                onClick={onReverseRoute}
-              >
-                Reverse
-              </button>
-            </div>
-            {via.length > 0 ? (
-              <div className="via-points" aria-label="Shaping stops">
-                {via.map((point, index) => (
-                  <span key={`${point.lat}-${point.lon}-${index}`}>
-                    <b>{index + 1}</b>
-                    <span>{point.label ?? `Shaping stop ${index + 1}`}</span>
-                    <span className="via-point-actions">
-                      <button
-                        type="button"
-                        aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} earlier`}
-                        disabled={index === 0}
-                        onClick={() => onMoveVia(index, index - 1)}
-                      >
-                        <CaretUp aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} later`}
-                        disabled={index === via.length - 1}
-                        onClick={() => onMoveVia(index, index + 1)}
-                      >
-                        <CaretDown aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${point.label ?? `shaping stop ${index + 1}`}`}
-                        onClick={() => onRemoveVia(index)}
-                      >
-                        <X aria-hidden="true" />
-                      </button>
-                    </span>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {planMode === "destination" && start && finish ? (
-              <div className="segment-character-controls" aria-label="Road character by route leg">
-                {via.map((point, index) => {
-                  const label = point.label ?? `shaping stop ${index + 1}`
-                  return (
-                    <label key={`segment-${point.lat}-${point.lon}-${index}`}>
-                      <span>To {label}</span>
-                      <select
-                        aria-label={`Ride style to ${label}`}
-                        value={segmentProfiles[index] ?? profile}
-                        onChange={(event) => onSegmentProfileChange(index, event.currentTarget.value as RouteProfileId)}
-                      >
-                        {profiles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                      </select>
-                      <button
-                        type="button"
-                        aria-label={point.locked ? `Unlock ${label}` : `Lock ${label} as must-use`}
-                        aria-pressed={Boolean(point.locked)}
-                        disabled={!featureFlags.roadRequirements}
-                        title={featureFlags.roadRequirements
-                          ? undefined
-                          : "Must-use road locks are disabled until graph-matched road requirements ship."}
-                        onClick={() => onToggleViaLock(index)}
-                      >
-                        {point.locked ? "Locked" : "Lock"}
-                      </button>
-                    </label>
-                  )
-                })}
-                <label>
-                  <span>To finish</span>
-                  <select
-                    aria-label="Ride style to finish"
-                    value={segmentProfiles[via.length] ?? profile}
-                    onChange={(event) => onSegmentProfileChange(via.length, event.currentTarget.value as RouteProfileId)}
-                  >
-                    {profiles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
-                </label>
-              </div>
-            ) : null}
-            {avoidAreaCount > 0 ? (
-              <div className="avoid-area-summary">
-                <span>{avoidAreaCount} avoid {avoidAreaCount === 1 ? "area" : "areas"} active</span>
-                <button type="button" onClick={onRemoveAvoidArea}>Clear latest</button>
-              </div>
-            ) : null}
-          </div>
-          {armedPoint ? (
-            <p className="map-pick-hint" role="status">
-              Tap the map to place your {armedPoint}.
-            </p>
-          ) : addingVia ? (
-            <p className="map-pick-hint" role="status">Tap the map to add a stop. Drag numbered stops later to reshape the route.</p>
-          ) : via.length > 0 ? (
-            <p className="map-shape-hint">Drag any numbered stop on the map to fine-tune your line.</p>
-          ) : null}
-        </div>
+            </header>
 
+            <PlanComposer
+              planMode={planMode}
+              onPlanModeChange={onPlanModeChange}
+              onDraw={() => onStartDrawing?.()}
+              ridePrompt={ridePrompt}
+              onRidePromptChange={setRidePrompt}
+              onRidePromptSubmit={submitRidePrompt}
+              onStartVoiceInput={startVoiceInput}
+              onUseCurrentLocation={onUseCurrentLocation}
+              start={start}
+              finish={finish}
+              startQuery={startQuery}
+              finishQuery={finishQuery}
+              armedPoint={armedPoint}
+              via={via}
+              addingVia={addingVia}
+              canUndoRoutePoints={canUndoRoutePoints}
+              canRedoRoutePoints={canRedoRoutePoints}
+              profile={profile}
+              bikeProfile={rideConfig.bikeProfile}
+              curvatureVisible={curvatureVisible}
+              avoidHighways={avoidHighways}
+              targetMinutes={targetMinutes}
+              segmentProfiles={segmentProfiles}
+              avoidAreaCount={avoidAreaCount}
+              roadLockCount={rideConfig.roadLocks.length}
+              savedCount={savedCount}
+              home={home}
+              providerHealth={providerHealth}
+              onRetryProviderHealth={onRetryProviderHealth}
+              intentStatus={intentStatus}
+              planningPhase={lifecycle.phase}
+              lifecycleLabel={lifecycle.label}
+              elapsedSeconds={elapsedSeconds}
+              error={error}
+              editing={editing}
+              onEditingChange={setEditing}
+              onCancelPlanning={onCancelPlanning}
+              onPointChange={onPointChange}
+              onPointQueryChange={onPointQueryChange}
+              onArm={onArm}
+              onSwap={onSwap}
+              onToggleAddVia={onToggleAddVia}
+              onRemoveVia={onRemoveVia}
+              onMoveVia={onMoveVia}
+              onReverseRoute={onReverseRoute}
+              onUndoRoutePoints={onUndoRoutePoints}
+              onRedoRoutePoints={onRedoRoutePoints}
+              onToggleViaLock={onToggleViaLock}
+              onProfileChange={onProfileChange}
+              onBikeProfileChange={onBikeProfileChange}
+              onCurvatureChange={onCurvatureChange}
+              onAvoidHighwaysChange={onAvoidHighwaysChange}
+              onTargetMinutesChange={onTargetMinutesChange}
+              onSegmentProfileChange={onSegmentProfileChange}
+              onOpenRoadLocks={() => setRoadLocksOpen(true)}
+              onRemoveAvoidArea={onRemoveAvoidArea}
+              onOpenLibrary={onOpenLibrary}
+              onUseHome={onUseHome}
+              onSaveHome={onSaveHome}
+              onClearHome={onClearHome}
+              onStartFreeRide={onStartFreeRide}
+              stopIdeas={stopIdeas}
+              onChooseStopIdea={onChooseStopIdea}
+              researchStatus={researchStatus}
+              researchSources={researchSources}
+              onResearchRideIdea={onResearchRideIdea}
+            />
+            {children}
+          </div>
+
+          {sheetDetent === "full" ? (
+            <p className="planner-full-attribution" aria-label="Map data attribution">
+              Map data: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> · <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
+            </p>
+          ) : null}
         </>
-        : null}
-      </div>
-      {sheetDetent === "full" ? (
-        <p className="planner-full-attribution" aria-label="Map data attribution">
-          Map data: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> · <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
-        </p>
-      ) : null}
-      </>
       )}
+
       <div className="planner-action-dock" aria-label="Route actions">
-        {!minimized && onStartFreeRide ? (
-          <button type="button" className="free-ride-button" onClick={onStartFreeRide}>
-            <Sparkle weight="fill" aria-hidden="true" />
-            <span>Free Ride</span>
+        {!minimized && selectedRoute ? (
+          <button
+            type="button"
+            className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
+            aria-label={`Open road locks${mustLockCount > 0 ? `, ${mustLockCount} must-use ${mustLockCount === 1 ? "lock" : "locks"} active` : ""}`}
+            aria-haspopup="dialog"
+            aria-expanded={roadLocksOpen}
+            onClick={() => setRoadLocksOpen(true)}
+          >
+            <LockSimple weight="fill" aria-hidden="true" />
+            <span>Road locks</span>
+            {mustLockCount > 0 ? <span className="road-locks-dock-count" data-tier="must">{mustLockCount}</span> : null}
           </button>
         ) : null}
-        {!minimized ? <button
-          type="button"
-          className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
-          aria-label={`Open road locks${mustLockCount > 0 ? `, ${mustLockCount} must-use ${mustLockCount === 1 ? "lock" : "locks"} active` : ""}`}
-          aria-haspopup="dialog"
-          aria-expanded={roadLocksOpen}
-          onClick={() => setRoadLocksOpen(true)}
-        >
-          <LockSimple weight="fill" aria-hidden="true" />
-          <span>Road locks</span>
-          {mustLockCount > 0 ? (
-            <span className="road-locks-dock-count" data-tier="must">{mustLockCount}</span>
-          ) : null}
-        </button> : null}
+
         {!minimized && bikeProfileMismatch ? (
           <span className="planner-dock-mismatch" role="status">
             <WarningCircle aria-hidden="true" weight="fill" />
             Profile mismatch
           </span>
         ) : null}
+
         {!minimized && selectedRoute ? (
           <button
             type="button"
@@ -803,6 +422,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             Clear route
           </button>
         ) : null}
+
         {minimized && selectedRoute ? (
           <button
             type="button"
@@ -816,12 +436,15 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             <span>Start new route</span>
           </button>
         ) : null}
+
         {selectedRoute && onStartRide ? (
           <>
-            {!minimized && editing ? <button type="button" className="replan-button" disabled={planDisabled} onClick={onPlan}>
-              {status === "routing" ? <SpinnerGap className="spin" aria-hidden="true" /> : <Path weight="bold" aria-hidden="true" />}
-              <span>{status === "routing" ? "Replanning…" : "Replan"}</span>
-            </button> : null}
+            {!minimized && editing ? (
+              <button type="button" className="replan-button" disabled={planDisabled} onClick={onPlan}>
+                {status === "routing" ? <SpinnerGap className="spin" aria-hidden="true" /> : <Path weight="bold" aria-hidden="true" />}
+                <span>{status === "routing" ? "Replanning…" : "Replan"}</span>
+              </button>
+            ) : null}
             {!minimized && editing && onSaveOffline ? (
               <button type="button" className="offline-pack-button" onClick={() => setOfflinePackOpen(true)}>
                 <DownloadSimple weight="bold" aria-hidden="true" />
@@ -830,7 +453,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             ) : null}
             <button type="button" className="ride-button dock-ride-button" onClick={() => onStartRide(selectedRoute)}>
               <NavigationArrow weight="fill" aria-hidden="true" />
-              <span>Start {listProfiles().find((profile) => profile.id === selectedRoute.profile)?.label ?? "Ride"} route</span>
+              <span>Start {listProfiles().find((item) => item.id === selectedRoute.profile)?.label ?? "Ride"} route</span>
             </button>
           </>
         ) : editing ? (
@@ -841,10 +464,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
         ) : null}
       </div>
 
-      <RoadLockLibraryDrawer
-        open={roadLocksOpen}
-        onClose={() => setRoadLocksOpen(false)}
-      />
+      <RoadLockLibraryDrawer open={roadLocksOpen} onClose={() => setRoadLocksOpen(false)} />
 
       {offlinePackOpen && selectedRoute ? (
         <OfflinePackModal
@@ -891,15 +511,8 @@ function OfflinePackModal({ route, value, onChange, onCancel, onSave }: OfflineP
           tabIndex={-1}
         >
           <header>
-            <div>
-              <h2 id="offline-pack-modal-title">Offline pack for {route.name}</h2>
-            </div>
-            <button
-              type="button"
-              className="icon-tool"
-              aria-label="Cancel offline pack"
-              onClick={onCancel}
-            >
+            <div><h2 id="offline-pack-modal-title">Offline pack for {route.name}</h2></div>
+            <button type="button" className="icon-tool" aria-label="Cancel offline pack" onClick={onCancel}>
               <X aria-hidden="true" />
             </button>
           </header>
