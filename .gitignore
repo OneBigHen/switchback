@@ -54,3 +54,8 @@ data/gpx-library.pending-*/
 .atl/
 .pi/
 .pi-lens/
+
+# stray local verification screenshots
+/*.jpeg
+/after-*.png
+/before-*.png

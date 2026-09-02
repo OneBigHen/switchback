@@ -125,23 +125,6 @@
   height: 20px;
 }
 
-.planner-error {
-  margin-top: 10px;
-  padding: 11px 12px;
-  border-left: 2px solid var(--danger);
-  background: rgb(227 93 84 / 7%);
-}
-
-.planner-error strong {
-  font-size: 11px;
-}
-
-.planner-error p {
-  margin-top: 3px;
-  color: #c9aaa7;
-  font-size: 10px;
-  line-height: 1.45;
-
 /* Phase 6: lifecycle progress in the omnibox (existing visual language) */
 .planner-lifecycle-status {
   display: flex;
