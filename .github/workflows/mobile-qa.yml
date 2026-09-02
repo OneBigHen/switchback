@@ -1,6 +1,9 @@
-name: Mobile QA (nightly)
+name: Mobile QA
 
 on:
+  pull_request:
+  push:
+    branches: [main]
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch:
