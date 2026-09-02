@@ -165,6 +165,17 @@ export function PlanComposer({
     <div className="plan-v2" data-plan-mode={planMode} data-editing={editing ? "true" : "false"}>
       {providerHealth ? <ProviderHealthNotice health={providerHealth} onRetry={onRetryProviderHealth} /> : null}
 
+      {/* V2.1 W1 §5: while planning, the lifecycle status (with Cancel) leads
+          the composer so it stays above the fold even with the Options panel
+          expanded — the strip used to render after it and disappear below. */}
+      {planningBusy ? (
+        <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
+          <SpinnerGap className="spin" aria-hidden="true" />
+          <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
+          <button type="button" aria-label="Cancel planning" onClick={onCancelPlanning}>Cancel</button>
+        </div>
+      ) : null}
+
       <div className="plan-v2__compact-rail">
         <form
           className="plan-v2__search"
@@ -270,14 +281,6 @@ export function PlanComposer({
           />
         </div>
       </div>
-
-      {planningBusy ? (
-        <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
-          <SpinnerGap className="spin" aria-hidden="true" />
-          <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
-          <button type="button" aria-label="Cancel planning" onClick={onCancelPlanning}>Cancel</button>
-        </div>
-      ) : null}
 
       {error ? (
         <div className="plan-v2__error" role="alert">

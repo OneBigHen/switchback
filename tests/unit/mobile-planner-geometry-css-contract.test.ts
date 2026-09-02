@@ -12,16 +12,16 @@ const omniboxStyles = readFileSync(resolve(process.cwd(), "src/app/styles/ride-o
 
 describe("mobile planner geometry contract", () => {
   it("keeps every planner dock in sheet flow so one scroll owner can clear it", () => {
-    expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) {")
-    expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) .planner-scroll {")
-    expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {")
+    expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) {")
+    expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) .planner-scroll {")
+    expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {")
     expect(designSystem).toContain("position: static;")
     expect(designSystem).toContain("height: auto !important;")
     expect(designSystem).toContain("padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;")
   })
 
   it("scopes static dock flow to mobile and leaves clearance ownership to dock CSS", () => {
-    const staticFlow = ".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {\n    position: static;"
+    const staticFlow = ".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {\n    position: static;"
     expect(designSystem.match(/position: static;/g) ?? []).toHaveLength(1)
     const staticFlowIndex = designSystem.indexOf(staticFlow)
     expect(staticFlowIndex).toBeGreaterThan(-1)
