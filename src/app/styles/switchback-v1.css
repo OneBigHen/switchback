@@ -674,21 +674,22 @@
 
 /* The legacy planner layer declared local light tokens. Rebind every primary
    sheet token for an explicit dark preference so dark mode remains semantic
-   instead of leaving a cream planner inside a dark application shell. */
+   instead of leaving a cream planner inside a dark application shell.
+   V2.1: the retired navy literals are now the V2 dark contract surfaces
+   (Ink deepest, dark-raised panels, Spruce raised, border-dark lines). */
 :root[data-theme="dark"] .planner-deck {
-  --oled: #07121e;
-  --machined: #0e1d2c;
-  --raised: #14283a;
-  --instrument: #f3f7fa;
-  --metal: #9fb0c0;
-  --line: #294156;
-  --ride-forest: #eaf3f7;
-  --ride-ink: #f3f7fa;
-  --ride-cream: #0e1d2c;
-  --ride-line: #294156;
-  --ride-orange: #ff573d;
-  border-color: var(--line);
-  background: color-mix(in srgb, var(--machined) 97%, transparent);
+  --oled: var(--sb-ink);
+  --machined: var(--sb-surface);
+  --raised: var(--sb-surface-raised);
+  --instrument: var(--sb-text);
+  --metal: var(--sb-text-muted);
+  --line: var(--sb-border);
+  --ride-forest: var(--sb-text);
+  --ride-ink: var(--sb-text);
+  --ride-cream: var(--sb-surface);
+  --ride-line: var(--sb-border);
+  border-color: var(--sb-border);
+  background: color-mix(in srgb, var(--sb-surface) 97%, transparent);
   color-scheme: dark;
 }
 

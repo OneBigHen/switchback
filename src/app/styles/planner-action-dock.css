@@ -1,10 +1,12 @@
+/* Tokens keep the dock legible in dark; light values are visually
+   equivalent to the retired hard-coded hex (see V2.1 W1 §8). */
 .clear-route-button {
   min-height: 34px;
   padding: 0 10px;
-  border: 1px solid #ddd7cd;
+  border: 1px solid var(--sb-border);
   border-radius: 10px;
-  background: #fff;
-  color: #5c554d;
+  background: var(--sb-surface);
+  color: var(--sb-text-muted);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -12,8 +14,8 @@
 }
 
 .clear-route-button:hover {
-  border-color: #b84f1c;
-  color: #9c3d12;
+  border-color: color-mix(in srgb, var(--sb-danger) 55%, var(--sb-border));
+  color: var(--sb-danger);
 }
 
 .start-new-route-button {
@@ -63,8 +65,8 @@
   align-items: center;
   gap: 9px;
   padding: 14px 20px 16px;
-  border-top: 1px solid #e4dfd6;
-  background: rgb(255 253 249 / 96%);
+  border-top: 1px solid var(--sb-border);
+  background: color-mix(in srgb, var(--sb-surface) 96%, transparent);
   box-shadow: 0 -14px 32px rgb(57 49 38 / 9%);
   backdrop-filter: blur(18px) saturate(1.1);
 }
@@ -132,8 +134,8 @@
 
 .planner-action-dock .ride-button {
   border: 0;
-  background: #242321;
-  color: #fff;
+  background: var(--sb-ink);
+  color: var(--sb-paper);
   box-shadow: 0 9px 22px rgb(36 35 33 / 19%);
 }
 
@@ -143,10 +145,10 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid #cbc3b8;
+  border: 1px solid var(--sb-border);
   border-radius: 14px;
-  background: #f8f5ef;
-  color: #4f4a44;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
 }
 
 .offline-pack-button svg {
@@ -159,9 +161,9 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid #ddd7cd;
-  background: #fff;
-  color: #4f4b46;
+  border: 1px solid var(--sb-border);
+  background: var(--sb-surface);
+  color: var(--sb-text-muted);
   cursor: pointer;
 }
 
@@ -436,4 +438,27 @@
       padding: 14px;
       gap: 8px;
     }
+}
+
+/* V2.1 W1 §8: on phones the three-child prepare dock fell into a 2-column
+   grid, squeezing the primary Start CTA into a ~96px column that wrapped its
+   label across three lines and made Clear route outweigh it. The CTA gets a
+   full-width row; Clear (lower emphasis) and the road-locks utility share the
+   line above. Placed last with explicit grid lines so it wins the cascade
+   against every earlier template in this file. */
+@media (max-width: 760px) {
+  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .clear-route-button {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .dock-ride-button {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
