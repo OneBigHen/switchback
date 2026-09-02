@@ -1005,3 +1005,35 @@
     position: absolute;
   }
 }
+
+/* V2.1 W3 §5: the recovery card's 7% orange tint sat directly on the map,
+   so attribution and route lines showed through between recovery options —
+   the safety state read as weaker than normal guidance. Frost it: same
+   glass intent, but the rider's choices stay readable over any map. */
+.ride-reroute-card {
+  background: rgb(20 26 24 / 92%);
+  backdrop-filter: blur(14px);
+  border-color: rgb(243 106 45 / 40%);
+}
+
+/* V2.1 W3 §5: 0.72 opacity made the enabled 'Keep original' recovery choice
+   look disabled. Recovery options are decisions, not de-emphasized rows. */
+.reroute-option-secondary {
+  opacity: 0.92;
+}
+
+/* V2.1 W3 §5: Ride Focus chrome is dark by contract. With the frosted dark
+   recovery card, the option text must be explicitly light — it previously
+   inherited theme-relative tokens that went dark-on-dark outside dark theme. */
+.ride-reroute-card .reroute-option {
+  color: #f4f1ec;
+}
+
+.ride-reroute-card .reroute-option-text small,
+.ride-reroute-card .reroute-option-secondary .reroute-option-icon {
+  color: #c7cbc8;
+}
+
+.ride-reroute-card .reroute-option-secondary .reroute-option-icon {
+  opacity: 1;
+}
