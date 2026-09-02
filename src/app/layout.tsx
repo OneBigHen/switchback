@@ -45,6 +45,9 @@ import "./styles/free-ride.css";
 // Placement target geometry depends on V2 sheet detents and intentionally
 // overrides the stale fixed-deck crosshair offsets from planner-shell.css.
 import "./styles/map-placement.css";
+// Rider-facing readability and short-landscape safety constraints must win
+// over older ride HUD breakpoint rules.
+import "./styles/rider-glanceability.css";
 
 export const metadata: Metadata = {
 	title: "Switchback — Ride the better road",

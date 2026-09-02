@@ -1,0 +1,148 @@
+/* Rider-facing safety/readability overrides.
+ *
+ * Keep these rules narrow: this file only corrects controls and telemetry that
+ * must remain readable and reachable in turn-by-turn Ride Mode, especially on
+ * short phone landscape viewports. Free Ride deliberately shares the legacy
+ * `.ride-hud` class, so every selector excludes `.free-ride-hud` explicitly.
+ */
+
+/* Trust-critical GPS state and recording state cannot live at micro-caption
+ * sizes. The component already truncates GPS copy and exposes full state to
+ * assistive technology. */
+.ride-hud:not(.free-ride-hud) .gps-status {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-record-toggle {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+}
+
+/* Telemetry is a glance surface, not decorative metadata. */
+.ride-hud:not(.free-ride-hud) .ride-telemetry span {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.ride-hud:not(.free-ride-hud) .reroute-option-text small,
+.ride-hud:not(.free-ride-hud) .ride-hud-status-line,
+.ride-hud:not(.free-ride-hud) .ride-hud-corridor-badge small,
+.ride-hud:not(.free-ride-hud) .ride-hud-corridor-exit-alert small {
+  font-size: 11px;
+}
+
+/* Short-landscape is the constrained riding case. Keep only the route, GPS,
+ * pause/voice and exit controls in the primary rail. Recording and overnight
+ * stop remain reachable in a compact secondary rail directly below it instead
+ * of competing with the route name and wrapping the topbar. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .ride-hud:not(.free-ride-hud) .ride-topbar {
+    display: grid;
+    min-height: 56px;
+    grid-template-columns: minmax(120px, 1fr) minmax(92px, 150px) repeat(3, var(--sb-touch-target));
+    grid-template-rows: var(--sb-touch-target);
+    gap: 6px;
+    align-items: center;
+    padding: 4px 8px 4px 12px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-route-name {
+    grid-row: 1;
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .gps-status {
+    grid-row: 1;
+    grid-column: 2;
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-voice-toggle {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-guidance-toggle {
+    grid-row: 1;
+    grid-column: 4;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-exit {
+    grid-row: 1;
+    grid-column: 5;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-overnight-stop,
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-record-toggle {
+    position: absolute;
+    top: calc(100% + 6px);
+    min-height: 38px;
+    height: 38px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-overnight-stop {
+    right: 68px;
+    min-width: 44px;
+    width: 44px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar .ride-record-toggle {
+    right: 8px;
+    min-width: 54px;
+    padding-inline: 7px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-route-name strong {
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-instruction {
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - 78px);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-reroute-card {
+    max-height: min(36dvh, 150px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-instruction p {
+    font-size: 11px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .reroute-option-text small {
+    font-size: 11px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-telemetry span {
+    font-size: 9px;
+  }
+}
+
+/* Motion is non-essential feedback. Respect the OS preference without
+ * removing state indication: recording still has its solid red treatment. */
+@media (prefers-reduced-motion: reduce) {
+  .ride-hud:not(.free-ride-hud) .ride-record-toggle.is-recording,
+  .ride-hud:not(.free-ride-hud) .spin,
+  .ride-hud:not(.free-ride-hud) .ride-reroute-loading svg {
+    animation: none !important;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-progress-track > span,
+  .ride-hud:not(.free-ride-hud) .reroute-option {
+    transition: none !important;
+  }
+}
