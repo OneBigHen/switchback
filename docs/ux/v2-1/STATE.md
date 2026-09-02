@@ -7,42 +7,61 @@ Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`
 ## Current status
 
 - Handoff design: complete.
-- Execution package: complete when this commit lands.
-- Product implementation: **W1–W4 complete. PR draft ready for human release review.**
-- Current wave: **none — all four waves executed.**
-- Human design approval: **approved**.
-- Merge permission: **not granted**; PR must remain draft through implementation and exact-head proof.
+- Product implementation: **W1–W4 complete.**
+- Human design direction: **approved**.
+- Current wave: **none — do not restart W1–W4.**
+- Release preparation: **final exact-head CI + review.**
+- Merge permission: **not granted.** Keep PR #41 draft until the human/release owner decides readiness and merge.
 
 ## Exact next action
 
-Read `START-HERE.md`, then execute `waves/W1-PLAN.md` from the current branch head.
+1. Do **not** execute the implementation waves again.
+2. Verify every protected required context is green on the **current PR head**.
+3. Complete the final adversarial/code review and resolve any P0/P1 finding.
+4. Review the accepted visual evidence and remaining P2/P3 polish items.
+5. Keep PR #41 draft. Mark-ready/merge is a separate human/release decision.
 
-Before editing product code:
-
-```bash
-git fetch origin
-git status --short
-git rev-parse HEAD
-git rev-parse origin/main
-npm ci
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-If required baseline commands fail before W1 changes, record the failure here and stop mixing it with UX work.
+Any commit after release proof creates a new candidate SHA and requires exact-head verification again.
 
 ## Wave ledger
 
-| Wave | Status | Commits | Gate |
-|---|---|---|---|
-| W1 Plan | DONE | ea610ea aa57f2f 43a2ad8 af880c9 a2e8139 ea01cbd | lint/typecheck/build ✓ · vitest 1706/0 ✓ · critical e2e 21/21 ✓ · visual 54/54 ✓ (see report) |
-| W2 Destinations | DONE | 5eaad11 ee50e27 648a6c4 | components 310/304-pass (6 were dev-server contention, pass isolated) · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
-| W3 Ride | DONE | acc811a 1823f99 | components 40/40 · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
-| W4 Hardening | DONE | e1b1b37 03b1b59 | visual 54/54 · critical 21/21 · build ✓ · a11y probe clean · stress clean |
+| Wave | Status | Implementation evidence |
+|---|---|---|
+| W1 Plan | DONE | compact map-first planner; loading/Cancel visibility; Prepare hierarchy; mobile/dark fixes; focused unit/component/E2E/visual proof recorded in branch history |
+| W2 Destinations | DONE | Rides/Discover/Settings density and dark-surface pass; honest empty/search states; source-ID behavior preserved; focused component/E2E/visual proof recorded |
+| W3 Ride | DONE | Record CTA hierarchy; stronger off-route recovery; Ride/Free Ride safety semantics preserved; Chromium/WebKit proof recorded |
+| W4 Hardening | DONE | responsive/dark/a11y/content-stress/performance review; reviewed visual baselines; no new runtime dependencies or state/store/routing authorities |
 
-## Known product constraints
+Historical detailed wave reports and screenshots remain in the commits and `artifacts/cinco/`. They are implementation evidence, not permission to reuse an old SHA as final release proof.
+
+## Release-prep audit — 2026-09-02
+
+- `main` remained at the audited base `35cb60c4659c5e054c0e64b6ef24c567c4ceff17`; the PR was not behind main during release preparation.
+- The previously pushed PR head `c337b417738c4bf6a45103ed2c987a770abeb093` was mergeable and green across the protected required contexts before additional audit work.
+- Audit found one concrete dark-theme defect in Rides: the route-kind badge used fixed `--sb-ink` text over a dark theme surface.
+- Test-first regression commit `0b50fde1af74bdb3a0077aa65cd0995d791cfc0f` intentionally failed the unit gate before the product fix.
+- Fix commit `e7bce4d1410980319b06cae9abd947ea577201b1` changed the badge to theme-aware `--sb-text`; the full unit suite then passed, with Chromium critical journeys, WebKit smoke, road-lock, real-router and PWA checks also green in the resulting Quality run.
+- PR title/body were rewritten to describe the implemented V2.1 scope and exact-head release contract rather than the original handoff-only state.
+- GitGuardian remained clean through the release-prep code commits.
+- CodeRabbit full review must target the final stable candidate head; any review aborted because the head moved is not final review evidence.
+
+## Protected required contexts
+
+The release candidate is not ready unless these are successful on the exact current head:
+
+- `typecheck`
+- `lint`
+- `vitest`
+- `build`
+- `critical-e2e`
+- `pwa`
+- `road-lock`
+- `real-router`
+- `visual`
+
+Also require the repository's aggregate/compatibility jobs and security checks to be clean where they run.
+
+## Architecture/product constraints preserved
 
 - Do not change route algorithms or provider policy in this branch.
 - Do not add route taxonomy that the current data model cannot truthfully support.
@@ -50,57 +69,20 @@ If required baseline commands fail before W1 changes, record the failure here an
 - Do not convert Free Ride into a planner mode.
 - Do not create a second ride library/store to simplify visuals.
 - Do not make Mapbox premium rollout decisions as part of presentation polish.
+- Preserve one persistent map, existing planner/view-model commands, Rides normalization/source IDs, recording/storage/sync/community semantics, and current navigation authority.
 
-## Update format for agent
+## Deferred non-blocking polish
 
-When completing a wave, replace its status and append:
+These remain P2/P3 unless a final review demonstrates a functional or safety impact:
 
-```text
-WAVE: Wn
-HEAD: <sha>
-COMMITS: <list>
-TESTS: <commands + pass/fail>
-VISUALS: <states/viewports inspected>
-SNAPSHOTS: <intentional changed baseline files>
-LIMITATIONS: <none or concise list>
-NEXT: <exact next action>
-```
+- attribution/legal text links below the 44px control target (P3 exception candidate);
+- Ride short-landscape topbar crowding at 844×390 (P2);
+- Record idle dead space on tall viewports (P3);
+- Rides filter chip row lacks an end-fade/scroll affordance (P3);
+- muted 10px Loop/Draw labels merit a contrast polish pass (P3);
+- Atlas true-empty state lacks a direct publish CTA and needs an authenticated product decision (P2);
+- local Node 22 cannot execute the Node-24 `node:sqlite` suites; CI Node 24 is authoritative.
 
-Do not turn this file into a diary. Keep only current actionable state and compact evidence.
+## Release rule
 
-WAVE: W1
-HEAD: ea01cbd53514be79d171564e911ca281207499d4
-COMMITS: ea610ea (idle-sheet collapse + leading status w/ Cancel + contract literals), aa57f2f (dock token chrome + V2 dark rebind + phone prepare Start row), 43a2ad8 (9 approved mobile baselines), af880c9 (phase-0 evidence refresh), a2e8139 (dark fills for paper-filled plan controls), ea01cbd (dark idle evidence)
-TESTS: lint ✓ · typecheck ✓ · build ✓ · vitest 1706 passed / 0 failed (13 suites blocked by pre-existing Node22-vs-CI24 node:sqlite bundling; fails at base 35cb60c too) · test:e2e:critical 21/21 ✓ after WebKit system deps · playwright visual 54/54 ✓ (2 unrelated cold-server flakes passed isolated: Record tablet-landscape, free-ride-idle desktop) · qa:pr script exits 1 only at the Node-22 suite-load blocks; all gate components above verified individually.
-VISUALS: mobile idle (pre/post fix), loading, alternatives, prepare (pre/post dock fix), detail, edit, provider-failure, dark idle (pre/post omnibox fix); suite viewports 320x700, 390x844, 430x932, 844x390, 768x1024, 1024x768, 1440x900, 1920x1080; every updated baseline's pixel diff inspected before approval.
-SNAPSHOTS: screens: plan-empty-320x700/390x844/430x932, plan-result-mobile; ux-states: home/alternatives/route-selected/route-detail/map-provider-failure --mobile (all mobile Plan-family, all diff-inspected).
-LIMITATIONS: quick layers panel + advanced map studio (map-layer-control.css) and planner-deck.css idle chrome keep hard-coded light styles in dark — deferred to W4 dark hardening; muted 10px Loop/Draw labels are contrast-risky — W4 a11y; omnibox placeholder truncates without ellipsis at 390; Node-22 env cannot run the 13 node:sqlite suites (CI authoritative); qa:pr cannot complete as one local script for the same reason.
-NEXT: Begin W2 — Destinations per waves/W2-DESTINATIONS.md from HEAD ea01cbd.
-
-WAVE: W2
-HEAD: 648a6c44553893164b4ee35163d01ae5de236605
-COMMITS: 5eaad11 (destination dark surfaces via paper->surface fills + canvas dark rebind; Rides true-empty/no-match split; phone hero trim; search placeholder fix), ee50e27 (W2 evidence captures), 648a6c4 (approved rides-mobile + profile-mobile baselines)
-TESTS: lint ✓ · typecheck ✓ · build ✓ · CI vitest 1706 passed / 0 failed (13 env-blocked suites unchanged) · tests/components 310 passed after clearing dev-server contention (two earlier failures were my duplicate 'Import ride' accessible name, fixed by distinct empty-state CTA 'Import your first ride') · playwright visual 54/54 (2 intended baselines regenerated after diff inspection) · test:e2e:critical 21/21 ✓ · mobile-qa empty-rides pins updated to new true-empty copy.
-VISUALS: Rides/Discover/Settings at 390x844 in light AND dark (pinned clock; shell auto-dark confirmed as the earlier capture condition); Settings scrolled to 'Account, sync & data' entry; public Atlas /routes mobile. All diff-inspected.
-SNAPSHOTS: rides-mobile, profile-mobile (both intended: hero compaction + dark surface correction).
-LIMITATIONS: Atlas true-empty suggests 'Publish one from a saved route' without a CTA (needs authenticated planner context — W4/product decision); Rides filter chip row scrolls horizontally but lacks end-fade/scroll affordance (W4); Settings bike-card surface-policy truncates with ellipsis at 390 (acceptable, noted); 'Rider name' input placeholder contrast is adequate but not strong (W4 a11y sweep); Node-22 env still cannot run the 13 node:sqlite suites (CI authoritative).
-NEXT: Begin W3 — Ride per waves/W3-RIDE.md from HEAD 648a6c4.
-
-WAVE: W3
-HEAD: 1823f99cb149b9b85e9729d99a59d381497a799d
-COMMITS: acc811a (off-route recovery card: dark opaque frost replacing 7% orange glass that let map attribution bleed through between options; explicit light option text — prior theme-relative tokens went dark-on-dark outside dark theme; 'Keep original' no longer reads disabled at 0.72 opacity; Record idle Start CTA given display weight matching its rank), 1823f99 (W3 baselines + ride evidence captures)
-TESTS: CI vitest 1706 passed / 0 failed (13 env-blocked suites unchanged) · planner-deck components 40/40 ✓ · playwright visual 54/54 (4 intended baselines regenerated after diff inspection: off-route desktop+mobile, record tablet-portrait+tablet-landscape; record desktop was a capture-timeout flake, passed clean with baseline untouched) · critical e2e 21/21 ✓ · build ✓.
-VISUALS: record-idle 390x844 (pre/post CTA fix), off-route 390x844 + 844x390 (pre/post card fix), ride-live 390x844, free-ride idle + suggestion 390x844 (fixture-driven). Safety-copy audit: 'will recalculate automatically' verified TRUE against engine (AUTOMATIC_REROUTE_DELAY_MS auto-reroute exists in useNavigationSessionController) — copy kept; 'Following' pill verified as map-camera recenter state, not guidance status — correct semantics, left as-is.
-SNAPSHOTS: off-route-recovery--desktop, off-route-recovery--mobile, record-tablet-portrait, record-tablet-landscape (all intended, all diff-inspected).
-LIMITATIONS: Ride live topbar at 844x390 is crowded ('OFF ROUTE' label competes with route name line) — flagged for W4 short-landscape pass; Record panel keeps large empty space below CTA on tall viewports (map placeholder dominates; acceptable idle state, W4 candidate); Free Ride suggestion card not re-baselined (no changes made there); WebKit ride visuals remain covered by the critical webkit-smoke journeys only, per existing project layout.
-NEXT: Begin W4 — Hardening per waves/W4-HARDENING.md from HEAD 1823f99.
-
-WAVE: W4
-HEAD: 03b1b59c0d91aca0e9830dd775c06cb6216c4daa
-COMMITS: e1b1b37 (layers panel + quick sheet dark surfaces — the last white-card surface in dark; ~40 literals rebound, LayersSheet module was the final --sb-paper fill), 03b1b59 (W4 evidence)
-TESTS (exact-head 03b1b59, clean tree): playwright visual 54/54 ✓ · test:e2e:critical 21/21 ✓ · next build ✓ · CI vitest 1706 passed / 0 failed (13 node:sqlite suites env-blocked on Node 22 local; CI authoritative on Node 24) · a11y DOM probe at 320px touch: 0 sub-44px controls (attribution text links exempt, P3), 0 sub-16px inputs under coarse pointer · content stress at 320x700 (100-char route name + preview warning): no horizontal overflow, clean ellipsis, warning visible · adversarial review: 0 new dependencies vs base 35cb60c, 0 state/store/orchestration changes (only 2 tsx diffs: PlanComposer status relocation, RidesSurface empty-state split), Free Ride not a PlanMode, Record not a destination, source-ID contract intact, no fabricated metadata, snapshot changes all diff-inspected (no laundering).
-VISUALS: layers panel light+dark (pre/post sweep), 320x700 long-name stress, plus every prior-wave capture retained under artifacts/cinco/.
-SNAPSHOTS: none changed in W4 (layers panel has no pinned baseline; verified via probe + captures).
-LIMITATIONS (deferred, all P2/P3): attribution links <44px (P3, legal text links); Ride short-landscape topbar crowding (P2, flagged in W3, needs dedicated 844x390 pass); Record idle dead space below CTA on tall viewports (P3); Rides filter chip row lacks scroll affordance (P3); muted 10px Loop/Draw labels (P3 contrast sweep); Atlas 'Publish one' empty-state lacks CTA (P2, needs authenticated product decision); 13 node:sqlite suites unrunnable on local Node 22 (env, CI covers).
-EXACT-HEAD NOTE: gates executed with src tree identical to 03b1b59; the two commits after it (cfc9d29 STATE report, fa2d113 evidence refresh) are docs/evidence-only with zero src/ or tests/ changes, so the proof remains valid for final HEAD fa2d11352d9d02b8e0bd41bf9a00d8c838916806.
-NEXT: Human release review of PR #41 draft. Push blocked: COPILOT_GITHUB_TOKEN lacks write scope on OneBigHen/switchback (403). After push: exact-head proof reruns automatically in CI; do not merge until human approval per handoff contract.
+All W1–W4 wave proof before the current head is historical evidence only. Final release proof must correspond to the exact current PR head after this STATE cleanup and any later review fix. Resolve P0/P1 findings, keep branch protection green, keep the PR draft, and leave the final mark-ready/merge action to the human/release owner.
