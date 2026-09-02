@@ -8,8 +8,8 @@ Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`
 
 - Handoff design: complete.
 - Execution package: complete when this commit lands.
-- Product implementation: **W1 + W2 complete; W3 next**.
-- Current wave: **W3 — Ride**.
+- Product implementation: **W1 + W2 + W3 complete; W4 next**.
+- Current wave: **W4 — Hardening**.
 - Human design approval: **approved**.
 - Merge permission: **not granted**; PR must remain draft through implementation and exact-head proof.
 
@@ -39,7 +39,7 @@ If required baseline commands fail before W1 changes, record the failure here an
 |---|---|---|---|
 | W1 Plan | DONE | ea610ea aa57f2f 43a2ad8 af880c9 a2e8139 ea01cbd | lint/typecheck/build ✓ · vitest 1706/0 ✓ · critical e2e 21/21 ✓ · visual 54/54 ✓ (see report) |
 | W2 Destinations | DONE | 5eaad11 ee50e27 648a6c4 | components 310/304-pass (6 were dev-server contention, pass isolated) · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
-| W3 Ride | BLOCKED ON W2 | — | Ride/Free Ride Chromium + WebKit + `qa:pr` |
+| W3 Ride | DONE | acc811a 1823f99 | components 40/40 · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
 | W4 Hardening | BLOCKED ON W3 | — | exact responsive/dark/a11y/perf/full release gates |
 
 ## Known product constraints
@@ -85,3 +85,12 @@ VISUALS: Rides/Discover/Settings at 390x844 in light AND dark (pinned clock; she
 SNAPSHOTS: rides-mobile, profile-mobile (both intended: hero compaction + dark surface correction).
 LIMITATIONS: Atlas true-empty suggests 'Publish one from a saved route' without a CTA (needs authenticated planner context — W4/product decision); Rides filter chip row scrolls horizontally but lacks end-fade/scroll affordance (W4); Settings bike-card surface-policy truncates with ellipsis at 390 (acceptable, noted); 'Rider name' input placeholder contrast is adequate but not strong (W4 a11y sweep); Node-22 env still cannot run the 13 node:sqlite suites (CI authoritative).
 NEXT: Begin W3 — Ride per waves/W3-RIDE.md from HEAD 648a6c4.
+
+WAVE: W3
+HEAD: 1823f99cb149b9b85e9729d99a59d381497a799d
+COMMITS: acc811a (off-route recovery card: dark opaque frost replacing 7% orange glass that let map attribution bleed through between options; explicit light option text — prior theme-relative tokens went dark-on-dark outside dark theme; 'Keep original' no longer reads disabled at 0.72 opacity; Record idle Start CTA given display weight matching its rank), 1823f99 (W3 baselines + ride evidence captures)
+TESTS: CI vitest 1706 passed / 0 failed (13 env-blocked suites unchanged) · planner-deck components 40/40 ✓ · playwright visual 54/54 (4 intended baselines regenerated after diff inspection: off-route desktop+mobile, record tablet-portrait+tablet-landscape; record desktop was a capture-timeout flake, passed clean with baseline untouched) · critical e2e 21/21 ✓ · build ✓.
+VISUALS: record-idle 390x844 (pre/post CTA fix), off-route 390x844 + 844x390 (pre/post card fix), ride-live 390x844, free-ride idle + suggestion 390x844 (fixture-driven). Safety-copy audit: 'will recalculate automatically' verified TRUE against engine (AUTOMATIC_REROUTE_DELAY_MS auto-reroute exists in useNavigationSessionController) — copy kept; 'Following' pill verified as map-camera recenter state, not guidance status — correct semantics, left as-is.
+SNAPSHOTS: off-route-recovery--desktop, off-route-recovery--mobile, record-tablet-portrait, record-tablet-landscape (all intended, all diff-inspected).
+LIMITATIONS: Ride live topbar at 844x390 is crowded ('OFF ROUTE' label competes with route name line) — flagged for W4 short-landscape pass; Record panel keeps large empty space below CTA on tall viewports (map placeholder dominates; acceptable idle state, W4 candidate); Free Ride suggestion card not re-baselined (no changes made there); WebKit ride visuals remain covered by the critical webkit-smoke journeys only, per existing project layout.
+NEXT: Begin W4 — Hardening per waves/W4-HARDENING.md from HEAD 1823f99.
