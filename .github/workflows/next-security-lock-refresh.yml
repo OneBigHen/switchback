@@ -19,10 +19,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Report dependency audit
+      - name: Trace browserslist dependency and fix plan
         run: |
           set +e
-          npm audit --json
-          code=$?
-          echo "npm-audit-exit=$code"
+          echo '=== browserslist tree ==='
+          npm ls browserslist --all
+          echo '=== current and latest browserslist ==='
+          node -e 'const p=require("./package-lock.json"); console.log("locked",p.packages["node_modules/browserslist"]?.version)'
+          npm view browserslist version
+          echo '=== audit fix dry run ==='
+          npm audit fix --package-lock-only --ignore-scripts --dry-run
           exit 0
