@@ -8,8 +8,8 @@ Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`
 
 - Handoff design: complete.
 - Execution package: complete when this commit lands.
-- Product implementation: **W1 complete; W2 in progress next**.
-- Current wave: **W2 — Destinations**.
+- Product implementation: **W1 + W2 complete; W3 next**.
+- Current wave: **W3 — Ride**.
 - Human design approval: **approved**.
 - Merge permission: **not granted**; PR must remain draft through implementation and exact-head proof.
 
@@ -38,7 +38,7 @@ If required baseline commands fail before W1 changes, record the failure here an
 | Wave | Status | Commits | Gate |
 |---|---|---|---|
 | W1 Plan | DONE | ea610ea aa57f2f 43a2ad8 af880c9 a2e8139 ea01cbd | lint/typecheck/build ✓ · vitest 1706/0 ✓ · critical e2e 21/21 ✓ · visual 54/54 ✓ (see report) |
-| W2 Destinations | BLOCKED ON W1 | — | focused destination tests/visuals |
+| W2 Destinations | DONE | 5eaad11 ee50e27 648a6c4 | components 310/304-pass (6 were dev-server contention, pass isolated) · visual 54/54 after baseline approval · critical 21/21 · build ✓ |
 | W3 Ride | BLOCKED ON W2 | — | Ride/Free Ride Chromium + WebKit + `qa:pr` |
 | W4 Hardening | BLOCKED ON W3 | — | exact responsive/dark/a11y/perf/full release gates |
 
@@ -76,3 +76,12 @@ VISUALS: mobile idle (pre/post fix), loading, alternatives, prepare (pre/post do
 SNAPSHOTS: screens: plan-empty-320x700/390x844/430x932, plan-result-mobile; ux-states: home/alternatives/route-selected/route-detail/map-provider-failure --mobile (all mobile Plan-family, all diff-inspected).
 LIMITATIONS: quick layers panel + advanced map studio (map-layer-control.css) and planner-deck.css idle chrome keep hard-coded light styles in dark — deferred to W4 dark hardening; muted 10px Loop/Draw labels are contrast-risky — W4 a11y; omnibox placeholder truncates without ellipsis at 390; Node-22 env cannot run the 13 node:sqlite suites (CI authoritative); qa:pr cannot complete as one local script for the same reason.
 NEXT: Begin W2 — Destinations per waves/W2-DESTINATIONS.md from HEAD ea01cbd.
+
+WAVE: W2
+HEAD: 648a6c44553893164b4ee35163d01ae5de236605
+COMMITS: 5eaad11 (destination dark surfaces via paper->surface fills + canvas dark rebind; Rides true-empty/no-match split; phone hero trim; search placeholder fix), ee50e27 (W2 evidence captures), 648a6c4 (approved rides-mobile + profile-mobile baselines)
+TESTS: lint ✓ · typecheck ✓ · build ✓ · CI vitest 1706 passed / 0 failed (13 env-blocked suites unchanged) · tests/components 310 passed after clearing dev-server contention (two earlier failures were my duplicate 'Import ride' accessible name, fixed by distinct empty-state CTA 'Import your first ride') · playwright visual 54/54 (2 intended baselines regenerated after diff inspection) · test:e2e:critical 21/21 ✓ · mobile-qa empty-rides pins updated to new true-empty copy.
+VISUALS: Rides/Discover/Settings at 390x844 in light AND dark (pinned clock; shell auto-dark confirmed as the earlier capture condition); Settings scrolled to 'Account, sync & data' entry; public Atlas /routes mobile. All diff-inspected.
+SNAPSHOTS: rides-mobile, profile-mobile (both intended: hero compaction + dark surface correction).
+LIMITATIONS: Atlas true-empty suggests 'Publish one from a saved route' without a CTA (needs authenticated planner context — W4/product decision); Rides filter chip row scrolls horizontally but lacks end-fade/scroll affordance (W4); Settings bike-card surface-policy truncates with ellipsis at 390 (acceptable, noted); 'Rider name' input placeholder contrast is adequate but not strong (W4 a11y sweep); Node-22 env still cannot run the 13 node:sqlite suites (CI authoritative).
+NEXT: Begin W3 — Ride per waves/W3-RIDE.md from HEAD 648a6c4.
