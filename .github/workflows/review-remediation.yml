@@ -1,0 +1,125 @@
+name: Temporary final review remediation
+
+on:
+  push:
+    branches:
+      - ux/v2-1-premium-mobile-polish
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/v2-1-premium-mobile-polish
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply verified CodeRabbit fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, expected=1):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} occurrence(s), found {count}: {old!r}")
+              p.write_text(text.replace(old, new))
+
+          replace_exact(
+              "docs/superpowers/specs/2026-09-01-switchback-v2-1-agent-handoff-design.md",
+              "Status: approved direction, implementation not started  ",
+              "Status: approved design-time direction; current execution status is tracked in `docs/ux/v2-1/STATE.md`.  ",
+          )
+
+          replace_exact(
+              "docs/ux/v2-1/SCREEN-COVERAGE.md",
+              "This checklist prevents an agent from polishing only the hero screenshots.\n",
+              "This is the exhaustive inspection template used to prevent an agent from polishing only hero screenshots. "
+              "Unchecked boxes are not release failures and must not be retroactively marked without direct evidence. "
+              "Current execution/release status is authoritative in `STATE.md`; accepted visual evidence is retained under `artifacts/cinco/`.\n",
+          )
+
+          replace_exact(
+              "docs/ux/v2-1/STATE.md",
+              "Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`\n",
+              "Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`  \n"
+              "Candidate HEAD: **dynamic — use `git rev-parse HEAD` / PR #41 current head and the PR release evidence.** "
+              "Do not freeze a candidate SHA in this file: editing this file creates a new head and would immediately make that SHA stale.\n",
+          )
+
+          replace_exact(
+              "docs/ux/v2-1/waves/W4-HARDENING.md",
+              "git status --short\ngit rev-parse HEAD",
+              "test -z \"$(git status --porcelain)\" || { echo \"Worktree must be clean\"; exit 1; }\ngit rev-parse HEAD",
+          )
+
+          replace_exact(
+              "src/components/shell/RecordPanel.tsx",
+              '<button type="button" onClick={pause}><Pause weight="fill" aria-hidden="true" /> Pause recording</button>',
+              '<button type="button" className="primary-commit" onClick={pause}><Pause weight="fill" aria-hidden="true" /> Pause recording</button>',
+          )
+
+          # Map style choices are radio buttons (aria-checked), not toggle buttons (aria-pressed).
+          replace_exact(
+              "src/app/styles/map-layer-control.css",
+              '.map-style-options button[aria-pressed="true"]',
+              '.map-style-options button[aria-checked="true"]',
+              expected=2,
+          )
+
+          replace_exact(
+              "src/app/styles/switchback-v1.css",
+              "  --ride-line: var(--sb-border);\n  border-color: var(--sb-border);",
+              "  --ride-line: var(--sb-border);\n\n  border-color: var(--sb-border);",
+          )
+
+          replace_exact(
+              "src/components/planner/v2/LayersSheet.module.css",
+              "  background: var(--sb-surface);\n  box-shadow: 0 1px 3px rgb(22 29 28 / 24%);\n  transition: transform 120ms ease;",
+              "  background: var(--sb-paper);\n  box-shadow: 0 1px 3px rgb(22 29 28 / 24%);\n  transition: transform 120ms ease;",
+          )
+
+          test_path = Path("tests/unit/dependency-security-contract.test.ts")
+          test_text = test_path.read_text()
+          old = '''function parseVersion(value: string): [number, number, number] {\n  const match = value.match(/(\\d+)\\.(\\d+)\\.(\\d+)/)\n  if (!match) throw new Error(`Expected an exact or ranged semver, got: ${value}`)\n  return [Number(match[1]), Number(match[2]), Number(match[3])]\n}'''
+          new = '''function parseVersion(value: string): [number, number, number] {\n  const match = value.match(/^(\\d+)\\.(\\d+)\\.(\\d+)$/)\n  if (!match) throw new Error(`Expected an exact semver, got: ${value}`)\n  return [Number(match[1]), Number(match[2]), Number(match[3])]\n}'''
+          if test_text.count(old) != 1:
+              raise SystemExit("dependency-security-contract: parseVersion block mismatch")
+          test_text = test_text.replace(old, new)
+          anchor = '''describe("production dependency security floor", () => {\n  it("keeps Next.js at or above the August 2026 security release", () => {'''
+          replacement = '''describe("production dependency security floor", () => {\n  it("rejects aliases or other non-exact dependency specifiers", () => {\n    expect(() => parseVersion("npm:@internal/next@16.3.3")).toThrow("Expected an exact semver")\n    expect(() => parseVersion("^16.3.3")).toThrow("Expected an exact semver")\n  })\n\n  it("keeps Next.js at or above the August 2026 security release", () => {'''
+          if test_text.count(anchor) != 1:
+              raise SystemExit("dependency-security-contract: describe anchor mismatch")
+          test_path.write_text(test_text.replace(anchor, replacement))
+          PY
+
+          git diff --check
+          git diff --stat
+      - name: Verify focused remediation
+        run: |
+          set -euo pipefail
+          npm ci
+          npx vitest run tests/unit/dependency-security-contract.test.ts tests/unit/rides-theme-css-contract.test.ts
+          npm run lint
+          npm run typecheck
+          npm audit --audit-level=high
+      - name: Commit review fixes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/superpowers/specs/2026-09-01-switchback-v2-1-agent-handoff-design.md docs/ux/v2-1/SCREEN-COVERAGE.md docs/ux/v2-1/STATE.md docs/ux/v2-1/waves/W4-HARDENING.md src/components/shell/RecordPanel.tsx src/app/styles/map-layer-control.css src/app/styles/switchback-v1.css src/components/planner/v2/LayersSheet.module.css tests/unit/dependency-security-contract.test.ts
+          git diff --cached --check
+          git commit -m "fix(review): resolve final release findings"
+          git push origin HEAD:ux/v2-1-premium-mobile-polish
