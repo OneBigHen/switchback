@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
+    "prebuild": "node scripts/prepare-route-atlas.mjs",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint . --max-warnings=0",
@@ -39,6 +40,8 @@
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "benchmark:routing": "tsx scripts/benchmark-routing.mjs",
     "atlas:build": "node scripts/build-route-atlas.mjs",
+    "atlas:verify": "node scripts/verify-route-atlas.mjs",
+    "atlas:refresh": "npm run atlas:build && npm run atlas:verify",
     "doctor": "react-doctor --no-telemetry"
   },
   "dependencies": {
