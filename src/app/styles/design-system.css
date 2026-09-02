@@ -437,19 +437,22 @@ h6,
 }
 
 @media (max-width: 760px) {
-  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) {
+  /* V2.1 W1: the dock container renders even when idle hides it as :empty.
+     Reserving its clearance unconditionally stretched the idle sheet into a
+     blank lower half; reserve only when the dock actually shows controls. */
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) {
     display: flex;
     flex-direction: column;
   }
 
-  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) .planner-scroll {
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) .planner-scroll {
     flex: 1 1 0%;
     min-height: 0;
     height: auto !important;
     padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;
   }
 
-  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {
+  .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {
     position: static;
     flex: 0 0 auto;
     inset: auto;

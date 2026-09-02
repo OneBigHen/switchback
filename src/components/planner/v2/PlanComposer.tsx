@@ -1,7 +1,7 @@
 "use client"
 
-import { ArrowRight, MapPin, Microphone, NavigationArrow, SpinnerGap } from "@phosphor-icons/react"
-import type { FormEvent } from "react"
+import { ArrowRight, MapPin, Microphone, NavigationArrow, SpinnerGap, X } from "@phosphor-icons/react"
+import { useCallback, useEffect, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
@@ -155,15 +155,46 @@ export function PlanComposer({
   const planningBusy = !SETTLED_PLANNING_PHASES.has(planningPhase)
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
+  const placementActive = armedPoint !== null || addingVia
   // Route planning can be superseded by a newer rider prompt. Keep the
   // interpretation request single-flight, but do not strand the omnibox
   // while a provider response is still in flight; the planning gate owns
   // stale-response cancellation and latest-intent selection.
   const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
 
+  const cancelPlacement = useCallback(() => {
+    if (addingVia) {
+      onToggleAddVia()
+      return
+    }
+    if (armedPoint) onArm(armedPoint)
+  }, [addingVia, armedPoint, onArm, onToggleAddVia])
+
+  useEffect(() => {
+    if (!placementActive) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      cancelPlacement()
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [cancelPlacement, placementActive])
+
   return (
     <div className="plan-v2" data-plan-mode={planMode} data-editing={editing ? "true" : "false"}>
       {providerHealth ? <ProviderHealthNotice health={providerHealth} onRetry={onRetryProviderHealth} /> : null}
+
+      {/* V2.1 W1 §5: while planning, the lifecycle status (with Cancel) leads
+          the composer so it stays above the fold even with the Options panel
+          expanded — the strip used to render after it and disappear below. */}
+      {planningBusy ? (
+        <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
+          <SpinnerGap className="spin" aria-hidden="true" />
+          <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
+          <button type="button" aria-label="Cancel planning" onClick={onCancelPlanning}>Cancel</button>
+        </div>
+      ) : null}
 
       <div className="plan-v2__compact-rail">
         <form
@@ -268,16 +299,15 @@ export function PlanComposer({
             onSaveHome={onSaveHome}
             onClearHome={onClearHome}
           />
+          {placementActive ? (
+            <button type="button" className="plan-v2__placement-cancel" aria-label="Cancel map placement" onClick={cancelPlacement}>
+              <X weight="bold" aria-hidden="true" />
+              <span>Cancel placement</span>
+              <kbd>Esc</kbd>
+            </button>
+          ) : null}
         </div>
       </div>
-
-      {planningBusy ? (
-        <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
-          <SpinnerGap className="spin" aria-hidden="true" />
-          <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
-          <button type="button" aria-label="Cancel planning" onClick={onCancelPlanning}>Cancel</button>
-        </div>
-      ) : null}
 
       {error ? (
         <div className="plan-v2__error" role="alert">

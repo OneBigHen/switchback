@@ -15,7 +15,7 @@
   overflow: auto;
   border: 1px solid color-mix(in srgb, var(--sb-border) 84%, var(--sb-spruce));
   border-radius: 18px;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   box-shadow: 0 24px 72px rgb(22 29 28 / 28%);
   color: var(--sb-text);
 }
@@ -30,7 +30,7 @@
   align-items: start;
   padding: 20px 20px 16px;
   border-bottom: 1px solid var(--sb-border);
-  background: color-mix(in srgb, var(--sb-paper) 94%, transparent);
+  background: color-mix(in srgb, var(--sb-surface) 94%, transparent);
   backdrop-filter: blur(14px);
 }
 

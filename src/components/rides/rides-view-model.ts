@@ -44,6 +44,7 @@ export function normalizeRideLibrary({
       management: {
         canDelete: true,
         canMatchRoads: route.routingSource === "imported",
+        imported: route.routingSource === "imported",
         folder: route.folder,
         visible: route.visible
       }
@@ -81,7 +82,8 @@ export function normalizeRideLibrary({
       distanceMiles: route.distanceMiles,
       durationMinutes: route.durationMinutes,
       updatedAt: null,
-      tags: route.dataConfidenceLevel ? [`${route.dataConfidenceLevel} confidence`] : []
+      tags: route.dataConfidenceLevel ? [`${route.dataConfidenceLevel} confidence`] : [],
+      management: { imported: true }
     }))
   ]
 

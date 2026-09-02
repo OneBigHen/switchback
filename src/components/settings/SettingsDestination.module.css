@@ -74,7 +74,7 @@
   border: 1px solid var(--sb-border);
   border-radius: 9px;
   outline: none;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   color: var(--sb-text);
   font: inherit;
   font-size: 12px;
@@ -136,7 +136,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--sb-ink) 24%, transparent);
   content: "";
   transition: transform 140ms ease;
@@ -164,7 +164,7 @@
   padding: 18px;
   border: 1px solid color-mix(in srgb, var(--sb-spruce) 24%, var(--sb-border));
   border-radius: 14px;
-  background: color-mix(in srgb, var(--sb-spruce) 5%, var(--sb-paper));
+  background: color-mix(in srgb, var(--sb-spruce) 5%, var(--sb-surface));
 }
 
 .advancedIcon {

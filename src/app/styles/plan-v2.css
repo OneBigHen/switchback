@@ -808,3 +808,19 @@
   .plan-v2__status { min-height: 44px; padding: 7px 10px; }
   .plan-v2__contextual-content { gap: 8px; }
 }
+
+/* V2.1 W1 §2: --sb-paper keeps its brand cream value in dark (it is the dark
+   text token), so every control filled with it rendered white-on-white text
+   inside the dark sheet. Fill these surfaces with the raised dark token
+   instead; the selected/ember states above remain untouched. */
+:root[data-theme="dark"] .plan-v2__search,
+:root[data-theme="dark"] .plan-v2__custom-time input,
+:root[data-theme="dark"] .plan-v2__via-actions button,
+:root[data-theme="dark"] .plan-v2__inline-action,
+:root[data-theme="dark"] .plan-v2__road-locks,
+:root[data-theme="dark"] .plan-v2__segment-row select,
+:root[data-theme="dark"] .plan-v2__segment-row button,
+:root[data-theme="dark"] .plan-v2__stop-ideas button,
+:root[data-theme="dark"] .plan-v2__research > button {
+  background: var(--sb-surface-raised);
+}

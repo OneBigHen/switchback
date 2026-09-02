@@ -10,7 +10,7 @@
   border: 1px solid color-mix(in srgb, var(--sb-border) 82%, transparent);
   border-radius: 18px;
   background:
-    linear-gradient(122deg, color-mix(in srgb, var(--sb-paper) 96%, transparent) 0 58%, color-mix(in srgb, var(--sb-spruce) 9%, var(--sb-paper)) 100%);
+    linear-gradient(122deg, color-mix(in srgb, var(--sb-surface) 96%, transparent) 0 58%, color-mix(in srgb, var(--sb-spruce) 9%, var(--sb-surface)) 100%);
   box-shadow: 0 16px 38px color-mix(in srgb, var(--sb-ink) 8%, transparent);
 }
 
@@ -98,15 +98,19 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* V2.1 W2: on phones the hero copy and decorative graphic delayed search,
+     filters and the first ride row; they stay desktop/tablet-only. */
+  .copy p,
   .graphic {
-    position: absolute;
-    right: -22px;
-    bottom: 6px;
-    width: 144px;
-    opacity: 0.3;
+    display: none;
+  }
+
+  .header {
+    min-height: 0;
+    padding: 18px 18px 16px;
   }
 
   .copy {
-    padding-right: 34px;
+    padding-right: 0;
   }
 }

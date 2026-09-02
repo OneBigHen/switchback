@@ -27,7 +27,7 @@
   padding: 0 13px;
   border: 1px solid var(--sb-border);
   border-radius: 9px;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   color: var(--sb-text-link);
   font-size: 12px;
   font-weight: 800;
@@ -53,7 +53,7 @@
   padding: 3px 10px 3px 12px;
   border: 1px solid var(--sb-border);
   border-radius: 12px;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--sb-ink) 6%, transparent);
 }
 
@@ -175,7 +175,7 @@
   padding: 0 13px;
   border: 1px solid var(--sb-border);
   border-radius: 9px;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   color: var(--sb-text-link);
   cursor: pointer;
   font: inherit;

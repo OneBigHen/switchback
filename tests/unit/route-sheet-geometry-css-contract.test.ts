@@ -41,9 +41,9 @@ describe("route sheet geometry contract", () => {
     const designSystemStyles = readFileSync(resolve(process.cwd(), "src/app/styles/design-system.css"), "utf8")
 
     expect(designSystemStyles).toContain("@media (max-width: 760px)")
-    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) {\n    display: flex;\n    flex-direction: column;")
-    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) .planner-scroll {\n    flex: 1 1 0%;\n    min-height: 0;\n    height: auto !important;")
-    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock) > .planner-action-dock {\n    position: static;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) {\n    display: flex;\n    flex-direction: column;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) .planner-scroll {\n    flex: 1 1 0%;\n    min-height: 0;\n    height: auto !important;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {\n    position: static;")
   })
 
   it("scrolls the selected card within the one planner scroll owner", () => {

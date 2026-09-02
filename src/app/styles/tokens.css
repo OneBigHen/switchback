@@ -95,6 +95,7 @@
 
 :root[data-theme="dark"] {
   /* Dark planning theme. */
+  --sb-canvas: var(--sb-ink);
   --sb-surface: var(--sb-dark-raised);
   --sb-surface-raised: var(--sb-spruce);
   --sb-text: var(--sb-paper);

@@ -32,7 +32,7 @@ export function RideFilters({ value, query, counts, onChange, onQueryChange }: R
           type="search"
           aria-label="Search rides"
           value={query}
-          placeholder="Search rides, folders, tags, or sources"
+          placeholder="Search rides, folders, tags"
           onChange={(event) => onQueryChange(event.currentTarget.value)}
         />
       </label>

@@ -646,3 +646,87 @@
     display: none;
   }
 }
+
+/* V2.1 W4 dark sweep: the layers panel kept hard-coded light chrome and
+   rendered as a white card inside the dark sheet/ride surfaces. Rebind the
+   primary surfaces and text to the dark theme; self-contained semantic pills
+   (status badges, error banner) keep their light pastel fills where they stay
+   readable as floating chips. */
+:root[data-theme="dark"] .map-tool-row {
+  border-color: var(--sb-border);
+  background: color-mix(in srgb, var(--sb-surface) 92%, transparent);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 30%);
+}
+
+:root[data-theme="dark"] .map-layers-button {
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .map-layers-button + .map-layers-button {
+  border-color: var(--sb-border);
+}
+
+:root[data-theme="dark"] .map-layer-menu {
+  border-color: var(--sb-border);
+  background: color-mix(in srgb, var(--sb-surface) 97%, transparent);
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .map-layer-advanced-back {
+  border-color: var(--sb-border);
+  color: var(--sb-text-link);
+}
+
+:root[data-theme="dark"] .map-layer-menu > div + div {
+  border-color: var(--sb-border);
+}
+
+:root[data-theme="dark"] .map-style-options button {
+  border-color: var(--sb-border);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
+}
+
+:root[data-theme="dark"] .map-style-options button[aria-pressed="true"] {
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .map-light-options {
+  border-color: var(--sb-border);
+  background: color-mix(in srgb, var(--sb-ink) 55%, var(--sb-surface-raised));
+}
+
+:root[data-theme="dark"] .map-light-options button {
+  color: var(--sb-text-muted);
+}
+
+:root[data-theme="dark"] .map-light-options button[aria-checked="true"] {
+  background: var(--sb-surface);
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .map-light-note,
+:root[data-theme="dark"] .overlay-options small,
+:root[data-theme="dark"] .map-pack-options > small,
+:root[data-theme="dark"] .reference-map-options > small {
+  color: var(--sb-text-muted);
+}
+
+:root[data-theme="dark"] .overlay-options label + label {
+  border-color: var(--sb-border);
+}
+
+:root[data-theme="dark"] .layer-order-controls button,
+:root[data-theme="dark"] .map-pack-save input,
+:root[data-theme="dark"] .map-pack-save button,
+:root[data-theme="dark"] .map-pack-list button,
+:root[data-theme="dark"] .reference-map-actions button {
+  border-color: var(--sb-border);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+}
+
+:root[data-theme="dark"] .reference-map-actions > span,
+:root[data-theme="dark"] .route-visibility-options label {
+  color: var(--sb-text);
+}

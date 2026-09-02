@@ -4,7 +4,7 @@
   padding: 14px;
   border: 1px solid var(--sb-border);
   border-radius: 12px;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   color: var(--sb-text);
   box-shadow: 0 8px 24px rgb(22 29 28 / 12%);
 }
@@ -124,7 +124,7 @@
   width: 34px;
   height: 20px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--sb-slate) 48%, var(--sb-paper));
+  background: color-mix(in srgb, var(--sb-slate) 48%, var(--sb-surface));
   transition: background 120ms ease;
 }
 
@@ -136,7 +136,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   box-shadow: 0 1px 3px rgb(22 29 28 / 24%);
   transition: transform 120ms ease;
 }

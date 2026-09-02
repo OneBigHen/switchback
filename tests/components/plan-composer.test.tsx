@@ -235,4 +235,31 @@ describe("V2 compact Plan composer", () => {
 
     expect(onRidePrompt).toHaveBeenCalledWith("A scenic ride to a river overlook")
   })
+
+  it("offers an explicit cancel action while a map point is armed", async () => {
+    const user = userEvent.setup()
+    const onArm = vi.fn()
+    const base = viewModel()
+    renderComposer({
+      waypoint: { ...base.waypoint, armedPoint: "finish" }
+    }, { waypoint: { onArm } })
+
+    await user.click(screen.getByRole("button", { name: "Cancel map placement" }))
+
+    expect(onArm).toHaveBeenCalledWith("finish")
+  })
+
+  it("escapes add-via placement with the keyboard", async () => {
+    const user = userEvent.setup()
+    const onToggleAddVia = vi.fn()
+    const base = viewModel()
+    renderComposer({
+      waypoint: { ...base.waypoint, addingVia: true }
+    }, { waypoint: { onToggleAddVia } })
+
+    expect(screen.getByRole("button", { name: "Cancel map placement" })).toBeInTheDocument()
+    await user.keyboard("{Escape}")
+
+    expect(onToggleAddVia).toHaveBeenCalledTimes(1)
+  })
 })

@@ -63,7 +63,7 @@
   border: 1px solid color-mix(in srgb, var(--sb-border) 82%, transparent);
   border-radius: 16px;
   background:
-    linear-gradient(112deg, var(--sb-paper) 0 62%, color-mix(in srgb, var(--sb-spruce) 9%, var(--sb-paper)) 100%);
+    linear-gradient(112deg, var(--sb-surface) 0 62%, color-mix(in srgb, var(--sb-spruce) 9%, var(--sb-surface)) 100%);
   box-shadow: 0 12px 28px color-mix(in srgb, var(--sb-ink) 7%, transparent);
 }
 
@@ -207,7 +207,7 @@
 
 .secondaryAction {
   border: 1px solid var(--sb-border);
-  background: color-mix(in srgb, var(--sb-paper) 90%, transparent);
+  background: color-mix(in srgb, var(--sb-surface) 90%, transparent);
   color: var(--sb-text-link);
 }
 
