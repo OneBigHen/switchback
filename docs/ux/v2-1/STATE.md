@@ -8,8 +8,8 @@ Base: `main@35cb60c4659c5e054c0e64b6ef24c567c4ceff17`
 
 - Handoff design: complete.
 - Execution package: complete when this commit lands.
-- Product implementation: **not started**.
-- Current wave: **W1 — Plan**.
+- Product implementation: **W1 complete; W2 in progress next**.
+- Current wave: **W2 — Destinations**.
 - Human design approval: **approved**.
 - Merge permission: **not granted**; PR must remain draft through implementation and exact-head proof.
 
@@ -37,7 +37,7 @@ If required baseline commands fail before W1 changes, record the failure here an
 
 | Wave | Status | Commits | Gate |
 |---|---|---|---|
-| W1 Plan | READY | — | focused Plan + `qa:pr` at milestone |
+| W1 Plan | DONE | ea610ea aa57f2f 43a2ad8 af880c9 a2e8139 ea01cbd | lint/typecheck/build ✓ · vitest 1706/0 ✓ · critical e2e 21/21 ✓ · visual 54/54 ✓ (see report) |
 | W2 Destinations | BLOCKED ON W1 | — | focused destination tests/visuals |
 | W3 Ride | BLOCKED ON W2 | — | Ride/Free Ride Chromium + WebKit + `qa:pr` |
 | W4 Hardening | BLOCKED ON W3 | — | exact responsive/dark/a11y/perf/full release gates |
@@ -67,3 +67,12 @@ NEXT: <exact next action>
 ```
 
 Do not turn this file into a diary. Keep only current actionable state and compact evidence.
+
+WAVE: W1
+HEAD: ea01cbd53514be79d171564e911ca281207499d4
+COMMITS: ea610ea (idle-sheet collapse + leading status w/ Cancel + contract literals), aa57f2f (dock token chrome + V2 dark rebind + phone prepare Start row), 43a2ad8 (9 approved mobile baselines), af880c9 (phase-0 evidence refresh), a2e8139 (dark fills for paper-filled plan controls), ea01cbd (dark idle evidence)
+TESTS: lint ✓ · typecheck ✓ · build ✓ · vitest 1706 passed / 0 failed (13 suites blocked by pre-existing Node22-vs-CI24 node:sqlite bundling; fails at base 35cb60c too) · test:e2e:critical 21/21 ✓ after WebKit system deps · playwright visual 54/54 ✓ (2 unrelated cold-server flakes passed isolated: Record tablet-landscape, free-ride-idle desktop) · qa:pr script exits 1 only at the Node-22 suite-load blocks; all gate components above verified individually.
+VISUALS: mobile idle (pre/post fix), loading, alternatives, prepare (pre/post dock fix), detail, edit, provider-failure, dark idle (pre/post omnibox fix); suite viewports 320x700, 390x844, 430x932, 844x390, 768x1024, 1024x768, 1440x900, 1920x1080; every updated baseline's pixel diff inspected before approval.
+SNAPSHOTS: screens: plan-empty-320x700/390x844/430x932, plan-result-mobile; ux-states: home/alternatives/route-selected/route-detail/map-provider-failure --mobile (all mobile Plan-family, all diff-inspected).
+LIMITATIONS: quick layers panel + advanced map studio (map-layer-control.css) and planner-deck.css idle chrome keep hard-coded light styles in dark — deferred to W4 dark hardening; muted 10px Loop/Draw labels are contrast-risky — W4 a11y; omnibox placeholder truncates without ellipsis at 390; Node-22 env cannot run the 13 node:sqlite suites (CI authoritative); qa:pr cannot complete as one local script for the same reason.
+NEXT: Begin W2 — Destinations per waves/W2-DESTINATIONS.md from HEAD ea01cbd.
