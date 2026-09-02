@@ -226,7 +226,7 @@
   padding: 3px 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--sb-surface) 88%, transparent);
-  color: var(--sb-ink);
+  color: var(--sb-text);
   font-size: 10px;
   font-weight: 850;
   letter-spacing: .07em;
