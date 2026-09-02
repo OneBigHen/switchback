@@ -123,11 +123,30 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
             />
           ))}
         </div>
+      ) : items.length === 0 ? (
+        <div className={styles.empty}>
+          <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
+          <strong>No rides yet.</strong>
+          <span>Import a GPX or save a planned route to start your library.</span>
+          <button type="button" className={styles.importButton} onClick={() => setImportOpen(true)}>
+            <FileArrowUp weight="bold" aria-hidden="true" />
+            <span>Import your first ride</span>
+          </button>
+        </div>
       ) : (
         <div className={styles.empty}>
           <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
           <strong>No rides match this view.</strong>
           <span>Try another type or clear the search.</span>
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("")
+              setFilter("all")
+            }}
+          >
+            Clear search & filters
+          </button>
         </div>
       )}
     </section>

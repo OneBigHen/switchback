@@ -30,7 +30,7 @@
   padding: 0 12px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-chip, 8px);
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   color: var(--sb-text-link);
   cursor: pointer;
   font: inherit;

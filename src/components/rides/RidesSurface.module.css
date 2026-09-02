@@ -48,7 +48,7 @@
   padding: 0 12px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-control, 10px);
-  background: var(--sb-paper);
+  background: var(--sb-surface);
 }
 
 .search:focus-within {
@@ -122,7 +122,7 @@
 }
 
 .tabs button[aria-pressed="true"] b {
-  background: color-mix(in srgb, var(--sb-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--sb-surface) 14%, transparent);
   color: var(--sb-paper);
 }
 
@@ -171,7 +171,7 @@
   min-width: 0;
   border: 1px solid color-mix(in srgb, var(--sb-border) 92%, transparent);
   border-radius: var(--sb-radius-card, 12px);
-  background: color-mix(in srgb, var(--sb-paper) 84%, var(--sb-surface));
+  background: color-mix(in srgb, var(--sb-surface) 84%, var(--sb-surface));
   overflow: clip;
 }
 
@@ -225,7 +225,7 @@
   left: 7px;
   padding: 3px 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--sb-paper) 88%, transparent);
+  background: color-mix(in srgb, var(--sb-surface) 88%, transparent);
   color: var(--sb-ink);
   font-size: 10px;
   font-weight: 850;
@@ -371,7 +371,7 @@
   padding: 0 10px;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-control, 10px);
-  background: var(--sb-paper);
+  background: var(--sb-surface);
   color: var(--sb-text);
   font: inherit;
   font-size: 12px;
@@ -421,6 +421,20 @@
 
 .empty span {
   font-size: 11px;
+}
+
+.empty > button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control, 10px);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
 }
 
 @media (max-width: 900px) {
