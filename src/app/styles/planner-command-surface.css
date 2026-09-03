@@ -147,6 +147,17 @@
   }
 }
 
+/* Portrait tablets keep the compact ~360px planner even though the app has
+   crossed into rail navigation. Size these siblings from the command surface,
+   not from the phone breakpoint, so the minimize control never wraps alone. */
+@media (max-width: 800px) {
+  .plan-v2__free-ride,
+  .plan-v2__options-trigger {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
 @media (max-width: 760px) {
   .plan-v2 {
     gap: 7px;
@@ -158,15 +169,6 @@
 
   .plan-v2__action-rail {
     gap: 6px;
-  }
-
-  /* Reserve exactly one touch target plus the two inter-control gaps for the
-     minimize button. Equal flexible siblings then stay on the same row at
-     320–430px instead of leaving a nearly empty third row. */
-  .plan-v2__free-ride,
-  .plan-v2__options-trigger {
-    min-width: 0;
-    flex: 1 1 0;
   }
 
   .plan-v2__options-panel {
