@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { atlasSourceFingerprint } from "./lib/route-atlas-integrity.mjs"
 
 /**
  * Builds data/gpx-library/atlas.json — prettymaps-style poster art for every
@@ -136,17 +137,24 @@ function geometrySignature(geometry) {
 }
 
 async function main() {
-  const manifest = JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8"))
-  const out = { version: 2, generatedAt: new Date().toISOString(), count: 0, routes: {} }
+  const manifestRaw = await readFile(path.join(root, "manifest.json"), "utf8")
+  const manifest = JSON.parse(manifestRaw)
+  const routeSources = new Map()
+  for (const summary of manifest.routes) {
+    routeSources.set(summary.id, await readFile(path.join(root, "routes", `${summary.id}.json`), "utf8"))
+  }
+
+  const out = {
+    version: 2,
+    generatedAt: new Date().toISOString(),
+    count: 0,
+    sourceFingerprint: atlasSourceFingerprint(manifestRaw, manifest.routes, routeSources),
+    routes: {}
+  }
   const seenSignatures = new Map()
 
   for (const summary of manifest.routes) {
-    let route
-    try {
-      route = JSON.parse(await readFile(path.join(root, "routes", `${summary.id}.json`), "utf8"))
-    } catch {
-      continue
-    }
+    const route = JSON.parse(routeSources.get(summary.id))
     const geo = Array.isArray(route.geometry)
       ? route.geometry.filter((p) => Number.isFinite(p?.[0]) && Number.isFinite(p?.[1]))
       : []
