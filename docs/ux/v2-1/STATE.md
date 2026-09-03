@@ -80,10 +80,10 @@ Also require the repository's aggregate/compatibility jobs and security checks t
 These were P2/P3 at the release-prep snapshot. Some have since been implemented or superseded; check [`FUTURE.md`](./FUTURE.md) and current code before acting:
 
 - attribution/legal text links below the 44px control target (P3 exception candidate);
-- Ride short-landscape topbar crowding at 844×390 (P2);
+- ~~Ride short-landscape topbar crowding at 844×390 (P2)~~ — fixed, PR #47;
 - Record idle dead space on tall viewports (P3);
 - Rides filter chip row lacks an end-fade/scroll affordance (P3);
-- muted 10px Loop/Draw labels merit a contrast polish pass (P3);
+- muted Loop/Draw labels merit a contrast polish pass (P3) — the trip-shape rail no longer clips (PR #52) but the labels are still 11px;
 - Atlas true-empty state lacks a direct publish CTA and needs an authenticated product decision (P2);
 - local Node 22 cannot execute the Node-24 `node:sqlite` suites; CI Node 24 is authoritative.
 

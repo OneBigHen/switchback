@@ -1,6 +1,6 @@
 # Switchback UX — current audit and future backlog
 
-Updated 2026-09-02 after UX V2.1 merged and the Atlas follow-up landed.
+Updated 2026-09-03 after the P1 polish PRs and the live-testing bug fixes landed.
 
 This is a **living option backlog**, not permission to reopen architecture decisions. It replaces the temporary `/tmp/.../FUTURE.md` produced during the interrupted agent session and removes items that are already solved on current `main`.
 
@@ -9,8 +9,12 @@ This is a **living option backlog**, not permission to reopen architecture decis
 - UX V2.1 PR #41: merged.
 - Atlas / route-library PR #45: merged.
 - Housekeeping PR #46: merged.
-- Follow-up rider glanceability PR #47: open; requires rendered short-landscape proof before merge.
-- Mobile core regression-gate PR #48: open; restores deterministic mobile behavior checks on PRs while keeping the larger screenshot matrix advisory/nightly.
+- Ride HUD short-landscape glanceability PR #47: merged.
+- Mobile Prepare selected-route visibility PR #50: merged.
+- Mobile core regression-gate PR #48: merged — `mobile-core.yml` runs the deterministic planner/ride/library/settings contracts on every PR; the screenshot matrix stays nightly in `mobile-qa.yml`. Two Prepare/route-rack contract assertions were realigned to shipped V2 behaviour (horizontal carousel; PR #50 identity auto-scroll).
+- Production Atlas-data contract PR #51: merged — see P1.3.
+- Tablet planner rail + route-name id leak PR #52: merged (found in live iPad testing).
+- Destination time-shaping PR #53: merged — destination rides plan fast + alternatives by default instead of a hidden 120-minute timebox; a "Ride time" control opts into a target (see P3 #24–25).
 
 ## Audit corrections
 
@@ -22,13 +26,15 @@ Do **not** blindly re-run the old W1–W4 implementation waves. Current code alr
 - Atlas browse/detail and planner deep-link work are already on `main`.
 - The remaining work should be verified against current code before implementation.
 
-## P1 — finish before calling the current polish cycle complete
+## P1 — done this cycle
+
+All three P1 items landed. Kept here as the record of what "done" meant.
 
 ### 1. Ride short-landscape glanceability
 
 **Rider decision:** understand route/GPS state and reach pause/exit without topbar wrap at 844×390.
 
-Status: PR #47 open.
+Status: **done — PR #47 merged.**
 
 Acceptance:
 - route identity remains readable/truncated rather than wrapped;
@@ -43,7 +49,7 @@ Acceptance:
 
 **Product decision:** prevent broken mobile behavior from reaching `main` without turning all screenshot inventory into a merge blocker.
 
-Status: PR #48 open.
+Status: **done — PR #48 merged.**
 
 Acceptance:
 - current V2 selectors/accessibility roles only;
@@ -56,15 +62,7 @@ Acceptance:
 
 **Rider decision:** Near Me sorting and route geometry must reflect the deployed GPX library.
 
-Current risk: `data/gpx-library/` is intentionally gitignored while `atlas:build` produces derived metadata from host-local route data. A normal repository build cannot guarantee that the host Atlas was regenerated.
-
-Do next:
-- document the production deploy sequence as an executable/checkable contract;
-- add an `atlas:verify` command that validates `atlas.json` exists, has the expected schema, and that every browseable entry used by Near Me has a usable center/bbox when source geometry exists;
-- make the production deploy fail closed on a stale/missing Atlas rather than silently falling back to non-near sorting;
-- do **not** put host-local GPX content into git simply to make CI green.
-
-Risk: medium because deployment/runtime ownership is outside normal GitHub Actions.
+Status: **done — PR #51 merged.** `npm run build` runs `scripts/prepare-route-atlas.mjs` first: when `data/gpx-library/manifest.json` is present (a data host) it regenerates `atlas.json` and verifies it before Next builds, failing closed on a missing route source, a stale source fingerprint, an invalid bbox, or manifest/Atlas route drift. When the manifest is absent (clean CI) it skips. `npm run atlas:verify` / `atlas:refresh` are available; the sequence is documented in `docs/release/ATLAS-INTEGRITY.md`. Host-local GPX content stays out of git.
 
 ## P2 — low-risk, high-value UX polish
 
@@ -149,13 +147,15 @@ Risk: medium because deployment/runtime ownership is outside normal GitHub Actio
 
 ## Suggested sequence
 
-1. Merge only verified #47 and #48.
-2. Make Atlas deploy state explicit and fail-closed.
-3. Planner/Prepare 320–390px rendered pass + Trip Shape legibility.
-4. Settings 320px/dark/accessibility pass.
-5. Discover ↔ Atlas coherence and geometry-thumbnail feasibility.
-6. Free Ride drawing/avoid-area interaction project as a separate, testable feature slice.
-7. Route-decision intelligence enhancements after the core surfaces are stable.
+Done: verified #47 / #48 merged; Atlas deploy state made explicit and fail-closed (#51); the live-iPad tablet-rail and route-name defects fixed (#52); destination time-shaping fixed with a rider control (#53).
+
+Next:
+
+1. Planner/Prepare 320–390px rendered pass + Trip Shape legibility (P2 Planner #1 — the rail no longer clips, but labels are still 11px).
+2. Settings 320px/dark/accessibility pass.
+3. Discover ↔ Atlas coherence and geometry-thumbnail feasibility.
+4. Free Ride drawing/avoid-area interaction project as a separate, testable feature slice.
+5. Route-decision intelligence enhancements after the core surfaces are stable — #53 restored the fastest-vs-alternatives comparison and its `+N min` deltas; P3 #24–26 build on that.
 
 ## Definition of done for any future UX PR
 
