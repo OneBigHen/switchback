@@ -278,39 +278,41 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       ) : (
         <>
           <div className="planner-scroll plan-v2-scroll">
-            <header className="deck-header ride-deck-header plan-v2-header">
-              <div className="deck-header-tools">
-                {planningStage !== "Search" ? (
-                  <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
-                    {planningStage}
-                  </span>
-                ) : null}
-                {sheetDetent === "full" ? (
+            {planningStage !== "Search" || sheetDetent === "full" ? (
+              <header className="deck-header ride-deck-header plan-v2-header">
+                <div className="deck-header-tools">
+                  {planningStage !== "Search" ? (
+                    <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+                      {planningStage}
+                    </span>
+                  ) : null}
+                  {sheetDetent === "full" ? (
+                    <button
+                      type="button"
+                      className="planner-full-map-tools"
+                      aria-label="Show map tools"
+                      title="Collapse planner to use map tools"
+                      onClick={() => setSheetDetentOverride("half")}
+                    >
+                      <MapTrifold weight="bold" aria-hidden="true" />
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    className="planner-full-map-tools"
-                    aria-label="Show map tools"
-                    title="Collapse planner to use map tools"
-                    onClick={() => setSheetDetentOverride("half")}
+                    className="planner-minimize"
+                    aria-label="Minimize planner"
+                    aria-controls="planner-sheet"
+                    aria-expanded={true}
+                    onClick={() => {
+                      if (selectedRoute) setEditing(false)
+                      setSheetDetentOverride("peek")
+                    }}
                   >
-                    <MapTrifold weight="bold" aria-hidden="true" />
+                    <CaretDown aria-hidden="true" />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="planner-minimize"
-                  aria-label="Minimize planner"
-                  aria-controls="planner-sheet"
-                  aria-expanded={true}
-                  onClick={() => {
-                    if (selectedRoute) setEditing(false)
-                    setSheetDetentOverride("peek")
-                  }}
-                >
-                  <CaretDown aria-hidden="true" />
-                </button>
-              </div>
-            </header>
+                </div>
+              </header>
+            ) : null}
 
             <PlanComposer
               planMode={planMode}
@@ -321,6 +323,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               onRidePromptSubmit={submitRidePrompt}
               onStartVoiceInput={startVoiceInput}
               onUseCurrentLocation={onUseCurrentLocation}
+              onMinimize={planningStage === "Search" && sheetDetent !== "full" ? () => setSheetDetentOverride("peek") : undefined}
               start={start}
               finish={finish}
               startQuery={startQuery}
