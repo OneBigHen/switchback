@@ -1,0 +1,48 @@
+name: Mobile Core
+
+# Merge gate for deterministic mobile behaviour only. The larger screenshot and
+# multi-viewport inventory stays in mobile-qa.yml as nightly/manual evidence.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: switchback-mobile-core-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-core:
+    name: mobile-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Deterministic mobile behavior contracts
+        env:
+          MOBILE_QA_EXPECTED_PROJECTS: webkit-standard,chromium-standard
+        run: >-
+          npx playwright test
+          --config=playwright.mobile.config.ts
+          --project=webkit-standard
+          --project=chromium-standard
+          tests/e2e/mobile-qa/core
+      - name: Upload mobile-core failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-core-failure-evidence
+          path: artifacts/mobile-qa
+          if-no-files-found: ignore
+          retention-days: 14
