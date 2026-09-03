@@ -280,9 +280,11 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           <div className="planner-scroll plan-v2-scroll">
             <header className="deck-header ride-deck-header plan-v2-header">
               <div className="deck-header-tools">
-                <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
-                  {planningStage}
-                </span>
+                {planningStage !== "Search" ? (
+                  <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
+                    {planningStage}
+                  </span>
+                ) : null}
                 {sheetDetent === "full" ? (
                   <button
                     type="button"
