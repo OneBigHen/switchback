@@ -160,20 +160,17 @@
     gap: 6px;
   }
 
+  /* Reserve exactly one touch target plus the two inter-control gaps for the
+     minimize button. Equal flexible siblings then stay on the same row at
+     320–430px instead of leaving a nearly empty third row. */
   .plan-v2__free-ride,
   .plan-v2__options-trigger {
     min-width: 0;
+    flex: 1 1 0;
   }
 
   .plan-v2__options-panel {
     padding-inline: 8px;
-  }
-}
-
-@media (max-width: 360px) {
-  .plan-v2__free-ride,
-  .plan-v2__options-trigger {
-    flex-basis: calc(50% - 28px);
   }
 }
 
