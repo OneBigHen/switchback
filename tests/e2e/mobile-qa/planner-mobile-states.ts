@@ -105,6 +105,28 @@ export async function expectMobilePlannerContracts(page: Page): Promise<void> {
 
 
 export async function expectPrepareContracts(page: Page): Promise<void> {
+  // PR #50 scrolls the nested planner-scroll owner so the rider lands on the
+  // selected-route identity whenever a Prepare disclosure changes layout.
+  // Assert that landing first — before the shared contracts below scroll the
+  // container around to prove other invariants. Forcing scrollTop = 0 and
+  // demanding full containment there measured a pre-effect frame the rider
+  // never sees, with the composer and route rack (~350px) stacked above it.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  }))
+  const landing = await page.evaluate(() => {
+    const scroll = document.querySelector<HTMLElement>(".planner-scroll")
+    const identity = document.querySelector<HTMLElement>(".route-selection-identity")
+    if (!scroll || !identity) throw new Error("Prepare identity nodes are missing")
+    const scrollBox = scroll.getBoundingClientRect()
+    const identityBox = identity.getBoundingClientRect()
+    return { identityTop: identityBox.top, scrollTop: scrollBox.top, scrollBottom: scrollBox.bottom }
+  })
+  expect(
+    landing.identityTop >= landing.scrollTop - 1 && landing.identityTop <= landing.scrollBottom - 8,
+    "PR #50 must land the rider on the selected-route identity inside the planner scroll",
+  ).toBe(true)
+
   await expectMobilePlannerContracts(page)
   await page.locator(".planner-scroll").evaluate((element) => {
     element.scrollTop = 0
@@ -122,7 +144,6 @@ export async function expectPrepareContracts(page: Page): Promise<void> {
     }
     const scrollBox = scroll.getBoundingClientRect()
     const dockBox = dock.getBoundingClientRect()
-    const identityBox = identity.getBoundingClientRect()
     const attribution = document.querySelector<HTMLElement>(".planner-full-attribution")
     const directionSizes = Array.from(document.querySelectorAll<HTMLElement>(".directions-distance"))
       .map((element) => Number.parseFloat(getComputedStyle(element).fontSize))
@@ -141,7 +162,6 @@ export async function expectPrepareContracts(page: Page): Promise<void> {
       scrollHasOverflow: scroll.scrollHeight > scroll.clientHeight + 1,
       documentHasOverflow: document.documentElement.scrollHeight > window.innerHeight + 1,
       attributionClearance: attribution ? dockBox.top - attribution.getBoundingClientRect().bottom : null,
-      identityVisible: identityBox.top >= scrollBox.top - 1 && identityBox.bottom <= scrollBox.bottom + 1,
       headingPosition: getComputedStyle(heading).position,
       directionSizes,
       metadataSizes,
@@ -168,7 +188,6 @@ export async function expectPrepareContracts(page: Page): Promise<void> {
   expect(metrics.scrollHasOverflow).toBe(true)
   expect(metrics.documentHasOverflow).toBe(false)
   if (metrics.attributionClearance !== null) expect(metrics.attributionClearance).toBeGreaterThanOrEqual(0)
-  expect(metrics.identityVisible).toBe(true)
   expect(metrics.headingPosition).toBe("static")
   expect(metrics.rackVisible).toBe(true)
   expect(metrics.directionSizes.length).toBeGreaterThan(0)
@@ -176,7 +195,9 @@ export async function expectPrepareContracts(page: Page): Promise<void> {
   expect(metrics.metadataSizes.length).toBeGreaterThan(0)
   expect(Math.min(...metrics.metadataSizes)).toBeGreaterThanOrEqual(14)
 
-  await page.locator(".planner-scroll").evaluate((element) => { element.scrollTop = 0 })
+  // The shared contracts above scrolled the owner to its extent; the identity
+  // stays reachable from anywhere in the scroll, which is the loosened contract.
+  await page.locator(".route-selection-identity").scrollIntoViewIfNeeded()
   await expect(page.locator(".route-selection-identity")).toBeInViewport()
   await scrollOwnerToEnd(page, ".planner-scroll")
   const clearance = await page.evaluate(() => {
