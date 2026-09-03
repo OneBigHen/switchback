@@ -19,6 +19,7 @@ export interface PlanOptionsProps {
   curvatureVisible: boolean
   avoidHighways: boolean
   targetMinutes: number
+  timeShaped: boolean
   segmentProfiles: RouteProfileId[]
   start: Waypoint | null
   finish: Waypoint | null
@@ -38,6 +39,7 @@ export interface PlanOptionsProps {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTargetMinutesChange(minutes: number): void
+  onTimeShapedChange(shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onPointChange(id: PlannerPointId, point: Waypoint): void
   onPointQueryChange(id: PlannerPointId, query: string): void
@@ -79,6 +81,7 @@ export function PlanOptions({
   curvatureVisible,
   avoidHighways,
   targetMinutes,
+  timeShaped,
   segmentProfiles,
   start,
   finish,
@@ -98,6 +101,7 @@ export function PlanOptions({
   onCurvatureChange,
   onAvoidHighwaysChange,
   onTargetMinutesChange,
+  onTimeShapedChange,
   onSegmentProfileChange,
   onPointChange,
   onPointQueryChange,
@@ -118,6 +122,8 @@ export function PlanOptions({
   onClearHome
 }: PlanOptionsProps) {
   const profiles = listProfiles()
+  // Loop rides always time-shape; destination rides only when the rider opts in.
+  const timeActive = planMode === "loop" || timeShaped
   const targetIsPreset = LOOP_DURATION_PRESETS.includes(targetMinutes as (typeof LOOP_DURATION_PRESETS)[number])
   const [customTimingOpen, setCustomTimingOpen] = useState(!targetIsPreset)
   const [customMinutes, setCustomMinutes] = useState(String(targetMinutes))
@@ -258,52 +264,66 @@ export function PlanOptions({
             </div>
           </OptionGroup>
 
-          {planMode === "loop" ? (
-            <OptionGroup name="Timing">
-              <h3>Timing</h3>
-              <div className="plan-v2__time-budget" aria-label="Loop duration">
-                <span><Clock aria-hidden="true" /> Ride time</span>
-                <div className="plan-v2__time-presets">
-                  {LOOP_DURATION_PRESETS.map((minutes) => (
-                    <button
-                      type="button"
-                      key={minutes}
-                      aria-pressed={!customTimingOpen && minutes === targetMinutes}
-                      onClick={() => choosePreset(minutes)}
-                    >
-                      {durationLabel(minutes)}
-                    </button>
-                  ))}
+          <OptionGroup name={planMode === "loop" ? "Timing" : "Ride time"}>
+            <h3>{planMode === "loop" ? "Timing" : "Ride time"}</h3>
+            {planMode === "destination" ? (
+              <p>Fastest by default. Set a target time to trade minutes for better roads — the extra minutes vs the fast route show on every option.</p>
+            ) : null}
+            <div className="plan-v2__time-budget" aria-label={planMode === "loop" ? "Loop duration" : "Target ride time"}>
+              <span><Clock aria-hidden="true" /> Ride time</span>
+              <div className="plan-v2__time-presets">
+                {planMode === "destination" ? (
                   <button
                     type="button"
-                    aria-pressed={customTimingOpen || !targetIsPreset}
+                    aria-pressed={!timeShaped}
+                    onClick={() => onTimeShapedChange(false)}
+                  >
+                    Fastest
+                  </button>
+                ) : null}
+                {LOOP_DURATION_PRESETS.map((minutes) => (
+                  <button
+                    type="button"
+                    key={minutes}
+                    aria-pressed={timeActive && !customTimingOpen && minutes === targetMinutes}
                     onClick={() => {
-                      setCustomMinutes(String(targetMinutes))
-                      setCustomTimingOpen(true)
+                      onTimeShapedChange(true)
+                      choosePreset(minutes)
                     }}
                   >
-                    Custom
+                    {durationLabel(minutes)}
                   </button>
-                </div>
-                {customTimingOpen ? (
-                  <label className="plan-v2__custom-time">
-                    <span>Minutes</span>
-                    <input
-                      type="number"
-                      min={MIN_CUSTOM_MINUTES}
-                      max={MAX_CUSTOM_MINUTES}
-                      step={15}
-                      inputMode="numeric"
-                      aria-label="Custom loop duration in minutes"
-                      value={customMinutes}
-                      onChange={(event) => updateCustomMinutes(event.target.value)}
-                    />
-                    <small>30–720 min</small>
-                  </label>
-                ) : null}
+                ))}
+                <button
+                  type="button"
+                  aria-pressed={timeActive && (customTimingOpen || !targetIsPreset)}
+                  onClick={() => {
+                    onTimeShapedChange(true)
+                    setCustomMinutes(String(targetMinutes))
+                    setCustomTimingOpen(true)
+                  }}
+                >
+                  Custom
+                </button>
               </div>
-            </OptionGroup>
-          ) : null}
+              {timeActive && customTimingOpen ? (
+                <label className="plan-v2__custom-time">
+                  <span>Minutes</span>
+                  <input
+                    type="number"
+                    min={MIN_CUSTOM_MINUTES}
+                    max={MAX_CUSTOM_MINUTES}
+                    step={15}
+                    inputMode="numeric"
+                    aria-label={planMode === "loop" ? "Custom loop duration in minutes" : "Target ride time in minutes"}
+                    value={customMinutes}
+                    onChange={(event) => updateCustomMinutes(event.target.value)}
+                  />
+                  <small>30–720 min</small>
+                </label>
+              ) : null}
+            </div>
+          </OptionGroup>
 
           <OptionGroup name="Roads">
             <h3>Roads</h3>

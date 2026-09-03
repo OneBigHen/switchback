@@ -70,6 +70,7 @@ function defaultViewModel(): PlannerDeckViewModel {
     rideConfig: {
       planMode: "destination",
       targetMinutes: 120,
+      timeShaped: false,
       profile: "twisty",
       bikeProfile: { ...MOTORCYCLE_PROFILES[0]! },
       roadLocks: [],
@@ -121,6 +122,7 @@ function defaultCommands(): PlannerDeckCommands {
     rideConfig: {
       onPlanModeChange: vi.fn(),
       onTargetMinutesChange: vi.fn(),
+      onTimeShapedChange: vi.fn(),
       onProfileChange: vi.fn(),
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),

@@ -194,6 +194,10 @@ export function PlannerShell() {
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
   const [planMode, setPlanMode] = useState<PlanMode>("destination")
   const [targetMinutes, setTargetMinutes] = useState(120)
+  // Destination rides default to "Fastest" (no time shaping); the rider opts
+  // in through the Options "Ride time" control or by naming a duration in the
+  // ride prompt. Loop rides always time-shape and ignore this.
+  const [timeShaped, setTimeShaped] = useState(false)
   const [avoidHighways, setAvoidHighways] = useState(initialAvoidHighways)
   const [avoidAreas, setAvoidAreas] = useState<AvoidArea[]>([])
   const [segmentProfiles, setSegmentProfiles] = useState<RouteProfileId[]>([])
@@ -531,6 +535,7 @@ export function PlannerShell() {
         bikeProfile: current.bikeProfile,
         roadLocks: current.roadLocks,
         targetMinutes,
+        timeShaped,
         seed: loopSeed.current,
         via: points?.via ?? current.via,
         avoidHighways,
@@ -556,6 +561,7 @@ export function PlannerShell() {
     runTripPlan,
     setPlanMode,
     setTargetMinutes,
+    setTimeShaped,
     setAvoidHighways,
     setStopIdeas,
     setResearchSources,
@@ -629,7 +635,10 @@ export function PlannerShell() {
     })
     store.setProfile(route.profile)
     setPlanMode(editState.mode)
-    if (editState.targetMinutes) setTargetMinutes(editState.targetMinutes)
+    if (editState.targetMinutes) {
+      setTargetMinutes(editState.targetMinutes)
+      setTimeShaped(true)
+    }
     setAvoidHighways(route.avoidHighways ?? false)
     setAvoidAreas(route.avoidAreas ?? [])
     setSegmentProfiles(route.segmentProfiles ?? [])
@@ -1191,6 +1200,7 @@ export function PlannerShell() {
     usePlannerStore.setState({ selectionSource: "automatic" })
     setPlanMode("destination")
     setTargetMinutes(120)
+    setTimeShaped(false)
     setAvoidHighways(false)
     setAvoidAreas([])
     setSegmentProfiles([])
@@ -1340,6 +1350,7 @@ export function PlannerShell() {
             canRedoRoutePoints,
             planMode,
             targetMinutes,
+            timeShaped,
             intentStatus,
             intentSummary,
             stopIdeas,
@@ -1436,6 +1447,10 @@ export function PlannerShell() {
               onTargetMinutesChange: (minutes) => {
                 routeRequestGate.invalidate()
                 setTargetMinutes(minutes)
+              },
+              onTimeShapedChange: (shaped) => {
+                routeRequestGate.invalidate()
+                setTimeShaped(shaped)
               },
               onSegmentProfileChange: (index, nextProfile) => {
                 routeRequestGate.invalidate()

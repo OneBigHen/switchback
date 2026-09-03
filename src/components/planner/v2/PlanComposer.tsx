@@ -35,6 +35,7 @@ export interface PlanComposerProps {
   curvatureVisible: boolean
   avoidHighways: boolean
   targetMinutes: number
+  timeShaped: boolean
   segmentProfiles: RouteProfileId[]
   avoidAreaCount: number
   roadLockCount: number
@@ -66,6 +67,7 @@ export interface PlanComposerProps {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTargetMinutesChange(minutes: number): void
+  onTimeShapedChange(shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onOpenRoadLocks(): void
   onRemoveAvoidArea(): void
@@ -106,6 +108,7 @@ export function PlanComposer({
   curvatureVisible,
   avoidHighways,
   targetMinutes,
+  timeShaped,
   segmentProfiles,
   avoidAreaCount,
   roadLockCount,
@@ -137,6 +140,7 @@ export function PlanComposer({
   onCurvatureChange,
   onAvoidHighwaysChange,
   onTargetMinutesChange,
+  onTimeShapedChange,
   onSegmentProfileChange,
   onOpenRoadLocks,
   onRemoveAvoidArea,
@@ -261,6 +265,7 @@ export function PlanComposer({
             curvatureVisible={curvatureVisible}
             avoidHighways={avoidHighways}
             targetMinutes={targetMinutes}
+            timeShaped={timeShaped}
             segmentProfiles={segmentProfiles}
             start={start}
             finish={finish}
@@ -279,6 +284,7 @@ export function PlanComposer({
             onBikeProfileChange={onBikeProfileChange}
             onCurvatureChange={onCurvatureChange}
             onAvoidHighwaysChange={onAvoidHighwaysChange}
+            onTimeShapedChange={onTimeShapedChange}
             onTargetMinutesChange={onTargetMinutesChange}
             onSegmentProfileChange={onSegmentProfileChange}
             onPointChange={onPointChange}

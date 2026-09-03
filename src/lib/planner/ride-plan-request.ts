@@ -11,6 +11,13 @@ interface BuildRideTripRequestOptions {
   bikeProfile?: BikeProfile
   roadLocks?: RoadLock[]
   targetMinutes: number
+  /**
+   * Destination rides only: opt in to a time-shaped route. When false (the
+   * default) the request carries no `targetMinutes`, so the planner returns
+   * the fast route plus comparison alternatives instead of a single route
+   * timeboxed to a hidden 120-minute default. Loop rides always time-shape.
+   */
+  timeShaped?: boolean
   seed: number
   via?: Waypoint[]
   avoidHighways?: boolean
@@ -64,6 +71,7 @@ export function buildRideTripRequest({
   bikeProfile,
   roadLocks = [],
   targetMinutes,
+  timeShaped = false,
   seed,
   via = [],
   avoidHighways = false,
@@ -87,7 +95,7 @@ export function buildRideTripRequest({
       ...(avoidAreas.length > 0 ? { avoidAreas } : {}),
       ...(segmentProfiles ? { segmentProfiles } : {}),
       ...(tollPolicy ? { tollPolicy } : {}),
-      ...(Number.isInteger(targetMinutes) && targetMinutes >= 20 && targetMinutes <= 480
+      ...(timeShaped && Number.isInteger(targetMinutes) && targetMinutes >= 20 && targetMinutes <= 480
         ? { targetMinutes }
         : {}),
       ...progressive,

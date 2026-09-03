@@ -40,13 +40,30 @@ function mustLock() {
 }
 
 describe("ride trip request builder", () => {
-  it("builds a compared destination request that preserves the time target", () => {
+  it("keeps a destination ride fast by default — no hidden time target", () => {
     expect(buildRideTripRequest({
       mode: "destination",
       start,
       finish,
       profile: "twisty",
       targetMinutes: 120,
+      seed: 8,
+      via: [{ lat: 40.1, lon: -76.8, label: "Fun stop" }]
+    })).toEqual({
+      profile: "twisty",
+      compare: true,
+      points: [start, { lat: 40.1, lon: -76.8, label: "Fun stop" }, finish]
+    })
+  })
+
+  it("carries the time target only when the rider opts into a time-shaped ride", () => {
+    expect(buildRideTripRequest({
+      mode: "destination",
+      start,
+      finish,
+      profile: "twisty",
+      targetMinutes: 120,
+      timeShaped: true,
       seed: 8,
       via: [{ lat: 40.1, lon: -76.8, label: "Fun stop" }]
     })).toEqual({
@@ -69,20 +86,20 @@ describe("ride trip request builder", () => {
       planningId: "plan-test-1234",
       candidateSet: "primary"
     })).toMatchObject({
-      targetMinutes: 120,
       tollPolicy: "avoid",
       planningId: "plan-test-1234",
       candidateSet: "primary"
     })
   })
 
-  it("omits an out-of-range destination time target", () => {
+  it("omits an out-of-range destination time target even when time-shaped", () => {
     expect(buildRideTripRequest({
       mode: "destination",
       start,
       finish,
       profile: "scenic",
       targetMinutes: 500,
+      timeShaped: true,
       seed: 1
     })).not.toHaveProperty("targetMinutes")
   })
