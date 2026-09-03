@@ -1,7 +1,7 @@
 "use client"
 
 import { Stack, X } from "@phosphor-icons/react"
-import { useState, type KeyboardEvent } from "react"
+import { useEffect, useState, type KeyboardEvent } from "react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
 import {
@@ -10,6 +10,7 @@ import {
   type MapLightPreference
 } from "@/lib/client/map-experience"
 import { provenanceSummary } from "@/lib/client/map-data-provenance"
+import { subscribeMapEdit } from "./map-edit-command"
 import { useMapLayerMenu } from "./useMapLayerMenu"
 import { LayersSheet } from "./v2/LayersSheet"
 
@@ -136,13 +137,25 @@ export function MapStageLayerControl({
     handleLayerMenuKeyDown(event)
   }
 
+  // Area exclusion is a route-edit command, not a map layer. Keep the map as
+  // the owner of the existing avoid-area draft while moving its entry point
+  // into Ride options. The cancel affordance remains visible while active.
+  useEffect(() => subscribeMapEdit((command) => {
+    if (command !== "exclude-area" || avoidMode) return
+    setAdvancedOpen(false)
+    closeLayerMenu()
+    onToggleAvoid()
+  }), [avoidMode, closeLayerMenu, onToggleAvoid])
+
   return (
     <div className="map-layer-control" onKeyDown={handleMenuKeyDown}>
       <div className="map-tool-row">
-        <button type="button" className="map-layers-button map-avoid-button" aria-label={avoidMode ? "Cancel avoid area" : "Draw an avoid area"} aria-pressed={avoidMode} onClick={() => { closeMenu(); onToggleAvoid() }}>
-          {avoidMode ? <X aria-hidden="true" /> : <span className="avoid-area-glyph" aria-hidden="true">▧</span>}
-          <span>{avoidMode ? "Cancel" : "Avoid area"}</span>
-        </button>
+        {avoidMode ? (
+          <button type="button" className="map-layers-button map-avoid-button" aria-label="Cancel avoid area" aria-pressed="true" onClick={() => { closeMenu(); onToggleAvoid() }}>
+            <X aria-hidden="true" />
+            <span>Cancel area</span>
+          </button>
+        ) : null}
         <button ref={layerButtonRef} type="button" className={`map-layers-button${loadingLayerCount > 0 ? " is-loading" : ""}${errorLayerCount > 0 ? " has-error" : ""}`} aria-label={layerMenuOpen ? "Close map layers" : "Open map layers"} aria-expanded={layerMenuOpen} onClick={() => { if (avoidMode) onToggleAvoid(); toggleMenu() }}>
           {layerMenuOpen ? <X aria-hidden="true" /> : <Stack weight="fill" aria-hidden="true" />}
           <span>Layers</span>
