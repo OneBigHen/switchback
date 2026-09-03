@@ -11,7 +11,7 @@ import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
 async function expectPlannerReady(page: import("@playwright/test").Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
 }
 
 async function establishServiceWorker(page: import("@playwright/test").Page): Promise<void> {
