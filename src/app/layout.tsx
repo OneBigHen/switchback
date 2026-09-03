@@ -48,6 +48,9 @@ import "./styles/map-placement.css";
 // Rider-facing readability and short-landscape safety constraints must win
 // over older ride HUD breakpoint rules.
 import "./styles/rider-glanceability.css";
+// Final, bounded V2 planner polish: collapses idle chrome and tightens the
+// command surface without changing planner/routing state authority.
+import "./styles/planner-command-surface.css";
 
 export const metadata: Metadata = {
 	title: "Switchback — Ride the better road",
