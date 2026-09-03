@@ -299,11 +299,26 @@ describe("route comparison rack", () => {
     expect(screen.getByText("Selected route")).toBeInTheDocument()
   })
 
-  it("scrolls selected route controls into the planner viewport", async () => {
+  it("scrolls selected route controls within the planner scroll owner", async () => {
     const user = userEvent.setup()
-    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
-    const scrollIntoView = vi.fn()
-    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView })
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect
+    const originalScrollTo = HTMLElement.prototype.scrollTo
+    const scrollTo = vi.fn()
+
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo })
+    Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: function getBoundingClientRect() {
+        if (this.classList.contains("planner-scroll")) {
+          return { x: 0, y: 100, top: 100, right: 390, bottom: 700, left: 0, width: 390, height: 600, toJSON: () => ({}) }
+        }
+        if (this.classList.contains("route-selection-identity")) {
+          return { x: 0, y: 280, top: 280, right: 390, bottom: 304, left: 0, width: 390, height: 24, toJSON: () => ({}) }
+        }
+        return originalGetBoundingClientRect.call(this)
+      }
+    })
+
     function Harness() {
       const [selectedId, setSelectedId] = useState("")
       return (
@@ -319,14 +334,17 @@ describe("route comparison rack", () => {
     }
 
     try {
-      render(<Harness />)
+      const { container } = render(<div className="planner-scroll"><Harness /></div>)
+      const scrollOwner = container.querySelector<HTMLElement>(".planner-scroll")
       await user.click(screen.getByRole("button", { name: `Select ${routes[0].name}` }))
-      expect(scrollIntoView).toHaveBeenCalledWith({ block: "start", behavior: "auto" })
+      await vi.waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 172, behavior: "auto" }))
+      expect(scrollTo.mock.contexts.at(-1)).toBe(scrollOwner)
     } finally {
-      if (originalScrollIntoView) {
-        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: originalScrollIntoView })
+      Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", { configurable: true, value: originalGetBoundingClientRect })
+      if (originalScrollTo) {
+        Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo })
       } else {
-        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: undefined })
+        Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: undefined })
       }
     }
   })
