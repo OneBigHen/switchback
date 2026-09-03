@@ -165,12 +165,13 @@ describe("V2 compact Plan composer", () => {
     expect(screen.getByRole("button", { name: "Loop" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Draw" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Minimize planner" })).toBeInTheDocument()
   })
 
   it("uses one progressive disclosure instead of duplicating the route editor", () => {
     renderComposer()
 
-    expect(screen.getAllByRole("button", { name: "Options" })).toHaveLength(1)
+    expect(screen.getAllByRole("button", { name: "Ride options" })).toHaveLength(1)
     expect(screen.queryByRole("button", { name: "Edit route" })).not.toBeInTheDocument()
   })
 
