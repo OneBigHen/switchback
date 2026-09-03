@@ -191,7 +191,18 @@ export function RouteComparison({
 
   useLayoutEffect(() => {
     if (!selectedRouteId) return
-    selectedRouteIdentityRef.current?.scrollIntoView?.({ block: "start", behavior: "auto" })
+    const frame = window.requestAnimationFrame(() => {
+      const identity = selectedRouteIdentityRef.current
+      const scroll = identity?.closest<HTMLElement>(".planner-scroll")
+      if (!identity || !scroll) return
+      const identityBox = identity.getBoundingClientRect()
+      const scrollBox = scroll.getBoundingClientRect()
+      scroll.scrollTo({
+        top: Math.max(0, scroll.scrollTop + identityBox.top - scrollBox.top - 8),
+        behavior: "auto"
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [directionsOpen, detailsOpen, selectedRouteId])
 
   const prepareJoin = async () => {

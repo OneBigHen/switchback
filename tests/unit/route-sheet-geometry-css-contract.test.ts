@@ -48,7 +48,10 @@ describe("route sheet geometry contract", () => {
 
   it("scrolls the selected card within the one planner scroll owner", () => {
     expect(routeComparisonSource).toContain("const selectedRouteIdentityRef = useRef<HTMLParagraphElement>(null)")
-    expect(routeComparisonSource).toContain("selectedRouteIdentityRef.current?.scrollIntoView?.({ block: \"start\", behavior: \"auto\" })")
+    expect(routeComparisonSource).toContain("const scroll = identity?.closest<HTMLElement>(\".planner-scroll\")")
+    expect(routeComparisonSource).toContain("scroll.scrollTo({")
+    expect(routeComparisonSource).toContain("scroll.scrollTop + identityBox.top - scrollBox.top - 8")
+    expect(routeComparisonSource).not.toContain("selectedRouteIdentityRef.current?.scrollIntoView?.")
     expect(routeComparisonSource).toContain("ref={selectedRouteIdentityRef}")
     expect(routeStyles).toContain(".route-rack .route-slip {\n    scroll-margin-block: calc(var(--sb-space-8) + var(--sb-space-5)) var(--sb-space-4);")
     expect(sheetStyles).toContain(".planner-deck.has-expanded-route-dock:not(.is-minimized) .edit-route-button")
