@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useState } from "react"
@@ -42,6 +42,7 @@ function viewModel(): PlannerDeckViewModel {
     rideConfig: {
       planMode: "destination",
       targetMinutes: 120,
+      timeShaped: false,
       profile: "twisty",
       bikeProfile: { ...MOTORCYCLE_PROFILES[0]! },
       roadLocks: [],
@@ -93,6 +94,7 @@ function commands(overrides: PlannerDeckCommandOverrides = {}): PlannerDeckComma
     rideConfig: {
       onPlanModeChange: vi.fn(),
       onTargetMinutesChange: vi.fn(),
+      onTimeShapedChange: vi.fn(),
       onProfileChange: vi.fn(),
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
@@ -249,5 +251,26 @@ describe("V2 progressive Plan Options", () => {
     await user.type(input, "150")
 
     expect(onTargetMinutesChange).toHaveBeenLastCalledWith(150)
+  })
+
+  it("keeps a destination ride on Fastest by default and opts into a time target on demand", async () => {
+    const user = userEvent.setup()
+    const onTimeShapedChange = vi.fn()
+    const onTargetMinutesChange = vi.fn()
+    renderOptions(
+      { rideConfig: { planMode: "destination", timeShaped: false } },
+      { rideConfig: { onTimeShapedChange, onTargetMinutesChange } }
+    )
+
+    await user.click(screen.getByRole("button", { name: "Options" }))
+    const rideTime = screen.getByRole("group", { name: "Ride time" })
+    expect(within(rideTime).getByRole("button", { name: "Fastest" })).toHaveAttribute("aria-pressed", "true")
+
+    await user.click(within(rideTime).getByRole("button", { name: "1 hr" }))
+    expect(onTimeShapedChange).toHaveBeenLastCalledWith(true)
+    expect(onTargetMinutesChange).toHaveBeenLastCalledWith(60)
+
+    await user.click(within(rideTime).getByRole("button", { name: "Fastest" }))
+    expect(onTimeShapedChange).toHaveBeenLastCalledWith(false)
   })
 })

@@ -83,6 +83,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const avoidAreaCount = rideConfig.avoidAreaCount
   const planMode = rideConfig.planMode
   const targetMinutes = rideConfig.targetMinutes
+  const timeShaped = rideConfig.timeShaped
   const intentStatus = intent.intentStatus
   const stopIdeas = intent.stopIdeas
   const researchStatus = intent.researchStatus
@@ -123,6 +124,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
   const onPlanModeChange = rc.onPlanModeChange
   const onTargetMinutesChange = rc.onTargetMinutesChange
+  const onTimeShapedChange = rc.onTimeShapedChange
   const onSegmentProfileChange = rc.onSegmentProfileChange
   const onRemoveAvoidArea = rc.onRemoveAvoidArea
 
@@ -331,6 +333,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               curvatureVisible={curvatureVisible}
               avoidHighways={avoidHighways}
               targetMinutes={targetMinutes}
+              timeShaped={timeShaped}
               segmentProfiles={segmentProfiles}
               avoidAreaCount={avoidAreaCount}
               roadLockCount={rideConfig.roadLocks.length}
@@ -362,6 +365,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               onCurvatureChange={onCurvatureChange}
               onAvoidHighwaysChange={onAvoidHighwaysChange}
               onTargetMinutesChange={onTargetMinutesChange}
+              onTimeShapedChange={onTimeShapedChange}
               onSegmentProfileChange={onSegmentProfileChange}
               onOpenRoadLocks={() => setRoadLocksOpen(true)}
               onRemoveAvoidArea={onRemoveAvoidArea}

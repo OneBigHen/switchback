@@ -37,6 +37,8 @@ export interface PlannerWaypointViewModel {
 export interface PlannerRideConfigViewModel {
   planMode: PlanMode
   targetMinutes: number
+  /** Destination rides: whether the rider opted into a time-shaped route. */
+  timeShaped: boolean
   profile: RouteProfileId
   bikeProfile: BikeProfile
   roadLocks: RoadLock[]
@@ -121,6 +123,7 @@ export interface PlannerWaypointCommands {
 export interface PlannerRideConfigCommands {
   onPlanModeChange(mode: PlanMode): void
   onTargetMinutesChange(minutes: number): void
+  onTimeShapedChange(shaped: boolean): void
   onProfileChange(profile: RouteProfileId): void
   onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
@@ -184,6 +187,7 @@ export function buildPlannerDeckViewModel(state: {
   canRedoRoutePoints: boolean
   planMode: PlanMode
   targetMinutes: number
+  timeShaped: boolean
   intentStatus: RideIntentStatus
   intentSummary: string | null
   stopIdeas: PlaceIdeasResult | null
@@ -211,6 +215,7 @@ export function buildPlannerDeckViewModel(state: {
     rideConfig: {
       planMode: state.planMode,
       targetMinutes: state.targetMinutes,
+      timeShaped: state.timeShaped,
       profile: state.profile,
       bikeProfile: state.bikeProfile,
       roadLocks: state.roadLocks,

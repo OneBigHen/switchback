@@ -43,6 +43,7 @@ interface UsePlannerRideIntentOptions {
   runTripPlan(request: TripPlanRequest): Promise<TripPlan | null>
   setPlanMode(mode: PlanMode): void
   setTargetMinutes(minutes: number): void
+  setTimeShaped(value: boolean): void
   setAvoidHighways(value: boolean): void
   setStopIdeas(ideas: PlaceIdeasResult | null): void
   setResearchSources(sources: RideResearchSource[]): void
@@ -65,6 +66,7 @@ export function usePlannerRideIntent({
   runTripPlan,
   setPlanMode,
   setTargetMinutes,
+  setTimeShaped,
   setAvoidHighways,
   setStopIdeas,
   setResearchSources,
@@ -86,6 +88,9 @@ export function usePlannerRideIntent({
       const current = usePlannerStore.getState()
       const nextMode: PlanMode = intent.mode
       const nextDuration = intent.targetMinutes ?? targetMinutes
+      // A destination ride is time-shaped only when the rider actually named a
+      // duration ("2 hour ride to X"); otherwise it plans fast with alternatives.
+      const nextTimeShaped = nextMode === "destination" && intent.targetMinutes != null
       const planningId = createPlanningId()
       store.setPlanningPhase("geocoding")
 
@@ -127,6 +132,7 @@ export function usePlannerRideIntent({
       // has resolved. A failed lookup must not erase the rider's current trip.
       setPlanMode(nextMode)
       setTargetMinutes(nextDuration)
+      setTimeShaped(nextTimeShaped)
       setAvoidHighways(intent.avoidHighways)
       if (intent.profile !== current.profile) current.setProfile(intent.profile)
       current.clearVia()
@@ -162,6 +168,7 @@ export function usePlannerRideIntent({
         bikeProfile: usePlannerStore.getState().bikeProfile,
         roadLocks: usePlannerStore.getState().roadLocks,
         targetMinutes: nextDuration,
+        timeShaped: nextTimeShaped,
         seed: nextSeed(),
         via: [],
         avoidHighways: intent.avoidHighways,
@@ -231,5 +238,5 @@ export function usePlannerRideIntent({
       setIntentSummary(raw)
       onNotice({ kind: "warning", message: raw })
     }
-  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setAvoidHighways, setIntentStatus, setIntentSummary, setPlanMode, setResearchSources, setStopIdeas, setTargetMinutes, targetMinutes])
+  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setAvoidHighways, setIntentStatus, setIntentSummary, setPlanMode, setResearchSources, setStopIdeas, setTargetMinutes, setTimeShaped, targetMinutes])
 }
