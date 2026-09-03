@@ -138,9 +138,9 @@
   opacity: 1;
 }
 
-/* One wrapping row: the trip-shape toggle takes the width it needs, and
-   Free Ride / Options drop to a second line when the deck is too narrow to
-   hold everything — never overlap. */
+/* Two tidy rows that never overlap: the trip-shape toggle owns a full-width
+   row (three equal 44px+ targets, room for "Destination" at any deck width),
+   and Free Ride / Options split the row below it. */
 .plan-v2__action-rail {
   display: flex;
   flex-wrap: wrap;
@@ -150,10 +150,11 @@
 }
 
 .plan-v2__mode-selector {
-  display: flex;
-  flex: 1 1 auto;
+  display: grid;
+  flex: 1 1 100%;
   min-width: 0;
   min-height: 44px;
+  grid-template-columns: repeat(3, 1fr);
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--sb-border);
@@ -162,10 +163,9 @@
 }
 
 .plan-v2__mode-selector button {
-  flex: 1 1 auto;
-  min-width: max-content;
+  min-width: 0;
   min-height: 44px;
-  padding: 0 10px;
+  padding: 0 8px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -176,6 +176,11 @@
   font-weight: 750;
   line-height: 1;
   white-space: nowrap;
+}
+
+.plan-v2__free-ride,
+.plan-v2__options-trigger {
+  flex: 1 1 auto;
 }
 
 .plan-v2__mode-selector button.is-selected {
@@ -247,6 +252,7 @@
 
 .plan-v2__options-panel {
   display: grid;
+  flex: 1 1 100%;
   grid-column: 1 / -1;
   min-width: 0;
   gap: 0;
