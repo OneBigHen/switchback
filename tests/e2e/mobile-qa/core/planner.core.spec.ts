@@ -15,7 +15,7 @@ import { expectOnlyDeliberateNetworkFailures } from "../persistence-mobile-state
 async function expectIdleComposer(page: import("@playwright/test").Page): Promise<void> {
   await expandPhonePlanner(page)
   await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Options", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
 }
 
 test.describe("mobile planner Level A core states", () => {
