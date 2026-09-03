@@ -403,7 +403,7 @@ async function routeAnchorSets(
       try {
         const attempt = await requestTimeboxedRoutes(candidate.request, provider, undefined, options)
         const selected = chooseSelectedCandidate(attempt.result.routes)
-        if (selected) results.push({ ...selected, name: `${selected.name} · ${candidate.id}`, candidateSource: candidate.source })
+        if (selected) results.push({ ...selected, candidateSource: candidate.source })
       } catch {
         // A corridor that cannot be routed is skipped; the others still compete.
       }
