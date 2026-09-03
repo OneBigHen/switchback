@@ -138,19 +138,22 @@
   opacity: 1;
 }
 
+/* One wrapping row: the trip-shape toggle takes the width it needs, and
+   Free Ride / Options drop to a second line when the deck is too narrow to
+   hold everything — never overlap. */
 .plan-v2__action-rail {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 6px;
   align-items: stretch;
 }
 
 .plan-v2__mode-selector {
-  display: grid;
+  display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 44px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--sb-border);
@@ -159,9 +162,10 @@
 }
 
 .plan-v2__mode-selector button {
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: max-content;
   min-height: 44px;
-  padding: 0 8px;
+  padding: 0 10px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -171,6 +175,7 @@
   font-size: 11px;
   font-weight: 750;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .plan-v2__mode-selector button.is-selected {
@@ -664,21 +669,9 @@
   .plan-v2 {
     max-width: 440px;
   }
-
-  /* Destination / Loop / Draw are primary planning controls and must stay
-     44px touch targets. The deck is capped at 440px here, so the selector's
-     1fr track collapsed each button to 38px on tablets — narrower than the
-     same control on a phone, on a device that is still touch-first. */
-  .plan-v2__mode-selector {
-    min-width: 144px;
-  }
 }
 
 @media (max-width: 760px) {
-  .plan-v2__action-rail {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
   .plan-v2__free-ride {
     min-width: 84px;
     padding-inline: 8px;
