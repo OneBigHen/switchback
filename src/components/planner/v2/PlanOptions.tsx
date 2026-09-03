@@ -151,12 +151,12 @@ export function PlanOptions({
         aria-controls="plan-v2-options-panel"
         onClick={onToggle}
       >
-        <span>Options</span>
+        <span>Ride options</span>
         {open ? <CaretUp aria-hidden="true" /> : <CaretDown aria-hidden="true" />}
       </button>
 
       {open ? (
-        <section id="plan-v2-options-panel" className="plan-v2__options-panel" aria-label="Plan options">
+        <section id="plan-v2-options-panel" className="plan-v2__options-panel" aria-label="Ride options">
           <OptionGroup name="Route">
             <h3>Route</h3>
             <div className="plan-v2__profile-control" role="group" aria-label="Motorcycle routing profile">
@@ -201,8 +201,9 @@ export function PlanOptions({
             </label>
           </OptionGroup>
 
-          <OptionGroup name="Geometry">
-            <h3>Route points</h3>
+          <OptionGroup name="Edit route">
+            <h3>Edit route</h3>
+            <p>Adjust the points that shape this ride without changing your ride preferences.</p>
             <div className="plan-v2__waypoint-stack">
               <WaypointField
                 id="start"
@@ -325,17 +326,18 @@ export function PlanOptions({
             </div>
           </OptionGroup>
 
-          <OptionGroup name="Roads">
-            <h3>Roads</h3>
+          <OptionGroup name="Road preferences">
+            <h3>Road preferences</h3>
+            <p>{featureFlags.roadRequirements ? "Prefer roads for route character or require a corridor when strict matching is available." : "Tell Switchback which roads you would rather use when it can route them safely."}</p>
             <button type="button" className="plan-v2__road-locks" onClick={onOpenRoadLocks}>
               <LockSimple aria-hidden="true" />
-              <span>Preferred / required roads</span>
+              <span>{featureFlags.roadRequirements ? "Preferred / required roads" : "Prefer a road"}</span>
               {roadLockCount > 0 ? <strong>{roadLockCount}</strong> : null}
             </button>
             {avoidAreaCount > 0 ? (
               <div className="plan-v2__avoid-area-summary">
-                <span>{avoidAreaCount} avoid {avoidAreaCount === 1 ? "area" : "areas"} active</span>
-                <button type="button" onClick={onRemoveAvoidArea}>Clear latest</button>
+                <span>{avoidAreaCount} excluded {avoidAreaCount === 1 ? "area" : "areas"} active</span>
+                <button type="button" aria-label="Remove latest excluded area" onClick={onRemoveAvoidArea}>Remove latest</button>
               </div>
             ) : null}
           </OptionGroup>
