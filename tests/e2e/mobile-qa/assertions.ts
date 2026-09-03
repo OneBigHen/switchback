@@ -79,6 +79,24 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
         if (centerX < ownerRect.left - 1 || centerX > ownerRect.right + 1
           || centerY < ownerRect.top - 1 || centerY > ownerRect.bottom + 1) continue
       }
+      // A horizontal scroller — the route-rack carousel — keeps its off-fold
+      // cards reachable by swiping, exactly as the vertical scroll owner above
+      // does past its own fold. A control whose centre sits beyond the
+      // carousel's horizontal edge is parked, not clipped.
+      const horizontalRack = (() => {
+        for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
+          const style = getComputedStyle(ancestor)
+          if (!/(auto|scroll|overlay)/.test(style.overflowX)) continue
+          if (ancestor.scrollWidth <= ancestor.clientWidth + 1) continue
+          return ancestor
+        }
+        return null
+      })()
+      if (horizontalRack) {
+        const rackRect = horizontalRack.getBoundingClientRect()
+        const centerX = rect.left + rect.width / 2
+        if (centerX < rackRect.left - 1 || centerX > rackRect.right + 1) continue
+      }
       if (rect.left < -1 || rect.top < -1 || rect.right > viewport.width + 1 || rect.bottom > viewport.height + 1) {
         problems.push(`${describe(element)} is outside the viewport`)
         continue
