@@ -136,4 +136,14 @@ describe("planner command surface", () => {
     expect(screen.getByText("1 excluded area active")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Remove latest excluded area" })).toBeInTheDocument()
   })
+
+  it("starts map-specific editing from Ride options instead of hiding it in map-global chrome", async () => {
+    const user = userEvent.setup()
+    render(<PlannerDeck viewModel={viewModel()} commands={commands()} />)
+
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
+
+    expect(screen.getByRole("button", { name: "Exclude an area on map" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Prefer a road on map" })).toBeInTheDocument()
+  })
 })
