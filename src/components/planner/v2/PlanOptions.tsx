@@ -7,6 +7,7 @@ import { listProfiles } from "@/lib/routing/profiles"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
+import { requestMapEdit } from "../map-edit-command"
 import { BikeProfilePicker } from "../BikeProfilePicker"
 import { WaypointField } from "../WaypointField"
 
@@ -244,6 +245,9 @@ export function PlanOptions({
               {addingVia ? <X aria-hidden="true" /> : <Plus weight="bold" aria-hidden="true" />}
               {addingVia ? "Cancel map pick" : "Add stop on map"}
             </button>
+            <button type="button" className="plan-v2__inline-action" aria-label="Exclude an area on map" onClick={() => requestMapEdit("exclude-area")}>
+              Exclude an area on map
+            </button>
             {via.length > 0 ? (
               <div className="plan-v2__via-points" aria-label="Shaping stops">
                 {via.map((point, index) => (
@@ -329,10 +333,12 @@ export function PlanOptions({
           <OptionGroup name="Road preferences">
             <h3>Road preferences</h3>
             <p>{featureFlags.roadRequirements ? "Prefer roads for route character or require a corridor when strict matching is available." : "Tell Switchback which roads you would rather use when it can route them safely."}</p>
-            <button type="button" className="plan-v2__road-locks" onClick={onOpenRoadLocks}>
+            <button type="button" className="plan-v2__road-locks" aria-label="Prefer a road on map" onClick={() => requestMapEdit("prefer-road")}>
               <LockSimple aria-hidden="true" />
-              <span>{featureFlags.roadRequirements ? "Preferred / required roads" : "Prefer a road"}</span>
-              {roadLockCount > 0 ? <strong>{roadLockCount}</strong> : null}
+              <span>{featureFlags.roadRequirements ? "Prefer or require a road on map" : "Prefer a road on map"}</span>
+            </button>
+            <button type="button" className="plan-v2__inline-action" onClick={onOpenRoadLocks}>
+              Manage road preferences{roadLockCount > 0 ? ` · ${roadLockCount}` : ""}
             </button>
             {avoidAreaCount > 0 ? (
               <div className="plan-v2__avoid-area-summary">
