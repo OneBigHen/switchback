@@ -213,7 +213,8 @@ describe("planner ride composer", () => {
     renderDeck()
 
     expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeVisible()
-    expect(screen.getByRole("button", { name: /^Options$/ })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Ride options" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Minimize planner" })).toBeVisible()
     expect(screen.queryByRole("button", { name: "Expand planner" })).not.toBeInTheDocument()
   })
 
@@ -298,7 +299,7 @@ describe("planner ride composer", () => {
       cmds: { onUseHome, onSaveHome, onClearHome }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "Use Home" }))
     await user.click(screen.getByRole("button", { name: "Save start as Home" }))
     await user.click(screen.getByRole("button", { name: "Remove Home" }))
@@ -322,7 +323,7 @@ describe("planner ride composer", () => {
     const user = userEvent.setup()
     renderDeck()
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Plan route" })).toBeInTheDocument()
   })
@@ -345,8 +346,8 @@ describe("planner ride composer", () => {
         cmds: { onStartRide: vi.fn(), onSaveOffline: vi.fn() },
       })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
-    expect(screen.getByRole("button", { name: /^Options$/ })).toHaveAttribute("aria-expanded", "true")
+      await user.click(screen.getByRole("button", { name: "Ride options" }))
+      expect(screen.getByRole("button", { name: "Ride options" })).toHaveAttribute("aria-expanded", "true")
       expect(scrollIntoView).not.toHaveBeenCalled()
     } finally {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView
@@ -358,7 +359,7 @@ describe("planner ride composer", () => {
     const routeRack = <section className="route-rack" aria-label="Choose a route"><h2>Choose a route</h2></section>
     renderDeck({ vm: { ui: { selectedRoute: plannedRoute } }, children: routeRack })
 
-    const edit = screen.getByRole("button", { name: /^Options$/ })
+    const edit = screen.getByRole("button", { name: "Ride options" })
     const rack = screen.getByRole("region", { name: "Choose a route" })
     expect(edit.compareDocumentPosition(rack) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -371,7 +372,7 @@ describe("planner ride composer", () => {
       cmds: { onStartRide: vi.fn(), onSaveOffline }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "Offline pack" }))
 
     const dialog = await screen.findByRole("dialog", { name: `Offline pack for ${plannedRoute.name}` })
@@ -431,7 +432,7 @@ describe("planner ride composer", () => {
       cmds: { onStartRide: vi.fn(), onSaveOffline: vi.fn() }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
 
     expect(screen.getByRole("button", { name: "Clear route" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Replan" })).toBeVisible()
@@ -446,7 +447,7 @@ describe("planner ride composer", () => {
       cmds: { onPlan }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     const planBtn = screen.getByRole("button", { name: "Plan route" })
     expect(planBtn).toBeEnabled()
     expect(screen.getAllByRole("button", { name: /Minimize planner/i })).toHaveLength(1)
@@ -473,7 +474,7 @@ describe("planner ride composer", () => {
       }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.queryByRole("combobox", { name: "Finish" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /plan.*2.*hour.*loop/i })).toBeEnabled()
 
@@ -494,7 +495,7 @@ describe("planner ride composer", () => {
       cmds: { waypoint: { onToggleAddVia, onRemoveVia } }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.getByText("Brewery stop")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /add stop on map/i }))
     await user.click(screen.getByRole("button", { name: /remove brewery stop/i }))
@@ -524,7 +525,7 @@ describe("planner ride composer", () => {
       cmds: { waypoint: { onMoveVia, onReverseRoute, onUndoRoutePoints, onRedoRoutePoints } }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "Move Overlook earlier" }))
     await user.click(screen.getByRole("button", { name: "Reverse route" }))
     await user.click(screen.getByRole("button", { name: "Undo route edit" }))
@@ -561,7 +562,7 @@ describe("planner ride composer", () => {
         }
       })
 
-      await user.click(screen.getByRole("button", { name: /^Options$/ }))
+      await user.click(screen.getByRole("button", { name: "Ride options" }))
       await user.selectOptions(screen.getByLabelText("Ride style to Gravel connector"), "adventure")
       await user.click(screen.getByRole("button", { name: "Lock Gravel connector as must-use" }))
 
@@ -581,7 +582,7 @@ describe("planner ride composer", () => {
       cmds: { rideConfig: { onAvoidHighwaysChange } }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     const preference = screen.getByRole("checkbox", { name: /avoid highways/i })
     expect(preference).toBeChecked()
     await user.click(preference)
@@ -603,7 +604,7 @@ describe("planner ride composer", () => {
   it("keeps ride style and the library inside the explicit route editor", async () => {
     const user = userEvent.setup()
     renderDeck()
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
 
     const profileSwitch = screen.getByLabelText("Motorcycle routing profile")
     const library = screen.getByRole("button", { name: /Library/i })
@@ -667,7 +668,7 @@ describe("planner ride composer", () => {
     const user = userEvent.setup()
     renderDeck()
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
 
     expect(screen.getByRole("radiogroup", { name: /motorcycle bike profile preset/i })).toBeInTheDocument()
   })
@@ -768,9 +769,9 @@ describe("planner mobile flow stages (SB-025)", () => {
       }
     })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "Minimize planner" }))
 
     expect(screen.getByText("Deck route")).toBeInTheDocument()
@@ -783,7 +784,7 @@ describe("planner mobile flow stages (SB-025)", () => {
     const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
     const { vm, rerender } = renderDeck({ children: routeRack })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.getByRole("combobox", { name: "Start" })).toBeInTheDocument()
 
     expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
@@ -807,7 +808,7 @@ describe("planner mobile flow stages (SB-025)", () => {
     const routeRack = <section className="route-rack"><h2>Choose a route</h2></section>
     const { vm, rerender } = renderDeck({ children: routeRack })
 
-    await user.click(screen.getByRole("button", { name: /^Options$/ }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
 
     expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
 
@@ -823,9 +824,10 @@ describe("planner mobile flow stages (SB-025)", () => {
     })
   })
 
-  it("labels the intent home as Search", () => {
+  it("reclaims the intent-home stage row because the omnibox already communicates Search", () => {
     renderDeck()
-    expect(screen.getByLabelText("Planning stage: Search")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Planning stage: Search")).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeVisible()
   })
 
   it("labels a ready single route as Prepare", () => {
