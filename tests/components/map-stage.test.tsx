@@ -1,7 +1,8 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { MapStage } from "@/components/planner/MapStage"
+import { requestMapEdit } from "@/components/planner/map-edit-command"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 
 vi.mock("maplibre-gl", () => ({}))
@@ -276,7 +277,7 @@ describe("map layer controls", () => {
     expect(screen.queryByRole("region", { name: "Draw a rough route" })).not.toBeInTheDocument()
   })
 
-  it("opens and cancels a drawn avoid-area surface", async () => {
+  it("opens and cancels a drawn avoid-area surface from the contextual planner command", async () => {
     const user = userEvent.setup()
     const onSketchModeChange = vi.fn()
     render(
@@ -316,7 +317,8 @@ describe("map layer controls", () => {
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Draw an avoid area" }))
+    expect(screen.queryByRole("button", { name: "Draw an avoid area" })).not.toBeInTheDocument()
+    act(() => requestMapEdit("exclude-area"))
     expect(onSketchModeChange).toHaveBeenCalledWith(true)
     expect(screen.getByRole("region", { name: "Draw an avoid area" })).toBeVisible()
     expect(screen.getByText(/drag a box around a closure/i)).toBeVisible()
@@ -324,5 +326,48 @@ describe("map layer controls", () => {
     await user.click(screen.getByRole("button", { name: "Cancel avoid area" }))
     expect(onSketchModeChange).toHaveBeenLastCalledWith(false)
     expect(screen.queryByRole("region", { name: "Draw an avoid area" })).not.toBeInTheDocument()
+  })
+
+  it("starts a road preference draft from the contextual planner command", () => {
+    render(
+      <MapStage
+        routes={[]}
+        selectedRouteId={null}
+        start={null}
+        finish={null}
+        via={[]}
+        armedPoint={null}
+        addingVia={false}
+        curvatureVisible
+        unpavedVisible
+        mapExperience="standard"
+        lightPreference="auto"
+        riderLayers={[]}
+        routeVisibility="standard"
+        mapPacks={[]}
+        referenceMap={null}
+        rideMode={false}
+        onCurvatureChange={vi.fn()}
+        onUnpavedChange={vi.fn()}
+        onMapExperienceChange={vi.fn()}
+        onLightPreferenceChange={vi.fn()}
+        onRiderLayerChange={vi.fn()}
+        onMoveRiderLayer={vi.fn()}
+        onRouteVisibilityChange={vi.fn()}
+        onSaveMapPack={vi.fn()}
+        onApplyMapPack={vi.fn()}
+        onReferenceMapChange={vi.fn()}
+        onWaypointDrag={vi.fn()}
+        onMapPick={vi.fn()}
+        onRouteSketch={vi.fn()}
+        onSketchModeChange={vi.fn()}
+        avoidAreas={[]}
+        onAvoidArea={vi.fn()}
+      />
+    )
+
+    act(() => requestMapEdit("prefer-road"))
+    expect(screen.getByRole("region", { name: "Road lock draft" })).toBeVisible()
+    expect(screen.getByText(/choose the first road point/i)).toBeVisible()
   })
 })
