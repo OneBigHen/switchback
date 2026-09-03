@@ -101,6 +101,19 @@
   padding: 2px 0;
 }
 
+/* Road preference and exclusion are route-edit actions. Their idle entry
+   points now live in Ride options; the map only surfaces cancellation/status
+   after a draft is active. */
+.map-road-lock-toggle:not(.is-active) {
+  display: none !important;
+}
+
+.map-road-lock-toggle.is-active,
+.map-avoid-button[aria-pressed="true"] {
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+}
+
 /* The idle planner used to spend a full chrome row saying only “Search”.
    Search is now self-evident from the omnibox, so the command surface starts
    at the first useful control. */
