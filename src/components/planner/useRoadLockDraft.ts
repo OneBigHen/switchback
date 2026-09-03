@@ -5,6 +5,7 @@ import { createManualRoadLock, type RoadLock, type RoadLockMode } from "@/lib/ro
 import { roadMatchToAccessSnapshot } from "@/lib/roads/road-matching"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 import type { Coordinate } from "@/lib/routing/types"
+import { subscribeMapEdit } from "./map-edit-command"
 import { snapRouteTapToRoutableEdge } from "./map-drawing"
 
 export type RoadLockDraftStep = "first" | "second" | "naming"
@@ -96,6 +97,13 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
     setLockDraftMessage("Choose the first road point, then choose the corridor end.")
   }, [])
 
+  // Road preference is requested from Ride options; this hook still owns the
+  // map draft itself. Keeping the boundary event-only avoids duplicating lock
+  // state in the planner UI.
+  useEffect(() => subscribeMapEdit((command) => {
+    if (command === "prefer-road") beginLockDraft()
+  }), [beginLockDraft])
+
   const isLockDrawActive = useCallback(() => lockDrawRef.current.active, [])
 
   // Advancing the draft step and message are separate state updates, so they
@@ -113,7 +121,7 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
     if (step === "first") {
       setLockAnchors([snap.coordinate])
       setLockDraftStep("second")
-      setLockDraftMessage("First anchor set. Choose the corridor end.")
+      setLockDraftMessage("First road point set. Choose the corridor end.")
       return
     }
 
@@ -125,20 +133,20 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
       }
       setLockAnchors([...anchors, snap.coordinate])
       setLockDraftStep("naming")
-      setLockDraftMessage("Name the lock (optional) and save.")
+      setLockDraftMessage("Name this road preference (optional) and save.")
     }
   }, [])
 
   const commitLockDraft = useCallback(async () => {
     const draft = lockDrawRef.current
     if (draft.anchors.length < 2) {
-      setLockDraftMessage("Place two corridor anchors before saving the lock.")
+      setLockDraftMessage("Place two corridor points before saving the road preference.")
       return
     }
     const displayName = draft.name.trim() || undefined
     const [entry, exit] = draft.anchors
     if (!entry || !exit) {
-      setLockDraftMessage("Place two corridor anchors before saving the lock.")
+      setLockDraftMessage("Place two corridor points before saving the road preference.")
       return
     }
     try {
@@ -149,8 +157,8 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
       if (featureFlags.roadRequirements) {
         try {
           const matched = await matchRoad({
-            start: { lat: entry[1], lon: entry[0], label: "Lock entry" },
-            end: { lat: exit[1], lon: exit[0], label: "Lock exit" }
+            start: { lat: entry[1], lon: entry[0], label: "Road preference entry" },
+            end: { lat: exit[1], lon: exit[0], label: "Road preference exit" }
           })
           const lock = createManualRoadLock({
             mode: draft.mode,
@@ -183,7 +191,7 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
       addRoadLock(lock)
       resetLockDraft()
     } catch (caught) {
-      setLockDraftMessage(caught instanceof Error ? caught.message : "The road lock could not be saved.")
+      setLockDraftMessage(caught instanceof Error ? caught.message : "The road preference could not be saved.")
     }
   }, [addRoadLock, matchRoad, resetLockDraft])
 
