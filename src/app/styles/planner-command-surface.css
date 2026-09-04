@@ -1,0 +1,186 @@
+/* Planner command-surface polish.
+ *
+ * This file intentionally loads after the V2 planner and glanceability sheets.
+ * It is a bounded presentation layer: routing/state contracts remain owned by
+ * the existing planner components and store.
+ */
+
+.plan-v2 {
+  gap: 8px;
+}
+
+.plan-v2__compact-rail {
+  gap: 8px;
+}
+
+.plan-v2__search {
+  min-height: 50px;
+  border-color: color-mix(in srgb, var(--sb-border) 82%, transparent);
+  box-shadow: 0 2px 10px rgb(22 29 28 / 7%);
+}
+
+.plan-v2__action-rail {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.plan-v2__mode-selector {
+  flex: 1 1 100%;
+  border-color: color-mix(in srgb, var(--sb-border) 78%, transparent);
+  background: color-mix(in srgb, var(--sb-surface-raised) 72%, transparent);
+}
+
+.plan-v2__free-ride {
+  flex: 1 1 42%;
+}
+
+.plan-v2__options-trigger {
+  flex: 1 1 42%;
+}
+
+.plan-v2__minimize-control {
+  display: inline-flex;
+  width: var(--sb-touch-target);
+  min-width: var(--sb-touch-target);
+  height: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+  flex: 0 0 var(--sb-touch-target);
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-surface);
+  color: var(--sb-text-muted);
+  cursor: pointer;
+}
+
+.plan-v2__minimize-control:hover,
+.plan-v2__minimize-control:focus-visible {
+  border-color: var(--sb-focus-ring);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+}
+
+.plan-v2__minimize-control svg {
+  width: 18px;
+  height: 18px;
+}
+
+.plan-v2__options-panel {
+  margin-top: 0;
+  padding: 2px 10px 8px;
+  border-color: color-mix(in srgb, var(--sb-border) 82%, transparent);
+  box-shadow: 0 8px 24px rgb(22 29 28 / 7%);
+}
+
+.plan-v2__option-group {
+  gap: 8px;
+  padding: 12px 2px;
+}
+
+.plan-v2__option-group h3 {
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.plan-v2__option-group > p {
+  max-width: 48ch;
+}
+
+.plan-v2__road-locks {
+  justify-content: flex-start;
+}
+
+.plan-v2__road-locks > span {
+  flex: 1;
+}
+
+.plan-v2__avoid-area-summary {
+  padding: 2px 0;
+}
+
+/* Road preference and exclusion are route-edit actions. Their idle entry
+   points now live in Ride options; the map only surfaces cancellation/status
+   after a draft is active. */
+.map-road-lock-toggle:not(.is-active) {
+  display: none !important;
+}
+
+.map-road-lock-toggle.is-active,
+.map-avoid-button[aria-pressed="true"] {
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+}
+
+/* The idle planner used to spend a full chrome row saying only “Search”.
+   Search is now self-evident from the omnibox, so the command surface starts
+   at the first useful control. */
+.planner-deck.is-idle-plan .planner-scroll {
+  padding-top: 14px;
+}
+
+@media (min-width: 761px) {
+  .planner-deck {
+    width: min(420px, calc(100vw - 112px));
+    border-radius: 20px;
+    box-shadow:
+      0 18px 48px rgb(20 29 27 / 15%),
+      0 2px 8px rgb(20 29 27 / 8%);
+  }
+
+  .planner-scroll {
+    padding: 14px 16px 22px;
+  }
+
+  .deck-header {
+    margin: 0 0 10px;
+  }
+
+  .planner-minimize,
+  .planner-full-map-tools {
+    min-width: var(--sb-touch-target);
+    width: var(--sb-touch-target);
+    min-height: var(--sb-touch-target);
+    height: var(--sb-touch-target);
+  }
+}
+
+/* Portrait tablets keep the compact ~360px planner even though the app has
+   crossed into rail navigation. Size these siblings from the command surface,
+   not from the phone breakpoint, so the minimize control never wraps alone. */
+@media (max-width: 800px) {
+  .plan-v2__free-ride,
+  .plan-v2__options-trigger {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .plan-v2 {
+    gap: 7px;
+  }
+
+  .plan-v2__search {
+    min-height: 48px;
+  }
+
+  .plan-v2__action-rail {
+    gap: 6px;
+  }
+
+  .plan-v2__options-panel {
+    padding-inline: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-v2__search,
+  .plan-v2__minimize-control,
+  .plan-v2__options-trigger,
+  .plan-v2__free-ride {
+    transition: none;
+  }
+}

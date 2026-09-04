@@ -173,9 +173,9 @@ export async function openPlannerEditor(page: Page): Promise<void> {
   const editor = page.getByRole("combobox", { name: "Start", exact: true })
   if (await editor.isVisible().catch(() => false)) return
   await expandPhonePlanner(page)
-  // V2 has one disclosure authority. A real tap must reach Options; force-click
+  // V2 has one disclosure authority. A real tap must reach Ride options; force-click
   // would hide the exact mobile overlap regression this helper is meant to catch.
-  const options = page.getByRole("button", { name: "Options", exact: true })
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
   await expect(options).toBeVisible({ timeout: 15_000 })
   await options.click()
   await expect(editor).toBeVisible()

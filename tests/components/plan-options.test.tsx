@@ -168,37 +168,37 @@ function renderOptions(
   )
 }
 
-describe("V2 progressive Plan Options", () => {
-  it("keeps advanced route controls closed until Options is requested", () => {
+describe("V2 progressive Ride options", () => {
+  it("keeps advanced route controls closed until Ride options is requested", () => {
     renderOptions()
 
-    const disclosure = screen.getByRole("button", { name: "Options" })
+    const disclosure = screen.getByRole("button", { name: "Ride options" })
     expect(disclosure).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByRole("group", { name: "Route" })).not.toBeInTheDocument()
     expect(screen.queryByRole("group", { name: "Bike" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("group", { name: "Geometry" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("group", { name: "Roads" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("group", { name: "Edit route" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("group", { name: "Road preferences" })).not.toBeInTheDocument()
     expect(screen.queryByRole("group", { name: "Timing" })).not.toBeInTheDocument()
     expect(screen.queryByRole("group", { name: "Advanced" })).not.toBeInTheDocument()
   })
 
-  it("groups supported route, bike, geometry, road, timing, and advanced controls inside Options", async () => {
+  it("groups route, bike, editing, road, timing, and advanced controls inside Ride options", async () => {
     const user = userEvent.setup()
     const onAvoidHighwaysChange = vi.fn()
     renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onAvoidHighwaysChange } })
 
-    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
 
     expect(screen.getByRole("group", { name: "Route" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Bike" })).toBeInTheDocument()
-    expect(screen.getByRole("group", { name: "Geometry" })).toBeInTheDocument()
-    expect(screen.getByRole("group", { name: "Roads" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Edit route" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Road preferences" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Timing" })).toBeInTheDocument()
     expect(screen.queryByRole("group", { name: "Advanced" })).not.toBeInTheDocument()
     expect(screen.getByRole("checkbox", { name: /avoid highways/i })).toBeChecked()
     expect(screen.getByRole("radiogroup", { name: /motorcycle bike profile preset/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /add stop on map/i })).toBeInTheDocument()
-    expect(screen.getByText(/preferred|required roads/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /prefer a road/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole("checkbox", { name: /avoid highways/i }))
     expect(onAvoidHighwaysChange).toHaveBeenCalledWith(false)
@@ -215,35 +215,35 @@ describe("V2 progressive Plan Options", () => {
     renderOptions()
 
     expect(screen.queryByRole("radiogroup", { name: /motorcycle bike profile preset/i })).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.getAllByRole("radiogroup", { name: /motorcycle bike profile preset/i })).toHaveLength(1)
     expect(screen.getAllByRole("checkbox", { name: /avoid highways/i })).toHaveLength(1)
   })
 
-  it("keeps Options values mounted and editable without submitting a route", async () => {
+  it("keeps Ride options values mounted and editable without submitting a route", async () => {
     const user = userEvent.setup()
     const onPlan = vi.fn()
     const onTargetMinutesChange = vi.fn()
     renderOptions({ rideConfig: { planMode: "loop" } }, { onPlan, rideConfig: { onTargetMinutesChange } })
 
-    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "90 min" }))
     expect(onTargetMinutesChange).toHaveBeenCalledWith(90)
     expect(onPlan).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Options" }))
-    expect(screen.getByRole("button", { name: "Options" })).toHaveAttribute("aria-expanded", "false")
-    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    expect(screen.getByRole("button", { name: "Ride options" })).toHaveAttribute("aria-expanded", "false")
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     expect(screen.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
   })
 
-  it("offers a Custom loop duration inside Options", async () => {
+  it("offers a Custom loop duration inside Ride options", async () => {
     const user = userEvent.setup()
     const onTargetMinutesChange = vi.fn()
     renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onTargetMinutesChange } })
 
     expect(screen.queryByRole("button", { name: "Custom" })).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "Custom" }))
 
     const input = screen.getByRole("spinbutton", { name: "Custom loop duration in minutes" })
@@ -262,7 +262,7 @@ describe("V2 progressive Plan Options", () => {
       { rideConfig: { onTimeShapedChange, onTargetMinutesChange } }
     )
 
-    await user.click(screen.getByRole("button", { name: "Options" }))
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
     const rideTime = screen.getByRole("group", { name: "Ride time" })
     expect(within(rideTime).getByRole("button", { name: "Fastest" })).toHaveAttribute("aria-pressed", "true")
 

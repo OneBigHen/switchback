@@ -7,6 +7,7 @@ import { listProfiles } from "@/lib/routing/profiles"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
+import { requestMapEdit } from "../map-edit-command"
 import { BikeProfilePicker } from "../BikeProfilePicker"
 import { WaypointField } from "../WaypointField"
 
@@ -151,12 +152,12 @@ export function PlanOptions({
         aria-controls="plan-v2-options-panel"
         onClick={onToggle}
       >
-        <span>Options</span>
+        <span>Ride options</span>
         {open ? <CaretUp aria-hidden="true" /> : <CaretDown aria-hidden="true" />}
       </button>
 
       {open ? (
-        <section id="plan-v2-options-panel" className="plan-v2__options-panel" aria-label="Plan options">
+        <section id="plan-v2-options-panel" className="plan-v2__options-panel" aria-label="Ride options">
           <OptionGroup name="Route">
             <h3>Route</h3>
             <div className="plan-v2__profile-control" role="group" aria-label="Motorcycle routing profile">
@@ -201,8 +202,9 @@ export function PlanOptions({
             </label>
           </OptionGroup>
 
-          <OptionGroup name="Geometry">
-            <h3>Route points</h3>
+          <OptionGroup name="Edit route">
+            <h3>Edit route</h3>
+            <p>Adjust the points that shape this ride without changing your ride preferences.</p>
             <div className="plan-v2__waypoint-stack">
               <WaypointField
                 id="start"
@@ -242,6 +244,9 @@ export function PlanOptions({
             <button type="button" className="plan-v2__inline-action" aria-pressed={addingVia} onClick={onToggleAddVia}>
               {addingVia ? <X aria-hidden="true" /> : <Plus weight="bold" aria-hidden="true" />}
               {addingVia ? "Cancel map pick" : "Add stop on map"}
+            </button>
+            <button type="button" className="plan-v2__inline-action" aria-label="Exclude an area on map" onClick={() => requestMapEdit("exclude-area")}>
+              Exclude an area on map
             </button>
             {via.length > 0 ? (
               <div className="plan-v2__via-points" aria-label="Shaping stops">
@@ -325,17 +330,20 @@ export function PlanOptions({
             </div>
           </OptionGroup>
 
-          <OptionGroup name="Roads">
-            <h3>Roads</h3>
-            <button type="button" className="plan-v2__road-locks" onClick={onOpenRoadLocks}>
+          <OptionGroup name="Road preferences">
+            <h3>Road preferences</h3>
+            <p>{featureFlags.roadRequirements ? "Prefer roads for route character or require a corridor when strict matching is available." : "Tell Switchback which roads you would rather use when it can route them safely."}</p>
+            <button type="button" className="plan-v2__road-locks" aria-label="Prefer a road on map" onClick={() => requestMapEdit("prefer-road")}>
               <LockSimple aria-hidden="true" />
-              <span>Preferred / required roads</span>
-              {roadLockCount > 0 ? <strong>{roadLockCount}</strong> : null}
+              <span>{featureFlags.roadRequirements ? "Prefer or require a road on map" : "Prefer a road on map"}</span>
+            </button>
+            <button type="button" className="plan-v2__inline-action" onClick={onOpenRoadLocks}>
+              Manage road preferences{roadLockCount > 0 ? ` · ${roadLockCount}` : ""}
             </button>
             {avoidAreaCount > 0 ? (
               <div className="plan-v2__avoid-area-summary">
-                <span>{avoidAreaCount} avoid {avoidAreaCount === 1 ? "area" : "areas"} active</span>
-                <button type="button" onClick={onRemoveAvoidArea}>Clear latest</button>
+                <span>{avoidAreaCount} excluded {avoidAreaCount === 1 ? "area" : "areas"} active</span>
+                <button type="button" aria-label="Remove latest excluded area" onClick={onRemoveAvoidArea}>Remove latest</button>
               </div>
             ) : null}
           </OptionGroup>
