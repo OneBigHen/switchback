@@ -1,13 +1,14 @@
 "use client"
 
-import { ArrowUp, MapPin, MapTrifold, X } from "@phosphor-icons/react"
+import { ArrowRight, ArrowUp, MapPin, MapTrifold, X } from "@phosphor-icons/react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import type {
   AdvisorMessage,
   GroundingCitation,
   ProposedRide,
-  ProposedStop
+  ProposedStop,
+  RouteSecondOpinion
 } from "@/lib/advice/contracts"
 import type { AdvisorCapability } from "@/lib/advice/capability"
 import { advisorContextFromPlan } from "@/lib/advice/route-context"
@@ -51,6 +52,8 @@ export interface RideAdvisorProps {
   onAddStop(stop: ProposedStop): void
   /** Confirm a whole proposed ride and hand it to the ordinary planner. */
   onPlanRide?(ride: ProposedRide): void
+  /** Preview/select an existing Switchback candidate the Goblin prefers. */
+  onSelectRoute?(routeId: string): void
 }
 
 interface ThreadTurn extends AdvisorMessage {
@@ -109,13 +112,18 @@ function scopeFor(routes: readonly PlannedRoute[], selectedRouteId: string): str
   return `${selectedRouteId}|${routes.map((route) => route.id).join(",")}`
 }
 
+function confidenceLabel(confidence: RouteSecondOpinion["confidence"]): string {
+  return `${confidence[0]!.toUpperCase()}${confidence.slice(1)} confidence`
+}
+
 export function RideAdvisor({
   routes,
- selectedRouteId,
+  selectedRouteId,
   warnings,
   origin,
   onAddStop,
-  onPlanRide
+  onPlanRide,
+  onSelectRoute
 }: RideAdvisorProps) {
   const [capability, setCapability] = useState<AdvisorCapability | null>(null)
   const [open, setOpen] = useState(false)
@@ -123,7 +131,7 @@ export function RideAdvisor({
   const [stops, setStops] = useState<ProposedStop[]>([])
   const [ride, setRide] = useState<ProposedRide | null>(null)
   const [citations, setCitations] = useState<GroundingCitation[]>([])
-  const [secondOpinion, setSecondOpinion] = useState<string | null>(null)
+  const [secondOpinion, setSecondOpinion] = useState<RouteSecondOpinion | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
@@ -191,6 +199,9 @@ export function RideAdvisor({
   const nudge: Nudge | null = hasRoute
     ? selectNudge({ routes, selectedRouteId, dismissed: dismissedNudges })
     : null
+  const opinionRoute = visibleSecondOpinion
+    ? routes.find((route) => route.id === visibleSecondOpinion.wouldPick) ?? null
+    : null
 
   const ask = async (riderMessage?: string) => {
     if (busy && !scopeStale) return
@@ -233,11 +244,7 @@ export function RideAdvisor({
       setStops(reply.proposedStops)
       setRide(reply.proposedRide)
       setCitations(reply.citations)
-      setSecondOpinion(reply.secondOpinion
-        ? reply.secondOpinion.agreesWithSwitchback
-          ? `I’m with Switchback on this one — ${reply.secondOpinion.rationale}`
-          : `I’d take “${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}” instead — ${reply.secondOpinion.rationale}`
-        : null)
+      setSecondOpinion(reply.secondOpinion)
     } finally {
       if (pending.current === controller) setBusy(false)
     }
@@ -311,7 +318,36 @@ export function RideAdvisor({
         </button>
       </header>
 
-      {visibleSecondOpinion ? <p className={styles.verdict} role="note">{visibleSecondOpinion}</p> : null}
+      {visibleSecondOpinion && opinionRoute ? (
+        <section className={styles.verdict} aria-label="Gravel Goblin route opinion">
+          <div className={styles.verdictHeader}>
+            <span>
+              <small>{visibleSecondOpinion.agreesWithSwitchback ? "Goblin agrees" : "Goblin pick"}</small>
+              <strong>{opinionRoute.name}</strong>
+            </span>
+            <span className={styles.confidence} data-confidence={visibleSecondOpinion.confidence}>
+              {confidenceLabel(visibleSecondOpinion.confidence)}
+            </span>
+          </div>
+          <p>{visibleSecondOpinion.rationale}</p>
+          {visibleSecondOpinion.cautions.length > 0 ? (
+            <ul className={styles.verdictCautions} aria-label="Things to keep in mind">
+              {visibleSecondOpinion.cautions.slice(0, 3).map((caution) => <li key={caution}>{caution}</li>)}
+            </ul>
+          ) : null}
+          {!visibleSecondOpinion.agreesWithSwitchback && opinionRoute.id !== selectedRouteId && onSelectRoute ? (
+            <button
+              type="button"
+              className={styles.verdictAction}
+              aria-label={`Show ${opinionRoute.name} route`}
+              onClick={() => onSelectRoute(opinionRoute.id)}
+            >
+              <span>Show route</span>
+              <ArrowRight weight="bold" aria-hidden="true" />
+            </button>
+          ) : null}
+        </section>
+      ) : null}
 
       <div ref={threadRef} className={styles.thread} role="log" aria-live="polite" aria-label="Gravel Goblin conversation" tabIndex={0}>
         {!hasRoute && conversation.length === 0 && !visibleBusy ? (
