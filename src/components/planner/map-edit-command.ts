@@ -10,8 +10,8 @@ const EDIT_SURFACE_SELECTOR: Record<MapEditCommand, string> = {
 }
 
 const EDIT_TRIGGER_SELECTOR: Record<MapEditCommand, string> = {
-  "exclude-area": 'button[aria-label="Exclude an area on map"]',
-  "prefer-road": 'button[aria-label="Prefer a road on map"]'
+  "exclude-area": 'button[data-map-edit-command="exclude-area"], button[aria-label="Exclude an area on map"]',
+  "prefer-road": 'button[data-map-edit-command="prefer-road"], button[aria-label="Prefer a road on map"]'
 }
 
 interface ActiveMapEditFocus {
