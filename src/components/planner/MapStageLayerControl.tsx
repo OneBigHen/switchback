@@ -137,14 +137,22 @@ export function MapStageLayerControl({
     handleLayerMenuKeyDown(event)
   }
 
-  // Area exclusion is a route-edit command, not a map layer. Keep the map as
-  // the owner of the existing avoid-area draft while moving its entry point
-  // into Ride options. The cancel affordance remains visible while active.
+  // The command bridge publishes one desired contextual map-edit mode. Area
+  // exclusion owns its draft here; switching to road preference tears it down
+  // first so no stale full-map overlay can resume after the new mode ends.
   useEffect(() => subscribeMapEdit((command) => {
-    if (command !== "exclude-area" || avoidMode) return
-    setAdvancedOpen(false)
-    closeLayerMenu()
-    onToggleAvoid()
+    if (command === "exclude-area") {
+      if (avoidMode) return
+      setAdvancedOpen(false)
+      closeLayerMenu()
+      onToggleAvoid()
+      return
+    }
+    if (avoidMode) {
+      setAdvancedOpen(false)
+      closeLayerMenu()
+      onToggleAvoid()
+    }
   }), [avoidMode, closeLayerMenu, onToggleAvoid])
 
   return (
