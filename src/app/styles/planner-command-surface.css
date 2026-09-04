@@ -145,6 +145,89 @@
   padding: 2px 0;
 }
 
+/* The planner is one mounted state machine, but only one workspace gets visual
+   authority at a time. Keeping the hidden layers mounted preserves transcript,
+   route-card and editor state without making the rider scroll through them. */
+.planner-composer-shell.is-collapsed,
+.planner-stage-content.is-suppressed {
+  display: none;
+}
+
+.planner-stage-content {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.planner-route-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--sb-border) 78%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sb-surface-raised) 74%, var(--sb-surface));
+}
+
+.planner-route-context__identity {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.planner-route-context__identity small {
+  color: var(--sb-text-muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planner-route-context__identity strong {
+  overflow: hidden;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-route-context__identity > span {
+  overflow: hidden;
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-route-context__edit {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.planner-route-context__edit:hover,
+.planner-route-context__edit:focus-visible {
+  border-color: var(--sb-focus-ring);
+  background: var(--sb-surface-raised);
+}
+
 /* Route inspection is a temporary workspace, not another card below route
    choice. The compact header makes the exit obvious and keeps identity visible
    while the detailed comparison/preparation surface is open. */
@@ -298,6 +381,14 @@
     padding-inline: 8px;
   }
 
+  .planner-route-context {
+    padding: 8px 9px;
+  }
+
+  .planner-route-context__identity strong {
+    font-size: 14px;
+  }
+
   .planner-route-details__header {
     padding-top: 4px;
   }
@@ -319,6 +410,10 @@
     flex: 0 0 var(--sb-touch-target);
     width: var(--sb-touch-target);
     padding: 0;
+  }
+
+  .planner-route-context__identity > span {
+    max-width: 180px;
   }
 }
 
