@@ -2,12 +2,22 @@
 
 import { ArrowRight, WarningCircle } from "@phosphor-icons/react"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { CORRIDOR_OPTION_PRESENTATION } from "@/lib/routing/sketch-corridor"
 import styles from "./RouteDecisionCard.module.css"
 
-export type RouteDecisionRole = "Fastest Now" | "Fast & Fun" | "Maximum Twisties" | "Best Ride"
+export type RouteDecisionRole =
+  | "Fastest Now"
+  | "Fast & Fun"
+  | "Maximum Twisties"
+  | "Best Ride"
+  | "Traced"
+  | "Better roads nearby"
+  | "Leaner"
 
 export interface RouteDecisionPresentation {
   role: RouteDecisionRole
+  /** The line under the role chip: the route's name, or what a free-draw option did. */
+  subtitle: string
   timeLabel: string
   distanceLabel: string
   deltaLabel: string | null
@@ -22,6 +32,11 @@ function nonAsphaltShare(route: PlannedRoute): number {
 }
 
 export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): RouteDecisionRole {
+  // A free-draw option set names itself: the rider asked about their own line,
+  // not about the engine's riding profiles.
+  if (route.corridorOption) {
+    return CORRIDOR_OPTION_PRESENTATION[route.corridorOption].label as RouteDecisionRole
+  }
   const fastestMinutes = Math.min(...routes.map((candidate) => candidate.durationMinutes))
   if (route.durationMinutes === fastestMinutes) return "Fastest Now"
 
@@ -46,6 +61,10 @@ export function buildRouteDecisionPresentation(route: PlannedRoute, routes: Plan
         ? `Flowing back roads · ${Math.round(route.twistiness)} curve score`
         : `Faster roads · ${Math.round(route.twistiness)} curve score`
 
+  const corridorCharacter = route.corridorAdherence
+    ? `${Math.round(route.corridorAdherence.coveredShare * 100)}% of your line · ${character}`
+    : character
+
   const warning = route.previewOnly
     ? "Preview route — verify before riding."
     : route.navigationMode === "track-only"
@@ -56,10 +75,13 @@ export function buildRouteDecisionPresentation(route: PlannedRoute, routes: Plan
 
   return {
     role: routeDecisionRole(route, routes),
+    subtitle: route.corridorOption
+      ? CORRIDOR_OPTION_PRESENTATION[route.corridorOption].description
+      : route.name,
     timeLabel: `${Math.round(route.durationMinutes)} min`,
     distanceLabel: `${route.distanceMiles.toFixed(1)} mi`,
     deltaLabel: delta > 0 ? `+${delta} min` : null,
-    character,
+    character: corridorCharacter,
     warning
   }
 }
@@ -90,7 +112,7 @@ export function RouteDecisionCard({ route, routes, selected, onSelect, onOpenDet
       >
         <span className={styles.heading}>
           <span className={styles.role}>{presentation.role}</span>
-          <strong>{route.name}</strong>
+          <strong>{presentation.subtitle}</strong>
         </span>
         {selected ? <span className={styles.selectedMarker}>Selected</span> : null}
         <span className={styles.metrics} aria-label={`${presentation.timeLabel}, ${presentation.distanceLabel}`}>

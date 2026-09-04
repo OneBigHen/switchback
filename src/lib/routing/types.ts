@@ -5,6 +5,7 @@ import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { RouteScore as NormalizedRouteScore } from "@/lib/domain/contracts"
 import type { RouteUtilityBreakdown } from "@/lib/recommendation/route-score"
 import type { GpxIntelligenceReport } from "@/lib/gpx/intelligence"
+import type { CorridorAdherence, CorridorOptionRole } from "./sketch-corridor"
 
 export type Coordinate = [longitude: number, latitude: number]
 
@@ -109,6 +110,13 @@ export interface RouteRequest {
    * layer over road locks.
    */
   bikeProfile?: BikeProfile
+  /**
+   * The rider's free-draw stroke, resampled to at most
+   * `MAX_CORRIDOR_SAMPLES` coordinates. It is a *soft* corridor: the planner
+   * scores deviation from it and offers options at several adherence levels,
+   * but never treats it as hard geometry. Absent for every non-sketch request.
+   */
+  sketchCorridor?: Coordinate[]
 }
 
 export interface RouteInstruction {
@@ -170,8 +178,16 @@ export interface PlannedRoute {
     accepted?: boolean
     rejectionReasons?: string[]
     utility?: RouteUtilityBreakdown
+    corridorFit?: CorridorAdherence
   }
   overlapPercent?: number
+  /**
+   * Which free-draw option this candidate answers. Only set for plans that
+   * carried a `sketchCorridor`; absent everywhere else.
+   */
+  corridorOption?: CorridorOptionRole
+  /** Measured fit against the rider's drawn stroke, when one was supplied. */
+  corridorAdherence?: CorridorAdherence
   loopTargetMinutes?: number
   avoidHighways?: boolean
   avoidAreas?: AvoidArea[]

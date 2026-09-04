@@ -10,6 +10,7 @@ import { evaluateFeatureEligibility } from "@/lib/domain/routing/eligibility"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import { backtrackingShare, selfOverlapShare } from "@/lib/routing/route-geometry-quality"
 import { haversine } from "@/lib/routing/scoring"
+import { corridorAdherence, type CorridorAdherence } from "@/lib/routing/sketch-corridor"
 import { isRoutePolicy, PA_NJ_ROUTE_POLICY_V1, type RoutePolicy } from "./route-policy"
 
 export interface RouteUtilityBreakdown {
@@ -24,6 +25,8 @@ export interface RouteUtilityBreakdown {
   selfOverlapPenalty: number
   fragmentationPenalty: number
   detourPenalty: number
+  /** Cost of wandering off the rider's drawn stroke; 0 when none was drawn. */
+  corridorAdherencePenalty: number
   total: number
 }
 
@@ -44,6 +47,12 @@ export interface RouteScoringContext {
   temporal?: TemporalContext
   rider?: RiderPreferenceModel
   policy?: RoutePolicy
+  /**
+   * The rider's free-draw stroke as a soft corridor. When present, deviation
+   * from it becomes a scored axis alongside curvature, traffic, and detour —
+   * never a hard filter, so a better road just off the line can still win.
+   */
+  corridor?: { samples: Coordinate[]; envelopeMeters: number }
 }
 
 export interface RouteScoreResult extends RouteScore {
@@ -52,6 +61,8 @@ export interface RouteScoreResult extends RouteScore {
   rejectionReasons: string[]
   detourPct: number
   utility?: RouteUtilityBreakdown
+  /** Measured fit against the drawn stroke; absent when no corridor was given. */
+  corridorFit?: CorridorAdherence
 }
 
 const UNPAVED_SURFACES = new Set(["dirt", "earth", "gravel", "fine_gravel", "grass", "ground", "mud", "sand", "unpaved"])
@@ -208,6 +219,13 @@ function uncertaintyPenalty(route: ScoreableRoute): number {
   return clamp((1 - routeConfidence) * 6 + unknownRate * 6, 0, 15)
 }
 
+/**
+ * Weight of the drawn-corridor axis. Sized so a route that ignores the stroke
+ * entirely loses roughly as much as a heavily backtracking one — enough to
+ * matter, not enough to override a genuinely better road nearby.
+ */
+const CORRIDOR_ADHERENCE_WEIGHT = 14
+
 function buildUtility(
   route: ScoreableRoute,
   context: RouteScoringContext,
@@ -215,7 +233,8 @@ function buildUtility(
   baseTotal: number,
   preference: number,
   maxDetourPct: number,
-  policy: RoutePolicy
+  policy: RoutePolicy,
+  adherence: CorridorAdherence | null
 ): RouteUtilityBreakdown {
   const contiguous = contiguousUtility(route.segments, context.profile, policy)
   const backtrack = backtrackingShare(route.geometry)
@@ -224,6 +243,9 @@ function buildUtility(
   const detourPenalty = piecewiseDetourPenalty(detourPct, maxDetourPct, policy.preferredDetourPct)
   const backtrackPenalty = backtrack * 20
   const selfOverlapPenalty = overlap * 20
+  const corridorAdherencePenalty = adherence
+    ? (1 - clamp(adherence.score, 0, 100) / 100) * CORRIDOR_ADHERENCE_WEIGHT
+    : 0
   const total = clamp(
     baseTotal +
     contiguous.contiguousQualityBonus +
@@ -231,7 +253,8 @@ function buildUtility(
     uncertainty -
     backtrackPenalty -
     selfOverlapPenalty -
-    contiguous.fragmentationPenalty
+    contiguous.fragmentationPenalty -
+    corridorAdherencePenalty
   )
   return {
     ...contiguous,
@@ -241,6 +264,7 @@ function buildUtility(
     selfOverlapShare: overlap,
     selfOverlapPenalty,
     detourPenalty,
+    corridorAdherencePenalty,
     total
   }
 }
@@ -310,6 +334,10 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     : route.durationSeconds
   const detourPct = Math.max(0, (route.durationSeconds - baseline) / baseline)
 
+  const adherence = context.corridor && context.corridor.samples.length >= 2
+    ? corridorAdherence(route.geometry, context.corridor.samples, context.corridor.envelopeMeters)
+    : null
+
   const eligibility = evaluateFeatureEligibility(route, {
     profile: context.profile,
     bikeProfile: context.bikeProfile
@@ -321,7 +349,14 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
 
   if (rejectionReasons.length > 0) {
     const score = emptyScore(rejectionReasons, policy.version)
-    return { ...score, routeId: route.id, accepted: false, rejectionReasons, detourPct }
+    return {
+      ...score,
+      routeId: route.id,
+      accepted: false,
+      rejectionReasons,
+      detourPct,
+      ...(adherence ? { corridorFit: adherence } : {})
+    }
   }
 
   const twistiness = clamp(100 * average(route.segments, (segment) =>
@@ -381,7 +416,7 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     etaQuality * weights.eta +
     preference * 0.12
   )
-  const utility = buildUtility(route, context, detourPct, baseTotal, preference, maxDetourPct, policy)
+  const utility = buildUtility(route, context, detourPct, baseTotal, preference, maxDetourPct, policy, adherence)
 
   const explanations: string[] = eligibility.warnings.map((warning) => warning.message)
   if (twistiness >= 65) explanations.push(`Strong curvature and sustained bends (${Math.round(twistiness)}/100).`)
@@ -396,6 +431,11 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
   if (utility.selfOverlapPenalty > 0) explanations.push("Repeated corridor overlap reduces route utility.")
   if (utility.fragmentationPenalty > 0) explanations.push("Disconnected feature runs reduce corridor coherence.")
   if (utility.detourPenalty > 2) explanations.push("Detour cost rises after the preferred time band.")
+  if (adherence) {
+    explanations.push(
+      `Covers ${Math.round(adherence.coveredShare * 100)}% of your drawn line (about ${adherence.meanDeviationMeters} m off on average).`
+    )
+  }
   if (confidence < 70) explanations.push(`Provider data confidence is ${Math.round(confidence)}/100.`)
   if (context.temporal?.traffic?.status === "unavailable") explanations.push("Live traffic is unavailable; traffic quality uses road-feature data only.")
   if (context.rider) explanations.push(`Rider preference fit is ${Math.round(preference)}/100.`)
@@ -404,6 +444,7 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
   const score: RouteScore = {
     total: round(utility.total),
     policyVersion: policy.version,
+    ...(adherence ? { corridorAdherence: adherence.score } : {}),
     fun: round(fun),
     twistiness: round(twistiness),
     scenic: round(scenic),
@@ -419,5 +460,13 @@ export function scoreRoute(route: ScoreableRoute, context: RouteScoringContext):
     explanations,
     explanation: explanations
   }
-  return { ...score, routeId: route.id, accepted: true, rejectionReasons, detourPct, utility }
+  return {
+    ...score,
+    routeId: route.id,
+    accepted: true,
+    rejectionReasons,
+    detourPct,
+    utility,
+    ...(adherence ? { corridorFit: adherence } : {})
+  }
 }

@@ -5,6 +5,7 @@ import { ValhallaProviderError } from "@/lib/routing/valhalla"
 import { RouteQueueFullError } from "@/lib/server/route-job-limiter"
 import type { RouteRequest } from "@/lib/routing/types"
 import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
+import { MAX_CORRIDOR_SAMPLES } from "@/lib/routing/sketch-corridor"
 import { routeCacheKey, type RouteCache } from "@/lib/server/route-cache"
 import { apiErrorResponse, jsonWithRequestId, readRequestId } from "@/lib/server/api-contract"
 import {
@@ -114,7 +115,8 @@ const routeRequestSchema = object_({
   primaryRoute: optional(object_({
     id: string({ trim: true, min: 1, max: 120 }),
     geometry: array(coordinateSchema, { min: 2, max: 128 })
-  }))
+  })),
+  sketchCorridor: optional(array(coordinateSchema, { min: 2, max: MAX_CORRIDOR_SAMPLES }))
 }, { passthrough: true })
 
 function validateRouteRequest(value: {

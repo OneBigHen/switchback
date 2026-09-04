@@ -820,6 +820,43 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     }
   }, [navigationFrame, props.rideMode, props.routes, props.selectedRouteId, ready])
 
+  // Free-draw reference: the rider's stroke stays on the map after routing so
+  // each corridor option reads against the line they actually drew. It is
+  // deliberately dashed and muted — a reference, never a route.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const stroke = props.sketchReference
+    if (props.rideMode || !stroke || stroke.length < 2) {
+      if (map.getLayer("switchback-sketch-reference-line")) map.removeLayer("switchback-sketch-reference-line")
+      if (map.getSource("switchback-sketch-reference")) map.removeSource("switchback-sketch-reference")
+      return
+    }
+    if (!map.getSource("switchback-sketch-reference")) {
+      map.addSource("switchback-sketch-reference", { type: "geojson", data: emptyFeatureCollection() })
+    }
+    if (!map.getLayer("switchback-sketch-reference-line")) {
+      renderer.addLayer(map, {
+        id: "switchback-sketch-reference-line",
+        type: "line",
+        source: "switchback-sketch-reference",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#8C8C93",
+          "line-width": 2.5,
+          "line-opacity": 0.75,
+          "line-dasharray": [1.5, 2]
+        }
+      }, { slot: "middle" })
+    }
+    geoJsonSource(map, "switchback-sketch-reference")?.setData({
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: stroke } }
+      ]
+    })
+  }, [props.sketchReference, props.rideMode, ready, renderer])
+
   // Recording session breadcrumb trail: draw the captured GPS trail and keep
   // the camera on the latest fix while riding. The trail is removed when the
   // recording ends or ride mode exits.

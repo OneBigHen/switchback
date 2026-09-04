@@ -1,4 +1,5 @@
-import type { Waypoint } from "@/lib/routing/types"
+import type { Coordinate, Waypoint } from "@/lib/routing/types"
+import { sampleSketchCorridor } from "@/lib/routing/sketch-corridor"
 
 interface RouteSketchInput {
   mode: "destination" | "loop"
@@ -16,6 +17,13 @@ export interface RoutePointSnapshot {
 export interface SketchIntentResult {
   mode: "destination" | "loop"
   points: RoutePointSnapshot
+  /**
+   * The stroke itself, resampled evenly. The planner treats this as a soft
+   * corridor: it scores how closely each option follows the drawing and offers
+   * options at several adherence levels. `points.via` remains the rider's
+   * editable hard shaping stops.
+   */
+  corridor: Coordinate[]
 }
 
 export interface RouteIntentFromSketchInput {
@@ -136,7 +144,8 @@ export function routeIntentFromSketch(input: RouteIntentFromSketchInput): Sketch
       start,
       finish,
       via: shapingPoints(trace, anchors)
-    }
+    },
+    corridor: sampleSketchCorridor(trace.map((point): Coordinate => [point.lon, point.lat]))
   }
 }
 

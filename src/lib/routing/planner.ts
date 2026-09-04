@@ -20,6 +20,17 @@ import {
 } from "./planner-shared"
 import { planSegmentedTrip } from "./planner-segmented"
 import { planDestinationTimebox, requestTimeboxedRoutes } from "./planner-timebox"
+import {
+  CORRIDOR_OPTION_PRESENTATION,
+  corridorAdherence,
+  corridorShapingAnchors,
+  sketchCorridorContext,
+  type CorridorAdherence,
+  type CorridorOptionRole,
+  type CorridorScoringContext
+} from "./sketch-corridor"
+import type { Waypoint } from "./types"
+import type { RoadLockPartitionResult } from "./planner-shared"
 
 export type {
   PlanningOptions,
@@ -94,6 +105,169 @@ function variedComparisonRequest(
   }
 }
 
+/**
+ * Free-draw option set. A stroke is intent, so the options differ in how
+ * literally they read it — not merely in riding profile. `anchors` is how many
+ * interior shaping points the engine is handed: more anchors pin the drawn line
+ * harder, fewer let the router find better roads inside the same corridor.
+ *
+ * Ordered; the first accepted candidate per role wins, so the later entries are
+ * fallbacks for when an earlier variant fails or duplicates the primary.
+ */
+interface CorridorVariant {
+  role: CorridorOptionRole
+  anchors: number
+  profile: RouteProfileId
+}
+
+function corridorVariants(profile: RouteProfileId): CorridorVariant[] {
+  const fun: RouteProfileId = profile === "twisty" ? "scenic" : "twisty"
+  const secondFun: RouteProfileId = profile === "scenic" || fun === "scenic" ? "avoid-highways" : "scenic"
+  const lean: RouteProfileId = profile === "quick" ? "balanced" : "quick"
+  return [
+    { role: "better-roads", anchors: 3, profile: fun },
+    { role: "leaner", anchors: 1, profile: lean },
+    { role: "better-roads", anchors: 2, profile: secondFun },
+    { role: "leaner", anchors: 1, profile: "balanced" }
+  ]
+}
+
+/**
+ * The candidate's measured fit against the drawn stroke. Providers already
+ * attach it while scoring; recomputing it here is the fallback for injected
+ * providers and cached routes that predate provider-side attachment — the same
+ * compatibility seam `selectedCandidateScore` keeps.
+ */
+function attachedCorridorFit(
+  route: PlannedRoute,
+  corridor: CorridorScoringContext
+): CorridorAdherence {
+  return route.routeScore?.corridorFit
+    ?? corridorAdherence(route.geometry, corridor.samples, corridor.envelopeMeters)
+}
+
+function corridorWaypoint(coordinate: [number, number], index: number): Waypoint {
+  return {
+    lat: Number(coordinate[1].toFixed(6)),
+    lon: Number(coordinate[0].toFixed(6)),
+    label: `Corridor anchor ${index + 1}`
+  }
+}
+
+/**
+ * Build one variant's provider request from the corridor rather than from the
+ * sketch's original hard vias. Endpoints are always the rider's: only the
+ * shaping points in between are relaxed.
+ */
+function corridorVariantRequest(
+  request: NormalizedRouteRequest,
+  variant: CorridorVariant,
+  index: number
+): NormalizedRouteRequest | null {
+  const corridor = request.sketchCorridor ?? []
+  const start = request.points[0]
+  if (!start) return null
+  // A seeded round trip carries one point and cannot take shaping vias; vary
+  // the loop's own seed instead so the option is still a different loop.
+  if (request.roundTrip) return variedComparisonRequest(request, variant.profile, index)
+
+  const isLoop = request.loopTargetMinutes != null
+  // A shaped loop must return to its start and needs at least one interior
+  // point to be a loop at all.
+  const anchorCount = isLoop ? Math.max(1, variant.anchors) : variant.anchors
+  const anchors = corridorShapingAnchors(corridor, anchorCount).map(corridorWaypoint)
+  const finish = isLoop ? start : request.points.at(-1)
+  if (!finish) return null
+  return {
+    ...request,
+    profile: variant.profile,
+    points: [start, ...anchors, finish],
+    // Comparison variants are never timeboxed: the destination time target
+    // would re-apply the heavy corridor factor and slow every option down.
+    targetMinutes: undefined
+  }
+}
+
+/**
+ * Alternatives for a free-draw stroke. The stroke is a *soft* corridor: rather
+ * than re-running comparison profiles against six pinned vias — which collapse
+ * every candidate onto one line and yield zero alternatives — each option
+ * re-reads the corridor at a different adherence level and scores the result
+ * against the drawing (see sketch-corridor.ts).
+ */
+async function planCorridorAlternatives(
+  request: NormalizedRouteRequest,
+  corridor: CorridorScoringContext,
+  primaryAnchor: PlannedRoute,
+  deadline: AbortSignal,
+  provider: RouteProvider,
+  enricher: RouteCandidateEnricher | undefined,
+  partitioned: RoadLockPartitionResult
+): Promise<{ routes: PlannedRoute[]; warnings: string[] }> {
+  const variants = corridorVariants(request.profile)
+  const accepted: PlannedRoute[] = []
+  const warnings: string[] = []
+  const filledRoles = new Set<CorridorOptionRole>()
+
+  const attempt = (index: number): Promise<Awaited<ReturnType<typeof requestTimeboxedRoutes>> | null> | null => {
+    const variant = variants[index]
+    if (!variant) return null
+    const variantRequest = corridorVariantRequest(request, variant, index)
+    if (!variantRequest) return null
+    return requestTimeboxedRoutes(variantRequest, provider, undefined, { signal: deadline })
+      .then((result) => result, () => null)
+  }
+
+  // Two variants in flight at a time, accepted strictly in order — the same
+  // bounded concurrency the profile comparison path uses.
+  const pending = new Map<number, ReturnType<typeof attempt>>()
+  pending.set(0, attempt(0))
+  pending.set(1, attempt(1))
+  for (let index = 0; index < variants.length && accepted.length < MAX_ALTERNATIVES && !deadline.aborted; index += 1) {
+    const variant = variants[index]!
+    const label = CORRIDOR_OPTION_PRESENTATION[variant.role].label
+    const result = await pending.get(index)
+    if (index % 2 === 1 && accepted.length < MAX_ALTERNATIVES && !deadline.aborted) {
+      if (!pending.has(index + 1)) pending.set(index + 1, attempt(index + 1))
+      if (!pending.has(index + 2)) pending.set(index + 2, attempt(index + 2))
+    }
+    // One option per role: later variants for a filled role are fallbacks only.
+    if (filledRoles.has(variant.role)) continue
+    if (!result) {
+      warnings.push(`${label} option unavailable.`)
+      continue
+    }
+    if (result.warning) warnings.push(result.warning)
+    const eligible = result.result.routes.filter((route) => {
+      const report = evaluateEligibility(route)
+      if (!report.eligible) warnings.push(`${label} option skipped: ${report.failures[0]?.message}`)
+      return report.eligible
+    })
+    const distinct = chooseDistinctCandidate(
+      eligible,
+      [...accepted, primaryAnchor],
+      ALTERNATIVES_MAX_OVERLAP,
+      true
+    )
+    if (!distinct) {
+      warnings.push(`${label} matched the traced route too closely to offer.`)
+      continue
+    }
+    const enriched = await enrichCandidates(request, [distinct.route], enricher)
+    warnings.push(...enriched.warnings)
+    const chosen = enriched.routes[0] ?? distinct.route
+    filledRoles.add(variant.role)
+    accepted.push(ensureLockSatisfaction({
+      ...chosen,
+      name: label,
+      overlapPercent: distinct.overlapPercent,
+      corridorOption: variant.role,
+      corridorAdherence: attachedCorridorFit(chosen, corridor)
+    }, partitioned.survivingLocks))
+  }
+  return { routes: accepted, warnings }
+}
+
 export async function planMotorcycleTrip(
   request: TripPlanRequest,
   provider: RouteProvider,
@@ -144,8 +318,20 @@ async function planPrimaryRoute(
     throw new Error("The selected profile returned no routes")
   }
 
+  // A stroke-driven primary is the "Traced" option by definition; naming it so
+  // here means the option set reads as one family instead of one route plus
+  // two strangers.
+  const primaryCorridor = sketchCorridorContext(request.sketchCorridor)
+  const traced = primaryCorridor
+    ? {
+        ...selected,
+        name: CORRIDOR_OPTION_PRESENTATION.traced.label,
+        corridorOption: "traced" as const,
+        corridorAdherence: attachedCorridorFit(selected, primaryCorridor)
+      }
+    : selected
   const routes: PlannedRoute[] = [
-    ensureLockSatisfaction({ ...selected, overlapPercent: 100 }, partitioned.survivingLocks)
+    ensureLockSatisfaction({ ...traced, overlapPercent: 100 }, partitioned.survivingLocks)
   ]
   const warnings: string[] = [
     ...partitioned.warnings,
@@ -178,12 +364,26 @@ async function planAlternativeRoutes(
     throw new Error("Alternatives requests require the sampled primary route.")
   }
   const primaryId = request.primaryRoute.id
-  if (request.roundTrip || request.loopTargetMinutes || request.segmentProfiles?.length) {
+  const corridor = sketchCorridorContext(request.sketchCorridor)
+  const hasCorridor = corridor !== undefined
+  // A drawn stroke is answerable in every shape — including loops, where the
+  // corridor varies the loop itself rather than only the riding profile. The
+  // profile-comparison path still only makes sense point-to-point.
+  if (!hasCorridor && (request.roundTrip || request.loopTargetMinutes || request.segmentProfiles?.length)) {
     return {
       ...tripPlanMetadata(request),
       selectedRouteId: primaryId,
       routes: [],
       warnings: ["Alternatives are only available for point-to-point destination rides."],
+      timingMs: { alternatives: performance.now() - started }
+    }
+  }
+  if (hasCorridor && request.segmentProfiles?.length) {
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: primaryId,
+      routes: [],
+      warnings: ["Free-draw options are unavailable while each leg has its own riding style."],
       timingMs: { alternatives: performance.now() - started }
     }
   }
@@ -210,6 +410,25 @@ async function planAlternativeRoutes(
     routingSource: "live",
     previewOnly: false
   }
+  if (corridor) {
+    const corridorPlan = await planCorridorAlternatives(
+      request,
+      corridor,
+      primaryAnchor,
+      deadline,
+      provider,
+      enricher,
+      partitioned
+    )
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: primaryId,
+      routes: corridorPlan.routes,
+      warnings: [...partitioned.warnings, ...corridorPlan.warnings],
+      timingMs: { alternatives: performance.now() - started }
+    }
+  }
+
   const accepted: PlannedRoute[] = []
   const warnings: string[] = [...partitioned.warnings]
   const profiles = COMPARISON_PROFILE_ORDER.filter((profile) => profile !== request.profile)

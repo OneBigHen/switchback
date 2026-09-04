@@ -41,7 +41,7 @@ import { routeIntentFromSketch, type RoutePointSnapshot } from "@/lib/planner/ro
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
-import type { AvoidArea, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, Coordinate, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
 import { bikeProfileFromRiderSettings, loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
@@ -238,6 +238,10 @@ export function PlannerShell() {
   const [rideOriginalRouteId, setRideOriginalRouteId] = useState<string | null>(null)
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
+  // The rider's last free-draw stroke. It stays on the map as a reference so
+  // every corridor option reads against what they actually drew, and it is the
+  // soft corridor the planner scores adherence against.
+  const [sketchCorridor, setSketchCorridor] = useState<Coordinate[] | null>(null)
   // Monotonic command token: PlannerMapStage remains the sole owner of the
   // in-progress screen draft while the V2 composer can enter it directly.
   const [drawCommandId, setDrawCommandId] = useState(0)
@@ -518,7 +522,11 @@ export function PlannerShell() {
     }
   }
 
-  const handlePlan = async (override?: { mode: PlanMode; points: RoutePointSnapshot }) => {
+  const handlePlan = async (override?: {
+    mode: PlanMode
+    points: RoutePointSnapshot
+    corridor?: Coordinate[]
+  }) => {
     const current = usePlannerStore.getState()
     const mode = override?.mode ?? planMode
     const points = override?.points
@@ -541,7 +549,8 @@ export function PlannerShell() {
         avoidHighways,
         avoidAreas,
         segmentProfiles: customSegmentProfiles,
-        planningId: createPlanningId()
+        planningId: createPlanningId(),
+        ...(override?.corridor ? { sketchCorridor: override.corridor } : {})
       }))
     } catch (caught) {
       current.failRouting({
@@ -1165,10 +1174,11 @@ export function PlannerShell() {
       setPlanMode(intent.mode)
       setSegmentProfiles([])
       setAddingVia(false)
-      await handlePlan({ mode: intent.mode, points: intent.points })
+      setSketchCorridor(intent.corridor.length >= 2 ? intent.corridor : null)
+      await handlePlan({ mode: intent.mode, points: intent.points, corridor: intent.corridor })
       setNotice({
         kind: "success",
-        message: `Rough line converted to ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}.`
+        message: `Read your line as a corridor — ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}, with options on the way.`
       })
     } catch (caught) {
       setNotice({
@@ -1205,6 +1215,7 @@ export function PlannerShell() {
     setAvoidAreas([])
     setSegmentProfiles([])
     setAddingVia(false)
+    setSketchCorridor(null)
     setStopIdeas(null)
     setIntentStatus("idle")
     setIntentSummary(null)
@@ -1303,6 +1314,7 @@ export function PlannerShell() {
           ? recording.state.points.map((point) => point.coordinate)
           : null}
         onRouteSketch={(trace) => void handleRouteSketch(trace)}
+        sketchReference={sketchCorridor}
         onSketchModeChange={setSketching}
         drawCommand={drawCommandId > 0 ? { type: "start", id: drawCommandId } : null}
         avoidAreas={avoidAreas}

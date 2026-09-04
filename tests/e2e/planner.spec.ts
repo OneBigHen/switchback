@@ -59,7 +59,7 @@ async function openRouteEditor(page: import("@playwright/test").Page) {
   const startField = page.getByRole("combobox", { name: "Start", exact: true })
   if (await startField.isVisible().catch(() => false)) return
 
-  const options = page.getByRole("button", { name: "Options", exact: true })
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
   await expect(async () => {
     await expect(options).toBeVisible({ timeout: 1_000 })
     if (await options.getAttribute("aria-expanded") !== "true") await options.click()
@@ -304,7 +304,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible()
 
   await page.getByRole("button", { name: "Loop", exact: true }).click()
-  const options = page.getByRole("button", { name: "Options", exact: true })
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
   if (await options.getAttribute("aria-expanded") !== "true") await options.click()
   // The V2 timing control presents the 120-minute preset as “2 hr”. Selecting
   // it explicitly keeps this behavioral journey independent of the old CTA.
@@ -476,7 +476,7 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   await openRouteEditor(page)
   await expect(page.getByRole("button", { name: "Loop", exact: true })).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
-  const options = page.getByRole("button", { name: "Options", exact: true })
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
   if (await options.getAttribute("aria-expanded") === "true") await options.click()
   await page.getByRole("button", { name: /Show route details/i }).click()
   await expect(page.getByRole("button", { name: /Start .* route/i })).toBeVisible()
@@ -628,7 +628,7 @@ test("draws a rough route on the map and snaps it into editable route points", a
 
   await page.getByRole("button", { name: "Finish drawing" }).click()
   await expect(surface).toBeHidden()
-  await expect(page.getByText(/rough line converted to .* editable shaping stop/i)).toBeVisible()
+  await expect(page.getByText(/read your line as a corridor/i)).toBeVisible()
   await expect.poll(() => routeRequests[0]?.points?.length ?? 0).toBeGreaterThan(3)
   const sketchRequest = routeRequests[0]
   expect(sketchRequest?.points?.length).toBeLessThanOrEqual(8)
@@ -639,7 +639,11 @@ test("draws a rough route on the map and snaps it into editable route points", a
   // PlannerDeck remounts after sketch ends, so the editor toggle state resets.
   // Re-open the editor to expose the via-points list before asserting count.
   await openRouteEditor(page)
-  await expect(page.getByLabel("Shaping stops").locator(":scope > div > span:first-child")).toHaveCount(6)
+  // The editor lists exactly the shaping stops that were routed. How many the
+  // stroke yields depends on its length at the current zoom, so assert the
+  // list against the request rather than a fixed count.
+  await expect(page.getByLabel("Shaping stops").locator(":scope > div > span:first-child"))
+    .toHaveCount((sketchRequest?.points?.length ?? 0) - 2)
 
   await page.getByRole("button", { name: "Move Sketch stop 2 earlier" }).click()
   await expect.poll(() => routeRequests.length).toBe(2)
@@ -665,4 +669,107 @@ test("draws a rough route on the map and snaps it into editable route points", a
   if (testInfo.project.name === "mobile-safari") {
     await page.screenshot({ path: "artifacts/screenshots/e2e-sketch-result-mobile-safari.png", fullPage: false })
   }
+})
+
+test("offers corridor options for a drawn line instead of a single traced route", async ({ page }) => {
+  const primaryRequests: Array<Record<string, unknown>> = []
+  const alternativesRequests: Array<Record<string, unknown>> = []
+
+  // The primary answers the stroke literally; the alternatives call answers it
+  // as a corridor. Both option sets come back through the normal API, so this
+  // asserts the client contract: the stroke is sent, and the options render.
+  const traced = {
+    ...plannedRoute("scenic", [
+      [-76.8867, 40.2732],
+      [-76.95, 40.1],
+      [-77.1, 39.95],
+      [-77.2311, 39.8309]
+    ], { distance: 42, duration: 80, twistiness: 74, overlap: 100 }),
+    id: "traced-e2e",
+    name: "Traced",
+    corridorOption: "traced",
+    corridorAdherence: { score: 96, meanDeviationMeters: 120, maxDeviationMeters: 400, coveredShare: 1 }
+  }
+  const betterRoads = {
+    ...plannedRoute("twisty", [
+      [-76.8867, 40.2732],
+      [-77.02, 40.14],
+      [-77.18, 39.93],
+      [-77.2311, 39.8309]
+    ], { distance: 47, duration: 92, twistiness: 89, overlap: 44 }),
+    id: "better-roads-e2e",
+    name: "Better roads nearby",
+    corridorOption: "better-roads",
+    corridorAdherence: { score: 78, meanDeviationMeters: 900, maxDeviationMeters: 2100, coveredShare: 0.82 }
+  }
+  const leaner = {
+    ...plannedRoute("quick", [
+      [-76.8867, 40.2732],
+      [-77.0, 40.04],
+      [-77.2311, 39.8309]
+    ], { distance: 38, duration: 62, twistiness: 45, overlap: 22 }),
+    id: "leaner-e2e",
+    name: "Leaner",
+    corridorOption: "leaner",
+    corridorAdherence: { score: 52, meanDeviationMeters: 2400, maxDeviationMeters: 5200, coveredShare: 0.51 }
+  }
+
+  await mockSharedPlannerServices(page)
+  await page.route("**/api/gpx-library**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ importedRoutes: 0, routes: [] })
+  }))
+  await page.route("**/api/routes", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>
+    const alternatives = body.candidateSet === "alternatives"
+    if (alternatives) alternativesRequests.push(body)
+    else primaryRequests.push(body)
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(alternatives
+        ? { selectedRouteId: "traced-e2e", warnings: [], routes: [betterRoads, leaner] }
+        : { selectedRouteId: "traced-e2e", warnings: [], routes: [traced] })
+    })
+  })
+
+  await page.goto(appUrl)
+  await openRouteEditor(page)
+  await expect(page.locator(".map-loading")).toBeHidden({ timeout: 15_000 })
+  await page.getByRole("button", { name: "Draw", exact: true }).click()
+  const surface = page.getByRole("region", { name: "Draw a rough route" })
+  await expect(surface).toBeVisible()
+  const box = await surface.boundingBox()
+  expect(box).not.toBeNull()
+
+  await page.mouse.move(box!.x + box!.width * 0.2, box!.y + box!.height * 0.55)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + box!.width * 0.35, box!.y + box!.height * 0.65, { steps: 8 })
+  await page.mouse.move(box!.x + box!.width * 0.55, box!.y + box!.height * 0.5, { steps: 8 })
+  await page.mouse.move(box!.x + box!.width * 0.75, box!.y + box!.height * 0.62, { steps: 8 })
+  await page.mouse.up()
+  await page.getByRole("button", { name: "Finish drawing" }).click()
+  await expect(surface).toBeHidden()
+
+  // The stroke itself reaches the planner as a soft corridor on both calls.
+  await expect.poll(() => alternativesRequests.length).toBeGreaterThan(0)
+  const drawnCorridor = primaryRequests[0]?.sketchCorridor as number[][] | undefined
+  expect(drawnCorridor?.length).toBeGreaterThan(2)
+  expect(drawnCorridor?.length).toBeLessThanOrEqual(48)
+  expect(alternativesRequests[0]?.sketchCorridor).toEqual(drawnCorridor)
+
+  // Three named options, not one traced line — and each is selectable.
+  const rail = page.getByRole("region", { name: "Route choices" })
+  await expect(rail.getByRole("article")).toHaveCount(3)
+  for (const option of ["Traced", "Better roads nearby", "Leaner"]) {
+    await expect(rail.getByRole("button", { name: `Select ${option}` })).toBeVisible()
+  }
+
+  // Added minutes versus the fastest option stay visible on every card.
+  await expect(rail.getByText("+18 min")).toBeVisible()
+  await expect(rail.getByText("+30 min")).toBeVisible()
+
+  await rail.getByRole("button", { name: "Select Leaner" }).click()
+  await expect(rail.getByRole("button", { name: "Select Leaner" })).toHaveAttribute("aria-pressed", "true")
 })
