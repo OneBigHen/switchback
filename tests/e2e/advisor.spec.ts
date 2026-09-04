@@ -163,13 +163,16 @@ test("AI builder is available before routing and becomes the route advisor after
   expect((primaryRequests[0] as { points: Array<{ label?: string }> }).points.map((point) => point.label))
     .toEqual(["Harrisburg", "Pine Grove Road", "Gettysburg"])
 
-  // The transcript survives the no-route -> route transition.
+  // The transcript survives the no-route -> route transition while route setup
+  // collapses behind an explicit edit workspace.
   await expect(page.getByText(/I’d run the ridges south/)).toBeVisible()
   await expect(page.getByRole("heading", { name: "What I'd do" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Edit route" })).toBeVisible()
 
   // AI-confirmed shaping choices are ordinary, rider-editable planner options.
+  await page.getByRole("button", { name: "Edit route" }).click()
   const options = page.getByRole("button", { name: "Ride options", exact: true })
-  if (await options.getAttribute("aria-expanded") !== "true") await options.click()
+  await expect(options).toHaveAttribute("aria-expanded", "true")
   await expect(page.getByRole("checkbox", { name: "Avoid highways" })).toBeChecked()
   const avoidTolls = page.getByRole("checkbox", { name: "Avoid tolls" })
   await expect(avoidTolls).toBeChecked()
