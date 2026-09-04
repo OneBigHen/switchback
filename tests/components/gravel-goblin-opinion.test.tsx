@@ -35,6 +35,21 @@ function route(id: string, name: string, minutes: number): PlannedRoute {
 const routes = [route("best", "Best Ride", 88), route("fast", "Fastest Now", 60)]
 
 beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  })
+
   advisorClient.fetchAdvisorCapability.mockResolvedValue({
     enabled: true,
     sources: ["switchback-local"],
