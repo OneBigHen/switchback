@@ -1,8 +1,10 @@
 /* Planner command-surface polish.
  *
  * This file intentionally loads after the V2 planner and glanceability sheets.
- * It is a bounded presentation layer: routing/state contracts remain owned by
- * the existing planner components and store.
+ * It is the final composition layer for the map-first planning workspace:
+ * routing/state contracts remain owned by the existing planner components and
+ * store, while this layer makes persistent choices, one-shot map actions and
+ * route inspection read as different kinds of work.
  */
 
 .plan-v2 {
@@ -25,18 +27,55 @@
   align-items: stretch;
 }
 
+/* Destination and Loop are persistent trip shape. Draw is deliberately not a
+   third segment: it is an action on the map and lives in the action row below. */
 .plan-v2__mode-selector {
   flex: 1 1 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border-color: color-mix(in srgb, var(--sb-border) 78%, transparent);
   background: color-mix(in srgb, var(--sb-surface-raised) 72%, transparent);
 }
 
-.plan-v2__free-ride {
-  flex: 1 1 42%;
+.plan-v2__draw-action,
+.plan-v2__free-ride,
+.plan-v2__options-trigger {
+  min-width: 0;
+  flex: 1 1 0;
 }
 
-.plan-v2__options-trigger {
-  flex: 1 1 42%;
+.plan-v2__draw-action {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan-v2__draw-action:hover:not(:disabled),
+.plan-v2__draw-action:focus-visible:not(:disabled) {
+  border-color: var(--sb-focus-ring);
+  background: var(--sb-surface-raised);
+}
+
+.plan-v2__draw-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.plan-v2__draw-action svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
 }
 
 .plan-v2__minimize-control {
@@ -85,8 +124,13 @@
   letter-spacing: 0.01em;
 }
 
-.plan-v2__option-group > p {
+.plan-v2__option-group > p,
+.plan-v2__time-budget > p {
   max-width: 48ch;
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .plan-v2__road-locks {
@@ -99,6 +143,77 @@
 
 .plan-v2__avoid-area-summary {
   padding: 2px 0;
+}
+
+/* Route inspection is a temporary workspace, not another card below route
+   choice. The compact header makes the exit obvious and keeps identity visible
+   while the detailed comparison/preparation surface is open. */
+.planner-route-details {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.planner-route-details__header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
+  background: var(--sb-surface);
+}
+
+.planner-route-details__header > button {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.planner-route-details__header > button:hover,
+.planner-route-details__header > button:focus-visible {
+  border-color: var(--sb-focus-ring);
+}
+
+.planner-route-details__header > button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.planner-route-details__identity {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.planner-route-details__identity small {
+  color: var(--sb-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planner-route-details__identity strong {
+  overflow: hidden;
+  color: var(--sb-text);
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Road preference and exclusion are route-edit actions. Their idle entry
@@ -148,9 +263,10 @@
 }
 
 /* Portrait tablets keep the compact ~360px planner even though the app has
-   crossed into rail navigation. Size these siblings from the command surface,
-   not from the phone breakpoint, so the minimize control never wraps alone. */
+   crossed into rail navigation. Size the secondary actions from available
+   space so nothing wraps into a confusing orphan row. */
 @media (max-width: 800px) {
+  .plan-v2__draw-action,
   .plan-v2__free-ride,
   .plan-v2__options-trigger {
     min-width: 0;
@@ -171,14 +287,45 @@
     gap: 6px;
   }
 
+  .plan-v2__draw-action,
+  .plan-v2__free-ride,
+  .plan-v2__options-trigger {
+    padding-inline: 7px;
+    font-size: 11px;
+  }
+
   .plan-v2__options-panel {
     padding-inline: 8px;
+  }
+
+  .planner-route-details__header {
+    padding-top: 4px;
+  }
+}
+
+@media (max-width: 360px) {
+  .plan-v2__draw-action span,
+  .plan-v2__free-ride span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .plan-v2__draw-action,
+  .plan-v2__free-ride {
+    flex: 0 0 var(--sb-touch-target);
+    width: var(--sb-touch-target);
+    padding: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .plan-v2__search,
   .plan-v2__minimize-control,
+  .plan-v2__draw-action,
   .plan-v2__options-trigger,
   .plan-v2__free-ride {
     transition: none;
