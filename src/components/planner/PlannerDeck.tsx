@@ -388,27 +388,17 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               onResearchRideIdea={onResearchRideIdea}
             />
             {editing ? (
-              <section className="plan-v2__option-group plan-v2__toll-policy" role="group" aria-label="Toll policy">
+              <section className="plan-v2__option-group plan-v2__toll-policy" aria-label="Toll policy">
                 <h3>Tolls</h3>
-                <p>Choose whether toll roads may appear. Switchback still calls out known toll exposure on route choices.</p>
-                <div className="plan-v2__profile-list" role="group" aria-label="Toll routing preference">
-                  <button
-                    type="button"
-                    className={tollPolicy === "allow-with-warning" ? "is-selected" : undefined}
-                    aria-pressed={tollPolicy === "allow-with-warning"}
-                    onClick={() => onTollPolicyChange("allow-with-warning")}
-                  >
-                    Allow + warn
-                  </button>
-                  <button
-                    type="button"
-                    className={tollPolicy === "avoid" ? "is-selected" : undefined}
-                    aria-pressed={tollPolicy === "avoid"}
-                    onClick={() => onTollPolicyChange("avoid")}
-                  >
-                    Avoid tolls
-                  </button>
-                </div>
+                <p>Known toll exposure is always disclosed. Avoid it entirely when that matters for this ride.</p>
+                <label className="plan-v2__check-row">
+                  <input
+                    type="checkbox"
+                    checked={tollPolicy === "avoid"}
+                    onChange={(event) => onTollPolicyChange(event.target.checked ? "avoid" : "allow-with-warning")}
+                  />
+                  <span>Avoid tolls</span>
+                </label>
               </section>
             ) : null}
             {children}
