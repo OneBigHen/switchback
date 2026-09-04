@@ -97,12 +97,13 @@ export function useRoadLockDraft({ addRoadLock, matchRoad = requestRoadMatch }: 
     setLockDraftMessage("Choose the first road point, then choose the corridor end.")
   }, [])
 
-  // Road preference is requested from Ride options; this hook still owns the
-  // map draft itself. Keeping the boundary event-only avoids duplicating lock
-  // state in the planner UI.
+  // The command bridge publishes one desired contextual map-edit mode. Road
+  // preference owns its draft here, and an area-exclusion command explicitly
+  // tears that draft down so the two map interaction surfaces cannot compete.
   useEffect(() => subscribeMapEdit((command) => {
     if (command === "prefer-road") beginLockDraft()
-  }), [beginLockDraft])
+    else resetLockDraft()
+  }), [beginLockDraft, resetLockDraft])
 
   const isLockDrawActive = useCallback(() => lockDrawRef.current.active, [])
 
