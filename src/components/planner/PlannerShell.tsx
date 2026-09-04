@@ -1429,6 +1429,7 @@ export function PlannerShell() {
             error,
             curvatureVisible,
             avoidHighways,
+            tollPolicy,
             savedCount: savedRoutes.length + projectRoutes.length,
             via,
             addingVia,
@@ -1526,6 +1527,10 @@ export function PlannerShell() {
               onAvoidHighwaysChange: (avoid) => {
                 routeRequestGate.invalidate()
                 setAvoidHighways(avoid)
+              },
+              onTollPolicyChange: (policy) => {
+                routeRequestGate.invalidate()
+                setTollPolicy(policy)
               },
               onPlanModeChange: (mode) => {
                 routeRequestGate.invalidate()
