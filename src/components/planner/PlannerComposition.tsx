@@ -1,7 +1,7 @@
 "use client"
 
 import { ArrowLeft } from "@phosphor-icons/react"
-import { useEffect, useState, type ComponentProps } from "react"
+import { useState, type ComponentProps } from "react"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { PlannerDeck } from "./PlannerDeck"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
@@ -14,6 +14,11 @@ type RouteComparisonProps = ComponentProps<typeof RouteComparison>
 /** Module-scope so the default keeps a stable identity across renders. */
 const NO_WARNINGS: string[] = []
 const NO_ROUTES: RouteComparisonProps["routes"] = []
+
+interface DetailWorkspace {
+  routeId: string
+  routeSetKey: string
+}
 
 export interface PlannerCompositionProps {
   viewModel: PlannerDeckViewModel
@@ -45,28 +50,21 @@ export function PlannerComposition({
   onPlanAdvisorRide,
   advisorOrigin
 }: PlannerCompositionProps) {
-  const [detailsRouteId, setDetailsRouteId] = useState<string | null>(null)
+  const [details, setDetails] = useState<DetailWorkspace | null>(null)
   const routeSetKey = comparison?.routes.map((route) => route.id).join("|") ?? ""
-
-  // A new candidate set is a new decision. Never strand the rider inside the
-  // previous plan's detail surface after a replan.
-  useEffect(() => {
-    setDetailsRouteId(null)
-  }, [routeSetKey])
-
-  const selectedDetailsRoute = comparison && detailsRouteId
-    ? comparison.routes.find((route) => route.id === detailsRouteId) ?? null
+  const selectedDetailsRoute = comparison && details?.routeSetKey === routeSetKey
+    ? comparison.routes.find((route) => route.id === details.routeId) ?? null
     : null
   const showingDetails = Boolean(comparison && selectedDetailsRoute)
 
   const selectRoute = (id: string) => {
-    setDetailsRouteId(null)
+    setDetails(null)
     comparison?.onSelect(id)
   }
 
   const openDetails = (id: string) => {
     comparison?.onSelect(id)
-    setDetailsRouteId(id)
+    setDetails({ routeId: id, routeSetKey })
   }
 
   return (
@@ -94,7 +92,7 @@ export function PlannerComposition({
       {comparison && selectedDetailsRoute ? (
         <section className="planner-route-details" aria-label="Route details workspace">
           <header className="planner-route-details__header">
-            <button type="button" aria-label="Back to route choices" onClick={() => setDetailsRouteId(null)}>
+            <button type="button" aria-label="Back to route choices" onClick={() => setDetails(null)}>
               <ArrowLeft weight="bold" aria-hidden="true" />
               <span>Route options</span>
             </button>
