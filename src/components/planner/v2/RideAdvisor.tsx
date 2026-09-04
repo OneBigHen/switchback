@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUp, ChatCircleDots, MapPin, MapTrifold, X } from "@phosphor-icons/react"
+import { ArrowUp, MapPin, MapTrifold, X } from "@phosphor-icons/react"
 import { useEffect, useRef, useState } from "react"
 import type {
   AdvisorMessage,
@@ -66,6 +66,8 @@ function threadTurn(turn: AdvisorMessage): ThreadTurn {
 function GoblinAvatar({ size = "normal" }: { size?: "tiny" | "normal" | "large" }) {
   return (
     <span className={styles.avatar} data-size={size} aria-hidden="true">
+      {/* This is an intentionally tiny embedded lo-fi asset; image optimization would add more machinery than bytes. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={GRAVEL_GOBLIN_AVATAR} alt="" />
     </span>
   )
