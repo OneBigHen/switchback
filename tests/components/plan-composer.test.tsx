@@ -159,15 +159,16 @@ function renderComposer(
 }
 
 describe("V2 compact Plan composer", () => {
-  it("keeps the map-first idle surface to the exact compact planning contract", () => {
+  it("keeps persistent trip shape separate from one-shot route actions", () => {
     renderComposer()
 
-    expect(screen.getByPlaceholderText("Where to — or describe your ride")).toBeInTheDocument()
+    expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeInTheDocument()
     const tripShape = screen.getByRole("group", { name: "Trip shape" })
     expect(within(tripShape).getByRole("button", { name: "Destination" })).toBeInTheDocument()
     expect(within(tripShape).getByRole("button", { name: "Loop" })).toBeInTheDocument()
     expect(within(tripShape).queryByRole("button", { name: /Draw/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Draw route" })).toBeInTheDocument()
+    const draw = screen.getByRole("button", { name: "Draw" })
+    expect(draw).toHaveTextContent("Draw route")
     expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Minimize planner" })).toBeInTheDocument()
   })
@@ -191,7 +192,7 @@ describe("V2 compact Plan composer", () => {
       }
     })
 
-    const input = screen.getByPlaceholderText("Where to — or describe your ride")
+    const input = screen.getByPlaceholderText("Search a place or describe a ride")
     await user.type(input, "A scenic ride to a river overlook")
 
     expect(screen.getByRole("button", { name: /find ride options/i })).toBeDisabled()
@@ -236,7 +237,7 @@ describe("V2 compact Plan composer", () => {
     const onRidePrompt = vi.fn()
     renderComposer({}, { intent: { onRidePrompt } })
 
-    const input = screen.getByPlaceholderText("Where to — or describe your ride")
+    const input = screen.getByPlaceholderText("Search a place or describe a ride")
     await user.type(input, "A scenic ride to a river overlook")
     await user.click(screen.getByRole("button", { name: /find ride options/i }))
 
