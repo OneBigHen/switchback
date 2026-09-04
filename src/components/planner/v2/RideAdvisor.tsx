@@ -15,6 +15,7 @@ import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
 import type { PlannedRoute } from "@/lib/routing/types"
+import opinionStyles from "./GravelGoblinOpinion.module.css"
 import styles from "./RideAdvisor.module.css"
 
 /**
@@ -319,26 +320,26 @@ export function RideAdvisor({
       </header>
 
       {visibleSecondOpinion && opinionRoute ? (
-        <section className={styles.verdict} aria-label="Gravel Goblin route opinion">
-          <div className={styles.verdictHeader}>
-            <span>
+        <section className={opinionStyles.verdict} aria-label="Gravel Goblin route opinion">
+          <div className={opinionStyles.header}>
+            <span className={opinionStyles.pick}>
               <small>{visibleSecondOpinion.agreesWithSwitchback ? "Goblin agrees" : "Goblin pick"}</small>
               <strong>{opinionRoute.name}</strong>
             </span>
-            <span className={styles.confidence} data-confidence={visibleSecondOpinion.confidence}>
+            <span className={opinionStyles.confidence} data-confidence={visibleSecondOpinion.confidence}>
               {confidenceLabel(visibleSecondOpinion.confidence)}
             </span>
           </div>
-          <p>{visibleSecondOpinion.rationale}</p>
+          <p className={opinionStyles.rationale}>{visibleSecondOpinion.rationale}</p>
           {visibleSecondOpinion.cautions.length > 0 ? (
-            <ul className={styles.verdictCautions} aria-label="Things to keep in mind">
+            <ul className={opinionStyles.cautions} aria-label="Things to keep in mind">
               {visibleSecondOpinion.cautions.slice(0, 3).map((caution) => <li key={caution}>{caution}</li>)}
             </ul>
           ) : null}
           {!visibleSecondOpinion.agreesWithSwitchback && opinionRoute.id !== selectedRouteId && onSelectRoute ? (
             <button
               type="button"
-              className={styles.verdictAction}
+              className={opinionStyles.action}
               aria-label={`Show ${opinionRoute.name} route`}
               onClick={() => onSelectRoute(opinionRoute.id)}
             >
