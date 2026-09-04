@@ -85,12 +85,14 @@ function place(overrides: Partial<GroundedPlace> = {}): GroundedPlace {
 /** A Gemini stub that replays a fixed sequence of generateContent responses. */
 function stubGemini(responses: unknown[]) {
   const calls: Array<Record<string, unknown>> = []
-  const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+  const urls: string[] = []
+  const fetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    urls.push(String(url))
     calls.push(JSON.parse(String(init?.body)) as Record<string, unknown>)
     const body = responses.shift() ?? { candidates: [{ content: { parts: [{ text: "{}" }] } }] }
     return new Response(JSON.stringify(body), { status: 200 })
   })
-  return { fetcher: fetcher as unknown as typeof fetch, calls }
+  return { fetcher: fetcher as unknown as typeof fetch, calls, urls }
 }
 
 function answer(value: Record<string, unknown>) {
@@ -130,15 +132,19 @@ describe("advisor route context", () => {
     expect(briefing).toContain("id=best-ride")
     expect(briefing).toContain("[SWITCHBACK RECOMMENDS THIS]")
     expect(briefing).toContain("+28 min vs fastest")
-    // Gravel is a selling point for this rider, so it is in the briefing.
-    expect(briefing).toContain("22% unpaved")
+    // Gravel is a selling point for this rider, so it is in the briefing — but
+    // stated as *mapped* surface, which is all Switchback actually knows.
+    expect(briefing).toContain("22% mapped unpaved")
     expect(briefing).toContain("Live traffic is unavailable")
   })
 
-  it("tells the model it is riding with a dual-sport rider", () => {
+  it("frames gravel as desirable without inferring what the rider or bike can handle", () => {
     const prompt = advisorSystemPrompt({ context, conversation: [] })
     expect(prompt).toContain("dual-sport")
-    expect(prompt).toContain("Gravel and dirt are a FEATURE")
+    expect(prompt).toContain("Mapped gravel and dirt can be a feature")
+    // The persona must never turn "dual-sport" into a capability or legality claim.
+    expect(prompt).toContain("never infer the rider's skill, bike capability")
+    expect(prompt).toContain("legal access, road maintenance, or current passability")
     expect(prompt).toContain("id=best-ride")
   })
 
@@ -269,9 +275,18 @@ describe("proposed ride resolution", () => {
     expect(loop?.targetMinutes).toBe(240)
   })
 
-  it("silently drops waypoints that were never pinned, keeping the rest", () => {
+  it("refuses the whole ride when one shaping point was never pinned", () => {
+    // Dropping the unresolved point would silently produce a different ride than
+    // the summary promises, so the entire draft is refused instead.
+    expect(resolveProposedRide(
+      { ...valid, waypointPlaceIds: ["stop", "imagined-diner"] },
+      places
+    )).toBeNull()
+  })
+
+  it("keeps a resolved waypoint list and ignores a repeat of a point already used", () => {
     const ride = resolveProposedRide(
-      { ...valid, waypointPlaceIds: ["stop", "imagined-diner", "stop"] },
+      { ...valid, waypointPlaceIds: ["stop", "stop", "start"] },
       places
     )
     expect(ride?.waypoints.map((point) => point.name)).toEqual(["Switchback Brewing"])
@@ -389,6 +404,39 @@ describe("gemini adviser", () => {
     expect(last.tools).not.toContainEqual({ google_maps: {} })
     expect(last.generationConfig.responseMimeType).toBe("application/json")
     expect(last.generationConfig.responseJsonSchema).toBeDefined()
+  })
+
+  it("asks a model that answers, and caps how long it may think about it", async () => {
+    // Both halves of this are load-bearing and neither is cosmetic. The model
+    // this replaced answered 2 of 60 benchmark turns inside the 30s deadline —
+    // the rest were timeouts and 503s — and leaving the thinking budget
+    // unconstrained took the replacement from 42% of turns answered to 8%.
+    // Evidence: docs/design/2026-09-04-advisor-provider-bakeoff.md.
+    const { fetcher, calls, urls } = stubGemini([answer({ message: "Take the gravel." })])
+
+    await createGeminiAdviser({
+      apiKey: "test-key",
+      fetcher,
+      toolbox: createAdvisorToolbox({})
+    }).advise({ context, conversation: [] })
+
+    expect(urls[0]).toContain("/models/gemini-3.1-flash-lite:")
+    expect(urls[0]).not.toContain("gemini-3.5-flash-lite")
+    const config = (calls[0] as { generationConfig: Record<string, unknown> }).generationConfig
+    expect(config.thinkingConfig).toEqual({ thinkingLevel: "low" })
+  })
+
+  it("still honours an explicitly configured model", async () => {
+    const { fetcher, urls } = stubGemini([answer({ message: "Take the gravel." })])
+
+    await createGeminiAdviser({
+      apiKey: "test-key",
+      model: "gemini-3.5-flash-lite",
+      fetcher,
+      toolbox: createAdvisorToolbox({})
+    }).advise({ context, conversation: [] })
+
+    expect(urls[0]).toContain("/models/gemini-3.5-flash-lite:")
   })
 
   it("keeps a hallucinated stop out of the reply even when the model insists", async () => {
@@ -529,13 +577,43 @@ describe("gemini adviser", () => {
       { candidates: [{ content: { parts: [{ text: "still not json" }] } }] }
     ])
     const reply = await createGeminiAdviser({
-      apiKey: "k", fetcher, mapsGrounding: true, toolbox: createAdvisorToolbox({})
+      apiKey: "k", fetcher, toolbox: createAdvisorToolbox({})
     }).advise({ context, conversation: [] })
 
     expect(reply.status).toBe("ok")
     expect(reply.message).toBe("Take the gravel one, it's the whole point.")
     expect(reply.proposedStops).toEqual([])
     expect(reply.secondOpinion).toBeNull()
+  })
+
+  it("shows grounded prose only when the grounding pass produced a citable source", async () => {
+    // With Maps grounding on, the prose may contain Maps-derived claims. Showing
+    // it uncited would present a grounded claim as if Switchback had verified it.
+    const uncited = stubGemini([
+      { candidates: [{ content: { parts: [{ text: "The brewery there is excellent." }] } }] },
+      { candidates: [{ content: { parts: [{ text: "still not json" }] } }] }
+    ])
+    expect((await createGeminiAdviser({
+      apiKey: "k", fetcher: uncited.fetcher, mapsGrounding: true, toolbox: createAdvisorToolbox({})
+    }).advise({ context, conversation: [] })).status).toBe("malformed")
+
+    const cited = stubGemini([
+      {
+        candidates: [{
+          content: { parts: [{ text: "The brewery there is excellent." }] },
+          groundingMetadata: {
+            groundingChunks: [{ maps: { title: "Switchback Brewing", uri: "https://maps.google.com/?cid=1" } }]
+          }
+        }]
+      },
+      { candidates: [{ content: { parts: [{ text: "still not json" }] } }] }
+    ])
+    const grounded = await createGeminiAdviser({
+      apiKey: "k", fetcher: cited.fetcher, mapsGrounding: true, toolbox: createAdvisorToolbox({})
+    }).advise({ context, conversation: [] })
+    expect(grounded.status).toBe("ok")
+    expect(grounded.message).toBe("The brewery there is excellent.")
+    expect(grounded.citations.map((citation) => citation.source)).toContain("google-maps")
   })
 
   it("reports malformed when there is nothing usable to show at all", async () => {

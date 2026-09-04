@@ -1,0 +1,16 @@
+gemini-3.1-flash-lite 0 200 3097ms 
+gemini-3.1-flash-lite 1 200 1888ms 
+gemini-3.1-flash-lite 2 200 2581ms 
+gemini-3.1-flash-lite 3 200 486ms 
+gemini-3.5-flash-lite 0 ERR 60003ms TimeoutError: The operation was aborted due to timeout
+gemini-3.5-flash-lite 1 ERR 60001ms TimeoutError: The operation was aborted due to timeout
+gemini-3.5-flash-lite 2 503 5609ms {
+  "error": {
+    "code": 503,
+    "message": "This model is currently experiencing high demand. Spikes in demand are u
+gemini-3.5-flash-lite 3 503 7555ms {
+  "error": {
+    "code": 503,
+    "message": "This model is currently experiencing high demand. Spikes in demand are u
+
+[exited with code 0]

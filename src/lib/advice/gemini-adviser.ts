@@ -32,8 +32,26 @@ import { FINAL_ANSWER_SCHEMA, resolveFinalAnswer } from "./resolve-answer"
  */
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
-/** Cheap, fast, and Maps-grounding capable. */
-const DEFAULT_MODEL = "gemini-3.5-flash-lite"
+/**
+ * Cheap, fast, Maps-grounding capable — and, unlike the obvious newer choice,
+ * actually answering.
+ *
+ * `gemini-3.5-flash-lite` was the original default and is measurably not
+ * usable behind a 30-second turn: 2 successes in 60 advisor turns, the rest
+ * timeouts and 503s carrying Google's "currently experiencing high demand"
+ * body, with zero rate limiting to explain it. Evidence and method in
+ * `docs/design/2026-09-04-advisor-provider-bakeoff.md`; override with
+ * `GEMINI_ADVISOR_MODEL` once it recovers.
+ */
+const DEFAULT_MODEL = "gemini-3.1-flash-lite"
+
+/**
+ * The co-pilot is a second opinion on a plan the rider is already looking at,
+ * so a turn that thinks for half a minute has already lost. Constraining the
+ * thinking budget took the same model from 8% to 42% of turns answered inside
+ * the deadline, and the answers it did return were no worse.
+ */
+const THINKING_LEVEL = "low"
 const TURN_TIMEOUT_MS = 30_000
 /** Enough to look something up and check what it is like; not enough to wander. */
 const MAX_TOOL_ROUNDS = 4
@@ -179,6 +197,7 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
               },
               generationConfig: {
                 temperature: 0.35,
+                thinkingConfig: { thinkingLevel: THINKING_LEVEL },
                 ...(mapsEnabled
                   ? {}
                   : {

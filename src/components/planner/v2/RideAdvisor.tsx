@@ -116,9 +116,14 @@ export function RideAdvisor({
   const pending = useRef<AbortController | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
   const currentScope = scopeFor(routes, selectedRouteId)
-  // `scope` is the context the visible artifacts belong to. Comparing it to the
-  // current props during render is a pure state read, so the one render between
-  // a route change and the reset effect already hides stale artifacts.
+  // The scope the visible artifacts belong to, held twice on purpose, because
+  // two callers need it and neither can use the other's copy: render must not
+  // read a ref, and an async reply resolving later must not read a value its
+  // closure captured before the route changed. The state answers "is what I am
+  // about to paint stale", so the one render between a route change and the
+  // reset effect already hides stale artifacts; the ref answers "is this reply
+  // still wanted", and doubles as the effect's guard so a double-invoked effect
+  // cannot abort a request the second pass just started.
   const [scope, setScope] = useState(currentScope)
   const scopeRef = useRef(currentScope)
   const scopeStale = scope !== currentScope
@@ -133,8 +138,7 @@ export function RideAdvisor({
 
   // Route changes invalidate route-scoped artifacts and any in-flight answer,
   // but deliberately keep the transcript so a ride the co-pilot just built does
-  // not lose the conversation that produced it. `scopeRef` is the fence async
-  // replies check; it is only ever touched outside render.
+  // not lose the conversation that produced it.
   useEffect(() => {
     if (scopeRef.current === currentScope) return
     const hadConversation = conversation.length > 0
