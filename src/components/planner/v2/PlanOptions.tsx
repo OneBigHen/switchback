@@ -243,7 +243,12 @@ export function PlanOptions({
 
           <OptionGroup name="Shape route">
             <h3>Shape route</h3>
-            <p>Add stops, pull the ride toward roads you want, or change the endpoints. Nothing here changes your overall ride character.</p>
+            <p>Start from a saved ride, add stops, pull toward roads you want, or change the endpoints.</p>
+            {onOpenLibrary ? (
+              <button type="button" className="plan-v2__inline-action" onClick={onOpenLibrary}>
+                Open route library{savedCount > 0 ? ` · ${savedCount}` : ""}
+              </button>
+            ) : null}
             <div className="plan-v2__waypoint-stack">
               <WaypointField
                 id="start"
@@ -291,11 +296,6 @@ export function PlanOptions({
             <button type="button" className="plan-v2__inline-action" onClick={onOpenRoadLocks}>
               Manage preferred roads{roadLockCount > 0 ? ` · ${roadLockCount}` : ""}
             </button>
-            {onOpenLibrary ? (
-              <button type="button" className="plan-v2__inline-action" onClick={onOpenLibrary}>
-                Open route library{savedCount > 0 ? ` · ${savedCount}` : ""}
-              </button>
-            ) : null}
             {via.length > 0 ? (
               <div className="plan-v2__via-points" aria-label="Shaping stops">
                 {via.map((point, index) => (
@@ -304,7 +304,7 @@ export function PlanOptions({
                     <span className="plan-v2__via-actions">
                       <button type="button" aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} earlier`} disabled={index === 0} onClick={() => onMoveVia(index, index - 1)}>↑</button>
                       <button type="button" aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} later`} disabled={index === via.length - 1} onClick={() => onMoveVia(index, index + 1)}>↓</button>
-                      <button type="button" aria-label={`Remove ${point.label ?? `shaping stop ${index + 1}`} `} onClick={() => onRemoveVia(index)}>×</button>
+                      <button type="button" aria-label={`Remove ${point.label ?? `shaping stop ${index + 1}`}`} onClick={() => onRemoveVia(index)}>×</button>
                     </span>
                   </div>
                 ))}
