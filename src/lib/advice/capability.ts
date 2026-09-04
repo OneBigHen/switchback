@@ -7,37 +7,24 @@ import type { RouteAdviser } from "./contracts"
 /**
  * Server-declared advisor capability (ADR 0021).
  *
- * No key means the capability is simply absent: the API answers "disabled", the
- * client renders nothing, and the core product is byte-for-byte what it was.
- * There is no client flag, no billing, and nothing in the UI that mentions
- * upgrading. A missing optional source disables only that source, never the
- * advisor as a whole.
+ * No key means the capability is absent: the API answers "disabled", the client
+ * renders nothing, and core planning behavior is unchanged. Missing optional
+ * sources remove only those sources.
  *
- * Switches, in order of consequence:
- *
- * - `GEMINI_API_KEY` turns the advisor on at all. Route geometry and the
- *   rider's messages leave the instance when it is set, so it is opt-in and
- *   documented as data egress in `.env.example`.
- * - `GEMINI_MAPS_GROUNDING=0` turns off Grounding with Google Maps while
- *   leaving the advisor running on Switchback's own data. It defaults ON
- *   because it is what makes the co-pilot worth talking to, and because it is
- *   inside the Gemini free tier — but it is one variable to switch off, and
- *   `usage.groundedQueries` reports every call it makes.
- * - `CURVATURE_DB_PATH` (already used by the map layer) additionally lets the
- *   advisor hunt for scored roads and gravel. Absent just means that one tool
- *   is not offered.
+ * `GEMINI_API_KEY` enables the advisor and therefore documented data egress.
+ * `GEMINI_MAPS_GROUNDING=0` disables Maps grounding while retaining the local
+ * conversation/tools. Maps defaults on for compatibility with ADR 0023, but it
+ * has separate Gemini API pricing; `.env.example` carries the current cost
+ * warning rather than pretending it is an API Free Tier feature.
+ * `CURVATURE_DB_PATH` adds locally scored road/gravel lookup when available.
  */
 
 export interface AdvisorCapability {
-  /** Whether the advisor exists on this deployment at all. */
   enabled: boolean
-  /** What it can actually consult, for honest UI. */
   sources: Array<"switchback-local" | "switchback-roads" | "google-maps">
-  /** Attribution lines that must be rendered when a reply cites a source. */
   attributions: string[]
 }
 
-/** The server env this reads. Index-signed so `process.env` satisfies it. */
 export interface AdvisorEnvironment {
   readonly [key: string]: string | undefined
   readonly GEMINI_API_KEY?: string
@@ -73,13 +60,11 @@ export function resolveAdvisorCapability(env: AdvisorEnvironment): AdvisorCapabi
     ],
     attributions: [
       "Place data © OpenStreetMap contributors",
-      // Required wording; never localized or restyled.
       ...(maps ? ["Grounded with Google Maps"] : [])
     ]
   }
 }
 
-/** Build the adviser for this deployment, or null when the capability is absent. */
 export function createAdviserFromEnvironment(env: AdvisorEnvironment): RouteAdviser | null {
   const apiKey = env.GEMINI_API_KEY?.trim()
   if (!apiKey) return null
@@ -99,8 +84,6 @@ export function createAdviserFromEnvironment(env: AdvisorEnvironment): RouteAdvi
               try {
                 return repository.queryBounds(bounds)
               } catch {
-                // A missing or unreadable curvature database degrades the road
-                // tool, never the conversation.
                 return []
               }
             }
