@@ -180,10 +180,16 @@ export function RideAdvisor({
   useEffect(() => {
     const thread = threadRef.current
     if (!thread) return
-    thread.scrollTo({
-      top: thread.scrollHeight,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
-    })
+    const prefersReducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (typeof thread.scrollTo === "function") {
+      thread.scrollTo({
+        top: thread.scrollHeight,
+        behavior: prefersReducedMotion ? "auto" : "smooth"
+      })
+    } else {
+      thread.scrollTop = thread.scrollHeight
+    }
   }, [conversation.length, busy])
 
   useEffect(() => () => pending.current?.abort(), [])
