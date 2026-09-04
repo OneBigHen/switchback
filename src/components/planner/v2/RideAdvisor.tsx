@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowUp, MapPin, MapTrifold, X } from "@phosphor-icons/react"
+import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import type {
   AdvisorMessage,
@@ -13,7 +14,6 @@ import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
 import type { PlannedRoute } from "@/lib/routing/types"
-import { GRAVEL_GOBLIN_AVATAR } from "./gravel-goblin-avatar"
 import styles from "./RideAdvisor.module.css"
 
 /**
@@ -66,9 +66,13 @@ function threadTurn(turn: AdvisorMessage): ThreadTurn {
 function GoblinAvatar({ size = "normal" }: { size?: "tiny" | "normal" | "large" }) {
   return (
     <span className={styles.avatar} data-size={size} aria-hidden="true">
-      {/* This is an intentionally tiny embedded lo-fi asset; image optimization would add more machinery than bytes. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={GRAVEL_GOBLIN_AVATAR} alt="" />
+      <Image
+        src="/brand/gravel-goblin-avatar.webp"
+        alt=""
+        width={96}
+        height={96}
+        unoptimized
+      />
     </span>
   )
 }
@@ -107,7 +111,7 @@ function scopeFor(routes: readonly PlannedRoute[], selectedRouteId: string): str
 
 export function RideAdvisor({
   routes,
-  selectedRouteId,
+ selectedRouteId,
   warnings,
   origin,
   onAddStop,
