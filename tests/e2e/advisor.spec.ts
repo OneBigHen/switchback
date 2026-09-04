@@ -97,7 +97,6 @@ interface AdvisorMockOptions {
   capabilityPayload?: unknown
   reply?: unknown
   posts?: Array<Record<string, unknown>>
-  /** Every capability GET the app makes, in order, for probe-timing assertions. */
   capabilityRequests?: string[]
 }
 
@@ -121,7 +120,11 @@ async function mockAdvisor(page: import("@playwright/test").Page, options: Advis
   })
 }
 
-test("AI builder is available before routing and becomes the route advisor after planning", async ({ page }) => {
+function goblinBuilder(page: import("@playwright/test").Page) {
+  return page.getByLabel("Gravel Goblin ride builder").getByRole("button")
+}
+
+test("Gravel Goblin is available before routing and becomes the route companion after planning", async ({ page }) => {
   await mockBase(page)
   const primaryRequests: Record<string, unknown>[] = []
 
@@ -139,15 +142,15 @@ test("AI builder is available before routing and becomes the route advisor after
 
   await page.goto(appUrl)
 
-  // A: the AI path exists before RouteComparison. After deterministic routing,
-  // this same conversation becomes B: the advisor for the produced route.
-  const builder = page.getByRole("button", { name: "Plan a ride with me" })
+  const builder = goblinBuilder(page)
   await expect(builder).toBeVisible()
+  await expect(builder).toContainText("Gravel Goblin")
+  await expect(builder).toContainText("Need a ride idea?")
   await builder.click()
 
-  const composer = page.getByRole("textbox", { name: "Ask the ride advisor" })
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
   await composer.fill("Three hours, gravel, no highways or tolls, end around Gettysburg")
-  await page.getByRole("button", { name: "Send to the ride advisor" }).click()
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
   await expect(page.getByText("Three hours of ridge roads and gravel to Gettysburg.")).toBeVisible()
 
   await page.getByRole("button", { name: "Plan this ride" }).click()
@@ -157,19 +160,14 @@ test("AI builder is available before routing and becomes the route advisor after
     avoidHighways: true,
     tollPolicy: "avoid"
   })
-  // The card promised start -> Pine Grove Road -> Gettysburg. The very first
-  // deterministic request must carry exactly that, in that order: no React
-  // state commit may sit between the card and the router.
   expect((primaryRequests[0] as { points: Array<{ label?: string }> }).points.map((point) => point.label))
     .toEqual(["Harrisburg", "Pine Grove Road", "Gettysburg"])
 
-  // The transcript survives the no-route -> route transition while route setup
-  // collapses behind an explicit edit workspace.
   await expect(page.getByText(/I’d run the ridges south/)).toBeVisible()
-  await expect(page.getByRole("heading", { name: "What I'd do" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+  await expect(page.getByLabel("Gravel Goblin conversation")).toBeVisible()
   await expect(page.getByRole("button", { name: "Edit route" })).toBeVisible()
 
-  // AI-confirmed shaping choices are ordinary, rider-editable planner options.
   await page.getByRole("button", { name: "Edit route" }).click()
   const options = page.getByRole("button", { name: "Ride options", exact: true })
   await expect(options).toHaveAttribute("aria-expanded", "true")
@@ -177,8 +175,6 @@ test("AI builder is available before routing and becomes the route advisor after
   const avoidTolls = page.getByRole("checkbox", { name: "Avoid tolls" })
   await expect(avoidTolls).toBeChecked()
 
-  // Editing the generated choice must affect the next deterministic route
-  // request rather than remaining presentation-only state.
   await avoidTolls.uncheck()
   await page.getByRole("button", { name: "Replan", exact: true }).click()
   await expect.poll(() => primaryRequests[1]).toMatchObject({
@@ -189,8 +185,7 @@ test("AI builder is available before routing and becomes the route advisor after
   })
 })
 
-
-test("the advisor surface does not exist at all when the capability is absent", async ({ page }) => {
+test("the Gravel Goblin surface does not exist at all when the capability is absent", async ({ page }) => {
   await mockBase(page)
   const posts: Array<Record<string, unknown>> = []
   await mockAdvisor(page, {
@@ -199,10 +194,9 @@ test("the advisor surface does not exist at all when the capability is absent", 
   })
 
   await page.goto(appUrl)
-  await expect(page.getByRole("button", { name: "Plan a ride with me" })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Ask about this ride" })).toHaveCount(0)
-  await expect(page.getByLabel("AI ride builder")).toHaveCount(0)
-  // Ordinary planning is untouched: the planner's own controls are still there.
+  await expect(page.getByLabel("Gravel Goblin ride builder")).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Ask Gravel Goblin" })).toHaveCount(0)
+  await expect(page.getByLabel("Gravel Goblin")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
   expect(posts).toHaveLength(0)
 })
@@ -212,9 +206,6 @@ test("an offline rider is never asked to wait on a capability probe that cannot 
   const capabilityRequests: string[] = []
   await mockAdvisor(page, { capabilityRequests })
 
-  // Report the browser as offline before the app mounts while leaving the
-  // transport up, so this exercises the connectivity check rather than
-  // Playwright's inability to navigate a disconnected context.
   await page.addInitScript(() => {
     let online = false
     Object.defineProperty(window.navigator, "onLine", { configurable: true, get: () => online })
@@ -226,66 +217,60 @@ test("an offline rider is never asked to wait on a capability probe that cannot 
 
   await page.goto(appUrl)
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
-  // A probe fired on mount would have landed well inside this window.
   await page.waitForTimeout(500)
   expect(capabilityRequests).toHaveLength(0)
-  await expect(page.getByRole("button", { name: "Plan a ride with me" })).toHaveCount(0)
+  await expect(page.getByLabel("Gravel Goblin ride builder")).toHaveCount(0)
 
-  // A connection arriving is the signal to ask, without needing a reload.
   await page.evaluate(() => {
     ;(window as unknown as { __setOnline(next: boolean): void }).__setOnline(true)
     window.dispatchEvent(new Event("online"))
   })
-  await expect(page.getByRole("button", { name: "Plan a ride with me" })).toBeVisible()
+  await expect(goblinBuilder(page)).toBeVisible()
   expect(capabilityRequests.length).toBeGreaterThan(0)
 })
 
-test("opening the empty builder spends no model turn until the rider actually asks", async ({ page }) => {
+test("opening Gravel Goblin spends no model turn until the rider actually asks", async ({ page }) => {
   await mockBase(page)
   const posts: Array<Record<string, unknown>> = []
   await mockAdvisor(page, { posts })
 
   await page.goto(appUrl)
-  const builder = page.getByRole("button", { name: "Plan a ride with me" })
+  const builder = goblinBuilder(page)
   await expect(builder).toBeVisible()
   await builder.click()
 
-  const composer = page.getByRole("textbox", { name: "Ask the ride advisor" })
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
   await expect(composer).toBeVisible()
-  // Give any accidental automatic turn time to fire.
   await page.waitForTimeout(500)
   expect(posts).toHaveLength(0)
 
-  // A starter chip is a real question, so that one does spend a turn.
   await page.getByRole("button", { name: "Somewhere twisty for the afternoon" }).click()
   await expect.poll(() => posts.length).toBe(1)
   expect(posts[0]).toMatchObject({ riderMessage: "Somewhere twisty for the afternoon" })
-  // No route yet, so no route context may be invented for the model.
   expect(posts[0]!.context ?? null).toBeNull()
 })
 
-test("the composer is reachable and operable by keyboard alone", async ({ page }) => {
+test("the Gravel Goblin composer is reachable and operable by keyboard alone", async ({ page }) => {
   await mockBase(page)
   await mockAdvisor(page)
   await page.goto(appUrl)
 
-  await page.getByRole("button", { name: "Plan a ride with me" }).click()
-  const composer = page.getByRole("textbox", { name: "Ask the ride advisor" })
+  await goblinBuilder(page).click()
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
   await composer.focus()
   await expect(composer).toBeFocused()
   await composer.fill("Three hours of gravel")
   await page.keyboard.press("Enter")
   await expect(page.getByText("Three hours of ridge roads and gravel to Gettysburg.")).toBeVisible()
 
-  // The close control is a labelled button, not an icon-only div.
-  const close = page.getByRole("button", { name: "Close the ride advisor" })
+  const close = page.getByRole("button", { name: "Close Gravel Goblin" })
   await close.focus()
   await expect(close).toBeFocused()
   await page.keyboard.press("Enter")
   await expect(composer).toHaveCount(0)
 })
 
-test("a stale in-flight answer never paints against a route it was not asked about", async ({ page }) => {
+test("a stale in-flight Goblin answer never paints against a route it was not asked about", async ({ page }) => {
   await mockBase(page)
   const second = { ...route, id: "advisor-e2e-alt", name: "Fast way south", twistiness: 30, durationMinutes: 120 }
 
@@ -321,7 +306,6 @@ test("a stale in-flight answer never paints against a route it was not asked abo
       return
     }
     turn += 1
-    // Turn 1 builds the ride. Turn 2 is the one we hold in flight.
     const body = turn === 1 ? builderReply : staleReply
     if (turn === 2) await held
     await routeRequest.fulfill({
@@ -340,26 +324,22 @@ test("a stale in-flight answer never paints against a route it was not asked abo
   })
 
   await page.goto(appUrl)
-  await page.getByRole("button", { name: "Plan a ride with me" }).click()
-  await page.getByRole("textbox", { name: "Ask the ride advisor" })
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
     .fill("Three hours, gravel, end near Gettysburg")
-  await page.getByRole("button", { name: "Send to the ride advisor" }).click()
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
   await page.getByRole("button", { name: "Plan this ride" }).click()
-  await expect(page.getByRole("heading", { name: "What I\'d do" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
 
-  // Ask about the route that exists now, and hold that turn in flight.
-  await page.getByRole("textbox", { name: "Ask the ride advisor" }).fill("Anything worth stopping for?")
-  await page.getByRole("button", { name: "Send to the ride advisor" }).click()
-  await expect(page.getByText("Reading the roads…")).toBeVisible()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" }).fill("Anything worth stopping for?")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await expect(page.getByText("Sniffing out the good roads…")).toBeVisible()
 
-  // The rider changes which route they are deciding about, then the old answer
-  // finally arrives. It was asked about a different route and must be discarded.
   await page.getByRole("button", { name: "Select Fastest Now" }).first().click()
   release()
   await page.waitForTimeout(750)
 
   await expect(page.getByText("Stale Brewery")).toHaveCount(0)
   await expect(page.getByText("STALE ANSWER about the route you already left.")).toHaveCount(0)
-  // The transcript itself survives the route change; only route-scoped artifacts go.
   await expect(page.getByText("Three hours, gravel, end near Gettysburg")).toBeVisible()
 })
