@@ -78,6 +78,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const error = ui.error
   const curvatureVisible = rideConfig.curvatureVisible
   const avoidHighways = rideConfig.avoidHighways
+  const tollPolicy = rideConfig.tollPolicy
   const savedCount = ui.savedCount
   const segmentProfiles = rideConfig.segmentProfiles
   const avoidAreaCount = rideConfig.avoidAreaCount
@@ -122,6 +123,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onBikeProfileChange = rc.onBikeProfileChange
   const onCurvatureChange = rc.onCurvatureChange
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
+  const onTollPolicyChange = rc.onTollPolicyChange
   const onPlanModeChange = rc.onPlanModeChange
   const onTargetMinutesChange = rc.onTargetMinutesChange
   const onTimeShapedChange = rc.onTimeShapedChange
@@ -385,6 +387,30 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               researchSources={researchSources}
               onResearchRideIdea={onResearchRideIdea}
             />
+            {editing ? (
+              <section className="plan-v2__option-group plan-v2__toll-policy" role="group" aria-label="Toll policy">
+                <h3>Tolls</h3>
+                <p>Choose whether toll roads may appear. Switchback still calls out known toll exposure on route choices.</p>
+                <div className="plan-v2__profile-list" role="group" aria-label="Toll routing preference">
+                  <button
+                    type="button"
+                    className={tollPolicy === "allow-with-warning" ? "is-selected" : undefined}
+                    aria-pressed={tollPolicy === "allow-with-warning"}
+                    onClick={() => onTollPolicyChange("allow-with-warning")}
+                  >
+                    Allow + warn
+                  </button>
+                  <button
+                    type="button"
+                    className={tollPolicy === "avoid" ? "is-selected" : undefined}
+                    aria-pressed={tollPolicy === "avoid"}
+                    onClick={() => onTollPolicyChange("avoid")}
+                  >
+                    Avoid tolls
+                  </button>
+                </div>
+              </section>
+            ) : null}
             {children}
           </div>
 
