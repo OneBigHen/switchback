@@ -1,12 +1,13 @@
 "use client"
 
-import type { ComponentProps } from "react"
+import { ArrowLeft } from "@phosphor-icons/react"
+import { useEffect, useState, type ComponentProps } from "react"
+import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { PlannerDeck } from "./PlannerDeck"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { RouteComparison } from "./RouteComparison"
 import { RouteDecisionRail } from "./v2/RouteDecisionRail"
 import { RideAdvisor } from "./v2/RideAdvisor"
-import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 
 type RouteComparisonProps = ComponentProps<typeof RouteComparison>
 
@@ -29,9 +30,11 @@ export interface PlannerCompositionProps {
 }
 
 /**
- * Planner-only composition boundary. The advisor is deliberately independent
- * of RouteComparison: before routing it is the AI ride builder; after routing
- * the same component becomes the route advisor and second-opinion surface.
+ * Planner-only composition boundary. Route choice and route inspection are
+ * deliberately separate workspaces: candidates are the primary task after a
+ * plan, while the dense preparation surface appears only when the rider asks
+ * for details. The advisor remains independent of RouteComparison so it can be
+ * a builder before routing and a compact co-pilot after routing.
  */
 export function PlannerComposition({
   viewModel,
@@ -42,17 +45,42 @@ export function PlannerComposition({
   onPlanAdvisorRide,
   advisorOrigin
 }: PlannerCompositionProps) {
+  const [detailsRouteId, setDetailsRouteId] = useState<string | null>(null)
+  const routeSetKey = comparison?.routes.map((route) => route.id).join("|") ?? ""
+
+  // A new candidate set is a new decision. Never strand the rider inside the
+  // previous plan's detail surface after a replan.
+  useEffect(() => {
+    setDetailsRouteId(null)
+  }, [routeSetKey])
+
+  const selectedDetailsRoute = comparison && detailsRouteId
+    ? comparison.routes.find((route) => route.id === detailsRouteId) ?? null
+    : null
+  const showingDetails = Boolean(comparison && selectedDetailsRoute)
+
+  const selectRoute = (id: string) => {
+    setDetailsRouteId(null)
+    comparison?.onSelect(id)
+  }
+
+  const openDetails = (id: string) => {
+    comparison?.onSelect(id)
+    setDetailsRouteId(id)
+  }
+
   return (
     <PlannerDeck viewModel={viewModel} commands={commands}>
-      {comparison ? (
+      {comparison && !showingDetails ? (
         <RouteDecisionRail
           routes={comparison.routes}
           selectedId={comparison.selectedId}
-          onSelect={comparison.onSelect}
+          onSelect={selectRoute}
+          onOpenDetails={openDetails}
         />
       ) : null}
 
-      {onAddAdvisorStop ? (
+      {onAddAdvisorStop && !showingDetails ? (
         <RideAdvisor
           routes={comparison?.routes ?? NO_ROUTES}
           selectedRouteId={comparison?.selectedId ?? ""}
@@ -63,7 +91,25 @@ export function PlannerComposition({
         />
       ) : null}
 
-      {comparison ? <RouteComparison {...comparison} showRouteChoices={false} /> : null}
+      {comparison && selectedDetailsRoute ? (
+        <section className="planner-route-details" aria-label="Route details workspace">
+          <header className="planner-route-details__header">
+            <button type="button" aria-label="Back to route choices" onClick={() => setDetailsRouteId(null)}>
+              <ArrowLeft weight="bold" aria-hidden="true" />
+              <span>Route options</span>
+            </button>
+            <span className="planner-route-details__identity">
+              <small>Route details</small>
+              <strong>{selectedDetailsRoute.name}</strong>
+            </span>
+          </header>
+          <RouteComparison
+            {...comparison}
+            selectedId={selectedDetailsRoute.id}
+            showRouteChoices={false}
+          />
+        </section>
+      ) : null}
     </PlannerDeck>
   )
 }
