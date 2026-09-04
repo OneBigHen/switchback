@@ -21,7 +21,7 @@ export interface AdvisorTurnResponse extends AdvisorReply {
 
 const ABSENT_CAPABILITY: AdvisorCapability = {
   enabled: false,
-  groundingSources: [],
+  sources: [],
   attributions: []
 }
 
@@ -39,9 +39,12 @@ export async function fetchAdvisorCapability(
 }
 
 export interface AdvisorTurnInput {
-  context: AdvisorRouteContext
+  /** Null while the rider is building a ride and the advisor is helping. */
+  context: AdvisorRouteContext | null
   conversation: AdvisorMessage[]
   riderMessage?: string
+  /** Map centre or rider location, so place search works before a route exists. */
+  origin?: { lat: number; lon: number; label?: string }
 }
 
 export async function requestAdvisorTurn(

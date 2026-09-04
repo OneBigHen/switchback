@@ -1,9 +1,8 @@
-# ADR 0023: The route advisor proposes; Switchback still decides
+# ADR 0023: The co-pilot proposes; Switchback still decides
 
 ## Status
 
-Proposed — **not accepted**. Sections marked *Owner decision required* must be
-settled before the implementation merges.
+Accepted, 2026-09-04.
 
 Extends [ADR 0001](0001-routing-provider-architecture.md) (providers propose,
 Switchback decides), [ADR 0017](0017-federated-route-candidates.md),
@@ -12,147 +11,164 @@ Switchback decides), [ADR 0017](0017-federated-route-candidates.md),
 
 ## Context
 
-`AGENTS.md` rejects "a learned/LLM route ranker" outright, and that rejection
-stands. But two rider needs sit next to it and are not the same thing:
+`AGENTS.md` rejects "a learned/LLM route ranker", and that rejection stands.
+Three rider needs sit next to it and are not the same thing:
 
-1. **"Is this actually the right route?"** Switchback's scoring is deterministic
-   and explainable, and it is still only one opinion. A rider about to commit
-   two hours to a route benefits from an independent read.
-2. **"What's worth stopping for?"** The planner already finds fun stops by
-   category. It cannot hold a conversation about them — *"anywhere with coffee
-   before the twisty bit?"* — which is exactly how riders actually think.
+1. **"Is this actually the right route?"** Switchback's scoring is
+   deterministic and explainable, and it is still only one opinion.
+2. **"What's worth stopping for?"** The planner finds fun stops by category. It
+   cannot hold a conversation about them — *"anywhere with decent beer after the
+   gravel section?"* — which is how riders actually think.
+3. **"Just put me a ride together."** Describing a ride in a sentence is faster
+   than placing pins, and the deterministic parser only recovers part of it.
 
-Both are answerable without ranking a single route.
+None of the three requires ranking a route.
 
 ## Decision
 
-An advisor lives in `src/lib/advice/`: one interface, one implementation, a
-small pluggable grounding seam. It is a **proposer**, and the boundary is
-enforced by module structure and validation, not by prompt wording.
+A co-pilot lives in `src/lib/advice/`: one adviser, one toolbox, one resolver.
+It is a **proposer**, and the boundary is enforced by module structure and
+validation, not by prompt wording.
 
-### What the advisor may do
+### What it may do
 
-- Read the `TripPlan` Switchback already produced and comment on it.
+- Read the `TripPlan` Switchback produced and comment on it.
 - Say which of the **existing** candidates it would take, and why.
-- Propose **stops** — places, from a grounding tool — that the rider accepts
-  with one tap, at which point they become ordinary rider waypoints on a normal
-  planning request.
-- Hold a multi-turn conversation about the ride.
+- Propose **stops** the rider accepts with one tap, becoming ordinary waypoints.
+- Propose a whole **ride** — profile, minutes, start, finish, waypoints — which
+  lands in the planner's own editable controls and routes only when the rider
+  presses Plan.
+- Hold a multi-turn conversation about any of it.
 
 ### What it structurally cannot do
 
 | Boundary | How it is enforced |
 |---|---|
-| Cannot invent a route | `RouteSecondOpinion.wouldPick` is validated against the candidate ids Switchback supplied. An unknown id drops the whole second opinion. |
-| Cannot invent a place | A proposed stop must reference a `placeId` a grounding tool returned *this turn*. Coordinates come from that tool result; the model never supplies them. |
+| Cannot invent a route | `wouldPick` is validated against the candidate ids Switchback supplied; an unknown id drops the whole second opinion. |
+| Cannot invent a place | Every coordinate — stop, start, finish, waypoint — comes from a tool result Switchback resolved through its own geocoder. The model references a `placeId`; it never emits a latitude. |
 | Cannot rank or score | It receives a finished plan. There is no path from `src/lib/advice/` into eligibility, scoring, dedupe, or role assignment. |
-| Cannot auto-select | Accepting a stop is a rider tap. The advisor never calls the planner. |
-| Cannot block planning | Every failure resolves to an `AdvisorReply` with a status. It is never on the routing critical path. |
+| Cannot auto-plan | A proposed ride is a filled-in form. The rider presses Plan. |
+| Cannot exceed the planner's own limits | Profile must be in the enum; `targetMinutes` must be 20–480; out-of-range values are dropped, not clamped. |
+| Cannot block planning | Every failure resolves to a status. Never on the routing critical path. |
 
-This is the ADR 0001 shape applied one layer up: routing providers propose
-candidates and Switchback decides; the advisor proposes *inputs and
-explanations* and the rider decides. What ADR 0004 and `AGENTS.md` reject is a
-model that produces or orders the candidate set. Nothing here does.
+This is ADR 0001 applied one layer up: routing providers propose candidates and
+Switchback decides; the co-pilot proposes *inputs and explanations* and the
+rider decides. What `AGENTS.md` rejects is a model that produces or orders the
+candidate set. Nothing here does. The line, stated once: **the co-pilot may help
+you fill in the form; it may never mark the answers.**
+
+Precedent already in the tree: `src/lib/ai/corridor-adviser.ts` has worked this
+way since Phase 5 — the model proposes named corridors, and anything whose
+source or anchor cannot be verified is discarded.
+
+### Gemini, natively
+
+The transport is the Gemini API directly, not a proxy. That choice is forced by
+what the co-pilot needs: Grounding with Google Maps is a Gemini-API-**native**
+tool, and OpenRouter's OpenAI-compatible surface does not carry it.
+
+Two constraints were verified against the live endpoint, and the implementation
+is shaped by them:
+
+1. Built-in tools and function declarations coexist **only** with
+   `toolConfig.include_server_side_tool_invocations: true`. Without it the API
+   returns `INVALID_ARGUMENT` naming the flag.
+2. `google_maps` **cannot** be combined with a JSON response mime type — the API
+   rejects the pair outright — although our own function declarations combine
+   with `responseJsonSchema` fine.
+
+So a turn is: grounded tool rounds carrying Maps plus our functions, then one
+structured call that drops Maps and asks for the schema. When Maps grounding is
+switched off, the schema rides along on the first call and a turn costs one
+request. Citations gathered during grounding are carried across.
+
+### Google Maps: what is used, and what is deliberately not
+
+Maps grounding supplies place character — is the brewery any good, is the
+lookout actually a view — and returns rich detail plus citations, but **no
+coordinates**. That is a useful property, not a limitation: a Maps chunk is
+context, never a point. Anything the co-pilot wants to route to must still be
+pinned through Switchback's own geocoder.
+
+Maps grounding also returns directions, travel times, and search-along-route.
+**Switchback consumes none of it.** Route geometry and route choice stay with
+GraphHopper and Valhalla. Maps content is displayed with the required
+attribution and discarded — never persisted, never folded into the route Atlas,
+never used to derive a routing decision.
+
+That boundary is also a licensing one. Google Maps Platform terms prohibit
+extracting or exporting Maps content for use outside the Services, and require
+the source name and link to be shown immediately beside the content they
+support. The UI renders every citation with `translate="no"` and the required
+"Grounded with Google Maps" attribution, and the adapter refuses to pass along a
+Maps answer that came back with no citations at all.
+
+### Proactive nudges are deterministic
+
+The nudge is the surface most likely to feel like Clippy, so it is built with
+the least freedom. A nudge is derived from the plan Switchback already computed
+(`src/lib/advice/nudges.ts`): no model is consulted to decide whether to speak or
+what to say. It is free, instant, and cannot be wrong about a fact. One at a
+time, priority-ordered, each naming a specific number, each dismissible for the
+life of the plan, and nothing fires unless it clears a materiality threshold —
+so a plan the rider already understands stays silent, which is the common case.
+What the model is for is the conversation *after* the rider taps it.
 
 ### Capability shape (ADR 0021)
 
-Two independent switches, because they carry different consequences.
+- `GEMINI_API_KEY` turns the co-pilot on at all. Absent means absent: the API
+  answers `disabled`, the UI renders nothing, the core product is unchanged. No
+  billing, no plans, no upsell copy.
+- `GEMINI_MAPS_GROUNDING=0` drops Maps grounding while leaving the co-pilot
+  running on Switchback's own data. It defaults **on**, because it is what makes
+  the co-pilot worth talking to and it is inside the Gemini free tier.
+- `CURVATURE_DB_PATH` additionally offers the road-character tool, so the
+  co-pilot can hunt scored roads and gravel. Absent just means one fewer tool.
 
-- `OPENROUTER_API_KEY` — turns the advisor on at all. Absent means the
-  capability is absent: the API answers `disabled`, the UI renders **nothing**,
-  and the core product is unchanged. No billing, no plans, no upsell copy.
-- `GOOGLE_MAPS_GROUNDING=1` **plus** `GOOGLE_MAPS_API_KEY` — adds Grounding with
-  Google Maps. **Off by default**, and a key alone is not consent.
+### The rider this is built for
 
-A missing optional key disables only that source. The key-free source is the
-*default*, not the fallback: the advisor has to be useful on a bare self-hosted
-instance or it does not deserve to ship.
+A dual-sport rider. That is not a preference toggle, it is the shape of the
+data: unpaved share is in the briefing and in the nudges, `find_good_roads`
+takes `surface=unpaved` to hunt gravel, `brewery` is the first stop kind, and
+the persona treats gravel as a reason to go rather than a warning.
 
-### Why Google Maps grounding is a separate transport
+### Privacy and cost
 
-`google_maps` is a Gemini-API-**native** tool. OpenRouter's OpenAI-compatible
-surface passes through some Gemini-style tool objects but does not carry it, so
-the advisor cannot simply add it to its OpenRouter tool list. `GoogleMapsGrounding`
-therefore makes its own request to `generativelanguage.googleapis.com` with
-`tools: [{ google_maps: {} }]` and returns the grounded answer to the
-conversation as a tool result. The co-pilot stays one voice on one cheap model;
-Maps is a fact source it can consult.
+Enabling the co-pilot sends downsampled route geometry (≤40 coordinates),
+candidate metrics, and the rider's messages to Google. That is real egress from
+a self-hosted instance, so it is opt-in, off by default, and documented in
+`.env.example`. Conversations are not stored server-side: the client holds the
+transcript and posts it back each turn.
 
-Grounding with Google Maps can also return **directions, travel times, and
-search-along-route**. Switchback consumes **none** of that. Route geometry,
-route choice, and every score stay with GraphHopper / Valhalla and the
-deterministic pipeline. Maps content is displayed, attributed, and discarded —
-never persisted, never folded into the route Atlas, never used to derive a
-routing decision.
-
-That boundary is also a licensing one. Google Maps Platform terms prohibit
-extracting, exporting, or scraping Maps content for use outside the Services,
-and require the source name and link to be shown immediately beside the content
-they support. The implementation renders every returned citation with
-`translate="no"` and the required "Grounded with Google Maps" attribution, and
-refuses to pass along a Maps answer that came back with no citations at all.
-
-### Privacy and data egress
-
-Turning the advisor on sends route geometry (downsampled to at most 40
-coordinates), candidate metrics, and the rider's own messages to OpenRouter, and
-— when enabled — a coarse midpoint to Google. That is real egress from a
-self-hosted instance, so the capability is opt-in, documented in
-`.env.example`, and off by default. Conversations are not stored server-side:
-the client holds the transcript and posts it back each turn.
-
-### Cost
-
-The default model is a cheap Gemini Flash-Lite class model on OpenRouter: a turn
-is one or two completions with a small context, on the order of a tenth of a US
-cent. **Grounding with Google Maps is the expensive part** — roughly **$14 per
-1,000 grounded queries** after a free tier — which is why it is separately
-gated, why the advisor prefers the key-free source, and why replies report
-`usage.groundedQueries`. A per-day budget and circuit breaker follow the
-existing ADR 0021 mechanism.
+Cost sits inside the Gemini free tier at this audience size. A turn is one
+request without grounding and two with; `usage.groundedQueries` is reported on
+every reply, and a `429` degrades to a `rate-limited` status the UI states
+plainly rather than hiding.
 
 ### Analytics (ADR 0011)
 
-At most three deliberate events, no PII and **no route content**:
-`route_adviser_shown`, `route_adviser_turn` (status + toolCalls only), and
+At most three deliberate events, no PII and **no route or message content**:
+`route_adviser_shown`, `route_adviser_turn` (status and tool-call count only),
 `route_adviser_stop_accepted`.
-
-## Owner decisions required
-
-1. **Scope.** Is "proposes stops the rider taps to accept" inside the line, or
-   should the first release be strictly explanation-only? The stop path is what
-   makes the advisor useful rather than decorative, and it is a rider-confirmed
-   waypoint on the existing request builder — but it is a step past pure
-   explanation and it is the owner's call.
-2. **Google Maps grounding.** Enable it at all? It is the sharpest ToS question
-   in this ADR: advisory prose with required attribution reads as compliant, but
-   Google's terms are written to stop Maps content leaving the Services, and
-   Switchback is by definition a routing product. The safe reading — display and
-   discard, never derive routing from it — is what is implemented. Confirm, or
-   keep the capability permanently off.
-3. **Data egress default.** Off for self-hosters is implemented. Confirm that
-   `.env.example` wording is strong enough, and whether the hosted instance
-   should also require an explicit opt-in per rider.
-4. **Model and budget.** Confirm the default model id and set a daily
-   grounded-query ceiling.
-5. **Enabled by default?** On the owner's hosted instance the advisor appears
-   as soon as `OPENROUTER_API_KEY` is set. Should it instead need its own flag?
 
 ## Consequences
 
-A deployment with no keys is unchanged, down to the absence of any UI. A
-deployment with only `OPENROUTER_API_KEY` gets a conversational co-pilot
-grounded in OpenStreetMap and the route contract. Adding Maps grounding buys
-freshness and place character at a real per-query cost and a real attribution
-obligation.
+A deployment with no key is unchanged, down to the absence of any UI. A
+deployment with a key gets a co-pilot that can explain a route, find a real
+brewery on it, and build a ride from a sentence.
 
-The advisor is the first place in Switchback where a model's output reaches the
-rider as *advice* rather than as a parsed intent. Keeping it a proposer — with
-the boundary in the resolver rather than the prompt — is what stops it drifting
-into the ranker `AGENTS.md` rejected. Any future change that lets advisor output
-reach the scoring pipeline needs a new ADR, not an extension of this one.
+This is the first place in Switchback where a model's output reaches the rider
+as *advice* rather than as a parsed intent. Keeping it a proposer — with the
+boundary in the resolver rather than the prompt — is what stops it drifting into
+the ranker `AGENTS.md` rejects. Any future change that lets advisor output reach
+the scoring pipeline needs a new ADR, not an extension of this one. For the
+record, the four changes that would cross the line:
 
-The app-wide picture — conversational planning, proactive nudges, pre-routing
-intent shaping, and riding-mode behaviour under ADR 0020 — is deliberately out
-of scope here and is designed separately in
+- passing candidate routes to a model and using its output to order or select them;
+- feeding advisor output into `scoreRoute`, `rankDiverseCandidates`, or role assignment;
+- auto-planning from advisor output with no rider confirmation;
+- persisting model-derived road opinions into the route Atlas or curvature database.
+
+The wider picture — riding-mode behaviour under ADR 0020, and how far intent
+shaping should eventually go — is designed in
 `docs/design/2026-09-04-ai-advisor.md`.

@@ -42,6 +42,7 @@ import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalo
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { AvoidArea, Coordinate, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { ProposedRide } from "@/lib/advice/contracts"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
 import { bikeProfileFromRiderSettings, loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
@@ -526,6 +527,10 @@ export function PlannerShell() {
     mode: PlanMode
     points: RoutePointSnapshot
     corridor?: Coordinate[]
+    /** Supplied when a caller set these in the same tick as planning. */
+    profile?: RouteProfileId
+    targetMinutes?: number
+    timeShaped?: boolean
   }) => {
     const current = usePlannerStore.getState()
     const mode = override?.mode ?? planMode
@@ -539,11 +544,11 @@ export function PlannerShell() {
         mode,
         start: points?.start ?? current.start,
         finish: points?.finish ?? current.finish,
-        profile: current.profile,
+        profile: override?.profile ?? current.profile,
         bikeProfile: current.bikeProfile,
         roadLocks: current.roadLocks,
-        targetMinutes,
-        timeShaped,
+        targetMinutes: override?.targetMinutes ?? targetMinutes,
+        timeShaped: override?.timeShaped ?? timeShaped,
         seed: loopSeed.current,
         via: points?.via ?? current.via,
         avoidHighways,
@@ -1188,6 +1193,46 @@ export function PlannerShell() {
     }
   }
 
+  /**
+   * Accept a ride the co-pilot filled in. This is the intent-shaping boundary
+   * (ADR 0001): the advisor produced *inputs* — profile, time target, points —
+   * and they land in the planner's own controls, visible and editable, then go
+   * through the ordinary request builder. The advisor never routed anything.
+   */
+  const handlePlanAdvisorRide = async (ride: ProposedRide) => {
+    routeRequestGate.invalidate()
+    const store = usePlannerStore.getState()
+    const point = (value: { name: string; lat: number; lon: number }): Waypoint => ({
+      lat: value.lat,
+      lon: value.lon,
+      label: value.name
+    })
+    const points = {
+      start: point(ride.start),
+      finish: ride.mode === "destination" && ride.finish ? point(ride.finish) : null,
+      via: ride.waypoints.map(point)
+    }
+    store.replaceRoutePoints(points)
+    store.setProfile(ride.profile)
+    setPlanMode(ride.mode)
+    setSegmentProfiles([])
+    setAddingVia(false)
+    setAvoidHighways(ride.avoidHighways)
+    if (ride.targetMinutes !== null) {
+      setTargetMinutes(ride.targetMinutes)
+      setTimeShaped(true)
+    }
+    setNotice({ kind: "success", message: `Planning ${ride.summary}` })
+    await handlePlan({
+      mode: ride.mode,
+      points,
+      profile: ride.profile,
+      ...(ride.targetMinutes !== null
+        ? { targetMinutes: ride.targetMinutes, timeShaped: true }
+        : {})
+    })
+  }
+
   const handleWaypointDrag = (kind: "start" | "finish" | "via", index: number, point: Waypoint) => {
     routeRequestGate.invalidate()
     const current = usePlannerStore.getState()
@@ -1341,6 +1386,8 @@ export function PlannerShell() {
           <PlannerComposition
           planWarnings={plan?.warnings ?? []}
           onAddAdvisorStop={(stop) => void handleChooseStopIdea(stop)}
+          onPlanAdvisorRide={(ride) => void handlePlanAdvisorRide(ride)}
+          advisorOrigin={start ?? home ?? null}
           viewModel={buildPlannerDeckViewModel({
             plan,
             start,

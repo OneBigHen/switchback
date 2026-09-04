@@ -7,6 +7,7 @@ import { RouteComparison } from "./RouteComparison"
 import { RouteDecisionRail } from "./v2/RouteDecisionRail"
 import { RideAdvisor } from "./v2/RideAdvisor"
 import type { Waypoint } from "@/lib/routing/types"
+import type { ProposedRide } from "@/lib/advice/contracts"
 
 type RouteComparisonProps = ComponentProps<typeof RouteComparison>
 
@@ -21,6 +22,10 @@ export interface PlannerCompositionProps {
   planWarnings?: string[]
   /** Accept an advisor-proposed stop as an ordinary rider waypoint. */
   onAddAdvisorStop?(stop: Waypoint): void
+  /** Accept a whole advisor-proposed ride into the planner's own controls. */
+  onPlanAdvisorRide?(ride: ProposedRide): void
+  /** Map centre, so the advisor can search places before a route exists. */
+  advisorOrigin?: { lat: number; lon: number; label?: string } | null
 }
 
 /**
@@ -32,7 +37,9 @@ export function PlannerComposition({
   commands,
   comparison,
   planWarnings = NO_WARNINGS,
-  onAddAdvisorStop
+  onAddAdvisorStop,
+  onPlanAdvisorRide,
+  advisorOrigin
 }: PlannerCompositionProps) {
   return (
     <PlannerDeck viewModel={viewModel} commands={commands}>
@@ -48,7 +55,9 @@ export function PlannerComposition({
               routes={comparison.routes}
               selectedRouteId={comparison.selectedId}
               warnings={planWarnings}
+              origin={advisorOrigin ?? null}
               onAddStop={onAddAdvisorStop}
+              {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
             />
           ) : null}
           <RouteComparison {...comparison} showRouteChoices={false} />

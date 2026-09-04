@@ -47,12 +47,19 @@ const candidateSchema = object_({
 }, { passthrough: true })
 
 const payloadSchema = object_({
-  context: object_({
+  // Absent while the rider is building a ride from scratch and the advisor is
+  // helping put one together.
+  context: optional(object_({
     selectedRouteId: string({ trim: true, min: 1, max: 120 }),
     candidates: array(candidateSchema, { min: 1, max: 6 }),
     geometry: array(coordinateSchema, { min: 2, max: 64 }),
     warnings: optional(array(string({ trim: true, max: 400 }), { max: 8 }))
-  }),
+  })),
+  origin: optional(object_({
+    lat: number({ finite: true, min: -90, max: 90 }),
+    lon: number({ finite: true, min: -180, max: 180 }),
+    label: optional(string({ trim: true, max: 160 }))
+  })),
   conversation: optional(array(object_({
     role: enum_(["rider", "advisor"] as const),
     text: string({ trim: true, min: 1, max: 2_000 })
@@ -89,15 +96,19 @@ export async function handleAdvisorPost(request: Request): Promise<Response> {
   const adviser = createAdviserFromEnvironment(process.env)
   if (!adviser) return Response.json({ ...emptyReply("no-key"), capability })
 
+  const context = parsed.data.context
   const input: AdviceRequest = {
-    context: {
-      selectedRouteId: parsed.data.context.selectedRouteId,
-      candidates: parsed.data.context.candidates as AdviceRequest["context"]["candidates"],
-      geometry: parsed.data.context.geometry,
-      warnings: parsed.data.context.warnings ?? []
-    },
+    context: context
+      ? {
+          selectedRouteId: context.selectedRouteId,
+          candidates: context.candidates as NonNullable<AdviceRequest["context"]>["candidates"],
+          geometry: context.geometry,
+          warnings: context.warnings ?? []
+        }
+      : null,
     conversation: parsed.data.conversation ?? [],
-    ...(parsed.data.riderMessage ? { riderMessage: parsed.data.riderMessage } : {})
+    ...(parsed.data.riderMessage ? { riderMessage: parsed.data.riderMessage } : {}),
+    ...(parsed.data.origin ? { origin: parsed.data.origin } : {})
   }
 
   const reply = await adviser.advise(input, request.signal)
