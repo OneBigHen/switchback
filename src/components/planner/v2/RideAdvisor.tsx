@@ -116,6 +116,7 @@ export function RideAdvisor({
   const pending = useRef<AbortController | null>(null)
   const currentScope = scopeFor(routes, selectedRouteId)
   const scopeRef = useRef(currentScope)
+  const scopeStale = scopeRef.current !== currentScope
 
   useEffect(() => {
     const controller = new AbortController()
@@ -125,25 +126,27 @@ export function RideAdvisor({
     return () => controller.abort()
   }, [])
 
-  // Route changes invalidate structured artifacts and any in-flight answer, but
-  // deliberately keep the transcript. That makes builder -> planned route a
-  // continuous conversation and lets a rider compare another candidate without
-  // losing the question they were discussing. The next turn always receives a
-  // fresh system briefing for the newly selected route.
+  // Route changes invalidate route-scoped artifacts and any in-flight answer,
+  // but deliberately keep the transcript. Hide stale artifacts immediately
+  // during render (`scopeStale` above), then publish the reset on the next
+  // animation frame. The asynchronous publish avoids a React effect->setState
+  // cascade while preserving the builder -> planned-route conversation.
   useEffect(() => {
     if (scopeRef.current === currentScope) return
+    const hadConversation = conversation.length > 0
     scopeRef.current = currentScope
     pending.current?.abort()
-    setBusy(false)
-    setStops([])
-    setRide(null)
-    setCitations([])
-    setSecondOpinion(null)
-    if (conversation.length > 0 && selectedRouteId) {
-      setNotice("Route changed — I’ll use the route you have selected now.")
-    } else {
-      setNotice(null)
-    }
+    const frame = window.requestAnimationFrame(() => {
+      setBusy(false)
+      setStops([])
+      setRide(null)
+      setCitations([])
+      setSecondOpinion(null)
+      setNotice(hadConversation && selectedRouteId
+        ? "Route changed — I’ll use the route you have selected now."
+        : null)
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [conversation.length, currentScope, selectedRouteId])
 
   useEffect(() => () => pending.current?.abort(), [])
@@ -151,18 +154,24 @@ export function RideAdvisor({
   if (!capability?.enabled) return null
 
   const hasRoute = routes.length > 0
+  const visibleStops = scopeStale ? [] : stops
+  const visibleRide = scopeStale ? null : ride
+  const visibleCitations = scopeStale ? [] : citations
+  const visibleSecondOpinion = scopeStale ? null : secondOpinion
+  const visibleBusy = scopeStale ? false : busy
+  const visibleNotice = scopeStale ? null : notice
   const nudge: Nudge | null = hasRoute
     ? selectNudge({ routes, selectedRouteId, dismissed: dismissedNudges })
     : null
 
   const ask = async (riderMessage?: string) => {
-    if (busy) return
+    if (busy && !scopeStale) return
     const context = hasRoute
       ? advisorContextFromPlan({ selectedRouteId, routes, warnings })
       : null
     pending.current?.abort()
     const controller = new AbortController()
-    const requestScope = scopeRef.current
+    const requestScope = currentScope
     pending.current = controller
     setBusy(true)
     setNotice(null)
@@ -280,10 +289,10 @@ export function RideAdvisor({
         </button>
       </header>
 
-      {secondOpinion ? <p className={styles.verdict} role="note">{secondOpinion}</p> : null}
+      {visibleSecondOpinion ? <p className={styles.verdict} role="note">{visibleSecondOpinion}</p> : null}
 
       <div className={styles.thread} role="log" aria-live="polite" aria-label="Advisor conversation">
-        {!hasRoute && conversation.length === 0 && !busy ? (
+        {!hasRoute && conversation.length === 0 && !visibleBusy ? (
           <p className={styles.emptyLead}>
             Tell me how long you have and what sounds fun. A start helps; if you haven’t picked one yet, name the town.
           </p>
@@ -293,17 +302,17 @@ export function RideAdvisor({
             {turn.text}
           </p>
         ))}
-        {busy ? <p className={styles.advisor}>Reading the roads…</p> : null}
-        {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
+        {visibleBusy ? <p className={styles.advisor}>Reading the roads…</p> : null}
+        {visibleNotice ? <p className={styles.notice} role="status">{visibleNotice}</p> : null}
       </div>
 
-      {citationList(citations)}
+      {citationList(visibleCitations)}
 
-      {ride && onPlanRide ? (
+      {visibleRide && onPlanRide ? (
         <div className={styles.ride} aria-label="Proposed ride">
           <span className={styles.rideBody}>
-            <strong>{ride.summary}</strong>
-            <small>{rideShape(ride)}</small>
+            <strong>{visibleRide.summary}</strong>
+            <small>{rideShape(visibleRide)}</small>
             <small className={styles.rideNote}>
               “Plan this ride” uses these exact settings. They stay editable in Ride options afterward.
             </small>
@@ -312,7 +321,7 @@ export function RideAdvisor({
             type="button"
             className={styles.plan}
             onClick={() => {
-              onPlanRide(ride)
+              onPlanRide(visibleRide)
               setRide(null)
             }}
           >
@@ -322,9 +331,9 @@ export function RideAdvisor({
         </div>
       ) : null}
 
-      {stops.length > 0 ? (
+      {visibleStops.length > 0 ? (
         <div className={styles.stops} aria-label="Suggested stops">
-          {stops.map((stop) => (
+          {visibleStops.map((stop) => (
             <div className={styles.stop} key={stop.id}>
               <span className={styles.stopBody}>
                 <strong>{stop.name}</strong>
@@ -351,7 +360,7 @@ export function RideAdvisor({
         </div>
       ) : null}
 
-      {conversation.length <= 1 && !busy ? (
+      {conversation.length <= 1 && !visibleBusy ? (
         <div className={styles.starters}>
           {(hasRoute ? STARTERS_WITH_ROUTE : STARTERS_NO_ROUTE).map((prompt) => (
             <button type="button" key={prompt} onClick={() => void ask(prompt)}>{prompt}</button>
@@ -377,7 +386,7 @@ export function RideAdvisor({
           aria-label="Ask the ride advisor"
           onChange={(event) => setDraft(event.currentTarget.value)}
         />
-        <button type="submit" aria-label="Send to the ride advisor" disabled={busy || draft.trim().length === 0}>
+        <button type="submit" aria-label="Send to the ride advisor" disabled={visibleBusy || draft.trim().length === 0}>
           <ArrowUp weight="bold" aria-hidden="true" />
         </button>
       </form>
