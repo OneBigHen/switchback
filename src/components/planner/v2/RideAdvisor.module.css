@@ -228,17 +228,6 @@
   color: var(--sb-text);
 }
 
-.verdict {
-  margin: 0;
-  padding: 8px 10px;
-  border-left: 2px solid color-mix(in srgb, var(--goblin-dirt) 76%, var(--sb-ember-strong));
-  border-radius: 0 8px 8px 0;
-  background: color-mix(in srgb, var(--goblin-dirt) 7%, transparent);
-  color: var(--sb-text);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
 .thread {
   display: grid;
   gap: 8px;
