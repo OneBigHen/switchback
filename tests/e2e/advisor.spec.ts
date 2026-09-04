@@ -187,6 +187,74 @@ test("AI builder is available before routing and becomes the route advisor after
 })
 
 
+test("a route-only question shows deterministic route facts, never a bare spinner", async ({ page }) => {
+  await mockBase(page)
+  let turn = 0
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    turn += 1
+    if (turn === 1) {
+      // First turn builds the ride, so the planner has a route to talk about.
+      await routeRequest.fulfill({
+        status: 200, contentType: "application/json", body: JSON.stringify(builderReply)
+      })
+      return
+    }
+    // Second turn is the route-only question. Hold it open so the working
+    // state is observable: the point of the mode is that the rider is not
+    // staring at nothing while this happens.
+    await new Promise((resolve) => setTimeout(resolve, 2_500))
+    await routeRequest.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        status: "ok",
+        message: "Take the gravel — the extra time buys real dirt.",
+        secondOpinion: null, proposedStops: [], proposedRide: null, citations: [],
+        usage: { toolCalls: 0, groundedQueries: 0, mode: "route-only", answeredBy: "openrouter" },
+        capability
+      })
+    })
+  })
+  await page.route("**/api/routes", async (routeRequest) => {
+    await routeRequest.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ selectedRouteId: route.id, warnings: [], routes: [route] })
+    })
+  })
+
+  await page.goto(appUrl)
+  await page.getByRole("button", { name: "Plan a ride with me" }).click()
+  const composer = page.getByRole("textbox", { name: "Ask the ride advisor" })
+  await composer.fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to the ride advisor" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "What I'd do" })).toBeVisible()
+
+  // Now a question answerable from the briefing alone.
+  await composer.fill("Worth the extra 25 minutes?")
+  await page.getByRole("button", { name: "Send to the ride advisor" }).click()
+
+  // While the turn is in flight the rider sees the arithmetic Switchback
+  // already did — a real fact, not "Reading the roads…" and not a preview of
+  // the model's verdict.
+  const working = page.getByText(/Weighing .*(min|unpaved|curve)/)
+  await expect(working).toBeVisible()
+  const workingText = (await working.textContent()) ?? ""
+  for (const verdict of ["worth", "recommend", "better", "should"]) {
+    expect(workingText.toLowerCase()).not.toContain(verdict)
+  }
+
+  // It is replaced by the validated answer, never left alongside it.
+  await expect(page.getByText("Take the gravel — the extra time buys real dirt.")).toBeVisible()
+  await expect(working).toHaveCount(0)
+})
+
 test("the advisor surface does not exist at all when the capability is absent", async ({ page }) => {
   await mockBase(page)
   const posts: Array<Record<string, unknown>> = []

@@ -187,21 +187,51 @@ const PERSONA = [
   "   unless the supplied route facts or a tool gave you that fact. Say what you do not know.",
   "6. Never contradict a warning Switchback already showed the rider.",
   "",
-  "HOW TO WORK: give a useful answer fast. Look things up when the question needs fresh place",
-  "character or a routable point. Use find_stops for mapped stops, find_good_roads for locally",
-  "scored road character, and lookup_place to pin any named destination. Do not call tools just",
-  "to sound busy. One confident recommendation is better than a dump of six mediocre options.",
-  "",
   "STYLE: plain, specific and opinionated. Usually two or three short sentences. Say why the",
   "trade is worth it in rider terms: minutes, miles, mapped surface, curves, a named road or a",
   "real stop. No corporate filler, no exclamation-mark hype, no faux certainty, no nagging."
 ].join("\n")
 
+/**
+ * The working instructions that only make sense when tools are actually
+ * attached. Kept out of the persona so a route-only turn is not handed advice
+ * to call functions it was deliberately not given — which is both wasted prompt
+ * and a direct contradiction of the turn's own contract.
+ */
+const TOOL_WORKING_RULE = [
+  "HOW TO WORK: give a useful answer fast. Look things up when the question needs fresh place",
+  "character or a routable point. Use find_stops for mapped stops, find_good_roads for locally",
+  "scored road character, and lookup_place to pin any named destination. Do not call tools just",
+  "to sound busy. One confident recommendation is better than a dump of six mediocre options."
+].join("\n")
+
+/**
+ * What a turn with no tools must be told instead of "look things up".
+ *
+ * The persona's working instructions name find_stops, find_good_roads and
+ * lookup_place. On a route-only turn those declarations are deliberately not
+ * sent, so repeating that advice would invite the model to ask for a tool that
+ * does not exist and burn the round trip the mode exists to save.
+ */
+const ROUTE_ONLY_WORKING_RULE = [
+  "THIS TURN HAS NO TOOLS. Everything you need is in the route facts above; they are the",
+  "complete set of facts you may use. Answer directly from them in one pass.",
+  "Do not ask to look anything up, do not propose stops, and do not return proposedRide —",
+  "you cannot pin a place this turn, and an unpinned place is rejected by the resolver.",
+  "If the question genuinely needs a place you were not given, say plainly what you would",
+  "need to look up rather than guessing at it."
+].join("\n")
+
 /** The system instruction for one turn, including the ride under discussion. */
-export function advisorSystemPrompt(input: AdviceRequest): string {
+export function advisorSystemPrompt(
+  input: AdviceRequest,
+  mode: "route-only" | "tool-assisted" | "maps-specialist" = "tool-assisted"
+): string {
   const parts = [PERSONA]
+  if (mode !== "route-only") parts.push("", TOOL_WORKING_RULE)
   if (input.context) {
     parts.push("", briefingText(input.context))
+    if (mode === "route-only") parts.push("", ROUTE_ONLY_WORKING_RULE)
     return parts.join("\n")
   }
   parts.push(

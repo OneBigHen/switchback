@@ -11,6 +11,8 @@ import type {
 import type { AdvisorCapability } from "@/lib/advice/capability"
 import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
+import { classifyTurn } from "@/lib/advice/execution-policy"
+import { workingStateLine } from "@/lib/advice/working-state"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
 import type { PlannedRoute } from "@/lib/routing/types"
 import styles from "./RideAdvisor.module.css"
@@ -110,6 +112,7 @@ export function RideAdvisor({
   const [citations, setCitations] = useState<GroundingCitation[]>([])
   const [secondOpinion, setSecondOpinion] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [working, setWorking] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [dismissedNudges, setDismissedNudges] = useState<string[]>([])
@@ -160,6 +163,7 @@ export function RideAdvisor({
     pending.current = null
     setScope(currentScope)
     setBusy(false)
+    setWorking(null)
     setStops([])
     setRide(null)
     setCitations([])
@@ -190,6 +194,7 @@ export function RideAdvisor({
   const visibleCitations = scopeStale ? [] : citations
   const visibleSecondOpinion = scopeStale ? null : secondOpinion
   const visibleBusy = scopeStale ? false : busy
+  const visibleWorking = scopeStale ? null : working
   const visibleNotice = scopeStale ? null : notice
   const nudge: Nudge | null = hasRoute
     ? selectNudge({ routes, selectedRouteId, dismissed: dismissedNudges })
@@ -205,6 +210,18 @@ export function RideAdvisor({
     const requestScope = currentScope
     pending.current = controller
     setBusy(true)
+    // A route-only turn is answered from facts Switchback already computed, so
+    // say which comparison is being made rather than showing a bare spinner.
+    // Local deterministic data only — never a preview of the model's answer.
+    setWorking(
+      context && classifyTurn({
+        context,
+        conversation: [],
+        ...(riderMessage ? { riderMessage } : {})
+      }) === "route-only"
+        ? workingStateLine({ routes, selectedRouteId })
+        : null
+    )
     setNotice(null)
     const history = conversation.map(({ role, text }): AdvisorMessage => ({ role, text }))
     const asked = riderMessage
@@ -242,7 +259,10 @@ export function RideAdvisor({
           : `Would take “${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}” instead — ${reply.secondOpinion.rationale}`
         : null)
     } finally {
-      if (pending.current === controller) setBusy(false)
+      if (pending.current === controller) {
+        setBusy(false)
+        setWorking(null)
+      }
     }
   }
 
@@ -333,7 +353,9 @@ export function RideAdvisor({
             {turn.text}
           </p>
         ))}
-        {visibleBusy ? <p className={styles.advisor}>Reading the roads…</p> : null}
+        {visibleBusy ? (
+          <p className={styles.advisor}>{visibleWorking ?? "Reading the roads…"}</p>
+        ) : null}
         {visibleNotice ? <p className={styles.notice} role="status">{visibleNotice}</p> : null}
       </div>
 

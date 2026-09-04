@@ -357,6 +357,17 @@ describe("advisor toolbox", () => {
   })
 })
 
+/**
+ * A question that deliberately classifies as `tool-assisted`.
+ *
+ * The opening read (no rider message) is now a `route-only` turn: one request,
+ * no declarations, answered from the briefing. Tests below that exercise the
+ * tool loop, Maps grounding, or the prose fallback have to ask something that
+ * actually needs a place looked up, or they would be asserting against a code
+ * path the turn never enters.
+ */
+const TOOL_TURN = "Find a brewery near the halfway point."
+
 describe("gemini adviser", () => {
   it("runs a grounded tool round, then asks for structured JSON without the built-in tool", async () => {
     const searchPlaces = vi.fn(async () => [photonResult])
@@ -384,7 +395,7 @@ describe("gemini adviser", () => {
       mapsGrounding: true,
       toolbox: createAdvisorToolbox({ searchPlaces: searchPlaces as never })
     })
-    const reply = await adviser.advise({ context, conversation: [] })
+    const reply = await adviser.advise({ context, conversation: [], riderMessage: TOOL_TURN })
 
     expect(reply.status).toBe("ok")
     expect(reply.secondOpinion?.wouldPick).toBe("best-ride")
@@ -401,7 +412,10 @@ describe("gemini adviser", () => {
     expect(first.generationConfig.responseMimeType).toBeUndefined()
 
     const last = calls.at(-1) as { tools?: unknown[]; generationConfig: Record<string, unknown> }
-    expect(last.tools).not.toContainEqual({ google_maps: {} })
+    // The answer-only pass offers no tools at all — not merely Maps minus the
+    // built-in. Handing the model declarations it cannot be serviced on would
+    // invite a tool call this pass will never execute.
+    expect(last.tools).toBeUndefined()
     expect(last.generationConfig.responseMimeType).toBe("application/json")
     expect(last.generationConfig.responseJsonSchema).toBeDefined()
   })
@@ -478,7 +492,7 @@ describe("gemini adviser", () => {
       mapsGrounding: true,
       toolbox: createAdvisorToolbox({ searchPlaces: (async () => [photonResult]) as never })
     })
-    const reply = await adviser.advise({ context, conversation: [] })
+    const reply = await adviser.advise({ context, conversation: [], riderMessage: TOOL_TURN })
 
     expect(reply.usage.groundedQueries).toBe(1)
     expect(reply.citations).toContainEqual({
@@ -496,7 +510,7 @@ describe("gemini adviser", () => {
       mapsGrounding: false,
       toolbox: createAdvisorToolbox({})
     })
-    await adviser.advise({ context, conversation: [] })
+    await adviser.advise({ context, conversation: [], riderMessage: TOOL_TURN })
 
     const first = calls[0] as { tools: unknown[]; toolConfig: Record<string, unknown> }
     expect(first.tools).not.toContainEqual({ google_maps: {} })
@@ -578,7 +592,7 @@ describe("gemini adviser", () => {
     ])
     const reply = await createGeminiAdviser({
       apiKey: "k", fetcher, toolbox: createAdvisorToolbox({})
-    }).advise({ context, conversation: [] })
+    }).advise({ context, conversation: [], riderMessage: TOOL_TURN })
 
     expect(reply.status).toBe("ok")
     expect(reply.message).toBe("Take the gravel one, it's the whole point.")
@@ -595,7 +609,7 @@ describe("gemini adviser", () => {
     ])
     expect((await createGeminiAdviser({
       apiKey: "k", fetcher: uncited.fetcher, mapsGrounding: true, toolbox: createAdvisorToolbox({})
-    }).advise({ context, conversation: [] })).status).toBe("malformed")
+    }).advise({ context, conversation: [], riderMessage: TOOL_TURN })).status).toBe("malformed")
 
     const cited = stubGemini([
       {
@@ -610,7 +624,7 @@ describe("gemini adviser", () => {
     ])
     const grounded = await createGeminiAdviser({
       apiKey: "k", fetcher: cited.fetcher, mapsGrounding: true, toolbox: createAdvisorToolbox({})
-    }).advise({ context, conversation: [] })
+    }).advise({ context, conversation: [], riderMessage: TOOL_TURN })
     expect(grounded.status).toBe("ok")
     expect(grounded.message).toBe("The brewery there is excellent.")
     expect(grounded.citations.map((citation) => citation.source)).toContain("google-maps")
@@ -623,7 +637,7 @@ describe("gemini adviser", () => {
     ])
     const reply = await createGeminiAdviser({
       apiKey: "k", fetcher, mapsGrounding: true, toolbox: createAdvisorToolbox({})
-    }).advise({ context, conversation: [] })
+    }).advise({ context, conversation: [], riderMessage: TOOL_TURN })
     expect(reply.status).toBe("malformed")
     expect(reply.message).toBe("")
   })
