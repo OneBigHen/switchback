@@ -3,6 +3,7 @@ import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-req
 import { getProfile } from "./profiles"
 import { analyzeGeometry, calculateDetailDistribution, curvedDistanceShare, type DetailInterval } from "./scoring"
 import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
+import { sketchCorridorContext } from "./sketch-corridor"
 
 export class GraphHopperProviderError extends Error {
   constructor(
@@ -204,7 +205,8 @@ export function normalizeGraphHopperPath(
     ...normalized,
     routeScore: scorePlannedRoute(normalized, {
       profile: request.profile,
-      bikeProfile: request.bikeProfile
+      bikeProfile: request.bikeProfile,
+      corridor: sketchCorridorContext(request.sketchCorridor)
     })
   }
 }

@@ -61,4 +61,9 @@ export interface MapStageProps {
   onLocateMe?(point: { lat: number; lon: number }): void
   /** Live breadcrumb trail for a recording session in ride mode. */
   recordingTrail?: Coordinate[] | null
+  /**
+   * The rider's last free-draw stroke, kept on the map as a dashed reference
+   * so each corridor option can be read against what they actually drew.
+   */
+  sketchReference?: Coordinate[] | null
 }

@@ -26,6 +26,12 @@ interface BuildRideTripRequestOptions {
   tollPolicy?: TollPolicy
   planningId?: string
   candidateSet?: CandidateSet
+  /**
+   * The rider's free-draw stroke, evenly resampled. Carried through to the
+   * planner so the alternatives call can offer corridor options instead of
+   * collapsing onto the stroke's hard shaping vias.
+   */
+  sketchCorridor?: Coordinate[]
 }
 
 /**
@@ -79,10 +85,12 @@ export function buildRideTripRequest({
   segmentProfiles,
   tollPolicy,
   planningId,
-  candidateSet
+  candidateSet,
+  sketchCorridor
 }: BuildRideTripRequestOptions): TripPlanRequest {
   if (!start) throw new Error("Choose a start point first.")
   const roadLocksPayload = roadLocks.length > 0 ? { roadLocks } : {}
+  const corridorPayload = sketchCorridor && sketchCorridor.length >= 2 ? { sketchCorridor } : {}
   const bikeProfilePayload = bikeProfile ? { bikeProfile } : {}
   const progressive = progressiveMetadata({ planningId, candidateSet })
   if (mode === "destination") {
@@ -100,7 +108,8 @@ export function buildRideTripRequest({
         : {}),
       ...progressive,
       ...bikeProfilePayload,
-      ...roadLocksPayload
+      ...roadLocksPayload,
+      ...corridorPayload
     }
   }
 
@@ -119,7 +128,8 @@ export function buildRideTripRequest({
       ...(tollPolicy ? { tollPolicy } : {}),
       ...progressive,
       ...bikeProfilePayload,
-      ...roadLocksPayload
+      ...roadLocksPayload,
+      ...corridorPayload
     }
   }
   return {
@@ -132,6 +142,7 @@ export function buildRideTripRequest({
     ...progressive,
     ...bikeProfilePayload,
     ...roadLocksPayload,
+    ...corridorPayload,
     // No `heading`: GraphHopper's round_trip + headings combination fails to
     // find a valid point in some areas (its "after 3 tries ... NaN" error),
     // surfacing as a generic "couldn't be routed" failure. The round_trip

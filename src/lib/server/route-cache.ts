@@ -91,7 +91,14 @@ export function routeCacheKey(request: RouteRequest): string {
           heading: request.roundTrip.heading ?? null
         }
       : null,
-    candidateSet: request.candidateSet ?? "primary"
+    candidateSet: request.candidateSet ?? "primary",
+    // The drawn stroke changes the response (the primary carries its
+    // adherence), so two plans over identical points but different strokes
+    // must not share a cache entry.
+    sketchCorridor: (request.sketchCorridor ?? []).map((coordinate) => [
+      roundCoordinate(coordinate[0]),
+      roundCoordinate(coordinate[1])
+    ])
   }
   return JSON.stringify(normalized)
 }

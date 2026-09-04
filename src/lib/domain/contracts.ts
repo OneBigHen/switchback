@@ -184,6 +184,8 @@ export interface RouteScore {
   confidence: number
   preferenceFit: number
   etaPenalty: number
+  /** 0-100 fit against a rider's drawn stroke; absent when none was drawn. */
+  corridorAdherence?: number
   explanations: string[]
   /** Kept as an alias for clients that use the shorter product wording. */
   explanation: string[]

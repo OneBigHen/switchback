@@ -3,6 +3,7 @@ import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain
 import { getProfile } from "./profiles"
 import { analyzeGeometry } from "./scoring"
 import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
+import { sketchCorridorContext } from "./sketch-corridor"
 
 export interface ValhallaOptions {
   baseUrl: string
@@ -541,7 +542,8 @@ function normalizeTrip(
     ...normalized,
     routeScore: scorePlannedRoute(normalized, {
       profile: request.profile,
-      bikeProfile: request.bikeProfile
+      bikeProfile: request.bikeProfile,
+      corridor: sketchCorridorContext(request.sketchCorridor)
     })
   }
 }
