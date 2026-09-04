@@ -1,0 +1,40 @@
+name: Patch toll ride option
+
+on:
+  push:
+    branches: [feat/route-advisor]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/route-advisor
+          fetch-depth: 0
+      - name: Replace toll selector with standard checkbox
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/components/planner/PlannerDeck.tsx')
+          text = path.read_text()
+          old = '''            {editing ? (\n              <section className="plan-v2__option-group plan-v2__toll-policy" role="group" aria-label="Toll policy">\n                <h3>Tolls</h3>\n                <p>Choose whether toll roads may appear. Switchback still calls out known toll exposure on route choices.</p>\n                <div className="plan-v2__profile-list" role="group" aria-label="Toll routing preference">\n                  <button\n                    type="button"\n                    className={tollPolicy === "allow-with-warning" ? "is-selected" : undefined}\n                    aria-pressed={tollPolicy === "allow-with-warning"}\n                    onClick={() => onTollPolicyChange("allow-with-warning")}\n                  >\n                    Allow + warn\n                  </button>\n                  <button\n                    type="button"\n                    className={tollPolicy === "avoid" ? "is-selected" : undefined}\n                    aria-pressed={tollPolicy === "avoid"}\n                    onClick={() => onTollPolicyChange("avoid")}\n                  >\n                    Avoid tolls\n                  </button>\n                </div>\n              </section>\n            ) : null}'''
+          new = '''            {editing ? (\n              <section className="plan-v2__option-group plan-v2__toll-policy" aria-label="Toll policy">\n                <h3>Tolls</h3>\n                <p>Known toll exposure is always disclosed. Avoid it entirely when that matters for this ride.</p>\n                <label className="plan-v2__check-row">\n                  <input\n                    type="checkbox"\n                    checked={tollPolicy === "avoid"}\n                    onChange={(event) => onTollPolicyChange(event.target.checked ? "avoid" : "allow-with-warning")}\n                  />\n                  <span>Avoid tolls</span>\n                </label>\n              </section>\n            ) : null}'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one toll selector, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit narrow change and remove helper workflow
+        shell: bash
+        run: |
+          git config user.name 'switchback-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/patch-toll-ui.yml
+          git add src/components/planner/PlannerDeck.tsx
+          git diff --cached --check
+          git commit -m 'fix(planner): make toll avoidance a standard ride option'
+          git push origin HEAD:feat/route-advisor
