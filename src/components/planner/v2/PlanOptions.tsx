@@ -162,10 +162,11 @@ export function PlanOptions({
 
       {open ? (
         <section id="plan-v2-options-panel" className="plan-v2__options-panel" aria-label="Ride options">
-          <OptionGroup name="Route">
-            <h3>Route</h3>
+          <OptionGroup name="Ride character">
+            <h3>Ride character</h3>
+            <p>Choose how the ride should feel, then decide whether time or the fastest arrival matters more.</p>
             <div className="plan-v2__profile-control" role="group" aria-label="Motorcycle routing profile">
-              <span className="plan-v2__control-label">Route preference</span>
+              <span className="plan-v2__control-label">Road feel</span>
               <div className="plan-v2__profile-list">
                 {profiles.map((item) => (
                   <button
@@ -180,115 +181,12 @@ export function PlanOptions({
                 ))}
               </div>
               <p>{profiles.find((item) => item.id === profile)?.description}</p>
-              {onOpenLibrary ? (
-                <button type="button" className="plan-v2__inline-action" onClick={onOpenLibrary}>
-                  Library{savedCount > 0 ? ` · ${savedCount}` : ""}
-                </button>
-              ) : null}
             </div>
-            <label className="plan-v2__check-row">
-              <input type="checkbox" checked={avoidHighways} onChange={(event) => onAvoidHighwaysChange(event.target.checked)} />
-              <span>Avoid highways</span>
-            </label>
-            <label className="plan-v2__check-row">
-              <input
-                type="checkbox"
-                checked={tollPolicy === "avoid"}
-                onChange={(event) => onTollPolicyChange(event.target.checked ? "avoid" : "allow-with-warning")}
-              />
-              <span>Avoid tolls</span>
-            </label>
-            <p>Toll exposure is disclosed either way; avoid it entirely when that matters for this ride.</p>
-          </OptionGroup>
-
-          <OptionGroup name="Bike">
-            <h3>Bike</h3>
-            <BikeProfilePicker
-              value={bikeProfile}
-              onChange={onBikeProfileChange}
-              routingProfile={profile}
-              id="plan-v2-bike-profile-picker"
-            />
-            <label className="plan-v2__check-row">
-              <input type="checkbox" checked={curvatureVisible} onChange={(event) => onCurvatureChange(event.target.checked)} />
-              <span>Show high-curvature roads</span>
-            </label>
-          </OptionGroup>
-
-          <OptionGroup name="Edit route">
-            <h3>Edit route</h3>
-            <p>Adjust the points that shape this ride without changing your ride preferences.</p>
-            <div className="plan-v2__waypoint-stack">
-              <WaypointField
-                id="start"
-                label="Start"
-                point={start}
-                query={startQuery}
-                armed={armedPoint === "start"}
-                onSelect={(point) => onPointChange("start", point)}
-                onQueryChange={(query) => onPointQueryChange("start", query)}
-                onArm={() => onArm("start")}
-                placeholder="Search start"
-              />
-              {planMode === "destination" ? (
-                <WaypointField
-                  id="finish"
-                  label="Finish"
-                  point={finish}
-                  query={finishQuery}
-                  armed={armedPoint === "finish"}
-                  onSelect={(point) => onPointChange("finish", point)}
-                  onQueryChange={(query) => onPointQueryChange("finish", query)}
-                  onArm={() => onArm("finish")}
-                  placeholder="Search destination"
-                />
-              ) : null}
-            </div>
-            {planMode === "destination" ? (
-              <button type="button" className="plan-v2__inline-action" onClick={onSwap}>Swap start and finish</button>
-            ) : null}
-            {home || start ? (
-              <div className="plan-v2__home-actions" aria-label="Home location">
-                {home && onUseHome ? <button type="button" onClick={onUseHome}>Use Home</button> : null}
-                {start && onSaveHome ? <button type="button" onClick={onSaveHome}>Save start as Home</button> : null}
-                {home && onClearHome ? <button type="button" onClick={onClearHome}>Remove Home</button> : null}
-              </div>
-            ) : null}
-            <button type="button" className="plan-v2__inline-action" aria-pressed={addingVia} onClick={onToggleAddVia}>
-              {addingVia ? <X aria-hidden="true" /> : <Plus weight="bold" aria-hidden="true" />}
-              {addingVia ? "Cancel map pick" : "Add stop on map"}
-            </button>
-            <button type="button" className="plan-v2__inline-action" aria-label="Exclude an area on map" onClick={() => requestMapEdit("exclude-area")}>
-              Exclude an area on map
-            </button>
-            {via.length > 0 ? (
-              <div className="plan-v2__via-points" aria-label="Shaping stops">
-                {via.map((point, index) => (
-                  <div key={`${point.lat}-${point.lon}-${index}`}>
-                    <span><b>{index + 1}</b> {point.label ?? `Shaping stop ${index + 1}`}</span>
-                    <span className="plan-v2__via-actions">
-                      <button type="button" aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} earlier`} disabled={index === 0} onClick={() => onMoveVia(index, index - 1)}>↑</button>
-                      <button type="button" aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} later`} disabled={index === via.length - 1} onClick={() => onMoveVia(index, index + 1)}>↓</button>
-                      <button type="button" aria-label={`Remove ${point.label ?? `shaping stop ${index + 1}`}`} onClick={() => onRemoveVia(index)}>×</button>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <div className="plan-v2__edit-actions" aria-label="Route edit history">
-              <button type="button" aria-label="Undo route edit" disabled={!canUndoRoutePoints} onClick={onUndoRoutePoints}>Undo</button>
-              <button type="button" aria-label="Redo route edit" disabled={!canRedoRoutePoints} onClick={onRedoRoutePoints}>Redo</button>
-              <button type="button" aria-label="Reverse route" disabled={planMode === "destination" ? !start || !finish : via.length === 0} onClick={onReverseRoute}>Reverse</button>
-            </div>
-          </OptionGroup>
-
-          <OptionGroup name={planMode === "loop" ? "Timing" : "Ride time"}>
-            <h3>{planMode === "loop" ? "Timing" : "Ride time"}</h3>
-            {planMode === "destination" ? (
-              <p>Fastest by default. Set a target time to trade minutes for better roads — the extra minutes vs the fast route show on every option.</p>
-            ) : null}
             <div className="plan-v2__time-budget" aria-label={planMode === "loop" ? "Loop duration" : "Target ride time"}>
-              <span><Clock aria-hidden="true" /> Ride time</span>
+              <span><Clock aria-hidden="true" /> {planMode === "loop" ? "Loop duration" : "Ride time"}</span>
+              {planMode === "destination" ? (
+                <p>Fastest by default. Set a target to trade extra minutes for roads worth riding.</p>
+              ) : null}
               <div className="plan-v2__time-presets">
                 {planMode === "destination" ? (
                   <button
@@ -343,15 +241,99 @@ export function PlanOptions({
             </div>
           </OptionGroup>
 
-          <OptionGroup name="Road preferences">
-            <h3>Road preferences</h3>
-            <p>{featureFlags.roadRequirements ? "Prefer roads for route character or require a corridor when strict matching is available." : "Tell Switchback which roads you would rather use when it can route them safely."}</p>
+          <OptionGroup name="Shape route">
+            <h3>Shape route</h3>
+            <p>Add stops, pull the ride toward roads you want, or change the endpoints. Nothing here changes your overall ride character.</p>
+            <div className="plan-v2__waypoint-stack">
+              <WaypointField
+                id="start"
+                label="Start"
+                point={start}
+                query={startQuery}
+                armed={armedPoint === "start"}
+                onSelect={(point) => onPointChange("start", point)}
+                onQueryChange={(query) => onPointQueryChange("start", query)}
+                onArm={() => onArm("start")}
+                placeholder="Search start"
+              />
+              {planMode === "destination" ? (
+                <WaypointField
+                  id="finish"
+                  label="Finish"
+                  point={finish}
+                  query={finishQuery}
+                  armed={armedPoint === "finish"}
+                  onSelect={(point) => onPointChange("finish", point)}
+                  onQueryChange={(query) => onPointQueryChange("finish", query)}
+                  onArm={() => onArm("finish")}
+                  placeholder="Search destination"
+                />
+              ) : null}
+            </div>
+            {planMode === "destination" ? (
+              <button type="button" className="plan-v2__inline-action" onClick={onSwap}>Swap start and finish</button>
+            ) : null}
+            {home || start ? (
+              <div className="plan-v2__home-actions" aria-label="Home location">
+                {home && onUseHome ? <button type="button" onClick={onUseHome}>Use Home</button> : null}
+                {start && onSaveHome ? <button type="button" onClick={onSaveHome}>Save start as Home</button> : null}
+                {home && onClearHome ? <button type="button" onClick={onClearHome}>Remove Home</button> : null}
+              </div>
+            ) : null}
+            <button type="button" className="plan-v2__inline-action" aria-pressed={addingVia} onClick={onToggleAddVia}>
+              {addingVia ? <X aria-hidden="true" /> : <Plus weight="bold" aria-hidden="true" />}
+              {addingVia ? "Cancel map pick" : "Add stop on map"}
+            </button>
             <button type="button" className="plan-v2__road-locks" aria-label="Prefer a road on map" onClick={() => requestMapEdit("prefer-road")}>
               <LockSimple aria-hidden="true" />
               <span>{featureFlags.roadRequirements ? "Prefer or require a road on map" : "Prefer a road on map"}</span>
             </button>
             <button type="button" className="plan-v2__inline-action" onClick={onOpenRoadLocks}>
-              Manage road preferences{roadLockCount > 0 ? ` · ${roadLockCount}` : ""}
+              Manage preferred roads{roadLockCount > 0 ? ` · ${roadLockCount}` : ""}
+            </button>
+            {onOpenLibrary ? (
+              <button type="button" className="plan-v2__inline-action" onClick={onOpenLibrary}>
+                Open route library{savedCount > 0 ? ` · ${savedCount}` : ""}
+              </button>
+            ) : null}
+            {via.length > 0 ? (
+              <div className="plan-v2__via-points" aria-label="Shaping stops">
+                {via.map((point, index) => (
+                  <div key={`${point.lat}-${point.lon}-${index}`}>
+                    <span><b>{index + 1}</b> {point.label ?? `Shaping stop ${index + 1}`}</span>
+                    <span className="plan-v2__via-actions">
+                      <button type="button" aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} earlier`} disabled={index === 0} onClick={() => onMoveVia(index, index - 1)}>↑</button>
+                      <button type="button" aria-label={`Move ${point.label ?? `shaping stop ${index + 1}`} later`} disabled={index === via.length - 1} onClick={() => onMoveVia(index, index + 1)}>↓</button>
+                      <button type="button" aria-label={`Remove ${point.label ?? `shaping stop ${index + 1}`} `} onClick={() => onRemoveVia(index)}>×</button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className="plan-v2__edit-actions" aria-label="Route edit history">
+              <button type="button" aria-label="Undo route edit" disabled={!canUndoRoutePoints} onClick={onUndoRoutePoints}>Undo</button>
+              <button type="button" aria-label="Redo route edit" disabled={!canRedoRoutePoints} onClick={onRedoRoutePoints}>Redo</button>
+              <button type="button" aria-label="Reverse route" disabled={planMode === "destination" ? !start || !finish : via.length === 0} onClick={onReverseRoute}>Reverse</button>
+            </div>
+          </OptionGroup>
+
+          <OptionGroup name="Avoid">
+            <h3>Avoid</h3>
+            <p>Keep the route away from roads or areas that do not fit this ride.</p>
+            <label className="plan-v2__check-row">
+              <input type="checkbox" checked={avoidHighways} onChange={(event) => onAvoidHighwaysChange(event.target.checked)} />
+              <span>Avoid highways</span>
+            </label>
+            <label className="plan-v2__check-row">
+              <input
+                type="checkbox"
+                checked={tollPolicy === "avoid"}
+                onChange={(event) => onTollPolicyChange(event.target.checked ? "avoid" : "allow-with-warning")}
+              />
+              <span>Avoid tolls</span>
+            </label>
+            <button type="button" className="plan-v2__inline-action" aria-label="Exclude an area on map" onClick={() => requestMapEdit("exclude-area")}>
+              Exclude an area on map
             </button>
             {avoidAreaCount > 0 ? (
               <div className="plan-v2__avoid-area-summary">
@@ -361,10 +343,25 @@ export function PlanOptions({
             ) : null}
           </OptionGroup>
 
+          <OptionGroup name="Bike & map">
+            <h3>Bike & map</h3>
+            <p>Bike context can change which roads make sense. Map overlays change only what you see.</p>
+            <BikeProfilePicker
+              value={bikeProfile}
+              onChange={onBikeProfileChange}
+              routingProfile={profile}
+              id="plan-v2-bike-profile-picker"
+            />
+            <label className="plan-v2__check-row">
+              <input type="checkbox" checked={curvatureVisible} onChange={(event) => onCurvatureChange(event.target.checked)} />
+              <span>Show high-curvature roads</span>
+            </label>
+          </OptionGroup>
+
           {planMode === "destination" && start && finish && segmentProfiles.length > 0 ? (
             <OptionGroup name="Advanced">
               <h3>Advanced</h3>
-              <p>Route character by leg</p>
+              <p>Give individual legs a different road character when one profile for the whole ride is not enough.</p>
               {via.map((point, index) => {
                 const label = point.label ?? `shaping stop ${index + 1}`
                 return (
