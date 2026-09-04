@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, SpinnerGap, X } from "@phosphor-icons/react"
+import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
 import { useCallback, useEffect, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
@@ -161,7 +161,7 @@ export function PlanComposer({
   researchSources = [],
   onResearchRideIdea
 }: PlanComposerProps) {
-  const placeholder = planMode === "loop" ? "Where should the loop start?" : "Search a place or describe a ride"
+  const placeholder = planMode === "loop" ? "Where should the loop start?" : "Where to — or describe your ride"
   const planningBusy = !SETTLED_PLANNING_PHASES.has(planningPhase)
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
@@ -246,9 +246,12 @@ export function PlanComposer({
           <PlanModeSelector
             value={planMode}
             onChange={onPlanModeChange}
-            onDraw={onDraw}
             disabled={requestBusy}
           />
+          <button type="button" className="plan-v2__draw-action" disabled={requestBusy} onClick={onDraw}>
+            <PencilLine aria-hidden="true" />
+            <span>Draw route</span>
+          </button>
           {onStartFreeRide ? (
             <button type="button" className="plan-v2__free-ride" disabled={requestBusy} onClick={onStartFreeRide}>
               <NavigationArrow weight="fill" aria-hidden="true" />
