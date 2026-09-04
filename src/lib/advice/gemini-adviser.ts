@@ -18,21 +18,17 @@ import { FINAL_ANSWER_SCHEMA, resolveFinalAnswer } from "./resolve-answer"
 /**
  * The advisor, on Gemini directly.
  *
- * Two phases, because the API requires it — verified against the live endpoint:
+ * Two phases, because the API requires it:
  *
- * 1. **Grounded tool rounds.** Our function declarations *plus* Gemini's
- *    server-side `google_maps` tool, enabled together with
- *    `toolConfig.include_server_side_tool_invocations`. The model looks places
- *    up, asks Maps what they are actually like, and pins them to coordinates
- *    through Switchback's geocoder.
- * 2. **A strict structured answer.** `google_maps` cannot be combined with a
- *    JSON response mime type — the API rejects it outright — so the final turn
- *    drops the built-in tool and asks for `responseJsonSchema`. Grounding
- *    citations gathered in phase 1 are carried across.
+ * 1. **Grounded tool rounds.** Our function declarations plus Gemini's
+ *    server-side `google_maps` tool. Places can be researched, but anything that
+ *    becomes a route point still has to be resolved by Switchback.
+ * 2. **A strict structured answer.** Maps grounding and a JSON response schema
+ *    cannot share the same request, so the final pass drops Maps and asks for
+ *    the schema. Resolvers then distrust the result again.
  *
- * Every failure degrades to an `AdvisorReply` with a status, never an
- * exception. The advisor is optional evidence and is never on the routing
- * critical path.
+ * Every failure degrades to an `AdvisorReply` with a status. The advisor is
+ * optional evidence and is never on the routing critical path.
  */
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
@@ -43,7 +39,7 @@ const TURN_TIMEOUT_MS = 30_000
 const MAX_TOOL_ROUNDS = 4
 const MAX_TOOL_CALLS_PER_ROUND = 4
 const MAX_CONVERSATION_TURNS = 14
-/** The rider's own location, always pinned and always referenceable. */
+/** The rider's explicitly supplied planner start, always pinned and referenceable. */
 export const ORIGIN_PLACE_ID = "origin"
 
 export interface GeminiAdviserOptions {
@@ -88,12 +84,7 @@ interface GeminiResponse {
   error?: { status?: string; message?: string }
 }
 
-/**
- * Maps grounding names places and describes them richly but returns no
- * coordinates, so a chunk is *context*, never a point. The model must still
- * pin anything it wants to use through `lookup_place`, which resolves through
- * Switchback's own geocoder.
- */
+/** Maps may describe a place, but its chunk is context rather than a waypoint. */
 function citationsFrom(chunks: readonly GeminiGroundingChunk[]): GroundingCitation[] {
   const citations: GroundingCitation[] = []
   for (const chunk of chunks) {
@@ -141,13 +132,10 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
       ]
 
       const groundedPlaces = new Map<string, GroundedPlace>()
-      // The rider's own position is a place too. Without this the model has to
-      // invent a start, and a "loop from Harrisburg" comes back starting at
-      // whichever brewery it looked up first.
       if (input.origin) {
         groundedPlaces.set(ORIGIN_PLACE_ID, {
           placeId: ORIGIN_PLACE_ID,
-          name: input.origin.label?.trim() || "Where I am now",
+          name: input.origin.label?.trim() || "My selected start",
           kind: "scenic",
           lat: input.origin.lat,
           lon: input.origin.lon,
@@ -184,7 +172,6 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
               systemInstruction: { parts: [{ text: advisorSystemPrompt(input) }] },
               ...(tools.length > 0 ? { tools } : {}),
               toolConfig: {
-                // Built-in tools and function calling only coexist with this on.
                 ...(mapsEnabled ? { include_server_side_tool_invocations: true } : {}),
                 ...(mapsEnabled && anchor
                   ? { retrievalConfig: { latLng: { latitude: anchor[1], longitude: anchor[0] } } }
@@ -192,11 +179,6 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
               },
               generationConfig: {
                 temperature: 0.35,
-                // Maps grounding and a JSON mime type are mutually exclusive —
-                // the API rejects the pair outright — so the schema rides along
-                // on every call that is not carrying the Maps tool. Our own
-                // function declarations combine with it fine, so a turn that
-                // needs no grounding costs exactly one call.
                 ...(mapsEnabled
                   ? {}
                   : {
@@ -216,8 +198,6 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
         }
       }
 
-      // A turn that ends badly still cost tool calls and may already have
-      // gathered sources; reporting zero would hide both from the budget.
       const failed = (status: AdvisorStatus): AdvisorReply => ({
         ...emptyReply(status),
         citations: mergeCitations(citationGroups),
@@ -227,6 +207,7 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
       const finish = (text: string | undefined): AdvisorReply | null => {
         const resolved = resolveFinalAnswer(text, {
           candidateIds: input.context?.candidates.map((candidate) => candidate.id) ?? [],
+          ...(input.context ? { selectedRouteId: input.context.selectedRouteId } : {}),
           places: groundedPlaces,
           geometry: input.context?.geometry ?? []
         })
@@ -245,7 +226,6 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
       const mapsOn = options.mapsGrounding === true
       let prose = ""
 
-      // Phase 1: grounded tool rounds. The model leaves the loop by answering.
       for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
         const payload = await call(true)
         if (typeof payload === "string") return failed(payload)
@@ -258,14 +238,17 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
           if (citations.length > 0) citationGroups.push(citations)
         }
 
-        const requested = parts
-          .flatMap((part) => part.functionCall ? [part.functionCall] : [])
-          .slice(0, MAX_TOOL_CALLS_PER_ROUND)
+        const requested = parts.flatMap((part) => part.functionCall ? [part.functionCall] : [])
         const said = parts.map((part) => part.text ?? "").join("").trim()
         if (said) prose = said
+
+        // Do not partially execute a model turn. Gemini requires the model's
+        // function-call turn to be echoed back as a unit; truncating five calls
+        // to four and answering only four creates an invalid conversation and
+        // can also perform a surprising half-action. Reject the batch instead.
+        if (requested.length > MAX_TOOL_CALLS_PER_ROUND) return failed("malformed")
+
         if (requested.length === 0) {
-          // Without the Maps tool this call already carried the answer schema,
-          // so the model's reply is the final answer and needs no second call.
           if (!mapsOn) {
             const reply = finish(said)
             if (reply) return reply
@@ -273,8 +256,6 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
           break
         }
 
-        // Gemini requires the model turn to be echoed back verbatim, including
-        // thought signatures, before the function responses.
         contents.push({ role: "model", parts })
         const responses: GeminiPart[] = []
         for (const functionCall of requested) {
@@ -299,7 +280,6 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
         contents.push({ role: "user", parts: responses })
       }
 
-      // Phase 2: the strict structured answer, without the built-in tool.
       contents.push({
         role: "user",
         parts: [{
@@ -314,10 +294,12 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
         .join("")
       const structured = finish(text)
       if (structured) return structured
-      // The structured pass failed, but the advisor did say something useful in
-      // the grounded phase. Showing its actual words beats showing an error;
-      // only the structured extras are lost.
-      if (prose) {
+
+      // A grounded prose fallback is useful only if the grounding pass also
+      // produced a source the UI can show. Otherwise we would turn a structured
+      // validation failure into an uncited factual answer.
+      const hasGroundingSource = mergeCitations(citationGroups).length > 0
+      if (prose && (!mapsOn || hasGroundingSource)) {
         return {
           ...failed("ok"),
           message: prose.slice(0, 900)
