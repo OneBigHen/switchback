@@ -10,6 +10,9 @@ import type { Waypoint } from "@/lib/routing/types"
 
 type RouteComparisonProps = ComponentProps<typeof RouteComparison>
 
+/** Module-scope so the default keeps a stable identity across renders. */
+const NO_WARNINGS: string[] = []
+
 export interface PlannerCompositionProps {
   viewModel: PlannerDeckViewModel
   commands: PlannerDeckCommands
@@ -28,7 +31,7 @@ export function PlannerComposition({
   viewModel,
   commands,
   comparison,
-  planWarnings = [],
+  planWarnings = NO_WARNINGS,
   onAddAdvisorStop
 }: PlannerCompositionProps) {
   return (

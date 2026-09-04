@@ -31,6 +31,17 @@ const STARTER_PROMPTS = [
   "What should I know before I commit?"
 ]
 
+/** A turn plus a stable identity, so the thread never re-keys on append. */
+interface ThreadTurn extends AdvisorMessage {
+  key: string
+}
+
+let turnCounter = 0
+function threadTurn(turn: AdvisorMessage): ThreadTurn {
+  turnCounter += 1
+  return { ...turn, key: `turn-${turnCounter}` }
+}
+
 export interface RideAdvisorProps {
   routes: PlannedRoute[]
   selectedRouteId: string
@@ -59,7 +70,7 @@ function citationList(citations: GroundingCitation[]) {
 export function RideAdvisor({ routes, selectedRouteId, warnings, onAddStop }: RideAdvisorProps) {
   const [capability, setCapability] = useState<AdvisorCapability | null>(null)
   const [open, setOpen] = useState(false)
-  const [conversation, setConversation] = useState<AdvisorMessage[]>([])
+  const [conversation, setConversation] = useState<ThreadTurn[]>([])
   const [stops, setStops] = useState<ProposedStop[]>([])
   const [citations, setCitations] = useState<GroundingCitation[]>([])
   const [secondOpinion, setSecondOpinion] = useState<string | null>(null)
@@ -99,34 +110,39 @@ export function RideAdvisor({ routes, selectedRouteId, warnings, onAddStop }: Ri
     pending.current = controller
     setBusy(true)
     setNotice(null)
-    const asked: AdvisorMessage[] = riderMessage
-      ? [...conversation, { role: "rider", text: riderMessage }]
+    const history = conversation.map(({ role, text }): AdvisorMessage => ({ role, text }))
+    const asked = riderMessage
+      ? [...conversation, threadTurn({ role: "rider", text: riderMessage })]
       : conversation
     setConversation(asked)
     setDraft("")
 
-    const reply = await requestAdvisorTurn({
-      context,
-      conversation,
-      ...(riderMessage ? { riderMessage } : {})
-    }, controller.signal)
-    if (controller.signal.aborted) return
-    setBusy(false)
+    try {
+      const reply = await requestAdvisorTurn({
+        context,
+        conversation: history,
+        ...(riderMessage ? { riderMessage } : {})
+      }, controller.signal)
+      if (controller.signal.aborted) return
 
-    if (reply.status !== "ok") {
-      setNotice(reply.status === "timeout"
-        ? "That took too long — ask again if you want another read."
-        : "I couldn't reach my sources just now. Switchback's own picks are unaffected.")
-      return
+      if (reply.status !== "ok") {
+        setNotice(reply.status === "timeout"
+          ? "That took too long — ask again if you want another read."
+          : "I couldn't reach my sources just now. Switchback's own picks are unaffected.")
+        return
+      }
+      setConversation([...asked, threadTurn({ role: "advisor", text: reply.message })])
+      setStops(reply.proposedStops)
+      setCitations(reply.citations)
+      setSecondOpinion(reply.secondOpinion
+        ? reply.secondOpinion.agreesWithSwitchback
+          ? `Agrees with Switchback's pick — ${reply.secondOpinion.rationale} (${reply.secondOpinion.confidence} confidence)`
+          : `Would take "${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}" instead — ${reply.secondOpinion.rationale} (${reply.secondOpinion.confidence} confidence)`
+        : null)
+    } finally {
+      // A superseded turn must not clear the flag the newer one just set.
+      if (pending.current === controller) setBusy(false)
     }
-    setConversation([...asked, { role: "advisor", text: reply.message }])
-    setStops(reply.proposedStops)
-    setCitations(reply.citations)
-    setSecondOpinion(reply.secondOpinion
-      ? reply.secondOpinion.agreesWithSwitchback
-        ? `Agrees with Switchback's pick — ${reply.secondOpinion.rationale} (${reply.secondOpinion.confidence} confidence)`
-        : `Would take "${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}" instead — ${reply.secondOpinion.rationale} (${reply.secondOpinion.confidence} confidence)`
-      : null)
   }
 
   if (!open) {
@@ -162,9 +178,9 @@ export function RideAdvisor({ routes, selectedRouteId, warnings, onAddStop }: Ri
       ) : null}
 
       <div className={styles.thread} role="log" aria-live="polite" aria-label="Advisor conversation">
-        {conversation.map((turn, index) => (
+        {conversation.map((turn) => (
           <p
-            key={`${turn.role}-${index}`}
+            key={turn.key}
             className={turn.role === "rider" ? styles.rider : styles.advisor}
           >
             {turn.text}
