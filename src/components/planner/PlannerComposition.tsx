@@ -38,8 +38,8 @@ export interface PlannerCompositionProps {
  * Planner-only composition boundary. Route choice and route inspection are
  * deliberately separate workspaces: candidates are the primary task after a
  * plan, while the dense preparation surface appears only when the rider asks
- * for details. The advisor remains independent of RouteComparison so it can be
- * a builder before routing and a compact co-pilot after routing.
+ * for details. Gravel Goblin remains independent of RouteComparison so it can
+ * scout before routing and offer an actionable second opinion after routing.
  */
 export function PlannerComposition({
   viewModel,
@@ -85,6 +85,7 @@ export function PlannerComposition({
           warnings={planWarnings}
           origin={advisorOrigin ?? null}
           onAddStop={onAddAdvisorStop}
+          {...(comparison ? { onSelectRoute: selectRoute } : {})}
           {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
         />
       ) : null}
