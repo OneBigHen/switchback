@@ -97,11 +97,14 @@ interface AdvisorMockOptions {
   capabilityPayload?: unknown
   reply?: unknown
   posts?: Array<Record<string, unknown>>
+  /** Every capability GET the app makes, in order, for probe-timing assertions. */
+  capabilityRequests?: string[]
 }
 
 async function mockAdvisor(page: import("@playwright/test").Page, options: AdvisorMockOptions = {}) {
   await page.route("**/api/advisor", async (routeRequest) => {
     if (routeRequest.request().method() === "GET") {
+      options.capabilityRequests?.push(routeRequest.request().url())
       await routeRequest.fulfill({
         status: 200,
         contentType: "application/json",
@@ -199,6 +202,39 @@ test("the advisor surface does not exist at all when the capability is absent", 
   // Ordinary planning is untouched: the planner's own controls are still there.
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
   expect(posts).toHaveLength(0)
+})
+
+test("an offline rider is never asked to wait on a capability probe that cannot succeed", async ({ page }) => {
+  await mockBase(page)
+  const capabilityRequests: string[] = []
+  await mockAdvisor(page, { capabilityRequests })
+
+  // Report the browser as offline before the app mounts while leaving the
+  // transport up, so this exercises the connectivity check rather than
+  // Playwright's inability to navigate a disconnected context.
+  await page.addInitScript(() => {
+    let online = false
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, get: () => online })
+    Object.defineProperty(window, "__setOnline", {
+      configurable: true,
+      value: (next: boolean) => { online = next }
+    })
+  })
+
+  await page.goto(appUrl)
+  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
+  // A probe fired on mount would have landed well inside this window.
+  await page.waitForTimeout(500)
+  expect(capabilityRequests).toHaveLength(0)
+  await expect(page.getByRole("button", { name: "Plan a ride with me" })).toHaveCount(0)
+
+  // A connection arriving is the signal to ask, without needing a reload.
+  await page.evaluate(() => {
+    ;(window as unknown as { __setOnline(next: boolean): void }).__setOnline(true)
+    window.dispatchEvent(new Event("online"))
+  })
+  await expect(page.getByRole("button", { name: "Plan a ride with me" })).toBeVisible()
+  expect(capabilityRequests.length).toBeGreaterThan(0)
 })
 
 test("opening the empty builder spends no model turn until the rider actually asks", async ({ page }) => {

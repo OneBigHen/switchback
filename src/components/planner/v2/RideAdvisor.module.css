@@ -497,6 +497,34 @@
   white-space: nowrap;
 }
 
+/* The co-pilot is deliberately compact, and on a touch screen compact stops
+   being a style and starts being a miss. Every control the rider can press
+   grows to the 44px minimum the mobile suite enforces, without changing the
+   density of the pointer-driven layout it was drawn for. */
+@media (pointer: coarse), (max-width: 520px) {
+  .trigger,
+  .builderQuick button,
+  .builderOpen,
+  .header button,
+  .add,
+  .starters button,
+  .plan,
+  .composer input,
+  .composer button,
+  .nudgeActions button,
+  .nudgeDismiss {
+    min-height: 44px;
+  }
+
+  .header button,
+  .composer button,
+  .nudgeDismiss {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
 @media (max-width: 520px) {
   .builderCard,
   .panel {

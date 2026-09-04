@@ -128,12 +128,25 @@ export function RideAdvisor({
   const scopeRef = useRef(currentScope)
   const scopeStale = scope !== currentScope
 
+  // The co-pilot is a network capability, so asking for it while the rider is
+  // offline can only fail — and it fails loudly, as a console resource error on
+  // a surface that is otherwise honest about having no connection. Ask when
+  // there is one, and ask again if one arrives. Until then the advisor is
+  // simply absent, which is the truth.
   useEffect(() => {
     const controller = new AbortController()
-    void fetchAdvisorCapability(controller.signal).then((next) => {
-      if (!controller.signal.aborted) setCapability(next)
-    })
-    return () => controller.abort()
+    const probe = (): void => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return
+      void fetchAdvisorCapability(controller.signal).then((next) => {
+        if (!controller.signal.aborted) setCapability(next)
+      })
+    }
+    probe()
+    window.addEventListener("online", probe)
+    return () => {
+      controller.abort()
+      window.removeEventListener("online", probe)
+    }
   }, [])
 
   // Route changes invalidate route-scoped artifacts and any in-flight answer,

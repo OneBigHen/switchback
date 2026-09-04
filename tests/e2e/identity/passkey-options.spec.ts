@@ -5,10 +5,11 @@ test("passkey options are bounded and unauthenticated mutations fail closed", as
   await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   const browserSupport = await page.evaluate(() => typeof PublicKeyCredential !== "undefined")
   expect(browserSupport).toBe(true)
-  const settingsButton = page.getByRole("button", { name: "Settings", exact: true })
-  const settingsBox = await settingsButton.boundingBox()
-  expect(settingsBox).not.toBeNull()
-  await settingsButton.click({ position: { x: (settingsBox?.width ?? 1) - 8, y: (settingsBox?.height ?? 1) / 2 } })
+  // Identity moved behind the Settings destination's one advanced entry point
+  // in the V2 information architecture: Settings no longer shows passkey
+  // controls directly, so reach them the way a rider does.
+  await page.getByRole("button", { name: "Settings", exact: true }).click()
+  await page.getByRole("button", { name: "Account, sync & data" }).click()
   await expect(page.getByRole("button", { name: "Create Switchback ID" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Use existing passkey" })).toBeVisible()
 

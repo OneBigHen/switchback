@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test"
 import {
+  ensureFixtureStart,
   expandPhonePlanner,
   expectRouteOutcome,
+  fillFixtureFinish,
   installPlannerServices,
   installRouteApi,
   makeRoute,
@@ -28,18 +30,49 @@ for (const viewport of VIEWPORTS) {
     await page.goto("/")
     await expandPhonePlanner(page)
     await openPlannerEditor(page)
-    await page.getByRole("button", { name: /current location/i }).click()
-    const finish = page.getByRole("combobox", { name: "Finish", exact: true })
-    await finish.fill("Fixture finish")
-    await page.getByRole("option", { name: /Fixture finish/i }).click()
+    // Use the shared fixture helpers rather than an inline copy of them: the
+    // start control is labelled "Use current location" only until a start
+    // exists, after which it becomes "Change start", and openPlannerEditor may
+    // already have set one. The helpers own that branch for every other spec.
+    await ensureFixtureStart(page)
+    await fillFixtureFinish(page)
     await page.getByRole("button", { name: "Plan route" }).click()
     await expectRouteOutcome(page, capture)
-    await page.getByRole("button", { name: "Select Twisty fixture route" }).click()
+    // The decision rail labels its actions by the role a route was given
+    // ("Select Best Ride", "Select Maximum Twisties"), never by the route's own
+    // name. This is a layout test, so take the first offered route rather than
+    // binding to a role assignment that scoring is free to change.
+    await page.getByRole("button", { name: /^Select / }).first().click()
     await page.getByRole("button", { name: /Show route details/i }).click()
     await expect(page.locator("#route-preparation")).toBeVisible()
 
+    // "One scroll region" is a containment claim, not a claim about where the
+    // rider happens to be scrolled. Comparing raw bounding boxes conflates the
+    // two: content that legitimately lives below the planner's fold reports a
+    // box outside the scroller and looks like an escape. So prove the real
+    // invariant instead — the identity's nearest scrolling ancestor IS the
+    // planner scroll region, and it is not owned by some second scroller — then
+    // scroll it into view and prove it lands inside that region rather than
+    // being clipped by it.
     const expectSelectedIdentityInScroll = async (checkpoint: string): Promise<void> => {
-      const identityBox = await page.locator(".route-selection-identity").boundingBox()
+      const identity = page.locator(".route-selection-identity")
+      await expect(identity, `${checkpoint}: selected route identity must be attached`).toBeAttached()
+
+      const ownership = await identity.evaluate((element) => {
+        for (let node = element.parentElement; node !== null; node = node.parentElement) {
+          const style = getComputedStyle(node)
+          const scrolls = /(auto|scroll|overlay)/.test(style.overflowY)
+            && node.scrollHeight > node.clientHeight + 1
+          if (scrolls) return { owner: node.className, isPlannerScroll: node.classList.contains("planner-scroll") }
+        }
+        return { owner: null, isPlannerScroll: false }
+      })
+      expect(ownership.isPlannerScroll,
+        `${checkpoint}: selected route identity must be owned by the planner scroll region, not ${ownership.owner ?? "the document"}`)
+        .toBe(true)
+
+      await identity.scrollIntoViewIfNeeded()
+      const identityBox = await identity.boundingBox()
       const scrollBox = await page.locator(".planner-scroll").boundingBox()
       expect(identityBox, `${checkpoint}: selected route identity must have a box`).not.toBeNull()
       expect(scrollBox, `${checkpoint}: planner scroll must have a box`).not.toBeNull()
@@ -54,7 +87,10 @@ for (const viewport of VIEWPORTS) {
     }
 
     await expectSelectedIdentityInScroll("selection")
-    await page.getByRole("button", { name: "Edit route" }).click()
+    // "Edit route" was folded into the single V2 disclosure authority; Ride
+    // options is the one way back into the editor, and openPlannerEditor owns
+    // reaching it on every viewport this test runs at.
+    await openPlannerEditor(page)
     await expectSelectedIdentityInScroll("edit")
     await page.getByRole("button", { name: "Minimize planner" }).click()
     const compactIdentity = page.locator(".planner-mini-header strong")

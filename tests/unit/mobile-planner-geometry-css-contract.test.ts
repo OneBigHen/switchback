@@ -69,8 +69,17 @@ describe("mobile planner geometry contract", () => {
     expect(designSystem).toContain(
       "max-height: min(var(--sb-sheet-idle-height), calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4)));"
     )
+    // `overflow-y: auto` alone does not make the overflow reachable. The sheet
+    // is capped by max-height while the scroller is height:auto, so unless the
+    // sheet is a column flex box and the scroller is allowed to shrink below
+    // its content, the scroller lays out at full height and the sheet simply
+    // clips it — content on screen, unreachable. All three declarations are the
+    // contract; any one of them alone is not.
     expect(designSystem).toContain(
-      ".planner-shell .planner-deck.is-idle-plan .planner-scroll {\n    height: auto;\n    overflow-y: auto;\n  }"
+      ".planner-shell .planner-deck.is-idle-plan {\n    display: flex;\n    flex-direction: column;\n  }"
+    )
+    expect(designSystem).toContain(
+      ".planner-shell .planner-deck.is-idle-plan .planner-scroll {\n    height: auto;\n    min-height: 0;\n    overflow-y: auto;\n  }"
     )
   })
 

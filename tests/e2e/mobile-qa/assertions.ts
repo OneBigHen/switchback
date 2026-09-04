@@ -425,12 +425,23 @@ export function isExpectedRouteWeatherAbort(failure: string): boolean {
   }
 }
 
+/**
+ * Surfaces that ask the server what it can do as soon as they mount, and
+ * cancel the question in cleanup.
+ *
+ * Provider health and the advisor capability are both answered before the
+ * rider can act on them, so a rider who taps away first leaves a cancelled
+ * request behind by design. Cancellation is the only tolerated outcome: a 4xx
+ * or 5xx from either endpoint is still a failure this suite must catch.
+ */
+const CANCELLABLE_PROBE_PATHS: ReadonlySet<string> = new Set(["/api/health", "/api/advisor"])
+
 export function isExpectedProviderHealthAbort(failure: string): boolean {
   const match = /^GET (\S+) failed: (.+)$/.exec(failure)
   if (match === null) return false
   try {
     const url = new URL(match[1])
-    return url.pathname === "/api/health" && url.search === "" && url.hash === ""
+    return CANCELLABLE_PROBE_PATHS.has(url.pathname) && url.search === "" && url.hash === ""
       && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
   } catch {
     return false
