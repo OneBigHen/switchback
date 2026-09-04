@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useState } from "react"
@@ -162,10 +162,12 @@ describe("V2 compact Plan composer", () => {
   it("keeps the map-first idle surface to the exact compact planning contract", () => {
     renderComposer()
 
-    expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Destination" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Loop" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Draw" })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText("Where to — or describe your ride")).toBeInTheDocument()
+    const tripShape = screen.getByRole("group", { name: "Trip shape" })
+    expect(within(tripShape).getByRole("button", { name: "Destination" })).toBeInTheDocument()
+    expect(within(tripShape).getByRole("button", { name: "Loop" })).toBeInTheDocument()
+    expect(within(tripShape).queryByRole("button", { name: /Draw/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Draw route" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Minimize planner" })).toBeInTheDocument()
   })
@@ -189,7 +191,7 @@ describe("V2 compact Plan composer", () => {
       }
     })
 
-    const input = screen.getByPlaceholderText("Search a place or describe a ride")
+    const input = screen.getByPlaceholderText("Where to — or describe your ride")
     await user.type(input, "A scenic ride to a river overlook")
 
     expect(screen.getByRole("button", { name: /find ride options/i })).toBeDisabled()
@@ -234,7 +236,7 @@ describe("V2 compact Plan composer", () => {
     const onRidePrompt = vi.fn()
     renderComposer({}, { intent: { onRidePrompt } })
 
-    const input = screen.getByPlaceholderText("Search a place or describe a ride")
+    const input = screen.getByPlaceholderText("Where to — or describe your ride")
     await user.type(input, "A scenic ride to a river overlook")
     await user.click(screen.getByRole("button", { name: /find ride options/i }))
 
