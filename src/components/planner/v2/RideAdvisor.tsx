@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUp, ChatCircleDots, MapPin, MapTrifold, X } from "@phosphor-icons/react"
+import { ArrowUp, ChatCircleDots, MapPin, MapTrifold, Sparkle, X } from "@phosphor-icons/react"
 import { useEffect, useRef, useState } from "react"
 import type {
   AdvisorMessage,
@@ -12,26 +12,20 @@ import type { AdvisorCapability } from "@/lib/advice/capability"
 import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
-import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
+import type { PlannedRoute } from "@/lib/routing/types"
 import styles from "./RideAdvisor.module.css"
 
 /**
- * The co-pilot.
+ * One co-pilot, two natural entry points:
  *
- * Themed after Clippy as a *cautionary tale*: never modal, never covering the
- * map, always dismissible, and silent unless it has a specific number to offer.
- * It renders nothing at all when the capability is absent (ADR 0021) — no
- * disabled state, no upsell, no hint that a paid thing exists.
+ * - With no route, it is a ride builder. The rider describes the day they want
+ *   and gets a bounded, geocoder-resolved planner proposal to confirm.
+ * - With routes, it becomes the second opinion: trade-offs, road character,
+ *   gravel and real stops. The conversation survives the transition so a ride
+ *   the co-pilot just built does not suddenly forget why it exists.
  *
- * Two ways in. The **nudge** is deterministic, free, and instant: it comes from
- * the plan itself, so it cannot be wrong about a fact, and tapping it opens the
- * conversation already asking the useful question. The **panel** is the
- * conversation — stops, road character, and, when there is no route yet, a whole
- * ride the rider confirms with one tap.
- *
- * Everything the advisor offers is a suggestion. "Add to ride" and "Plan this
- * ride" hand structured inputs to the ordinary planner path, which routes
- * deterministically. The advisor never selects a route.
+ * It is never modal, never on the routing critical path, and never owns a route
+ * decision. Structured proposals go through the ordinary planner boundary.
  */
 
 const STARTERS_WITH_ROUTE = [
@@ -50,15 +44,14 @@ export interface RideAdvisorProps {
   routes: PlannedRoute[]
   selectedRouteId: string
   warnings: string[]
-  /** Map centre or rider location, so place search works before a route exists. */
+  /** Explicit planner start, when the rider has supplied one. */
   origin?: { lat: number; lon: number; label?: string } | null
-  /** Accept a proposed stop as an ordinary rider waypoint, then replan. */
-  onAddStop(stop: Waypoint): void
-  /** Accept a whole proposed ride: fills the planner's controls, then plans. */
+  /** Accept a proposed stop with its along-route evidence intact. */
+  onAddStop(stop: ProposedStop): void
+  /** Confirm a whole proposed ride and hand it to the ordinary planner. */
   onPlanRide?(ride: ProposedRide): void
 }
 
-/** A turn plus a stable identity, so the thread never re-keys on append. */
 interface ThreadTurn extends AdvisorMessage {
   key: string
 }
@@ -72,11 +65,9 @@ function threadTurn(turn: AdvisorMessage): ThreadTurn {
 function citationList(citations: GroundingCitation[]) {
   if (citations.length === 0) return null
   return (
-    <ul className={styles.citations}>
+    <ul className={styles.citations} aria-label="Advisor sources">
       {citations.map((citation) => (
         <li key={citation.url}>
-          {/* Sources sit immediately after the content they support, named and
-              linked exactly as the source supplied them. */}
           <a href={citation.url} target="_blank" rel="noreferrer noopener" translate="no">
             {citation.title}
           </a>
@@ -88,11 +79,19 @@ function citationList(citations: GroundingCitation[]) {
 
 function rideShape(ride: ProposedRide): string {
   return [
-    ride.mode === "loop" ? `Loop from ${ride.start.name}` : `${ride.start.name} → ${ride.finish?.name ?? "destination"}`,
+    ride.mode === "loop"
+      ? `Loop from ${ride.start.name}`
+      : `${ride.start.name} → ${ride.finish?.name ?? "destination"}`,
     ride.targetMinutes ? `${Math.round(ride.targetMinutes / 6) / 10} hr` : null,
     `${ride.profile} roads`,
+    ride.avoidHighways ? "avoid highways" : null,
+    ride.tollPolicy === "avoid" ? "avoid tolls" : null,
     ride.waypoints.length > 0 ? `via ${ride.waypoints.map((point) => point.name).join(", ")}` : null
   ].filter(Boolean).join(" · ")
+}
+
+function scopeFor(routes: readonly PlannedRoute[], selectedRouteId: string): string {
+  return `${selectedRouteId}|${routes.map((route) => route.id).join(",")}`
 }
 
 export function RideAdvisor({
@@ -115,26 +114,37 @@ export function RideAdvisor({
   const [draft, setDraft] = useState("")
   const [dismissedNudges, setDismissedNudges] = useState<string[]>([])
   const pending = useRef<AbortController | null>(null)
+  const currentScope = scopeFor(routes, selectedRouteId)
+  const scopeRef = useRef(currentScope)
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetchAdvisorCapability(controller.signal).then(setCapability)
+    void fetchAdvisorCapability(controller.signal).then((next) => {
+      if (!controller.signal.aborted) setCapability(next)
+    })
     return () => controller.abort()
   }, [])
 
-  // A new route is a new conversation: advice about the previous one would be
-  // quietly wrong, which is worse than no advice. Adjusted during render rather
-  // than in an effect so the stale thread is never painted once.
-  const [threadRouteId, setThreadRouteId] = useState(selectedRouteId)
-  if (threadRouteId !== selectedRouteId) {
-    setThreadRouteId(selectedRouteId)
-    setConversation([])
+  // Route changes invalidate structured artifacts and any in-flight answer, but
+  // deliberately keep the transcript. That makes builder -> planned route a
+  // continuous conversation and lets a rider compare another candidate without
+  // losing the question they were discussing. The next turn always receives a
+  // fresh system briefing for the newly selected route.
+  useEffect(() => {
+    if (scopeRef.current === currentScope) return
+    scopeRef.current = currentScope
+    pending.current?.abort()
+    setBusy(false)
     setStops([])
     setRide(null)
     setCitations([])
     setSecondOpinion(null)
-    setNotice(null)
-  }
+    if (conversation.length > 0 && selectedRouteId) {
+      setNotice("Route changed — I’ll use the route you have selected now.")
+    } else {
+      setNotice(null)
+    }
+  }, [conversation.length, currentScope, selectedRouteId])
 
   useEffect(() => () => pending.current?.abort(), [])
 
@@ -152,6 +162,7 @@ export function RideAdvisor({
       : null
     pending.current?.abort()
     const controller = new AbortController()
+    const requestScope = scopeRef.current
     pending.current = controller
     setBusy(true)
     setNotice(null)
@@ -169,40 +180,68 @@ export function RideAdvisor({
         ...(riderMessage ? { riderMessage } : {}),
         ...(origin ? { origin } : {})
       }, controller.signal)
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted || scopeRef.current !== requestScope) return
 
       if (reply.status !== "ok") {
         setNotice(
           reply.status === "timeout"
             ? "That took too long — ask again if you want another read."
             : reply.status === "rate-limited"
-              ? "I've hit my quota for the moment. Try again shortly."
-              : "I couldn't reach my sources just now. Switchback's own picks are unaffected."
+              ? "I’ve hit the turn limit for the moment. Try again shortly."
+              : "I couldn’t reach my sources just now. Switchback’s own planner is unaffected."
         )
         return
       }
       setConversation([...asked, threadTurn({ role: "advisor", text: reply.message })])
       setStops(reply.proposedStops)
-      if (reply.proposedRide) setRide(reply.proposedRide)
+      setRide(reply.proposedRide)
       setCitations(reply.citations)
       setSecondOpinion(reply.secondOpinion
         ? reply.secondOpinion.agreesWithSwitchback
-          ? `Agrees with Switchback's pick — ${reply.secondOpinion.rationale}`
-          : `Would take "${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}" instead — ${reply.secondOpinion.rationale}`
+          ? `Agrees with Switchback’s pick — ${reply.secondOpinion.rationale}`
+          : `Would take “${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}” instead — ${reply.secondOpinion.rationale}`
         : null)
     } finally {
-      // A superseded turn must not clear the flag the newer one just set.
       if (pending.current === controller) setBusy(false)
     }
   }
 
   const openWith = (question?: string) => {
     setOpen(true)
-    if (question) void ask(question)
-    else if (conversation.length === 0) void ask()
+    if (question) {
+      void ask(question)
+      return
+    }
+    // Opening the builder should not spend a model turn merely to ask what the
+    // rider wants. A routed ride can earn an automatic opening read.
+    if (hasRoute && conversation.length === 0) void ask()
   }
 
   if (!open) {
+    if (!hasRoute) {
+      return (
+        <section className={styles.builderCard} aria-label="AI ride builder">
+          <div className={styles.builderLead}>
+            <span className={styles.builderIcon} aria-hidden="true"><Sparkle weight="fill" /></span>
+            <span>
+              <small>AI ride builder</small>
+              <strong>Describe the ride, not just the destination.</strong>
+              <span>Time, gravel, back roads, food, a place to end up — give me the vibe and I’ll turn it into a plan you can inspect.</span>
+            </span>
+          </div>
+          <div className={styles.builderQuick} aria-label="Ride builder examples">
+            {STARTERS_NO_ROUTE.slice(0, 2).map((prompt) => (
+              <button type="button" key={prompt} onClick={() => openWith(prompt)}>{prompt}</button>
+            ))}
+          </div>
+          <button type="button" className={styles.builderOpen} onClick={() => openWith()}>
+            <ChatCircleDots weight="fill" aria-hidden="true" />
+            <span>Plan a ride with me</span>
+          </button>
+        </section>
+      )
+    }
+
     return (
       <div className={styles.closed}>
         {nudge ? (
@@ -223,7 +262,7 @@ export function RideAdvisor({
         ) : null}
         <button type="button" className={styles.trigger} onClick={() => openWith()}>
           <ChatCircleDots weight="fill" aria-hidden="true" />
-          <span>{hasRoute ? "Ask about this ride" : "Plan a ride with me"}</span>
+          <span>Ask about this ride</span>
         </button>
       </div>
     )
@@ -233,25 +272,28 @@ export function RideAdvisor({
     <section className={styles.panel} aria-label="Ride advisor">
       <header className={styles.header}>
         <div>
-          <span>Co-pilot</span>
-          <h2>{hasRoute ? "What I'd do" : "Let's build one"}</h2>
+          <span>{hasRoute ? "Co-pilot" : "Ride builder"}</span>
+          <h2>{hasRoute ? "What I'd do" : "Build me a good one"}</h2>
         </div>
         <button type="button" aria-label="Close the ride advisor" onClick={() => setOpen(false)}>
           <X weight="bold" aria-hidden="true" />
         </button>
       </header>
 
-      {secondOpinion ? (
-        <p className={styles.verdict} role="note">{secondOpinion}</p>
-      ) : null}
+      {secondOpinion ? <p className={styles.verdict} role="note">{secondOpinion}</p> : null}
 
       <div className={styles.thread} role="log" aria-live="polite" aria-label="Advisor conversation">
+        {!hasRoute && conversation.length === 0 && !busy ? (
+          <p className={styles.emptyLead}>
+            Tell me how long you have and what sounds fun. A start helps; if you haven’t picked one yet, name the town.
+          </p>
+        ) : null}
         {conversation.map((turn) => (
           <p key={turn.key} className={turn.role === "rider" ? styles.rider : styles.advisor}>
             {turn.text}
           </p>
         ))}
-        {busy ? <p className={styles.advisor}>Having a look…</p> : null}
+        {busy ? <p className={styles.advisor}>Reading the roads…</p> : null}
         {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
       </div>
 
@@ -263,7 +305,7 @@ export function RideAdvisor({
             <strong>{ride.summary}</strong>
             <small>{rideShape(ride)}</small>
             <small className={styles.rideNote}>
-              Everything here is editable after — this just fills in the planner.
+              “Plan this ride” uses these exact settings. They stay editable in Ride options afterward.
             </small>
           </span>
           <button
@@ -297,7 +339,7 @@ export function RideAdvisor({
                 type="button"
                 className={styles.add}
                 onClick={() => {
-                  onAddStop({ lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name })
+                  onAddStop(stop)
                   setStops((current) => current.filter((entry) => entry.id !== stop.id))
                 }}
               >
@@ -330,8 +372,8 @@ export function RideAdvisor({
           value={draft}
           maxLength={400}
           placeholder={hasRoute
-            ? "Ask about the roads, the stops, the trade-off…"
-            : "Tell me what you feel like riding…"}
+            ? "Ask about the roads, stops, gravel, or trade-off…"
+            : "Three hours, gravel, back roads, end somewhere good…"}
           aria-label="Ask the ride advisor"
           onChange={(event) => setDraft(event.currentTarget.value)}
         />
