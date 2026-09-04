@@ -125,14 +125,16 @@ describe("planner command surface", () => {
     expect(screen.queryByRole("button", { name: /^Options$/ })).not.toBeInTheDocument()
   })
 
-  it("uses rider-facing edit and road preference language", async () => {
+  it("uses rider-goal groups instead of implementation-facing option buckets", async () => {
     const user = userEvent.setup()
     render(<PlannerDeck viewModel={viewModel()} commands={commands()} />)
 
     await user.click(screen.getByRole("button", { name: "Ride options" }))
 
-    expect(screen.getByRole("group", { name: "Edit route" })).toBeInTheDocument()
-    expect(screen.getByRole("group", { name: "Road preferences" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Ride character" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Shape route" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Avoid" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Bike & map" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /prefer a road/i })).toBeInTheDocument()
     expect(screen.queryByText(/preferred \/ required roads/i)).not.toBeInTheDocument()
     expect(screen.getByText("1 excluded area active")).toBeInTheDocument()
