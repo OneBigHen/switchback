@@ -90,7 +90,7 @@ describe("RouteDecisionRail", () => {
     expect(within(card).getAllByTestId("route-decision-warning")).toHaveLength(1)
   })
 
-  it("is the primary choice surface while legacy comparison remains preparation details", () => {
+  it("keeps route choice primary and reveals preparation details only on request", () => {
     const comparison = {
       routes,
       selectedId: "twisty",
@@ -110,8 +110,18 @@ describe("RouteDecisionRail", () => {
 
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
     expect(screen.getByRole("article", { name: /Maximum Twisties route option/i })).toHaveAttribute("data-selected", "true")
-    expect(screen.queryByRole("heading", { name: "Choose a route" })).not.toBeInTheDocument()
+    expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Show turn-by-turn directions" })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /Details for Maximum Twisties/i }))
+
+    expect(comparison.onSelect).toHaveBeenCalledWith("twisty")
+    expect(screen.getByRole("button", { name: "Back to route choices" })).toBeInTheDocument()
     expect(screen.getByText("Selected route")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Show turn-by-turn directions" })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to route choices" }))
+    expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
   })
 })
