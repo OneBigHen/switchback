@@ -41,8 +41,9 @@ import { routeIntentFromSketch, type RoutePointSnapshot } from "@/lib/planner/ro
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
-import type { AvoidArea, Coordinate, PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
-import type { ProposedRide } from "@/lib/advice/contracts"
+import type { AvoidArea, Coordinate, PlannedRoute, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
+import { advisorRideToPlannerHandoff, mergeAdvisorStopIntoVia } from "@/lib/advice/planner-handoff"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
 import { RiderPreferenceLibrary } from "@/lib/storage/rider-preference-library"
 import { bikeProfileFromRiderSettings, loadRiderSettings, getActiveBike } from "@/lib/settings/rider-settings"
@@ -200,6 +201,7 @@ export function PlannerShell() {
   // ride prompt. Loop rides always time-shape and ignore this.
   const [timeShaped, setTimeShaped] = useState(false)
   const [avoidHighways, setAvoidHighways] = useState(initialAvoidHighways)
+  const [tollPolicy, setTollPolicy] = useState<TollPolicy>("allow-with-warning")
   const [avoidAreas, setAvoidAreas] = useState<AvoidArea[]>([])
   const [segmentProfiles, setSegmentProfiles] = useState<RouteProfileId[]>([])
   const [intentStatus, setIntentStatus] = useState<RideIntentStatus>("idle")
@@ -531,6 +533,8 @@ export function PlannerShell() {
     profile?: RouteProfileId
     targetMinutes?: number
     timeShaped?: boolean
+    avoidHighways?: boolean
+    tollPolicy?: TollPolicy
   }) => {
     const current = usePlannerStore.getState()
     const mode = override?.mode ?? planMode
@@ -551,9 +555,10 @@ export function PlannerShell() {
         timeShaped: override?.timeShaped ?? timeShaped,
         seed: loopSeed.current,
         via: points?.via ?? current.via,
-        avoidHighways,
+        avoidHighways: override?.avoidHighways ?? avoidHighways,
         avoidAreas,
         segmentProfiles: customSegmentProfiles,
+        tollPolicy: override?.tollPolicy ?? tollPolicy,
         planningId: createPlanningId(),
         ...(override?.corridor ? { sketchCorridor: override.corridor } : {})
       }))
@@ -607,13 +612,40 @@ export function PlannerShell() {
         seed: loopSeed.current,
         via: routedVia,
         avoidHighways,
-        avoidAreas
+        avoidAreas,
+        tollPolicy
       }))
       setIntentSummary(`${stop.label ?? "That stop"} is now a routed stop. Change the idea or choose another route whenever you like.`)
     } catch (caught) {
       current.failRouting({
         code: "STOP_ROUTE_FAILED",
         message: caught instanceof Error ? caught.message : "That stop could not be added to the route."
+      })
+    }
+  }
+
+  const handleAddAdvisorStop = async (stop: ProposedStop) => {
+    routeRequestGate.invalidate()
+    const current = usePlannerStore.getState()
+    const activeRouteId = current.selectedRouteId ?? current.plan?.routes[0]?.id
+    const activeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
+    const stopWaypoint: Waypoint = { lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name }
+    const routedVia = planMode === "loop" && activeRoute && current.via.length === 0
+      ? buildLoopStopVia(activeRoute.geometry, stopWaypoint)
+      : mergeAdvisorStopIntoVia(current.via, stop, activeRoute?.geometry ?? [])
+    if (routedVia.length === current.via.length && routedVia.every((point, index) => point === current.via[index])) {
+      setNotice({ kind: "warning", message: `${stop.name} is already on this ride.` })
+      return
+    }
+    current.clearVia()
+    routedVia.forEach((point) => current.addVia(point))
+    try {
+      await handlePlan()
+      setNotice({ kind: "success", message: `${stop.name} added without removing your existing shaping stops.` })
+    } catch (caught) {
+      current.failRouting({
+        code: "STOP_ROUTE_FAILED",
+        message: caught instanceof Error ? caught.message : "That advisor stop could not be added to the route."
       })
     }
   }
@@ -654,6 +686,7 @@ export function PlannerShell() {
       setTimeShaped(true)
     }
     setAvoidHighways(route.avoidHighways ?? false)
+    setTollPolicy("allow-with-warning")
     setAvoidAreas(route.avoidAreas ?? [])
     setSegmentProfiles(route.segmentProfiles ?? [])
     setIntentSummary(null)
@@ -893,6 +926,7 @@ export function PlannerShell() {
     store.setProfile("neural")
     setPlanMode("destination")
     setAvoidHighways(false)
+    setTollPolicy("allow-with-warning")
     setAvoidAreas([])
     setSegmentProfiles([])
     setFreeRideLoading(true)
@@ -952,6 +986,7 @@ export function PlannerShell() {
     store.replaceRoutePoints({ start: nextStart, finish: nextFinish, via: [] })
     setPlanMode("destination")
     setAvoidHighways(false)
+    setTollPolicy("allow-with-warning")
     setAvoidAreas([])
     setSegmentProfiles([])
     setFreeRideLoading(true)
@@ -1146,7 +1181,8 @@ export function PlannerShell() {
           targetMinutes,
           seed: loopSeed.current,
           avoidHighways,
-          avoidAreas
+          avoidAreas,
+          tollPolicy
         }))
         routeToShape = initialLoop?.routes.find((route) => route.id === initialLoop.selectedRouteId) ?? initialLoop?.routes[0] ?? null
       }
@@ -1194,42 +1230,32 @@ export function PlannerShell() {
   }
 
   /**
-   * Accept a ride the co-pilot filled in. This is the intent-shaping boundary
-   * (ADR 0001): the advisor produced *inputs* — profile, time target, points —
-   * and they land in the planner's own controls, visible and editable, then go
-   * through the ordinary request builder. The advisor never routed anything.
+   * Accept the exact bounded planner inputs shown on the co-pilot card. React
+   * state mirrors them for subsequent editing, while the first route request
+   * receives the same immutable values directly instead of racing state commits.
    */
   const handlePlanAdvisorRide = async (ride: ProposedRide) => {
     routeRequestGate.invalidate()
     const store = usePlannerStore.getState()
-    const point = (value: { name: string; lat: number; lon: number }): Waypoint => ({
-      lat: value.lat,
-      lon: value.lon,
-      label: value.name
-    })
-    const points = {
-      start: point(ride.start),
-      finish: ride.mode === "destination" && ride.finish ? point(ride.finish) : null,
-      via: ride.waypoints.map(point)
-    }
-    store.replaceRoutePoints(points)
-    store.setProfile(ride.profile)
-    setPlanMode(ride.mode)
+    const handoff = advisorRideToPlannerHandoff(ride)
+    store.replaceRoutePoints(handoff.points)
+    store.setProfile(handoff.profile)
+    setPlanMode(handoff.mode)
     setSegmentProfiles([])
     setAddingVia(false)
-    setAvoidHighways(ride.avoidHighways)
-    if (ride.targetMinutes !== null) {
-      setTargetMinutes(ride.targetMinutes)
-      setTimeShaped(true)
-    }
+    setAvoidHighways(handoff.avoidHighways)
+    setTollPolicy(handoff.tollPolicy)
+    setTimeShaped(handoff.timeShaped)
+    if (handoff.targetMinutes !== null) setTargetMinutes(handoff.targetMinutes)
     setNotice({ kind: "success", message: `Planning ${ride.summary}` })
     await handlePlan({
-      mode: ride.mode,
-      points,
-      profile: ride.profile,
-      ...(ride.targetMinutes !== null
-        ? { targetMinutes: ride.targetMinutes, timeShaped: true }
-        : {})
+      mode: handoff.mode,
+      points: handoff.points,
+      profile: handoff.profile,
+      ...(handoff.targetMinutes !== null ? { targetMinutes: handoff.targetMinutes } : {}),
+      timeShaped: handoff.timeShaped,
+      avoidHighways: handoff.avoidHighways,
+      tollPolicy: handoff.tollPolicy
     })
   }
 
@@ -1257,6 +1283,7 @@ export function PlannerShell() {
     setTargetMinutes(120)
     setTimeShaped(false)
     setAvoidHighways(false)
+    setTollPolicy("allow-with-warning")
     setAvoidAreas([])
     setSegmentProfiles([])
     setAddingVia(false)
@@ -1385,9 +1412,9 @@ export function PlannerShell() {
         {surface !== "ride" && surface !== "free-ride" && navigation.destination === "plan" && !sketching ? (
           <PlannerComposition
           planWarnings={plan?.warnings ?? []}
-          onAddAdvisorStop={(stop) => void handleChooseStopIdea(stop)}
+          onAddAdvisorStop={(stop) => void handleAddAdvisorStop(stop)}
           onPlanAdvisorRide={(ride) => void handlePlanAdvisorRide(ride)}
-          advisorOrigin={start ?? home ?? null}
+          advisorOrigin={start ?? null}
           viewModel={buildPlannerDeckViewModel({
             plan,
             start,
