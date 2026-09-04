@@ -6,13 +6,13 @@ import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckVie
 import { RouteComparison } from "./RouteComparison"
 import { RouteDecisionRail } from "./v2/RouteDecisionRail"
 import { RideAdvisor } from "./v2/RideAdvisor"
-import type { Waypoint } from "@/lib/routing/types"
-import type { ProposedRide } from "@/lib/advice/contracts"
+import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 
 type RouteComparisonProps = ComponentProps<typeof RouteComparison>
 
 /** Module-scope so the default keeps a stable identity across renders. */
 const NO_WARNINGS: string[] = []
+const NO_ROUTES: RouteComparisonProps["routes"] = []
 
 export interface PlannerCompositionProps {
   viewModel: PlannerDeckViewModel
@@ -20,17 +20,18 @@ export interface PlannerCompositionProps {
   comparison: RouteComparisonProps | null
   /** Warnings from the current plan, so the advisor cannot contradict them. */
   planWarnings?: string[]
-  /** Accept an advisor-proposed stop as an ordinary rider waypoint. */
-  onAddAdvisorStop?(stop: Waypoint): void
+  /** Accept an advisor-proposed stop without losing its along-route evidence. */
+  onAddAdvisorStop?(stop: ProposedStop): void
   /** Accept a whole advisor-proposed ride into the planner's own controls. */
   onPlanAdvisorRide?(ride: ProposedRide): void
-  /** Map centre, so the advisor can search places before a route exists. */
+  /** Explicit planner start, so the advisor can search places before a route exists. */
   advisorOrigin?: { lat: number; lon: number; label?: string } | null
 }
 
 /**
- * Planner-only composition boundary. It owns no state or effects; it keeps
- * route comparison composition out of the shell without changing behavior.
+ * Planner-only composition boundary. The advisor is deliberately independent
+ * of RouteComparison: before routing it is the AI ride builder; after routing
+ * the same component becomes the route advisor and second-opinion surface.
  */
 export function PlannerComposition({
   viewModel,
@@ -44,25 +45,25 @@ export function PlannerComposition({
   return (
     <PlannerDeck viewModel={viewModel} commands={commands}>
       {comparison ? (
-        <>
-          <RouteDecisionRail
-            routes={comparison.routes}
-            selectedId={comparison.selectedId}
-            onSelect={comparison.onSelect}
-          />
-          {onAddAdvisorStop ? (
-            <RideAdvisor
-              routes={comparison.routes}
-              selectedRouteId={comparison.selectedId}
-              warnings={planWarnings}
-              origin={advisorOrigin ?? null}
-              onAddStop={onAddAdvisorStop}
-              {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
-            />
-          ) : null}
-          <RouteComparison {...comparison} showRouteChoices={false} />
-        </>
+        <RouteDecisionRail
+          routes={comparison.routes}
+          selectedId={comparison.selectedId}
+          onSelect={comparison.onSelect}
+        />
       ) : null}
+
+      {onAddAdvisorStop ? (
+        <RideAdvisor
+          routes={comparison?.routes ?? NO_ROUTES}
+          selectedRouteId={comparison?.selectedId ?? ""}
+          warnings={planWarnings}
+          origin={advisorOrigin ?? null}
+          onAddStop={onAddAdvisorStop}
+          {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
+        />
+      ) : null}
+
+      {comparison ? <RouteComparison {...comparison} showRouteChoices={false} /> : null}
     </PlannerDeck>
   )
 }
