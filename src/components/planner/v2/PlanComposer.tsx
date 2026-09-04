@@ -5,7 +5,7 @@ import { useCallback, useEffect, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import type { RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { PlannerError, PlannerPointId, PlanningPhase } from "@/stores/planner-store"
 import type { PlanMode, PlannerProviderHealthViewModel } from "../PlannerDeckViewModel"
 import { ProviderHealthNotice } from "../ProviderHealthNotice"
@@ -35,7 +35,6 @@ export interface PlanComposerProps {
   bikeProfile: BikeProfile
   curvatureVisible: boolean
   avoidHighways: boolean
-  tollPolicy: TollPolicy
   targetMinutes: number
   timeShaped: boolean
   segmentProfiles: RouteProfileId[]
@@ -68,7 +67,6 @@ export interface PlanComposerProps {
   onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
-  onTollPolicyChange(policy: TollPolicy): void
   onTargetMinutesChange(minutes: number): void
   onTimeShapedChange(shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
@@ -111,7 +109,6 @@ export function PlanComposer({
   bikeProfile,
   curvatureVisible,
   avoidHighways,
-  tollPolicy,
   targetMinutes,
   timeShaped,
   segmentProfiles,
@@ -144,7 +141,6 @@ export function PlanComposer({
   onBikeProfileChange,
   onCurvatureChange,
   onAvoidHighwaysChange,
-  onTollPolicyChange,
   onTargetMinutesChange,
   onTimeShapedChange,
   onSegmentProfileChange,
@@ -166,10 +162,6 @@ export function PlanComposer({
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
   const placementActive = armedPoint !== null || addingVia
-  // Route planning can be superseded by a newer rider prompt. Keep the
-  // interpretation request single-flight, but do not strand the omnibox
-  // while a provider response is still in flight; the planning gate owns
-  // stale-response cancellation and latest-intent selection.
   const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
 
   const cancelPlacement = useCallback(() => {
@@ -195,9 +187,6 @@ export function PlanComposer({
     <div className="plan-v2" data-plan-mode={planMode} data-editing={editing ? "true" : "false"}>
       {providerHealth ? <ProviderHealthNotice health={providerHealth} onRetry={onRetryProviderHealth} /> : null}
 
-      {/* V2.1 W1 §5: while planning, the lifecycle status (with Cancel) leads
-          the composer so it stays above the fold even with the options panel
-          expanded — the strip used to render after it and disappear below. */}
       {planningBusy ? (
         <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
           <SpinnerGap className="spin" aria-hidden="true" />
@@ -270,7 +259,6 @@ export function PlanComposer({
             bikeProfile={bikeProfile}
             curvatureVisible={curvatureVisible}
             avoidHighways={avoidHighways}
-            tollPolicy={tollPolicy}
             targetMinutes={targetMinutes}
             timeShaped={timeShaped}
             segmentProfiles={segmentProfiles}
@@ -291,7 +279,6 @@ export function PlanComposer({
             onBikeProfileChange={onBikeProfileChange}
             onCurvatureChange={onCurvatureChange}
             onAvoidHighwaysChange={onAvoidHighwaysChange}
-            onTollPolicyChange={onTollPolicyChange}
             onTimeShapedChange={onTimeShapedChange}
             onTargetMinutesChange={onTargetMinutesChange}
             onSegmentProfileChange={onSegmentProfileChange}
