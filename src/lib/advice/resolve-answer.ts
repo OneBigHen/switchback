@@ -14,20 +14,20 @@ import type {
  *
  * The model produces a JSON document. Nothing in it is trusted:
  *
- * - A route id it names must be one Switchback produced.
+ * - A route id it names must be one Switchback produced, and its agreement flag
+ *   must agree with the route id it named.
  * - A place it references must be a `placeId` a tool returned *this turn*, and
  *   the coordinates come from that tool result. The model never supplies a
- *   latitude, so a hallucinated place is simply unresolvable and disappears.
+ *   latitude, so a hallucinated place cannot become a waypoint.
+ * - A whole-ride proposal is all-or-nothing: silently losing one requested
+ *   waypoint would make the summary and the route disagree.
  * - Every numeric planner input is range-checked against the same bounds the
  *   API boundary enforces, and out-of-range values are dropped rather than
  *   clamped-and-hoped.
- *
- * This is the ADR 0001 line in code: the advisor helps fill in the form, and
- * the form is validated before anyone sees it.
  */
 
 export const MAX_PROPOSED_STOPS = 3
-/** The request builder caps a ride at 8 points, so 6 shaping stops at most. */
+/** Keep room for start + finish inside the planner's bounded point count. */
 export const MAX_PROPOSED_WAYPOINTS = 4
 const MIN_TARGET_MINUTES = 20
 const MAX_TARGET_MINUTES = 480
@@ -52,12 +52,13 @@ export const FINAL_ANSWER_SCHEMA = {
         agreesWithSwitchback: { type: "boolean" },
         wouldPick: { type: "string", description: "A route id from the briefing. Never a new route." },
         rationale: { type: "string" },
-        cautions: { type: "array", items: { type: "string" } },
+        cautions: { type: "array", maxItems: 3, items: { type: "string" } },
         confidence: { type: "string", enum: ["low", "medium", "high"] }
       }
     },
     proposedStops: {
       type: "array",
+      maxItems: MAX_PROPOSED_STOPS,
       description: "Stops worth taking. Only placeIds a tool returned to you.",
       items: {
         type: "object",
@@ -83,10 +84,10 @@ export const FINAL_ANSWER_SCHEMA = {
             "adventure or gravel for dual-sport riding on mixed surfaces; twisty for maximum " +
             "corners on pavement; scenic for back roads."
         },
-        targetMinutes: { type: "integer", description: "20 to 480. Required for a loop." },
+        targetMinutes: { type: "integer", minimum: MIN_TARGET_MINUTES, maximum: MAX_TARGET_MINUTES, description: "20 to 480. Required for a loop." },
         startPlaceId: { type: "string" },
         finishPlaceId: { type: "string", description: "Omit for a loop." },
-        waypointPlaceIds: { type: "array", items: { type: "string" } },
+        waypointPlaceIds: { type: "array", maxItems: MAX_PROPOSED_WAYPOINTS, items: { type: "string" } },
         avoidHighways: { type: "boolean" },
         tollPolicy: { type: "string", enum: ["allow-with-warning", "avoid"] },
         summary: { type: "string", description: "One line the rider can sanity-check the plan against." }
@@ -103,17 +104,24 @@ function textOf(value: unknown, max: number): string | null {
 
 /**
  * Accept a second opinion only when it points at a route Switchback actually
- * produced. This is the "no LLM route ranker" boundary in code: the advisor
- * may disagree, but only about routes that already exist.
+ * produced. When the selected id is supplied, the model's boolean must also be
+ * internally consistent: agreeing means naming the selected route, disagreeing
+ * means naming a different existing route.
  */
 export function resolveSecondOpinion(
   raw: unknown,
-  candidateIds: readonly string[]
+  candidateIds: readonly string[],
+  selectedRouteId?: string
 ): RouteSecondOpinion | null {
   if (!raw || typeof raw !== "object") return null
   const value = raw as Record<string, unknown>
   const wouldPick = textOf(value.wouldPick, 200)
   if (!wouldPick || !candidateIds.includes(wouldPick)) return null
+  if (typeof value.agreesWithSwitchback !== "boolean") return null
+  if (selectedRouteId) {
+    const agreesById = wouldPick === selectedRouteId
+    if (value.agreesWithSwitchback !== agreesById) return null
+  }
   const rationale = textOf(value.rationale, 400)
   if (!rationale) return null
   const confidence = value.confidence
@@ -125,7 +133,7 @@ export function resolveSecondOpinion(
       }).slice(0, 3)
     : []
   return {
-    agreesWithSwitchback: value.agreesWithSwitchback === true,
+    agreesWithSwitchback: value.agreesWithSwitchback,
     wouldPick,
     rationale,
     cautions,
@@ -134,9 +142,9 @@ export function resolveSecondOpinion(
 }
 
 /**
- * Turn `placeId` references into stops. A reference no tool produced is
- * dropped: the model never supplies coordinates, so it cannot invent a
- * waypoint.
+ * Turn `placeId` references into independent stop suggestions. A bad stop can
+ * be dropped without invalidating the prose because the rider has not accepted
+ * it as part of a whole route proposal.
  */
 export function resolveProposedStops(
   raw: unknown,
@@ -174,11 +182,10 @@ function ridePoint(place: GroundedPlace): ProposedRidePoint {
 }
 
 /**
- * Resolve a whole proposed ride. Every point must come from a tool, the
- * profile must be one Switchback has, and the time target must sit inside the
- * range the request builder already enforces. A ride that fails any of those
- * is dropped entirely rather than silently repaired — a half-understood plan
- * is worse than none.
+ * Resolve a whole proposed ride. This surface is intentionally stricter than
+ * independent stop suggestions: every named shaping point must resolve, or the
+ * whole draft is dropped. A route that quietly skipped "the brewery at the end"
+ * would be more dangerous to trust than no generated route at all.
  */
 export function resolveProposedRide(
   raw: unknown,
@@ -199,7 +206,6 @@ export function resolveProposedRide(
 
   const finishId = textOf(value.finishPlaceId, 200)
   const finish = mode === "destination" && finishId ? places.get(finishId) : undefined
-  // A destination ride without a resolvable finish is not a ride.
   if (mode === "destination" && !finish) return null
 
   const rawMinutes = Number(value.targetMinutes)
@@ -207,18 +213,19 @@ export function resolveProposedRide(
     && rawMinutes >= MIN_TARGET_MINUTES && rawMinutes <= MAX_TARGET_MINUTES
     ? rawMinutes
     : null
-  // Loops are timeboxed by definition; without a usable target there is no loop.
   if (mode === "loop" && targetMinutes === null) return null
 
+  if (value.waypointPlaceIds !== undefined && !Array.isArray(value.waypointPlaceIds)) return null
   const waypointIds = Array.isArray(value.waypointPlaceIds) ? value.waypointPlaceIds : []
+  if (waypointIds.length > MAX_PROPOSED_WAYPOINTS) return null
   const seen = new Set<string>([start.placeId, ...(finish ? [finish.placeId] : [])])
   const waypoints: ProposedRidePoint[] = []
   for (const entry of waypointIds) {
-    if (waypoints.length >= MAX_PROPOSED_WAYPOINTS) break
     const id = textOf(entry, 200)
-    if (!id || seen.has(id)) continue
+    if (!id) return null
+    if (seen.has(id)) continue
     const place = places.get(id)
-    if (!place) continue
+    if (!place) return null
     seen.add(id)
     waypoints.push(ridePoint(place))
   }
@@ -238,6 +245,7 @@ export function resolveProposedRide(
 
 export interface ResolveContext {
   candidateIds: readonly string[]
+  selectedRouteId?: string
   places: ReadonlyMap<string, GroundedPlace>
   geometry: readonly Coordinate[]
 }
@@ -260,7 +268,7 @@ export function resolveFinalAnswer(
   if (!message) return null
   return {
     message,
-    secondOpinion: resolveSecondOpinion(answer.secondOpinion, context.candidateIds),
+    secondOpinion: resolveSecondOpinion(answer.secondOpinion, context.candidateIds, context.selectedRouteId),
     proposedStops: resolveProposedStops(answer.proposedStops, context.places, context.geometry),
     proposedRide: resolveProposedRide(answer.proposedRide, context.places)
   }
