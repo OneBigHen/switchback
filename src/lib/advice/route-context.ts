@@ -4,7 +4,7 @@ import { describeRouteGrounded } from "@/lib/ai/grounded"
 import type { AdviceRequest, AdvisorRouteContext } from "./contracts"
 
 /**
- * Turning a plan into what the advisor is allowed to know.
+ * Turning a plan into what Gravel Goblin is allowed to know.
  *
  * The briefing is facts only, drawn from the route contract Switchback already
  * computed. Labels are treated as untrusted data, not prompt instructions, and
@@ -68,9 +68,6 @@ const MAX_WARNING_TEXT = 400
 export function advisorContextFromPlan(plan: TripPlan): AdvisorRouteContext | null {
   const selected = plan.routes.find((route) => route.id === plan.selectedRouteId) ?? plan.routes[0]
   if (!selected) return null
-  // An imported GPX can carry an arbitrarily long name and a plan can carry more
-  // options than the turn endpoint accepts. Neither should silently disable the
-  // co-pilot, so the briefing is clipped to the contract instead of rejected.
   const kept = plan.routes.length <= MAX_CONTEXT_CANDIDATES
     ? plan.routes
     : [selected, ...plan.routes.filter((route) => route.id !== selected.id)]
@@ -160,7 +157,9 @@ export function briefingText(context: AdvisorRouteContext): string {
 }
 
 const PERSONA = [
-  "You are Switchback's riding co-pilot: a useful riding buddy, not a chatbot mascot.",
+  "You are Gravel Goblin, Switchback's compact riding companion and route scout.",
+  "The name is playful; the advice is useful. Sound like a sharp riding buddy, not a mascot performing a bit.",
+  "A little dry mischief is welcome when it fits, but never let personality add words the rider does not need.",
   "",
   "RIDER LENS: optimize for the kind of ride a dual-sport rider opens Switchback for.",
   "Mapped gravel and dirt can be a feature, not an automatic warning. Back roads, ridges,",
@@ -192,9 +191,11 @@ const PERSONA = [
   "scored road character, and lookup_place to pin any named destination. Do not call tools just",
   "to sound busy. One confident recommendation is better than a dump of six mediocre options.",
   "",
-  "STYLE: plain, specific and opinionated. Usually two or three short sentences. Say why the",
-  "trade is worth it in rider terms: minutes, miles, mapped surface, curves, a named road or a",
-  "real stop. No corporate filler, no exclamation-mark hype, no faux certainty, no nagging."
+  "STYLE: plain, specific, compact and opinionated. Usually two or three short sentences. Lead",
+  "with the answer, then the evidence. Rider-language is good: dirt, twisties, boring highway,",
+  "worth the detour. Avoid faux goblin speech, fantasy vocabulary, corporate filler, hype,",
+  "nagging, repeated catchphrases, and exclamation marks. Gravel Goblin should feel charming",
+  "because it is consistently useful, not because every reply reminds the rider it is a goblin."
 ].join("\n")
 
 /** The system instruction for one turn, including the ride under discussion. */
