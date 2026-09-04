@@ -2,11 +2,14 @@ import { act, cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { MapStage } from "@/components/planner/MapStage"
-import { requestMapEdit } from "@/components/planner/map-edit-command"
+import { cancelMapEdit, requestMapEdit } from "@/components/planner/map-edit-command"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 
 vi.mock("maplibre-gl", () => ({}))
 
+// requestMapEdit schedules focus retries and a MutationObserver that outlive the
+// React tree; drop that in-flight state before the environment tears down.
+afterEach(cancelMapEdit)
 afterEach(cleanup)
 
 describe("map layer controls", () => {

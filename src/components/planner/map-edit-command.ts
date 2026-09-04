@@ -39,6 +39,7 @@ function restoreMapEditFocus(active: ActiveMapEditFocus): void {
   // when it survived; otherwise resolve the semantic trigger after the sheet
   // has rendered again.
   window.setTimeout(() => {
+    if (typeof document === "undefined") return
     const trigger = active.trigger && document.contains(active.trigger)
       ? active.trigger
       : document.querySelector<HTMLElement>(EDIT_TRIGGER_SELECTOR[active.command])
@@ -48,6 +49,7 @@ function restoreMapEditFocus(active: ActiveMapEditFocus): void {
 
 function focusEditSurface(active: ActiveMapEditFocus, attempts = 0): void {
   if (activeFocus?.token !== active.token) return
+  if (typeof document === "undefined") return
   const surface = document.querySelector<HTMLElement>(EDIT_SURFACE_SELECTOR[active.command])
   if (!surface) {
     if (attempts < 12) window.setTimeout(() => focusEditSurface(active, attempts + 1), 0)
@@ -61,6 +63,7 @@ function focusEditSurface(active: ActiveMapEditFocus, attempts = 0): void {
   surface.focus({ preventScroll: true })
 
   const observer = new MutationObserver(() => {
+    if (typeof document === "undefined") return
     if (!document.contains(surface)) restoreMapEditFocus(active)
   })
   observer.observe(document.body, { childList: true, subtree: true })
@@ -97,6 +100,16 @@ export function requestMapEdit(command: MapEditCommand): void {
   store.setSheetDetentOverride("peek")
   window.dispatchEvent(new CustomEvent<MapEditCommand>(MAP_EDIT_EVENT, { detail: command }))
   focusEditSurface(active)
+}
+
+/**
+ * Stop any in-flight contextual map edit: disconnect the surface observer and
+ * drop the active token so pending focus retries and detent restores become
+ * no-ops. Safe to call when no edit is active.
+ */
+export function cancelMapEdit(): void {
+  activeFocus?.observer?.disconnect()
+  activeFocus = null
 }
 
 export function subscribeMapEdit(

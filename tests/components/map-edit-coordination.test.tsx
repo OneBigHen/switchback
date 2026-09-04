@@ -2,7 +2,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { MapStage } from "@/components/planner/MapStage"
-import { requestMapEdit } from "@/components/planner/map-edit-command"
+import { cancelMapEdit, requestMapEdit } from "@/components/planner/map-edit-command"
 import { usePlannerStore } from "@/stores/planner-store"
 
 vi.mock("maplibre-gl", () => ({}))
@@ -47,6 +47,9 @@ function renderMapStage() {
 }
 
 afterEach(() => {
+  // requestMapEdit schedules focus retries and a MutationObserver that outlive
+  // the React tree; drop that in-flight state before the environment tears down.
+  cancelMapEdit()
   cleanup()
   usePlannerStore.getState().setSheetDetentOverride(null)
 })
