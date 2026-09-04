@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUp, ChatCircleDots, MapPin, MapTrifold, Sparkle, X } from "@phosphor-icons/react"
+import { ArrowUp, ChatCircleDots, MapPin, MapTrifold, X } from "@phosphor-icons/react"
 import { useEffect, useRef, useState } from "react"
 import type {
   AdvisorMessage,
@@ -13,16 +13,17 @@ import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { GRAVEL_GOBLIN_AVATAR } from "./gravel-goblin-avatar"
 import styles from "./RideAdvisor.module.css"
 
 /**
- * One co-pilot, two natural entry points:
+ * Gravel Goblin is one companion with two natural jobs:
  *
- * - With no route, it is a ride builder. The rider describes the day they want
+ * - Before routing, it is a ride scout. The rider describes the day they want
  *   and gets a bounded, geocoder-resolved planner proposal to confirm.
- * - With routes, it becomes the second opinion: trade-offs, road character,
+ * - With routes, it becomes a second opinion: trade-offs, road character,
  *   gravel and real stops. The conversation survives the transition so a ride
- *   the co-pilot just built does not suddenly forget why it exists.
+ *   Gravel Goblin just helped build does not suddenly forget why it exists.
  *
  * It is never modal, never on the routing critical path, and never owns a route
  * decision. Structured proposals go through the ordinary planner boundary.
@@ -62,10 +63,18 @@ function threadTurn(turn: AdvisorMessage): ThreadTurn {
   return { ...turn, key: `turn-${turnCounter}` }
 }
 
+function GoblinAvatar({ size = "normal" }: { size?: "tiny" | "normal" | "large" }) {
+  return (
+    <span className={styles.avatar} data-size={size} aria-hidden="true">
+      <img src={GRAVEL_GOBLIN_AVATAR} alt="" />
+    </span>
+  )
+}
+
 function citationList(citations: GroundingCitation[]) {
   if (citations.length === 0) return null
   return (
-    <ul className={styles.citations} aria-label="Advisor sources">
+    <ul className={styles.citations} aria-label="Gravel Goblin sources">
       {citations.map((citation) => (
         <li key={citation.url}>
           <a href={citation.url} target="_blank" rel="noreferrer noopener" translate="no">
@@ -116,23 +125,10 @@ export function RideAdvisor({
   const pending = useRef<AbortController | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
   const currentScope = scopeFor(routes, selectedRouteId)
-  // The scope the visible artifacts belong to, held twice on purpose, because
-  // two callers need it and neither can use the other's copy: render must not
-  // read a ref, and an async reply resolving later must not read a value its
-  // closure captured before the route changed. The state answers "is what I am
-  // about to paint stale", so the one render between a route change and the
-  // reset effect already hides stale artifacts; the ref answers "is this reply
-  // still wanted", and doubles as the effect's guard so a double-invoked effect
-  // cannot abort a request the second pass just started.
   const [scope, setScope] = useState(currentScope)
   const scopeRef = useRef(currentScope)
   const scopeStale = scope !== currentScope
 
-  // The co-pilot is a network capability, so asking for it while the rider is
-  // offline can only fail — and it fails loudly, as a console resource error on
-  // a surface that is otherwise honest about having no connection. Ask when
-  // there is one, and ask again if one arrives. Until then the advisor is
-  // simply absent, which is the truth.
   useEffect(() => {
     const controller = new AbortController()
     const probe = (): void => {
@@ -149,9 +145,6 @@ export function RideAdvisor({
     }
   }, [])
 
-  // Route changes invalidate route-scoped artifacts and any in-flight answer,
-  // but deliberately keep the transcript so a ride the co-pilot just built does
-  // not lose the conversation that produced it.
   useEffect(() => {
     if (scopeRef.current === currentScope) return
     const hadConversation = conversation.length > 0
@@ -165,12 +158,10 @@ export function RideAdvisor({
     setCitations([])
     setSecondOpinion(null)
     setNotice(hadConversation && selectedRouteId
-      ? "Route changed \u2014 I\u2019ll use the route you have selected now."
+      ? "Route changed — I’m looking at the one you picked now."
       : null)
   }, [conversation.length, currentScope, selectedRouteId])
 
-  // The thread is a bounded scroller, so a new turn would otherwise land below
-  // the fold. Follow the newest turn instead of making the rider hunt for it.
   useEffect(() => {
     const thread = threadRef.current
     if (!thread) return
@@ -225,10 +216,10 @@ export function RideAdvisor({
       if (reply.status !== "ok") {
         setNotice(
           reply.status === "timeout"
-            ? "That took too long — ask again if you want another read."
+            ? "That one took too long. Give me another crack at it."
             : reply.status === "rate-limited"
-              ? "I’ve hit the turn limit for the moment. Try again shortly."
-              : "I couldn’t reach my sources just now. Switchback’s own planner is unaffected."
+              ? "I’ve chewed through my turns for the moment. Try me again shortly."
+              : "I can’t reach my outside sources right now. Your Switchback planner still works normally."
         )
         return
       }
@@ -238,8 +229,8 @@ export function RideAdvisor({
       setCitations(reply.citations)
       setSecondOpinion(reply.secondOpinion
         ? reply.secondOpinion.agreesWithSwitchback
-          ? `Agrees with Switchback’s pick — ${reply.secondOpinion.rationale}`
-          : `Would take “${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}” instead — ${reply.secondOpinion.rationale}`
+          ? `I’m with Switchback on this one — ${reply.secondOpinion.rationale}`
+          : `I’d take “${routes.find((route) => route.id === reply.secondOpinion!.wouldPick)?.name ?? reply.secondOpinion.wouldPick}” instead — ${reply.secondOpinion.rationale}`
         : null)
     } finally {
       if (pending.current === controller) setBusy(false)
@@ -252,31 +243,21 @@ export function RideAdvisor({
       void ask(question)
       return
     }
-    // Opening the builder should not spend a model turn merely to ask what the
-    // rider wants. A routed ride can earn an automatic opening read.
     if (hasRoute && conversation.length === 0) void ask()
   }
 
   if (!open) {
     if (!hasRoute) {
       return (
-        <section className={styles.builderCard} aria-label="AI ride builder">
-          <div className={styles.builderLead}>
-            <span className={styles.builderIcon} aria-hidden="true"><Sparkle weight="fill" /></span>
-            <span>
-              <small>AI ride builder</small>
-              <strong>Describe the ride, not just the destination.</strong>
-              <span>Time, gravel, back roads, food, a place to end up — give me the vibe and I’ll turn it into a plan you can inspect.</span>
+        <section className={styles.goblinInvite} aria-label="Gravel Goblin ride builder">
+          <button type="button" className={styles.goblinInviteButton} onClick={() => openWith()}>
+            <GoblinAvatar size="large" />
+            <span className={styles.goblinInviteCopy}>
+              <small>Gravel Goblin</small>
+              <strong>Need a ride idea?</strong>
+              <span>Give me the vibe — time, dirt, twisties, food — and I’ll scout something worth riding.</span>
             </span>
-          </div>
-          <div className={styles.builderQuick} aria-label="Ride builder examples">
-            {STARTERS_NO_ROUTE.slice(0, 2).map((prompt) => (
-              <button type="button" key={prompt} onClick={() => openWith(prompt)}>{prompt}</button>
-            ))}
-          </div>
-          <button type="button" className={styles.builderOpen} onClick={() => openWith()}>
-            <ChatCircleDots weight="fill" aria-hidden="true" />
-            <span>Plan a ride with me</span>
+            <span className={styles.goblinInviteAction}>Ask</span>
           </button>
         </section>
       )
@@ -286,9 +267,10 @@ export function RideAdvisor({
       <div className={styles.closed}>
         {nudge ? (
           <div className={styles.nudge} role="note">
-            <span>{nudge.text}</span>
+            <GoblinAvatar size="tiny" />
+            <span className={styles.nudgeText}>{nudge.text}</span>
             <span className={styles.nudgeActions}>
-              <button type="button" onClick={() => openWith(nudge.followUp)}>Ask about it</button>
+              <button type="button" onClick={() => openWith(nudge.followUp)}>Ask Goblin</button>
               <button
                 type="button"
                 aria-label="Dismiss this suggestion"
@@ -301,46 +283,60 @@ export function RideAdvisor({
           </div>
         ) : null}
         <button type="button" className={styles.trigger} onClick={() => openWith()}>
-          <ChatCircleDots weight="fill" aria-hidden="true" />
-          <span>Ask about this ride</span>
+          <GoblinAvatar size="tiny" />
+          <span>Ask Gravel Goblin</span>
         </button>
       </div>
     )
   }
 
   return (
-    <section className={styles.panel} aria-label="Ride advisor">
+    <section className={styles.panel} aria-label="Gravel Goblin">
       <header className={styles.header}>
-        <div>
-          <span>{hasRoute ? "Co-pilot" : "Ride builder"}</span>
-          <h2>{hasRoute ? "What I'd do" : "Build me a good one"}</h2>
+        <div className={styles.identity}>
+          <GoblinAvatar size="normal" />
+          <span className={styles.identityCopy}>
+            <span>Gravel Goblin</span>
+            <h2>{hasRoute ? "Your second opinion" : "Let’s find the fun way"}</h2>
+          </span>
         </div>
-        <button type="button" aria-label="Close the ride advisor" onClick={() => setOpen(false)}>
+        <button type="button" aria-label="Close Gravel Goblin" onClick={() => setOpen(false)}>
           <X weight="bold" aria-hidden="true" />
         </button>
       </header>
 
       {visibleSecondOpinion ? <p className={styles.verdict} role="note">{visibleSecondOpinion}</p> : null}
 
-      <div ref={threadRef} className={styles.thread} role="log" aria-live="polite" aria-label="Advisor conversation" tabIndex={0}>
+      <div ref={threadRef} className={styles.thread} role="log" aria-live="polite" aria-label="Gravel Goblin conversation" tabIndex={0}>
         {!hasRoute && conversation.length === 0 && !visibleBusy ? (
-          <p className={styles.emptyLead}>
-            Tell me how long you have and what sounds fun. A start helps; if you haven’t picked one yet, name the town.
-          </p>
+          <div className={styles.assistantTurn}>
+            <GoblinAvatar size="tiny" />
+            <p className={styles.emptyLead}>
+              Tell me how long you have and what sounds fun. A start helps; if you haven’t picked one yet, name the town.
+            </p>
+          </div>
         ) : null}
-        {conversation.map((turn) => (
-          <p key={turn.key} className={turn.role === "rider" ? styles.rider : styles.advisor}>
-            {turn.text}
-          </p>
+        {conversation.map((turn) => turn.role === "rider" ? (
+          <p key={turn.key} className={styles.rider}>{turn.text}</p>
+        ) : (
+          <div key={turn.key} className={styles.assistantTurn}>
+            <GoblinAvatar size="tiny" />
+            <p className={styles.advisor}>{turn.text}</p>
+          </div>
         ))}
-        {visibleBusy ? <p className={styles.advisor}>Reading the roads…</p> : null}
+        {visibleBusy ? (
+          <div className={styles.assistantTurn}>
+            <GoblinAvatar size="tiny" />
+            <p className={styles.advisor}>Sniffing out the good roads…</p>
+          </div>
+        ) : null}
         {visibleNotice ? <p className={styles.notice} role="status">{visibleNotice}</p> : null}
       </div>
 
       {citationList(visibleCitations)}
 
       {visibleRide && onPlanRide ? (
-        <div className={styles.ride} aria-label="Proposed ride">
+        <div className={styles.ride} aria-label="Gravel Goblin ride idea">
           <span className={styles.rideBody}>
             <strong>{visibleRide.summary}</strong>
             <small>{rideShape(visibleRide)}</small>
@@ -363,7 +359,7 @@ export function RideAdvisor({
       ) : null}
 
       {visibleStops.length > 0 ? (
-        <div className={styles.stops} aria-label="Suggested stops">
+        <div className={styles.stops} aria-label="Gravel Goblin stop ideas">
           {visibleStops.map((stop) => (
             <div className={styles.stop} key={stop.id}>
               <span className={styles.stopBody}>
@@ -392,7 +388,7 @@ export function RideAdvisor({
       ) : null}
 
       {conversation.length <= 1 && !visibleBusy ? (
-        <div className={styles.starters}>
+        <div className={styles.starters} aria-label="Things to ask Gravel Goblin">
           {(hasRoute ? STARTERS_WITH_ROUTE : STARTERS_NO_ROUTE).map((prompt) => (
             <button type="button" key={prompt} onClick={() => void ask(prompt)}>{prompt}</button>
           ))}
@@ -412,12 +408,12 @@ export function RideAdvisor({
           value={draft}
           maxLength={400}
           placeholder={hasRoute
-            ? "Ask about the roads, stops, gravel, or trade-off…"
-            : "Three hours, gravel, back roads, end somewhere good…"}
-          aria-label="Ask the ride advisor"
+            ? "Ask about roads, stops, gravel, or the trade-off…"
+            : "Three hours, dirt, back roads, end somewhere good…"}
+          aria-label="Ask Gravel Goblin"
           onChange={(event) => setDraft(event.currentTarget.value)}
         />
-        <button type="submit" aria-label="Send to the ride advisor" disabled={visibleBusy || draft.trim().length === 0}>
+        <button type="submit" aria-label="Send to Gravel Goblin" disabled={visibleBusy || draft.trim().length === 0}>
           <ArrowUp weight="bold" aria-hidden="true" />
         </button>
       </form>
