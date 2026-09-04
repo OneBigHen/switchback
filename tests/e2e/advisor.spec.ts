@@ -72,7 +72,7 @@ async function mockBase(page: import("@playwright/test").Page) {
 
 test("AI builder is available before routing and becomes the route advisor after planning", async ({ page }) => {
   await mockBase(page)
-  let primaryRequest: Record<string, unknown> | undefined
+  const primaryRequests: Record<string, unknown>[] = []
 
   await page.route("**/api/advisor", async (routeRequest) => {
     if (routeRequest.request().method() === "GET") {
@@ -111,7 +111,7 @@ test("AI builder is available before routing and becomes the route advisor after
 
   await page.route("**/api/routes", async (routeRequest) => {
     const body = routeRequest.request().postDataJSON() as Record<string, unknown>
-    if ((body.candidateSet ?? "primary") === "primary") primaryRequest = body
+    if ((body.candidateSet ?? "primary") === "primary") primaryRequests.push(body)
     await routeRequest.fulfill({
       status: 200,
       contentType: "application/json",
@@ -121,8 +121,8 @@ test("AI builder is available before routing and becomes the route advisor after
 
   await page.goto(appUrl)
 
-  // The AI path must exist before there is any RouteComparison. This is the
-  // builder half of the product; after routing the same surface becomes B.
+  // A: the AI path exists before RouteComparison. After deterministic routing,
+  // this same conversation becomes B: the advisor for the produced route.
   const builder = page.getByRole("button", { name: "Plan a ride with me" })
   await expect(builder).toBeVisible()
   await builder.click()
@@ -133,22 +133,32 @@ test("AI builder is available before routing and becomes the route advisor after
   await expect(page.getByText("Three hours of ridge roads and gravel to Gettysburg.")).toBeVisible()
 
   await page.getByRole("button", { name: "Plan this ride" }).click()
-  await expect.poll(() => primaryRequest).toMatchObject({
+  await expect.poll(() => primaryRequests[0]).toMatchObject({
     profile: "adventure",
     targetMinutes: 180,
     avoidHighways: true,
     tollPolicy: "avoid"
   })
 
-  // The builder conversation should survive the no-route -> planned-route
-  // transition and become the advisor for the route it just created.
+  // The transcript survives the no-route -> route transition.
   await expect(page.getByText(/I’d run the ridges south/)).toBeVisible()
   await expect(page.getByRole("heading", { name: "What I'd do" })).toBeVisible()
 
-  // Every route-shaping choice on the AI card must also be visible/editable in
-  // the ordinary planner controls after routing.
+  // AI-confirmed shaping choices are ordinary, rider-editable planner options.
   const options = page.getByRole("button", { name: "Ride options", exact: true })
   if (await options.getAttribute("aria-expanded") !== "true") await options.click()
   await expect(page.getByRole("checkbox", { name: "Avoid highways" })).toBeChecked()
-  await expect(page.getByRole("checkbox", { name: "Avoid tolls" })).toBeChecked()
+  const avoidTolls = page.getByRole("checkbox", { name: "Avoid tolls" })
+  await expect(avoidTolls).toBeChecked()
+
+  // Editing the generated choice must affect the next deterministic route
+  // request rather than remaining presentation-only state.
+  await avoidTolls.uncheck()
+  await page.getByRole("button", { name: "Replan", exact: true }).click()
+  await expect.poll(() => primaryRequests[1]).toMatchObject({
+    profile: "adventure",
+    targetMinutes: 180,
+    avoidHighways: true,
+    tollPolicy: "allow-with-warning"
+  })
 })
