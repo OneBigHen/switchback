@@ -18,8 +18,8 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
     <section className={styles.surface} role="region" aria-label="Route choices">
       <header className={styles.header}>
         <div>
-          <span>Choose</span>
-          <h2>Pick the ride, not the algorithm.</h2>
+          <span>Route options</span>
+          <h2>Choose your ride</h2>
         </div>
         <small>{routes.length} {routes.length === 1 ? "route" : "routes"}</small>
       </header>
