@@ -1,0 +1,54 @@
+name: Patch route advisor shell
+
+on:
+  push:
+    branches: [feat/route-advisor]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/route-advisor
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply surgical planner shell wiring
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/planner/PlannerShell.tsx')
+          text = path.read_text()
+
+          before_view = '''            curvatureVisible,\n            avoidHighways,\n            savedCount: savedRoutes.length + projectRoutes.length,'''
+          after_view = '''            curvatureVisible,\n            avoidHighways,\n            tollPolicy,\n            savedCount: savedRoutes.length + projectRoutes.length,'''
+          if text.count(before_view) != 1:
+              raise SystemExit(f'expected exactly one view-model seam, found {text.count(before_view)}')
+          text = text.replace(before_view, after_view, 1)
+
+          before_command = '''              onAvoidHighwaysChange: (avoid) => {\n                routeRequestGate.invalidate()\n                setAvoidHighways(avoid)\n              },\n              onPlanModeChange: (mode) => {'''
+          after_command = '''              onAvoidHighwaysChange: (avoid) => {\n                routeRequestGate.invalidate()\n                setAvoidHighways(avoid)\n              },\n              onTollPolicyChange: (policy) => {\n                routeRequestGate.invalidate()\n                setTollPolicy(policy)\n              },\n              onPlanModeChange: (mode) => {'''
+          if text.count(before_command) != 1:
+              raise SystemExit(f'expected exactly one ride-config seam, found {text.count(before_command)}')
+          text = text.replace(before_command, after_command, 1)
+
+          path.write_text(text)
+          PY
+      - name: Commit only the intended wiring
+        shell: bash
+        run: |
+          git config user.name 'switchback-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/patch-route-advisor-shell.yml
+          git add src/components/planner/PlannerShell.tsx
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'feat(planner): finish editable toll policy wiring'
+          git push origin HEAD:feat/route-advisor
