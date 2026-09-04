@@ -123,7 +123,7 @@ describe("RouteDecisionRail", () => {
     )
 
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
-    expect(screen.getByRole("article", { name: /Maximum Twisties route option/i })).toHaveAttribute("data-selected", "true")
+    expect(screen.getByRole("article", { name: /Maximum Twisties: twisty route route option/i })).toHaveAttribute("data-selected", "true")
     expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Show turn-by-turn directions" })).not.toBeInTheDocument()
 
