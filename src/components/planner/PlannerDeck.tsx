@@ -339,6 +339,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               bikeProfile={rideConfig.bikeProfile}
               curvatureVisible={curvatureVisible}
               avoidHighways={avoidHighways}
+              tollPolicy={tollPolicy}
               targetMinutes={targetMinutes}
               timeShaped={timeShaped}
               segmentProfiles={segmentProfiles}
@@ -371,6 +372,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               onBikeProfileChange={onBikeProfileChange}
               onCurvatureChange={onCurvatureChange}
               onAvoidHighwaysChange={onAvoidHighwaysChange}
+              onTollPolicyChange={onTollPolicyChange}
               onTargetMinutesChange={onTargetMinutesChange}
               onTimeShapedChange={onTimeShapedChange}
               onSegmentProfileChange={onSegmentProfileChange}
@@ -387,20 +389,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               researchSources={researchSources}
               onResearchRideIdea={onResearchRideIdea}
             />
-            {editing ? (
-              <section className="plan-v2__option-group plan-v2__toll-policy" aria-label="Toll policy">
-                <h3>Tolls</h3>
-                <p>Known toll exposure is always disclosed. Avoid it entirely when that matters for this ride.</p>
-                <label className="plan-v2__check-row">
-                  <input
-                    type="checkbox"
-                    checked={tollPolicy === "avoid"}
-                    onChange={(event) => onTollPolicyChange(event.target.checked ? "avoid" : "allow-with-warning")}
-                  />
-                  <span>Avoid tolls</span>
-                </label>
-              </section>
-            ) : null}
             {children}
           </div>
 

@@ -120,8 +120,13 @@ What the model is for is the conversation *after* the rider taps it.
   answers `disabled`, the UI renders nothing, the core product is unchanged. No
   billing, no plans, no upsell copy.
 - `GEMINI_MAPS_GROUNDING=0` drops Maps grounding while leaving the co-pilot
-  running on Switchback's own data. It defaults **on**, because it is what makes
-  the co-pilot worth talking to and it is inside the Gemini free tier.
+  running on Switchback's own data. It defaults **on**, because grounded place
+  character is what makes the co-pilot worth talking to. It is **not** a free
+  feature: Maps grounding is priced separately from ordinary Gemini turns and
+  billed per grounded search beyond whatever allowance the account's tier
+  includes. Allowances and prices change, so check Google's current Gemini API
+  pricing before enabling it on a shared or public instance, and set it to `0`
+  to run the co-pilot on Switchback's own data alone.
 - `CURVATURE_DB_PATH` additionally offers the road-character tool, so the
   co-pilot can hunt scored roads and gravel. Absent just means one fewer tool.
 
@@ -140,10 +145,16 @@ a self-hosted instance, so it is opt-in, off by default, and documented in
 `.env.example`. Conversations are not stored server-side: the client holds the
 transcript and posts it back each turn.
 
-Cost sits inside the Gemini free tier at this audience size. A turn is one
-request without grounding and two with; `usage.groundedQueries` is reported on
-every reply, and a `429` degrades to a `rate-limited` status the UI states
-plainly rather than hiding.
+Cost is bounded by construction rather than assumed to be zero. A turn is one
+request without Maps grounding and two with it, the in-process limiter caps
+advisor turns per minute, and tool rounds and per-round tool calls are both
+bounded. `usage.groundedQueries` is reported on every reply, and a `429`
+degrades to a `rate-limited` status the UI states plainly rather than hiding.
+
+Ordinary Gemini turns and Maps-grounded searches are priced differently and
+both vary by model and account tier; `.env.example` carries the operator-facing
+warning and points at Google's current pricing page. Nothing here claims the
+co-pilot is free to run.
 
 ### Analytics (ADR 0011)
 

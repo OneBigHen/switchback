@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import { listProfiles } from "@/lib/routing/profiles"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
 import { requestMapEdit } from "../map-edit-command"
 import { BikeProfilePicker } from "../BikeProfilePicker"
@@ -19,6 +19,7 @@ export interface PlanOptionsProps {
   bikeProfile: BikeProfile
   curvatureVisible: boolean
   avoidHighways: boolean
+  tollPolicy: TollPolicy
   targetMinutes: number
   timeShaped: boolean
   segmentProfiles: RouteProfileId[]
@@ -39,6 +40,7 @@ export interface PlanOptionsProps {
   onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
+  onTollPolicyChange(policy: TollPolicy): void
   onTargetMinutesChange(minutes: number): void
   onTimeShapedChange(shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
@@ -81,6 +83,7 @@ export function PlanOptions({
   bikeProfile,
   curvatureVisible,
   avoidHighways,
+  tollPolicy,
   targetMinutes,
   timeShaped,
   segmentProfiles,
@@ -101,6 +104,7 @@ export function PlanOptions({
   onBikeProfileChange,
   onCurvatureChange,
   onAvoidHighwaysChange,
+  onTollPolicyChange,
   onTargetMinutesChange,
   onTimeShapedChange,
   onSegmentProfileChange,
@@ -186,6 +190,15 @@ export function PlanOptions({
               <input type="checkbox" checked={avoidHighways} onChange={(event) => onAvoidHighwaysChange(event.target.checked)} />
               <span>Avoid highways</span>
             </label>
+            <label className="plan-v2__check-row">
+              <input
+                type="checkbox"
+                checked={tollPolicy === "avoid"}
+                onChange={(event) => onTollPolicyChange(event.target.checked ? "avoid" : "allow-with-warning")}
+              />
+              <span>Avoid tolls</span>
+            </label>
+            <p>Toll exposure is disclosed either way; avoid it entirely when that matters for this ride.</p>
           </OptionGroup>
 
           <OptionGroup name="Bike">

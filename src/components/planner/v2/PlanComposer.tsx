@@ -5,7 +5,7 @@ import { useCallback, useEffect, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { PlannerError, PlannerPointId, PlanningPhase } from "@/stores/planner-store"
 import type { PlanMode, PlannerProviderHealthViewModel } from "../PlannerDeckViewModel"
 import { ProviderHealthNotice } from "../ProviderHealthNotice"
@@ -35,6 +35,7 @@ export interface PlanComposerProps {
   bikeProfile: BikeProfile
   curvatureVisible: boolean
   avoidHighways: boolean
+  tollPolicy: TollPolicy
   targetMinutes: number
   timeShaped: boolean
   segmentProfiles: RouteProfileId[]
@@ -67,6 +68,7 @@ export interface PlanComposerProps {
   onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
+  onTollPolicyChange(policy: TollPolicy): void
   onTargetMinutesChange(minutes: number): void
   onTimeShapedChange(shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
@@ -109,6 +111,7 @@ export function PlanComposer({
   bikeProfile,
   curvatureVisible,
   avoidHighways,
+  tollPolicy,
   targetMinutes,
   timeShaped,
   segmentProfiles,
@@ -141,6 +144,7 @@ export function PlanComposer({
   onBikeProfileChange,
   onCurvatureChange,
   onAvoidHighwaysChange,
+  onTollPolicyChange,
   onTargetMinutesChange,
   onTimeShapedChange,
   onSegmentProfileChange,
@@ -259,6 +263,7 @@ export function PlanComposer({
             bikeProfile={bikeProfile}
             curvatureVisible={curvatureVisible}
             avoidHighways={avoidHighways}
+            tollPolicy={tollPolicy}
             targetMinutes={targetMinutes}
             timeShaped={timeShaped}
             segmentProfiles={segmentProfiles}
@@ -279,6 +284,7 @@ export function PlanComposer({
             onBikeProfileChange={onBikeProfileChange}
             onCurvatureChange={onCurvatureChange}
             onAvoidHighwaysChange={onAvoidHighwaysChange}
+            onTollPolicyChange={onTollPolicyChange}
             onTimeShapedChange={onTimeShapedChange}
             onTargetMinutesChange={onTargetMinutesChange}
             onSegmentProfileChange={onSegmentProfileChange}

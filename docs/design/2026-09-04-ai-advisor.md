@@ -1,9 +1,19 @@
 # Design — the Switchback co-pilot
 
-**Status:** phases 1–3 are built and shipped. Phase 4 (pre-routing intent
-shaping beyond a confirmed ride, and riding-mode behaviour) is still a design
-awaiting a decision — §4 and §5 describe it, and the ADR 0024 draft in the
-appendix is deliberately unfiled until then.
+**Status:** phases 1–3 are built and shipped, and that includes the pre-routing
+**ride builder**: with no route on the map the co-pilot is a first-class way to
+start a ride, and the same conversation becomes the advisor for the deterministic
+candidates once they exist. Building a ride from a sentence is no longer future
+work — see §3, surface (d).
+
+Two things are still deliberately unbuilt, and only these:
+
+1. **Intent shaping beyond a confirmed ride** — the advisor pre-filling planner
+   controls generally, without the rider asking it to build a ride and confirming
+   the result. §4 describes it; it needs the ADR 0024 draft in the appendix
+   accepted first, and that draft is deliberately unfiled until then.
+2. **Riding-mode (in-motion) behaviour** — the quiet state machine in §5. Designed,
+   not built. Nothing in the shipped code speaks while the rider is moving.
 
 **Date:** 2026-09-04
 **Relates to:** ADR [0001](../adr/0001-routing-provider-architecture.md),
@@ -12,7 +22,7 @@ appendix is deliberately unfiled until then.
 [0017](../adr/0017-federated-route-candidates.md),
 [0020](../adr/0020-free-ride-discovery-live.md),
 [0021](../adr/0021-premium-capabilities.md),
-[0023](../adr/0023-route-advisor.md) (proposed), and the ADR 0024 draft below.
+[0023](../adr/0023-route-advisor.md), and the ADR 0024 draft below.
 
 ---
 
@@ -92,6 +102,22 @@ the co-pilot pins the places through Switchback's geocoder and hands back a
 filled-in planner form to confirm. **Built** — this is the confirmed-ride form
 of intent shaping. §4 covers how much further it should go.
 
+**One conversation, two entry points.** (a) and (d) are not separate chat
+systems. `RideAdvisor` renders the builder when there is no `RouteComparison`
+and the advisor once candidates exist, and the transcript survives that
+transition: a ride the co-pilot just built does not forget the sentence that
+produced it. Route-*scoped* artifacts — a second opinion, proposed stops,
+citations, an in-flight turn — are fenced to the route they were asked about and
+are dropped when the rider changes route or replaces the plan. The transcript is
+not.
+
+**The handoff is atomic.** `advisorRideToPlannerHandoff` converts a confirmed
+proposal into one immutable set of planner inputs — mode, profile, target
+minutes, start, finish, shaping points, highway avoidance, toll policy — which
+is passed *directly* into the first route request as well as mirrored into React
+state for later editing. The card and the router therefore cannot disagree
+because a state setter had not committed yet.
+
 ### Where the code lives
 
 | Concern | Module | Note |
@@ -103,7 +129,8 @@ of intent shaping. §4 covers how much further it should go.
 | Persona + briefing | `src/lib/advice/route-context.ts` | built |
 | Deterministic nudges | `src/lib/advice/nudges.ts` | built |
 | Capability gating | `src/lib/advice/capability.ts` | built |
-| Riding-mode gate | extends `src/lib/recommendation/free-ride.ts` | phase 4 |
+| Ride builder handoff into the planner | `src/lib/advice/planner-handoff.ts` | built |
+| Riding-mode gate | extends `src/lib/recommendation/free-ride.ts` | not built |
 
 Google Maps grounding is **not** a module: it is a server-side Gemini tool that
 runs inside the same call as our function declarations. Two API constraints,
@@ -264,21 +291,29 @@ its personality was the product rather than a thin layer over something useful.
 
 ## 7. Privacy, cost, degradation
 
-**No key ⇒ nothing.** No `OPENROUTER_API_KEY` and the capability is absent: the
+**No key ⇒ nothing.** No `GEMINI_API_KEY` and the capability is absent: the
 API answers `disabled`, no UI renders, the core product is unchanged. No
 billing, no plans, no upsell copy anywhere (ADR 0021).
 
 **Egress is opt-in and off for self-hosters.** Enabling the advisor sends
 sampled route geometry (≤40 coordinates), candidate metrics, and the rider's own
-messages to OpenRouter, and — only when separately enabled — a coarse midpoint
-to Google. Documented in `.env.example` in those words. Conversations are never
-stored server-side.
+messages to Google's Gemini API — the transport is Gemini directly, not
+OpenRouter. Maps grounding, when enabled, additionally sends a coarse anchor
+point. Documented in `.env.example` in those words. Conversations are never
+stored server-side: the client holds the transcript and posts it back each turn.
 
-**Cost.** The default is a cheap Gemini Flash-Lite class model: a turn is one or
-two completions over a small context, on the order of a tenth of a US cent.
-Grounding with Google Maps is the expensive part at roughly **$14 per 1,000
-grounded queries** after a free tier — hence its own flag, a daily ceiling, and
-`usage.groundedQueries` on every reply.
+The rider's saved Home is **not** sent. Only an explicitly chosen planner start
+is passed as `origin`, so having a Home saved does not by itself put the rider's
+address in a model prompt.
+
+**Cost.** The default is a cheap Flash-Lite class Gemini model, and a turn is one
+completion without Maps grounding or two with it. Maps grounding is the expensive
+part: it is priced separately from ordinary turns and billed per grounded search
+beyond whatever allowance the account's tier includes. Prices, allowances and
+which models qualify all change, and they differ by tier — so this document
+deliberately quotes no number. Check Google's current Gemini API pricing before
+enabling grounding on a shared or public instance. Hence its own flag,
+`usage.groundedQueries` on every reply, and the rate limiter on the endpoint.
 
 **Degradation.** Every failure resolves to a status, never an exception. A
 grounding outage becomes a fact the model is told about, so it says it could not
@@ -297,15 +332,17 @@ nudges are deterministic, and the rider is assumed dual-sport.
 Still open:
 
 1. **How much further should intent shaping go?** Today the co-pilot fills in a
-   ride only when the rider asks it to, and the rider confirms. §4 describes
-   letting it pre-fill controls more generally. That step needs ADR 0024.
+   whole ride when the rider asks it to, and the rider confirms it on the card
+   before anything routes. §4 describes letting it pre-fill controls more
+   generally, with no explicit "build me a ride". That step needs ADR 0024.
 2. **Riding mode.** The quiet state machine in §5 is designed but not built.
    Worth doing only once the planning surfaces have been ridden with.
 3. **Persona name.** `Pillion` is the recommendation; today the UI just says
    "Co-pilot".
-4. **Grounded-query ceiling.** The free tier is the current bound and a `429`
-   degrades cleanly. A deliberate daily cap is worth adding before the audience
-   grows.
+4. **Grounded-query ceiling.** Today the bounds are the per-minute request
+   limiter, the bounded tool rounds, and a `429` that degrades cleanly. There is
+   no daily cap on grounded queries and no spend ceiling; one is worth adding
+   before the audience grows, since grounded searches bill per query.
 5. **Per-rider opt-in on the hosted instance.** Currently instance-wide.
 
 ## 9. Phasing
@@ -314,8 +351,8 @@ Still open:
 |---|---|---|
 | **1** | Corridor-aware free-draw alternatives (#55). | Shipped. |
 | **2** | Gemini co-pilot: second opinion, conversational panel, grounded stop discovery, ADR 0023. | Shipped. |
-| **3** | Deterministic proactive nudges, and ride building from a sentence. | Shipped. |
-| **4** | Intent shaping *beyond* a confirmed ride — the advisor pre-filling controls without an explicit "build me a ride" — and the riding-mode quiet state machine under ADR 0020. | Design only. Needs the ADR 0024 draft below accepted first. |
+| **3** | Deterministic proactive nudges, and ride building from a sentence: the pre-routing builder, the atomic planner handoff, and one transcript across the builder → route transition. | Shipped. |
+| **4** | Intent shaping *beyond* a confirmed ride — the advisor pre-filling controls without an explicit "build me a ride" — and the riding-mode quiet state machine under ADR 0020. | Design only, and the only remaining unbuilt work. Needs the ADR 0024 draft below accepted first. |
 
 Each phase is independently revertible. With no key, none of it exists and the
 planner is byte-for-byte what it was.

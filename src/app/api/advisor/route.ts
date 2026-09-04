@@ -14,7 +14,7 @@ export const runtime = "nodejs"
  *
  * Stateless: the client owns the transcript and posts it back, so nothing about
  * a rider's conversation is stored server-side. When the capability is absent
- * (no `OPENROUTER_API_KEY`) this answers `disabled` rather than 404, so the
+ * (no `GEMINI_API_KEY`) this answers `disabled` rather than 404, so the
  * client can hide the surface without probing for keys.
  *
  * Rate limits are tight on purpose — every turn costs money and the advisor is

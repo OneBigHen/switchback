@@ -26,9 +26,18 @@ export function sampleGeometry(
   })
 }
 
+/**
+ * Neutralise one piece of untrusted text before it is quoted in the prompt.
+ *
+ * Angle brackets go with the control characters: a route name imported from a
+ * GPX file is attacker-controlled, and a literal `</switchback_route_data>`
+ * inside one would close the untrusted-data fence early and let the rest of the
+ * name read as trusted instruction.
+ */
 function promptData(value: string, max = 180): string {
   return value
     .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/[<>]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, max)
@@ -51,14 +60,29 @@ function candidateSummary(route: PlannedRoute): AdvisorRouteContext["candidates"
   }
 }
 
+/** The turn endpoint's bounds. Exceeding one would reject the whole request. */
+export const MAX_CONTEXT_CANDIDATES = 6
+const MAX_CANDIDATE_NAME = 160
+const MAX_WARNING_TEXT = 400
+
 export function advisorContextFromPlan(plan: TripPlan): AdvisorRouteContext | null {
   const selected = plan.routes.find((route) => route.id === plan.selectedRouteId) ?? plan.routes[0]
   if (!selected) return null
+  // An imported GPX can carry an arbitrarily long name and a plan can carry more
+  // options than the turn endpoint accepts. Neither should silently disable the
+  // co-pilot, so the briefing is clipped to the contract instead of rejected.
+  const kept = plan.routes.length <= MAX_CONTEXT_CANDIDATES
+    ? plan.routes
+    : [selected, ...plan.routes.filter((route) => route.id !== selected.id)]
+      .slice(0, MAX_CONTEXT_CANDIDATES)
+  const candidates = kept
+    .map(candidateSummary)
+    .map((candidate) => ({ ...candidate, name: candidate.name.slice(0, MAX_CANDIDATE_NAME) }))
   return {
     selectedRouteId: selected.id,
-    candidates: plan.routes.map(candidateSummary),
+    candidates,
     geometry: sampleGeometry(selected.geometry),
-    warnings: plan.warnings.slice(0, 8)
+    warnings: plan.warnings.slice(0, 8).map((warning) => warning.slice(0, MAX_WARNING_TEXT))
   }
 }
 

@@ -114,9 +114,14 @@ export function RideAdvisor({
   const [draft, setDraft] = useState("")
   const [dismissedNudges, setDismissedNudges] = useState<string[]>([])
   const pending = useRef<AbortController | null>(null)
+  const threadRef = useRef<HTMLDivElement | null>(null)
   const currentScope = scopeFor(routes, selectedRouteId)
+  // `scope` is the context the visible artifacts belong to. Comparing it to the
+  // current props during render is a pure state read, so the one render between
+  // a route change and the reset effect already hides stale artifacts.
+  const [scope, setScope] = useState(currentScope)
   const scopeRef = useRef(currentScope)
-  const scopeStale = scopeRef.current !== currentScope
+  const scopeStale = scope !== currentScope
 
   useEffect(() => {
     const controller = new AbortController()
@@ -127,27 +132,36 @@ export function RideAdvisor({
   }, [])
 
   // Route changes invalidate route-scoped artifacts and any in-flight answer,
-  // but deliberately keep the transcript. Hide stale artifacts immediately
-  // during render (`scopeStale` above), then publish the reset on the next
-  // animation frame. The asynchronous publish avoids a React effect->setState
-  // cascade while preserving the builder -> planned-route conversation.
+  // but deliberately keep the transcript so a ride the co-pilot just built does
+  // not lose the conversation that produced it. `scopeRef` is the fence async
+  // replies check; it is only ever touched outside render.
   useEffect(() => {
     if (scopeRef.current === currentScope) return
     const hadConversation = conversation.length > 0
     scopeRef.current = currentScope
     pending.current?.abort()
-    const frame = window.requestAnimationFrame(() => {
-      setBusy(false)
-      setStops([])
-      setRide(null)
-      setCitations([])
-      setSecondOpinion(null)
-      setNotice(hadConversation && selectedRouteId
-        ? "Route changed — I’ll use the route you have selected now."
-        : null)
-    })
-    return () => window.cancelAnimationFrame(frame)
+    pending.current = null
+    setScope(currentScope)
+    setBusy(false)
+    setStops([])
+    setRide(null)
+    setCitations([])
+    setSecondOpinion(null)
+    setNotice(hadConversation && selectedRouteId
+      ? "Route changed \u2014 I\u2019ll use the route you have selected now."
+      : null)
   }, [conversation.length, currentScope, selectedRouteId])
+
+  // The thread is a bounded scroller, so a new turn would otherwise land below
+  // the fold. Follow the newest turn instead of making the rider hunt for it.
+  useEffect(() => {
+    const thread = threadRef.current
+    if (!thread) return
+    thread.scrollTo({
+      top: thread.scrollHeight,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
+    })
+  }, [conversation.length, busy])
 
   useEffect(() => () => pending.current?.abort(), [])
 
@@ -291,7 +305,7 @@ export function RideAdvisor({
 
       {visibleSecondOpinion ? <p className={styles.verdict} role="note">{visibleSecondOpinion}</p> : null}
 
-      <div className={styles.thread} role="log" aria-live="polite" aria-label="Advisor conversation">
+      <div ref={threadRef} className={styles.thread} role="log" aria-live="polite" aria-label="Advisor conversation" tabIndex={0}>
         {!hasRoute && conversation.length === 0 && !visibleBusy ? (
           <p className={styles.emptyLead}>
             Tell me how long you have and what sounds fun. A start helps; if you haven’t picked one yet, name the town.

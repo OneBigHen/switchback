@@ -38,6 +38,13 @@ export async function fetchAdvisorCapability(
   }
 }
 
+/**
+ * The turn endpoint bounds the transcript it will accept. Trimming here rather
+ * than letting the request 400 is what keeps a long conversation working: the
+ * advisor is stateless, so the oldest turns are the ones safe to drop.
+ */
+export const MAX_POSTED_CONVERSATION = 12
+
 export interface AdvisorTurnInput {
   /** Null while the rider is building a ride and the advisor is helping. */
   context: AdvisorRouteContext | null
@@ -55,7 +62,10 @@ export async function requestAdvisorTurn(
     const response = await fetch("/api/advisor", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...input,
+        conversation: input.conversation.slice(-MAX_POSTED_CONVERSATION)
+      }),
       ...(signal ? { signal } : {})
     })
     if (response.status === 429) {
