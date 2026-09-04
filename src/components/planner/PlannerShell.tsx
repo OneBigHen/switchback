@@ -1339,6 +1339,8 @@ export function PlannerShell() {
 
         {surface !== "ride" && surface !== "free-ride" && navigation.destination === "plan" && !sketching ? (
           <PlannerComposition
+          planWarnings={plan?.warnings ?? []}
+          onAddAdvisorStop={(stop) => void handleChooseStopIdea(stop)}
           viewModel={buildPlannerDeckViewModel({
             plan,
             start,
