@@ -9,10 +9,10 @@ import type { AdvisorCapability } from "@/lib/advice/capability"
 /**
  * Client side of the advisor turn endpoint.
  *
- * The transcript lives here, in the browser, and is posted back each turn: the
- * server stores nothing about a rider's conversation. Every failure resolves to
- * a reply with a status — the advisor is optional evidence and must never break
- * or block planning.
+ * The transcript lives in the browser and is posted back each turn. Transport
+ * failures are deliberately flattened into advisor statuses so this optional
+ * surface cannot break planning, but useful distinctions such as a 429 are
+ * preserved for honest UI and retry behavior.
  */
 
 export interface AdvisorTurnResponse extends AdvisorReply {
@@ -43,7 +43,7 @@ export interface AdvisorTurnInput {
   context: AdvisorRouteContext | null
   conversation: AdvisorMessage[]
   riderMessage?: string
-  /** Map centre or rider location, so place search works before a route exists. */
+  /** Explicit planner start, so place search works before a route exists. */
   origin?: { lat: number; lon: number; label?: string }
 }
 
@@ -58,6 +58,9 @@ export async function requestAdvisorTurn(
       body: JSON.stringify(input),
       ...(signal ? { signal } : {})
     })
+    if (response.status === 429) {
+      return { ...emptyReply("rate-limited"), capability: ABSENT_CAPABILITY }
+    }
     if (!response.ok) {
       return { ...emptyReply("unavailable"), capability: ABSENT_CAPABILITY }
     }
