@@ -161,7 +161,7 @@ export function PlanComposer({
   researchSources = [],
   onResearchRideIdea
 }: PlanComposerProps) {
-  const placeholder = planMode === "loop" ? "Where should the loop start?" : "Where to — or describe your ride"
+  const placeholder = planMode === "loop" ? "Where should the loop start?" : "Search a place or describe a ride"
   const planningBusy = !SETTLED_PLANNING_PHASES.has(planningPhase)
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
@@ -248,7 +248,7 @@ export function PlanComposer({
             onChange={onPlanModeChange}
             disabled={requestBusy}
           />
-          <button type="button" className="plan-v2__draw-action" disabled={requestBusy} onClick={onDraw}>
+          <button type="button" className="plan-v2__draw-action" aria-label="Draw" disabled={requestBusy} onClick={onDraw}>
             <PencilLine aria-hidden="true" />
             <span>Draw route</span>
           </button>
