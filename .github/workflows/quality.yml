@@ -47,6 +47,8 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - name: Critical rider journeys in Chromium
         run: npx playwright test --project=critical-chromium
+      - name: Advisor browser contract in Chromium
+        run: npx playwright test tests/e2e/advisor.spec.ts --project=desktop-chromium
       - name: WebKit compatibility smoke
         run: npx playwright test --project=critical-webkit-smoke
       - name: Road lock regression
