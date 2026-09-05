@@ -175,7 +175,20 @@ export function createOpenRouterProvider(options: OpenRouterAdviserOptions): Adv
                   }
                 : {}),
               usage: { include: true },
-              provider: { require_parameters: true, ...options.provider },
+              provider: {
+                require_parameters: true,
+                // Measured: the same request routed to three different upstreams
+                // took 3.7s, 6.5s and 24.4s. That spread — not the question and
+                // not our code — is what produced the timeouts. Sorting by
+                // latency pins the choice and bounds the tail (4.6-9.2s across
+                // repeats), which is worth more than an occasional lucky 3.7s
+                // on the mode whose entire purpose is a fast answer.
+                //
+                // Scoped to route-only because that is where it was measured;
+                // tool-assisted keeps default routing.
+                ...(input.mode === "route-only" ? { sort: "latency" } : {}),
+                ...options.provider
+              },
               ...(effort ? { reasoning: { effort } } : {}),
               ...(withSchema
                 ? {

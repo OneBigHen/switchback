@@ -30,6 +30,17 @@ import { isRetryableFailure, type AdvisorProvider } from "./provider"
  * So `auto` is a real routing decision rather than an alias for a favourite.
  */
 
+/**
+ * The whole turn's wall-clock ceiling, shared by every attempt. Matches the
+ * per-provider ceiling so a single-provider deployment behaves exactly as it
+ * did before this budgeting existed.
+ */
+const TURN_BUDGET_MS = 30_000
+/** What the first of several attempts may spend before the fallback is starved. */
+const FIRST_ATTEMPT_SHARE = 0.6
+/** Floor for a non-final attempt: never hand one a slice too short to plausibly finish in. */
+const MIN_ATTEMPT_MS = 6_000
+
 export type AdvisorProviderPreference = "auto" | "gemini" | "openrouter"
 
 export interface RoutedAdviserOptions {
@@ -104,10 +115,32 @@ export function createRoutedAdviser(options: RoutedAdviserOptions): RouteAdviser
         mapsGrounding: mapsAllowedForMode(mode, options.mapsGrounding)
       }
 
+      // Budget the turn across attempts instead of letting the first provider
+      // spend all of it.
+      //
+      // Measured on route-only: p50 6.1s but p90 22.4s, because upstream stalls
+      // happen. Waiting 30s on a stalled first attempt and then having no time
+      // left to ask anyone else is the worst outcome for a rider — it is a long
+      // wait that ends in nothing. Giving the first attempt a share and keeping
+      // the remainder for the fallback turns that into a slower answer instead
+      // of no answer. With a single provider there is nobody to save time for,
+      // so it keeps the whole budget.
+      const deadline = Date.now() + TURN_BUDGET_MS
       let last: AdvisorReply | null = null
-      for (const provider of providers) {
+      for (const [index, provider] of providers.entries()) {
+        const remaining = deadline - Date.now()
+        if (remaining <= 0) break
+        const isLast = index === providers.length - 1
+        const budget = isLast ? remaining : Math.max(MIN_ATTEMPT_MS, Math.round(remaining * FIRST_ATTEMPT_SHARE))
+        // The provider merges whatever signal it is given with its own ceiling,
+        // and reports an abort as `timeout` — which is retryable, so a starved
+        // attempt falls over to the next provider exactly like a real stall.
+        const attemptSignal = signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(budget)])
+          : AbortSignal.timeout(budget)
+
         const started = Date.now()
-        const result = await provider.runTurn(providerInput, signal)
+        const result = await provider.runTurn(providerInput, attemptSignal)
         attempts.push({
           providerId: provider.id,
           modelId: result.modelId,

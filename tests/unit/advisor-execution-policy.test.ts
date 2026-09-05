@@ -92,6 +92,21 @@ describe("advisor execution policy", () => {
     }
   })
 
+  it("classifies from the question alone, so client and server always agree", () => {
+    // The UI classifies locally to decide whether to show the deterministic
+    // working state, and the API classifies again to pick the execution path.
+    // They pass different conversation/origin values, so classification must
+    // not depend on either — otherwise the rider could see route-only facts
+    // for a turn the server actually runs with tools.
+    const base = ask("Worth the extra 20 minutes?")
+    const withHistory: AdviceRequest = {
+      ...base,
+      conversation: [{ role: "rider", text: "find me a brewery" }, { role: "advisor", text: "sure" }],
+      origin: { lat: 40.27, lon: -76.88, label: "Harrisburg" }
+    }
+    expect(classifyTurn(withHistory)).toBe(classifyTurn(base))
+  })
+
   it("exposes no tool declarations at all for a route-only turn", () => {
     const toolbox = createAdvisorToolbox({})
     const input = ask("Worth the extra 20 minutes?")
@@ -201,6 +216,9 @@ describe("route-only turns cannot enter a tool round", () => {
     // Measured: 8685ms at default effort vs 3059ms at minimal on the same
     // question. One round trip means reasoning is the remaining cost.
     expect(bodies[0]!.reasoning).toEqual({ effort: "minimal" })
+    // Upstream choice dominates latency here (3.7s / 6.5s / 24.4s for the same
+    // request), so route-only pins it rather than accepting the tail.
+    expect(bodies[0]!.provider).toMatchObject({ require_parameters: true, sort: "latency" })
 
     // Tool-assisted must not inherit the cap: there, round trips dominate and
     // the same setting bought nothing while costing success rate.
@@ -215,6 +233,9 @@ describe("route-only turns cannot enter a tool round", () => {
       mapsGrounding: false
     })
     expect(bodies[0]!.reasoning).toBeUndefined()
+    // Tool-assisted keeps default routing: the latency sort was measured on
+    // route-only only, and round trips dominate there anyway.
+    expect(bodies[0]!.provider).not.toHaveProperty("sort")
   })
 
   it("still sends tools when the turn actually needs them", async () => {
