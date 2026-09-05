@@ -2,6 +2,10 @@ import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { RideAdvisor } from "@/components/planner/v2/RideAdvisor"
+import {
+  getRoutePreviewId,
+  setRoutePreviewId
+} from "@/components/planner/route-comparison-preview"
 import type { PlannedRoute } from "@/lib/routing/types"
 
 const advisorClient = vi.hoisted(() => ({
@@ -74,11 +78,12 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  setRoutePreviewId(null)
   vi.clearAllMocks()
 })
 
 describe("Gravel Goblin route opinion", () => {
-  it("shows confidence and cautions, and only selects an existing candidate after rider action", async () => {
+  it("previews its existing candidate on hover/focus and selects only after rider action", async () => {
     const user = userEvent.setup()
     const onSelectRoute = vi.fn()
 
@@ -102,7 +107,21 @@ describe("Gravel Goblin route opinion", () => {
     expect(opinion).toHaveTextContent("Mapped surface data is incomplete")
     expect(onSelectRoute).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Show Fastest Now route" }))
+    const showRoute = screen.getByRole("button", { name: "Show Fastest Now route" })
+    await user.hover(showRoute)
+    expect(getRoutePreviewId()).toBe("fast")
+    expect(onSelectRoute).not.toHaveBeenCalled()
+
+    await user.unhover(showRoute)
+    expect(getRoutePreviewId()).toBeNull()
+
+    await user.tab()
+    while (document.activeElement !== showRoute) await user.tab()
+    expect(getRoutePreviewId()).toBe("fast")
+    expect(onSelectRoute).not.toHaveBeenCalled()
+
+    await user.click(showRoute)
+    expect(getRoutePreviewId()).toBeNull()
     expect(onSelectRoute).toHaveBeenCalledOnce()
     expect(onSelectRoute).toHaveBeenCalledWith("fast")
   })
