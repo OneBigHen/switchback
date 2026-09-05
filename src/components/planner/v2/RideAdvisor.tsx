@@ -275,6 +275,10 @@ export function RideAdvisor({
       if (controller.signal.aborted || scopeRef.current !== requestScope) return
 
       if (reply.status !== "ok") {
+        // Optimistic rider turns become transcript history only when the server
+        // accepts the turn. On failure, restore the exact pre-request history so
+        // a retry sends the text once as riderMessage rather than again in history.
+        setConversation(conversation)
         if (riderMessage) setDraft((current) => current || riderMessage)
         setNotice(
           reply.status === "timeout"
