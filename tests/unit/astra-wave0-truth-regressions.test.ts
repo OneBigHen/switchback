@@ -52,7 +52,8 @@ describe("Astra Wave 0 evidence truth", () => {
   it("keeps legal access and current passability unknown even when PA surface evidence exists", () => {
     const briefing = briefingText(context)
 
-    expect(briefing).toContain("31.4% on the official PA unpaved-road network")
+    expect(briefing).toContain("31.4%")
+    expect(briefing).toContain("Unpaved Roads 2009_07")
     expect(briefing.toLowerCase()).toContain("legal access")
     expect(briefing.toLowerCase()).toContain("current passability")
   })
