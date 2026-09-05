@@ -237,6 +237,7 @@ export const uxState = {
     await installPlannerServices(page)
     await page.goto("/")
     await driveToRouteResult(page)
+    await page.getByRole("button", { name: "Details for Contract fixture route" }).click()
     await page.getByRole("button", { name: "Show route details" }).first().click()
     await expect(page.getByRole("button", { name: "Hide route details" }).first()).toBeVisible()
   },
