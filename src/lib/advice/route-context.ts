@@ -92,12 +92,12 @@ const UNPAVED = new Set([
 
 function unpavedEvidence(candidate: AdvisorRouteContext["candidates"][number]): string {
   const official = candidate.officialUnpavedSharePercent
-  // The PASDA dataset is a survey of the unpaved network itself, so where it
-  // applies it outranks the patchy OSM surface tags rather than sitting beside
-  // them.
+  // This is PA DEP's historic Unpaved Roads 2009_07 survey. It can strengthen
+  // surface evidence, but it says nothing about today's legal access, closures,
+  // maintenance or passability.
   const officialText = official === undefined
     ? ""
-    : `, ${official}% on the official PA unpaved-road network`
+    : `, ${official}% on the official PA unpaved-road network (PA DEP Unpaved Roads 2009_07 survey; surface evidence only)`
 
   const entries = Object.entries(candidate.surfaceMix ?? {})
     .filter(([, share]) => Number.isFinite(share) && share > 0)
@@ -141,11 +141,13 @@ export function briefingText(context: AdvisorRouteContext): string {
       surfaceMix: candidate.surfaceMix,
       roadMix: candidate.roadMix
     })
-    // A share means Switchback ran the official PASDA lookup for this route, so
-    // official surface is a fact here, not a gap to disclaim.
-    const unsupported = candidate.officialUnpavedSharePercent === undefined
+    // A survey overlap closes only the survey-surface gap. It never establishes
+    // that a road is currently legal to use or passable, so those remain explicit
+    // unknowns even when official surface evidence exists.
+    const unsupportedSurface = candidate.officialUnpavedSharePercent === undefined
       ? grounded.unsupported
       : grounded.unsupported.filter((gap) => gap !== "official surface legality")
+    const unsupported = [...unsupportedSurface, "legal access", "current passability"]
     const added = fastest && candidate.id !== fastest.id
       ? ` (+${Math.max(0, Math.round(candidate.durationMinutes - fastest.durationMinutes))} min vs fastest)`
       : " (fastest)"
