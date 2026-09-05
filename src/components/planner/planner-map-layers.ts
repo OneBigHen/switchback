@@ -128,6 +128,9 @@ export function routeRibbonLayers(
       id: ROUTE_HIT_LAYER,
       type: "line",
       source: "switchback-routes",
+      // The selected route is already committed. Restrict the generous hit
+      // ribbon to alternatives so overlap cannot churn the current choice.
+      filter: ["!", ["get", "selected"]],
       layout: { "line-cap": "round", "line-join": "round" },
       paint: {
         // Nearly transparent rather than zero: MapLibre still considers the
