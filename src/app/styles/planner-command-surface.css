@@ -389,7 +389,12 @@
     font-size: 14px;
   }
 
+  /* A sticky header inside the half-height phone sheet can cover the next
+     preparation control when the browser scrolls that control into view.
+     Keep route identity in normal flow on touch-sized layouts so every
+     control remains physically tappable; desktop retains the sticky context. */
   .planner-route-details__header {
+    position: static;
     padding-top: 4px;
   }
 }

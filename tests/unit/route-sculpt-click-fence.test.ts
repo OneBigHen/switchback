@@ -3,11 +3,7 @@ import { createRouteSculptClickFence } from "@/components/planner/route-sculpt-c
 
 describe("route sculpt generated-click fence", () => {
   it("blocks every click handler for the generated click, then clears on the next task", () => {
-    let scheduled: (() => void) | null = null
-    const schedule = vi.fn((callback: () => void) => {
-      scheduled = callback
-      return 7
-    })
+    const schedule = vi.fn((_callback: () => void) => 7)
     const cancelSchedule = vi.fn()
     const fence = createRouteSculptClickFence(schedule, cancelSchedule)
 
@@ -18,7 +14,7 @@ describe("route sculpt generated-click fence", () => {
     expect(fence.blocked()).toBe(true)
     expect(fence.blocked()).toBe(true)
 
-    scheduled?.()
+    schedule.mock.calls[0]![0]()
     expect(fence.blocked()).toBe(false)
   })
 
