@@ -38,6 +38,8 @@ const MAX_OFFICIAL_UNPAVED_PER_CALL = 6
 const STOP_RADIUS_KM = 25
 const ROAD_SEARCH_DEGREES = 0.22
 const MIN_ROAD_SCORE = 300
+const PA_UNPAVED_ROADS_LAYER_URL =
+  "https://mapservices.pasda.psu.edu/server/rest/services/pasda/DEP/MapServer/33"
 
 function isStopKind(value: unknown): value is FunStopKind {
   return typeof value === "string" && STOP_KINDS.includes(value as FunStopKind)
@@ -154,25 +156,39 @@ function surfaceNote(input: {
   const blindSpot = withoutSurfaceData > 0
     ? ` ${withoutSurfaceData} of the ${scoredNearby} curve-scored roads nearby carry no surface tag, so that dataset can neither confirm nor rule out gravel on them.`
     : ""
+  const curveEvidence = returned > 0
+    ? ` ${returned} curve-scored road${returned === 1 ? " is" : "s are"} mapped as unpaved in Switchback's road data.`
+    : ""
+  const accessBoundary =
+    " Treat surface evidence as surface-only; it does not establish current legal access or passability."
 
   if (wantsGravel && official.places.length > 0) {
-    return `officialUnpavedRoads lists ${official.places.length} surveyed unpaved roads near here — this is the gravel ` +
-      "evidence, and it is enough to answer. Mention it as grounded evidence or a proposed stop; do not make its " +
-      "midpoint a hard waypoint in a timeboxed loop. Do not call " +
-      "this tool again for surface." + blindSpot
+    return `officialUnpavedRoads lists ${official.places.length} PA DEP Unpaved Roads 2009_07 survey ` +
+      "features near here. Mention them as historic official surface evidence or a proposed stop; do not make a " +
+      "survey midpoint a hard waypoint in a timeboxed loop. Do not call this tool again for surface." +
+      curveEvidence + blindSpot + accessBoundary
   }
   if (wantsGravel && official.status === "unavailable") {
-    return "The official unpaved-road survey did not answer just now, so gravel here is UNCHECKED, not absent. " +
-      "Tell the rider you could not reach the survey this time — never that there is no gravel — and offer the ride " +
-      "anyway. Retrying this tool will not help." + blindSpot
+    return "The official PA DEP Unpaved Roads 2009_07 survey did not answer just now, so its evidence is " +
+      "UNCHECKED, not absent. Never turn that outage into a claim that there is no gravel." +
+      curveEvidence + blindSpot + accessBoundary
   }
   if (wantsGravel && official.status === "absent") {
+    if (returned > 0) {
+      return "No official unpaved-road survey is configured here." + curveEvidence + blindSpot + accessBoundary
+    }
     return "No official unpaved-road survey is configured here, so gravel is UNCHECKED, not absent. " +
-      "The curve dataset carries no surface tags, so surface is unknown rather than paved." + blindSpot
+      "The curve-scored roads returned no known unpaved tags; where surface tags are missing, surface remains unknown." +
+      blindSpot + accessBoundary
+  }
+  if (wantsGravel && returned > 0) {
+    return "No surveyed unpaved roads near here were returned by this bounded PA DEP Unpaved Roads 2009_07 lookup." +
+      curveEvidence + blindSpot + accessBoundary
   }
   if (wantsGravel) {
-    return "No surveyed unpaved roads near here, and the curve dataset carries no surface tags, so surface is unknown " +
-      "rather than paved. Say so and move on — calling this tool again will not produce surface data." + blindSpot
+    return "No surveyed unpaved roads near here were returned by this bounded PA DEP Unpaved Roads 2009_07 lookup. " +
+      "That does not prove gravel is absent; the curve-scored roads returned no known unpaved tags, and missing " +
+      "surface tags remain unknown." + blindSpot + accessBoundary
   }
   if (returned > 0) {
     return "These are scored from mapped geometry. Mention a matching road as evidence, and only route through its " +
@@ -203,6 +219,14 @@ function osmCitation(lat: number, lon: number) {
   return {
     title: "OpenStreetMap",
     url: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`,
+    source: "switchback-local" as const
+  }
+}
+
+function officialSurveyCitation(feature: PaUnpavedRoadFeature) {
+  return {
+    title: `${feature.properties.source} — ${feature.properties.dataset}`,
+    url: PA_UNPAVED_ROADS_LAYER_URL,
     source: "switchback-local" as const
   }
 }
@@ -355,12 +379,13 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
   }
 
   /**
-   * Real, surveyed gravel near a point.
+   * PA DEP's surveyed unpaved-road evidence near a point.
    *
-   * PASDA publishes the geometry and county but no road names, so each entry is
-   * described by where it is and how long it runs. That is enough for the model
-   * to route through one and enough for the rider to recognise the answer as
-   * evidence rather than a guess.
+   * The source is the historic `Unpaved Roads 2009_07` dataset. It supplies
+   * official surface evidence and geometry, not current access, closure,
+   * maintenance or passability. It publishes county and length but no road name,
+   * so the midpoint is only an evidence anchor unless the rider explicitly asks
+   * to visit it.
    */
   const officialGravelPlaces = async (anchor: Coordinate): Promise<OfficialGravelLookup> => {
     const queryOfficialUnpaved = options.queryOfficialUnpaved
@@ -394,10 +419,10 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
           lat: midpoint[1],
           lon: midpoint[0],
           detail: [
-            "official PA unpaved-road survey",
+            `${feature.properties.source} ${feature.properties.dataset} survey`,
             miles === null ? null : `${miles} mi segment`
           ].filter(Boolean).join(", "),
-          citations: [osmCitation(midpoint[1], midpoint[0])]
+          citations: [officialSurveyCitation(feature)]
         }]
       })
       .sort((left, right) =>
@@ -466,9 +491,8 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
       }]
     })
 
-    // The curvature dataset scores curves, not surfaces. When the rider wants
-    // dirt, the answer lives in Pennsylvania's official unpaved-road survey, so
-    // ask that instead of reporting a blind spot as an absence.
+    // Curvature and the PA survey are independent evidence sources. Never let a
+    // zero-result or outage in one erase known surface evidence from the other.
     const official: OfficialGravelLookup = wantsGravel
       ? await officialGravelPlaces(anchor)
       : { status: "absent", places: [] }
@@ -561,9 +585,9 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
           name: "find_good_roads",
           description:
             "Find roads Switchback has actually scored as good riding near a point — curvature " +
-            "score and surface. Set surface to 'unpaved' to find gravel and dirt: that also " +
-            "returns Pennsylvania's official surveyed unpaved roads, which is the authoritative " +
-            "gravel answer. One call per area is enough. " + where,
+            "score and mapped surface. Set surface to 'unpaved' to find gravel and dirt: that also " +
+            "returns PA DEP Unpaved Roads 2009_07 survey features as additional historic official " +
+            "surface evidence. Neither source proves current legal access or passability. One call per area is enough. " + where,
           parameters: {
             type: "object",
             properties: {
