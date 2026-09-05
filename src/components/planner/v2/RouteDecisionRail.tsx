@@ -1,6 +1,11 @@
 "use client"
 
+import { useEffect, useMemo } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
+import {
+  clearRoutePreviewIfInvalid,
+  setRoutePreviewId
+} from "../route-comparison-preview"
 import { RouteDecisionCard } from "./RouteDecisionCard"
 import styles from "./RouteDecisionRail.module.css"
 
@@ -12,6 +17,17 @@ export interface RouteDecisionRailProps {
 }
 
 export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails }: RouteDecisionRailProps) {
+  const routeIds = useMemo(() => routes.map((route) => route.id), [routes])
+  const routeKey = routeIds.join("|")
+
+  useEffect(() => {
+    clearRoutePreviewIfInvalid(routeIds)
+    return () => setRoutePreviewId(null)
+    // `routeKey` is the semantic identity. Do not clear a live preview merely
+    // because a parent produced a new array containing the same candidates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey])
+
   if (routes.length === 0) return null
 
   return (
@@ -30,8 +46,10 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
             route={route}
             routes={routes}
             selected={route.id === selectedId}
+            selectedRouteId={selectedId}
             onSelect={onSelect}
             onOpenDetails={onOpenDetails}
+            onPreview={setRoutePreviewId}
           />
         ))}
       </div>

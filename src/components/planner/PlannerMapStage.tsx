@@ -7,6 +7,11 @@ import {
   getRideMapControlSlot,
   subscribeRideMapControlSlot
 } from "./ride-map-control-slot"
+import {
+  getRoutePreviewId,
+  setRoutePreviewId,
+  subscribeRoutePreview
+} from "./route-comparison-preview"
 import { buildWaypointFeatures, emptyFeatureCollection } from "@/lib/client/map-data"
 import { buildNavigationMapFeatures } from "@/lib/client/navigation-map"
 import "@/app/styles/map-stage-road-locks.css"
@@ -24,6 +29,7 @@ import {
   roadLockDashPaint,
   roadLockLineFilter,
   roadLockLineLayerIds,
+  ROUTE_HIT_LAYER,
   routeRibbonLayers
 } from "./planner-map-layers"
 import { featureFlags } from "@/lib/domain/feature-flags"
@@ -103,6 +109,11 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     getRideMapControlSlot,
     () => null
   )
+  const routePreviewId = useSyncExternalStore(
+    subscribeRoutePreview,
+    getRoutePreviewId,
+    () => null
+  )
   const sketchPointsRef = useRef<SketchScreenPoint[]>([])
   const sketchDrawingRef = useRef(false)
   const avoidDrawingRef = useRef(false)
@@ -118,6 +129,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   const lastDrawCommandIdRef = useRef<number | null>(null)
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
+  const selectRoute = usePlannerStore((state) => state.selectRoute)
   const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
   const [highlightedLockId, setHighlightedLockId] = useState<string | null>(null)
   const {
@@ -381,6 +393,30 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
         for (const layer of routeRibbonLayers(renderer, experienceRef.current)) {
           renderer.addLayer(map, layer, { slot: "top" })
         }
+        map.on("mouseenter", ROUTE_HIT_LAYER, () => {
+          const current = propsRef.current
+          if (current.rideMode || current.armedPoint || current.addingVia || isLockDrawActive()) return
+          map!.getCanvas().style.cursor = "pointer"
+        })
+        map.on("mouseleave", ROUTE_HIT_LAYER, () => {
+          map!.getCanvas().style.cursor = ""
+        })
+        map.on("click", ROUTE_HIT_LAYER, (event) => {
+          const current = propsRef.current
+          if (
+            current.rideMode
+            || current.armedPoint
+            || current.addingVia
+            || isLockDrawActive()
+            || sketchDrawingRef.current
+            || avoidDrawingRef.current
+          ) return
+          const routeId = event.features?.[0]?.properties?.routeId
+          if (typeof routeId !== "string") return
+          if (!current.routes.some((route) => route.id === routeId)) return
+          setRoutePreviewId(null)
+          selectRoute(routeId)
+        })
         map.addSource("switchback-route-labels", {
           type: "geojson",
           data: emptyFeatureCollection()
@@ -690,7 +726,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             label: "Dragged waypoint"
           })
         })
-        updatePlannerSources(map, propsRef.current)
+        updatePlannerSources(map, { ...propsRef.current, previewRouteId: getRoutePreviewId() })
         updateReferenceMapSource(map, propsRef.current.referenceMap, renderer)
         setReadyStyleKey(styleKey)
         setMapError("")
@@ -777,10 +813,16 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     const map = mapRef.current
     if (!map || !ready) return
     const current = propsRef.current
-    updatePlannerSources(map, current)
+    updatePlannerSources(map, { ...current, previewRouteId: routePreviewId })
+  }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, routePreviewId])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const current = propsRef.current
     fitSelectedRoute(map, { ...current, sheetDetent: sheetDetentOverride ?? undefined })
-    // Re-fit when the sheet detent changes: the visible map region grows or
-    // shrinks with the ContextSheet, and the route must fit what is visible.
+    // Preview never moves the camera. Re-fit only when committed route/map
+    // context or the visible sheet region changes.
   }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, sheetDetentOverride])
 
   useEffect(() => {

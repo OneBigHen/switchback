@@ -45,33 +45,35 @@ function splitGeometryAtProgress(
 export function buildRouteFeatures(
   routes: PlannedRoute[],
   selectedId: string | null,
-  progressPercent?: number
+  progressPercent?: number,
+  previewRouteId?: string | null
 ) {
-  const ordered = [...routes].sort((left, right) =>
-    Number(left.id === selectedId) - Number(right.id === selectedId)
-  )
+  const validPreviewId = routes.some((route) => route.id === previewRouteId) ? previewRouteId : null
+  const priority = (route: PlannedRoute) => route.id === selectedId ? 2 : route.id === validPreviewId ? 1 : 0
+  const ordered = [...routes].sort((left, right) => priority(left) - priority(right))
   return {
     type: "FeatureCollection" as const,
     features: ordered.flatMap((route) => {
       const isSelected = route.id === selectedId
+      const isPreviewed = !isSelected && route.id === validPreviewId
       if (progressPercent != null && progressPercent > 0 && isSelected) {
         const { traversed, remaining } = splitGeometryAtProgress(route.geometry, progressPercent)
         const features: Array<{
           type: "Feature"
-          properties: { routeId: string; selected: boolean; traversed: boolean }
+          properties: { routeId: string; selected: boolean; previewed: boolean; traversed: boolean }
           geometry: { type: "LineString"; coordinates: Coordinate[] }
         }> = []
         if (traversed.length >= 2) {
           features.push({
             type: "Feature",
-            properties: { routeId: route.id, selected: true, traversed: true },
+            properties: { routeId: route.id, selected: true, previewed: false, traversed: true },
             geometry: { type: "LineString", coordinates: traversed }
           })
         }
         if (remaining.length >= 2) {
           features.push({
             type: "Feature",
-            properties: { routeId: route.id, selected: true, traversed: false },
+            properties: { routeId: route.id, selected: true, previewed: false, traversed: false },
             geometry: { type: "LineString", coordinates: remaining }
           })
         }
@@ -82,6 +84,7 @@ export function buildRouteFeatures(
         properties: {
           routeId: route.id,
           selected: isSelected,
+          previewed: isPreviewed,
           traversed: false
         },
         geometry: {

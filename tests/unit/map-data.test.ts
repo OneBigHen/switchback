@@ -26,8 +26,8 @@ describe("map GeoJSON builders", () => {
     const collection = buildRouteFeatures([route("active"), route("other")], "active")
 
     expect(collection.features.map((feature) => feature.properties)).toEqual([
-      { routeId: "other", selected: false, traversed: false },
-      { routeId: "active", selected: true, traversed: false }
+      { routeId: "other", selected: false, traversed: false, previewed: false },
+      { routeId: "active", selected: true, traversed: false, previewed: false }
     ])
   })
 

@@ -17,6 +17,7 @@ import { classifyTurn } from "@/lib/advice/execution-policy"
 import { workingStateLine } from "@/lib/advice/working-state"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { setRoutePreviewId } from "../route-comparison-preview"
 import opinionStyles from "./GravelGoblinOpinion.module.css"
 import styles from "./RideAdvisor.module.css"
 
@@ -367,7 +368,14 @@ export function RideAdvisor({
               type="button"
               className={opinionStyles.action}
               aria-label={`Show ${opinionRoute.name} route`}
-              onClick={() => onSelectRoute(opinionRoute.id)}
+              onMouseEnter={() => setRoutePreviewId(opinionRoute.id)}
+              onMouseLeave={() => setRoutePreviewId(null)}
+              onFocus={() => setRoutePreviewId(opinionRoute.id)}
+              onBlur={() => setRoutePreviewId(null)}
+              onClick={() => {
+                setRoutePreviewId(null)
+                onSelectRoute(opinionRoute.id)
+              }}
             >
               <span>Show route</span>
               <ArrowRight weight="bold" aria-hidden="true" />

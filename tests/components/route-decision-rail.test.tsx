@@ -42,7 +42,7 @@ const routes = [
 ]
 
 describe("RouteDecisionRail", () => {
-  it("presents scan-first rider choices without provider jargon", () => {
+  it("presents scan-first rider choices relative to the current route without provider jargon", () => {
     render(<RouteDecisionRail routes={routes} selectedId="twisty" onSelect={vi.fn()} />)
 
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
@@ -54,9 +54,12 @@ describe("RouteDecisionRail", () => {
     const selected = screen.getByRole("article", { name: /Maximum Twisties/i })
     expect(selected).toHaveAttribute("data-selected", "true")
     expect(within(selected).getByText("Selected")).toBeInTheDocument()
-    expect(within(selected).getByText("+9 min")).toBeInTheDocument()
+    expect(within(selected).getByText("Current route")).toBeInTheDocument()
     expect(within(selected).getByText("71 min")).toBeInTheDocument()
     expect(within(selected).getByText("44.8 mi")).toBeInTheDocument()
+
+    const faster = screen.getByRole("article", { name: /Fastest Now/i })
+    expect(within(faster).getByText("-9 min · -3.6 mi · -36 curve")).toBeInTheDocument()
   })
 
   it("selects a candidate immediately and exposes a separate details action", () => {
