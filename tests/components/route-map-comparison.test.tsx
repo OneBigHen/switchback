@@ -9,6 +9,13 @@ import {
   setRoutePreviewId,
   subscribeRoutePreview
 } from "@/components/planner/route-comparison-preview"
+import {
+  ROUTE_HIT_LAYER,
+  SELECTED_ROUTE_HIT_LAYER,
+  routeRibbonLayers
+} from "@/components/planner/planner-map-layers"
+import type { PlannerMapRenderer } from "@/components/planner/planner-map-renderer"
+import type { MapExperienceConfig } from "@/lib/client/map-experience"
 import { buildRouteFeatures } from "@/lib/client/map-data"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
 
@@ -127,5 +134,22 @@ describe("map-native route comparison", () => {
   it("does not mark a stale preview route id", () => {
     const features = buildRouteFeatures(routes, "twisty", undefined, "gone")
     expect(features.features.every((feature) => feature.properties?.previewed === false)).toBe(true)
+  })
+
+  it("keeps selected-route sculpt hit geometry separate from alternate selection geometry", () => {
+    const renderer = {
+      supportsEmissiveStrength: false
+    } as PlannerMapRenderer
+    const experience = {
+      routeEmphasis: "muted",
+      surface: "plan"
+    } as MapExperienceConfig
+    const layers = routeRibbonLayers(renderer, experience)
+    const alternateHit = layers.find((layer) => layer.id === ROUTE_HIT_LAYER)
+    const selectedHit = layers.find((layer) => layer.id === SELECTED_ROUTE_HIT_LAYER)
+
+    expect(alternateHit?.filter).toEqual(["!", ["get", "selected"]])
+    expect(selectedHit?.filter).toEqual(["get", "selected"])
+    expect(selectedHit?.paint?.["line-opacity"]).toBe(0.01)
   })
 })
