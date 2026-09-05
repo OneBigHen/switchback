@@ -21,6 +21,8 @@ import type { AvoidArea, PlannedRoute, Waypoint } from "@/lib/routing/types"
 export interface PlannerMapSourceProps {
   routes: PlannedRoute[]
   selectedRouteId: string | null
+  /** Ephemeral route-card/map preview. Never persisted or used for routing. */
+  previewRouteId?: string | null
   start: Waypoint | null
   finish: Waypoint | null
   via: Waypoint[]
@@ -139,7 +141,8 @@ export function updateRiderMapLayerPresentation(
 export function updatePlannerSources(map: MapLibreMap, props: PlannerMapSourceProps) {
   const visibleRoutes = props.rideMode ? props.routes.filter((route) => route.id === props.selectedRouteId) : props.routes
   const progressPercent = props.rideMode && props.navigationFrame ? props.navigationFrame.routePercent : undefined
-  geoJsonSource(map, "switchback-routes")?.setData(buildRouteFeatures(visibleRoutes, props.selectedRouteId, progressPercent))
+  const previewRouteId = props.rideMode ? null : props.previewRouteId ?? null
+  geoJsonSource(map, "switchback-routes")?.setData(buildRouteFeatures(visibleRoutes, props.selectedRouteId, progressPercent, previewRouteId))
   geoJsonSource(map, "switchback-route-labels")?.setData(buildRouteLabelFeatures(props.rideMode ? visibleRoutes : props.routes, props.selectedRouteId))
   geoJsonSource(map, "switchback-waypoints")?.setData(buildWaypointFeatures(props.start, props.finish, props.via))
   geoJsonSource(map, "switchback-avoid-areas")?.setData({
