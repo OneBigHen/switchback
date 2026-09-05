@@ -1,6 +1,11 @@
 "use client"
 
+import { useEffect } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
+import {
+  clearRoutePreviewIfInvalid,
+  setRoutePreviewId
+} from "../route-comparison-preview"
 import { RouteDecisionCard } from "./RouteDecisionCard"
 import styles from "./RouteDecisionRail.module.css"
 
@@ -12,6 +17,13 @@ export interface RouteDecisionRailProps {
 }
 
 export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails }: RouteDecisionRailProps) {
+  const routeKey = routes.map((route) => route.id).join("|")
+
+  useEffect(() => {
+    clearRoutePreviewIfInvalid(routes.map((route) => route.id))
+    return () => setRoutePreviewId(null)
+  }, [routeKey, routes])
+
   if (routes.length === 0) return null
 
   return (
@@ -30,8 +42,10 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
             route={route}
             routes={routes}
             selected={route.id === selectedId}
+            selectedRouteId={selectedId}
             onSelect={onSelect}
             onOpenDetails={onOpenDetails}
+            onPreview={setRoutePreviewId}
           />
         ))}
       </div>
