@@ -1,10 +1,8 @@
 import {
-  emptyReply,
   type AdviceRequest,
   type AdvisorReply,
   type AdvisorStatus,
   type AdvisorToolbox,
-  type GroundedPlace,
   type GroundingCitation,
   type ProposedRide,
   type ProposedStop,
@@ -13,12 +11,20 @@ import {
 } from "./contracts"
 import { advisorSystemPrompt, briefingText } from "./route-context"
 import { routeProgressOf } from "./toolbox"
-import { FINAL_ANSWER_SCHEMA, resolveFinalAnswer } from "./resolve-answer"
+import { FINAL_ANSWER_SCHEMA, ROUTE_ONLY_ANSWER_SCHEMA } from "./resolve-answer"
+import { classifyTurn, mapsAllowedForMode, toolsForMode } from "./execution-policy"
+import {
+  createTurnState,
+  ORIGIN_PLACE_ID,
+  type AdvisorProvider,
+  type AdvisorProviderInput,
+  type AdvisorProviderResult
+} from "./provider"
 
 /**
  * The advisor, on Gemini directly.
  *
- * Two phases, because the API requires it:
+ * Two phases when the turn needs tools, because the API requires it:
  *
  * 1. **Grounded tool rounds.** Our function declarations plus Gemini's
  *    server-side `google_maps` tool. Places can be researched, but anything that
@@ -26,6 +32,10 @@ import { FINAL_ANSWER_SCHEMA, resolveFinalAnswer } from "./resolve-answer"
  * 2. **A strict structured answer.** Maps grounding and a JSON response schema
  *    cannot share the same request, so the final pass drops Maps and asks for
  *    the schema. Resolvers then distrust the result again.
+ *
+ * A `route-only` turn skips all of that: no declarations are sent, so no tool
+ * call can come back, and the schema rides on the single request. That is the
+ * whole latency win — one round trip instead of two at minimum.
  *
  * Every failure degrades to an `AdvisorReply` with a status. The advisor is
  * optional evidence and is never on the routing critical path.
@@ -57,8 +67,8 @@ const TURN_TIMEOUT_MS = 30_000
 const MAX_TOOL_ROUNDS = 4
 const MAX_TOOL_CALLS_PER_ROUND = 4
 const MAX_CONVERSATION_TURNS = 14
-/** The rider's explicitly supplied planner start, always pinned and referenceable. */
-export const ORIGIN_PLACE_ID = "origin"
+
+export { ORIGIN_PLACE_ID }
 
 export interface GeminiAdviserOptions {
   apiKey: string
@@ -121,65 +131,62 @@ function citationsFrom(chunks: readonly GeminiGroundingChunk[]): GroundingCitati
   return citations.slice(0, 8)
 }
 
-export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser {
+function openingMessage(request: AdviceRequest): string {
+  return request.riderMessage?.trim().slice(0, 1_000)
+    || (request.context
+      ? "Give me your read on this route before I commit to it."
+      : "Help me put a ride together.")
+}
+
+export function createGeminiProvider(options: GeminiAdviserOptions): AdvisorProvider {
   const fetcher = options.fetcher ?? fetch
   const endpoint = options.endpoint ?? GEMINI_ENDPOINT
   const model = options.model ?? DEFAULT_MODEL
 
   return {
-    async advise(input: AdviceRequest, signal?: AbortSignal): Promise<AdvisorReply> {
+    id: "gemini",
+    async runTurn(input: AdvisorProviderInput, signal?: AbortSignal): Promise<AdvisorProviderResult> {
+      const request = input.request
       const deadline = signal
         ? AbortSignal.any([signal, AbortSignal.timeout(TURN_TIMEOUT_MS)])
         : AbortSignal.timeout(TURN_TIMEOUT_MS)
 
-      const declarations = options.toolbox.definitions(input)
+      const state = createTurnState(request)
+      const done = (reply: AdvisorReply): AdvisorProviderResult => ({ reply, modelId: model })
+
       const contents: GeminiContent[] = [
-        ...input.conversation.slice(-MAX_CONVERSATION_TURNS).map((turn): GeminiContent => ({
+        ...request.conversation.slice(-MAX_CONVERSATION_TURNS).map((turn): GeminiContent => ({
           role: turn.role === "rider" ? "user" : "model",
           parts: [{ text: turn.text.slice(0, 2_000) }]
         })),
-        {
-          role: "user",
-          parts: [{
-            text: input.riderMessage?.trim().slice(0, 1_000)
-              || (input.context
-                ? "Give me your read on this route before I commit to it."
-                : "Help me put a ride together.")
-          }]
-        }
+        { role: "user", parts: [{ text: openingMessage(request) }] }
       ]
 
-      const groundedPlaces = new Map<string, GroundedPlace>()
-      if (input.origin) {
-        groundedPlaces.set(ORIGIN_PLACE_ID, {
-          placeId: ORIGIN_PLACE_ID,
-          name: input.origin.label?.trim() || "My selected start",
-          kind: "scenic",
-          lat: input.origin.lat,
-          lon: input.origin.lon,
-          citations: []
-        })
-      }
-      const citationGroups: GroundingCitation[][] = []
-      let toolCalls = 0
-      let groundedQueries = 0
+      // A turn with no tools cannot pin a place, so it is not offered the
+      // fields that would require one.
+      const answerSchema = input.mode === "route-only"
+        ? ROUTE_ONLY_ANSWER_SCHEMA
+        : FINAL_ANSWER_SCHEMA
 
-      const call = async (grounded: boolean): Promise<GeminiResponse | AdvisorStatus> => {
-        const mapsEnabled = grounded && options.mapsGrounding === true
+      /**
+       * `withTools` is passed explicitly rather than inferred, so a route-only
+       * turn cannot acquire declarations by accident anywhere in this file.
+       */
+      const call = async (withTools: boolean, withMaps: boolean): Promise<GeminiResponse | AdvisorStatus> => {
         const tools: Record<string, unknown>[] = []
-        if (declarations.length > 0) {
+        if (withTools && input.tools.length > 0) {
           tools.push({
-            functionDeclarations: declarations.map((definition) => ({
+            functionDeclarations: input.tools.map((definition) => ({
               name: definition.name,
               description: definition.description,
               parameters: definition.parameters
             }))
           })
         }
-        if (mapsEnabled) tools.push({ google_maps: {} })
+        if (withMaps) tools.push({ google_maps: {} })
 
-        const anchor = input.context?.geometry[Math.floor(input.context.geometry.length / 2)]
-          ?? (input.origin ? [input.origin.lon, input.origin.lat] as const : null)
+        const anchor = request.context?.geometry[Math.floor(request.context.geometry.length / 2)]
+          ?? (request.origin ? [request.origin.lon, request.origin.lat] as const : null)
 
         try {
           const response = await fetcher(`${endpoint}/${model}:generateContent`, {
@@ -187,22 +194,22 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
             headers: { "content-type": "application/json", "x-goog-api-key": options.apiKey },
             body: JSON.stringify({
               contents,
-              systemInstruction: { parts: [{ text: advisorSystemPrompt(input) }] },
+              systemInstruction: { parts: [{ text: input.systemPrompt }] },
               ...(tools.length > 0 ? { tools } : {}),
               toolConfig: {
-                ...(mapsEnabled ? { include_server_side_tool_invocations: true } : {}),
-                ...(mapsEnabled && anchor
+                ...(withMaps ? { include_server_side_tool_invocations: true } : {}),
+                ...(withMaps && anchor
                   ? { retrievalConfig: { latLng: { latitude: anchor[1], longitude: anchor[0] } } }
                   : {})
               },
               generationConfig: {
                 temperature: 0.35,
                 thinkingConfig: { thinkingLevel: THINKING_LEVEL },
-                ...(mapsEnabled
+                ...(withMaps
                   ? {}
                   : {
                       responseMimeType: "application/json",
-                      responseJsonSchema: FINAL_ANSWER_SCHEMA
+                      responseJsonSchema: answerSchema
                     })
               }
             }),
@@ -217,44 +224,28 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
         }
       }
 
-      const failed = (status: AdvisorStatus): AdvisorReply => ({
-        ...emptyReply(status),
-        citations: mergeCitations(citationGroups),
-        usage: { toolCalls, groundedQueries }
-      })
+      const textOf = (payload: GeminiResponse): string =>
+        (payload.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join("")
 
-      const finish = (text: string | undefined): AdvisorReply | null => {
-        const resolved = resolveFinalAnswer(text, {
-          candidateIds: input.context?.candidates.map((candidate) => candidate.id) ?? [],
-          ...(input.context ? { selectedRouteId: input.context.selectedRouteId } : {}),
-          places: groundedPlaces,
-          geometry: input.context?.geometry ?? []
-        })
-        if (!resolved) return null
-        return {
-          status: "ok",
-          ...resolved,
-          citations: mergeCitations([
-            ...resolved.proposedStops.map((stop) => stop.citations),
-            ...citationGroups
-          ]),
-          usage: { toolCalls, groundedQueries }
-        }
+      // ---- route-only: exactly one request, no declarations, schema attached.
+      if (input.mode === "route-only") {
+        const payload = await call(false, false)
+        if (typeof payload === "string") return done(state.failed(payload))
+        return done(state.resolve(textOf(payload)) ?? state.failed("malformed"))
       }
 
-      const mapsOn = options.mapsGrounding === true
+      const mapsOn = input.mapsGrounding
       let prose = ""
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-        const payload = await call(true)
-        if (typeof payload === "string") return failed(payload)
+        const payload = await call(true, mapsOn)
+        if (typeof payload === "string") return done(state.failed(payload))
         const candidate = payload.candidates?.[0]
         const parts = candidate?.content?.parts ?? []
         const chunks = candidate?.groundingMetadata?.groundingChunks ?? []
         if (chunks.length > 0) {
-          groundedQueries += 1
-          const citations = citationsFrom(chunks)
-          if (citations.length > 0) citationGroups.push(citations)
+          state.countGroundedQuery()
+          state.addCitations(citationsFrom(chunks))
         }
 
         const requested = parts.flatMap((part) => part.functionCall ? [part.functionCall] : [])
@@ -265,12 +256,12 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
         // function-call turn to be echoed back as a unit; truncating five calls
         // to four and answering only four creates an invalid conversation and
         // can also perform a surprising half-action. Reject the batch instead.
-        if (requested.length > MAX_TOOL_CALLS_PER_ROUND) return failed("malformed")
+        if (requested.length > MAX_TOOL_CALLS_PER_ROUND) return done(state.failed("malformed"))
 
         if (requested.length === 0) {
           if (!mapsOn) {
-            const reply = finish(said)
-            if (reply) return reply
+            const reply = state.resolve(said)
+            if (reply) return done(reply)
           }
           break
         }
@@ -279,15 +270,9 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
         const responses: GeminiPart[] = []
         for (const functionCall of requested) {
           const name = functionCall.name ?? ""
-          toolCalls += 1
-          const result = await options.toolbox.call(
-            name,
-            functionCall.args ?? {},
-            input,
-            deadline
-          )
-          for (const place of result.places) groundedPlaces.set(place.placeId, place)
-          if (result.citations.length > 0) citationGroups.push(result.citations)
+          state.countToolCall()
+          const result = await input.toolbox.call(name, functionCall.args ?? {}, request, deadline)
+          state.absorb(result)
           responses.push({
             functionResponse: {
               ...(functionCall.id ? { id: functionCall.id } : {}),
@@ -306,39 +291,47 @@ export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser
             "Only reference placeIds that a tool actually returned to you."
         }]
       })
-      const payload = await call(false)
-      if (typeof payload === "string") return failed(payload)
-      const text = (payload.candidates?.[0]?.content?.parts ?? [])
-        .map((part) => part.text ?? "")
-        .join("")
-      const structured = finish(text)
-      if (structured) return structured
+      const payload = await call(false, false)
+      if (typeof payload === "string") return done(state.failed(payload))
+      const structured = state.resolve(textOf(payload))
+      if (structured) return done(structured)
 
       // A grounded prose fallback is useful only if the grounding pass also
       // produced a source the UI can show. Otherwise we would turn a structured
       // validation failure into an uncited factual answer.
-      const hasGroundingSource = mergeCitations(citationGroups).length > 0
+      const hasGroundingSource = state.citations().length > 0
       if (prose && (!mapsOn || hasGroundingSource)) {
-        return {
-          ...failed("ok"),
-          message: prose.slice(0, 900)
-        }
+        return done({ ...state.failed("ok"), message: prose.slice(0, 900) })
       }
-      return failed("malformed")
+      return done(state.failed("malformed"))
     }
   }
 }
 
-function mergeCitations(groups: readonly GroundingCitation[][]): GroundingCitation[] {
-  const merged: GroundingCitation[] = []
-  for (const group of groups) {
-    for (const citation of group) {
-      if (merged.some((existing) => existing.url === citation.url)) continue
-      merged.push(citation)
-      if (merged.length >= 8) return merged
+/**
+ * The single-provider adviser.
+ *
+ * Retained because it is the smallest thing that satisfies `RouteAdviser` for
+ * callers and tests that only care about Gemini. It classifies the turn the
+ * same way the router does, so a direct Gemini deployment still gets the
+ * one-request route-only path.
+ */
+export function createGeminiAdviser(options: GeminiAdviserOptions): RouteAdviser {
+  const provider = createGeminiProvider(options)
+  return {
+    async advise(input: AdviceRequest, signal?: AbortSignal): Promise<AdvisorReply> {
+      const mode = classifyTurn(input)
+      const result = await provider.runTurn({
+        request: input,
+        mode,
+        tools: toolsForMode(mode, options.toolbox, input),
+        toolbox: options.toolbox,
+        systemPrompt: advisorSystemPrompt(input, mode),
+        mapsGrounding: mapsAllowedForMode(mode, options.mapsGrounding === true)
+      }, signal)
+      return result.reply
     }
   }
-  return merged
 }
 
 export type { ProposedRide, ProposedStop, RouteSecondOpinion }
