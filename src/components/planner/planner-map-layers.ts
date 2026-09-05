@@ -4,6 +4,7 @@ import type { MapExperienceConfig } from "@/lib/client/map-experience"
 
 export const ROAD_LOCK_LINE_LAYER = "switchback-road-lock-lines"
 export const ROAD_LOCK_UNRESOLVED_LINE_LAYER = "switchback-road-lock-lines-unresolved"
+export const ROUTE_HIT_LAYER = "switchback-route-hit-area"
 
 /**
  * A road lock is drawn solid when it matched the routing graph and dashed
@@ -42,10 +43,8 @@ export function roadLockDashPaint(
 /**
  * The premium route ribbon: one geometry drawn as a stack so the selected
  * route reads as a physical object on the map rather than a coloured line.
- *
- * Order matters — shadow, then casing, then the accent core. Every layer sits
- * in the `top` slot so 3D buildings, trees, and terrain can never bury the
- * route, which is the one thing on the map the rider must always find.
+ * Preview is deliberately less dominant than selection but materially wider
+ * and more opaque than an alternate, so state is not encoded by color alone.
  */
 export function routeRibbonLayers(
   renderer: PlannerMapRenderer,
@@ -54,15 +53,11 @@ export function routeRibbonLayers(
 ): LayerSpecification[] {
   const bright = experience.routeEmphasis === "bright"
   const ride = experience.surface === "ride"
-  // High contrast is the rider's own accessibility choice, so it widens the
-  // ribbon on top of whatever the experience already asked for.
   const boost = routeVisibility === "high-contrast" ? 2 : 0
-  // Imagery and night need a hotter accent than a pale paper basemap does.
   const accent = bright ? "#FF7A34" : "#F36A2D"
+  const previewAccent = bright ? "#F1A266" : "#D88B55"
   const alternate = bright ? "#DCE3E6" : "#8A938E"
   const casing = bright ? "#050706" : "#090B0A"
-  // Standard lighting dims unlit custom layers at dusk and night. Emissive
-  // strength is what keeps the route as bright as it was at midday.
   const emissive = (selected: number, other: number) =>
     renderer.supportsEmissiveStrength
       ? { "line-emissive-strength": ["case", ["get", "selected"], selected, other] }
@@ -89,8 +84,17 @@ export function routeRibbonLayers(
       layout: { "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": casing,
-        "line-width": ["case", ["get", "selected"], (ride ? 11 : 10) + boost, 5.5 + boost * 0.6],
-        "line-opacity": ["case", ["get", "traversed"], 0.3, 0.9],
+        "line-width": ["case",
+          ["get", "selected"], (ride ? 11 : 10) + boost,
+          ["get", "previewed"], 8 + boost * 0.8,
+          5.5 + boost * 0.6
+        ],
+        "line-opacity": ["case",
+          ["get", "traversed"], 0.3,
+          ["get", "selected"], 0.9,
+          ["get", "previewed"], 0.82,
+          0.72
+        ],
         ...emissive(0.35, 0.2)
       }
     },
@@ -102,17 +106,35 @@ export function routeRibbonLayers(
       paint: {
         "line-color": ["case",
           ["get", "traversed"], "#5a5e5b",
-          ["get", "selected"], accent, alternate
+          ["get", "selected"], accent,
+          ["get", "previewed"], previewAccent,
+          alternate
         ],
-        "line-width": ["case", ["get", "selected"], (ride ? 7 : 6) + boost, 2.8 + boost * 0.6],
-        // A traveled section stays visible but stops competing with what is
-        // still ahead; an alternative stays readable without ever being
-        // mistaken for the chosen route.
+        "line-width": ["case",
+          ["get", "selected"], (ride ? 7 : 6) + boost,
+          ["get", "previewed"], 4.6 + boost * 0.7,
+          2.8 + boost * 0.6
+        ],
         "line-opacity": ["case",
           ["get", "traversed"], 0.32,
-          ["get", "selected"], 1, bright ? 0.82 : 0.66
+          ["get", "selected"], 1,
+          ["get", "previewed"], 0.94,
+          bright ? 0.82 : 0.66
         ],
         ...emissive(1, 0.55)
+      }
+    },
+    {
+      id: ROUTE_HIT_LAYER,
+      type: "line",
+      source: "switchback-routes",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        // Nearly transparent rather than zero: MapLibre still considers the
+        // geometry queryable while the visible ribbon keeps its real weight.
+        "line-color": "#000000",
+        "line-opacity": 0.01,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 22, 14, 34]
       }
     }
   ] as LayerSpecification[]
@@ -137,7 +159,6 @@ export function roadCharacterLayer(
     source: "switchback-curvature",
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      // The curvature score runs roughly 650 (the query floor) to 1500.
       "line-color": ["interpolate", ["linear"], ["get", "curvature"],
         650, bright ? "#8FB9C9" : "#7FA3B4",
         1500, bright ? "#FFC46B" : "#E8933A"
@@ -146,8 +167,6 @@ export function roadCharacterLayer(
         7, ["interpolate", ["linear"], ["get", "curvature"], 650, 1, 1500, 2.4],
         13, ["interpolate", ["linear"], ["get", "curvature"], 650, 2.5, 1500, 6]
       ],
-      // Curvier roads are drawn more strongly, and the rider's own opacity
-      // scales the whole range rather than flattening it.
       "line-opacity": ["interpolate", ["linear"], ["get", "curvature"],
         650, 0.35 * fade,
         1500, 0.85 * fade
