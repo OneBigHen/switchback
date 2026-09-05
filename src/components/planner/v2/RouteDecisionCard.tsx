@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRight, WarningCircle } from "@phosphor-icons/react"
+import type { FocusEvent, MouseEvent } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { CORRIDOR_OPTION_PRESENTATION } from "@/lib/routing/sketch-corridor"
 import styles from "./RouteDecisionCard.module.css"
@@ -20,6 +21,7 @@ export interface RouteDecisionPresentation {
   subtitle: string
   timeLabel: string
   distanceLabel: string
+  /** Difference from the rider's currently selected candidate. */
   deltaLabel: string | null
   character: string
   warning: string | null
@@ -29,6 +31,32 @@ function nonAsphaltShare(route: PlannedRoute): number {
   return Object.entries(route.surfaceMix).reduce((total, [surface, share]) => (
     surface.toLowerCase() === "asphalt" || surface.toLowerCase() === "paved" ? total : total + share
   ), 0)
+}
+
+function signedInteger(value: number, suffix: string): string | null {
+  const rounded = Math.round(value)
+  if (rounded === 0) return null
+  return `${rounded > 0 ? "+" : ""}${rounded} ${suffix}`
+}
+
+function signedDecimal(value: number, suffix: string): string | null {
+  const rounded = Math.round(value * 10) / 10
+  if (Math.abs(rounded) < 0.05) return null
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} ${suffix}`
+}
+
+function comparisonLabel(route: PlannedRoute, selectedRoute: PlannedRoute | null): string | null {
+  if (!selectedRoute) return null
+  if (route.id === selectedRoute.id) return "Current route"
+
+  const parts = [
+    signedInteger(route.durationMinutes - selectedRoute.durationMinutes, "min"),
+    signedDecimal(route.distanceMiles - selectedRoute.distanceMiles, "mi"),
+    signedInteger(nonAsphaltShare(route) - nonAsphaltShare(selectedRoute), "% unpaved"),
+    signedInteger(route.twistiness - selectedRoute.twistiness, "curve")
+  ].filter((part): part is string => Boolean(part))
+
+  return parts.length > 0 ? parts.join(" · ") : "Same key metrics"
 }
 
 export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): RouteDecisionRole {
@@ -49,9 +77,12 @@ export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): 
   return "Fast & Fun"
 }
 
-export function buildRouteDecisionPresentation(route: PlannedRoute, routes: PlannedRoute[]): RouteDecisionPresentation {
-  const fastestMinutes = Math.min(...routes.map((candidate) => candidate.durationMinutes))
-  const delta = Math.max(0, Math.round(route.durationMinutes - fastestMinutes))
+export function buildRouteDecisionPresentation(
+  route: PlannedRoute,
+  routes: PlannedRoute[],
+  selectedRouteId?: string | null
+): RouteDecisionPresentation {
+  const selectedRoute = routes.find((candidate) => candidate.id === selectedRouteId) ?? null
   const roughShare = nonAsphaltShare(route)
   const character = roughShare >= 25
     ? `${Math.round(roughShare)}% mixed surface · ${Math.round(route.twistiness)} curve score`
@@ -80,7 +111,7 @@ export function buildRouteDecisionPresentation(route: PlannedRoute, routes: Plan
       : route.name,
     timeLabel: `${Math.round(route.durationMinutes)} min`,
     distanceLabel: `${route.distanceMiles.toFixed(1)} mi`,
-    deltaLabel: delta > 0 ? `+${delta} min` : null,
+    deltaLabel: comparisonLabel(route, selectedRoute),
     character: corridorCharacter,
     warning
   }
@@ -90,25 +121,55 @@ export interface RouteDecisionCardProps {
   route: PlannedRoute
   routes: PlannedRoute[]
   selected: boolean
+  selectedRouteId?: string | null
   onSelect(id: string): void
   onOpenDetails?(id: string): void
+  onPreview?(id: string | null): void
 }
 
-export function RouteDecisionCard({ route, routes, selected, onSelect, onOpenDetails }: RouteDecisionCardProps) {
-  const presentation = buildRouteDecisionPresentation(route, routes)
+export function RouteDecisionCard({
+  route,
+  routes,
+  selected,
+  selectedRouteId,
+  onSelect,
+  onOpenDetails,
+  onPreview
+}: RouteDecisionCardProps) {
+  const presentation = buildRouteDecisionPresentation(route, routes, selectedRouteId)
+
+  const preview = () => {
+    if (!selected) onPreview?.(route.id)
+  }
+  const clearPointerPreview = (event: MouseEvent<HTMLElement>) => {
+    if (event.currentTarget.contains(document.activeElement)) return
+    onPreview?.(null)
+  }
+  const clearFocusPreview = (event: FocusEvent<HTMLElement>) => {
+    const next = event.relatedTarget
+    if (next instanceof Node && event.currentTarget.contains(next)) return
+    onPreview?.(null)
+  }
 
   return (
     <article
       className={styles.card}
       aria-label={`${presentation.role}: ${presentation.subtitle} route option`}
       data-selected={selected ? "true" : "false"}
+      onMouseEnter={preview}
+      onMouseLeave={clearPointerPreview}
+      onFocusCapture={preview}
+      onBlurCapture={clearFocusPreview}
     >
       <button
         type="button"
         className={styles.select}
         aria-label={`Select ${presentation.subtitle}`}
         aria-pressed={selected}
-        onClick={() => onSelect(route.id)}
+        onClick={() => {
+          onPreview?.(null)
+          onSelect(route.id)
+        }}
       >
         <span className={styles.heading}>
           <span className={styles.role}>{presentation.role}</span>
@@ -118,7 +179,7 @@ export function RouteDecisionCard({ route, routes, selected, onSelect, onOpenDet
         <span className={styles.metrics} aria-label={`${presentation.timeLabel}, ${presentation.distanceLabel}`}>
           <b>{presentation.timeLabel}</b>
           <span>{presentation.distanceLabel}</span>
-          {presentation.deltaLabel ? <small>{presentation.deltaLabel}</small> : <small>Baseline</small>}
+          <small>{presentation.deltaLabel ?? "Compare after selecting"}</small>
         </span>
         <span className={styles.character}>{presentation.character}</span>
         {presentation.warning ? (
