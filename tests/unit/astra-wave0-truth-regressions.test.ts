@@ -3,6 +3,7 @@ import { briefingText } from "@/lib/advice/route-context"
 import { createAdvisorToolbox } from "@/lib/advice/toolbox"
 import type { AdvisorRouteContext } from "@/lib/advice/contracts"
 import type { CurvatureSegment } from "@/lib/curvature/repository"
+import type { PaUnpavedRoadFeatureCollection } from "@/lib/roads/types"
 
 const context: AdvisorRouteContext = {
   selectedRouteId: "gravel-loop",
@@ -22,29 +23,29 @@ const context: AdvisorRouteContext = {
   warnings: []
 }
 
-const officialFeatureCollection = {
-  type: "FeatureCollection" as const,
+const officialFeatureCollection: PaUnpavedRoadFeatureCollection = {
+  type: "FeatureCollection",
   features: [{
-    type: "Feature" as const,
+    type: "Feature",
     id: "pa-unpaved-38",
     geometry: {
-      type: "LineString" as const,
+      type: "LineString",
       coordinates: [[-76.83, 40.21], [-76.81, 40.23]]
     },
     properties: {
       id: "pa-unpaved-38",
       county: "Dauphin",
       lengthMeters: 965.6,
-      source: "Pennsylvania Department of Environmental Protection" as const,
-      dataset: "Unpaved Roads 2009_07" as const
+      source: "Pennsylvania Department of Environmental Protection",
+      dataset: "Unpaved Roads 2009_07"
     }
   }],
   metadata: {
     count: 1,
     limit: 500,
     truncated: false,
-    source: "Pennsylvania Department of Environmental Protection" as const,
-    dataset: "Unpaved Roads 2009_07" as const
+    source: "Pennsylvania Department of Environmental Protection",
+    dataset: "Unpaved Roads 2009_07"
   }
 }
 
@@ -83,19 +84,20 @@ describe("Astra Wave 0 evidence truth", () => {
       surface: "gravel",
       geometry: [[-76.82, 40.22], [-76.81, 40.23]]
     }]
+    const emptySurvey: PaUnpavedRoadFeatureCollection = {
+      type: "FeatureCollection",
+      features: [],
+      metadata: {
+        count: 0,
+        limit: 500,
+        truncated: false,
+        source: "Pennsylvania Department of Environmental Protection",
+        dataset: "Unpaved Roads 2009_07"
+      }
+    }
     const toolbox = createAdvisorToolbox({
       queryRoads: () => gravel,
-      queryOfficialUnpaved: async () => ({
-        type: "FeatureCollection",
-        features: [],
-        metadata: {
-          count: 0,
-          limit: 500,
-          truncated: false,
-          source: "Pennsylvania Department of Environmental Protection",
-          dataset: "Unpaved Roads 2009_07"
-        }
-      })
+      queryOfficialUnpaved: async () => emptySurvey
     })
 
     const result = await toolbox.call("find_good_roads", { surface: "unpaved" }, {
