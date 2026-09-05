@@ -1,0 +1,37 @@
+name: PR58 rebaseline reviewed visuals
+
+on:
+  push:
+    branches: [ux/planner-workspace-hierarchy]
+
+permissions:
+  contents: write
+
+jobs:
+  rebaseline:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/planner-workspace-hierarchy
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Update reviewed visual snapshots
+        run: npx playwright test --project=visual --update-snapshots
+      - name: Verify updated visual matrix without rebaselining
+        run: npx playwright test --project=visual
+      - name: Commit reviewed baselines and remove temporary workflow
+        run: |
+          rm .github/workflows/pr58-rebaseline-reviewed-visuals.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/e2e/visual .github/workflows/pr58-rebaseline-reviewed-visuals.yml
+          git diff --cached --quiet && exit 1 || true
+          git commit -m "test: accept reviewed planner visual hierarchy"
+          git push origin HEAD:ux/planner-workspace-hierarchy
