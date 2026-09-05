@@ -96,6 +96,25 @@ export const FINAL_ANSWER_SCHEMA = {
   }
 } as const
 
+/**
+ * The answer schema for a turn that has no tools.
+ *
+ * A route-only turn cannot pin a place, so `proposedStops` and `proposedRide`
+ * are not merely unlikely — the resolver would drop them regardless, because
+ * every place reference must come from a tool result this turn. Asking for them
+ * anyway invites the model to reason about a ride it cannot legally propose,
+ * which costs latency and tempts it to author coordinates. The narrower schema
+ * makes the contract honest and the turn cheaper.
+ */
+export const ROUTE_ONLY_ANSWER_SCHEMA = {
+  type: "object",
+  required: ["message"],
+  properties: {
+    message: FINAL_ANSWER_SCHEMA.properties.message,
+    secondOpinion: FINAL_ANSWER_SCHEMA.properties.secondOpinion
+  }
+} as const
+
 function textOf(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()

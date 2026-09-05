@@ -85,7 +85,11 @@ describe("premium route ribbon", () => {
     expect(ids).toEqual([
       "switchback-route-shadow",
       "switchback-route-casing",
-      "switchback-route-lines"
+      "switchback-route-lines",
+      // Sits on top of the visible stack, near-transparent and filtered to the
+      // alternatives: it exists so a rider can tap a candidate whose drawn line
+      // is thinner than a fingertip.
+      "switchback-route-hit-area"
     ])
   })
 

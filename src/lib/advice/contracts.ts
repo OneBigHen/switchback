@@ -85,7 +85,23 @@ export interface AdvisorReply {
   proposedStops: ProposedStop[]
   proposedRide: ProposedRide | null
   citations: GroundingCitation[]
-  usage: { toolCalls: number; groundedQueries: number }
+  usage: AdvisorUsage
+}
+
+/**
+ * Per-turn accounting. `toolCalls`/`groundedQueries` are the cost signals; the
+ * routing fields are internal debug metadata recording which transport actually
+ * produced the answer. Nothing here is rendered to a rider.
+ */
+export interface AdvisorUsage {
+  toolCalls: number
+  groundedQueries: number
+  /** Execution mode the deterministic policy chose for this turn. */
+  mode?: "route-only" | "tool-assisted" | "maps-specialist"
+  /** Provider whose answer the rider got, or null when every attempt failed. */
+  answeredBy?: string | null
+  /** Every provider tried, in order, with the status and wall clock each took. */
+  attempts?: Array<{ providerId: string; modelId: string; status: string; ms: number }>
 }
 
 export function emptyReply(status: AdvisorStatus, message = ""): AdvisorReply {
@@ -138,6 +154,22 @@ export interface AdviceRequest {
   /** Explicit planner start used to bias pre-route place search. */
   origin?: AdvisorOrigin
 }
+
+/**
+ * Per-request cost/latency telemetry a transport can report.
+ *
+ * Internal only: this never reaches the rider, and it carries no rider content
+ * — just token counts, cost, and which upstream actually served the request.
+ */
+export interface AdvisorProviderUsage {
+  promptTokens: number
+  completionTokens: number
+  reasoningTokens: number
+  costUsd: number | null
+  upstreamProvider: string | null
+}
+
+export type AdvisorProviderUsageSink = (usage: AdvisorProviderUsage) => void
 
 export interface RouteAdviser {
   advise(input: AdviceRequest, signal?: AbortSignal): Promise<AdvisorReply>

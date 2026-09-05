@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted, 2026-09-04.
+Accepted, 2026-09-04. Amended the same day with the execution-mode policy and
+provider seam (see *Execution modes* and *The provider seam*), after the
+bake-off in `docs/design/2026-09-04-advisor-provider-bakeoff.md` showed latency
+was dominated by round trips rather than by model choice.
 
 Extends [ADR 0001](0001-routing-provider-architecture.md) (providers propose,
 Switchback decides), [ADR 0017](0017-federated-route-candidates.md),
@@ -61,10 +64,76 @@ Precedent already in the tree: `src/lib/ai/corridor-adviser.ts` has worked this
 way since Phase 5 — the model proposes named corridors, and anything whose
 source or anchor cannot be verified is discarded.
 
+### Execution modes: the turn decides how much machinery it needs
+
+Not every question needs the same work. A rider asking "worth the extra 25
+minutes?" is asking about facts Switchback already computed and already showed
+them; a rider asking "add a brewery near the end" needs a place pinned. Treating
+those identically made the common question pay for the rare one.
+
+Each turn is therefore classified **deterministically, in code, before any model
+is asked anything**:
+
+| Mode | What it covers | Shape |
+|---|---|---|
+| `route-only` | candidate comparison, route explanation, "worth it?", gravel/surface/time/curve questions answerable from the supplied context | **one** model request, **no tool declarations sent** |
+| `tool-assisted` | ride construction needing unresolved places, stop searches, roads not already in the candidate context | bounded tool loop + structured final pass |
+| `maps-specialist` | reserved extension point for paid Maps grounding | never entered by classification |
+
+Three rules make this safe rather than merely fast:
+
+1. **No model call decides whether a model call needs tools.** That would
+   reintroduce exactly the round trip the mode exists to remove.
+2. **Ties go to capability.** An unrecognised question classifies as
+   `tool-assisted`. The failure modes are not symmetric: a route-only turn that
+   needed tools answers worse, a tool-assisted turn that did not is only slower.
+3. **`route-only` sends an empty declaration list**, so it is *structurally*
+   unable to enter a tool round — not merely discouraged from one. Paid Maps
+   grounding never rides along on it either.
+
+The rider-visible payoff is latency. Because a route-only turn is a single
+request, the model's own reasoning becomes the remaining cost, so it is capped:
+measured on the same question, 8685ms at default effort against 3059ms at
+minimal. On tool-assisted turns the same cap bought nothing (17.8s vs 17.1s)
+because round trips still dominate, so it is scoped to the mode where it pays.
+
+While a route-only turn is in flight the UI shows a **factual** working state
+derived only from local deterministic route data ("Weighing +25 min, +31%
+unpaved and +57 curve score…") rather than a generic spinner. It states the
+arithmetic Switchback already did; it never previews a verdict, and unvalidated
+model reasoning is never streamed or rendered.
+
+### The provider seam
+
+Transport is a swappable seam; the deterministic core is not. An
+`AdvisorProvider` owns exactly one thing — how to talk to one API. The system
+prompt, toolbox, response schema, resolvers, candidate validation,
+place-coordinate resolution and planner handoff are **shared and stay shared**,
+because they are where the product's boundaries are enforced; a provider that
+reimplemented any of them could quietly weaken a guarantee the other still kept.
+
+`ADVISOR_PROVIDER=auto|gemini|openrouter`. Under `auto` the choice is a measured
+routing decision rather than a favourite: `route-only` goes to the one-shot
+OpenRouter/DeepSeek path first (fast single request, best blind prose quality in
+the bake-off), `tool-assisted` goes to Gemini first (lower measured median
+through a tool loop). Either key alone is a complete deployment.
+
+Failover is **only** for operational failures — timeout, 429, 5xx, connection
+error — which say nothing about the question. A `malformed` status means a model
+answered and the deterministic resolvers refused it; retrying that through
+provider after provider until one produces something acceptable would be
+shopping for a verdict, and would turn the resolvers from a boundary into an
+obstacle. An explicitly pinned provider gets no failover, because a pin is a
+deployment's deliberate choice. Which provider actually answered is recorded in
+internal usage metadata, never in rider-facing UI.
+
+Ordinary route planning remains completely independent of provider availability:
+with every provider down, the planner is unchanged and the co-pilot is absent.
+
 ### Gemini, natively
 
-The transport is the Gemini API directly, not a proxy. That choice is forced by
-what the co-pilot needs: Grounding with Google Maps is a Gemini-API-**native**
+Gemini remains the transport for grounded turns, and that choice is forced by
+what grounding needs: Grounding with Google Maps is a Gemini-API-**native**
 tool, and OpenRouter's OpenAI-compatible surface does not carry it.
 
 Two constraints were verified against the live endpoint, and the implementation
