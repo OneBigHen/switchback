@@ -15,6 +15,7 @@ import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
 import { fetchAdvisorCapability, requestAdvisorTurn } from "@/lib/client/advisor-client"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { setRoutePreviewId } from "../route-comparison-preview"
 import opinionStyles from "./GravelGoblinOpinion.module.css"
 import styles from "./RideAdvisor.module.css"
 
@@ -347,7 +348,14 @@ export function RideAdvisor({
               type="button"
               className={opinionStyles.action}
               aria-label={`Show ${opinionRoute.name} route`}
-              onClick={() => onSelectRoute(opinionRoute.id)}
+              onMouseEnter={() => setRoutePreviewId(opinionRoute.id)}
+              onMouseLeave={() => setRoutePreviewId(null)}
+              onFocus={() => setRoutePreviewId(opinionRoute.id)}
+              onBlur={() => setRoutePreviewId(null)}
+              onClick={() => {
+                setRoutePreviewId(null)
+                onSelectRoute(opinionRoute.id)
+              }}
             >
               <span>Show route</span>
               <ArrowRight weight="bold" aria-hidden="true" />
