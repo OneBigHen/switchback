@@ -1,0 +1,140 @@
+[
+  {
+    "label": "A001",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t01-simple",
+    "rep": 2
+  },
+  {
+    "label": "A002",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t01-simple",
+    "rep": 2
+  },
+  {
+    "label": "A003",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t02-comparison",
+    "rep": 4
+  },
+  {
+    "label": "A004",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t02-comparison",
+    "rep": 0
+  },
+  {
+    "label": "A005",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t03-builder",
+    "rep": 1
+  },
+  {
+    "label": "A006",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t04-vague-builder",
+    "rep": 2
+  },
+  {
+    "label": "A007",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t04-vague-builder",
+    "rep": 0
+  },
+  {
+    "label": "A008",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t05-dualsport",
+    "rep": 3
+  },
+  {
+    "label": "A009",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t05-dualsport",
+    "rep": 2
+  },
+  {
+    "label": "A010",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t06-stop-search",
+    "rep": 4
+  },
+  {
+    "label": "A011",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t06-stop-search",
+    "rep": 1
+  },
+  {
+    "label": "A012",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t07-iterative-1",
+    "rep": 2
+  },
+  {
+    "label": "A013",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t07-iterative-1",
+    "rep": 2
+  },
+  {
+    "label": "A014",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t07-iterative-2",
+    "rep": 1
+  },
+  {
+    "label": "A015",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t07-iterative-2",
+    "rep": 0
+  },
+  {
+    "label": "A016",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t07-iterative-3",
+    "rep": 1
+  },
+  {
+    "label": "A017",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t07-iterative-3",
+    "rep": 2
+  },
+  {
+    "label": "A018",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t08-injection",
+    "rep": 2
+  },
+  {
+    "label": "A019",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t08-injection",
+    "rep": 2
+  },
+  {
+    "label": "A020",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t09-unresolvable",
+    "rep": 0
+  },
+  {
+    "label": "A021",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t09-unresolvable",
+    "rep": 4
+  },
+  {
+    "label": "A022",
+    "arm": "gemini-3.1-flash-lite / low",
+    "task": "t10-minimal",
+    "rep": 0
+  },
+  {
+    "label": "A023",
+    "arm": "deepseek-v4-flash-latest / OR two-phase",
+    "task": "t10-minimal",
+    "rep": 4
+  }
+]

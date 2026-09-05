@@ -78,6 +78,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const error = ui.error
   const curvatureVisible = rideConfig.curvatureVisible
   const avoidHighways = rideConfig.avoidHighways
+  const tollPolicy = rideConfig.tollPolicy
   const savedCount = ui.savedCount
   const segmentProfiles = rideConfig.segmentProfiles
   const avoidAreaCount = rideConfig.avoidAreaCount
@@ -122,6 +123,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onBikeProfileChange = rc.onBikeProfileChange
   const onCurvatureChange = rc.onCurvatureChange
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
+  const onTollPolicyChange = rc.onTollPolicyChange
   const onPlanModeChange = rc.onPlanModeChange
   const onTargetMinutesChange = rc.onTargetMinutesChange
   const onTimeShapedChange = rc.onTimeShapedChange
@@ -337,6 +339,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               bikeProfile={rideConfig.bikeProfile}
               curvatureVisible={curvatureVisible}
               avoidHighways={avoidHighways}
+              tollPolicy={tollPolicy}
               targetMinutes={targetMinutes}
               timeShaped={timeShaped}
               segmentProfiles={segmentProfiles}
@@ -369,6 +372,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               onBikeProfileChange={onBikeProfileChange}
               onCurvatureChange={onCurvatureChange}
               onAvoidHighwaysChange={onAvoidHighwaysChange}
+              onTollPolicyChange={onTollPolicyChange}
               onTargetMinutesChange={onTargetMinutesChange}
               onTimeShapedChange={onTimeShapedChange}
               onSegmentProfileChange={onSegmentProfileChange}

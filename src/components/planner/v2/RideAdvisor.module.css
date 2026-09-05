@@ -1,0 +1,552 @@
+/* The co-pilot is deliberately quieter than the route rail: it is a second
+   opinion, and it must never read as the decision. No modal, no overlay, no
+   colour louder than the route cards it sits beneath. */
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  min-height: 36px;
+  padding: 8px 13px;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: var(--sb-surface);
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.trigger:hover {
+  border-color: var(--sb-ember-strong);
+  color: var(--sb-text);
+}
+
+.trigger:focus-visible,
+.builderCard button:focus-visible,
+.panel button:focus-visible,
+.panel input:focus-visible,
+.panel a:focus-visible {
+  outline: 3px solid var(--sb-focus-fill);
+  outline-offset: 2px;
+}
+
+/* Before a route exists the co-pilot is not a tiny afterthought: it is one of
+   the planner's primary ways in. The card is still visually subordinate to the
+   omnibox, but it earns enough room to explain why it is useful. */
+.builderCard {
+  position: relative;
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 30%, var(--sb-border));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--sb-ember-strong) 12%, transparent), transparent 42%),
+    color-mix(in srgb, var(--sb-ember-strong) 3%, var(--sb-surface));
+}
+
+.builderLead {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+}
+
+.builderLead > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.builderLead small {
+  color: var(--sb-ember-strong);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.builderLead strong {
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.builderLead > span:last-child > span {
+  max-width: 50ch;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.builderIcon {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 35%, var(--sb-border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--sb-ember-strong) 9%, var(--sb-surface));
+  color: var(--sb-ember-strong);
+}
+
+.builderQuick {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.builderQuick button {
+  min-height: 31px;
+  padding: 5px 9px;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sb-surface) 86%, transparent);
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.builderQuick button:hover {
+  border-color: color-mix(in srgb, var(--sb-ember-strong) 65%, var(--sb-border));
+  color: var(--sb-text);
+}
+
+.builderOpen {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sb-ember-strong);
+  color: var(--sb-surface);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px 14px 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sb-ember-strong) 3%, var(--sb-surface));
+}
+
+.header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header > div {
+  display: grid;
+  gap: 1px;
+}
+
+.header span {
+  color: var(--sb-ember-strong);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.header h2 {
+  margin: 0;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.header button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sb-text-muted);
+  cursor: pointer;
+}
+
+.verdict {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--sb-ember-strong);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--sb-ember-strong) 6%, transparent);
+  color: var(--sb-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.thread {
+  display: grid;
+  gap: 7px;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior-block: contain;
+  scrollbar-width: thin;
+}
+
+.thread p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.emptyLead {
+  padding: 9px 10px;
+  border: 1px dashed var(--sb-border);
+  border-radius: 9px;
+  color: var(--sb-text-muted);
+}
+
+.advisor {
+  color: var(--sb-text);
+}
+
+.rider {
+  justify-self: end;
+  max-width: 88%;
+  padding: 7px 10px;
+  border-radius: 12px 12px 2px 12px;
+  background: color-mix(in srgb, var(--sb-text) 7%, transparent);
+  color: var(--sb-text);
+}
+
+.notice {
+  color: var(--sb-text-muted);
+  font-style: italic;
+}
+
+.citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.citations a {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stops {
+  display: grid;
+  gap: 6px;
+}
+
+.stop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: 9px;
+  background: var(--sb-surface);
+}
+
+.stopBody {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.stopBody strong {
+  color: var(--sb-text);
+  font-size: 13px;
+}
+
+.stopBody small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.stopWhere {
+  font-weight: 700;
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--sb-ember-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sb-ember-strong);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.starters button {
+  min-height: 31px;
+  padding: 5px 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.starters button:hover {
+  border-color: var(--sb-ember-strong);
+  color: var(--sb-text);
+}
+
+.composer {
+  display: flex;
+  gap: 6px;
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  min-height: 39px;
+  padding: 8px 11px;
+  border: 1px solid var(--sb-border);
+  border-radius: 9px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.composer button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--sb-ember-strong);
+  color: var(--sb-surface);
+  cursor: pointer;
+}
+
+.composer button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.attribution {
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel,
+  .builderCard {
+    animation: advisor-in 180ms ease-out;
+  }
+}
+
+@keyframes advisor-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Nudge: the proactive surface. Inline, one at a time, always dismissible.
+   Quieter than the trigger it sits above, because it speaks uninvited. --- */
+
+.closed {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+}
+
+.nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--sb-border);
+  border-left: 2px solid var(--sb-ember-strong);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--sb-ember-strong) 4%, var(--sb-surface));
+  color: var(--sb-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.nudgeActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nudgeActions button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sb-ember-strong);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.nudgeDismiss {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--sb-text-muted);
+}
+
+/* --- Proposed ride: the advisor filled in the planner's form. It must read as
+   a draft the rider confirms, never as a route that already exists. --- */
+
+.ride {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 11px;
+  border: 1px dashed var(--sb-ember-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sb-ember-strong) 5%, var(--sb-surface));
+}
+
+.rideBody {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 190px;
+}
+
+.rideBody strong {
+  color: var(--sb-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.rideBody small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.rideNote {
+  font-style: italic;
+}
+
+.plan {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sb-ember-strong);
+  color: var(--sb-surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* The co-pilot is deliberately compact, and on a touch screen compact stops
+   being a style and starts being a miss. Every control the rider can press
+   grows to the 44px minimum the mobile suite enforces, without changing the
+   density of the pointer-driven layout it was drawn for. */
+@media (pointer: coarse), (max-width: 520px) {
+  .trigger,
+  .builderQuick button,
+  .builderOpen,
+  .header button,
+  .add,
+  .starters button,
+  .plan,
+  .composer input,
+  .composer button,
+  .nudgeActions button,
+  .nudgeDismiss {
+    min-height: 44px;
+  }
+
+  .header button,
+  .composer button,
+  .nudgeDismiss {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 520px) {
+  .builderCard,
+  .panel {
+    padding: 12px;
+  }
+
+  .builderQuick {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .builderQuick button {
+    width: 100%;
+  }
+
+  .stop,
+  .ride {
+    align-items: stretch;
+  }
+
+  .add,
+  .plan {
+    justify-content: center;
+  }
+}

@@ -76,6 +76,7 @@ function defaultViewModel(): PlannerDeckViewModel {
       roadLocks: [],
       curvatureVisible: true,
       avoidHighways: false,
+      tollPolicy: "allow-with-warning",
       segmentProfiles: ["twisty"],
       avoidAreaCount: 0
     },
@@ -127,6 +128,7 @@ function defaultCommands(): PlannerDeckCommands {
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
       onAvoidHighwaysChange: vi.fn(),
+      onTollPolicyChange: vi.fn(),
       onSegmentProfileChange: vi.fn(),
       onRemoveAvoidArea: vi.fn(),
       onAddRoadLock: vi.fn(),

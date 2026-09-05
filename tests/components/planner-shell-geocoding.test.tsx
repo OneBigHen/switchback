@@ -374,7 +374,12 @@ describe("free-form planner place resolution", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("The route service is temporarily unavailable")
 
     await userEvent.click(screen.getByRole("button", { name: "Retry provider health" }))
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    // Count the health probes specifically: the shell makes other unrelated
+    // mount-time requests, and Retry must re-probe health rather than merely
+    // changing the number of calls made overall.
+    const healthCalls = () => vi.mocked(fetch).mock.calls
+      .filter(([input]) => String(input).includes("/api/health")).length
+    await waitFor(() => expect(healthCalls()).toBe(2))
   })
 
   it("selects the exact alternative card and transitions to Prepare", async () => {
