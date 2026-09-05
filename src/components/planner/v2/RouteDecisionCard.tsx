@@ -33,10 +33,10 @@ function nonAsphaltShare(route: PlannedRoute): number {
   ), 0)
 }
 
-function signedInteger(value: number, suffix: string): string | null {
+function signedInteger(value: number, suffix: string, separator = " "): string | null {
   const rounded = Math.round(value)
   if (rounded === 0) return null
-  return `${rounded > 0 ? "+" : ""}${rounded} ${suffix}`
+  return `${rounded > 0 ? "+" : ""}${rounded}${separator}${suffix}`
 }
 
 function signedDecimal(value: number, suffix: string): string | null {
@@ -52,7 +52,7 @@ function comparisonLabel(route: PlannedRoute, selectedRoute: PlannedRoute | null
   const parts = [
     signedInteger(route.durationMinutes - selectedRoute.durationMinutes, "min"),
     signedDecimal(route.distanceMiles - selectedRoute.distanceMiles, "mi"),
-    signedInteger(nonAsphaltShare(route) - nonAsphaltShare(selectedRoute), "% unpaved"),
+    signedInteger(nonAsphaltShare(route) - nonAsphaltShare(selectedRoute), "% unpaved", ""),
     signedInteger(route.twistiness - selectedRoute.twistiness, "curve")
   ].filter((part): part is string => Boolean(part))
 
@@ -60,8 +60,6 @@ function comparisonLabel(route: PlannedRoute, selectedRoute: PlannedRoute | null
 }
 
 export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): RouteDecisionRole {
-  // A free-draw option set names itself: the rider asked about their own line,
-  // not about the engine's riding profiles.
   if (route.corridorOption) {
     return CORRIDOR_OPTION_PRESENTATION[route.corridorOption].label as RouteDecisionRole
   }
