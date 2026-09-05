@@ -26,12 +26,19 @@ function routeTouchesPennsylvania(route: PlannedRoute): boolean {
   )
 }
 
+/**
+ * Profiles a rider picks *because* they want dirt. Gravel belongs here as much
+ * as adventure does: asking for gravel and then being told nothing about the
+ * official unpaved network is the one answer the request rules out.
+ */
+const UNPAVED_SEEKING_PROFILES = new Set<RouteRequest["profile"]>(["adventure", "gravel"])
+
 export async function enrichAdventureRoutesWithPaData(
   request: RouteRequest,
   routes: PlannedRoute[],
   options: AdventureRouteEnricherOptions = {}
 ): Promise<AdventureRouteEnrichmentResult> {
-  if (request.profile !== "adventure" || routes.length === 0) {
+  if (!UNPAVED_SEEKING_PROFILES.has(request.profile) || routes.length === 0) {
     return { routes, warnings: [] }
   }
   const eligibleRoutes = routes.filter(routeTouchesPennsylvania)

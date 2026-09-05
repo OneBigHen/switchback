@@ -20,3 +20,14 @@ This applies the same principle the architecture assessment already states for a
 ## Open question for the product owner
 
 Is this full-refactor package intended as the missing detail for the premium wave's remaining phases, or as a distinct wave that supersedes it? This document does not decide that; it makes the conflict explicit so wave 0 work does not proceed on an unstated assumption.
+
+## Execution disposition — 2026-09-05
+
+The subsequent owner instruction explicitly authorizes implementing Astra in
+dependency order and reconciling the existing work. Execution adopts the
+recommendation above: one premium-wave continuation, with Astra as its detailed
+product contracts. The sequencing amendment is recorded in
+[`ROADMAP-WAVES.md`](../release/ROADMAP-WAVES.md#implementation-reconciliation--2026-09-05).
+The original review and question remain above as provenance, not a pending
+approval gate. No provider, renderer, identity, or stored-data policy is
+implicitly replaced.

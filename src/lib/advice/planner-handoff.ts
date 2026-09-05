@@ -21,6 +21,15 @@ function waypoint(point: { name: string; lat: number; lon: number }): Waypoint {
   return { lat: point.lat, lon: point.lon, label: point.name }
 }
 
+function routeWaypoints(ride: ProposedRide): ProposedRide["waypoints"] {
+  // A midpoint returned by the road-evidence lookup is evidence for the
+  // profile, not a hard loop stop. Pinning it turns a timeboxed loop into a
+  // fixed-shape loop whose measured duration can be far from the target.
+  return ride.mode === "loop"
+    ? ride.waypoints.filter((point) => point.role !== "road-evidence")
+    : ride.waypoints
+}
+
 /**
  * Convert an advisor proposal into one immutable planner handoff.
  *
@@ -34,7 +43,7 @@ export function advisorRideToPlannerHandoff(ride: ProposedRide): AdvisorPlannerH
     points: {
       start: waypoint(ride.start),
       finish: ride.mode === "destination" && ride.finish ? waypoint(ride.finish) : null,
-      via: ride.waypoints.map(waypoint)
+      via: routeWaypoints(ride).map(waypoint)
     },
     profile: ride.profile,
     targetMinutes: ride.targetMinutes,

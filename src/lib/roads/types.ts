@@ -1,3 +1,12 @@
+/**
+ * Lowest map zoom the official unpaved-road query will serve.
+ *
+ * Shared by the client gate, the layer catalog, and the API handler so a
+ * zoomed-out view says "zoom in" instead of firing a request the server is
+ * always going to reject and painting the overlay as broken.
+ */
+export const PA_UNPAVED_ROADS_MIN_ZOOM = 9
+
 export interface PaUnpavedRoadBounds {
   south: number
   west: number

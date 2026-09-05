@@ -1,12 +1,20 @@
+/**
+ * The Goblin's verdict, sitting inside the advisor panel.
+ *
+ * It has to read as a considered opinion rather than another line of chat, but
+ * it is a card inside a panel — so the separation comes from a precise 1px rule
+ * and a low ember wash, not from elevation or a side tab. Ember is the
+ * commitment colour; carrying it in the rule, the wash, the label and the
+ * action is enough to mark the card as Ember's without a stripe.
+ */
 .verdict {
   display: grid;
-  gap: 7px;
+  gap: var(--sb-space-2);
   margin: 0;
-  padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 24%, var(--sb-border));
-  border-left: 3px solid var(--sb-ember-strong);
-  border-radius: 5px 10px 10px 5px;
-  background: color-mix(in srgb, var(--sb-ember-strong) 5%, var(--sb-surface));
+  padding: var(--sb-space-2) var(--sb-space-3);
+  border: 1px solid color-mix(in srgb, var(--sb-ember-text) 34%, var(--sb-border));
+  border-radius: var(--sb-radius-control);
+  background: color-mix(in srgb, var(--sb-ember-text) 6%, var(--sb-surface));
 }
 
 .header {
@@ -14,17 +22,17 @@
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--sb-space-2);
 }
 
 .pick {
   display: grid;
   min-width: 0;
-  gap: 1px;
+  gap: 2px;
 }
 
 .pick small {
-  color: var(--sb-ember-strong);
+  color: var(--sb-ember-text);
   font-size: 9.5px;
   font-weight: 850;
   letter-spacing: 0.09em;
@@ -42,9 +50,9 @@
 
 .confidence {
   flex: 0 0 auto;
-  padding: 3px 7px;
+  padding: 2px var(--sb-space-2);
   border: 1px solid var(--sb-border);
-  border-radius: 999px;
+  border-radius: var(--sb-radius-chip);
   background: var(--sb-surface-raised);
   color: var(--sb-text-muted);
   font-size: 9.5px;
@@ -53,7 +61,7 @@
 }
 
 .confidence[data-confidence="high"] {
-  border-color: color-mix(in srgb, var(--sb-success, #557a57) 46%, var(--sb-border));
+  border-color: color-mix(in srgb, var(--sb-success) 46%, var(--sb-border));
 }
 
 .rationale {
@@ -65,9 +73,9 @@
 
 .cautions {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   margin: 0;
-  padding-left: 17px;
+  padding-left: var(--sb-space-4);
   color: var(--sb-text-muted);
   font-size: 10.5px;
   line-height: 1.4;
@@ -78,12 +86,12 @@
   min-height: 34px;
   align-items: center;
   justify-self: start;
-  gap: 6px;
-  padding: 5px 9px;
-  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 55%, var(--sb-border));
-  border-radius: 999px;
-  background: transparent;
-  color: var(--sb-ember-strong);
+  gap: var(--sb-space-1);
+  padding: var(--sb-space-1) var(--sb-space-3);
+  border: 1px solid color-mix(in srgb, var(--sb-ember-text) 52%, var(--sb-border));
+  border-radius: var(--sb-radius-chip);
+  background: var(--sb-surface);
+  color: var(--sb-ember-text);
   cursor: pointer;
   font: inherit;
   font-size: 10.5px;
@@ -92,7 +100,8 @@
 
 .action:hover,
 .action:focus-visible {
-  background: color-mix(in srgb, var(--sb-ember-strong) 7%, transparent);
+  border-color: var(--sb-ember-text);
+  background: color-mix(in srgb, var(--sb-ember-text) 9%, var(--sb-surface));
 }
 
 .action:focus-visible {
@@ -115,6 +124,6 @@
   .header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--sb-space-1);
   }
 }

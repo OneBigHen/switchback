@@ -5,6 +5,7 @@ import type {
 } from "@/lib/advice/contracts"
 import { emptyReply } from "@/lib/advice/contracts"
 import type { AdvisorCapability } from "@/lib/advice/capability"
+import { MAX_ADVISOR_BODY_BYTES } from "@/lib/advice/request-limits"
 
 /**
  * Client side of the advisor turn endpoint.
@@ -54,22 +55,41 @@ export interface AdvisorTurnInput {
   origin?: { lat: number; lon: number; label?: string }
 }
 
+function advisorRequestBody(input: AdvisorTurnInput): string | null {
+  const conversation = input.conversation.slice(-MAX_POSTED_CONVERSATION)
+
+  for (let firstMessage = 0; firstMessage <= conversation.length; firstMessage += 1) {
+    const body = JSON.stringify({
+      ...input,
+      conversation: conversation.slice(firstMessage)
+    })
+    if (new TextEncoder().encode(body).byteLength <= MAX_ADVISOR_BODY_BYTES) return body
+  }
+
+  return null
+}
+
 export async function requestAdvisorTurn(
   input: AdvisorTurnInput,
   signal?: AbortSignal
 ): Promise<AdvisorTurnResponse> {
   try {
+    const body = advisorRequestBody(input)
+    if (body === null) {
+      return { ...emptyReply("invalid-request"), capability: ABSENT_CAPABILITY }
+    }
+
     const response = await fetch("/api/advisor", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...input,
-        conversation: input.conversation.slice(-MAX_POSTED_CONVERSATION)
-      }),
+      body,
       ...(signal ? { signal } : {})
     })
     if (response.status === 429) {
       return { ...emptyReply("rate-limited"), capability: ABSENT_CAPABILITY }
+    }
+    if (response.status === 400 || response.status === 413) {
+      return { ...emptyReply("invalid-request"), capability: ABSENT_CAPABILITY }
     }
     if (!response.ok) {
       return { ...emptyReply("unavailable"), capability: ABSENT_CAPABILITY }

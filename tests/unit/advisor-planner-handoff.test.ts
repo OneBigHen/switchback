@@ -41,6 +41,27 @@ describe("advisor planner handoff", () => {
       timeShaped: false
     })
   })
+
+  it("keeps road evidence out of hard loop shaping points", () => {
+    const loop: ProposedRide = {
+      mode: "loop",
+      profile: "gravel",
+      targetMinutes: 180,
+      start: { name: "Harrisburg", lat: 40.2732, lon: -76.8867 },
+      finish: null,
+      waypoints: [{
+        name: "Unpaved road in Perry County",
+        lat: 40.3111,
+        lon: -77.0242,
+        role: "road-evidence"
+      }],
+      avoidHighways: true,
+      tollPolicy: "avoid",
+      summary: "Three-hour gravel loop through Perry County."
+    }
+
+    expect(advisorRideToPlannerHandoff(loop).points.via).toEqual([])
+  })
 })
 
 describe("advisor stop handoff", () => {

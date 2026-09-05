@@ -297,6 +297,38 @@ test("an offline rider is never asked to wait on a capability probe that cannot 
   expect(capabilityRequests.length).toBeGreaterThan(0)
 })
 
+test("an invalid advisor request keeps the rider's text and explains recovery", async ({ page }) => {
+  await mockBase(page)
+  const posts: Array<Record<string, unknown>> = []
+  await page.route("**/api/advisor", async (request) => {
+    if (request.request().method() === "GET") {
+      await request.fulfill({ status: 200, json: { capability } })
+      return
+    }
+    posts.push(request.request().postDataJSON() as Record<string, unknown>)
+    if (posts.length === 1) {
+      await request.fulfill({ status: 400, json: { error: { code: "INVALID_ADVISOR_REQUEST" } } })
+      return
+    }
+    await request.fulfill({ status: 200, json: builderReply })
+  })
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+  const riderMessage = "I have 90 minutes; mostly backroads."
+  await composer.fill(riderMessage)
+  await composer.press("Enter")
+  await expect(page.getByText("I couldn’t read that ride request. Shorten it or refresh the ride, then try again.")).toBeVisible()
+  await expect(composer).toHaveValue(riderMessage)
+  await expect(page.getByRole("button", { name: "Send to Gravel Goblin" })).toBeEnabled()
+
+  await composer.press("Enter")
+  await expect(page.getByText(builderReply.message)).toBeVisible()
+  expect(posts).toHaveLength(2)
+  expect(posts.map((post) => post.riderMessage)).toEqual([riderMessage, riderMessage])
+  expect(posts[1]?.conversation).toEqual([])
+})
+
 test("opening Gravel Goblin spends no model turn until the rider actually asks", async ({ page }) => {
   await mockBase(page)
   const posts: Array<Record<string, unknown>> = []
@@ -403,7 +435,7 @@ test("a stale in-flight Goblin answer never paints against a route it was not as
   await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
   await expect(page.getByText("Sniffing out the good roads…")).toBeVisible()
 
-  await page.getByRole("button", { name: "Select Fastest Now" }).first().click()
+  await page.getByRole("button", { name: "Select Fast way south", exact: true }).click()
   release()
   await page.waitForTimeout(750)
 

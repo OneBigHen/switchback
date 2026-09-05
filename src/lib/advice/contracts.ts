@@ -15,6 +15,7 @@ export type AdvisorStatus =
   | "timeout"
   | "unavailable"
   | "malformed"
+  | "invalid-request"
   | "rate-limited"
 
 export interface AdvisorMessage {
@@ -67,6 +68,8 @@ export interface ProposedRidePoint {
   name: string
   lat: number
   lon: number
+  /** Road-search evidence is useful context, but is not a mandatory loop stop. */
+  role?: "road-evidence"
 }
 
 export interface RouteSecondOpinion {
@@ -133,6 +136,8 @@ export interface AdvisorRouteContext {
     corridorOption?: string
     ascentMeters?: number | null
     descentMeters?: number | null
+    /** Official PA unpaved-road overlap, when the profile earned the lookup. */
+    officialUnpavedSharePercent?: number
   }>
   geometry: Array<[longitude: number, latitude: number]>
   warnings: string[]

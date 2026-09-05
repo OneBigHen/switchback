@@ -85,6 +85,20 @@ describe("Adventure route official-road enrichment", () => {
     expect(fetchRoads).not.toHaveBeenCalled()
   })
 
+  it("runs for a gravel request too, because that rider asked for dirt by name", async () => {
+    const fetchRoads = vi.fn(async () => officialRoads())
+    const gravelRequest = { ...request, profile: "gravel" as const }
+
+    const { routes } = await enrichAdventureRoutesWithPaData(
+      gravelRequest,
+      [route("gravel-1")],
+      { fetchRoads }
+    )
+
+    expect(fetchRoads).toHaveBeenCalledTimes(1)
+    expect(routes[0]!.officialUnpavedEvidence?.sharePercent).toBeGreaterThan(0)
+  })
+
   it("falls back unchanged when PASDA is unavailable or truncated", async () => {
     const routes = [route("candidate")]
     const unavailable = await enrichAdventureRoutesWithPaData(request, routes, {

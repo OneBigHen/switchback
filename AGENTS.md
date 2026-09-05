@@ -68,3 +68,9 @@ with PR #20. Ledgers under `docs/quality/archive/` are evidence, not worklists.
 **Current wave.** The premium maps + routing wave opened 2026-08-29 (ADRs
 0015–0022, phases in `docs/release/ROADMAP-WAVES.md`). It is a deliberate new
 wave, not a reopening of the closed remediation campaign.
+
+**Astra implementation authority (2026-09-05).** `docs/astra/` is the approved
+product/interaction/architecture direction. `docs/release/ROADMAP-WAVES.md`
+records its integration into the same premium wave. Follow Astra backlog
+dependencies and release gates; do not run competing refactor roadmaps.
+Record exact implementation evidence and the next task in `ASTRA-STATE.md`.

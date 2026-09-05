@@ -56,7 +56,10 @@ function candidateSummary(route: PlannedRoute): AdvisorRouteContext["candidates"
     surfaceMix: route.surfaceMix,
     ...(route.ascentMeters !== null ? { ascentMeters: Math.round(route.ascentMeters) } : {}),
     ...(route.descentMeters !== null ? { descentMeters: Math.round(route.descentMeters) } : {}),
-    ...(route.corridorOption ? { corridorOption: route.corridorOption } : {})
+    ...(route.corridorOption ? { corridorOption: route.corridorOption } : {}),
+    ...(route.officialUnpavedEvidence
+      ? { officialUnpavedSharePercent: Number(route.officialUnpavedEvidence.sharePercent.toFixed(1)) }
+      : {})
   }
 }
 
@@ -87,13 +90,28 @@ const UNPAVED = new Set([
   "compacted", "dirt", "earth", "fine_gravel", "grass", "gravel", "ground", "mud", "sand", "unpaved"
 ])
 
-function unpavedPercent(mix: Record<string, number> | null | undefined): number {
-  if (!mix) return 0
-  const total = Object.values(mix).reduce((sum, share) => sum + Math.max(0, share), 0)
-  if (total <= 0) return 0
-  const unpaved = Object.entries(mix)
-    .reduce((sum, [surface, share]) => sum + (UNPAVED.has(surface.toLowerCase()) ? Math.max(0, share) : 0), 0)
-  return Math.round((unpaved / total) * 100)
+function unpavedEvidence(candidate: AdvisorRouteContext["candidates"][number]): string {
+  const official = candidate.officialUnpavedSharePercent
+  // The PASDA dataset is a survey of the unpaved network itself, so where it
+  // applies it outranks the patchy OSM surface tags rather than sitting beside
+  // them.
+  const officialText = official === undefined
+    ? ""
+    : `, ${official}% on the official PA unpaved-road network`
+
+  const entries = Object.entries(candidate.surfaceMix ?? {})
+    .filter(([, share]) => Number.isFinite(share) && share > 0)
+  const total = entries.reduce((sum, [, share]) => sum + share, 0)
+  const unknown = entries.reduce((sum, [surface, share]) =>
+    sum + (["unknown", "missing", "unclassified", ""].includes(surface.toLowerCase()) ? share : 0), 0)
+  if (total <= 0 || unknown === total) {
+    return `unpaved share unknown from mapped surface tags${officialText}`
+  }
+  const unpaved = entries.reduce((sum, [surface, share]) =>
+    sum + (UNPAVED.has(surface.toLowerCase()) ? share : 0), 0)
+  return `${Math.round((unpaved / total) * 100)}% mapped unpaved` +
+    (unknown > 0 ? "; surface coverage incomplete, remaining surface unknown" : "") +
+    officialText
 }
 
 function elevationText(candidate: AdvisorRouteContext["candidates"][number]): string {
@@ -123,18 +141,23 @@ export function briefingText(context: AdvisorRouteContext): string {
       surfaceMix: candidate.surfaceMix,
       roadMix: candidate.roadMix
     })
+    // A share means Switchback ran the official PASDA lookup for this route, so
+    // official surface is a fact here, not a gap to disclaim.
+    const unsupported = candidate.officialUnpavedSharePercent === undefined
+      ? grounded.unsupported
+      : grounded.unsupported.filter((gap) => gap !== "official surface legality")
     const added = fastest && candidate.id !== fastest.id
       ? ` (+${Math.max(0, Math.round(candidate.durationMinutes - fastest.durationMinutes))} min vs fastest)`
       : " (fastest)"
     const selected = candidate.id === context.selectedRouteId ? " [SWITCHBACK RECOMMENDS THIS]" : ""
-    const unpaved = unpavedPercent(candidate.surfaceMix)
+    const unpaved = unpavedEvidence(candidate)
     lines.push(
       `- id=${promptData(candidate.id, 120)} name="${promptData(candidate.name)}" profile=${candidate.profile}` +
       `${candidate.corridorOption ? ` freeDrawOption=${promptData(candidate.corridorOption, 80)}` : ""}` +
       `${selected}: ${promptData(grounded.summary, 360)}${added}` +
-      ` curve score ${candidate.twistiness}/100, ${unpaved}% mapped unpaved${elevationText(candidate)}.` +
-      (grounded.unsupported.length > 0
-        ? ` Not known: ${promptData(grounded.unsupported.join(", "), 240)}.`
+      ` curve score ${candidate.twistiness}/100, ${unpaved}${elevationText(candidate)}.` +
+      (unsupported.length > 0
+        ? ` Not known: ${promptData(unsupported.join(", "), 240)}.`
         : "")
     )
   }
@@ -244,7 +267,7 @@ export function advisorSystemPrompt(
     "at most one focused question when a required fact is genuinely missing. Resolve every point",
     "with lookup_place/find_stops before returning proposedRide.",
     "",
-    "If you name a stop as part of the generated ride, include its placeId in waypointPlaceIds.",
+    "If you name a stop as part of the generated ride, include its placeId in waypointPlaceIds. Road-search results are evidence: keep an unpaved-road midpoint in proposedStops, not as a hard waypoint in a timeboxed loop.",
     "The resolver rejects the entire draft when a requested route point was not actually pinned.",
     input.origin
       ? `The rider explicitly selected start ${input.origin.lat.toFixed(4)},${input.origin.lon.toFixed(4)}` +

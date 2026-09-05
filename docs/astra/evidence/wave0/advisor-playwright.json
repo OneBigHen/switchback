@@ -1,0 +1,388 @@
+{
+  "config": {
+    "argv": [
+      "/root/.n/bin/node",
+      "/tmp/switchback-astra-candidate/node_modules/.bin/playwright",
+      "test",
+      "--config=astra-playwright.config.ts",
+      "tests/e2e/advisor.spec.ts",
+      "--project=desktop-chromium",
+      "--grep",
+      "invalid advisor request|opening Gravel Goblin|keyboard alone"
+    ],
+    "configFile": "/tmp/switchback-astra-candidate/astra-playwright.config.ts",
+    "rootDir": "/tmp/switchback-astra-candidate/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop-chromium",
+        "name": "desktop-chromium",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-safari",
+        "name": "mobile-safari",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-landscape-wide",
+        "name": "mobile-landscape-wide",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-landscape-narrow",
+        "name": "mobile-landscape-narrow",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "memory-soak",
+        "name": "memory-soak",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/memory-soak\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "critical-chromium",
+        "name": "critical-chromium",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/critical\\/(planner-journeys|navigation-ia)\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "critical-webkit-smoke",
+        "name": "critical-webkit-smoke",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/critical\\/webkit-smoke\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "critical-webkit-full",
+        "name": "critical-webkit-full",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/critical\\/(planner-journeys|navigation-ia)\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "road-lock",
+        "name": "road-lock",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/road-lock\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "real-router",
+        "name": "real-router",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/real-router\\/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "pwa",
+        "name": "pwa",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/pwa\\/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/astra-wave0-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "visual",
+        "name": "visual",
+        "testDir": "/tmp/switchback-astra-candidate/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/visual\\/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/tmp/astra-wave0-playwright.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "advisor.spec.ts",
+      "file": "advisor.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "an invalid advisor request keeps the rider's text and explains recovery",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 20450,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T13:43:51.205Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-ed1159d755b0019485f5",
+          "file": "advisor.spec.ts",
+          "line": 300,
+          "column": 1
+        },
+        {
+          "title": "opening Gravel Goblin spends no model turn until the rider actually asks",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9220,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T13:44:16.164Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-6847a406915655dc0dbd",
+          "file": "advisor.spec.ts",
+          "line": 317,
+          "column": 1
+        },
+        {
+          "title": "the Gravel Goblin composer is reachable and operable by keyboard alone",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9093,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T13:44:25.435Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-3e058d7fdb8e42ab1671",
+          "file": "advisor.spec.ts",
+          "line": 338,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-05T13:43:48.637Z",
+    "duration": 46222.101,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

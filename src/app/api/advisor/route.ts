@@ -1,5 +1,5 @@
 import {
-  array, enum_, number, object_, optional, safeParse, string, tuple
+  array, enum_, nullable, number, object_, optional, safeParse, string, tuple
 } from "@/lib/validate"
 import { createAdviserFromEnvironment, resolveAdvisorCapability } from "@/lib/advice/capability"
 import { emptyReply, type AdviceRequest } from "@/lib/advice/contracts"
@@ -43,18 +43,18 @@ const candidateSchema = object_({
   twistiness: number({ finite: true, min: 0, max: 100 }),
   turnCount: number({ finite: true, min: 0, max: 100_000 }),
   roadMix: optional(object_({}, { passthrough: true })),
-  surfaceMix: optional(object_({}, { passthrough: true }))
+  surfaceMix: optional(object_({}, { passthrough: true })),
+  officialUnpavedSharePercent: optional(number({ finite: true, min: 0, max: 100 }))
 }, { passthrough: true })
 
 const payloadSchema = object_({
-  // Absent while the rider is building a ride from scratch and the advisor is
-  // helping put one together.
-  context: optional(object_({
+  // The browser sends null before routing; older clients may omit it.
+  context: optional(nullable(object_({
     selectedRouteId: string({ trim: true, min: 1, max: 120 }),
     candidates: array(candidateSchema, { min: 1, max: 6 }),
     geometry: array(coordinateSchema, { min: 2, max: 64 }),
     warnings: optional(array(string({ trim: true, max: 400 }), { max: 8 }))
-  })),
+  }))),
   origin: optional(object_({
     lat: number({ finite: true, min: -90, max: 90 }),
     lon: number({ finite: true, min: -180, max: 180 }),

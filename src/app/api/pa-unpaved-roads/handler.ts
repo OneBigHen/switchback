@@ -2,9 +2,10 @@ import {
   normalizePaUnpavedRoadQuery,
   PA_UNPAVED_ROADS_MAX_FEATURES
 } from "@/lib/roads/pa-unpaved"
-import type {
-  PaUnpavedRoadFeatureCollection,
-  PaUnpavedRoadQuery
+import {
+  PA_UNPAVED_ROADS_MIN_ZOOM,
+  type PaUnpavedRoadFeatureCollection,
+  type PaUnpavedRoadQuery
 } from "@/lib/roads/types"
 
 const SUCCESS_CACHE_CONTROL =
@@ -54,7 +55,7 @@ function readMapQuery(searchParams: URLSearchParams): PaUnpavedRoadQuery | null 
 
   if (
     bbox?.length !== 4 ||
-    zoom === null || zoom < 9 || zoom > 24 ||
+    zoom === null || zoom < PA_UNPAVED_ROADS_MIN_ZOOM || zoom > 24 ||
     requestedLimit === null || !Number.isInteger(requestedLimit) || requestedLimit < 1
   ) {
     return null

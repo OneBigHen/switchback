@@ -59,6 +59,9 @@ async function openRouteEditor(page: import("@playwright/test").Page) {
   const startField = page.getByRole("combobox", { name: "Start", exact: true })
   if (await startField.isVisible().catch(() => false)) return
 
+  const editRoute = page.getByRole("button", { name: "Edit route", exact: true })
+  if (await editRoute.isVisible().catch(() => false)) await editRoute.click()
+
   const options = page.getByRole("button", { name: "Ride options", exact: true })
   await expect(async () => {
     await expect(options).toBeVisible({ timeout: 1_000 })
@@ -316,14 +319,14 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await planRouteButton.click()
   await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(routeRequest).toMatchObject({ profile: "twisty", compare: false, candidateSet: "primary" })
-  await page.getByRole("button", { name: "Select Maximum Twisties", exact: true }).click()
+  await page.getByRole("button", { name: "Select Twisty route", exact: true }).click()
   const showRouteDetails = page.getByRole("button", { name: /Show route details/i })
   if (await showRouteDetails.isVisible().catch(() => false)) await showRouteDetails.click()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
   await expect(page.getByText("Clear and mild")).toBeVisible()
   await expectInsideViewport(page, page.getByRole("button", { name: /Start .* route/i }).last())
 
-  await page.getByRole("button", { name: "Select Fastest Now", exact: true }).click()
+  await page.getByRole("button", { name: "Select Quick route", exact: true }).click()
   const downloadPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "Export GPX" }).click()
   await expect((await downloadPromise).suggestedFilename()).toMatch(/quick-route\.gpx$/)
@@ -759,17 +762,27 @@ test("offers corridor options for a drawn line instead of a single traced route"
   expect(drawnCorridor?.length).toBeLessThanOrEqual(48)
   expect(alternativesRequests[0]?.sketchCorridor).toEqual(drawnCorridor)
 
-  // Three named options, not one traced line — and each is selectable.
+  // Three named options, not one traced line — and each is selectable. The
+  // role is the card's accessible name; the action uses its rider-facing
+  // explanation as the subtitle.
   const rail = page.getByRole("region", { name: "Route choices" })
   await expect(rail.getByRole("article")).toHaveCount(3)
-  for (const option of ["Traced", "Better roads nearby", "Leaner"]) {
-    await expect(rail.getByRole("button", { name: `Select ${option}` })).toBeVisible()
+  const corridorOptions = [
+    ["Traced", "Hugs the line you drew."],
+    ["Better roads nearby", "Keeps your corridor but swaps in better roads close to it."],
+    ["Leaner", "Treats the line as a hint and cuts the detours."]
+  ] as const
+  for (const [role, explanation] of corridorOptions) {
+    const card = rail.getByRole("article", { name: `${role}: ${explanation} route option`, exact: true })
+    await expect(card).toBeVisible()
+    await expect(card.getByRole("button", { name: `Select ${explanation}`, exact: true })).toBeVisible()
   }
 
   // Added minutes versus the fastest option stay visible on every card.
   await expect(rail.getByText("+18 min")).toBeVisible()
   await expect(rail.getByText("+30 min")).toBeVisible()
 
-  await rail.getByRole("button", { name: "Select Leaner" }).click()
-  await expect(rail.getByRole("button", { name: "Select Leaner" })).toHaveAttribute("aria-pressed", "true")
+  const leanerCard = rail.getByRole("article", { name: /^Leaner: Treats the line as a hint and cuts the detours\. route option$/ })
+  await leanerCard.getByRole("button", { name: "Select Treats the line as a hint and cuts the detours.", exact: true }).click()
+  await expect(leanerCard.getByRole("button", { name: "Select Treats the line as a hint and cuts the detours.", exact: true })).toHaveAttribute("aria-pressed", "true")
 })

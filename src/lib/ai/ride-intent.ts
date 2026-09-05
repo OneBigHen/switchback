@@ -95,6 +95,16 @@ function targetMinutes(prompt: string): number | null {
   return Math.max(20, Math.min(480, Math.round(value * 60)))
 }
 
+const EXACT_HOME_DESTINATION_REQUEST = /^(?:home|(?:take|navigate|route|guide|get|bring)\s+me\s+home|(?:return|head|back)\s+home)[.!?]*$/i
+const NEGATED_HOME_REQUEST = /\b(?:do\s+not|don't|dont|never|not|avoid(?:ing)?|skip)\b[\s\S]*\bhome\b/i
+const FATIGUE_HOME_DESTINATION_REQUEST = /\b(?:tired|exhausted|fatigued)\b[\s\S]*\b(?:take|navigate|route|guide|get|bring)\s+me\s+home[.!?]*$/i
+
+function isHomeDestinationRequest(prompt: string): boolean {
+  const trimmed = prompt.trim()
+  if (NEGATED_HOME_REQUEST.test(trimmed)) return false
+  return EXACT_HOME_DESTINATION_REQUEST.test(trimmed) || FATIGUE_HOME_DESTINATION_REQUEST.test(trimmed)
+}
+
 function cleanPlaceQuery(value: string | undefined): string | null {
   if (!value) return null
   const cleaned = value
@@ -205,13 +215,13 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
                     : "balanced"
   const avoidTolls = /\b(?:(?:avoid(?:ing)?|no|skip|without|stay\s+off)\s+(?:the\s+)?(?:tolls?|toll\s+roads?|tollways?|turnpikes?)|toll[ -]?free)\b/i.test(normalized)
   const tollPolicy: TollPolicy = avoidTolls ? "avoid" : "allow-with-warning"
-  const unresolvedSavedHome = /^(?:home|(?:take|navigate|route|guide|get|bring)\s+me\s+home)[.!?]*$/i.test(prompt.trim())
-  const destination = unresolvedSavedHome
+  const homeDestinationRequest = isHomeDestinationRequest(prompt)
+  const destination = homeDestinationRequest
     ? "Home"
     : destinationQuery(prompt) ?? conciseDestinationQuery(prompt, duration)
   const origin = startQuery(prompt) ?? inferOriginFromTo(prompt)
-  const loop = (!unresolvedSavedHome && /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)) ||
-    (destination === null && !unresolvedSavedHome)
+  const loop = (!homeDestinationRequest && /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)) ||
+    (destination === null && !homeDestinationRequest)
   const stopQuery = /\b(?:brewery|beer|brewpub)\b/.test(normalized)
     ? "brewery"
     : /\b(?:coffee|cafe|café)\b/.test(normalized)
@@ -221,7 +231,7 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
         : null
   const hasStyleKeyword = /(?:quick|fastest|direct|shortest|balanced|practical|scenic|backroads?|rural|country roads?|twist(?:y|ies)|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun|neural|personalized|learned|avoid(?:ing)?\s+(?:the\s+)?highways?|stay\s+off\s+(?:the\s+)?interstates?)\b/.test(normalized)
   const hasLoopKeyword = /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)
-  const ambiguous = !hasStyleKeyword || (destination === null && !hasLoopKeyword && !unresolvedSavedHome)
+  const ambiguous = !hasStyleKeyword || (destination === null && !hasLoopKeyword && !homeDestinationRequest)
   const profile: RouteProfileId = neural
     ? "neural"
     : explicitGravel

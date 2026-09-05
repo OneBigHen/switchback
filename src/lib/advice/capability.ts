@@ -1,5 +1,6 @@
 import path from "node:path"
 import { CurvatureRepository } from "@/lib/curvature/repository"
+import { fetchPaUnpavedRoads, PA_UNPAVED_ROADS_MAX_FEATURES } from "@/lib/roads/pa-unpaved"
 import { createGeminiProvider } from "./gemini-adviser"
 import { createOpenRouterProvider } from "./openrouter-adviser"
 import { createRoutedAdviser, type AdvisorProviderPreference } from "./router"
@@ -110,6 +111,11 @@ export function createAdviserFromEnvironment(env: AdvisorEnvironment): RouteAdvi
 
   const toolbox = createAdvisorToolbox({
     ...(env.PHOTON_URL?.trim() ? { geocoderUrl: env.PHOTON_URL.trim() } : {}),
+    // Pennsylvania's official unpaved-road survey is the only dataset here that
+    // actually knows where the gravel is; the curvature scores do not carry
+    // surface. Injected rather than imported so the provider stays server-side.
+    queryOfficialUnpaved: (bounds) =>
+      fetchPaUnpavedRoads({ bounds, limit: PA_UNPAVED_ROADS_MAX_FEATURES }),
     ...(repository
       ? {
           queryRoads: (bounds) => {

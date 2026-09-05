@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import type { RideIntent } from "@/lib/ai/ride-intent"
+import { parseRidePromptLocally, type RideIntent } from "@/lib/ai/ride-intent"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import { resolveRidePromptWaypoints, type RideStartLocation } from "@/lib/planner/ride-prompt-flow"
 import type { Waypoint } from "@/lib/routing/types"
@@ -127,7 +127,7 @@ describe("ride prompt waypoint resolution", () => {
     const requestLocation = vi.fn()
 
     await expect(resolveRidePromptWaypoints({
-      intent: intent({ destinationQuery: "Home" }),
+      intent: parseRidePromptLocally("I am getting tired; get me home"),
       start,
       finish: null,
       home,
@@ -141,7 +141,7 @@ describe("ride prompt waypoint resolution", () => {
 
   it("requires an explicitly saved Home instead of inferring one", async () => {
     await expect(resolveRidePromptWaypoints({
-      intent: intent({ destinationQuery: "Home" }),
+      intent: parseRidePromptLocally("I am getting tired; get me home"),
       start: waypoint("Current location", 40.27, -76.88),
       finish: null,
       home: null,

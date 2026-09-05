@@ -4,6 +4,8 @@ Implement in dependency order. Each wave is a coherent behavioral outcome; split
 
 ## Wave 0 — Establish truth and settle policy
 
+**Execution status (2026-09-05): in progress, not accepted.** First slice fixes the real null-context handler contract, invalid-request recovery, and missing/partial surface and POI-search evidence wording. Roadmap reconciliation recorded. The affected Node24 tests and full repository test/build gates are green; browser, provider-task, and physical gates remain open. Remaining gates and exact next task are in [ASTRA-STATE](ASTRA-STATE.md).
+
 **Reason:** U03/U04/U19 are immediate correctness/trust issues; deployment/source and test evidence are not yet a release baseline.
 
 **Affected behavior:** AI before routing and Home/unknown-data claims; selected-route default; public/curated discovery scope; release authority.

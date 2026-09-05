@@ -35,6 +35,8 @@ const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 /** Matched to the Gemini adapter so neither provider gets more wall clock. */
 const TURN_TIMEOUT_MS = 30_000
 const MAX_TOOL_ROUNDS = 4
+/** A builder needs one lookup batch and one correction pass, not a long chat loop. */
+const MAX_BUILDER_TOOL_ROUNDS = 2
 const MAX_TOOL_CALLS_PER_ROUND = 4
 const MAX_CONVERSATION_TURNS = 14
 
@@ -246,7 +248,8 @@ export function createOpenRouterProvider(options: OpenRouterAdviserOptions): Adv
         return done(state.resolve(contentOf(payload) ?? lastText) ?? state.failed("malformed"))
       }
 
-      for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+      const maxToolRounds = input.request.context ? MAX_TOOL_ROUNDS : MAX_BUILDER_TOOL_ROUNDS
+      for (let round = 0; round < maxToolRounds; round += 1) {
         const payload = await call(true, false)
         if (typeof payload === "string") return done(state.failed(payload))
         const message = payload.choices?.[0]?.message
@@ -259,7 +262,8 @@ export function createOpenRouterProvider(options: OpenRouterAdviserOptions): Adv
         if (requested.length === 0) return structuredPass()
 
         messages.push(message)
-        for (const toolCall of requested) {
+        // Independent lookups, run together — see the Gemini path for why.
+        const results = await Promise.all(requested.map((toolCall) => {
           state.countToolCall()
           let args: Record<string, unknown> = {}
           try {
@@ -267,7 +271,10 @@ export function createOpenRouterProvider(options: OpenRouterAdviserOptions): Adv
           } catch {
             args = {}
           }
-          const result = await input.toolbox.call(toolCall.function.name, args, request, deadline)
+          return input.toolbox.call(toolCall.function.name, args, request, deadline)
+        }))
+        requested.forEach((toolCall, index) => {
+          const result = results[index]!
           state.absorb(result)
           messages.push({
             role: "tool",
@@ -275,7 +282,7 @@ export function createOpenRouterProvider(options: OpenRouterAdviserOptions): Adv
             name: toolCall.function.name,
             content: JSON.stringify(result.content)
           })
-        }
+        })
       }
 
       // Rounds exhausted: ask once for the schema answer with tools withheld.

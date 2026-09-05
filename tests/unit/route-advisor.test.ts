@@ -246,6 +246,33 @@ describe("proposed ride resolution", () => {
     expect(ride!.tollPolicy).toBe("avoid")
   })
 
+  it("marks grounded road evidence so a timeboxed loop can keep it soft", () => {
+    const road = place({
+      placeId: "official-unpaved-1",
+      name: "Unpaved road in Perry County",
+      kind: "road",
+      lat: 40.3111,
+      lon: -77.0242
+    })
+    const ride = resolveProposedRide({
+      ...valid,
+      mode: "loop",
+      finishPlaceId: undefined,
+      targetMinutes: 180,
+      waypointPlaceIds: [road.placeId]
+    }, new Map([
+      ...places,
+      [road.placeId, road]
+    ]))
+
+    expect(ride?.waypoints).toEqual([{
+      name: road.name,
+      lat: road.lat,
+      lon: road.lon,
+      role: "road-evidence"
+    }])
+  })
+
   it("refuses a ride whose start or finish was never pinned", () => {
     expect(resolveProposedRide({ ...valid, startPlaceId: "nowhere" }, places)).toBeNull()
     expect(resolveProposedRide({ ...valid, finishPlaceId: "nowhere" }, places)).toBeNull()
@@ -294,9 +321,9 @@ describe("proposed ride resolution", () => {
 })
 
 describe("advisor toolbox", () => {
-  it("finds real stops along the route and never returns unmapped ones", async () => {
-    const searchPlaces = vi.fn(async () => [photonResult])
-    const toolbox = createAdvisorToolbox({ searchPlaces: searchPlaces as never })
+  it("finds stops by proximity and category, not by searching for the word", async () => {
+    const searchNearbyPlaces = vi.fn(async () => [photonResult])
+    const toolbox = createAdvisorToolbox({ searchNearbyPlaces: searchNearbyPlaces as never })
     const result = await toolbox.call("find_stops", { kind: "brewery", progress: 0.5 }, {
       context,
       conversation: []
@@ -304,14 +331,17 @@ describe("advisor toolbox", () => {
 
     expect(result.places).toHaveLength(1)
     expect(result.places[0]!.lat).toBe(40.2)
-    expect(searchPlaces).toHaveBeenCalledWith("brewery", expect.objectContaining({
-      bias: { lat: 40.2, lon: -76.8 }
+    // A forward search for "brewery" matches road names and misses every
+    // brewery not called one, so stops have to come from the tagged category
+    // search around the rider instead.
+    expect(searchNearbyPlaces).toHaveBeenCalledWith("brewery", expect.objectContaining({
+      center: { lat: 40.2, lon: -76.8 }
     }))
   })
 
   it("tells the model to say nothing rather than invent when a lookup fails", async () => {
-    const searchPlaces = vi.fn(async () => { throw new Error("photon down") })
-    const toolbox = createAdvisorToolbox({ searchPlaces: searchPlaces as never })
+    const searchNearbyPlaces = vi.fn(async () => { throw new Error("photon down") })
+    const toolbox = createAdvisorToolbox({ searchNearbyPlaces: searchNearbyPlaces as never })
     const result = await toolbox.call("find_stops", { kind: "coffee" }, { context, conversation: [] })
 
     expect(result.places).toEqual([])
@@ -393,7 +423,7 @@ describe("gemini adviser", () => {
       apiKey: "test-key",
       fetcher,
       mapsGrounding: true,
-      toolbox: createAdvisorToolbox({ searchPlaces: searchPlaces as never })
+      toolbox: createAdvisorToolbox({ searchNearbyPlaces: searchPlaces as never })
     })
     const reply = await adviser.advise({ context, conversation: [], riderMessage: TOOL_TURN })
 
@@ -758,5 +788,198 @@ describe("advisor capability gating", () => {
       .not.toContain("switchback-roads")
     expect(resolveAdvisorCapability({ GEMINI_API_KEY: "key", CURVATURE_DB_PATH: "data/curvature.sqlite" }).sources)
       .toContain("switchback-roads")
+  })
+})
+
+describe("advisor evidence uncertainty", () => {
+  it.each<Record<string, number>>([{}, { unknown: 100 }])("does not describe absent surface evidence as zero unpaved: %j", (surfaceMix) => {
+    const briefing = briefingText({
+      ...context,
+      candidates: [{ ...context.candidates[0]!, surfaceMix }]
+    })
+    expect(briefing).not.toContain("0% mapped unpaved")
+    expect(briefing).toContain("unpaved share unknown")
+  })
+
+  it("qualifies a partial surface breakdown instead of implying complete coverage", () => {
+    const briefing = briefingText({
+      ...context,
+      candidates: [{ ...context.candidates[0]!, surfaceMix: { unknown: 80, gravel: 20 } }]
+    })
+    expect(briefing).toContain("surface coverage incomplete")
+    expect(briefing).toContain("20% mapped unpaved")
+  })
+
+  it("reports the bounded empty search without claiming no stops exist", async () => {
+    const result = await createAdvisorToolbox({ searchNearbyPlaces: async () => [] })
+      .call("find_stops", { kind: "fuel" }, { context, conversation: [] })
+    expect(result.content).toMatchObject({
+      places: [],
+      search: { kind: "fuel", radiusKm: expect.any(Number), coverage: "partial" }
+    })
+    expect(JSON.stringify(result.content)).not.toContain("Nothing mapped nearby")
+  })
+})
+
+/**
+ * The Gravel Goblin's own subject.
+ *
+ * Every one of these covers a way the co-pilot used to answer a gravel
+ * question with a confident nothing: a curvature dataset that carries no
+ * surface tags at all, and an official unpaved survey the briefing never
+ * carried even after Switchback paid to look it up.
+ */
+describe("gravel evidence", () => {
+  const unsurfaced: CurvatureSegment[] = [
+    { id: "a", name: "Pine Grove Road", score: 900, surface: "unknown", geometry: [[-76.82, 40.22], [-76.81, 40.23]] },
+    { id: "b", name: "Doubling Gap Road", score: 700, surface: "", geometry: [[-76.84, 40.24], [-76.83, 40.25]] }
+  ]
+
+  it("never reports an unsurfaced road network as proof there is no gravel", async () => {
+    const result = await createAdvisorToolbox({ queryRoads: () => unsurfaced })
+      .call("find_good_roads", { surface: "unpaved" }, { context, conversation: [] })
+
+    expect(result.places).toEqual([])
+    const note = JSON.stringify(result.content)
+    expect(note).toContain("surface is unknown rather than paved")
+    expect(note).not.toContain("No mapped standout roads")
+    expect(result.content).toMatchObject({
+      surfaceCoverage: { scoredRoadsNearby: 2, withoutSurfaceData: 2 }
+    })
+  })
+
+  it("answers a gravel question from the official survey the curve scores cannot", async () => {
+    const queryOfficialUnpaved = vi.fn(async () => ({
+      type: "FeatureCollection" as const,
+      features: [{
+        type: "Feature" as const,
+        id: "pa-unpaved-38",
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [[-76.83, 40.21], [-76.82, 40.215], [-76.81, 40.22]] as [number, number][]
+        },
+        properties: {
+          id: "pa-unpaved-38",
+          county: "Dauphin",
+          lengthMeters: 908.252,
+          source: "Pennsylvania Department of Environmental Protection" as const,
+          dataset: "Unpaved Roads 2009_07" as const
+        }
+      }]
+    }))
+
+    const result = await createAdvisorToolbox({ queryRoads: () => unsurfaced, queryOfficialUnpaved })
+      .call("find_good_roads", { surface: "unpaved" }, { context, conversation: [] })
+
+    expect(queryOfficialUnpaved).toHaveBeenCalledOnce()
+    expect(result.places.map((place) => place.name)).toEqual(["Unpaved road in Dauphin County"])
+    expect(result.places[0]).toMatchObject({ kind: "road", lat: 40.215, lon: -76.82 })
+    expect(result.content).toMatchObject({
+      surfaceCoverage: { officialUnpavedRoadsNearby: 1 }
+    })
+    expect(JSON.stringify(result.content)).toContain("0.6 mi segment")
+  })
+
+  it("offers the gravel tool on the official survey alone, with no curvature database", () => {
+    const names = createAdvisorToolbox({ queryOfficialUnpaved: async () => ({
+      type: "FeatureCollection" as const,
+      features: []
+    }) }).definitions({ context, conversation: [] }).map((definition) => definition.name)
+
+    expect(names).toContain("find_good_roads")
+  })
+
+  /**
+   * PASDA goes slow and drops requests. An outage that reads as "no gravel
+   * here" is the survey's silence dressed up as its verdict — the exact
+   * failure this whole tool exists to stop.
+   */
+  it("reports an outage in the official survey as unchecked, never as no gravel", async () => {
+    const result = await createAdvisorToolbox({
+      queryRoads: () => unsurfaced,
+      queryOfficialUnpaved: async () => { throw new Error("PASDA down") }
+    }).call("find_good_roads", { surface: "unpaved" }, { context, conversation: [] })
+
+    expect(result.places).toEqual([])
+    expect(result.content).toMatchObject({ officialSurvey: "unavailable" })
+    const note = JSON.stringify(result.content)
+    expect(note).toContain("UNCHECKED, not absent")
+    expect(note).not.toContain("No surveyed unpaved roads near here")
+  })
+
+  it("separates a survey that answered empty from one that did not answer", async () => {
+    const result = await createAdvisorToolbox({
+      queryRoads: () => unsurfaced,
+      queryOfficialUnpaved: async () => ({ type: "FeatureCollection" as const, features: [] })
+    }).call("find_good_roads", { surface: "unpaved" }, { context, conversation: [] })
+
+    expect(result.content).toMatchObject({ officialSurvey: "ok" })
+    expect(JSON.stringify(result.content)).toContain("No surveyed unpaved roads near here")
+  })
+
+  it("never passes an untagged road off as pavement", async () => {
+    const result = await createAdvisorToolbox({ queryRoads: () => unsurfaced })
+      .call("find_good_roads", { surface: "paved" }, { context, conversation: [] })
+
+    expect(result.places).toEqual([])
+  })
+
+  it("marks an untagged road's surface as unknown rather than as not-unpaved", async () => {
+    const result = await createAdvisorToolbox({ queryRoads: () => unsurfaced })
+      .call("find_good_roads", { surface: "any" }, { context, conversation: [] })
+
+    expect(result.content).toMatchObject({
+      roads: [{ unpaved: null }, { unpaved: null }]
+    })
+  })
+
+  it("carries the official PA unpaved share into the briefing once Switchback has it", () => {
+    const briefing = briefingText({
+      ...context,
+      candidates: [{ ...context.candidates[0]!, officialUnpavedSharePercent: 31.4 }]
+    })
+    expect(briefing).toContain("31.4% on the official PA unpaved-road network")
+    expect(briefing).not.toContain("official surface legality")
+  })
+
+  it("still admits the official surface gap when the lookup did not run", () => {
+    expect(briefingText(context)).toContain("official surface legality")
+  })
+
+  it("keeps the official share available when mapped surface tags are missing entirely", () => {
+    const briefing = briefingText({
+      ...context,
+      candidates: [{
+        ...context.candidates[0]!,
+        surfaceMix: { missing: 100 },
+        officialUnpavedSharePercent: 12
+      }]
+    })
+    expect(briefing).toContain("unpaved share unknown from mapped surface tags")
+    expect(briefing).toContain("12% on the official PA unpaved-road network")
+  })
+
+  it("hands the official share to the advisor context so a gravel route can be explained", () => {
+    const route = {
+      ...(context.candidates[0] as unknown as PlannedRoute),
+      geometry: geometry(),
+      officialUnpavedEvidence: {
+        source: "Pennsylvania Department of Environmental Protection",
+        dataset: "Unpaved Roads 2009_07",
+        matchedMeters: 9_000,
+        sharePercent: 27.55,
+        matchedFeatureCount: 12,
+        matchRadiusMeters: 25,
+        minimumContiguousMeters: 100
+      }
+    } as PlannedRoute
+
+    const built = advisorContextFromPlan({
+      selectedRouteId: route.id,
+      routes: [route],
+      warnings: []
+    } as never)
+
+    expect(built?.candidates[0]!.officialUnpavedSharePercent).toBe(27.6)
   })
 })

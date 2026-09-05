@@ -87,7 +87,12 @@ export const FINAL_ANSWER_SCHEMA = {
         targetMinutes: { type: "integer", minimum: MIN_TARGET_MINUTES, maximum: MAX_TARGET_MINUTES, description: "20 to 480. Required for a loop." },
         startPlaceId: { type: "string" },
         finishPlaceId: { type: "string", description: "Omit for a loop." },
-        waypointPlaceIds: { type: "array", maxItems: MAX_PROPOSED_WAYPOINTS, items: { type: "string" } },
+        waypointPlaceIds: {
+          type: "array",
+          maxItems: MAX_PROPOSED_WAYPOINTS,
+          items: { type: "string" },
+          description: "PlaceIds for intended visits or explicit route shaping. Keep road-search evidence in proposedStops rather than making an unpaved-road midpoint a mandatory loop stop."
+        },
         avoidHighways: { type: "boolean" },
         tollPolicy: { type: "string", enum: ["allow-with-warning", "avoid"] },
         summary: { type: "string", description: "One line the rider can sanity-check the plan against." }
@@ -197,7 +202,12 @@ export function resolveProposedStops(
 }
 
 function ridePoint(place: GroundedPlace): ProposedRidePoint {
-  return { name: place.name, lat: place.lat, lon: place.lon }
+  return {
+    name: place.name,
+    lat: place.lat,
+    lon: place.lon,
+    ...(place.kind === "road" ? { role: "road-evidence" as const } : {})
+  }
 }
 
 /**

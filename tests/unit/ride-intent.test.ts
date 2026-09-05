@@ -159,6 +159,27 @@ describe("ride intent parser", () => {
     }
   )
 
+  it.each([
+    "I am getting tired; get me home",
+    "bring me home",
+    "return home",
+    "head home",
+    "back home"
+  ])("classifies a natural return-home request as the saved Home destination: %s", (prompt) => {
+    expect(parseRidePromptLocally(prompt)).toMatchObject({
+      mode: "destination",
+      destinationQuery: "Home"
+    })
+  })
+
+  it.each([
+    "do not take me home",
+    "not home",
+    "avoid Home Depot"
+  ])("does not turn negated or named Home language into a return-home destination: %s", (prompt) => {
+    expect(parseRidePromptLocally(prompt).destinationQuery).not.toBe("Home")
+  })
+
   it("uses OpenRouter structured output when a key is configured", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
       choices: [{
