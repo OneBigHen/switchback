@@ -65,9 +65,30 @@ describe("map-native route comparison", () => {
     const faster = buildRouteDecisionPresentation(routes[0]!, routes, "twisty")
     const rougher = buildRouteDecisionPresentation(routes[2]!, routes, "twisty")
 
-    expect(selected.deltaLabel).toBe("Current route")
+    // Added minutes vs the fastest candidate ride along on every card, the
+    // selected one included — that detour cost is the decision being made.
+    expect(selected.deltaLabel).toBe("Current route · +9 min vs fastest")
+    // The balanced route IS the fastest, so it has no such delta to state.
     expect(faster.deltaLabel).toBe("-9 min · -3.6 mi · -36 curve")
-    expect(rougher.deltaLabel).toBe("+5 min · +1.3 mi · +30% unpaved · -19 curve")
+    expect(rougher.deltaLabel).toBe("+5 min · +1.3 mi · +30% unpaved · -19 curve · +14 min vs fastest")
+  })
+
+  it("says nothing about surface when a candidate carries no surface evidence", () => {
+    // Valhalla candidates arrive with an empty surfaceMix. Comparing one against
+    // a route with mapped gravel used to report a confident "-30% unpaved" about
+    // roads nobody surveyed.
+    const unmapped = route("unmapped", "balanced", 71, 44.8, 91, {})
+    const candidates = [routes[0]!, unmapped, routes[2]!]
+
+    const rougher = buildRouteDecisionPresentation(routes[2]!, candidates, "unmapped")
+    expect(rougher.deltaLabel).not.toContain("unpaved")
+
+    // A mix that is only "unknown" is no better as evidence.
+    const onlyUnknown = route("unknown-mix", "balanced", 71, 44.8, 91, { unknown: 100 })
+    const againstUnknown = buildRouteDecisionPresentation(
+      routes[2]!, [routes[0]!, onlyUnknown, routes[2]!], "unknown-mix"
+    )
+    expect(againstUnknown.deltaLabel).not.toContain("unpaved")
   })
 
   it("previews a card from pointer and keyboard focus without selecting it", () => {
