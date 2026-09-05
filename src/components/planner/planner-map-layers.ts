@@ -5,6 +5,7 @@ import type { MapExperienceConfig } from "@/lib/client/map-experience"
 export const ROAD_LOCK_LINE_LAYER = "switchback-road-lock-lines"
 export const ROAD_LOCK_UNRESOLVED_LINE_LAYER = "switchback-road-lock-lines-unresolved"
 export const ROUTE_HIT_LAYER = "switchback-route-hit-area"
+export const SELECTED_ROUTE_HIT_LAYER = "switchback-selected-route-hit-area"
 
 /**
  * A road lock is drawn solid when it matched the routing graph and dashed
@@ -128,7 +129,7 @@ export function routeRibbonLayers(
       id: ROUTE_HIT_LAYER,
       type: "line",
       source: "switchback-routes",
-      // The selected route is already committed. Restrict the generous hit
+      // The selected route is already committed. Restrict this generous hit
       // ribbon to alternatives so overlap cannot churn the current choice.
       filter: ["!", ["get", "selected"]],
       layout: { "line-cap": "round", "line-join": "round" },
@@ -138,6 +139,21 @@ export function routeRibbonLayers(
         "line-color": "#000000",
         "line-opacity": 0.01,
         "line-width": ["interpolate", ["linear"], ["zoom"], 7, 22, 14, 34]
+      }
+    },
+    {
+      id: SELECTED_ROUTE_HIT_LAYER,
+      type: "line",
+      source: "switchback-routes",
+      // Sculpting is intentionally a separate selected-route interaction from
+      // alternate-route selection. Keeping two hit layers prevents overlap
+      // from turning a sculpt gesture into a candidate switch.
+      filter: ["get", "selected"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#000000",
+        "line-opacity": 0.01,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 24, 14, 38]
       }
     }
   ] as LayerSpecification[]

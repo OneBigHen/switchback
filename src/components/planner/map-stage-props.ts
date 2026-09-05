@@ -57,6 +57,8 @@ export interface MapStageProps {
   drawCommand?: MapStageDrawCommand | null
   avoidAreas: AvoidArea[]
   onAvoidArea(area: AvoidArea): void
+  /** A sculpted road lock was committed; run one ordinary planner replan. */
+  onRouteSculptCommit?(): void | Promise<void>
   /** A browser "locate me" fix was produced; the planner should adopt it as the start. */
   onLocateMe?(point: { lat: number; lon: number }): void
   /** Live breadcrumb trail for a recording session in ride mode. */

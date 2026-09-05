@@ -87,7 +87,8 @@ const UNPAVED = new Set([
   "compacted", "dirt", "earth", "fine_gravel", "grass", "gravel", "ground", "mud", "sand", "unpaved"
 ])
 
-function unpavedPercent(mix: Record<string, number>): number {
+function unpavedPercent(mix: Record<string, number> | null | undefined): number {
+  if (!mix) return 0
   const total = Object.values(mix).reduce((sum, share) => sum + Math.max(0, share), 0)
   if (total <= 0) return 0
   const unpaved = Object.entries(mix)
