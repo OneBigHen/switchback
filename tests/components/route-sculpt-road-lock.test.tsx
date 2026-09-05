@@ -20,9 +20,9 @@ afterEach(cleanup)
 describe("route sculpting road-lock handoff", () => {
   it("seeds two sculpt anchors into the existing naming step and replans exactly once after save", async () => {
     const addRoadLock = vi.fn()
-    const onCommitted = vi.fn()
+    const onSculptCommitted = vi.fn()
     const matchRoad = vi.fn().mockResolvedValue(MATCH)
-    const { result } = renderHook(() => useRoadLockDraft({ addRoadLock, matchRoad, onCommitted }))
+    const { result } = renderHook(() => useRoadLockDraft({ addRoadLock, matchRoad, onSculptCommitted }))
 
     act(() => result.current.beginLockDraftFromAnchors(
       [[-75.1, 40.1], [-75.05, 40.15]],
@@ -38,15 +38,37 @@ describe("route sculpting road-lock handoff", () => {
 
     expect(matchRoad).toHaveBeenCalledOnce()
     expect(addRoadLock).toHaveBeenCalledOnce()
-    expect(onCommitted).toHaveBeenCalledOnce()
+    expect(onSculptCommitted).toHaveBeenCalledOnce()
+    await waitFor(() => expect(result.current.lockDrawMode).toBe(false))
+  })
+
+  it("saves a tapped road lock without replanning, leaving that choice to the rider", async () => {
+    // The sculpt handoff replans because dragging the route IS the request to
+    // change it. The tap-to-draw flow must not inherit that: it would replace
+    // the planner's idle state the moment a lock is saved, taking the decision
+    // of when to route away from the rider.
+    const addRoadLock = vi.fn()
+    const onSculptCommitted = vi.fn()
+    const matchRoad = vi.fn().mockResolvedValue(MATCH)
+    const { result } = renderHook(() => useRoadLockDraft({ addRoadLock, matchRoad, onSculptCommitted }))
+
+    act(() => result.current.beginLockDraft())
+    act(() => result.current.handleLockDrawTap({ lat: 40.1, lon: -75.1 }))
+    act(() => result.current.handleLockDrawTap({ lat: 40.15, lon: -75.05 }))
+    expect(result.current.lockDraftStep).toBe("naming")
+
+    await act(async () => result.current.commitLockDraft())
+
+    expect(addRoadLock).toHaveBeenCalledOnce()
+    expect(onSculptCommitted).not.toHaveBeenCalled()
     await waitFor(() => expect(result.current.lockDrawMode).toBe(false))
   })
 
   it("does not replan or save when a sculpted Must corridor cannot be graph matched", async () => {
     const addRoadLock = vi.fn()
-    const onCommitted = vi.fn()
+    const onSculptCommitted = vi.fn()
     const matchRoad = vi.fn().mockRejectedValue(new Error("No legal motorcycle path"))
-    const { result } = renderHook(() => useRoadLockDraft({ addRoadLock, matchRoad, onCommitted }))
+    const { result } = renderHook(() => useRoadLockDraft({ addRoadLock, matchRoad, onSculptCommitted }))
 
     act(() => result.current.beginLockDraftFromAnchors(
       [[-75.1, 40.1], [-75.05, 40.15]],
@@ -55,7 +77,7 @@ describe("route sculpting road-lock handoff", () => {
     await act(async () => result.current.commitLockDraft())
 
     expect(addRoadLock).not.toHaveBeenCalled()
-    expect(onCommitted).not.toHaveBeenCalled()
+    expect(onSculptCommitted).not.toHaveBeenCalled()
     expect(result.current.lockDraftMessage).toContain("No legal motorcycle path")
     expect(result.current.lockDrawMode).toBe(true)
   })

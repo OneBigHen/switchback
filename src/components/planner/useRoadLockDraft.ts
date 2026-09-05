@@ -13,8 +13,13 @@ export type RoadLockDraftStep = "first" | "second" | "naming"
 export interface UseRoadLockDraftInput {
   addRoadLock(lock: RoadLock): void
   matchRoad?: typeof requestRoadMatch
-  /** Called once after a lock is successfully committed. */
-  onCommitted?(lock: RoadLock): void | Promise<void>
+  /**
+   * Called once after a lock committed from a *sculpt* gesture. Dragging the
+   * route is a direct request to change it, so that path replans on its own.
+   * The tap-to-draw flow deliberately does not fire this: there the rider
+   * builds a lock and decides for themselves when to replan.
+   */
+  onSculptCommitted?(lock: RoadLock): void | Promise<void>
 }
 
 export interface RoadLockDraftState {
@@ -41,6 +46,8 @@ interface RoadLockDraftRef {
   anchors: Coordinate[]
   mode: RoadLockMode
   name: string
+  /** Which gesture opened this draft. Only "sculpt" replans on its own. */
+  origin: "manual" | "sculpt"
 }
 
 /**
@@ -66,7 +73,7 @@ function defaultManualLockAccessSnapshot(): RoadAccessSnapshot {
 export function useRoadLockDraft({
   addRoadLock,
   matchRoad = requestRoadMatch,
-  onCommitted
+  onSculptCommitted
 }: UseRoadLockDraftInput): RoadLockDraftState {
   const [lockDrawMode, setLockDrawMode] = useState(false)
   const [lockAnchors, setLockAnchors] = useState<Coordinate[]>([])
@@ -79,7 +86,8 @@ export function useRoadLockDraft({
     step: "first",
     anchors: [],
     mode: featureFlags.roadRequirements ? "must" : "prefer",
-    name: ""
+    name: "",
+    origin: "manual"
   })
 
   useEffect(() => {
@@ -91,7 +99,10 @@ export function useRoadLockDraft({
       // clamp any legacy "must" draft so it cannot silently become a lock
       // the provider model would misinterpret (SB-006 containment).
       mode: featureFlags.roadRequirements ? lockMode : "prefer",
-      name: lockName
+      name: lockName,
+      // Origin has no state mirror: it is set once by whichever begin* call
+      // opened the draft, and this effect must not reset it to a default.
+      origin: lockDrawRef.current.origin
     }
   }, [lockDrawMode, lockDraftStep, lockAnchors, lockMode, lockName])
 
@@ -102,7 +113,8 @@ export function useRoadLockDraft({
       step: "first",
       anchors: [],
       mode: defaultMode,
-      name: ""
+      name: "",
+      origin: "manual"
     }
     setLockDrawMode(false)
     setLockAnchors([])
@@ -117,7 +129,7 @@ export function useRoadLockDraft({
 
   const beginLockDraft = useCallback(() => {
     const mode: RoadLockMode = featureFlags.roadRequirements ? "must" : "prefer"
-    lockDrawRef.current = { active: true, step: "first", anchors: [], mode, name: "" }
+    lockDrawRef.current = { active: true, step: "first", anchors: [], mode, name: "", origin: "manual" }
     setLockDrawMode(true)
     setLockAnchors([])
     setLockModeState(mode)
@@ -139,7 +151,7 @@ export function useRoadLockDraft({
     // The map can seed a draft and immediately receive a follow-up event before
     // React's effect mirrors state. Keep the imperative event ref authoritative
     // in the same turn so a sculpted corridor can never lose an anchor.
-    lockDrawRef.current = { active: true, step, anchors: snapped, mode, name: "" }
+    lockDrawRef.current = { active: true, step, anchors: snapped, mode, name: "", origin: "sculpt" }
     setLockDrawMode(true)
     setLockAnchors(snapped)
     setLockModeState(mode)
@@ -194,17 +206,20 @@ export function useRoadLockDraft({
   }, [])
 
   const finishCommittedLock = useCallback(async (lock: RoadLock) => {
+    // Read the origin before the reset clears it.
+    const sculpted = lockDrawRef.current.origin === "sculpt"
     addRoadLock(lock)
     resetLockDraft()
+    if (!sculpted) return
     // The lock is already committed at this point. The ordinary planner owns
     // any replan failure UI, so a transport error must not reopen or duplicate
     // a successfully saved lock.
     try {
-      await onCommitted?.(lock)
+      await onSculptCommitted?.(lock)
     } catch {
       // Intentionally contained; planner request state surfaces its own error.
     }
-  }, [addRoadLock, onCommitted, resetLockDraft])
+  }, [addRoadLock, onSculptCommitted, resetLockDraft])
 
   const commitLockDraft = useCallback(async () => {
     const draft = lockDrawRef.current

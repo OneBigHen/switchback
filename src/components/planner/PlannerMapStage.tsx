@@ -175,7 +175,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     setLockName
   } = useRoadLockDraft({
     addRoadLock,
-    onCommitted: () => propsRef.current.onRouteSculptCommit?.()
+    onSculptCommitted: () => propsRef.current.onRouteSculptCommit?.()
   })
   // Auto lighting follows the route start's own day phase, not the browser's
   // clock alone; a fallback keeps the map lit before a start exists.
