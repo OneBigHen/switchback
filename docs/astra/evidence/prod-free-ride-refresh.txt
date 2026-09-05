@@ -1,0 +1,22 @@
+2 mi
+OpenFreeMap © OpenMapTiles Data from OpenStreetMap
+RECORDING PAUSED
+0:00:15
+—
+FT ELEVATION
+▲ 0
+▼ 0
+Elevation profile appears after altitude fixes arrive.
+0.0
+MILES RIDDEN
+—
+AVG MPH
+—
+MAX MPH
+—
+HEADING
+10 m
+GPS ACCURACY
+Resume
+Finish & save
+Discard

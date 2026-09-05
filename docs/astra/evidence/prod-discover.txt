@@ -1,0 +1,18 @@
+2 mi
+OpenFreeMap © OpenMapTiles Data from OpenStreetMap
+Layers
+Plan
+Rides
+Discover
+Settings
+Record
+COMMUNITY ATLAS
+Find a better road.
+
+Browse rider-published and verified routes without leaving the map experience. Search first, then open the full route only when something looks worth riding.
+
+Open full Atlas
+Search community routes
+0 routes
+No public routes yet
+Published rides will appear here as the Atlas grows.

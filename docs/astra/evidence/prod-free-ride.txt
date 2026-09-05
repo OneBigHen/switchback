@@ -1,0 +1,20 @@
+500 ft
+OpenFreeMap © OpenMapTiles Data from OpenStreetMap
+Free Ride
+Experimental
+GPS 10 m
+0
+mph
+Heading
+—
+Ride your way
+Keep riding; Switchback will look for an experimental road idea ahead.Experimental suggestion: ride at your own judgment; it is not verified route guidance.
+0.0
+MILES RIDDEN
+—
+AVG MPH
+—
+FEET ELEVATION
+Pause
+Finish & save
+Exit
