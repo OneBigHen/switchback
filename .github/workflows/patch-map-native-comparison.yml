@@ -1,0 +1,182 @@
+name: Patch map-native comparison
+
+on:
+  push:
+    branches: [ux/map-native-route-comparison]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux/map-native-route-comparison
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Patch PlannerMapStage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/planner/PlannerMapStage.tsx')
+          s = p.read_text()
+
+          def replace(old, new):
+              global s
+              if old not in s:
+                  raise SystemExit(f'expected patch anchor not found:\n{old[:180]}')
+              s = s.replace(old, new, 1)
+
+          replace(
+          '''import {
+            getRideMapControlSlot,
+            subscribeRideMapControlSlot
+          } from "./ride-map-control-slot"
+          ''',
+          '''import {
+            getRideMapControlSlot,
+            subscribeRideMapControlSlot
+          } from "./ride-map-control-slot"
+          import {
+            getRoutePreviewId,
+            setRoutePreviewId,
+            subscribeRoutePreview
+          } from "./route-comparison-preview"
+          ''')
+
+          replace(
+          '''  roadLockLineFilter,
+            roadLockLineLayerIds,
+            routeRibbonLayers
+          } from "./planner-map-layers"
+          ''',
+          '''  roadLockLineFilter,
+            roadLockLineLayerIds,
+            ROUTE_HIT_LAYER,
+            routeRibbonLayers
+          } from "./planner-map-layers"
+          ''')
+
+          replace(
+          '''  const rideDeckSlot = useSyncExternalStore(
+            subscribeRideMapControlSlot,
+            getRideMapControlSlot,
+            () => null
+          )
+          const sketchPointsRef = useRef<SketchScreenPoint[]>([])
+          ''',
+          '''  const rideDeckSlot = useSyncExternalStore(
+            subscribeRideMapControlSlot,
+            getRideMapControlSlot,
+            () => null
+          )
+          const routePreviewId = useSyncExternalStore(
+            subscribeRoutePreview,
+            getRoutePreviewId,
+            () => null
+          )
+          const sketchPointsRef = useRef<SketchScreenPoint[]>([])
+          ''')
+
+          replace(
+          '''  const roadLocks = usePlannerStore((state) => state.roadLocks)
+            const addRoadLock = usePlannerStore((state) => state.addRoadLock)
+            const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
+          ''',
+          '''  const roadLocks = usePlannerStore((state) => state.roadLocks)
+            const addRoadLock = usePlannerStore((state) => state.addRoadLock)
+            const selectRoute = usePlannerStore((state) => state.selectRoute)
+            const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
+          ''')
+
+          replace(
+          '''        for (const layer of routeRibbonLayers(renderer, experienceRef.current)) {
+                    renderer.addLayer(map, layer, { slot: "top" })
+                  }
+                  map.addSource("switchback-route-labels", {
+          ''',
+          '''        for (const layer of routeRibbonLayers(renderer, experienceRef.current)) {
+                    renderer.addLayer(map, layer, { slot: "top" })
+                  }
+                  map.on("mouseenter", ROUTE_HIT_LAYER, () => {
+                    const current = propsRef.current
+                    if (current.rideMode || current.armedPoint || current.addingVia || isLockDrawActive()) return
+                    map!.getCanvas().style.cursor = "pointer"
+                  })
+                  map.on("mouseleave", ROUTE_HIT_LAYER, () => {
+                    map!.getCanvas().style.cursor = ""
+                  })
+                  map.on("click", ROUTE_HIT_LAYER, (event) => {
+                    const current = propsRef.current
+                    if (
+                      current.rideMode
+                      || current.armedPoint
+                      || current.addingVia
+                      || isLockDrawActive()
+                      || sketchDrawingRef.current
+                      || avoidDrawingRef.current
+                    ) return
+                    const routeId = event.features?.[0]?.properties?.routeId
+                    if (typeof routeId !== "string") return
+                    if (!current.routes.some((route) => route.id === routeId)) return
+                    setRoutePreviewId(null)
+                    selectRoute(routeId)
+                  })
+                  map.addSource("switchback-route-labels", {
+          ''')
+
+          replace(
+          '''        updatePlannerSources(map, propsRef.current)
+          ''',
+          '''        updatePlannerSources(map, { ...propsRef.current, previewRouteId: getRoutePreviewId() })
+          ''')
+
+          replace(
+          '''  useEffect(() => {
+            const map = mapRef.current
+            if (!map || !ready) return
+            const current = propsRef.current
+            updatePlannerSources(map, current)
+            fitSelectedRoute(map, { ...current, sheetDetent: sheetDetentOverride ?? undefined })
+            // Re-fit when the sheet detent changes: the visible map region grows or
+            // shrinks with the ContextSheet, and the route must fit what is visible.
+          }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, sheetDetentOverride])
+          ''',
+          '''  useEffect(() => {
+            const map = mapRef.current
+            if (!map || !ready) return
+            const current = propsRef.current
+            updatePlannerSources(map, { ...current, previewRouteId: routePreviewId })
+          }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, routePreviewId])
+
+          useEffect(() => {
+            const map = mapRef.current
+            if (!map || !ready) return
+            const current = propsRef.current
+            fitSelectedRoute(map, { ...current, sheetDetent: sheetDetentOverride ?? undefined })
+            // Preview never moves the camera. Re-fit only when committed route/map
+            // context or the visible sheet region changes.
+          }, [props.routes, props.selectedRouteId, props.start, props.finish, props.via, props.avoidAreas, props.rideMode, ready, sheetDetentOverride])
+          ''')
+
+          p.write_text(s)
+          PY
+      - name: Verify focused contract
+        run: |
+          npm run typecheck
+          npx vitest run tests/components/route-map-comparison.test.tsx tests/components/route-decision-rail.test.tsx --reporter=dot
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patch-map-native-comparison.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/components/planner/PlannerMapStage.tsx .github/workflows/patch-map-native-comparison.yml
+          git commit -m "feat: wire map-native route preview and selection"
+          git push origin HEAD:ux/map-native-route-comparison
