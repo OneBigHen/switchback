@@ -3,6 +3,7 @@ import {
 } from "@/lib/validate"
 import { createAdviserFromEnvironment, resolveAdvisorCapability } from "@/lib/advice/capability"
 import { emptyReply, type AdviceRequest } from "@/lib/advice/contracts"
+import { MAX_ADVISOR_BODY_BYTES } from "@/lib/advice/request-limits"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 
@@ -22,8 +23,6 @@ export const runtime = "nodejs"
  */
 
 const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 8, label: "advisor turn" })
-
-const MAX_BODY_BYTES = 24 * 1024
 
 const PROFILES = [
   "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
@@ -80,7 +79,7 @@ export async function handleAdvisorPost(request: Request): Promise<Response> {
 
   let body: unknown
   try {
-    body = await readBoundedJsonBody(request, MAX_BODY_BYTES)
+    body = await readBoundedJsonBody(request, MAX_ADVISOR_BODY_BYTES)
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) {
       return jsonError("ADVISOR_REQUEST_TOO_LARGE", "That ride is too large to discuss.", 413)
