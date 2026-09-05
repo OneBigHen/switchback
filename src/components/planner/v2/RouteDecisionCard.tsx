@@ -100,13 +100,13 @@ export function RouteDecisionCard({ route, routes, selected, onSelect, onOpenDet
   return (
     <article
       className={styles.card}
-      aria-label={`${presentation.role} route option`}
+      aria-label={`${presentation.role}: ${presentation.subtitle} route option`}
       data-selected={selected ? "true" : "false"}
     >
       <button
         type="button"
         className={styles.select}
-        aria-label={`Select ${presentation.role}`}
+        aria-label={`Select ${presentation.subtitle}`}
         aria-pressed={selected}
         onClick={() => onSelect(route.id)}
       >
@@ -133,7 +133,7 @@ export function RouteDecisionCard({ route, routes, selected, onSelect, onOpenDet
         <button
           type="button"
           className={styles.details}
-          aria-label={`Details for ${presentation.role}`}
+          aria-label={`Details for ${presentation.subtitle}`}
           onClick={() => onOpenDetails(route.id)}
         >
           <span>Details</span>

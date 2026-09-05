@@ -1,0 +1,120 @@
+.verdict {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 24%, var(--sb-border));
+  border-left: 3px solid var(--sb-ember-strong);
+  border-radius: 5px 10px 10px 5px;
+  background: color-mix(in srgb, var(--sb-ember-strong) 5%, var(--sb-surface));
+}
+
+.header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pick {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.pick small {
+  color: var(--sb-ember-strong);
+  font-size: 9.5px;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.pick strong {
+  overflow: hidden;
+  color: var(--sb-text);
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confidence {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
+  font-size: 9.5px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.confidence[data-confidence="high"] {
+  border-color: color-mix(in srgb, var(--sb-success, #557a57) 46%, var(--sb-border));
+}
+
+.rationale {
+  margin: 0;
+  color: var(--sb-text);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.cautions {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 17px;
+  color: var(--sb-text-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.action {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 55%, var(--sb-border));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sb-ember-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 820;
+}
+
+.action:hover,
+.action:focus-visible {
+  background: color-mix(in srgb, var(--sb-ember-strong) 7%, transparent);
+}
+
+.action:focus-visible {
+  outline: 3px solid var(--sb-focus-fill);
+  outline-offset: 2px;
+}
+
+.action svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (pointer: coarse), (max-width: 520px) {
+  .action {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}

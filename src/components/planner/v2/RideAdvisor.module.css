@@ -1,30 +1,87 @@
-/* The co-pilot is deliberately quieter than the route rail: it is a second
-   opinion, and it must never read as the decision. No modal, no overlay, no
-   colour louder than the route cards it sits beneath. */
+/* Gravel Goblin is a companion, not a second product surface. The visual
+   language borrows from the low-res mascot — dusty olive, paper, charcoal and
+   ember — but stays subordinate to the route cards and map. */
+
+.trigger,
+.goblinInvite,
+.panel,
+.nudge,
+.ride {
+  --goblin-olive: #77785d;
+  --goblin-dirt: #9a6b3d;
+  --goblin-paper: #d8c9a7;
+  --goblin-charcoal: #38362f;
+}
+
+.avatar {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--goblin-dirt) 48%, var(--sb-border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--goblin-paper) 15%, var(--sb-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 10%, transparent);
+}
+
+.avatar::after {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgb(35 33 28 / 13%) 0 0.7px, transparent 0.9px);
+  background-size: 4px 4px;
+  content: "";
+  pointer-events: none;
+}
+
+.avatar[data-size="tiny"] {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.avatar[data-size="normal"] {
+  width: 42px;
+  height: 42px;
+}
+
+.avatar[data-size="large"] {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: auto;
+}
 
 .trigger {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   justify-self: start;
-  min-height: 36px;
-  padding: 8px 13px;
+  min-height: 40px;
+  padding: 5px 11px 5px 5px;
   border: 1px solid var(--sb-border);
   border-radius: 999px;
-  background: var(--sb-surface);
+  background: color-mix(in srgb, var(--goblin-olive) 5%, var(--sb-surface));
   color: var(--sb-text-muted);
   cursor: pointer;
+  font: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 760;
 }
 
 .trigger:hover {
-  border-color: var(--sb-ember-strong);
+  border-color: color-mix(in srgb, var(--goblin-dirt) 66%, var(--sb-border));
   color: var(--sb-text);
 }
 
 .trigger:focus-visible,
-.builderCard button:focus-visible,
+.goblinInviteButton:focus-visible,
 .panel button:focus-visible,
 .panel input:focus-visible,
 .panel a:focus-visible {
@@ -32,178 +89,150 @@
   outline-offset: 2px;
 }
 
-/* Before a route exists the co-pilot is not a tiny afterthought: it is one of
-   the planner's primary ways in. The card is still visually subordinate to the
-   omnibox, but it earns enough room to explain why it is useful. */
-.builderCard {
-  position: relative;
-  display: grid;
-  gap: 11px;
+/* Idle planner invitation: deliberately one compact row instead of the old
+   second planning card. The normal planner keeps visual ownership. */
+.goblinInvite {
   min-width: 0;
-  padding: 14px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 30%, var(--sb-border));
+  border: 1px solid color-mix(in srgb, var(--goblin-olive) 28%, var(--sb-border));
   border-radius: 14px;
   background:
-    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--sb-ember-strong) 12%, transparent), transparent 42%),
-    color-mix(in srgb, var(--sb-ember-strong) 3%, var(--sb-surface));
+    radial-gradient(circle at 96% 10%, color-mix(in srgb, var(--sb-ember-strong) 9%, transparent), transparent 38%),
+    radial-gradient(circle at 10% 120%, color-mix(in srgb, var(--goblin-olive) 10%, transparent), transparent 45%),
+    var(--sb-surface);
 }
 
-.builderLead {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  min-width: 0;
-}
-
-.builderLead > span:last-child {
+.goblinInviteButton {
   display: grid;
-  gap: 3px;
-  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: 72px;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
-.builderLead small {
-  color: var(--sb-ember-strong);
+.goblinInviteButton:hover {
+  background: color-mix(in srgb, var(--goblin-olive) 5%, transparent);
+}
+
+.goblinInviteCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.goblinInviteCopy small,
+.identityCopy > span {
+  color: color-mix(in srgb, var(--sb-ember-strong) 76%, var(--goblin-dirt));
   font-size: 10px;
   font-weight: 850;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
-.builderLead strong {
+.goblinInviteCopy strong {
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.goblinInviteCopy > span:last-child {
+  overflow: hidden;
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.goblinInviteAction {
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--goblin-dirt) 46%, var(--sb-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--goblin-dirt) 9%, var(--sb-surface));
+  color: var(--sb-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.panel {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px 13px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--goblin-olive) 35%, var(--sb-border));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 96% 0%, color-mix(in srgb, var(--sb-ember-strong) 8%, transparent), transparent 34%),
+    radial-gradient(circle, color-mix(in srgb, var(--goblin-charcoal) 7%, transparent) 0 0.65px, transparent 0.85px) 0 0 / 5px 5px,
+    color-mix(in srgb, var(--goblin-olive) 4%, var(--sb-surface));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.identityCopy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.identityCopy h2 {
+  margin: 0;
+  overflow: hidden;
   color: var(--sb-text);
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 650;
   line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.builderLead > span:last-child > span {
-  max-width: 50ch;
-  color: var(--sb-text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.builderIcon {
+.header > button {
   display: grid;
-  flex: 0 0 34px;
+  flex: 0 0 auto;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid color-mix(in srgb, var(--sb-ember-strong) 35%, var(--sb-border));
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--sb-ember-strong) 9%, var(--sb-surface));
-  color: var(--sb-ember-strong);
-}
-
-.builderQuick {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.builderQuick button {
-  min-height: 31px;
-  padding: 5px 9px;
-  border: 1px solid var(--sb-border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--sb-surface) 86%, transparent);
-  color: var(--sb-text-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 10.5px;
-  font-weight: 700;
-  text-align: left;
-}
-
-.builderQuick button:hover {
-  border-color: color-mix(in srgb, var(--sb-ember-strong) 65%, var(--sb-border));
-  color: var(--sb-text);
-}
-
-.builderOpen {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  justify-self: start;
-  min-height: 38px;
-  padding: 8px 13px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
   border: 0;
-  border-radius: 999px;
-  background: var(--sb-ember-strong);
-  color: var(--sb-surface);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.panel {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 13px 14px 12px;
-  border: 1px solid var(--sb-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--sb-ember-strong) 3%, var(--sb-surface));
-}
-
-.header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.header > div {
-  display: grid;
-  gap: 1px;
-}
-
-.header span {
-  color: var(--sb-ember-strong);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.header h2 {
-  margin: 0;
-  color: var(--sb-text);
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.header button {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   background: transparent;
   color: var(--sb-text-muted);
   cursor: pointer;
 }
 
-.verdict {
-  margin: 0;
-  padding: 8px 10px;
-  border-left: 2px solid var(--sb-ember-strong);
-  border-radius: 0 6px 6px 0;
-  background: color-mix(in srgb, var(--sb-ember-strong) 6%, transparent);
+.header > button:hover {
+  background: color-mix(in srgb, var(--goblin-olive) 10%, transparent);
   color: var(--sb-text);
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 .thread {
   display: grid;
-  gap: 7px;
-  max-height: 280px;
+  gap: 8px;
+  max-height: 300px;
+  padding: 2px 1px;
   overflow-y: auto;
   overscroll-behavior-block: contain;
   scrollbar-width: thin;
@@ -212,31 +241,43 @@
 .thread p {
   margin: 0;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.48;
+}
+
+.assistantTurn {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  max-width: 96%;
+}
+
+.advisor,
+.emptyLead {
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--goblin-olive) 20%, var(--sb-border));
+  border-radius: 4px 11px 11px;
+  background: color-mix(in srgb, var(--goblin-paper) 5%, var(--sb-surface-raised));
+  color: var(--sb-text);
 }
 
 .emptyLead {
-  padding: 9px 10px;
-  border: 1px dashed var(--sb-border);
-  border-radius: 9px;
   color: var(--sb-text-muted);
-}
-
-.advisor {
-  color: var(--sb-text);
 }
 
 .rider {
   justify-self: end;
   max-width: 88%;
   padding: 7px 10px;
-  border-radius: 12px 12px 2px 12px;
-  background: color-mix(in srgb, var(--sb-text) 7%, transparent);
+  border-radius: 12px 12px 3px 12px;
+  background: color-mix(in srgb, var(--sb-text) 8%, transparent);
   color: var(--sb-text);
 }
 
 .notice {
+  padding-left: 35px;
   color: var(--sb-text-muted);
+  font-size: 11px !important;
   font-style: italic;
 }
 
@@ -244,14 +285,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 10px;
-  margin: 0;
+  margin: 0 0 0 35px;
   padding: 0;
   list-style: none;
 }
 
 .citations a {
   color: var(--sb-text-muted);
-  font-size: 11px;
+  font-size: 10.5px;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -268,14 +309,14 @@
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid var(--sb-border);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--sb-surface);
 }
 
 .stopBody {
   display: grid;
-  gap: 1px;
   min-width: 0;
+  gap: 1px;
 }
 
 .stopBody strong {
@@ -293,62 +334,77 @@
   font-weight: 700;
 }
 
-.add {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.add,
+.plan {
+  display: inline-flex;
   flex-shrink: 0;
-  min-height: 34px;
-  padding: 6px 10px;
-  border: 1px solid var(--sb-ember-strong);
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 38px;
+  padding: 7px 11px;
   border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.add {
+  border: 1px solid color-mix(in srgb, var(--goblin-dirt) 70%, var(--sb-ember-strong));
   background: transparent;
   color: var(--sb-ember-strong);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 800;
-  white-space: nowrap;
+}
+
+.plan {
+  border: 0;
+  background: var(--sb-ember-strong);
+  color: var(--sb-surface);
 }
 
 .starters {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-left: 35px;
 }
 
 .starters button {
-  min-height: 31px;
-  padding: 5px 10px;
-  border: 1px solid var(--sb-border);
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--goblin-olive) 34%, var(--sb-border));
   border-radius: 999px;
-  background: transparent;
+  background: color-mix(in srgb, var(--goblin-olive) 4%, transparent);
   color: var(--sb-text-muted);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 720;
 }
 
 .starters button:hover {
-  border-color: var(--sb-ember-strong);
+  border-color: color-mix(in srgb, var(--goblin-dirt) 62%, var(--sb-border));
   color: var(--sb-text);
 }
 
 .composer {
   display: flex;
   gap: 6px;
+  margin-left: 35px;
 }
 
 .composer input {
   flex: 1;
   min-width: 0;
-  min-height: 39px;
+  min-height: 40px;
   padding: 8px 11px;
   border: 1px solid var(--sb-border);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--sb-surface);
   color: var(--sb-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .composer button {
@@ -357,94 +413,81 @@
   width: 40px;
   min-width: 40px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--sb-ember-strong);
   color: var(--sb-surface);
   cursor: pointer;
 }
 
 .composer button:disabled {
-  opacity: 0.45;
   cursor: default;
+  opacity: 0.45;
 }
 
 .attribution {
-  margin: 0;
+  margin: 0 0 0 35px;
   color: var(--sb-text-muted);
   font-size: 10px;
   letter-spacing: 0.02em;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .panel,
-  .builderCard {
-    animation: advisor-in 180ms ease-out;
-  }
-}
-
-@keyframes advisor-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
-}
-
-/* --- Nudge: the proactive surface. Inline, one at a time, always dismissible.
-   Quieter than the trigger it sits above, because it speaks uninvited. --- */
-
 .closed {
   display: grid;
-  gap: 8px;
-  justify-items: start;
   min-width: 0;
+  gap: 7px;
+  justify-items: start;
 }
 
 .nudge {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--sb-border);
-  border-left: 2px solid var(--sb-ember-strong);
-  border-radius: 4px 10px 10px 4px;
-  background: color-mix(in srgb, var(--sb-ember-strong) 4%, var(--sb-surface));
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--goblin-olive) 27%, var(--sb-border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--goblin-olive) 4%, var(--sb-surface));
   color: var(--sb-text);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.nudgeText {
+  min-width: 0;
 }
 
 .nudgeActions {
   display: flex;
-  align-items: center;
-  gap: 4px;
   flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
 }
 
 .nudgeActions button {
   min-height: 30px;
-  padding: 4px 9px;
+  padding: 4px 8px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--sb-ember-strong);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 800;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 820;
 }
 
 .nudgeDismiss {
   display: grid;
-  place-items: center;
   width: 30px;
   height: 30px;
-  padding: 0;
-  color: var(--sb-text-muted);
+  place-items: center;
+  padding: 0 !important;
+  color: var(--sb-text-muted) !important;
 }
 
-/* --- Proposed ride: the advisor filled in the planner's form. It must read as
-   a draft the rider confirms, never as a route that already exists. --- */
-
+/* A proposed ride is still an unconfirmed draft. Mascot personality must never
+   make a model suggestion look like deterministic routing state. */
 .ride {
   display: flex;
   align-items: center;
@@ -452,16 +495,16 @@
   gap: 10px;
   flex-wrap: wrap;
   padding: 10px 11px;
-  border: 1px dashed var(--sb-ember-strong);
+  border: 1px dashed color-mix(in srgb, var(--goblin-dirt) 74%, var(--sb-ember-strong));
   border-radius: 10px;
-  background: color-mix(in srgb, var(--sb-ember-strong) 5%, var(--sb-surface));
+  background: color-mix(in srgb, var(--goblin-dirt) 5%, var(--sb-surface));
 }
 
 .rideBody {
   display: grid;
-  gap: 2px;
-  min-width: 0;
   flex: 1 1 190px;
+  min-width: 0;
+  gap: 2px;
 }
 
 .rideBody strong {
@@ -480,32 +523,22 @@
   font-style: italic;
 }
 
-.plan {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  min-height: 38px;
-  padding: 8px 13px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--sb-ember-strong);
-  color: var(--sb-surface);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
+@media (prefers-reduced-motion: no-preference) {
+  .panel,
+  .goblinInvite {
+    animation: goblin-in 170ms ease-out;
+  }
 }
 
-/* The co-pilot is deliberately compact, and on a touch screen compact stops
-   being a style and starts being a miss. Every control the rider can press
-   grows to the 44px minimum the mobile suite enforces, without changing the
-   density of the pointer-driven layout it was drawn for. */
+@keyframes goblin-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (pointer: coarse), (max-width: 520px) {
   .trigger,
-  .builderQuick button,
-  .builderOpen,
-  .header button,
+  .goblinInviteButton,
+  .header > button,
   .add,
   .starters button,
   .plan,
@@ -516,7 +549,7 @@
     min-height: 44px;
   }
 
-  .header button,
+  .header > button,
   .composer button,
   .nudgeDismiss {
     width: 44px;
@@ -526,18 +559,27 @@
 }
 
 @media (max-width: 520px) {
-  .builderCard,
   .panel {
-    padding: 12px;
+    padding: 11px;
   }
 
-  .builderQuick {
-    display: grid;
-    grid-template-columns: 1fr;
+  .goblinInviteButton {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .builderQuick button {
-    width: 100%;
+  .goblinInviteAction {
+    display: none;
+  }
+
+  .assistantTurn {
+    max-width: 100%;
+  }
+
+  .starters,
+  .composer,
+  .citations,
+  .attribution {
+    margin-left: 0;
   }
 
   .stop,
@@ -548,5 +590,16 @@
   .add,
   .plan {
     justify-content: center;
+  }
+}
+
+@media (max-width: 360px) {
+  .goblinInviteCopy > span:last-child {
+    display: none;
+  }
+
+  .avatar[data-size="large"] {
+    width: 48px;
+    height: 48px;
   }
 }

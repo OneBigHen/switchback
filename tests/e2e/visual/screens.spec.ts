@@ -158,7 +158,6 @@ for (const viewport of VIEWPORTS) {
         makeRoute("twisty", { name: "Visual fixture route" })
       ]))
       await planFixtureRoute(page, capture)
-      await page.getByRole("button", { name: /Show route details/i }).first().click()
       await page.getByRole("button", { name: /Start .* route/i }).first().click()
       const panel = page.locator(".ride-hud")
       await assertPanelVisible(panel)

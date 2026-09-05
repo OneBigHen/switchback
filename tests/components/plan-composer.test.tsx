@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useState } from "react"
@@ -159,13 +159,16 @@ function renderComposer(
 }
 
 describe("V2 compact Plan composer", () => {
-  it("keeps the map-first idle surface to the exact compact planning contract", () => {
+  it("keeps persistent trip shape separate from one-shot route actions", () => {
     renderComposer()
 
     expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Destination" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Loop" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Draw" })).toBeInTheDocument()
+    const tripShape = screen.getByRole("group", { name: "Trip shape" })
+    expect(within(tripShape).getByRole("button", { name: "Destination" })).toBeInTheDocument()
+    expect(within(tripShape).getByRole("button", { name: "Loop" })).toBeInTheDocument()
+    expect(within(tripShape).queryByRole("button", { name: /Draw/i })).not.toBeInTheDocument()
+    const draw = screen.getByRole("button", { name: "Draw" })
+    expect(draw).toHaveTextContent("Draw route")
     expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Minimize planner" })).toBeInTheDocument()
   })

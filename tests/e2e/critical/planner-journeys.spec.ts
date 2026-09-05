@@ -269,14 +269,15 @@ test("route alternatives arrive after the primary and selection updates the visi
   const choices = page.getByRole("region", { name: "Route choices" })
   await expect(choices.getByText("Scenic alternative", { exact: true })).toBeVisible()
   await choices.getByText("Scenic alternative", { exact: true }).click()
-  await expect(choices.getByRole("article", { name: /Best Ride route option/i })).toHaveAttribute("data-selected", "true")
-  await expect(page.getByText("9.6")).toBeVisible()
+  await expect(choices.getByRole("article", { name: /Best Ride: Scenic alternative route option/i })).toHaveAttribute("data-selected", "true")
+  await expect(choices.getByRole("button", { name: "Select Scenic alternative" }).getByText("9.6 mi", { exact: true })).toBeVisible()
 })
 
 test("a saved route survives a reload and remains available in the library", async ({ page }) => {
   await installPlannerServices(page)
   const capture = await installRouteApi(page, tripPlan([makeRoute("quick", { name: "Saved fixture route" })]))
   await planDirectRoute(page, capture)
+  await page.getByRole("button", { name: "Details for Saved fixture route" }).click()
   await page.getByRole("button", { name: /Show route details/i }).click()
   await page.getByRole("button", { name: "Save route" }).click()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()

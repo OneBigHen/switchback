@@ -163,6 +163,15 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     : (lifecycle.phase === "ready" || lifecycle.phase === "alternatives") && ui.routesCount > 1 ? "Choose"
     : "Search"
 
+  const hasRouteResults = Boolean(selectedRoute) || ui.routesCount > 0
+  const composerCollapsed = hasRouteResults && !editing
+  const selectedProfileLabel = selectedRoute
+    ? listProfiles().find((item) => item.id === selectedRoute.profile)?.label ?? selectedRoute.profile
+    : null
+  const selectedRouteMeta = selectedRoute
+    ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRoute.distanceMiles.toFixed(1)} mi${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
+    : null
+
   const durationLabel = targetMinutes % 60 === 0
     ? `${targetMinutes / 60}-hour`
     : `${targetMinutes}-minute`
@@ -316,80 +325,104 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               </header>
             ) : null}
 
-            <PlanComposer
-              planMode={planMode}
-              onPlanModeChange={onPlanModeChange}
-              onDraw={() => onStartDrawing?.()}
-              ridePrompt={ridePrompt}
-              onRidePromptChange={setRidePrompt}
-              onRidePromptSubmit={submitRidePrompt}
-              onStartVoiceInput={startVoiceInput}
-              onUseCurrentLocation={onUseCurrentLocation}
-              onMinimize={planningStage === "Search" && sheetDetent !== "full" ? () => setSheetDetentOverride("peek") : undefined}
-              start={start}
-              finish={finish}
-              startQuery={startQuery}
-              finishQuery={finishQuery}
-              armedPoint={armedPoint}
-              via={via}
-              addingVia={addingVia}
-              canUndoRoutePoints={canUndoRoutePoints}
-              canRedoRoutePoints={canRedoRoutePoints}
-              profile={profile}
-              bikeProfile={rideConfig.bikeProfile}
-              curvatureVisible={curvatureVisible}
-              avoidHighways={avoidHighways}
-              tollPolicy={tollPolicy}
-              targetMinutes={targetMinutes}
-              timeShaped={timeShaped}
-              segmentProfiles={segmentProfiles}
-              avoidAreaCount={avoidAreaCount}
-              roadLockCount={rideConfig.roadLocks.length}
-              savedCount={savedCount}
-              home={home}
-              providerHealth={providerHealth}
-              onRetryProviderHealth={onRetryProviderHealth}
-              intentStatus={intentStatus}
-              planningPhase={lifecycle.phase}
-              lifecycleLabel={lifecycle.label}
-              elapsedSeconds={elapsedSeconds}
-              error={error}
-              editing={editing}
-              onEditingChange={setEditing}
-              onCancelPlanning={onCancelPlanning}
-              onPointChange={onPointChange}
-              onPointQueryChange={onPointQueryChange}
-              onArm={onArm}
-              onSwap={onSwap}
-              onToggleAddVia={onToggleAddVia}
-              onRemoveVia={onRemoveVia}
-              onMoveVia={onMoveVia}
-              onReverseRoute={onReverseRoute}
-              onUndoRoutePoints={onUndoRoutePoints}
-              onRedoRoutePoints={onRedoRoutePoints}
-              onToggleViaLock={onToggleViaLock}
-              onProfileChange={onProfileChange}
-              onBikeProfileChange={onBikeProfileChange}
-              onCurvatureChange={onCurvatureChange}
-              onAvoidHighwaysChange={onAvoidHighwaysChange}
-              onTollPolicyChange={onTollPolicyChange}
-              onTargetMinutesChange={onTargetMinutesChange}
-              onTimeShapedChange={onTimeShapedChange}
-              onSegmentProfileChange={onSegmentProfileChange}
-              onOpenRoadLocks={() => setRoadLocksOpen(true)}
-              onRemoveAvoidArea={onRemoveAvoidArea}
-              onOpenLibrary={onOpenLibrary}
-              onUseHome={onUseHome}
-              onSaveHome={onSaveHome}
-              onClearHome={onClearHome}
-              onStartFreeRide={onStartFreeRide}
-              stopIdeas={stopIdeas}
-              onChooseStopIdea={onChooseStopIdea}
-              researchStatus={researchStatus}
-              researchSources={researchSources}
-              onResearchRideIdea={onResearchRideIdea}
-            />
-            {children}
+            {composerCollapsed ? (
+              <section className="planner-route-context" aria-label="Current route setup">
+                <span className="planner-route-context__identity">
+                  <small>{ui.routesCount > 1 ? `${ui.routesCount} route options` : "Route ready"}</small>
+                  <strong>{selectedRoute?.name ?? "Choose a route"}</strong>
+                  {selectedRouteMeta ? <span>{selectedRouteMeta}</span> : null}
+                </span>
+                <button
+                  type="button"
+                  className="planner-route-context__edit"
+                  onClick={() => {
+                    setEditing(true)
+                    if (isPhoneViewport()) setSheetDetentOverride("full")
+                  }}
+                >
+                  Edit route
+                </button>
+              </section>
+            ) : null}
+
+            <div className={`planner-composer-shell${composerCollapsed ? " is-collapsed" : ""}`}>
+              <PlanComposer
+                planMode={planMode}
+                onPlanModeChange={onPlanModeChange}
+                onDraw={() => onStartDrawing?.()}
+                ridePrompt={ridePrompt}
+                onRidePromptChange={setRidePrompt}
+                onRidePromptSubmit={submitRidePrompt}
+                onStartVoiceInput={startVoiceInput}
+                onUseCurrentLocation={onUseCurrentLocation}
+                onMinimize={planningStage === "Search" && sheetDetent !== "full" ? () => setSheetDetentOverride("peek") : undefined}
+                start={start}
+                finish={finish}
+                startQuery={startQuery}
+                finishQuery={finishQuery}
+                armedPoint={armedPoint}
+                via={via}
+                addingVia={addingVia}
+                canUndoRoutePoints={canUndoRoutePoints}
+                canRedoRoutePoints={canRedoRoutePoints}
+                profile={profile}
+                bikeProfile={rideConfig.bikeProfile}
+                curvatureVisible={curvatureVisible}
+                avoidHighways={avoidHighways}
+                tollPolicy={tollPolicy}
+                targetMinutes={targetMinutes}
+                timeShaped={timeShaped}
+                segmentProfiles={segmentProfiles}
+                avoidAreaCount={avoidAreaCount}
+                roadLockCount={rideConfig.roadLocks.length}
+                savedCount={savedCount}
+                home={home}
+                providerHealth={providerHealth}
+                onRetryProviderHealth={onRetryProviderHealth}
+                intentStatus={intentStatus}
+                planningPhase={lifecycle.phase}
+                lifecycleLabel={lifecycle.label}
+                elapsedSeconds={elapsedSeconds}
+                error={error}
+                editing={editing}
+                onEditingChange={setEditing}
+                onCancelPlanning={onCancelPlanning}
+                onPointChange={onPointChange}
+                onPointQueryChange={onPointQueryChange}
+                onArm={onArm}
+                onSwap={onSwap}
+                onToggleAddVia={onToggleAddVia}
+                onRemoveVia={onRemoveVia}
+                onMoveVia={onMoveVia}
+                onReverseRoute={onReverseRoute}
+                onUndoRoutePoints={onUndoRoutePoints}
+                onRedoRoutePoints={onRedoRoutePoints}
+                onToggleViaLock={onToggleViaLock}
+                onProfileChange={onProfileChange}
+                onBikeProfileChange={onBikeProfileChange}
+                onCurvatureChange={onCurvatureChange}
+                onAvoidHighwaysChange={onAvoidHighwaysChange}
+                onTollPolicyChange={onTollPolicyChange}
+                onTargetMinutesChange={onTargetMinutesChange}
+                onTimeShapedChange={onTimeShapedChange}
+                onSegmentProfileChange={onSegmentProfileChange}
+                onOpenRoadLocks={() => setRoadLocksOpen(true)}
+                onRemoveAvoidArea={onRemoveAvoidArea}
+                onOpenLibrary={onOpenLibrary}
+                onUseHome={onUseHome}
+                onSaveHome={onSaveHome}
+                onClearHome={onClearHome}
+                onStartFreeRide={onStartFreeRide}
+                stopIdeas={stopIdeas}
+                onChooseStopIdea={onChooseStopIdea}
+                researchStatus={researchStatus}
+                researchSources={researchSources}
+                onResearchRideIdea={onResearchRideIdea}
+              />
+            </div>
+            <div className={`planner-stage-content${editing ? " is-suppressed" : ""}`}>
+              {children}
+            </div>
           </div>
 
           {sheetDetent === "full" ? (

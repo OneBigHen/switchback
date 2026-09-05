@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, SpinnerGap, X } from "@phosphor-icons/react"
+import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
 import { useCallback, useEffect, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
@@ -246,9 +246,12 @@ export function PlanComposer({
           <PlanModeSelector
             value={planMode}
             onChange={onPlanModeChange}
-            onDraw={onDraw}
             disabled={requestBusy}
           />
+          <button type="button" className="plan-v2__draw-action" aria-label="Draw" disabled={requestBusy} onClick={onDraw}>
+            <PencilLine aria-hidden="true" />
+            <span>Draw route</span>
+          </button>
           {onStartFreeRide ? (
             <button type="button" className="plan-v2__free-ride" disabled={requestBusy} onClick={onStartFreeRide}>
               <NavigationArrow weight="fill" aria-hidden="true" />
