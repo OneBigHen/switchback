@@ -355,7 +355,7 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
       results = await search(query, {
         baseUrl,
         limit: 5,
-        ...(anchor ? { bias: { lat: anchor[1], lon: anchor[0] } : {})
+        ...(anchor ? { bias: { lat: anchor[1], lon: anchor[0] } } : {})
       })
     } catch {
       return { content: { error: "Place lookup was unavailable." }, places: [], citations: [] }
