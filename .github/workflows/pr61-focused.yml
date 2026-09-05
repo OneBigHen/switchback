@@ -1,0 +1,17 @@
+name: PR61 focused sculpting gate
+
+on:
+  push:
+    branches: [ux/map-native-route-sculpting]
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/unit/route-sculpting-state.test.ts tests/components/route-sculpt-road-lock.test.tsx --reporter=dot
