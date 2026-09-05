@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import type { LineLayerSpecification } from "maplibre-gl"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   RouteDecisionCard,
@@ -15,7 +16,7 @@ import {
   routeRibbonLayers
 } from "@/components/planner/planner-map-layers"
 import type { PlannerMapRenderer } from "@/components/planner/planner-map-renderer"
-import type { MapExperienceConfig } from "@/lib/client/map-experience"
+import { resolveMapExperience } from "@/lib/client/map-experience"
 import { buildRouteFeatures } from "@/lib/client/map-data"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
 
@@ -140,13 +141,14 @@ describe("map-native route comparison", () => {
     const renderer = {
       supportsEmissiveStrength: false
     } as PlannerMapRenderer
-    const experience = {
-      routeEmphasis: "muted",
-      surface: "plan"
-    } as MapExperienceConfig
+    const experience = resolveMapExperience({
+      experience: "standard",
+      surface: "plan",
+      lightPreset: "day"
+    })
     const layers = routeRibbonLayers(renderer, experience)
-    const alternateHit = layers.find((layer) => layer.id === ROUTE_HIT_LAYER)
-    const selectedHit = layers.find((layer) => layer.id === SELECTED_ROUTE_HIT_LAYER)
+    const alternateHit = layers.find((layer) => layer.id === ROUTE_HIT_LAYER) as LineLayerSpecification | undefined
+    const selectedHit = layers.find((layer) => layer.id === SELECTED_ROUTE_HIT_LAYER) as LineLayerSpecification | undefined
 
     expect(alternateHit?.filter).toEqual(["!", ["get", "selected"]])
     expect(selectedHit?.filter).toEqual(["get", "selected"])
