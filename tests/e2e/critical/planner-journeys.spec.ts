@@ -270,7 +270,7 @@ test("route alternatives arrive after the primary and selection updates the visi
   await expect(choices.getByText("Scenic alternative", { exact: true })).toBeVisible()
   await choices.getByText("Scenic alternative", { exact: true }).click()
   await expect(choices.getByRole("article", { name: /Best Ride: Scenic alternative route option/i })).toHaveAttribute("data-selected", "true")
-  await expect(page.getByText("9.6")).toBeVisible()
+  await expect(choices.getByRole("button", { name: "Select Scenic alternative" }).getByText("9.6 mi", { exact: true })).toBeVisible()
 })
 
 test("a saved route survives a reload and remains available in the library", async ({ page }) => {
