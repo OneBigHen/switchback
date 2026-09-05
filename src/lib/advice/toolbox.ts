@@ -178,7 +178,7 @@ function surfaceNote(input: {
       return "No official unpaved-road survey is configured here." + curveEvidence + blindSpot + accessBoundary
     }
     return "No official unpaved-road survey is configured here, so gravel is UNCHECKED, not absent. " +
-      "The curve-scored roads returned no known unpaved tags; where surface tags are missing, surface remains unknown." +
+      "The curve-scored roads returned no known unpaved tags; where surface tags are missing, surface is unknown rather than paved." +
       blindSpot + accessBoundary
   }
   if (wantsGravel && returned > 0) {
@@ -355,7 +355,7 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
       results = await search(query, {
         baseUrl,
         limit: 5,
-        ...(anchor ? { bias: { lat: anchor[1], lon: anchor[0] } } : {})
+        ...(anchor ? { bias: { lat: anchor[1], lon: anchor[0] } : {})
       })
     } catch {
       return { content: { error: "Place lookup was unavailable." }, places: [], citations: [] }
