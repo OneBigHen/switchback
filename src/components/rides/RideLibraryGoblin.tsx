@@ -58,10 +58,10 @@ export function RideLibraryGoblin({ query, resultCount, onQueryChange, onGenerat
       <div className={styles.summary} role="status" aria-live="polite">
         {mode === "search" ? (
           <span>
-            <strong>{resultCount}</strong> {resultCount === 1 ? "route" : "routes"} match Goblin's local read
+            <strong>{resultCount}</strong> {resultCount === 1 ? "route" : "routes"} match the local Goblin read
           </span>
         ) : (
-          <small>Generation uses Switchback's existing planner and routing providers; this library never invents route geometry.</small>
+          <small>Generation uses the existing Switchback planner and routing providers; this library never invents route geometry.</small>
         )}
         {mode === "search" ? <small>Your saved route summaries stay on this device while searching.</small> : null}
       </div>
