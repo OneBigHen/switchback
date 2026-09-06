@@ -25,7 +25,7 @@ describe("SketchRouteToolbar", () => {
     expect(screen.getByRole("toolbar", { name: "Draw route controls" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Undo drawing point" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Clear drawing" })).toBeEnabled()
-    expect(screen.getByRole("button", { name: "Finish drawing" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Plan drawn route" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Cancel drawing" })).toBeEnabled()
 
     fireEvent.click(screen.getByRole("button", { name: "Clear drawing" }))
@@ -34,7 +34,7 @@ describe("SketchRouteToolbar", () => {
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it("allows Undo and Done when the gesture has usable geometry", () => {
+  it("plans the drawn route only after the rider explicitly commits the stroke", () => {
     const onUndo = vi.fn()
     const onDone = vi.fn()
 
@@ -49,8 +49,11 @@ describe("SketchRouteToolbar", () => {
       />
     )
 
+    const plan = screen.getByRole("button", { name: "Plan drawn route" })
+    expect(plan).toHaveTextContent("Plan route")
+
     fireEvent.click(screen.getByRole("button", { name: "Undo drawing point" }))
-    fireEvent.click(screen.getByRole("button", { name: "Finish drawing" }))
+    fireEvent.click(plan)
     expect(onUndo).toHaveBeenCalledOnce()
     expect(onDone).toHaveBeenCalledOnce()
   })
