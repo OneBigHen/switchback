@@ -111,6 +111,7 @@ export function RidesDestination(props: RidesDestinationProps) {
           onOpen={openItem}
           onImport={props.onImport}
           onImportRoads={importRoads}
+          onGenerateNew={props.onClose}
           onMatchRoads={(item) => {
             const route = savedRouteFor(item)
             if (route) props.onMatchImported?.(route)
