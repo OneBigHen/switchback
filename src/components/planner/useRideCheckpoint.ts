@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { getRideIntent, usePlannerStore, LEGACY_PLANNER_STORAGE_KEY, sanitizePersistedState } from "@/stores/planner-store"
 import { RideCheckpointStore } from "@/lib/storage/ride-checkpoint"
 import { isRideIntent } from "@/lib/domain/ride-intent"
+import { bikeProfileFromRiderSettings, loadRiderSettings } from "@/lib/settings/rider-settings"
 
 /** Bursts of edits collapse into one write instead of one write per keystroke. */
 const SAVE_COALESCE_MS = 200
@@ -80,18 +81,36 @@ export function useRideCheckpoint(): void {
     }
 
     /**
+     * Apply the current rider defaults while recovery still owns the bootstrap
+     * boundary. `ready` must mean more than "IndexedDB returned empty": it must
+     * also mean the first rider interaction will see the settings they saved.
+     * Otherwise a fast tap can author a ride against the domain fallback before
+     * PlannerShell's later effect gets a chance to seed these values.
+     */
+    const applyRiderDefaults = () => {
+      const state = usePlannerStore.getState()
+      if (state.rideHistory.identity !== initialIdentity) return
+      const settings = loadRiderSettings()
+      state.editRide({
+        profile: settings.defaultProfile,
+        bikeProfile: bikeProfileFromRiderSettings(settings),
+        avoidHighways: settings.defaultAvoidHighways
+      }, "Applied your rider defaults", "settings", false)
+    }
+
+    /**
      * Adopt ride *preferences* from the pre-Wave-1 planner blob exactly once,
      * when there is no checkpoint yet. Saved places and searches migrate
      * through the store's own storage bridge; the legacy key itself is only
      * ever read.
      */
-    const adoptLegacyPreferences = () => {
+    const adoptLegacyPreferences = (): boolean => {
       try {
         const raw = localStorage.getItem(LEGACY_PLANNER_STORAGE_KEY)
-        if (!raw) return
+        if (!raw) return false
         const legacy = sanitizePersistedState((JSON.parse(raw) as { state?: unknown }).state)
         const state = usePlannerStore.getState()
-        if (state.rideHistory.identity !== initialIdentity) return
+        if (state.rideHistory.identity !== initialIdentity) return false
         const intent = {
           ...getRideIntent(state),
           ...(legacy.profile ? { profile: legacy.profile } : {}),
@@ -100,9 +119,11 @@ export function useRideCheckpoint(): void {
         }
         // Recovered defaults are not a ride change the rider made, so they
         // must not become the first thing Undo reverses.
-        if (isRideIntent(intent)) state.editRide(intent, "Recovered your ride preferences", "settings", false)
+        if (!isRideIntent(intent)) return false
+        return state.editRide(intent, "Recovered your ride preferences", "settings", false) === "applied"
       } catch {
         // Missing or unreadable legacy data never erases a current draft.
+        return false
       }
     }
 
@@ -123,13 +144,23 @@ export function useRideCheckpoint(): void {
         return
       }
       if (loaded.status === "empty") {
-        adoptLegacyPreferences()
+        // A legacy ride preference wins exactly as it did before Wave 1. When
+        // there is no legacy preference, seed the current versioned settings
+        // before making the planner interactive.
+        if (!adoptLegacyPreferences()) applyRiderDefaults()
         setStatus("ready")
         watch()
         return
       }
+      // Storage failure must not also make the first route ignore the rider's
+      // settings. There is no checkpoint to adopt in these branches, so use
+      // the same current defaults before releasing the bootstrap gate.
+      applyRiderDefaults()
       setStatus(loaded.status === "unavailable" ? "unavailable" : "invalid")
-    }).catch(() => setStatus("unavailable"))
+    }).catch(() => {
+      applyRiderDefaults()
+      setStatus("unavailable")
+    })
 
     return () => {
       unsubscribe()
