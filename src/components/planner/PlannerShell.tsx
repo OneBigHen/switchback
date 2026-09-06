@@ -37,11 +37,11 @@ import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
-import { routeIntentFromSketch, type RoutePointSnapshot } from "@/lib/planner/route-sketch"
+import { routeIntentFromSketch } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
-import type { AvoidArea, Coordinate, PlannedRoute, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { advisorRideToPlannerHandoff, mergeAdvisorStopIntoVia } from "@/lib/advice/planner-handoff"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
@@ -68,7 +68,7 @@ import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
 import { LibraryDrawer } from "./LibraryDrawer"
 import { MapStage } from "./MapStage"
-import { type PlanMode, type RideIntentStatus } from "./PlannerDeck"
+import { type RideIntentStatus } from "./PlannerDeck"
 import { RideHud } from "./RideHud"
 import { PlannerComposition } from "./PlannerComposition"
 import { MapCanvas, MapWorkspace } from "./workspace/MapWorkspace"
@@ -78,6 +78,7 @@ import { usePlannerRideIntent } from "./usePlannerRideIntent"
 import { usePlannerRideResearch } from "./usePlannerRideResearch"
 import { usePlannerLocationSeed } from "./usePlannerLocationSeed"
 import { usePlannerRideActions } from "./usePlannerRideActions"
+import { useRideCheckpoint } from "./useRideCheckpoint"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { useProviderHealth } from "./ProviderHealthNotice"
@@ -101,22 +102,13 @@ function normalizedSegmentProfiles(
   return Array.from({ length: Math.max(0, count) }, (_, index) => profiles[index] ?? fallback)
 }
 
+/** Bursts of ride edits collapse into one route request. */
+const REPLAN_COALESCE_MS = 180
+
 function initialThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "auto"
   const stored = localStorage.getItem("switchback:theme")
   return stored === "light" || stored === "dark" ? stored : "auto"
-}
-
-/**
- * Seed the highway preference from saved rider settings, but only for a
- * pristine planner. A rehydrated store already carries the choice the rider
- * made for that plan, and must not be overwritten by the global default.
- */
-function initialAvoidHighways(): boolean {
-  if (typeof window === "undefined") return false
-  const store = usePlannerStore.getState()
-  if (store.plan || store.start || store.finish || store.status !== "idle") return false
-  return loadRiderSettings().defaultAvoidHighways
 }
 
 /**
@@ -144,6 +136,16 @@ export function PlannerShell() {
   const startQuery = usePlannerStore((state) => state.startQuery)
   const finishQuery = usePlannerStore((state) => state.finishQuery)
   const armedPoint = usePlannerStore((state) => state.armedPoint)
+  const recoveryStatus = usePlannerStore((state) => state.recoveryStatus)
+  const rideHistorySequence = usePlannerStore((state) => state.rideHistory.sequence)
+  const planMode = usePlannerStore((state) => state.mode)
+  const targetMinutes = usePlannerStore((state) => state.targetMinutes)
+  const timeShaped = usePlannerStore((state) => state.timeShaped)
+  const avoidHighways = usePlannerStore((state) => state.avoidHighways)
+  const tollPolicy = usePlannerStore((state) => state.tollPolicy)
+  const avoidAreas = usePlannerStore((state) => state.avoidAreas)
+  const segmentProfiles = usePlannerStore((state) => state.segmentProfiles)
+  const sketchCorridor = usePlannerStore((state) => state.sketchCorridor)
   const profile = usePlannerStore((state) => state.profile)
   const bikeProfile = usePlannerStore((state) => state.bikeProfile)
   const roadLocks = usePlannerStore((state) => state.roadLocks)
@@ -156,8 +158,12 @@ export function PlannerShell() {
   const planningPhase = usePlannerStore((state) => state.planningPhase)
   const planningStartedAt = usePlannerStore((state) => state.planningStartedAt)
   const surface = usePlannerStore((state) => state.surface)
-  const canUndoRoutePoints = usePlannerStore((state) => state.canUndoRoutePoints)
-  const canRedoRoutePoints = usePlannerStore((state) => state.canRedoRoutePoints)
+  const canUndoRideChange = usePlannerStore((state) => state.canUndoRideChange)
+  const canRedoRideChange = usePlannerStore((state) => state.canRedoRideChange)
+  const lastRideChange = usePlannerStore((state) => state.rideHistory.lastChange)
+  const committedRideIdentity = usePlannerStore((state) => state.committedRide?.identity ?? null)
+  const rideIdentity = usePlannerStore((state) => state.rideHistory.identity)
+  useRideCheckpoint()
   const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
   const [savedTrips, setSavedTrips] = useState<SavedTripPlan[]>([])
   const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
@@ -193,16 +199,6 @@ export function PlannerShell() {
   }, [recording.state])
 
   const [notice, setNotice] = useState<{ kind: "success" | "warning"; message: string } | null>(null)
-  const [planMode, setPlanMode] = useState<PlanMode>("destination")
-  const [targetMinutes, setTargetMinutes] = useState(120)
-  // Destination rides default to "Fastest" (no time shaping); the rider opts
-  // in through the Options "Ride time" control or by naming a duration in the
-  // ride prompt. Loop rides always time-shape and ignore this.
-  const [timeShaped, setTimeShaped] = useState(false)
-  const [avoidHighways, setAvoidHighways] = useState(initialAvoidHighways)
-  const [tollPolicy, setTollPolicy] = useState<TollPolicy>("allow-with-warning")
-  const [avoidAreas, setAvoidAreas] = useState<AvoidArea[]>([])
-  const [segmentProfiles, setSegmentProfiles] = useState<RouteProfileId[]>([])
   const [intentStatus, setIntentStatus] = useState<RideIntentStatus>("idle")
   const [intentSummary, setIntentSummary] = useState<string | null>(null)
   const [stopIdeas, setStopIdeas] = useState<PlaceIdeasResult | null>(null)
@@ -221,15 +217,29 @@ export function PlannerShell() {
   )
 
   // Seeding the planner store is an external-system sync, so it belongs in an
-  // effect; the React-owned highway flag is seeded by its state initializer
-  // instead, which keeps this effect free of cascading renders.
+  // effect. Recovery settles first, then the pristine intent receives all
+  // rider defaults as one compound command.
   useEffect(() => {
     const store = usePlannerStore.getState()
-    if (store.plan || store.start || store.finish || store.status !== "idle") return
+    // Defaults are initialization: they only ever apply to a ride nobody has
+    // touched yet, which is also what keeps them from cutting a redo branch.
+    if (
+      recoveryStatus === "loading" ||
+      recoveryStatus === "restored" ||
+      recoveryStatus === "superseded" ||
+      recoveryStatus === "conflict" ||
+      recoveryStatus === "invalid" ||
+      rideHistorySequence > 0 ||
+      store.rideHistory.past.length > 0 || store.rideHistory.future.length > 0 ||
+      store.plan || store.start || store.finish || store.status !== "idle"
+    ) return
     const settings = loadRiderSettings()
-    store.setProfile(settings.defaultProfile)
-    store.setBikeProfile(bikeProfileFromRiderSettings(settings))
-  }, [])
+    store.editRide({
+      profile: settings.defaultProfile,
+      bikeProfile: bikeProfileFromRiderSettings(settings),
+      avoidHighways: settings.defaultAvoidHighways
+    }, "Applied your rider defaults", "settings", false)
+  }, [recoveryStatus, rideHistorySequence])
 
   const [riderLayers, setRiderLayers] = useState<RiderLayerSetting[]>(() => defaultRiderLayerSettings().map((layer) => ({
     ...layer,
@@ -240,10 +250,6 @@ export function PlannerShell() {
   const [rideOriginalRouteId, setRideOriginalRouteId] = useState<string | null>(null)
   const [addingVia, setAddingVia] = useState(false)
   const [sketching, setSketching] = useState(false)
-  // The rider's last free-draw stroke. It stays on the map as a reference so
-  // every corridor option reads against what they actually drew, and it is the
-  // soft corridor the planner scores adherence against.
-  const [sketchCorridor, setSketchCorridor] = useState<Coordinate[] | null>(null)
   // Monotonic command token: PlannerMapStage remains the sole owner of the
   // in-progress screen draft while the V2 composer can enter it directly.
   const [drawCommandId, setDrawCommandId] = useState(0)
@@ -254,6 +260,9 @@ export function PlannerShell() {
     getPlanner: usePlannerStore.getState
   }))
   const routeRequestGate = planningSession.gate
+  useEffect(() => () => planningSession.invalidate(), [planningSession])
+
+  const replanTimerRef = useRef<number | null>(null)
   const loopSeed = useRef(17)
   const offlinePackLibraryRef = useRef<OfflineRoutePackLibrary | null>(null)
   const riderPreferenceLibraryRef = useRef<RiderPreferenceLibrary | null>(null)
@@ -440,7 +449,8 @@ export function PlannerShell() {
   usePlannerLocationSeed({
     gate: routeRequestGate,
     getPlanner: usePlannerStore.getState,
-    onSeed: handleLocationSeed
+    onSeed: handleLocationSeed,
+    recoveryStatus
   })
 
   useEffect(() => {
@@ -448,8 +458,20 @@ export function PlannerShell() {
     if (!shared) return
     const editState = routeEditState(shared)
     const store = usePlannerStore.getState()
-    store.replaceRoutePoints({ start: editState.start, finish: editState.finish, via: editState.via })
-    store.setProfile(shared.profile)
+    store.editRide({
+      start: editState.start,
+      finish: editState.finish,
+      via: editState.via,
+      mode: editState.mode,
+      profile: shared.profile,
+      targetMinutes: editState.targetMinutes ?? 120,
+      timeShaped: editState.targetMinutes !== null,
+      avoidHighways: shared.avoidHighways ?? false,
+      tollPolicy: "allow-with-warning",
+      avoidAreas: shared.avoidAreas ?? [],
+      segmentProfiles: shared.segmentProfiles ?? [],
+      sketchCorridor: null
+    }, "Restore shared route", "import")
     store.applyPlan({
       selectedRouteId: shared.id,
       routes: [shared],
@@ -457,7 +479,6 @@ export function PlannerShell() {
     })
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
     const publishLoadedShare = window.setTimeout(() => {
-      setPlanMode(editState.mode)
       setNotice({ kind: "success", message: "Private route copy loaded with its protected start/end geometry removed." })
     }, 0)
     return () => window.clearTimeout(publishLoadedShare)
@@ -522,42 +543,30 @@ export function PlannerShell() {
     }
   }
 
-  const handlePlan = async (override?: {
-    mode: PlanMode
-    points: RoutePointSnapshot
-    corridor?: Coordinate[]
-    /** Supplied when a caller set these in the same tick as planning. */
-    profile?: RouteProfileId
-    targetMinutes?: number
-    timeShaped?: boolean
-    avoidHighways?: boolean
-    tollPolicy?: TollPolicy
-  }) => {
+  const handlePlan = async () => {
     const current = usePlannerStore.getState()
-    const mode = override?.mode ?? planMode
-    const points = override?.points
     try {
       loopSeed.current += 1
-      const customSegmentProfiles = mode === "destination" && !points && activeSegmentProfiles.some((item) => item !== current.profile)
-        ? activeSegmentProfiles
+      const customSegmentProfiles = current.mode === "destination" && current.segmentProfiles.some((item) => item !== current.profile)
+        ? normalizedSegmentProfiles(current.segmentProfiles, current.via.length + 1, current.profile)
         : undefined
       await runTripPlan(buildRideTripRequest({
-        mode,
-        start: points?.start ?? current.start,
-        finish: points?.finish ?? current.finish,
-        profile: override?.profile ?? current.profile,
+        mode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        profile: current.profile,
         bikeProfile: current.bikeProfile,
         roadLocks: current.roadLocks,
-        targetMinutes: override?.targetMinutes ?? targetMinutes,
-        timeShaped: override?.timeShaped ?? timeShaped,
+        targetMinutes: current.targetMinutes,
+        timeShaped: current.timeShaped,
         seed: loopSeed.current,
-        via: points?.via ?? current.via,
-        avoidHighways: override?.avoidHighways ?? avoidHighways,
-        avoidAreas,
+        via: current.via,
+        avoidHighways: current.avoidHighways,
+        avoidAreas: current.avoidAreas,
         segmentProfiles: customSegmentProfiles,
-        tollPolicy: override?.tollPolicy ?? tollPolicy,
+        tollPolicy: current.tollPolicy,
         planningId: createPlanningId(),
-        ...(override?.corridor ? { sketchCorridor: override.corridor } : {})
+        ...(current.sketchCorridor ? { sketchCorridor: current.sketchCorridor } : {})
       }))
     } catch (caught) {
       current.failRouting({
@@ -567,6 +576,65 @@ export function PlannerShell() {
     }
   }
 
+  /**
+   * Undo and redo replan whenever the restored ride can be routed at all, not
+   * only when a route is already on screen — the point of undoing a bad change
+   * is to get the previous ride back, drawn.
+   */
+  const replanAfterRideHistoryMove = () => {
+    if (replanTimerRef.current !== null) {
+      window.clearTimeout(replanTimerRef.current)
+      replanTimerRef.current = null
+    }
+    const current = usePlannerStore.getState()
+    if (!current.start) return
+    if (current.mode === "destination" && !current.finish) return
+    void handlePlan()
+  }
+
+  /**
+   * A ride edit only replans when there is already a route to improve on: with
+   * no route yet the rider is still composing, and planning under them would
+   * be noise. Bursts of edits (a preset, then a toggle, then another) collapse
+   * into one request instead of racing each other to the provider.
+   */
+  const replanAfterIntentEdit = () => {
+    const current = usePlannerStore.getState()
+    if (!current.plan || !current.start) return
+    if (replanTimerRef.current !== null) window.clearTimeout(replanTimerRef.current)
+    replanTimerRef.current = window.setTimeout(() => {
+      replanTimerRef.current = null
+      const latest = usePlannerStore.getState()
+      if (latest.plan && latest.start) void handlePlan()
+    }, REPLAN_COALESCE_MS)
+  }
+
+  /**
+   * A recovered ride is authored intent, not a stored answer: the checkpoint
+   * deliberately keeps no route geometry. So once recovery lands, ask for the
+   * route again — otherwise "refresh restores your ride" would hand the rider
+   * back their inputs and a blank map.
+   */
+  const recoveredRideRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (recoveryStatus !== "restored") return
+    const current = usePlannerStore.getState()
+    if (recoveredRideRef.current === current.rideHistory.identity) return
+    if (current.plan || current.status !== "idle" || !current.start) return
+    if (current.mode === "destination" && !current.finish) return
+    recoveredRideRef.current = current.rideHistory.identity
+    void handlePlan()
+    // handlePlan reads the committed store value; re-running on its identity
+    // would replan the same recovered ride twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recoveryStatus, rideHistorySequence])
+
+  // Declared after the functions that own the timer so the pending replan is
+  // dropped with the planner rather than firing into an unmounted tree.
+  useEffect(() => () => {
+    if (replanTimerRef.current !== null) window.clearTimeout(replanTimerRef.current)
+  }, [])
+
   const handleRidePrompt = usePlannerRideIntent({
     gate: routeRequestGate,
     home,
@@ -575,10 +643,6 @@ export function PlannerShell() {
     segmentProfiles,
     nextSeed: () => ++loopSeed.current,
     runTripPlan,
-    setPlanMode,
-    setTargetMinutes,
-    setTimeShaped,
-    setAvoidHighways,
     setStopIdeas,
     setResearchSources,
     setIntentStatus,
@@ -590,28 +654,13 @@ export function PlannerShell() {
     const current = usePlannerStore.getState()
     const activeRouteId = current.selectedRouteId ?? current.plan?.routes[0]?.id
     const activeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
-    const routedVia = planMode === "loop" && activeRoute
+    const routedVia = current.mode === "loop" && activeRoute
       ? buildLoopStopVia(activeRoute.geometry, stop)
       : [stop]
-    current.clearVia()
-    routedVia.forEach((point) => current.addVia(point))
+    if (current.editRide({ via: routedVia }, "Choose stop idea") !== "applied") return
     setStopIdeas(null)
     try {
-      loopSeed.current += 1
-      await runTripPlan(buildRideTripRequest({
-        mode: planMode,
-        start: current.start,
-        finish: current.finish,
-        profile: current.profile,
-        bikeProfile: current.bikeProfile,
-        roadLocks: current.roadLocks,
-        targetMinutes,
-        seed: loopSeed.current,
-        via: routedVia,
-        avoidHighways,
-        avoidAreas,
-        tollPolicy
-      }))
+      await handlePlan()
       setIntentSummary(`${stop.label ?? "That stop"} is now a routed stop. Change the idea or choose another route whenever you like.`)
     } catch (caught) {
       current.failRouting({
@@ -627,15 +676,14 @@ export function PlannerShell() {
     const activeRouteId = current.selectedRouteId ?? current.plan?.routes[0]?.id
     const activeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
     const stopWaypoint: Waypoint = { lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name }
-    const routedVia = planMode === "loop" && activeRoute && current.via.length === 0
+    const routedVia = current.mode === "loop" && activeRoute && current.via.length === 0
       ? buildLoopStopVia(activeRoute.geometry, stopWaypoint)
       : mergeAdvisorStopIntoVia(current.via, stop, activeRoute?.geometry ?? [])
     if (routedVia.length === current.via.length && routedVia.every((point, index) => point === current.via[index])) {
       setNotice({ kind: "warning", message: `${stop.name} is already on this ride.` })
       return
     }
-    current.clearVia()
-    routedVia.forEach((point) => current.addVia(point))
+    if (current.editRide({ via: routedVia }, "Add advisor stop", "advisor") !== "applied") return
     try {
       await handlePlan()
       setNotice({ kind: "success", message: `${stop.name} added without removing your existing shaping stops.` })
@@ -671,21 +719,20 @@ export function PlannerShell() {
     routeRequestGate.invalidate()
     const editState = routeEditState(route)
     const store = usePlannerStore.getState()
-    store.replaceRoutePoints({
+    store.editRide({
       start: editState.start,
       finish: editState.finish,
-      via: editState.via
-    })
-    store.setProfile(route.profile)
-    setPlanMode(editState.mode)
-    if (editState.targetMinutes) {
-      setTargetMinutes(editState.targetMinutes)
-      setTimeShaped(true)
-    }
-    setAvoidHighways(route.avoidHighways ?? false)
-    setTollPolicy("allow-with-warning")
-    setAvoidAreas(route.avoidAreas ?? [])
-    setSegmentProfiles(route.segmentProfiles ?? [])
+      via: editState.via,
+      mode: editState.mode,
+      profile: route.profile,
+      targetMinutes: editState.targetMinutes ?? 120,
+      timeShaped: editState.targetMinutes !== null,
+      avoidHighways: route.avoidHighways ?? false,
+      tollPolicy: "allow-with-warning",
+      avoidAreas: route.avoidAreas ?? [],
+      segmentProfiles: route.segmentProfiles ?? [],
+      sketchCorridor: null
+    }, "Restore saved route", "import")
     setIntentSummary(null)
     setActiveRecordedRide(null)
     setRestoredTrip(trip)
@@ -750,9 +797,6 @@ export function PlannerShell() {
   const { startRide: handleStartRide, matchImported: handleMatchImported } = usePlannerRideActions({
     runTripPlan,
     invalidateRequests: routeRequestGate.invalidate,
-    setPlanMode,
-    setAvoidAreas,
-    setSegmentProfiles,
     setRideOriginalRoute: (route) => {
       if (rideOriginalRouteId && rideOriginalRouteId !== route.id) {
         routeEntityCache.release(rideOriginalRouteId)
@@ -919,25 +963,39 @@ export function PlannerShell() {
     freeRideTransitionRef.current = true
     recording.finish()
     routeRequestGate.invalidate()
-    store.replaceRoutePoints({ start: nextStart, finish: nextFinish, via: acceptedVia })
-    store.setProfile("neural")
-    setPlanMode("destination")
-    setAvoidHighways(false)
-    setTollPolicy("allow-with-warning")
-    setAvoidAreas([])
-    setSegmentProfiles([])
+    store.editRide({
+      start: nextStart,
+      finish: nextFinish,
+      via: acceptedVia,
+      mode: "destination",
+      profile: "neural",
+      targetMinutes: 120,
+      timeShaped: false,
+      avoidHighways: false,
+      tollPolicy: "allow-with-warning",
+      avoidAreas: [],
+      segmentProfiles: [],
+      sketchCorridor: null
+    }, "Accept Free Ride suggestion")
     setFreeRideLoading(true)
     setFreeRideError(null)
     try {
+      const current = usePlannerStore.getState()
       const planned = await runTripPlan(buildRideTripRequest({
-        mode: "destination",
-        start: nextStart,
-        finish: nextFinish,
-        profile: "neural",
-        bikeProfile: store.bikeProfile,
-        roadLocks: store.roadLocks,
-        via: acceptedVia,
-        targetMinutes: 120,
+        mode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        profile: current.profile,
+        bikeProfile: current.bikeProfile,
+        roadLocks: current.roadLocks,
+        via: current.via,
+        targetMinutes: current.targetMinutes,
+        timeShaped: current.timeShaped,
+        avoidHighways: current.avoidHighways,
+        avoidAreas: current.avoidAreas,
+        segmentProfiles: current.segmentProfiles.length > 0 ? current.segmentProfiles : undefined,
+        tollPolicy: current.tollPolicy,
+        sketchCorridor: current.sketchCorridor ?? undefined,
         seed: ++loopSeed.current,
         planningId: createPlanningId()
       }))
@@ -975,28 +1033,42 @@ export function PlannerShell() {
     const store = usePlannerStore.getState()
     const nextStart: Waypoint = { lat: point.coordinate[1], lon: point.coordinate[0], label: "Current position" }
     const nextFinish: Waypoint = { ...home, label: "Home" }
-    const homeProfile = store.profile
     dispatchFreeRideRecommendation({ type: "clear" })
     freeRideTransitionRef.current = true
     recording.finish()
     routeRequestGate.invalidate()
-    store.replaceRoutePoints({ start: nextStart, finish: nextFinish, via: [] })
-    setPlanMode("destination")
-    setAvoidHighways(false)
-    setTollPolicy("allow-with-warning")
-    setAvoidAreas([])
-    setSegmentProfiles([])
+    store.editRide({
+      start: nextStart,
+      finish: nextFinish,
+      via: [],
+      mode: "destination",
+      targetMinutes: 120,
+      timeShaped: false,
+      avoidHighways: false,
+      tollPolicy: "allow-with-warning",
+      avoidAreas: [],
+      segmentProfiles: [],
+      sketchCorridor: null
+    }, "Route Free Ride home")
     setFreeRideLoading(true)
     setFreeRideError(null)
     try {
+      const current = usePlannerStore.getState()
       const planned = await runTripPlan(buildRideTripRequest({
-        mode: "destination",
-        start: nextStart,
-        finish: nextFinish,
-        profile: homeProfile,
-        bikeProfile: store.bikeProfile,
-        roadLocks: store.roadLocks,
-        targetMinutes: 120,
+        mode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        profile: current.profile,
+        bikeProfile: current.bikeProfile,
+        roadLocks: current.roadLocks,
+        via: current.via,
+        targetMinutes: current.targetMinutes,
+        timeShaped: current.timeShaped,
+        avoidHighways: current.avoidHighways,
+        avoidAreas: current.avoidAreas,
+        segmentProfiles: current.segmentProfiles.length > 0 ? current.segmentProfiles : undefined,
+        tollPolicy: current.tollPolicy,
+        sketchCorridor: current.sketchCorridor ?? undefined,
         seed: ++loopSeed.current,
         planningId: createPlanningId()
       }))
@@ -1166,7 +1238,7 @@ export function PlannerShell() {
       const picked = { ...point, label: point.label ?? `Shaping stop ${via.length + 1}` }
       const current = usePlannerStore.getState()
       let routeToShape: PlannedRoute | null = selectedRoute
-      if (planMode === "loop" && !routeToShape) {
+      if (current.mode === "loop" && !routeToShape) {
         loopSeed.current += 1
         const initialLoop = await runTripPlan(buildRideTripRequest({
           mode: "loop",
@@ -1175,19 +1247,22 @@ export function PlannerShell() {
           profile: current.profile,
           bikeProfile: current.bikeProfile,
           roadLocks: current.roadLocks,
-          targetMinutes,
+          targetMinutes: current.targetMinutes,
+          timeShaped: current.timeShaped,
           seed: loopSeed.current,
-          avoidHighways,
-          avoidAreas,
-          tollPolicy
+          avoidHighways: current.avoidHighways,
+          avoidAreas: current.avoidAreas,
+          segmentProfiles: current.segmentProfiles.length > 0 ? current.segmentProfiles : undefined,
+          tollPolicy: current.tollPolicy,
+          sketchCorridor: current.sketchCorridor ?? undefined
         }))
         routeToShape = initialLoop?.routes.find((route) => route.id === initialLoop.selectedRouteId) ?? initialLoop?.routes[0] ?? null
       }
-      if (planMode === "loop" && routeToShape && current.via.length === 0) {
-        current.clearVia()
-        buildLoopStopVia(routeToShape.geometry, picked).forEach((waypoint) => current.addVia(waypoint))
+      const latest = usePlannerStore.getState()
+      if (latest.mode === "loop" && routeToShape && latest.via.length === 0) {
+        latest.editRide({ via: buildLoopStopVia(routeToShape.geometry, picked) }, "Add shaping stop")
       } else {
-        current.addVia(picked)
+        latest.editRide({ via: [...latest.via, picked] }, "Add shaping stop")
       }
       setAddingVia(false)
       await handlePlan()
@@ -1202,18 +1277,20 @@ export function PlannerShell() {
     try {
       const current = usePlannerStore.getState()
       const intent = routeIntentFromSketch({
-        currentMode: planMode,
+        currentMode: current.mode,
         start: current.start,
         finish: current.finish,
         trace,
         hasExistingRoute: Boolean(current.plan)
       })
-      current.replaceRoutePoints(intent.points)
-      setPlanMode(intent.mode)
-      setSegmentProfiles([])
+      if (current.editRide({
+        ...intent.points,
+        mode: intent.mode,
+        segmentProfiles: [],
+        sketchCorridor: intent.corridor.length >= 2 ? intent.corridor : null
+      }, "Read route sketch", "drawing") !== "applied") return
       setAddingVia(false)
-      setSketchCorridor(intent.corridor.length >= 2 ? intent.corridor : null)
-      await handlePlan({ mode: intent.mode, points: intent.points, corridor: intent.corridor })
+      await handlePlan()
       setNotice({
         kind: "success",
         message: `Read your line as a corridor — ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}, with options on the way.`
@@ -1228,32 +1305,26 @@ export function PlannerShell() {
 
   /**
    * Accept the exact bounded planner inputs shown on the co-pilot card. React
-   * state mirrors them for subsequent editing, while the first route request
-   * receives the same immutable values directly instead of racing state commits.
+   * owns only the surrounding UI; the handoff is one canonical intent edit,
+   * and the first route request reads that committed store value directly.
    */
   const handlePlanAdvisorRide = async (ride: ProposedRide) => {
     routeRequestGate.invalidate()
     const store = usePlannerStore.getState()
     const handoff = advisorRideToPlannerHandoff(ride)
-    store.replaceRoutePoints(handoff.points)
-    store.setProfile(handoff.profile)
-    setPlanMode(handoff.mode)
-    setSegmentProfiles([])
-    setAddingVia(false)
-    setAvoidHighways(handoff.avoidHighways)
-    setTollPolicy(handoff.tollPolicy)
-    setTimeShaped(handoff.timeShaped)
-    if (handoff.targetMinutes !== null) setTargetMinutes(handoff.targetMinutes)
-    setNotice({ kind: "success", message: `Planning ${ride.summary}` })
-    await handlePlan({
+    if (store.editRide({
+      ...handoff.points,
       mode: handoff.mode,
-      points: handoff.points,
       profile: handoff.profile,
-      ...(handoff.targetMinutes !== null ? { targetMinutes: handoff.targetMinutes } : {}),
+      targetMinutes: handoff.targetMinutes ?? 120,
       timeShaped: handoff.timeShaped,
       avoidHighways: handoff.avoidHighways,
-      tollPolicy: handoff.tollPolicy
-    })
+      tollPolicy: handoff.tollPolicy,
+      segmentProfiles: []
+    }, "Apply advisor ride", "advisor") !== "applied") return
+    setAddingVia(false)
+    setNotice({ kind: "success", message: `Planning ${ride.summary}` })
+    await handlePlan()
   }
 
   const handleWaypointDrag = (kind: "start" | "finish" | "via", index: number, point: Waypoint) => {
@@ -1274,17 +1345,10 @@ export function PlannerShell() {
   const handleClearRoute = () => {
     routeRequestGate.invalidate()
     cancelRideResearch()
-    usePlannerStore.getState().clearRoute()
+    const store = usePlannerStore.getState()
+    store.clearRoute()
     usePlannerStore.setState({ selectionSource: "automatic" })
-    setPlanMode("destination")
-    setTargetMinutes(120)
-    setTimeShaped(false)
-    setAvoidHighways(false)
-    setTollPolicy("allow-with-warning")
-    setAvoidAreas([])
-    setSegmentProfiles([])
     setAddingVia(false)
-    setSketchCorridor(null)
     setStopIdeas(null)
     setIntentStatus("idle")
     setIntentSummary(null)
@@ -1389,8 +1453,13 @@ export function PlannerShell() {
         avoidAreas={avoidAreas}
         onAvoidArea={(area) => {
           routeRequestGate.invalidate()
-          setAvoidAreas((areas) => [...areas, area].slice(0, 3))
-          setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} will be excluded when you replan.` })
+          const current = usePlannerStore.getState()
+          const outcome = current.editRide(
+            { avoidAreas: [...current.avoidAreas, area].slice(0, 3) },
+            `Avoided ${area.name ?? "an area"}`
+          )
+          setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} was added to this ride.` })
+          if (outcome === "applied") replanAfterIntentEdit()
         }}
         onRouteSculptCommit={() => handlePlan()}
           />
@@ -1433,8 +1502,12 @@ export function PlannerShell() {
             addingVia,
             segmentProfiles: activeSegmentProfiles,
             avoidAreaCount: avoidAreas.length,
-            canUndoRoutePoints,
-            canRedoRoutePoints,
+            canUndoRideChange,
+            canRedoRideChange,
+            lastChangeLabel: lastRideChange?.source === "undo" ? "Ride change undone"
+              : lastRideChange?.source === "redo" ? "Ride change redone"
+              : lastRideChange?.undoable ? lastRideChange.label : null,
+            hasUnappliedChange: Boolean(plan && committedRideIdentity && committedRideIdentity !== rideIdentity),
             planMode,
             targetMinutes,
             timeShaped,
@@ -1451,6 +1524,20 @@ export function PlannerShell() {
             providerHealth
           })}
           commands={{
+            rideHistory: {
+              // Whole-ride undo: one rider change, reversed as a whole, then
+              // re-answered — never a per-field setter with its own history.
+              onUndoRideChange: () => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().undoRideChange()
+                replanAfterRideHistoryMove()
+              },
+              onRedoRideChange: () => {
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().redoRideChange()
+                replanAfterRideHistoryMove()
+              }
+            },
             waypoint: {
               onPointChange: handlePointChange,
               onPointQueryChange: (id, query) => {
@@ -1487,16 +1574,6 @@ export function PlannerShell() {
                 usePlannerStore.getState().reverseRoutePoints(planMode)
                 void handlePlan()
               },
-              onUndoRoutePoints: () => {
-                routeRequestGate.invalidate()
-                usePlannerStore.getState().undoRoutePoints()
-                void handlePlan()
-              },
-              onRedoRoutePoints: () => {
-                routeRequestGate.invalidate()
-                usePlannerStore.getState().redoRoutePoints()
-                void handlePlan()
-              },
               onToggleViaLock: (index) => {
                 routeRequestGate.invalidate()
                 const current = usePlannerStore.getState()
@@ -1510,13 +1587,18 @@ export function PlannerShell() {
             },
             rideConfig: {
               onProfileChange: (nextProfile) => {
-                if (nextProfile === usePlannerStore.getState().profile) return
+                const current = usePlannerStore.getState()
+                if (nextProfile === current.profile) return
                 routeRequestGate.invalidate()
-                usePlannerStore.getState().setProfile(nextProfile)
+                current.setProfile(nextProfile)
+                replanAfterIntentEdit()
               },
               onBikeProfileChange: (nextBikeProfile) => {
+                const current = usePlannerStore.getState()
+                if (JSON.stringify(current.bikeProfile) === JSON.stringify(nextBikeProfile)) return
                 routeRequestGate.invalidate()
-                usePlannerStore.getState().setBikeProfile(nextBikeProfile)
+                current.setBikeProfile(nextBikeProfile)
+                replanAfterIntentEdit()
               },
               onCurvatureChange: (visible) => {
                 usePlannerStore.getState().setCurvatureVisible(visible)
@@ -1524,36 +1606,58 @@ export function PlannerShell() {
               },
               onAvoidHighwaysChange: (avoid) => {
                 routeRequestGate.invalidate()
-                setAvoidHighways(avoid)
+                const outcome = usePlannerStore.getState().editRide(
+                  { avoidHighways: avoid },
+                  avoid ? "Avoided highways" : "Allowed highways"
+                )
+                if (outcome === "applied") replanAfterIntentEdit()
               },
               onTollPolicyChange: (policy) => {
                 routeRequestGate.invalidate()
-                setTollPolicy(policy)
+                const outcome = usePlannerStore.getState().editRide(
+                  { tollPolicy: policy },
+                  policy === "avoid" ? "Avoided tolls" : "Allowed tolls"
+                )
+                if (outcome === "applied") replanAfterIntentEdit()
               },
               onPlanModeChange: (mode) => {
                 routeRequestGate.invalidate()
-                setPlanMode(mode)
+                // A loop ride has no destination, so switching to one clears
+                // it in the same change instead of leaving a finish point the
+                // rider can no longer see or edit. Undo puts it back.
+                const outcome = usePlannerStore.getState().editRide(
+                  mode === "loop" ? { mode, finish: null } : { mode },
+                  mode === "loop" ? "Switched to a loop ride" : "Switched to a destination ride"
+                )
                 setIntentSummary(null)
+                if (outcome === "applied") replanAfterIntentEdit()
               },
-              onTargetMinutesChange: (minutes) => {
+              onRideTimeChange: (minutes, shaped) => {
                 routeRequestGate.invalidate()
-                setTargetMinutes(minutes)
-              },
-              onTimeShapedChange: (shaped) => {
-                routeRequestGate.invalidate()
-                setTimeShaped(shaped)
+                const outcome = usePlannerStore.getState().editRide(
+                  { targetMinutes: minutes, timeShaped: shaped },
+                  shaped ? `Set ride time to ${minutes} min` : "Switched to the fastest route"
+                )
+                if (outcome === "applied") replanAfterIntentEdit()
               },
               onSegmentProfileChange: (index, nextProfile) => {
                 routeRequestGate.invalidate()
-                setSegmentProfiles((profiles) => {
-                  const next = normalizedSegmentProfiles(profiles, via.length + 1, profile)
-                  next[index] = nextProfile
-                  return next
-                })
+                const current = usePlannerStore.getState()
+                const segmentProfiles = normalizedSegmentProfiles(
+                  current.segmentProfiles, current.via.length + 1, current.profile
+                )
+                segmentProfiles[index] = nextProfile
+                const outcome = current.editRide({ segmentProfiles }, "Changed a leg's road feel")
+                if (outcome === "applied") replanAfterIntentEdit()
               },
               onRemoveAvoidArea: () => {
                 routeRequestGate.invalidate()
-                setAvoidAreas((areas) => areas.slice(0, -1))
+                const current = usePlannerStore.getState()
+                const outcome = current.editRide(
+                  { avoidAreas: current.avoidAreas.slice(0, -1) },
+                  "Removed an avoided area"
+                )
+                if (outcome === "applied") replanAfterIntentEdit()
               },
               onAddRoadLock: (lock) => {
                 routeRequestGate.invalidate()
@@ -1586,7 +1690,7 @@ export function PlannerShell() {
             },
             onClearRoute: handleClearRoute,
             onPlan: () => void handlePlan(),
-            onCancelPlanning: planningSession.cancel,
+            onCancelRideChange: planningSession.cancel,
             onRetryProviderHealth: providerHealth.retry,
             onUseCurrentLocation: () => void handleUseCurrentLocation(),
             onUseHome: useHome,
@@ -1700,10 +1804,11 @@ export function PlannerShell() {
           theme={navigation.theme}
           onThemeChange={(theme) => dispatchNavigation({ type: "set_theme", theme })}
           onSettingsChange={(settings) => {
-            const store = usePlannerStore.getState()
-            store.setProfile(settings.defaultProfile)
-            store.setBikeProfile(bikeProfileFromRiderSettings(settings))
-            setAvoidHighways(settings.defaultAvoidHighways)
+            usePlannerStore.getState().editRide({
+              profile: settings.defaultProfile,
+              bikeProfile: bikeProfileFromRiderSettings(settings),
+              avoidHighways: settings.defaultAvoidHighways
+            }, "Applied your rider settings", "settings")
           }}
           onOpenAdvancedSettings={() => {
             dispatchNavigation({ type: "close_overlay", overlay: "record" })

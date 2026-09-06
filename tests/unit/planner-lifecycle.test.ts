@@ -102,6 +102,38 @@ describe("planner lifecycle phase", () => {
     expect(state.status).toBe("error")
   })
 
+  it("does not report a cancellation when nothing was in flight", () => {
+    // Regression: the request gate invalidates on every ordinary ride edit,
+    // and React remounts the planner once in development, so cancelPlanning()
+    // ran against an idle planner routinely. Reporting "cancelled" there left
+    // the planner permanently claiming a lifecycle had been aborted, and the
+    // passive location seed — which reads the phase as "a rider action is in
+    // progress" — then refused to seed a start for the rest of the session.
+    const store = usePlannerStore.getState()
+    expect(usePlannerStore.getState().planningPhase).toBe("idle")
+
+    store.cancelPlanning()
+
+    expect(usePlannerStore.getState().planningPhase).toBe("idle")
+    expect(usePlannerStore.getState().planningStartedAt).toBeNull()
+  })
+
+  it("leaves a settled ride alone when an edit invalidates the request gate", () => {
+    const store = usePlannerStore.getState()
+    store.beginRouting()
+    store.setPlanningPhase("routing-primary")
+    store.applyPlan(plan("settled-route"))
+    store.setPlanningPhase("ready")
+    expect(usePlannerStore.getState().planningPhase).toBe("ready")
+
+    store.cancelPlanning()
+
+    const state = usePlannerStore.getState()
+    expect(state.planningPhase).toBe("ready")
+    expect(state.plan?.selectedRouteId).toBe("settled-route")
+    expect(state.pendingResultIdentity).toBeNull()
+  })
+
   it("does not get stuck reporting progress after a cancelled plan is retried", () => {
     // Regression: cancelPlanning() used to leave planningPhase permanently at
     // "cancelled", which every later setPlanningPhase("interpreting") call

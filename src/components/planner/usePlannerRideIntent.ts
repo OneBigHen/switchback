@@ -42,10 +42,6 @@ interface UsePlannerRideIntentOptions {
   segmentProfiles: RouteProfileId[]
   nextSeed(): number
   runTripPlan(request: TripPlanRequest): Promise<TripPlan | null>
-  setPlanMode(mode: PlanMode): void
-  setTargetMinutes(minutes: number): void
-  setTimeShaped(value: boolean): void
-  setAvoidHighways(value: boolean): void
   setStopIdeas(ideas: PlaceIdeasResult | null): void
   setResearchSources(sources: RideResearchSource[]): void
   setIntentStatus(status: RideIntentStatus): void
@@ -65,10 +61,6 @@ export function usePlannerRideIntent({
   segmentProfiles,
   nextSeed,
   runTripPlan,
-  setPlanMode,
-  setTargetMinutes,
-  setTimeShaped,
-  setAvoidHighways,
   setStopIdeas,
   setResearchSources,
   setIntentStatus,
@@ -135,15 +127,21 @@ export function usePlannerRideIntent({
 
       // Commit prompt-derived planner changes only after every required place
       // has resolved. A failed lookup must not erase the rider's current trip.
-      setPlanMode(nextMode)
-      setTargetMinutes(nextDuration)
-      setTimeShaped(nextTimeShaped)
-      setAvoidHighways(intent.avoidHighways)
-      if (intent.profile !== current.profile) current.setProfile(intent.profile)
-      current.clearVia()
-      if (resolved.start !== current.start) {
-        usePlannerStore.getState().setPoint("start", resolved.start)
-      }
+      //
+      // One prompt is one ride change: mode, duration, shaping, highways,
+      // road feel, stops and both endpoints land together as a single
+      // revision, so a single Undo takes the rider back to the ride they had
+      // before they asked — not back through eight half-applied fragments.
+      usePlannerStore.getState().editRide({
+        mode: nextMode,
+        targetMinutes: nextDuration,
+        timeShaped: nextTimeShaped,
+        avoidHighways: intent.avoidHighways,
+        profile: intent.profile as RouteProfileId,
+        via: [],
+        start: resolved.start,
+        ...(nextMode === "destination" && resolved.finish ? { finish: resolved.finish } : {})
+      }, `Planned "${prompt.trim().slice(0, 60)}"`)
       if (resolved.locationSource === "live") {
         try {
           savePlannerLocation(window.localStorage, resolved.start)
@@ -161,10 +159,6 @@ export function usePlannerRideIntent({
           message: `Couldn't get a live location, so this ride starts from ${sourceLabel}. Enable location access and plan again for an exact start.`
         })
       }
-      if (nextMode === "destination" && resolved.finish && resolved.finish !== current.finish) {
-        usePlannerStore.getState().setPoint("finish", resolved.finish)
-      }
-
       const request = buildRideTripRequest({
         mode: nextMode,
         start: usePlannerStore.getState().start,
@@ -243,5 +237,5 @@ export function usePlannerRideIntent({
       setIntentSummary(raw)
       onNotice({ kind: "warning", message: raw })
     }
-  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setAvoidHighways, setIntentStatus, setIntentSummary, setPlanMode, setResearchSources, setStopIdeas, setTargetMinutes, setTimeShaped, targetMinutes])
+  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setIntentStatus, setIntentSummary, setResearchSources, setStopIdeas, targetMinutes])
 }

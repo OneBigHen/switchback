@@ -9,6 +9,7 @@ import { usePlannerStore } from "@/stores/planner-store"
 
 type PlannerDeckCommandOverrides = Omit<Partial<PlannerDeckCommands>, "waypoint" | "rideConfig" | "intent"> & {
   waypoint?: Partial<PlannerDeckCommands["waypoint"]>
+  rideHistory?: Partial<PlannerDeckCommands["rideHistory"]>
   rideConfig?: Partial<PlannerDeckCommands["rideConfig"]>
   intent?: Partial<PlannerDeckCommands["intent"]>
 }
@@ -28,9 +29,14 @@ function viewModel(overrides: Partial<PlannerDeckViewModel> = {}): PlannerDeckVi
       armedPoint: null,
       via: [],
       addingVia: false,
-      canUndoRoutePoints: false,
-      canRedoRoutePoints: false,
       ...overrides.waypoint
+    },
+    rideHistory: {
+      canUndoRideChange: false,
+      canRedoRideChange: false,
+      lastChangeLabel: null,
+      hasUnappliedChange: false,
+      ...overrides.rideHistory
     },
     rideConfig: {
       planMode: "destination",
@@ -86,15 +92,17 @@ function commands(overrides: PlannerDeckCommandOverrides = {}): PlannerDeckComma
       onRemoveVia: vi.fn(),
       onMoveVia: vi.fn(),
       onReverseRoute: vi.fn(),
-      onUndoRoutePoints: vi.fn(),
-      onRedoRoutePoints: vi.fn(),
       onToggleViaLock: vi.fn(),
       ...overrides.waypoint
     },
+    rideHistory: {
+      onUndoRideChange: vi.fn(),
+      onRedoRideChange: vi.fn(),
+      ...overrides.rideHistory
+    },
     rideConfig: {
       onPlanModeChange: vi.fn(),
-      onTargetMinutesChange: vi.fn(),
-      onTimeShapedChange: vi.fn(),
+      onRideTimeChange: vi.fn(),
       onProfileChange: vi.fn(),
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
@@ -117,7 +125,7 @@ function commands(overrides: PlannerDeckCommandOverrides = {}): PlannerDeckComma
     },
     onClearRoute: vi.fn(),
     onPlan: vi.fn(),
-    onCancelPlanning: vi.fn(),
+    onCancelRideChange: vi.fn(),
     onOpenLibrary: vi.fn(),
     onStartFreeRide: vi.fn(),
     onUseCurrentLocation: vi.fn(),

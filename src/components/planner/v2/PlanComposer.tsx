@@ -29,8 +29,8 @@ export interface PlanComposerProps {
   armedPoint: PlannerPointId | null
   via: Waypoint[]
   addingVia: boolean
-  canUndoRoutePoints: boolean
-  canRedoRoutePoints: boolean
+  canUndoRideChange: boolean
+  canRedoRideChange: boolean
   profile: RouteProfileId
   bikeProfile: BikeProfile
   curvatureVisible: boolean
@@ -52,7 +52,7 @@ export interface PlanComposerProps {
   error: PlannerError | null
   editing: boolean
   onEditingChange(editing: boolean): void
-  onCancelPlanning(): void
+  onCancelRideChange(): void
   onPointChange(id: PlannerPointId, point: Waypoint): void
   onPointQueryChange(id: PlannerPointId, query: string): void
   onArm(id: PlannerPointId): void
@@ -61,16 +61,15 @@ export interface PlanComposerProps {
   onRemoveVia(index: number): void
   onMoveVia(fromIndex: number, toIndex: number): void
   onReverseRoute(): void
-  onUndoRoutePoints(): void
-  onRedoRoutePoints(): void
+  onUndoRideChange(): void
+  onRedoRideChange(): void
   onToggleViaLock(index: number): void
   onProfileChange(profile: RouteProfileId): void
   onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTollPolicyChange(policy: TollPolicy): void
-  onTargetMinutesChange(minutes: number): void
-  onTimeShapedChange(shaped: boolean): void
+  onRideTimeChange(minutes: number, shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onOpenRoadLocks(): void
   onRemoveAvoidArea(): void
@@ -105,8 +104,8 @@ export function PlanComposer({
   armedPoint,
   via,
   addingVia,
-  canUndoRoutePoints,
-  canRedoRoutePoints,
+  canUndoRideChange,
+  canRedoRideChange,
   profile,
   bikeProfile,
   curvatureVisible,
@@ -128,7 +127,7 @@ export function PlanComposer({
   error,
   editing,
   onEditingChange,
-  onCancelPlanning,
+  onCancelRideChange,
   onPointChange,
   onPointQueryChange,
   onArm,
@@ -137,16 +136,15 @@ export function PlanComposer({
   onRemoveVia,
   onMoveVia,
   onReverseRoute,
-  onUndoRoutePoints,
-  onRedoRoutePoints,
+  onUndoRideChange,
+  onRedoRideChange,
   onToggleViaLock,
   onProfileChange,
   onBikeProfileChange,
   onCurvatureChange,
   onAvoidHighwaysChange,
   onTollPolicyChange,
-  onTargetMinutesChange,
-  onTimeShapedChange,
+  onRideTimeChange,
   onSegmentProfileChange,
   onOpenRoadLocks,
   onRemoveAvoidArea,
@@ -195,7 +193,7 @@ export function PlanComposer({
         <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
           <SpinnerGap className="spin" aria-hidden="true" />
           <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
-          <button type="button" aria-label="Cancel planning" onClick={onCancelPlanning}>Cancel</button>
+          <button type="button" aria-label="Cancel ride change" onClick={onCancelRideChange}>Cancel</button>
         </div>
       ) : null}
 
@@ -277,8 +275,8 @@ export function PlanComposer({
             armedPoint={armedPoint}
             via={via}
             addingVia={addingVia}
-            canUndoRoutePoints={canUndoRoutePoints}
-            canRedoRoutePoints={canRedoRoutePoints}
+            canUndoRideChange={canUndoRideChange}
+            canRedoRideChange={canRedoRideChange}
             avoidAreaCount={avoidAreaCount}
             roadLockCount={roadLockCount}
             savedCount={savedCount}
@@ -288,8 +286,7 @@ export function PlanComposer({
             onCurvatureChange={onCurvatureChange}
             onAvoidHighwaysChange={onAvoidHighwaysChange}
             onTollPolicyChange={onTollPolicyChange}
-            onTimeShapedChange={onTimeShapedChange}
-            onTargetMinutesChange={onTargetMinutesChange}
+            onRideTimeChange={onRideTimeChange}
             onSegmentProfileChange={onSegmentProfileChange}
             onPointChange={onPointChange}
             onPointQueryChange={onPointQueryChange}
@@ -299,8 +296,8 @@ export function PlanComposer({
             onRemoveVia={onRemoveVia}
             onMoveVia={onMoveVia}
             onReverseRoute={onReverseRoute}
-            onUndoRoutePoints={onUndoRoutePoints}
-            onRedoRoutePoints={onRedoRoutePoints}
+            onUndoRideChange={onUndoRideChange}
+            onRedoRideChange={onRedoRideChange}
             onToggleViaLock={onToggleViaLock}
             onOpenRoadLocks={onOpenRoadLocks}
             onRemoveAvoidArea={onRemoveAvoidArea}

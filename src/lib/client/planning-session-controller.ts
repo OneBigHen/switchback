@@ -1,7 +1,6 @@
 import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { createLatestRequestGate } from "@/lib/client/latest-request"
 import {
-  cancelRoutingRequest,
   runLatestTripPlan,
   type PlannerRouteLifecycle
 } from "@/lib/client/trip-planning-coordinator"
@@ -25,23 +24,35 @@ export function createPlanningSessionController({
   requestPlan
 }: PlanningSessionControllerOptions): PlanningSessionController {
   const baseGate = createLatestRequestGate()
+  let activeController: AbortController | null = null
   const invalidate = () => {
     baseGate.invalidate()
-    cancelRoutingRequest()
+    activeController?.abort()
+    activeController = null
     getPlanner().cancelPlanning()
   }
   const gate: LatestRequestGate = { ...baseGate, invalidate }
 
   return {
     gate,
-    run: (request, onWarning) => runLatestTripPlan({
-      request,
-      gate,
-      getPlanner,
-      requestPlan,
-      onWarning
-    }),
+    run: (request, onWarning) => {
+      // Fence callbacks first: abort listeners may run synchronously.
+      baseGate.invalidate()
+      activeController?.abort()
+      activeController = new AbortController()
+      return runLatestTripPlan({
+        request,
+        gate,
+        getPlanner,
+        requestPlan,
+        onWarning,
+        controller: activeController
+      })
+    },
     invalidate,
-    cancel: invalidate
+    cancel: () => {
+      invalidate()
+      getPlanner().cancelRideUpdate?.()
+    }
   }
 }

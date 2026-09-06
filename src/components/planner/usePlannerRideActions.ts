@@ -1,18 +1,14 @@
 import { useCallback } from "react"
 import { buildRoadMatchRequest } from "@/lib/planner/road-match-request"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
-import type { AvoidArea, PlannedRoute, RouteProfileId } from "@/lib/routing/types"
+import type { PlannedRoute } from "@/lib/routing/types"
 import type { SavedRoute } from "@/lib/storage/route-library"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore } from "@/stores/planner-store"
-import type { PlanMode } from "./PlannerDeck"
 
 interface UsePlannerRideActionsOptions {
   runTripPlan(request: TripPlanRequest): Promise<TripPlan | null>
   invalidateRequests(): void
-  setPlanMode(mode: PlanMode): void
-  setAvoidAreas(areas: AvoidArea[]): void
-  setSegmentProfiles(profiles: RouteProfileId[]): void
   setRideOriginalRoute(route: PlannedRoute): void
   onNotice(notice: { kind: "success" | "warning"; message: string }): void
 }
@@ -20,9 +16,6 @@ interface UsePlannerRideActionsOptions {
 export function usePlannerRideActions({
   runTripPlan,
   invalidateRequests,
-  setPlanMode,
-  setAvoidAreas,
-  setSegmentProfiles,
   setRideOriginalRoute,
   onNotice
 }: UsePlannerRideActionsOptions) {
@@ -30,18 +23,23 @@ export function usePlannerRideActions({
     const match = buildRoadMatchRequest(route)
     const store = usePlannerStore.getState()
     invalidateRequests()
-    store.replaceRoutePoints(match.points)
-    store.setProfile(route.profile)
-    setPlanMode("destination")
-    setAvoidAreas(route.avoidAreas ?? [])
-    setSegmentProfiles([])
+    // Adopting a recorded track is one ride change, not five: points, road
+    // feel, mode and constraints move together or the planner would briefly
+    // hold a ride nobody asked for.
+    store.editRide({
+      ...match.points,
+      mode: "destination",
+      profile: route.profile,
+      avoidAreas: route.avoidAreas ?? [],
+      segmentProfiles: []
+    }, "Followed a recorded track", "import")
     const planned = await runTripPlan(match.request)
     const matched = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
     if (!matched || matched.instructions.length === 0) {
       throw new Error("This track could not be converted into turn-by-turn directions.")
     }
     return matched
-  }, [invalidateRequests, runTripPlan, setAvoidAreas, setPlanMode, setSegmentProfiles])
+  }, [invalidateRequests, runTripPlan])
 
   const activateRide = useCallback((route: PlannedRoute) => {
     setRideOriginalRoute(route)

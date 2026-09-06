@@ -320,13 +320,24 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(routeRequest).toMatchObject({ profile: "twisty", compare: false, candidateSet: "primary" })
   await page.getByRole("button", { name: "Select Twisty route", exact: true }).click()
+  // Route choice is the primary task; the dense preparation surface opens only
+  // when the rider asks for it, from the candidate's own Details control.
+  await page.getByRole("button", { name: "Details for Twisty route" }).click()
   const showRouteDetails = page.getByRole("button", { name: /Show route details/i })
   if (await showRouteDetails.isVisible().catch(() => false)) await showRouteDetails.click()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
   await expect(page.getByText("Clear and mild")).toBeVisible()
   await expectInsideViewport(page, page.getByRole("button", { name: /Start .* route/i }).last())
 
+  // The details workspace replaces the candidate rail, so choosing a different
+  // route means returning to route options first — the same path a rider takes.
+  await page.getByRole("button", { name: "Back to route choices" }).click()
   await page.getByRole("button", { name: "Select Quick route", exact: true }).click()
+  // Export and Save are preparation actions, so they live in the same details
+  // workspace the rider opens for the candidate they picked.
+  await page.getByRole("button", { name: "Details for Quick route" }).click()
+  const quickRouteDetails = page.getByRole("button", { name: /Show route details/i })
+  if (await quickRouteDetails.isVisible().catch(() => false)) await quickRouteDetails.click()
   const downloadPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "Export GPX" }).click()
   await expect((await downloadPromise).suggestedFilename()).toMatch(/quick-route\.gpx$/)
@@ -390,6 +401,10 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   })
 
   await page.getByRole("button", { name: "Exit ride mode" }).click()
+  // Back in the planner. With a route chosen the composer stays collapsed
+  // behind "Edit route", so reopen it to reach the ride-request form.
+  await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
+  await openRouteEditor(page)
   await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
 })
 
@@ -481,7 +496,9 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   await expect(page.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
   const options = page.getByRole("button", { name: "Ride options", exact: true })
   if (await options.getAttribute("aria-expanded") === "true") await options.click()
-  await page.getByRole("button", { name: /Show route details/i }).click()
+  await page.getByRole("button", { name: /^Details for /i }).first().click()
+  const timeboxDetails = page.getByRole("button", { name: /Show route details/i })
+  if (await timeboxDetails.isVisible().catch(() => false)) await timeboxDetails.click()
   await expect(page.getByRole("button", { name: /Start .* route/i })).toBeVisible()
   await expect(page.getByText(/72% non-paved mix/)).toBeVisible()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
@@ -630,8 +647,11 @@ test("draws a rough route on the map and snaps it into editable route points", a
   await page.mouse.up()
 
   await page.getByRole("button", { name: "Finish drawing" }).click()
-  await expect(surface).toBeHidden()
+  // Assert the transient confirmation before the slower structural check: the
+  // success notice self-dismisses after a few seconds, so checking it after an
+  // unrelated variable-length wait races the dismissal rather than the feature.
   await expect(page.getByText(/read your line as a corridor/i)).toBeVisible()
+  await expect(surface).toBeHidden()
   await expect.poll(() => routeRequests[0]?.points?.length ?? 0).toBeGreaterThan(3)
   const sketchRequest = routeRequests[0]
   expect(sketchRequest?.points?.length).toBeLessThanOrEqual(8)
@@ -653,12 +673,12 @@ test("draws a rough route on the map and snaps it into editable route points", a
   expect(routeRequests[1]?.points?.[1]).toMatchObject({ label: "Sketch stop 2" })
 
   await openRouteEditor(page)
-  await page.getByRole("button", { name: "Undo route edit" }).click()
+  await page.getByRole("button", { name: "Undo ride change" }).click()
   await expect.poll(() => routeRequests.length).toBe(3)
   expect(routeRequests[2]?.points?.[1]).toMatchObject({ label: "Sketch stop 1" })
 
   await openRouteEditor(page)
-  await page.getByRole("button", { name: "Redo route edit" }).click()
+  await page.getByRole("button", { name: "Redo ride change" }).click()
   await expect.poll(() => routeRequests.length).toBe(4)
   expect(routeRequests[3]?.points?.[1]).toMatchObject({ label: "Sketch stop 2" })
 

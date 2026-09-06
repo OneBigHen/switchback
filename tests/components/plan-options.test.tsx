@@ -9,12 +9,14 @@ import { usePlannerStore } from "@/stores/planner-store"
 
 type PlannerDeckCommandOverrides = Omit<Partial<PlannerDeckCommands>, "waypoint" | "rideConfig" | "intent"> & {
   waypoint?: Partial<PlannerDeckCommands["waypoint"]>
+  rideHistory?: Partial<PlannerDeckCommands["rideHistory"]>
   rideConfig?: Partial<PlannerDeckCommands["rideConfig"]>
   intent?: Partial<PlannerDeckCommands["intent"]>
 }
 
 type PlannerDeckViewModelOverrides = Omit<Partial<PlannerDeckViewModel>, "waypoint" | "rideConfig" | "intent" | "ui" | "lifecycle"> & {
   waypoint?: Partial<PlannerDeckViewModel["waypoint"]>
+  rideHistory?: Partial<PlannerDeckViewModel["rideHistory"]>
   rideConfig?: Partial<PlannerDeckViewModel["rideConfig"]>
   intent?: Partial<PlannerDeckViewModel["intent"]>
   ui?: Partial<PlannerDeckViewModel["ui"]>
@@ -36,8 +38,12 @@ function viewModel(): PlannerDeckViewModel {
       armedPoint: null,
       via: [{ lat: 40.4, lon: -76.7, label: "Overlook" }],
       addingVia: false,
-      canUndoRoutePoints: true,
-      canRedoRoutePoints: false
+    },
+    rideHistory: {
+      canUndoRideChange: true,
+      canRedoRideChange: false,
+      lastChangeLabel: null,
+      hasUnappliedChange: false
     },
     rideConfig: {
       planMode: "destination",
@@ -88,14 +94,15 @@ function commands(overrides: PlannerDeckCommandOverrides = {}): PlannerDeckComma
       onRemoveVia: vi.fn(),
       onMoveVia: vi.fn(),
       onReverseRoute: vi.fn(),
-      onUndoRoutePoints: vi.fn(),
-      onRedoRoutePoints: vi.fn(),
       onToggleViaLock: vi.fn(),
+    },
+    rideHistory: {
+      onUndoRideChange: vi.fn(),
+      onRedoRideChange: vi.fn(),
     },
     rideConfig: {
       onPlanModeChange: vi.fn(),
-      onTargetMinutesChange: vi.fn(),
-      onTimeShapedChange: vi.fn(),
+      onRideTimeChange: vi.fn(),
       onProfileChange: vi.fn(),
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
@@ -116,7 +123,7 @@ function commands(overrides: PlannerDeckCommandOverrides = {}): PlannerDeckComma
     },
     onClearRoute: vi.fn(),
     onPlan: vi.fn(),
-    onCancelPlanning: vi.fn(),
+    onCancelRideChange: vi.fn(),
     onOpenLibrary: vi.fn()
   }
   return {
@@ -156,8 +163,8 @@ function renderOptions(
               initialCommands.rideConfig.onPlanModeChange(nextMode)
               setPlanMode(nextMode)
             },
-            onTargetMinutesChange: (minutes) => {
-              initialCommands.rideConfig.onTargetMinutesChange(minutes)
+            onRideTimeChange: (minutes: number, shaped: boolean) => {
+              initialCommands.rideConfig.onRideTimeChange(minutes, shaped)
               setTargetMinutes(minutes)
             }
           }
@@ -232,12 +239,13 @@ describe("V2 progressive Ride options", () => {
   it("keeps Ride options values mounted and editable without submitting a route", async () => {
     const user = userEvent.setup()
     const onPlan = vi.fn()
-    const onTargetMinutesChange = vi.fn()
-    renderOptions({ rideConfig: { planMode: "loop" } }, { onPlan, rideConfig: { onTargetMinutesChange } })
+    const onRideTimeChange = vi.fn()
+    renderOptions({ rideConfig: { planMode: "loop" } }, { onPlan, rideConfig: { onRideTimeChange } })
 
     await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "90 min" }))
-    expect(onTargetMinutesChange).toHaveBeenCalledWith(90)
+    // One preset tap is one ride change, not a duration edit plus a shaping edit.
+    expect(onRideTimeChange).toHaveBeenCalledExactlyOnceWith(90, true)
     expect(onPlan).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole("button", { name: "Ride options" }))
@@ -246,10 +254,10 @@ describe("V2 progressive Ride options", () => {
     expect(screen.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
   })
 
-  it("offers a Custom loop duration inside Ride character", async () => {
+  it("commits a custom loop duration once the rider is done typing it", async () => {
     const user = userEvent.setup()
-    const onTargetMinutesChange = vi.fn()
-    renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onTargetMinutesChange } })
+    const onRideTimeChange = vi.fn()
+    renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onRideTimeChange } })
 
     expect(screen.queryByRole("button", { name: "Custom" })).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Ride options" }))
@@ -260,16 +268,39 @@ describe("V2 progressive Ride options", () => {
     await user.clear(input)
     await user.type(input, "150")
 
-    expect(onTargetMinutesChange).toHaveBeenLastCalledWith(150)
+    // "1" and "15" are not durations the rider asked for, so they never become
+    // ride changes or route requests.
+    expect(onRideTimeChange).not.toHaveBeenCalled()
+    await user.tab()
+    expect(onRideTimeChange).toHaveBeenCalledExactlyOnceWith(150, true)
+  })
+
+  it("restores the committed duration when a custom entry is left out of range", async () => {
+    const user = userEvent.setup()
+    const onRideTimeChange = vi.fn()
+    renderOptions(
+      { rideConfig: { planMode: "loop", targetMinutes: 120 } },
+      { rideConfig: { onRideTimeChange } }
+    )
+
+    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    const rideCharacter = screen.getByRole("group", { name: "Ride character" })
+    await user.click(within(rideCharacter).getByRole("button", { name: "Custom" }))
+    const input = screen.getByRole("spinbutton", { name: "Custom loop duration in minutes" })
+    await user.clear(input)
+    await user.type(input, "5")
+    await user.tab()
+
+    expect(onRideTimeChange).not.toHaveBeenCalled()
+    expect(input).toHaveValue(120)
   })
 
   it("keeps a destination ride on Fastest by default and opts into a time target on demand", async () => {
     const user = userEvent.setup()
-    const onTimeShapedChange = vi.fn()
-    const onTargetMinutesChange = vi.fn()
+    const onRideTimeChange = vi.fn()
     renderOptions(
       { rideConfig: { planMode: "destination", timeShaped: false } },
-      { rideConfig: { onTimeShapedChange, onTargetMinutesChange } }
+      { rideConfig: { onRideTimeChange } }
     )
 
     await user.click(screen.getByRole("button", { name: "Ride options" }))
@@ -277,10 +308,11 @@ describe("V2 progressive Ride options", () => {
     expect(within(rideCharacter).getByRole("button", { name: "Fastest" })).toHaveAttribute("aria-pressed", "true")
 
     await user.click(within(rideCharacter).getByRole("button", { name: "1 hr" }))
-    expect(onTimeShapedChange).toHaveBeenLastCalledWith(true)
-    expect(onTargetMinutesChange).toHaveBeenLastCalledWith(60)
+    expect(onRideTimeChange).toHaveBeenLastCalledWith(60, true)
 
+    // Switching back to Fastest turns off time shaping but keeps the duration
+    // the rider last chose, so re-enabling a target does not lose it.
     await user.click(within(rideCharacter).getByRole("button", { name: "Fastest" }))
-    expect(onTimeShapedChange).toHaveBeenLastCalledWith(false)
+    expect(onRideTimeChange).toHaveBeenLastCalledWith(60, false)
   })
 })

@@ -8,6 +8,7 @@ import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckVie
 import { RouteComparison } from "./RouteComparison"
 import { RouteDecisionRail } from "./v2/RouteDecisionRail"
 import { RideAdvisor } from "./v2/RideAdvisor"
+import { RideIntentFeedback } from "./RideIntentFeedback"
 
 type RouteComparisonProps = ComponentProps<typeof RouteComparison>
 
@@ -90,6 +91,10 @@ export function PlannerComposition({
           onOpenDetails={openDetails}
         />
       ) : null}
+
+      {/* Route choice stays the primary task after a plan (ADR 0013), so the
+          ride summary reports underneath it rather than pushing it down. */}
+      <RideIntentFeedback viewModel={viewModel} commands={commands} />
 
       {onAddAdvisorStop && !showingDetails ? (
         <RideAdvisor

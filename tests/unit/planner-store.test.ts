@@ -82,6 +82,33 @@ describe("planner store", () => {
     })
   })
 
+  it("preserves an explicit route selection when alternatives merge", () => {
+    const secondary = { ...route, id: "quick-1", name: "Quick route", profile: "quick" as const }
+    const alternative = { ...route, id: "scenic-2", name: "Scenic alternative", profile: "scenic" as const }
+    usePlannerStore.getState().applyPlan({
+      selectedRouteId: route.id,
+      routes: [route, secondary],
+      warnings: []
+    })
+    usePlannerStore.getState().selectRoute(secondary.id)
+
+    usePlannerStore.getState().mergeAlternatives({
+      selectedRouteId: route.id,
+      routes: [alternative],
+      warnings: []
+    })
+
+    expect(usePlannerStore.getState()).toMatchObject({
+      selectedRouteId: secondary.id,
+      selectionSource: "user"
+    })
+    expect(usePlannerStore.getState().plan?.routes.map(({ id }) => id)).toEqual([
+      route.id,
+      secondary.id,
+      alternative.id
+    ])
+  })
+
   it("treats a new plan's provider-chosen route as automatic again", () => {
     usePlannerStore.getState().selectRoute("twisty-1")
     const nextPlan = {
@@ -96,17 +123,24 @@ describe("planner store", () => {
     })
   })
 
-  it("clears stale coordinates and results as soon as waypoint text is edited", () => {
+  it("keeps the committed point and result while waypoint text is only being typed", () => {
+    const finish = { lat: 40.3643, lon: -76.9513, label: "Original destination" }
+    usePlannerStore.getState().setPoint("finish", finish)
     usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
+    const beforePlan = before.plan
+
     usePlannerStore.getState().setPointQuery("finish", "A different destination")
 
     expect(usePlannerStore.getState()).toMatchObject({
-      finish: null,
+      finish,
       finishQuery: "A different destination",
-      plan: null,
-      selectedRouteId: null,
-      status: "idle"
+      selectedRouteId: route.id
     })
+    expect(usePlannerStore.getState().plan).toBe(beforePlan)
+    expect(usePlannerStore.getState().getIntentIdentity()).toBe(beforeIdentity)
+    expect(usePlannerStore.getState().rideHistory.past).toHaveLength(before.rideHistory.past.length)
   })
 
   it("atomically replaces every route point and clears a stale destination for loops", () => {
@@ -126,16 +160,20 @@ describe("planner store", () => {
     })
   })
 
-  it("invalidates old route results when the rider changes profile", () => {
+  it("preserves the committed route while a profile edit creates a new intent revision", () => {
     usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
     usePlannerStore.getState().setProfile("adventure")
 
     expect(usePlannerStore.getState()).toMatchObject({
       profile: "adventure",
-      plan: null,
-      selectedRouteId: null,
-      status: "idle"
+      selectedRouteId: route.id
     })
+    expect(usePlannerStore.getState().plan).toBe(before.plan)
+    expect(usePlannerStore.getState().getIntentIdentity()).not.toBe(beforeIdentity)
+    expect(usePlannerStore.getState().rideHistory.past).toHaveLength(before.rideHistory.past.length + 1)
+    expect(usePlannerStore.getState().rideHistory.past.at(-1)?.intent.profile).toBe(before.profile)
   })
 
   it("keeps the previous comparison visible (dimmed) while a new route is being built", () => {
@@ -151,18 +189,28 @@ describe("planner store", () => {
     })
   })
 
-  it("clears all route inputs, results, and edit history for a new ride", () => {
+  it("clears the whole intent while keeping the clear undoable", () => {
     usePlannerStore.getState().replaceRoutePoints({
       start: { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
       finish: { lat: 39.8309, lon: -77.2311, label: "Gettysburg" },
       via: [{ lat: 40.4, lon: -76.7, label: "Overlook" }]
     })
+    usePlannerStore.getState().setProfile("adventure")
     usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
+    const beforeIntent = {
+      start: before.start,
+      finish: before.finish,
+      via: before.via,
+      profile: before.profile
+    }
 
     const state = usePlannerStore.getState() as typeof usePlannerStore.getState extends () => infer T
       ? T & { clearRoute(): void }
       : never
     state.clearRoute()
+
 
     expect(usePlannerStore.getState()).toMatchObject({
       start: null,
@@ -175,29 +223,44 @@ describe("planner store", () => {
       selectedRouteId: null,
       status: "idle",
       error: null,
-      routePointPast: [],
-      routePointFuture: [],
-      canUndoRoutePoints: false,
-      canRedoRoutePoints: false
+      canUndoRideChange: true,
+      canRedoRideChange: false
     })
+    expect(usePlannerStore.getState().getIntentIdentity()).not.toBe(beforeIdentity)
+    expect(usePlannerStore.getState().rideHistory.past.at(-1)?.intent).toMatchObject({
+      start: before.start,
+      finish: before.finish,
+      via: before.via,
+      profile: before.profile
+    })
+
+    state.undoRideChange()
+    expect(usePlannerStore.getState()).toMatchObject(beforeIntent)
+    expect(usePlannerStore.getState().plan).toBeNull()
+    expect(usePlannerStore.getState().canRedoRideChange).toBe(true)
+    expect(usePlannerStore.getState().getIntentIdentity()).not.toBe(beforeIdentity)
   })
 
-  it("adds, drags, and removes shaping waypoints while invalidating stale routes", () => {
+  it("adds, drags, and removes shaping waypoints while preserving the committed route", () => {
     usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
     usePlannerStore.getState().addVia({ lat: 40.4, lon: -76.7, label: "Gravel connector" })
     usePlannerStore.getState().updateVia(0, { lat: 40.41, lon: -76.71, label: "Dragged stop" })
 
     expect(usePlannerStore.getState()).toMatchObject({
       via: [{ lat: 40.41, lon: -76.71, label: "Dragged stop" }],
-      plan: null,
-      status: "idle"
+      selectedRouteId: route.id
     })
+    expect(usePlannerStore.getState().plan).toBe(before.plan)
+    expect(usePlannerStore.getState().getIntentIdentity()).not.toBe(beforeIdentity)
 
     usePlannerStore.getState().removeVia(0)
     expect(usePlannerStore.getState().via).toEqual([])
+    expect(usePlannerStore.getState().plan).toBe(before.plan)
   })
 
-  it("keeps bounded route-point history and supports undo and redo", () => {
+  it("keeps bounded ride history and supports undo and redo", () => {
     const gravel = { lat: 40.4, lon: -76.7, label: "Gravel connector" }
     const overlook = { lat: 40.5, lon: -76.6, label: "Overlook" }
 
@@ -207,23 +270,22 @@ describe("planner store", () => {
 
     expect(usePlannerStore.getState()).toMatchObject({
       via: [overlook, gravel],
-      canUndoRoutePoints: true,
-      canRedoRoutePoints: false
+      canUndoRideChange: true,
+      canRedoRideChange: false
     })
 
-    usePlannerStore.getState().undoRoutePoints()
+    usePlannerStore.getState().undoRideChange()
     expect(usePlannerStore.getState()).toMatchObject({
       via: [gravel, overlook],
-      canUndoRoutePoints: true,
-      canRedoRoutePoints: true,
-      plan: null,
+      canUndoRideChange: true,
+      canRedoRideChange: true,
       status: "idle"
     })
 
-    usePlannerStore.getState().redoRoutePoints()
+    usePlannerStore.getState().redoRideChange()
     expect(usePlannerStore.getState()).toMatchObject({
       via: [overlook, gravel],
-      canRedoRoutePoints: false
+      canRedoRideChange: false
     })
   })
 
@@ -242,7 +304,7 @@ describe("planner store", () => {
       via: [{ label: "Second" }, { label: "First" }]
     })
 
-    usePlannerStore.getState().undoRoutePoints()
+    usePlannerStore.getState().undoRideChange()
     expect(usePlannerStore.getState()).toMatchObject({
       start: originalStart,
       finish: originalFinish,
@@ -256,8 +318,76 @@ describe("planner store", () => {
     expect(usePlannerStore.getState()).toMatchObject({
       start: { label: "Current location" },
       finish: null,
-      routePointPast: [],
-      canUndoRoutePoints: false
+      canUndoRideChange: false
+    })
+  })
+
+  it("refuses a location seed once the rider has any ride history to diverge from", () => {
+    usePlannerStore.getState().editRide({ targetMinutes: 90 }, "Longer ride")
+    usePlannerStore.getState().undoRideChange()
+    const undone = usePlannerStore.getState()
+    expect(undone.start).toBeNull()
+    expect(undone.canUndoRideChange).toBe(false)
+    expect(undone.canRedoRideChange).toBe(true)
+
+    usePlannerStore.getState().seedCurrentLocation({ lat: 40.27, lon: -76.88, label: "Current location" })
+
+    // Seeding here would advance the identity and cut the redo branch with a
+    // GPS callback the rider never asked for.
+    const after = usePlannerStore.getState()
+    expect(after.start).toBeNull()
+    expect(after.getIntentIdentity()).toBe(undone.getIntentIdentity())
+    expect(after.canRedoRideChange).toBe(true)
+  })
+
+  it("starts a new ride without inheriting the old ride's committed answer", () => {
+    usePlannerStore.getState().setPoint("start", { lat: 40.2732, lon: -76.8867, label: "Harrisburg" })
+    usePlannerStore.getState().applyPlan(plan)
+    expect(usePlannerStore.getState().committedRide).not.toBeNull()
+
+    usePlannerStore.getState().clearRoute()
+
+    expect(usePlannerStore.getState()).toMatchObject({
+      committedRide: null,
+      resultIdentity: null,
+      pendingResultIdentity: null,
+      selectionSource: "automatic",
+      isRecalculating: false
+    })
+  })
+
+  it("clears a committed destination when the rider empties the field", () => {
+    const finish = { lat: 40.3643, lon: -76.9513, label: "Original destination" }
+    usePlannerStore.getState().setPoint("finish", finish)
+    const before = usePlannerStore.getState().getIntentIdentity()
+
+    usePlannerStore.getState().setPointQuery("finish", "  ")
+
+    const cleared = usePlannerStore.getState()
+    expect(cleared.finish).toBeNull()
+    expect(cleared.finishQuery).toBe("")
+    expect(cleared.getIntentIdentity()).not.toBe(before)
+    // Undoing puts the destination back rather than leaving the rider to
+    // retype it.
+    usePlannerStore.getState().undoRideChange()
+    expect(usePlannerStore.getState().finish).toEqual(finish)
+  })
+
+  it("drops a loop ride's destination in the same change that makes it a loop", () => {
+    usePlannerStore.getState().replaceRoutePoints({
+      start: { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
+      finish: { lat: 39.8309, lon: -77.2311, label: "Gettysburg" },
+      via: []
+    })
+
+    usePlannerStore.getState().editRide({ mode: "loop", finish: null }, "Switched to a loop ride")
+
+    expect(usePlannerStore.getState()).toMatchObject({ mode: "loop", finish: null, finishQuery: "" })
+    expect(usePlannerStore.getState().rideHistory.past).toHaveLength(2)
+    usePlannerStore.getState().undoRideChange()
+    expect(usePlannerStore.getState()).toMatchObject({
+      mode: "destination",
+      finish: { label: "Gettysburg" }
     })
   })
 
@@ -276,7 +406,7 @@ describe("planner store", () => {
       ]
     })
 
-    usePlannerStore.getState().undoRoutePoints()
+    usePlannerStore.getState().undoRideChange()
     expect(usePlannerStore.getState()).toMatchObject(original)
   })
 })

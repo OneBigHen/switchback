@@ -64,8 +64,12 @@ function defaultViewModel(): PlannerDeckViewModel {
       armedPoint: null,
       via: [],
       addingVia: false,
-      canUndoRoutePoints: false,
-      canRedoRoutePoints: false
+    },
+    rideHistory: {
+      canUndoRideChange: false,
+      canRedoRideChange: false,
+      lastChangeLabel: null,
+      hasUnappliedChange: false
     },
     rideConfig: {
       planMode: "destination",
@@ -116,14 +120,15 @@ function defaultCommands(): PlannerDeckCommands {
       onRemoveVia: vi.fn(),
       onMoveVia: vi.fn(),
       onReverseRoute: vi.fn(),
-      onUndoRoutePoints: vi.fn(),
-      onRedoRoutePoints: vi.fn(),
       onToggleViaLock: vi.fn()
+    },
+    rideHistory: {
+      onUndoRideChange: vi.fn(),
+      onRedoRideChange: vi.fn(),
     },
     rideConfig: {
       onPlanModeChange: vi.fn(),
-      onTargetMinutesChange: vi.fn(),
-      onTimeShapedChange: vi.fn(),
+      onRideTimeChange: vi.fn(),
       onProfileChange: vi.fn(),
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
@@ -144,7 +149,7 @@ function defaultCommands(): PlannerDeckCommands {
     },
     onClearRoute: vi.fn(),
     onPlan: vi.fn(),
-    onCancelPlanning: vi.fn(),
+    onCancelRideChange: vi.fn(),
     onOpenLibrary: vi.fn(),
     onUseCurrentLocation: vi.fn()
   }
@@ -154,6 +159,7 @@ interface RenderDeckOverrides {
   children?: ReactNode
   vm?: Partial<{
     waypoint: Partial<PlannerDeckViewModel["waypoint"]>
+    rideHistory: Partial<PlannerDeckViewModel["rideHistory"]>
     rideConfig: Partial<PlannerDeckViewModel["rideConfig"]>
     intent: Partial<PlannerDeckViewModel["intent"]>
     ui: Partial<PlannerDeckViewModel["ui"]>
@@ -162,11 +168,12 @@ interface RenderDeckOverrides {
   }>
   cmds?: Partial<{
     waypoint: Partial<PlannerDeckCommands["waypoint"]>
+    rideHistory: Partial<PlannerDeckCommands["rideHistory"]>
     rideConfig: Partial<PlannerDeckCommands["rideConfig"]>
     intent: Partial<PlannerDeckCommands["intent"]>
     onClearRoute: PlannerDeckCommands["onClearRoute"]
     onPlan: PlannerDeckCommands["onPlan"]
-    onCancelPlanning: PlannerDeckCommands["onCancelPlanning"]
+    onCancelRideChange: PlannerDeckCommands["onCancelRideChange"]
     onOpenLibrary: PlannerDeckCommands["onOpenLibrary"]
     onUseHome: PlannerDeckCommands["onUseHome"]
     onSaveHome: PlannerDeckCommands["onSaveHome"]
@@ -183,6 +190,7 @@ function renderDeck(overrides: RenderDeckOverrides = {}) {
 
   if (overrides.vm) {
     if (overrides.vm.waypoint) Object.assign(vm.waypoint, overrides.vm.waypoint)
+    if (overrides.vm.rideHistory) Object.assign(vm.rideHistory, overrides.vm.rideHistory)
     if (overrides.vm.rideConfig) Object.assign(vm.rideConfig, overrides.vm.rideConfig)
     if (overrides.vm.intent) Object.assign(vm.intent, overrides.vm.intent)
     if (overrides.vm.ui) Object.assign(vm.ui, overrides.vm.ui)
@@ -191,11 +199,12 @@ function renderDeck(overrides: RenderDeckOverrides = {}) {
   }
   if (overrides.cmds) {
     if (overrides.cmds.waypoint) Object.assign(cmds.waypoint, overrides.cmds.waypoint)
+    if (overrides.cmds.rideHistory) Object.assign(cmds.rideHistory, overrides.cmds.rideHistory)
     if (overrides.cmds.rideConfig) Object.assign(cmds.rideConfig, overrides.cmds.rideConfig)
     if (overrides.cmds.intent) Object.assign(cmds.intent, overrides.cmds.intent)
     if (overrides.cmds.onClearRoute !== undefined) cmds.onClearRoute = overrides.cmds.onClearRoute
     if (overrides.cmds.onPlan !== undefined) cmds.onPlan = overrides.cmds.onPlan
-    if (overrides.cmds.onCancelPlanning !== undefined) cmds.onCancelPlanning = overrides.cmds.onCancelPlanning
+    if (overrides.cmds.onCancelRideChange !== undefined) cmds.onCancelRideChange = overrides.cmds.onCancelRideChange
     if (overrides.cmds.onOpenLibrary !== undefined) cmds.onOpenLibrary = overrides.cmds.onOpenLibrary
     if (overrides.cmds.onUseHome !== undefined) cmds.onUseHome = overrides.cmds.onUseHome
     if (overrides.cmds.onSaveHome !== undefined) cmds.onSaveHome = overrides.cmds.onSaveHome
@@ -466,12 +475,12 @@ describe("planner ride composer", () => {
   it("exposes time-boxed loops that only require a start point", async () => {
     const user = userEvent.setup()
     const onPlanModeChange = vi.fn()
-    const onTargetMinutesChange = vi.fn()
+    const onRideTimeChange = vi.fn()
     const onPlan = vi.fn()
     renderDeck({
       vm: { rideConfig: { planMode: "loop" } },
       cmds: {
-        rideConfig: { onPlanModeChange, onTargetMinutesChange },
+        rideConfig: { onPlanModeChange, onRideTimeChange },
         onPlan
       }
     })
@@ -483,7 +492,7 @@ describe("planner ride composer", () => {
     await user.click(screen.getByRole("button", { name: "90 min" }))
     await user.click(screen.getByRole("button", { name: /plan.*2.*hour.*loop/i }))
 
-    expect(onTargetMinutesChange).toHaveBeenCalledWith(90)
+    expect(onRideTimeChange).toHaveBeenCalledWith(90, true)
     expect(onPlan).toHaveBeenCalledOnce()
     expect(screen.getByRole("button", { name: "Loop" })).toHaveAttribute("aria-pressed", "true")
   })
@@ -510,8 +519,8 @@ describe("planner ride composer", () => {
     const user = userEvent.setup()
     const onMoveVia = vi.fn()
     const onReverseRoute = vi.fn()
-    const onUndoRoutePoints = vi.fn()
-    const onRedoRoutePoints = vi.fn()
+    const onUndoRideChange = vi.fn()
+    const onRedoRideChange = vi.fn()
     renderDeck({
       vm: {
         waypoint: {
@@ -520,25 +529,27 @@ describe("planner ride composer", () => {
             { lat: 40.4, lon: -76.7, label: "Gravel road" },
             { lat: 40.5, lon: -76.6, label: "Overlook" }
           ],
-          canUndoRoutePoints: true,
-          canRedoRoutePoints: true
-        }
+        },
+        rideHistory: { canUndoRideChange: true, canRedoRideChange: true }
       },
-      cmds: { waypoint: { onMoveVia, onReverseRoute, onUndoRoutePoints, onRedoRoutePoints } }
+      cmds: {
+        waypoint: { onMoveVia, onReverseRoute },
+        rideHistory: { onUndoRideChange, onRedoRideChange }
+      }
     })
 
     await user.click(screen.getByRole("button", { name: "Ride options" }))
     await user.click(screen.getByRole("button", { name: "Move Overlook earlier" }))
     await user.click(screen.getByRole("button", { name: "Reverse route" }))
-    await user.click(screen.getByRole("button", { name: "Undo route edit" }))
-    await user.click(screen.getByRole("button", { name: "Redo route edit" }))
+    await user.click(screen.getByRole("button", { name: "Undo ride change" }))
+    await user.click(screen.getByRole("button", { name: "Redo ride change" }))
 
     expect(screen.getByRole("button", { name: "Move Gravel road earlier" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Move Overlook later" })).toBeDisabled()
     expect(onMoveVia).toHaveBeenCalledWith(1, 0)
     expect(onReverseRoute).toHaveBeenCalledOnce()
-    expect(onUndoRoutePoints).toHaveBeenCalledOnce()
-    expect(onRedoRoutePoints).toHaveBeenCalledOnce()
+    expect(onUndoRideChange).toHaveBeenCalledOnce()
+    expect(onRedoRideChange).toHaveBeenCalledOnce()
   })
 
   it("makes road character and must-use locks explicit for each shaping stop", async () => {
@@ -733,15 +744,15 @@ describe("planner lifecycle progress (Phase 6)", () => {
 
   it("exposes Cancel during an active lifecycle and fires the cancel command", async () => {
     const user = userEvent.setup()
-    const onCancelPlanning = vi.fn()
+    const onCancelRideChange = vi.fn()
     renderDeck({
       vm: { lifecycle: { phase: "alternatives", startedAt: Date.now(), label: "Adding alternatives…" } },
-      cmds: { onCancelPlanning }
+      cmds: { onCancelRideChange }
     })
-    const cancel = screen.getByRole("button", { name: "Cancel planning" })
+    const cancel = screen.getByRole("button", { name: "Cancel ride change" })
     expect(cancel).toBeInTheDocument()
     await user.click(cancel)
-    expect(onCancelPlanning).toHaveBeenCalledOnce()
+    expect(onCancelRideChange).toHaveBeenCalledOnce()
   })
 
   it("hides the progress status once the lifecycle is ready", () => {

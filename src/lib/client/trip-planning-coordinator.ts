@@ -6,15 +6,19 @@ import type { Coordinate } from "@/lib/routing/types"
 import type { PlanningPhase } from "@/stores/planner-store"
 
 export interface PlannerRouteLifecycle {
-  beginRouting(): void
-  applyPlan(plan: TripPlan): void
-  mergeAlternatives(plan: TripPlan): void
+  getIntentIdentity?(): string
+  beginRouting(identity?: PlanningResultIdentity): void
+  applyPlan(plan: TripPlan, identity?: PlanningResultIdentity): void
+  mergeAlternatives(plan: TripPlan, identity?: PlanningResultIdentity): void
   failRouting(error: { code: string; message: string }): void
   /** Phase 6 lifecycle control. */
   beginPlanning(): void
   setPlanningPhase(phase: PlanningPhase): void
   cancelPlanning(): void
+  cancelRideUpdate?(): void
 }
+
+export interface PlanningResultIdentity { intentIdentity: string; requestId: number }
 
 interface RunLatestTripPlanOptions {
   request: TripPlanRequest
@@ -22,22 +26,12 @@ interface RunLatestTripPlanOptions {
   getPlanner(): PlannerRouteLifecycle
   requestPlan?(request: TripPlanRequest, signal?: AbortSignal): Promise<TripPlan>
   onWarning(message: string): void
+  /** Owned by the calling session, never shared across planner instances. */
+  controller?: AbortController
 }
 
 /** The alternatives endpoint receives at most this many primary coordinates. */
 const MAX_PRIMARY_SAMPLES = 128
-
-/**
- * One abort controller per planning lifecycle. A newer prompt, clear, or
- * replan aborts the previous lifecycle's provider work instead of letting
- * it run to completion.
- */
-let activeController: AbortController | null = null
-
-export function cancelRoutingRequest(): void {
-  activeController?.abort()
-  activeController = null
-}
 
 function samplePrimaryGeometry(
   geometry: Coordinate[] | undefined,
@@ -58,13 +52,28 @@ export async function runLatestTripPlan({
   gate,
   getPlanner,
   requestPlan = defaultRequestPlan,
-  onWarning
+  onWarning,
+  controller = new AbortController()
 }: RunLatestTripPlanOptions): Promise<TripPlan | null> {
   const requestId = gate.begin()
-  cancelRoutingRequest()
-  const controller = new AbortController()
-  activeController = controller
-  getPlanner().beginRouting()
+  const intentIdentity = getPlanner().getIntentIdentity?.()
+  const identity = intentIdentity === undefined ? undefined : { intentIdentity, requestId }
+  /**
+   * One fence, three ways to fail it: a newer request took the gate, this
+   * lifecycle was aborted, or the rider changed the ride since it started.
+   * Every later checkpoint in this lifecycle — primary, alternatives, and the
+   * error path — asks this same question, so there is no combination of
+   * partial guards that can let an old answer land on a newer ride.
+   */
+  const requestGate = gate
+  const fencedGate: LatestRequestGate = {
+    ...requestGate,
+    isCurrent: (id) => requestGate.isCurrent(id)
+      && !controller.signal.aborted
+      && getPlanner().getIntentIdentity?.() === intentIdentity
+  }
+  gate = fencedGate
+  getPlanner().beginRouting(identity)
   getPlanner().beginPlanning()
   getPlanner().setPlanningPhase("routing-primary")
   try {
@@ -73,7 +82,8 @@ export async function runLatestTripPlan({
       controller.signal
     )
     if (!gate.isCurrent(requestId)) return null
-    getPlanner().applyPlan(primary)
+    if (identity) getPlanner().applyPlan(primary, identity)
+    else getPlanner().applyPlan(primary)
     if (primary.warnings.length > 0) onWarning(primary.warnings.join(" "))
     // Progressive alternatives: same lifecycle id and abort controller,
     // never blocks or replaces the primary, never repaints after a newer
@@ -86,7 +96,8 @@ export async function runLatestTripPlan({
       gate,
       controller,
       requestPlan,
-      getPlanner
+      getPlanner,
+      identity
     })
     return primary
   } catch (caught) {
@@ -100,6 +111,7 @@ export async function runLatestTripPlan({
 }
 
 interface LoadAlternativesOptions {
+  identity?: PlanningResultIdentity
   request: TripPlanRequest
   primary: TripPlan
   requestId: number
@@ -116,7 +128,8 @@ async function loadAlternatives({
   gate,
   controller,
   requestPlan,
-  getPlanner
+  getPlanner,
+  identity
 }: LoadAlternativesOptions): Promise<void> {
   const primaryRoute = primary.routes.find((route) => route.id === primary.selectedRouteId)
     ?? primary.routes[0]
@@ -142,7 +155,8 @@ async function loadAlternatives({
       void refreshCorridorHints(request, fetch, controller.signal)
       return
     }
-    getPlanner().mergeAlternatives(alternatives)
+    if (identity) getPlanner().mergeAlternatives(alternatives, identity)
+    else getPlanner().mergeAlternatives(alternatives)
     getPlanner().setPlanningPhase("ready")
     // Phase 5 merge: warm the adviser hint cache in the background so the
     // next timeboxed plan can use source-backed corridor hints locally.

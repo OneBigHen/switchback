@@ -41,6 +41,30 @@ const routes = [
   route("scenic", "scenic", 76, 46.1, 72)
 ]
 
+/**
+ * PlannerComposition renders the ride summary above the decision rail, so the
+ * fixture supplies the slices that surface actually reads. An empty object cast
+ * to the deck types used to compile and then crash at render as soon as a new
+ * child was composed in.
+ */
+function compositionProps() {
+  return {
+    viewModel: {
+      rideHistory: {
+        canUndoRideChange: false,
+        canRedoRideChange: false,
+        lastChangeLabel: null,
+        hasUnappliedChange: false
+      }
+    } as PlannerDeckViewModel,
+    commands: {
+      rideHistory: { onUndoRideChange: vi.fn(), onRedoRideChange: vi.fn() },
+      onPlan: vi.fn(),
+      onCancelRideChange: vi.fn()
+    } as unknown as PlannerDeckCommands
+  }
+}
+
 describe("RouteDecisionRail", () => {
   it("presents scan-first rider choices relative to the current route without provider jargon", () => {
     render(<RouteDecisionRail routes={routes} selectedId="twisty" onSelect={vi.fn()} />)
@@ -119,8 +143,7 @@ describe("RouteDecisionRail", () => {
 
     render(
       <PlannerComposition
-        viewModel={{} as PlannerDeckViewModel}
-        commands={{} as PlannerDeckCommands}
+        {...compositionProps()}
         comparison={comparison}
       />
     )
@@ -155,8 +178,7 @@ describe("RouteDecisionRail", () => {
     }
     const { rerender } = render(
       <PlannerComposition
-        viewModel={{} as PlannerDeckViewModel}
-        commands={{} as PlannerDeckCommands}
+        {...compositionProps()}
         comparison={{ ...base, selectedId: "twisty" }}
       />
     )
@@ -166,8 +188,7 @@ describe("RouteDecisionRail", () => {
 
     rerender(
       <PlannerComposition
-        viewModel={{} as PlannerDeckViewModel}
-        commands={{} as PlannerDeckCommands}
+        {...compositionProps()}
         comparison={{ ...base, selectedId: "balanced" }}
       />
     )
@@ -188,7 +209,7 @@ describe("RouteDecisionRail", () => {
       onExport: vi.fn(),
       onRide: vi.fn()
     }
-    const props = { viewModel: {} as PlannerDeckViewModel, commands: {} as PlannerDeckCommands }
+    const props = compositionProps()
     const { rerender } = render(<PlannerComposition {...props} comparison={comparison} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))

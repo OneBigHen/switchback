@@ -141,8 +141,10 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
       waypoint: {
         onMoveVia(fromIndex: number, toIndex: number): void
         onReverseRoute(): void
-        onUndoRoutePoints(): void
-        onRedoRoutePoints(): void
+      }
+      rideHistory: {
+        onUndoRideChange(): void
+        onRedoRideChange(): void
       }
       onStartDrawing?(): void
       onClearRoute(): void
@@ -154,7 +156,7 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
   }) => {
     const researchSources = viewModel.intent.researchSources
     const selectedRoute = viewModel.ui.selectedRoute ?? null
-    const { intent, waypoint, onClearRoute, onStartRide, onStartFreeRide } = commands
+    const { intent, waypoint, rideHistory, onClearRoute, onStartRide, onStartFreeRide } = commands
     return (
       <section>
         <h1>Where do you want to ride?</h1>
@@ -164,8 +166,8 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
         <button type="button" onClick={onClearRoute}>Clear test route</button>
         <button type="button" onClick={() => waypoint.onMoveVia(1, 0)}>Move second stop</button>
         <button type="button" onClick={waypoint.onReverseRoute}>Reverse route</button>
-        <button type="button" onClick={waypoint.onUndoRoutePoints}>Undo edit</button>
-        <button type="button" onClick={waypoint.onRedoRoutePoints}>Redo edit</button>
+        <button type="button" onClick={rideHistory.onUndoRideChange}>Undo edit</button>
+        <button type="button" onClick={rideHistory.onRedoRideChange}>Redo edit</button>
         <button type="button" onClick={() => intent.onResearchRideIdea("first request")}>Research first request</button>
         <button type="button" onClick={() => intent.onResearchRideIdea("second request")}>Research second request</button>
         <button type="button" onClick={() => commands.onStartDrawing?.()}>Start draw mode</button>

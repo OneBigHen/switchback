@@ -2,13 +2,18 @@ import { create } from "zustand"
 import { canTransitionPlannerPhase } from "@/lib/domain/planner-state-machine"
 import { persist, createJSONStorage } from "zustand/middleware"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 import { routeEntityCache, type RoutePlanSummary } from "@/lib/client/route-entity-cache"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import { convertMustLockToPrefer } from "@/lib/roads/road-locks"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { RouteProfileId, Waypoint } from "@/lib/routing/types"
 import type { ContextSheetDetent } from "@/components/planner/workspace/context-sheet-state"
+import {
+  createRideHistory, defaultRideIntent, dispatchRideCommand, undoRideIntent, redoRideIntent,
+  isRideIntent, type RideIntent, type RideHistory, type RideCommandSource
+} from "@/lib/domain/ride-intent"
+import type { PlanningResultIdentity } from "@/lib/client/trip-planning-coordinator"
+import type { RideCheckpointInput } from "@/lib/storage/ride-checkpoint"
 
 export type PlannerPointId = "start" | "finish"
 export type PlannerSurface = "planner" | "library" | "ride" | "free-ride"
@@ -29,17 +34,6 @@ export type PlanningPhase =
   | "ready"
   | "cancelled"
   | "error"
-
-const DEFAULT_BIKE_PROFILE: BikeProfile =
-  MOTORCYCLE_PROFILES[0] ?? {
-    name: "Street",
-    category: "street",
-    fuelRangeMiles: 180,
-    reserveMiles: 35,
-    allowMaintainedGravel: false,
-    allowRoughTracks: false,
-    avoidUnknownSurface: true
-  }
 
 export interface PlannerError {
   code: string
@@ -71,7 +65,6 @@ export interface SearchHistoryEntry {
 
 const SAVED_PLACES_LIMIT = 100
 const SEARCH_HISTORY_LIMIT = 50
-const ROUTE_POINT_HISTORY_LIMIT = 50
 
 const ROUTE_PROFILE_IDS = new Set<RouteProfileId>([
   "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
@@ -85,7 +78,7 @@ const ROUTE_PROFILE_IDS = new Set<RouteProfileId>([
  * (e.g. a missing `fallbackToleranceMeters` produced `NaN` custom-model
  * polygons). Invalid entries are dropped; the store keeps its defaults.
  */
-function sanitizePersistedState(persisted: unknown): Partial<PlannerState> {
+export function sanitizePersistedState(persisted: unknown): Partial<PlannerState> {
   if (typeof persisted !== "object" || persisted === null || Array.isArray(persisted)) return {}
   const state = persisted as Record<string, unknown>
   const sanitized: Partial<PlannerState> = {}
@@ -126,15 +119,43 @@ function sanitizePersistedState(persisted: unknown): Partial<PlannerState> {
   return sanitized
 }
 
-function cloneWaypoint(point: Waypoint | null): Waypoint | null {
-  return point ? { ...point } : null
-}
+export const PLANNER_UI_STORAGE_KEY = "switchback.planner.ui.v1"
+/** Pre-Wave-1 planner blob. Read-only from here on, never written or deleted. */
+export const LEGACY_PLANNER_STORAGE_KEY = "switchback.planner.v1"
 
-function routePointSnapshot(state: Pick<PlannerState, "start" | "finish" | "via">): RoutePointSnapshot {
-  return {
-    start: cloneWaypoint(state.start),
-    finish: cloneWaypoint(state.finish),
-    via: state.via.map((point) => ({ ...point }))
+/**
+ * Wave 1 moved ride intent out of localStorage, which meant a new persist key.
+ * The rider's saved places, recent searches and curvature toggle are not ride
+ * intent and must survive that move, so a first read falls back to the legacy
+ * blob and adopts only those validated fields. Writes only ever touch the new
+ * key: the legacy record stays intact as the rollback source.
+ */
+const plannerUiStorage: Storage = {
+  get length() { return localStorage.length },
+  key: (index) => localStorage.key(index),
+  clear: () => localStorage.clear(),
+  removeItem: (name) => localStorage.removeItem(name),
+  setItem: (name, value) => localStorage.setItem(name, value),
+  getItem: (name) => {
+    const current = localStorage.getItem(name)
+    if (current !== null) return current
+    const legacy = localStorage.getItem(LEGACY_PLANNER_STORAGE_KEY)
+    if (legacy === null) return null
+    try {
+      const { savedPlaces, searchHistory, curvatureVisible } =
+        sanitizePersistedState((JSON.parse(legacy) as { state?: unknown }).state)
+      return JSON.stringify({
+        state: {
+          savedPlaces: savedPlaces ?? [],
+          searchHistory: searchHistory ?? [],
+          curvatureVisible: curvatureVisible ?? true
+        },
+        version: 1
+      })
+    } catch {
+      // A corrupt legacy blob simply means no UI index to inherit.
+      return null
+    }
   }
 }
 
@@ -148,29 +169,82 @@ function invalidateRouteResult() {
   }
 }
 
-function applyRoutePointEdit(state: PlannerState, points: RoutePointSnapshot) {
-  const routePointPast = [...state.routePointPast, routePointSnapshot(state)]
-    .slice(-ROUTE_POINT_HISTORY_LIMIT)
+/** Point edits name themselves: the label is what the rider reads back when
+ *  they are deciding whether to undo the change. */
+function applyRoutePointEdit(state: PlannerState, points: RoutePointSnapshot, label = "Updated your route") {
+  return applyIntentEdit(state, points, label)
+}
+
+/** The flat planner fields are the sole writable current intent. */
+export function getRideIntent(state: RideIntent): RideIntent {
+  const { start, finish, via, mode, targetMinutes, timeShaped, profile, bikeProfile,
+    avoidHighways, tollPolicy, avoidAreas, roadLocks, segmentProfiles, sketchCorridor } = state
+  return { start, finish, via, mode, targetMinutes, timeShaped, profile, bikeProfile,
+    avoidHighways, tollPolicy, avoidAreas, roadLocks, segmentProfiles, sketchCorridor }
+}
+
+function historyOf(state: PlannerState): RideHistory {
+  return { ...state.rideHistory, intent: getRideIntent(state) }
+}
+
+function projectHistory(history: RideHistory) {
+  const { intent, ...rideHistory } = history
   return {
-    start: cloneWaypoint(points.start),
-    finish: cloneWaypoint(points.finish),
-    via: points.via.map((point) => ({ ...point })),
-    startQuery: points.start?.label ?? "",
-    finishQuery: points.finish?.label ?? "",
+    ...intent, rideHistory,
+    startQuery: intent.start?.label ?? "",
+    finishQuery: intent.finish?.label ?? "",
     armedPoint: null,
-    routePointPast,
-    routePointFuture: [],
-    canUndoRoutePoints: true,
-    canRedoRoutePoints: false,
-    ...invalidateRouteResult()
+    canUndoRideChange: history.past.length > 0,
+    canRedoRideChange: history.future.length > 0
   }
+}
+
+/**
+ * A failed update is only ever about the attempt that failed. Editing the ride
+ * again supersedes it, so the stale error must go with it — while the last
+ * usable route stays exactly where it is.
+ */
+function clearFailedUpdate(state: PlannerState) {
+  if (state.status !== "error" && state.error === null) return {}
+  return {
+    error: null,
+    status: state.plan ? "ready" as const : "idle" as const,
+    planningPhase: state.planningPhase === "error" ? "idle" as const : state.planningPhase
+  }
+}
+
+function applyIntentEdit(
+  state: PlannerState,
+  changes: Partial<RideIntent>,
+  label: string,
+  source: RideCommandSource = "rider",
+  recordHistory = true
+): Partial<PlannerState> {
+  const result = dispatchRideCommand(historyOf(state), {
+    type: "edit", id: generateId(), baseIdentity: state.rideHistory.identity, source, label, changes, recordHistory
+  })
+  if (result.outcome !== "applied") return {}
+  return { ...clearFailedUpdate(state), ...projectHistory(result.state) }
 }
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-interface PlannerState {
+interface PlannerState extends RideIntent {
+  /** Draft-recovery lifecycle. `superseded` means a saved draft was dropped
+   *  because the rider had already started a newer ride in this tab; that is
+   *  not a conflict and never blocks checkpointing. */
+  recoveryStatus: "loading" | "ready" | "restored" | "superseded" | "unavailable" | "invalid" | "conflict"
+  restoreRide(checkpoint: RideCheckpointInput, expectedIdentity: string): boolean
+  rideHistory: Omit<RideHistory, "intent">
+  getIntentIdentity(): string
+  pendingResultIdentity: PlanningResultIdentity | null
+  resultIdentity: PlanningResultIdentity | null
+  /** The ride the currently displayed route actually answers. Never the same
+   *  object as the live intent: it only moves when a result commits. */
+  committedRide: RideHistory | null
+  editRide(changes: Partial<RideIntent>, label: string, source?: RideCommandSource, recordHistory?: boolean): "applied" | "stale" | "invalid" | "noop"
   start: Waypoint | null
   finish: Waypoint | null
   via: Waypoint[]
@@ -200,10 +274,8 @@ interface PlannerState {
    *  viewport default (peek on phones, half elsewhere). Map camera
    *  fitting reads this so insets track the visible sheet size. */
   sheetDetentOverride: ContextSheetDetent | null
-  routePointPast: RoutePointSnapshot[]
-  routePointFuture: RoutePointSnapshot[]
-  canUndoRoutePoints: boolean
-  canRedoRoutePoints: boolean
+  canUndoRideChange: boolean
+  canRedoRideChange: boolean
   savedPlaces: SavedPlace[]
   searchHistory: SearchHistoryEntry[]
   seedCurrentLocation(point: Waypoint): void
@@ -221,22 +293,25 @@ interface PlannerState {
   clearVia(): void
   clearRoute(): void
   reverseRoutePoints(mode: "loop" | "destination"): void
-  undoRoutePoints(): void
-  redoRoutePoints(): void
+  /** Whole-ride undo/redo. One rider change — however many fields it touched
+   *  — is one step, and system initialization is never a step. */
+  undoRideChange(): void
+  redoRideChange(): void
   armPoint(id: PlannerPointId | null): void
   setSheetDetentOverride(detent: ContextSheetDetent | null): void
   setProfile(profile: RouteProfileId): void
   setBikeProfile(profile: BikeProfile): void
-  beginRouting(): void
-  applyPlan(plan: TripPlan): void
+  beginRouting(identity?: PlanningResultIdentity): void
+  applyPlan(plan: TripPlan, identity?: PlanningResultIdentity): void
   /** Merge progressively loaded alternatives into the active plan without
    *  changing the selected primary route. */
-  mergeAlternatives(plan: TripPlan): void
+  mergeAlternatives(plan: TripPlan, identity?: PlanningResultIdentity): void
   failRouting(error: PlannerError): void
   /** Phase 6 lifecycle control. */
   beginPlanning(): void
   setPlanningPhase(phase: PlanningPhase): void
   cancelPlanning(): void
+  cancelRideUpdate(): void
   selectRoute(id: string): void
   /** Automatic selection (planner defaults, late alternatives, learned
    *  re-ranking). Never overrides an explicit user selection. */
@@ -255,16 +330,25 @@ interface PlannerState {
   clearSearchHistory(): void
 }
 
+const ACTIVE_RIDE_ID = "active-ride"
+
+function initialRideHistory(): Omit<RideHistory, "intent"> {
+  const { intent: _intent, ...history } = createRideHistory(ACTIVE_RIDE_ID)
+  void _intent
+  return history
+}
+
 export const initialPlannerState = {
-  start: null,
-  finish: null,
-  via: [],
+  recoveryStatus: "loading" as PlannerState["recoveryStatus"],
+  pendingResultIdentity: null as PlanningResultIdentity | null,
+  resultIdentity: null as PlanningResultIdentity | null,
+  committedRide: null as RideHistory | null,
+  // Ride intent has exactly one set of defaults, owned by the domain module.
+  ...defaultRideIntent(),
+  rideHistory: initialRideHistory(),
   startQuery: "",
   finishQuery: "",
   armedPoint: null,
-  profile: "twisty" as const,
-  bikeProfile: DEFAULT_BIKE_PROFILE,
-  roadLocks: [] as RoadLock[],
   status: "idle" as const,
   plan: null,
   selectedRouteId: null,
@@ -276,68 +360,110 @@ export const initialPlannerState = {
   sheetDetentOverride: null,
   curvatureVisible: true,
   surface: "planner" as const,
-  routePointPast: [] as RoutePointSnapshot[],
-  routePointFuture: [] as RoutePointSnapshot[],
-  canUndoRoutePoints: false,
-  canRedoRoutePoints: false,
+  canUndoRideChange: false,
+  canRedoRideChange: false,
   savedPlaces: [] as SavedPlace[],
   searchHistory: [] as SearchHistoryEntry[]
 }
 
 export const usePlannerStore = create<PlannerState>()(
   persist(
-    (set) => ({
+    (set): PlannerState => ({
       ...initialPlannerState,
-      seedCurrentLocation: (point) => {
-        routeEntityCache.invalidate()
+      getIntentIdentity: (): string => usePlannerStore.getState().rideHistory.identity,
+      /**
+       * Recovery restores authored intent only. Route candidates are answers,
+       * not the ride: replaying them from storage would put a possibly stale
+       * answer on the map under a ride the rider may since have changed, so
+       * the planner re-asks instead. The caller only wins the race while the
+       * rider has not authored anything themselves — `expectedIdentity`.
+       */
+      restoreRide: (checkpoint, expectedIdentity) => {
+        if (!isRideIntent(checkpoint.intent) || usePlannerStore.getState().rideHistory.identity !== expectedIdentity) return false
+        const history: RideHistory = {
+          ...createRideHistory(checkpoint.rideId),
+          identity: checkpoint.identity,
+          sequence: checkpoint.sequence,
+          intent: structuredClone(checkpoint.intent)
+        }
         set({
-          start: cloneWaypoint(point),
-          startQuery: point.label,
-          plan: null,
-          selectedRouteId: null,
-          selectionSource: "automatic" as const,
-          error: null,
-          status: "idle"
+          ...projectHistory(history),
+          recoveryStatus: "restored",
+          ...invalidateRouteResult(),
+          committedRide: null,
+          resultIdentity: null,
+          pendingResultIdentity: null,
+          isRecalculating: false,
+          planningPhase: "idle" as const
         })
+        return true
+      },
+      /**
+       * The one way a rider decision enters the planner. Every route-defining
+       * field is written here and nowhere else, so a compound change — a new
+       * destination plus a new duration plus no highways — is one revision,
+       * one identity, and one Undo.
+       */
+      editRide: (changes, label, source = "rider", recordHistory = true) => {
+        let outcome: "applied" | "stale" | "invalid" | "noop" = "noop"
+        set((state) => {
+          const result = dispatchRideCommand(historyOf(state), {
+            type: "edit", id: generateId(), baseIdentity: state.rideHistory.identity,
+            source, label, changes, recordHistory
+          })
+          outcome = result.outcome
+          if (outcome !== "applied") return {}
+          return { ...clearFailedUpdate(state), ...projectHistory(result.state) }
+        })
+        return outcome
+      },
+      /**
+       * A passive location fix is initialization, not a ride change: it
+       * advances the identity (fencing in-flight results) without becoming
+       * the thing the rider's next Undo reverses.
+       *
+       * Because history is strictly linear, it is only allowed to run while
+       * there is no history at all. Seeding on top of an undone change would
+       * silently cut the rider's redo branch with a GPS callback they never
+       * asked for. Enforced here so every call site is safe by construction.
+       */
+      seedCurrentLocation: (point) => {
+        set((state) => state.start || state.rideHistory.past.length > 0 || state.rideHistory.future.length > 0
+          ? {}
+          : applyIntentEdit(state, { start: point }, "Started from your location", "location", false))
       },
       setPoint: (id, point) => set((state) => applyRoutePointEdit(state, {
         start: id === "start" ? point : state.start,
         finish: id === "finish" ? point : state.finish,
         via: state.via
-      })),
-      setPointQuery: (id, query) => {
-        routeEntityCache.invalidate()
-        set(id === "start" ? {
-          start: null,
-          startQuery: query,
-          plan: null,
-          selectedRouteId: null,
-          selectionSource: "automatic" as const,
-          error: null,
-          status: "idle"
-        } : {
-          finish: null,
-          finishQuery: query,
-          plan: null,
-          selectedRouteId: null,
-          selectionSource: "automatic" as const,
-          error: null,
-          status: "idle"
-        })
-      },
+      }, id === "start" ? "Set your start" : "Set your destination")),
+      setPointQuery: (id, query) => set((state) => {
+        // Typing is a UI draft; the committed point only moves when the rider
+        // picks a resolved place. Emptying the field is the one exception:
+        // it is an explicit removal, so the ride must not keep routing to a
+        // destination whose name the rider just deleted.
+        if (query.trim().length === 0 && (id === "start" ? state.start : state.finish)) {
+          return {
+            ...applyIntentEdit(state, id === "start" ? { start: null } : { finish: null },
+              id === "start" ? "Cleared the ride start" : "Cleared the destination"),
+            ...(id === "start" ? { startQuery: "" } : { finishQuery: "" })
+          }
+        }
+        return id === "start" ? { startQuery: query } : { finishQuery: query }
+      }),
       replaceRoutePoints: (points) => set((state) => applyRoutePointEdit(state, points)),
       addVia: (point) => set((state) => applyRoutePointEdit(state, {
         start: state.start,
         finish: state.finish,
         via: [...state.via, point]
-      })),
+      }, "Added a stop")),
       updateVia: (index, point) => set((state) => {
         if (index < 0 || index >= state.via.length) return {}
         return applyRoutePointEdit(state, {
           start: state.start,
           finish: state.finish,
           via: state.via.map((current, currentIndex) => currentIndex === index ? point : current)
-        })
+        }, "Moved a stop")
       }),
       removeVia: (index) => set((state) => {
         if (index < 0 || index >= state.via.length) return {}
@@ -345,7 +471,7 @@ export const usePlannerStore = create<PlannerState>()(
           start: state.start,
           finish: state.finish,
           via: state.via.filter((_, currentIndex) => currentIndex !== index)
-        })
+        }, "Removed a stop")
       }),
       moveVia: (fromIndex, toIndex) => set((state) => {
         if (
@@ -356,28 +482,26 @@ export const usePlannerStore = create<PlannerState>()(
         const via = [...state.via]
         const [point] = via.splice(fromIndex, 1)
         via.splice(toIndex, 0, point)
-        return applyRoutePointEdit(state, { start: state.start, finish: state.finish, via })
+        return applyRoutePointEdit(state, { start: state.start, finish: state.finish, via }, "Reordered your stops")
       }),
       clearVia: () => set((state) => state.via.length === 0 ? {} : applyRoutePointEdit(state, {
         start: state.start,
         finish: state.finish,
         via: []
-      })),
+      }, "Removed your stops")),
       clearRoute: () => {
         routeEntityCache.clear()
-        set({
-          start: null,
-          finish: null,
-          via: [],
-          startQuery: "",
-          finishQuery: "",
-          armedPoint: null,
-          routePointPast: [],
-          routePointFuture: [],
-          canUndoRoutePoints: false,
-          canRedoRoutePoints: false,
-          ...invalidateRouteResult()
-        })
+        set((state) => ({
+          ...applyIntentEdit(state, defaultRideIntent(), "Started a new ride"),
+          ...invalidateRouteResult(),
+          // Nothing about the previous ride survives: no committed answer to
+          // restore, no pending request to accept, no explicit selection.
+          committedRide: null,
+          resultIdentity: null,
+          pendingResultIdentity: null,
+          selectionSource: "automatic" as const,
+          isRecalculating: false
+        }))
       },
       reverseRoutePoints: (mode) => set((state) => {
         if (mode === "destination" && (!state.start || !state.finish)) return {}
@@ -385,88 +509,47 @@ export const usePlannerStore = create<PlannerState>()(
           start: mode === "destination" ? state.finish : state.start,
           finish: mode === "destination" ? state.start : null,
           via: [...state.via].reverse()
-        })
+        }, "Reversed your ride")
       }),
-      undoRoutePoints: () => set((state) => {
-        const previous = state.routePointPast.at(-1)
-        if (!previous) return {}
-        const routePointFuture = [routePointSnapshot(state), ...state.routePointFuture]
-          .slice(0, ROUTE_POINT_HISTORY_LIMIT)
-        const routePointPast = state.routePointPast.slice(0, -1)
-        return {
-          start: cloneWaypoint(previous.start),
-          finish: cloneWaypoint(previous.finish),
-          via: previous.via.map((point) => ({ ...point })),
-          startQuery: previous.start?.label ?? "",
-          finishQuery: previous.finish?.label ?? "",
-          armedPoint: null,
-          routePointPast,
-          routePointFuture,
-          canUndoRoutePoints: routePointPast.length > 0,
-          canRedoRoutePoints: true,
-          ...invalidateRouteResult()
-        }
+      undoRideChange: () => set((state) => {
+        const history = historyOf(state)
+        const next = undoRideIntent(history)
+        return next === history ? {} : { ...clearFailedUpdate(state), ...projectHistory(next) }
       }),
-      redoRoutePoints: () => set((state) => {
-        const next = state.routePointFuture[0]
-        if (!next) return {}
-        const routePointPast = [...state.routePointPast, routePointSnapshot(state)]
-          .slice(-ROUTE_POINT_HISTORY_LIMIT)
-        const routePointFuture = state.routePointFuture.slice(1)
-        return {
-          start: cloneWaypoint(next.start),
-          finish: cloneWaypoint(next.finish),
-          via: next.via.map((point) => ({ ...point })),
-          startQuery: next.start?.label ?? "",
-          finishQuery: next.finish?.label ?? "",
-          armedPoint: null,
-          routePointPast,
-          routePointFuture,
-          canUndoRoutePoints: true,
-          canRedoRoutePoints: routePointFuture.length > 0,
-          ...invalidateRouteResult()
-        }
+      redoRideChange: () => set((state) => {
+        const history = historyOf(state)
+        const next = redoRideIntent(history)
+        return next === history ? {} : { ...clearFailedUpdate(state), ...projectHistory(next) }
       }),
       armPoint: (armedPoint) => set({ armedPoint }),
       setSheetDetentOverride: (sheetDetentOverride) => set({ sheetDetentOverride }),
       setProfile: (profile) => {
-        if (usePlannerStore.getState().profile === profile) return
-        routeEntityCache.invalidate()
-        set({ profile, plan: null, selectedRouteId: null, status: "idle", error: null })
+        set((state) => applyIntentEdit(state, { profile }, "Changed road character"))
       },
       setBikeProfile: (bikeProfile) => {
-        const state = usePlannerStore.getState()
-        if (
-          state.bikeProfile.name === bikeProfile.name &&
-          state.bikeProfile.category === bikeProfile.category &&
-          state.bikeProfile.fuelRangeMiles === bikeProfile.fuelRangeMiles &&
-          state.bikeProfile.reserveMiles === bikeProfile.reserveMiles &&
-          state.bikeProfile.allowMaintainedGravel === bikeProfile.allowMaintainedGravel &&
-          state.bikeProfile.allowRoughTracks === bikeProfile.allowRoughTracks &&
-          state.bikeProfile.avoidUnknownSurface === bikeProfile.avoidUnknownSurface
-        ) return {}
-        routeEntityCache.invalidate()
-        set({
-          bikeProfile,
-          plan: null,
-          selectedRouteId: null,
-          status: "idle",
-          error: null
-        })
+        set((state) => applyIntentEdit(state, { bikeProfile }, "Changed bike preferences"))
       },
-      beginRouting: () => set((state) => ({
+      beginRouting: (identity) => set((state) => ({
+        pendingResultIdentity: identity ?? null,
         status: "routing",
-        // Phase 6: keep the previous route visible (dimmed) while replanning
-        // instead of clearing the map; restored automatically on failure.
+        // The previous route stays on the map, dimmed, for the whole attempt —
+        // and stays there if the attempt fails. A rider never loses the ride
+        // they had because the next one is still being worked out.
         isRecalculating: Boolean(state.plan),
         error: null
       })),
-      applyPlan: (plan) => {
+      applyPlan: (plan, identity) => {
+        const state = usePlannerStore.getState()
+        if (identity && (state.rideHistory.identity !== identity.intentIdentity
+          || state.pendingResultIdentity?.requestId !== identity.requestId)) return
         const summary: RoutePlanSummary = {
           ...plan,
           routes: routeEntityCache.replace(plan.routes)
         }
         set({
+          resultIdentity: identity ?? null,
+          pendingResultIdentity: null,
+          committedRide: historyOf(state),
           plan: summary,
           selectedRouteId: plan.selectedRouteId,
           selectionSource: "automatic" as const,
@@ -475,7 +558,10 @@ export const usePlannerStore = create<PlannerState>()(
           error: null
         })
       },
-      mergeAlternatives: (alternatives) => set((state) => {
+      mergeAlternatives: (alternatives, identity) => set((state) => {
+        if (identity && (state.rideHistory.identity !== identity.intentIdentity
+          || state.resultIdentity?.requestId !== identity.requestId
+          || state.resultIdentity?.intentIdentity !== identity.intentIdentity)) return {}
         if (!state.plan) return {}
         const existingIds = new Set(state.plan.routes.map((route) => route.id))
         const fresh = alternatives.routes.filter((route) => !existingIds.has(route.id))
@@ -492,7 +578,15 @@ export const usePlannerStore = create<PlannerState>()(
           error: null
         }
       }),
+      /**
+       * A failed update changes what we can *show*, never what the rider
+       * asked for. The attempted intent stays current so it can be retried or
+       * cancelled, and the last usable route stays visible and selectable —
+       * `committedRide` still points at the ride that route answers, so the
+       * planner never claims the two are the same thing.
+       */
       failRouting: (error) => set({
+        pendingResultIdentity: null,
         status: "error",
         error,
         isRecalculating: false,
@@ -513,11 +607,54 @@ export const usePlannerStore = create<PlannerState>()(
             : state.planningStartedAt ?? Date.now()
         }
       }),
-      cancelPlanning: () => set({
-        planningPhase: "cancelled" as const,
-        planningStartedAt: null,
-        isRecalculating: false,
-        status: "idle"
+      /**
+       * Cancelling nothing is not a cancellation. The request gate invalidates
+       * on every ordinary edit — and React remounts the planner once in
+       * development — so unconditionally reporting "cancelled" left an idle
+       * planner permanently claiming a lifecycle had been aborted. Anything
+       * reading the phase to mean "a rider action is in progress" (the passive
+       * location seed) then backed off forever.
+       */
+      cancelPlanning: () => set((state) => {
+        const inFlight = state.planningPhase === "interpreting" || state.planningPhase === "geocoding"
+          || state.planningPhase === "routing-primary" || state.planningPhase === "alternatives"
+          || state.status === "routing" || state.pendingResultIdentity !== null
+          || state.planningStartedAt !== null
+        if (!inFlight) return { pendingResultIdentity: null, isRecalculating: false }
+        return {
+          pendingResultIdentity: null,
+          planningPhase: "cancelled" as const,
+          planningStartedAt: null,
+          isRecalculating: false,
+          status: "idle" as const
+        }
+      }),
+      /**
+       * Cancel means exactly one thing: "drop the change I am in the middle
+       * of and put my last usable ride back". It restores the committed
+       * intent as one undoable revision (so a mis-tap is recoverable), clears
+       * the failed-update state, and leaves the displayed route untouched —
+       * aborting the in-flight request is the session controller's half of
+       * the same command.
+       */
+      cancelRideUpdate: () => set((state) => {
+        const committed = state.committedRide
+        // The lifecycle phase stays owned by cancelPlanning, which the session
+        // controller calls as the other half of this command.
+        const settled = {
+          error: null,
+          status: state.plan ? "ready" as const : "idle" as const,
+          isRecalculating: false,
+          pendingResultIdentity: null
+        }
+        if (!committed || committed.identity === state.rideHistory.identity) return settled
+        const restored = applyIntentEdit(state, committed.intent, "Cancelled ride change")
+        // An identity that differs while the intent already matches (undo and
+        // redo back to the committed ride) still has to stop reading as an
+        // unapplied change.
+        return Object.keys(restored).length > 0
+          ? { ...restored, ...settled }
+          : { ...settled, committedRide: historyOf(state) }
       }),
       selectRoute: (selectedRouteId) => set({ selectedRouteId, selectionSource: "user" as const }),
       // Automatic selection must never replace an explicit user pick (SB-005);
@@ -561,14 +698,7 @@ export const usePlannerStore = create<PlannerState>()(
       addRoadLock: (lock) => set((state) => {
         const existing = state.roadLocks.some((existingLock) => existingLock.id === lock.id)
         if (existing) return {}
-        routeEntityCache.invalidate()
-        return {
-          roadLocks: [...state.roadLocks, lock],
-          plan: null,
-          selectedRouteId: null,
-          status: "idle",
-          error: null
-        }
+        return applyIntentEdit(state, { roadLocks: [...state.roadLocks, lock] }, "Kept a road")
       }),
       updateRoadLock: (id, patch) => set((state) => {
         const index = state.roadLocks.findIndex((lock) => lock.id === id)
@@ -583,19 +713,11 @@ export const usePlannerStore = create<PlannerState>()(
           next.fallbackToleranceMeters === current.fallbackToleranceMeters
         ) return {}
         const roadLocks = state.roadLocks.map((lock) => lock.id === id ? next : lock)
-        routeEntityCache.invalidate()
-        return { roadLocks, plan: null, selectedRouteId: null, status: "idle", error: null }
+        return applyIntentEdit(state, { roadLocks }, "Changed a kept road")
       }),
       removeRoadLock: (id) => set((state) => {
         if (!state.roadLocks.some((lock) => lock.id === id)) return {}
-        routeEntityCache.invalidate()
-        return {
-          roadLocks: state.roadLocks.filter((lock) => lock.id !== id),
-          plan: null,
-          selectedRouteId: null,
-          status: "idle",
-          error: null
-        }
+        return applyIntentEdit(state, { roadLocks: state.roadLocks.filter((lock) => lock.id !== id) }, "Removed a kept road")
       }),
       convertRoadLock: (id) => set((state) => {
         const index = state.roadLocks.findIndex((lock) => lock.id === id)
@@ -604,26 +726,23 @@ export const usePlannerStore = create<PlannerState>()(
         if (current.mode !== "must") return {}
         const next = convertMustLockToPrefer(current)
         const roadLocks = state.roadLocks.map((lock) => lock.id === id ? next : lock)
-        routeEntityCache.invalidate()
-        return { roadLocks, plan: null, selectedRouteId: null, status: "idle", error: null }
+        return applyIntentEdit(state, { roadLocks }, "Changed road to preferred")
       }),
       clearRoadLocks: () => {
-        if (usePlannerStore.getState().roadLocks.length === 0) return
-        routeEntityCache.invalidate()
-        set({ roadLocks: [], plan: null, selectedRouteId: null, status: "idle", error: null })
+        set((state) => applyIntentEdit(state, { roadLocks: [] }, "Removed kept roads"))
       }
     }),
     {
-      name: "switchback.planner.v1",
-      storage: createJSONStorage(() => localStorage),
+      // Only the UI index lives here now; active ride intent belongs to the
+      // ride checkpoint. The legacy key keeps its intent fragments untouched
+      // so a rollback still finds them.
+      name: PLANNER_UI_STORAGE_KEY,
+      storage: createJSONStorage(() => plannerUiStorage),
       version: 1,
       migrate: (persisted) => sanitizePersistedState(persisted),
       partialize: (state) => ({
         savedPlaces: state.savedPlaces,
         searchHistory: state.searchHistory,
-        profile: state.profile,
-        bikeProfile: state.bikeProfile,
-        roadLocks: state.roadLocks,
         curvatureVisible: state.curvatureVisible
       })
     }

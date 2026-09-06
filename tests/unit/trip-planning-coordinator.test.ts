@@ -253,26 +253,6 @@ describe("progressive alternatives and cancellation", () => {
     })
   })
 
-  it("aborts the previous lifecycle's provider work when a newer run starts", async () => {
-    const gate = createLatestRequestGate()
-    const state = planner()
-    let firstSignal!: AbortSignal
-    const requestPlan = vi.fn()
-      .mockImplementationOnce((_request, signal?: AbortSignal) => new Promise<TripPlan>((_, reject) => {
-        firstSignal = signal!
-        signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true })
-      }))
-      .mockResolvedValueOnce(primaryWithRoute)
-
-    const first = runLatestTripPlan({ request, gate, getPlanner: () => state, requestPlan, onWarning: vi.fn() })
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    await runLatestTripPlan({ request, gate, getPlanner: () => state, requestPlan, onWarning: vi.fn() })
-
-    expect(firstSignal.aborted).toBe(true)
-    await expect(first).resolves.toBeNull()
-    expect(state.failRouting).not.toHaveBeenCalled()
-  })
-
   it("never merges alternatives after a newer request supersedes the lifecycle", async () => {
     const gate = createLatestRequestGate()
     const state = planner()
