@@ -72,6 +72,12 @@ export function PlannerComposition({
     ? comparison.routes.find((route) => route.id === details.routeId) ?? null
     : null
   const showingDetails = Boolean(comparison && selectedDetailsRoute)
+  // During a replan/failing edit Switchback deliberately retains the last
+  // usable route on screen. It is visual recovery evidence, not an answer to
+  // the new ride intent. Gravel Goblin's prompt says supplied candidates are
+  // the only routes that exist, so never feed that retained route to it while
+  // canonical planner identity says the route is stale.
+  const advisorGroundingCurrent = !viewModel.rideHistory.hasUnappliedChange
 
   const selectRoute = (id: string) => {
     setDetails(null)
@@ -119,7 +125,7 @@ export function PlannerComposition({
             ride summary reports underneath it rather than pushing it down. */}
         <RideIntentFeedback viewModel={viewModel} commands={commands} />
 
-        {onAddAdvisorStop && !showingDetails ? (
+        {onAddAdvisorStop && !showingDetails && advisorGroundingCurrent ? (
           <RideAdvisor
             routes={comparison?.routes ?? NO_ROUTES}
             selectedRouteId={comparison?.selectedId ?? ""}
