@@ -10,7 +10,7 @@ import {
 import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
 async function expectPlannerReady(page: import("@playwright/test").Page): Promise<void> {
-  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
   // A fresh shell exposes Ride options. A recovered complete ride may
   // immediately re-plan and expose Edit route instead. Both are valid ready
   // states; requiring only the empty-composer control made recovery look like
