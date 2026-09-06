@@ -3,6 +3,7 @@
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useState, type ComponentProps } from "react"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
+import { usePlannerStore } from "@/stores/planner-store"
 import { PlannerDeck } from "./PlannerDeck"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { RouteComparison } from "./RouteComparison"
@@ -52,6 +53,7 @@ export function PlannerComposition({
   advisorOrigin
 }: PlannerCompositionProps) {
   const [details, setDetails] = useState<DetailWorkspace | null>(null)
+  const bootstrapPending = usePlannerStore((state) => state.recoveryStatus === "loading")
   // Clearing the plan ends the workspace. Route ids are derived from profile and
   // geometry, so replanning the same trip yields the same ids — a details state
   // that survived the gap would silently reopen over the route-choice stage
@@ -82,51 +84,58 @@ export function PlannerComposition({
   }
 
   return (
-    <PlannerDeck viewModel={viewModel} commands={commands}>
-      {comparison && !showingDetails ? (
-        <RouteDecisionRail
-          routes={comparison.routes}
-          selectedId={comparison.selectedId}
-          onSelect={selectRoute}
-          onOpenDetails={openDetails}
-        />
-      ) : null}
-
-      {/* Route choice stays the primary task after a plan (ADR 0013), so the
-          ride summary reports underneath it rather than pushing it down. */}
-      <RideIntentFeedback viewModel={viewModel} commands={commands} />
-
-      {onAddAdvisorStop && !showingDetails ? (
-        <RideAdvisor
-          routes={comparison?.routes ?? NO_ROUTES}
-          selectedRouteId={comparison?.selectedId ?? ""}
-          warnings={planWarnings}
-          origin={advisorOrigin ?? null}
-          onAddStop={onAddAdvisorStop}
-          {...(comparison ? { onSelectRoute: selectRoute } : {})}
-          {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
-        />
-      ) : null}
-
-      {comparison && selectedDetailsRoute ? (
-        <section className="planner-route-details" aria-label="Route details workspace">
-          <header className="planner-route-details__header">
-            <button type="button" aria-label="Back to route choices" onClick={() => setDetails(null)}>
-              <ArrowLeft weight="bold" aria-hidden="true" />
-              <span>Route options</span>
-            </button>
-            <span className="planner-route-details__identity">
-              <small>Route details</small>
-              <strong>{selectedDetailsRoute.name}</strong>
-            </span>
-          </header>
-          <RouteComparison
-            {...comparison}
-            selectedId={selectedDetailsRoute.id}
-            showRouteChoices={false}
+    <div
+      className="planner-composition-bootstrap"
+      inert={bootstrapPending ? true : undefined}
+      aria-busy={bootstrapPending || undefined}
+      style={{ display: "contents" }}
+    >
+      <PlannerDeck viewModel={viewModel} commands={commands}>
+        {comparison && !showingDetails ? (
+          <RouteDecisionRail
+            routes={comparison.routes}
+            selectedId={comparison.selectedId}
+            onSelect={selectRoute}
+            onOpenDetails={openDetails}
           />
-        </section>
-      ) : null}
-    </PlannerDeck>
+        ) : null}
+
+        {/* Route choice stays the primary task after a plan (ADR 0013), so the
+            ride summary reports underneath it rather than pushing it down. */}
+        <RideIntentFeedback viewModel={viewModel} commands={commands} />
+
+        {onAddAdvisorStop && !showingDetails ? (
+          <RideAdvisor
+            routes={comparison?.routes ?? NO_ROUTES}
+            selectedRouteId={comparison?.selectedId ?? ""}
+            warnings={planWarnings}
+            origin={advisorOrigin ?? null}
+            onAddStop={onAddAdvisorStop}
+            {...(comparison ? { onSelectRoute: selectRoute } : {})}
+            {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
+          />
+        ) : null}
+
+        {comparison && selectedDetailsRoute ? (
+          <section className="planner-route-details" aria-label="Route details workspace">
+            <header className="planner-route-details__header">
+              <button type="button" aria-label="Back to route choices" onClick={() => setDetails(null)}>
+                <ArrowLeft weight="bold" aria-hidden="true" />
+                <span>Route options</span>
+              </button>
+              <span className="planner-route-details__identity">
+                <small>Route details</small>
+                <strong>{selectedDetailsRoute.name}</strong>
+              </span>
+            </header>
+            <RouteComparison
+              {...comparison}
+              selectedId={selectedDetailsRoute.id}
+              showRouteChoices={false}
+            />
+          </section>
+        ) : null}
+      </PlannerDeck>
+    </div>
   )
 }
