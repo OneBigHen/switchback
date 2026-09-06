@@ -4,6 +4,7 @@ import { ArrowRight, DotsThree } from "@phosphor-icons/react"
 import { useState } from "react"
 import { RouteGraphic } from "@/components/v2/RouteGraphic"
 import { formatAway } from "@/lib/client/geo"
+import { RouteGeometryPreview } from "./RouteGeometryPreview"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
 
@@ -24,6 +25,12 @@ function kindLabel(item: RideLibraryItem): string {
   if (item.kind === "recorded-ride") return "Recorded"
   if (item.kind === "trip-plan") return "Trip"
   return "Imported"
+}
+
+function routeDescriptor(item: RideLibraryItem): string {
+  if (item.roadNames && item.roadNames.length > 0) return item.roadNames.slice(0, 3).join(" · ")
+  if (item.tags.length > 0) return item.tags.slice(0, 3).join(" · ")
+  return "Ready to ride"
 }
 
 export interface RideListRowProps {
@@ -55,18 +62,24 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
     setManageOpen((open) => !open)
   }
 
+  const hasGeometry = Boolean(item.geometry && item.geometry.length >= 2)
+
   return (
     <article className={styles.row} data-kind={item.kind}>
       <div className={styles.rowPrimary}>
         <button className={styles.openButton} type="button" aria-label={`Open ${item.name}`} onClick={() => onOpen(item)}>
           <span className={styles.routeGraphic}>
-            <RouteGraphic seed={item.id} variant="route" />
+            {hasGeometry ? (
+              <RouteGeometryPreview geometry={item.geometry!} label={item.name} />
+            ) : (
+              <RouteGraphic seed={item.id} variant="route" />
+            )}
             <small>{kindLabel(item)}</small>
           </span>
           <span className={styles.identity}>
-            <small>{item.sourceLabel}</small>
+            <small>{[item.sourceLabel, item.region?.label].filter(Boolean).join(" · ")}</small>
             <strong>{item.name}</strong>
-            {item.tags.length > 0 ? <span>{item.tags.slice(0, 3).join(" · ")}</span> : <span className={styles.noTags}>Ready to ride</span>}
+            <span className={item.roadNames?.length || item.tags.length ? undefined : styles.noTags}>{routeDescriptor(item)}</span>
           </span>
           <span className={styles.metrics}>
             <b>{item.distanceMiles.toFixed(1)} mi</b>
