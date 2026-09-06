@@ -30,9 +30,9 @@ export function SketchRouteToolbar({
         <Trash weight="bold" aria-hidden="true" />
         <span>Clear</span>
       </button>
-      <button type="button" className={styles.primary} aria-label="Finish drawing" disabled={!canFinish} onClick={onDone}>
+      <button type="button" className={styles.primary} aria-label="Plan drawn route" disabled={!canFinish} onClick={onDone}>
         <Check weight="bold" aria-hidden="true" />
-        <span>Done</span>
+        <span>Plan route</span>
       </button>
       <button type="button" className={styles.cancel} aria-label="Cancel drawing" onClick={onCancel}>
         <X weight="bold" aria-hidden="true" />
