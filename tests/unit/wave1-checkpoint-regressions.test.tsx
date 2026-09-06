@@ -47,7 +47,7 @@ afterEach(async () => {
 })
 
 describe("Wave 1 checkpoint release regressions", () => {
-  it("settles a restored draft so a later rider edit is not mistaken for recovery", async () => {
+  it("settles recovery on the first later rider edit so that edit is not mistaken for recovery", async () => {
     await seedCheckpoint({
       rideId: "active-ride",
       identity: "active-ride:4:restored",
@@ -57,7 +57,7 @@ describe("Wave 1 checkpoint release regressions", () => {
 
     renderHook(() => useRideCheckpoint())
 
-    await waitFor(() => expect(usePlannerStore.getState().recoveryStatus).toBe("ready"))
+    await waitFor(() => expect(usePlannerStore.getState().recoveryStatus).toBe("restored"))
     expect(usePlannerStore.getState().start).toEqual(start)
     expect(usePlannerStore.getState().finish).toBeNull()
 
