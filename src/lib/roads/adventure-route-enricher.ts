@@ -1,6 +1,10 @@
 import { fetchPaUnpavedRoadsNearRoutes } from "./pa-unpaved"
 import { calculatePaUnpavedRoadEvidence } from "./route-unpaved-evidence"
-import type { PaUnpavedRoadCorridorQuery, PaUnpavedRoadFeatureCollection } from "./types"
+import {
+  PA_UNPAVED_ROADS_PROVENANCE,
+  type PaUnpavedRoadCorridorQuery,
+  type PaUnpavedRoadFeatureCollection
+} from "./types"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 interface AdventureRouteEnricherOptions {
@@ -26,12 +30,20 @@ function routeTouchesPennsylvania(route: PlannedRoute): boolean {
   )
 }
 
+/**
+ * Profiles a rider picks *because* they want dirt. Gravel belongs here as much
+ * as adventure does: asking for gravel and then being told nothing about the
+ * historic PA DEP/PASDA — Unpaved Roads 2009_07 survey surface evidence is the
+ * one answer the request rules out.
+ */
+const UNPAVED_SEEKING_PROFILES = new Set<RouteRequest["profile"]>(["adventure", "gravel"])
+
 export async function enrichAdventureRoutesWithPaData(
   request: RouteRequest,
   routes: PlannedRoute[],
   options: AdventureRouteEnricherOptions = {}
 ): Promise<AdventureRouteEnrichmentResult> {
-  if (request.profile !== "adventure" || routes.length === 0) {
+  if (!UNPAVED_SEEKING_PROFILES.has(request.profile) || routes.length === 0) {
     return { routes, warnings: [] }
   }
   const eligibleRoutes = routes.filter(routeTouchesPennsylvania)
@@ -46,7 +58,9 @@ export async function enrichAdventureRoutesWithPaData(
     if (roads.metadata?.truncated) {
       return {
         routes,
-        warnings: ["Official PA unpaved-road scoring was skipped because the corridor result was incomplete."]
+        warnings: [
+          `${PA_UNPAVED_ROADS_PROVENANCE} survey scoring skipped because the corridor result was incomplete; survey surface overlap is unknown.`
+        ]
       }
     }
     const eligibleIds = new Set(eligibleRoutes.map((route) => route.id))
@@ -60,7 +74,9 @@ export async function enrichAdventureRoutesWithPaData(
   } catch {
     return {
       routes,
-      warnings: ["Official PA unpaved-road scoring unavailable; using mapped surface data only."]
+      warnings: [
+        `${PA_UNPAVED_ROADS_PROVENANCE} survey scoring unavailable; survey surface overlap is unknown; using mapped surface data only.`
+      ]
     }
   }
 }

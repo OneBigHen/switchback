@@ -43,6 +43,7 @@ import {
   formatManeuverDistance
 } from "@/lib/settings/rider-units"
 import { GpxIntelligencePanel } from "./GpxIntelligencePanel"
+import { PA_UNPAVED_ROADS_PROVENANCE } from "@/lib/client/map-layers"
 
 interface RouteComparisonProps {
   routes: PlannedRoute[]
@@ -145,9 +146,9 @@ function routeReason(route: PlannedRoute): string {
 function officialUnpavedLabel(route: PlannedRoute): string | null {
   const evidence = route.officialUnpavedEvidence
   if (!evidence) return null
-  if (evidence.sharePercent <= 0) return "Official PA data checked"
+  if (evidence.sharePercent <= 0) return `0% survey overlap · ${PA_UNPAVED_ROADS_PROVENANCE} · conditions unknown`
   const share = evidence.sharePercent < 0.1 ? "<0.1" : evidence.sharePercent.toFixed(1)
-  return `${share}% official PA unpaved`
+  return `${share}% survey surface overlap · ${PA_UNPAVED_ROADS_PROVENANCE}`
 }
 
 export function RouteComparison({

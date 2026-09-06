@@ -1,0 +1,64 @@
+{
+  "observedAt": "2026-09-05T14:11:18.690104+00:00",
+  "source": {
+    "branch": "implement/astra-wave-0",
+    "head": "f10d196228599ac6626bcc07ba7ce22540011228",
+    "dirty": true,
+    "relationshipToProductionBuild": "unattested"
+  },
+  "production": {
+    "service": "switchback-cloudflare.service",
+    "workingDirectory": "/root/Vibe/switchback",
+    "observedMainPid": 3337550,
+    "active": true,
+    "buildIdFileReadback": "lpUNY3Hu26-facQpY4P2l",
+    "buildIdAssociationWithRunningProcess": "unverified",
+    "healthOk": true,
+    "providers": {
+      "graphhopper": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 15
+      },
+      "valhalla": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 9
+      }
+    }
+  },
+  "graphhopper": {
+    "version": "11.0",
+    "import_date": "2026-08-12T12:15:54Z",
+    "data_date": "1970-01-01T00:00:00Z",
+    "profiles": [
+      {
+        "name": "motorcycle_fastest"
+      },
+      {
+        "name": "motorcycle_twisty"
+      },
+      {
+        "name": "motorcycle_scenic"
+      },
+      {
+        "name": "motorcycle_adventure"
+      }
+    ]
+  },
+  "candidate": {
+    "node": "24.15.0",
+    "browser": "Chrome 149.0.7827.22",
+    "renderer": "MapLibre observed in local no-key candidate; production Mapbox rollout unverified",
+    "url": "http://127.0.0.1:3124",
+    "data": "isolated",
+    "mode": "webpack development",
+    "advisor": "invalid fixture key for validation/error probes only"
+  },
+  "limitations": [
+    "Epoch graph data_date does not establish extract freshness.",
+    "Health probes do not prove routed user workflow.",
+    "Provider policy version and production source/build attestation remain open.",
+    "No production restart or deploy performed."
+  ]
+}

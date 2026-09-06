@@ -44,6 +44,12 @@
   --sb-text-muted: #5F6967;
   --sb-border: #D8C8B7;
   --sb-action: var(--sb-ember-strong);
+  /* Ember as *text*. `--sb-text-link` solves this for links, but it is Signal,
+     and Signal means navigation state — so it cannot carry commitment. Ember
+     itself reaches only ~4.4:1 and Ember Strong ~4.5:1 on an ember-washed
+     surface. Validated >= 4.6:1 on Surface, Raised, Canvas and an ember wash
+     in both themes. */
+  --sb-ember-text: #B34424;
   --sb-focus-ring: #2A6175;
   --sb-focus-fill: color-mix(in srgb, var(--sb-focus-ring) 22%, transparent);
   --sb-shadow: 0 8px 24px rgb(22 29 28 / 10%);
@@ -102,6 +108,7 @@
   --sb-text-muted: #B9B6AB;
   --sb-border: var(--sb-border-dark);
   --sb-action: var(--sb-ember);
+  --sb-ember-text: #E38D74;
   --sb-focus-ring: #7FB5C7;
   --sb-focus-fill: color-mix(in srgb, var(--sb-focus-ring) 26%, transparent);
   --sb-shadow: 0 10px 28px rgb(0 0 0 / 26%);

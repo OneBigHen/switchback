@@ -65,6 +65,8 @@ const THINKING_LEVEL = "low"
 const TURN_TIMEOUT_MS = 30_000
 /** Enough to look something up and check what it is like; not enough to wander. */
 const MAX_TOOL_ROUNDS = 4
+/** A builder needs one lookup batch and one correction pass, not a long chat loop. */
+const MAX_BUILDER_TOOL_ROUNDS = 2
 const MAX_TOOL_CALLS_PER_ROUND = 4
 const MAX_CONVERSATION_TURNS = 14
 
@@ -237,7 +239,8 @@ export function createGeminiProvider(options: GeminiAdviserOptions): AdvisorProv
       const mapsOn = input.mapsGrounding
       let prose = ""
 
-      for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+      const maxToolRounds = request.context ? MAX_TOOL_ROUNDS : MAX_BUILDER_TOOL_ROUNDS
+      for (let round = 0; round < maxToolRounds; round += 1) {
         const payload = await call(true, mapsOn)
         if (typeof payload === "string") return done(state.failed(payload))
         const candidate = payload.candidates?.[0]
@@ -267,20 +270,25 @@ export function createGeminiProvider(options: GeminiAdviserOptions): AdvisorProv
         }
 
         contents.push({ role: "model", parts })
-        const responses: GeminiPart[] = []
-        for (const functionCall of requested) {
-          const name = functionCall.name ?? ""
+        // The model asks for a batch precisely because the lookups are
+        // independent, so run them together: serialising them spent the turn
+        // budget on waiting rather than on rounds. Results are absorbed in the
+        // requested order afterwards, so state stays deterministic.
+        const results = await Promise.all(requested.map((functionCall) => {
           state.countToolCall()
-          const result = await input.toolbox.call(name, functionCall.args ?? {}, request, deadline)
+          return input.toolbox.call(functionCall.name ?? "", functionCall.args ?? {}, request, deadline)
+        }))
+        const responses: GeminiPart[] = requested.map((functionCall, index) => {
+          const result = results[index]!
           state.absorb(result)
-          responses.push({
+          return {
             functionResponse: {
               ...(functionCall.id ? { id: functionCall.id } : {}),
-              name,
+              name: functionCall.name ?? "",
               response: { result: result.content }
             }
-          })
-        }
+          }
+        })
         contents.push({ role: "user", parts: responses })
       }
 

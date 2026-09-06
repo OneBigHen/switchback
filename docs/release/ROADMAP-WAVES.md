@@ -21,6 +21,34 @@ commercial API keys; the hosted instance is enriched by optional providers.
 
 ## Premium maps + routing wave — opened 2026-08-29
 
+### Implementation reconciliation — 2026-09-05
+
+The owner authorized implementing the completed Astra audit as the product
+direction. This is the continuation of this premium wave, including the
+already integrated Advisor (ADR 0023), workspace, comparison, and sculpting
+work. It is not a second roadmap or a restart of the closed UX campaign.
+
+This file owns sequencing; `docs/astra/` owns the detailed product, interaction,
+architecture, and release contracts unless implementation demonstrates a
+specific technical error. Preserve the existing routing and data contracts.
+
+Insert Astra Wave 0 (truth and policy) and Wave 1 (recoverable ride intent)
+before further phase 2 expansion. Continue in Astra dependency order: Wave 2
+planning/comparison and Wave 3 authoring complete phase 2's interaction
+foundation; Wave 4 integrates Advisor with those same commands; Wave 5 owns
+continuous Free Ride and guidance for phases 3/8/9; Waves 6–7 complete
+derivative rides and preparation/offline recovery; Wave 8 qualifies phase 12.
+Provider phases 4–7 retain their ADR constraints and must not introduce a
+second planner owner. Cinematic preview and new provider expansion are
+deferred until the core Astra gates pass. MapLibre retirement still requires
+Mapbox rollout evidence.
+
+For this implementation, Astra's named responsive, behavioral, and visual
+gates are required acceptance evidence, superseding the advisory visual
+policy below. Physical-device and rider-review gates require actual people
+and devices; simulation cannot close them. Existing phase completion claims
+do not waive the new recovery and intent contracts.
+
 A deliberate new product wave, not a reopening of the closed remediation
 campaign. Goal: a premium Mapbox-rendered planning and ride experience over a
 traffic-aware, provider-federated decision engine, gated to the owner and a few

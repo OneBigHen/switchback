@@ -10,6 +10,7 @@ import {
   paUnpavedRoadsQuery,
   shouldShowBaseMapFailure
 } from "@/lib/client/map-layers"
+import { PA_UNPAVED_ROADS_MIN_ZOOM } from "@/lib/roads/types"
 
 describe("map layer settings", () => {
   it("maps rider-friendly style names to OpenFreeMap styles", () => {
@@ -20,11 +21,26 @@ describe("map layer settings", () => {
 
   it("builds a bounded PA unpaved-road viewport query only at useful zoom", () => {
     expect(paUnpavedRoadsQuery({ west: -77.2, south: 40.1, east: -76.6, north: 40.6 }, 6)).toBeNull()
-    expect(paUnpavedRoadsQuery({ west: -77.2, south: 40.1, east: -76.6, north: 40.6 }, 7))
-      .toBe("bbox=-77.2%2C40.1%2C-76.6%2C40.6&zoom=7&limit=500")
+    expect(paUnpavedRoadsQuery({ west: -77.2, south: 40.1, east: -76.6, north: 40.6 }, 9))
+      .toBe("bbox=-77.2%2C40.1%2C-76.6%2C40.6&zoom=9&limit=500")
     expect(paUnpavedRoadsQuery({ west: -77.2, south: 40.1, east: -76.6, north: 40.6 }, 10))
       .toBe("bbox=-77.2%2C40.1%2C-76.6%2C40.6&zoom=10&limit=500")
-    expect(paUnpavedRoadsQuery({ west: -80, south: 38, east: -72, north: 43 }, 8)).toBeNull()
+    expect(paUnpavedRoadsQuery({ west: -80, south: 38, east: -72, north: 43 }, 10)).toBeNull()
+  })
+
+  /**
+   * The overlay is on by default, so a client gate looser than the server's
+   * meant every zoomed-out session fired a request the API always rejected and
+   * painted a survey-unavailable state over working data.
+   */
+  it("does not request zoom levels the API refuses to serve", () => {
+    const bounds = { west: -77.2, south: 40.1, east: -76.6, north: 40.6 }
+    for (const zoom of [7, 8]) {
+      expect(paUnpavedRoadsQuery(bounds, zoom)).toBeNull()
+    }
+    expect(paUnpavedRoadsQuery(bounds, PA_UNPAVED_ROADS_MIN_ZOOM)).not.toBeNull()
+    expect(layerCatalog.find((layer) => layer.id === "unpaved")?.minZoom)
+      .toBe(PA_UNPAVED_ROADS_MIN_ZOOM)
   })
 
   it("ignores recoverable tile errors after the initial style has rendered", () => {
@@ -34,12 +50,20 @@ describe("map layer settings", () => {
   })
 
   it("ships functional map layers with provenance and safely normalizes saved settings", () => {
+    const unpaved = layerCatalog.find((layer) => layer.id === "unpaved")
     expect(layerCatalog).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "curvature", source: expect.stringMatching(/Switchback/i) }),
       expect.objectContaining({ id: "weather", freshness: expect.any(String) }),
       expect.objectContaining({ id: "fuel", coverage: expect.any(String) }),
       expect.objectContaining({ id: "mvum", status: "live" })
     ]))
+    expect(unpaved).toMatchObject({
+      source: "Pennsylvania Spatial Data Access (PASDA)",
+      provenance: expect.stringContaining("PA DEP/PASDA — Unpaved Roads 2009_07"),
+      legend: expect.stringContaining("mapped unpaved-road survey")
+    })
+    expect(unpaved?.provenance).not.toMatch(/official unpaved road dataset/i)
+    expect(unpaved?.legend).not.toMatch(/official unpaved road/i)
     expect(layerCatalog.every((layer) => layer.status !== "planned")).toBe(true)
     expect(layerCatalog.every((layer) => mapLayerRuntime(layer.id) !== null)).toBe(true)
 

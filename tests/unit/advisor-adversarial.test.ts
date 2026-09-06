@@ -7,7 +7,8 @@ import {
   briefingText,
   MAX_CONTEXT_CANDIDATES
 } from "@/lib/advice/route-context"
-import { MAX_POSTED_CONVERSATION, requestAdvisorTurn } from "@/lib/client/advisor-client"
+import { requestAdvisorTurn } from "@/lib/client/advisor-client"
+import { MAX_ADVISOR_CONVERSATION_TURNS } from "@/lib/advice/request-limits"
 import type { AdvisorRouteContext, GroundedPlace } from "@/lib/advice/contracts"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
@@ -175,7 +176,7 @@ describe("turn payload stays inside the endpoint's contract", () => {
     await requestAdvisorTurn({ context: null, conversation, riderMessage: "and now?" })
 
     const body = posted[0]!
-    expect(body.conversation).toHaveLength(MAX_POSTED_CONVERSATION)
+    expect(body.conversation).toHaveLength(MAX_ADVISOR_CONVERSATION_TURNS)
     expect(body.conversation.at(-1)).toEqual({ role: "advisor", text: "turn 29" })
   })
 
@@ -360,6 +361,30 @@ describe("bounded tool rounds", () => {
     // Deadline-shaped statuses are distinct from an outage, so the UI can offer
     // "ask again" rather than claiming the sources were unreachable.
     expect((await reply).status).toBe("timeout")
+  })
+
+  it("caps route-building turns at two tool rounds", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ functionCall: { id: "c", name: "lookup_place", args: { query: "again" } } }] }
+      }]
+    }), { status: 200 }))
+    const searchPlaces = vi.fn(async () => [])
+
+    const reply = await createGeminiAdviser({
+      apiKey: "test",
+      fetcher: fetcher as unknown as typeof fetch,
+      toolbox: createAdvisorToolbox({ searchPlaces: searchPlaces as never })
+    }).advise({
+      context: null,
+      conversation: [],
+      riderMessage: "Build me a three-hour gravel loop.",
+      origin: { lat: 40.2732, lon: -76.8867, label: "Harrisburg" }
+    })
+
+    expect(fetcher.mock.calls.length).toBeLessThanOrEqual(3)
+    expect(reply.usage.toolCalls).toBeLessThanOrEqual(2)
+    expect(reply.status).toBe("malformed")
   })
 
   it("keeps working when the geocoder itself fails, rather than inventing a place", async () => {

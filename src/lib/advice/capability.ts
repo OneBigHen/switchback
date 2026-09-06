@@ -1,5 +1,6 @@
 import path from "node:path"
 import { CurvatureRepository } from "@/lib/curvature/repository"
+import { fetchPaUnpavedRoads, PA_UNPAVED_ROADS_MAX_FEATURES } from "@/lib/roads/pa-unpaved"
 import { createGeminiProvider } from "./gemini-adviser"
 import { createOpenRouterProvider } from "./openrouter-adviser"
 import { createRoutedAdviser, type AdvisorProviderPreference } from "./router"
@@ -110,6 +111,12 @@ export function createAdviserFromEnvironment(env: AdvisorEnvironment): RouteAdvi
 
   const toolbox = createAdvisorToolbox({
     ...(env.PHOTON_URL?.trim() ? { geocoderUrl: env.PHOTON_URL.trim() } : {}),
+    // The historic PA DEP/PASDA — Unpaved Roads 2009_07 survey supplies surveyed /
+    // mapped unpaved surface evidence; curvature supplies independent local road
+    // evidence. Neither source establishes current access or passability. The
+    // provider is injected rather than imported so it stays server-side.
+    queryOfficialUnpaved: (bounds) =>
+      fetchPaUnpavedRoads({ bounds, limit: PA_UNPAVED_ROADS_MAX_FEATURES }),
     ...(repository
       ? {
           queryRoads: (bounds) => {

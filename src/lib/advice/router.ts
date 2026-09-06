@@ -40,6 +40,19 @@ const TURN_BUDGET_MS = 30_000
 const FIRST_ATTEMPT_SHARE = 0.6
 /** Floor for a non-final attempt: never hand one a slice too short to plausibly finish in. */
 const MIN_ATTEMPT_MS = 6_000
+/**
+ * What one attempt in this mode realistically needs, end to end.
+ *
+ * A route-only turn is a single request, so a fallback fits comfortably in what
+ * the share leaves behind. A tool-assisted turn is three or four sequential
+ * model round trips — measured around 15s, and dominated by the model rather
+ * than by the lookups — so a 12s remainder cannot carry one either. Reserving
+ * time for a fallback that cannot finish just converts a first attempt that
+ * would have succeeded into two that both time out.
+ */
+function minimumViableAttemptMs(mode: AdvisorExecutionMode): number {
+  return mode === "route-only" ? MIN_ATTEMPT_MS : 15_000
+}
 
 export type AdvisorProviderPreference = "auto" | "gemini" | "openrouter"
 
@@ -126,12 +139,17 @@ export function createRoutedAdviser(options: RoutedAdviserOptions): RouteAdviser
       // of no answer. With a single provider there is nobody to save time for,
       // so it keeps the whole budget.
       const deadline = Date.now() + TURN_BUDGET_MS
+      const viable = minimumViableAttemptMs(mode)
       let last: AdvisorReply | null = null
       for (const [index, provider] of providers.entries()) {
         const remaining = deadline - Date.now()
         if (remaining <= 0) break
         const isLast = index === providers.length - 1
-        const budget = isLast ? remaining : Math.max(MIN_ATTEMPT_MS, Math.round(remaining * FIRST_ATTEMPT_SHARE))
+        const share = Math.max(MIN_ATTEMPT_MS, Math.round(remaining * FIRST_ATTEMPT_SHARE))
+        // Hold time back only for a fallback that could actually finish in it.
+        // A provider that fails operationally tends to fail fast, and that path
+        // still leaves the whole remainder to whoever is asked next.
+        const budget = isLast || remaining - share < viable ? remaining : share
         // The provider merges whatever signal it is given with its own ceiling,
         // and reports an abort as `timeout` — which is retryable, so a starved
         // attempt falls over to the next provider exactly like a real stall.

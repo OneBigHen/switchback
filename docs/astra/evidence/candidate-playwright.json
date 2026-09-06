@@ -1,0 +1,1732 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/tmp/switchback-astra-audit/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "astra-playwright.config.ts",
+      "--project=critical-chromium",
+      "--project=desktop-chromium",
+      "tests/e2e/critical/planner-journeys.spec.ts",
+      "tests/e2e/critical/navigation-ia.spec.ts",
+      "tests/e2e/planner.spec.ts",
+      "tests/e2e/advisor.spec.ts",
+      "tests/e2e/free-ride.spec.ts"
+    ],
+    "configFile": "/tmp/switchback-astra-audit/astra-playwright.config.ts",
+    "rootDir": "/tmp/switchback-astra-audit/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop-chromium",
+        "name": "desktop-chromium",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-safari",
+        "name": "mobile-safari",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-landscape-wide",
+        "name": "mobile-landscape-wide",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-landscape-narrow",
+        "name": "mobile-landscape-narrow",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [
+          "/\\/e2e\\/(critical|real-router|pwa|visual)\\//",
+          "/\\/memory-soak\\.spec\\.ts$/",
+          "/\\/road-lock\\.spec\\.ts$/",
+          "/\\/e2e\\/mobile-qa\\//"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "memory-soak",
+        "name": "memory-soak",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/memory-soak\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "critical-chromium",
+        "name": "critical-chromium",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/critical\\/(planner-journeys|navigation-ia)\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "critical-webkit-smoke",
+        "name": "critical-webkit-smoke",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/critical\\/webkit-smoke\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "critical-webkit-full",
+        "name": "critical-webkit-full",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/critical\\/(planner-journeys|navigation-ia)\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "road-lock",
+        "name": "road-lock",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/road-lock\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "real-router",
+        "name": "real-router",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/real-router\\/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "pwa",
+        "name": "pwa",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/pwa\\/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/tmp/switchback-astra-audit/astra-test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "visual",
+        "name": "visual",
+        "testDir": "/tmp/switchback-astra-audit/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/\\/e2e\\/visual\\/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/root/Vibe/switchback/docs/astra/evidence/candidate-playwright.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "advisor.spec.ts",
+      "file": "advisor.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Gravel Goblin is available before routing and becomes the route companion after planning",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 35460,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:09:51.844Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-6dc621e676065fc15b27",
+          "file": "advisor.spec.ts",
+          "line": 127,
+          "column": 1
+        },
+        {
+          "title": "a route-only question shows deterministic route facts, never a bare spinner",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 16942,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:10:30.508Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-7845e533299ff2fe5778",
+          "file": "advisor.spec.ts",
+          "line": 188,
+          "column": 1
+        },
+        {
+          "title": "the Gravel Goblin surface does not exist at all when the capability is absent",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 39288,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:10:47.509Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-6a85ba9b7c8fea860d21",
+          "file": "advisor.spec.ts",
+          "line": 256,
+          "column": 1
+        },
+        {
+          "title": "an offline rider is never asked to wait on a capability probe that cannot succeed",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9760,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:11:26.864Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-ab3ec5cd38a0e6f6ecc7",
+          "file": "advisor.spec.ts",
+          "line": 272,
+          "column": 1
+        },
+        {
+          "title": "opening Gravel Goblin spends no model turn until the rider actually asks",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10564,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:11:36.654Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-6847a406915655dc0dbd",
+          "file": "advisor.spec.ts",
+          "line": 300,
+          "column": 1
+        },
+        {
+          "title": "the Gravel Goblin composer is reachable and operable by keyboard alone",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 12021,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:11:47.239Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-3e058d7fdb8e42ab1671",
+          "file": "advisor.spec.ts",
+          "line": 321,
+          "column": 1
+        },
+        {
+          "title": "a stale in-flight Goblin answer never paints against a route it was not asked about",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 134425,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/tmp/switchback-astra-audit/tests/e2e/advisor.spec.ts",
+                        "column": 74,
+                        "line": 406
+                      },
+                      "message": "Error: locator.click: Test timeout of 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Select Fastest Now' }).first()\u001b[22m\n\n\n  404 |   await expect(page.getByText(\"Sniffing out the good roads…\")).toBeVisible()\n  405 |\n> 406 |   await page.getByRole(\"button\", { name: \"Select Fastest Now\" }).first().click()\n      |                                                                          ^\n  407 |   release()\n  408 |   await page.waitForTimeout(750)\n  409 |\n    at /tmp/switchback-astra-audit/tests/e2e/advisor.spec.ts:406:74"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:11:59.299Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/advisor-a-stale-in-flight--5bcf1-oute-it-was-not-asked-about-desktop-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/advisor-a-stale-in-flight--5bcf1-oute-it-was-not-asked-about-desktop-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/advisor-a-stale-in-flight--5bcf1-oute-it-was-not-asked-about-desktop-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/advisor-a-stale-in-flight--5bcf1-oute-it-was-not-asked-about-desktop-chromium/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "b2d5ad66538ede4a326d-8801b787672b0c48014e",
+          "file": "advisor.spec.ts",
+          "line": 341,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "free-ride.spec.ts",
+      "file": "free-ride.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "offers one bounded Free Ride suggestion and accepts it into live guidance",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 75617,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:14:18.623Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1723ed58044e7f13127d-b1f407308eb81c54476e",
+          "file": "free-ride.spec.ts",
+          "line": 70,
+          "column": 1
+        },
+        {
+          "title": "offers a saved local Home escape from Free Ride and routes to it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 59431,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:15:36.215Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1723ed58044e7f13127d-9f97f2ef796f1ab84bd4",
+          "file": "free-ride.spec.ts",
+          "line": 117,
+          "column": 1
+        },
+        {
+          "title": "keeps the short small-phone Free Ride stack free of occlusion",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 53075,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:16:35.785Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1723ed58044e7f13127d-46333ac1ac9b6957e6b2",
+          "file": "free-ride.spec.ts",
+          "line": 228,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "planner.spec.ts",
+      "file": "planner.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "plans, compares, saves, exports, restores, and opens ride mode",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 128387,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                        "column": 84,
+                        "line": 319
+                      },
+                      "message": "Error: locator.click: Test timeout of 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Select Maximum Twisties', exact: true })\u001b[22m\n\n\n  317 |   await expect(page.getByRole(\"region\", { name: \"Route choices\" })).toBeVisible()\n  318 |   expect(routeRequest).toMatchObject({ profile: \"twisty\", compare: false, candidateSet: \"primary\" })\n> 319 |   await page.getByRole(\"button\", { name: \"Select Maximum Twisties\", exact: true }).click()\n      |                                                                                    ^\n  320 |   const showRouteDetails = page.getByRole(\"button\", { name: /Show route details/i })\n  321 |   if (await showRouteDetails.isVisible().catch(() => false)) await showRouteDetails.click()\n  322 |   await expect(page.getByRole(\"heading\", { name: \"Ride weather\" })).toBeVisible()\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:319:84"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:17:29.353Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-plans-compares-sav-d5310-estores-and-opens-ride-mode-desktop-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-plans-compares-sav-d5310-estores-and-opens-ride-mode-desktop-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-plans-compares-sav-d5310-estores-and-opens-ride-mode-desktop-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-plans-compares-sav-d5310-estores-and-opens-ride-mode-desktop-chromium/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5d42237028e62295b8dc-1ef30a60f95ecbd101ef",
+          "file": "planner.spec.ts",
+          "line": 235,
+          "column": 1
+        },
+        {
+          "title": "turns a free-form timebox into a gravel loop with route intelligence",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 27385,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate\n    at openRouteEditor (/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:67:6)\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:476:3",
+                    "location": {
+                      "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                      "column": 6,
+                      "line": 67
+                    },
+                    "snippet": "  65 |     if (await options.getAttribute(\"aria-expanded\") !== \"true\") await options.click()\n  66 |     await expect(startField).toBeVisible({ timeout: 1_000 })\n> 67 |   }).toPass({ timeout: 15_000 })\n     |      ^\n  68 | }\n  69 |\n  70 | function plannedRoute("
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                        "column": 6,
+                        "line": 67
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate\n\n  65 |     if (await options.getAttribute(\"aria-expanded\") !== \"true\") await options.click()\n  66 |     await expect(startField).toBeVisible({ timeout: 1_000 })\n> 67 |   }).toPass({ timeout: 15_000 })\n     |      ^\n  68 | }\n  69 |\n  70 | function plannedRoute(\n    at openRouteEditor (/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:67:6)\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:476:3"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:19:39.584Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-turns-a-free-form--ff196-oop-with-route-intelligence-desktop-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-turns-a-free-form--ff196-oop-with-route-intelligence-desktop-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-turns-a-free-form--ff196-oop-with-route-intelligence-desktop-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-turns-a-free-form--ff196-oop-with-route-intelligence-desktop-chromium/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                    "column": 6,
+                    "line": 67
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5d42237028e62295b8dc-7b0f06ae929036e34ec0",
+          "file": "planner.spec.ts",
+          "line": 393,
+          "column": 1
+        },
+        {
+          "title": "interprets a free-form destination ride without live geocoding",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 28019,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate\n    at openRouteEditor (/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:67:6)\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:581:3",
+                    "location": {
+                      "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                      "column": 6,
+                      "line": 67
+                    },
+                    "snippet": "  65 |     if (await options.getAttribute(\"aria-expanded\") !== \"true\") await options.click()\n  66 |     await expect(startField).toBeVisible({ timeout: 1_000 })\n> 67 |   }).toPass({ timeout: 15_000 })\n     |      ^\n  68 | }\n  69 |\n  70 | function plannedRoute("
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                        "column": 6,
+                        "line": 67
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate\n\n  65 |     if (await options.getAttribute(\"aria-expanded\") !== \"true\") await options.click()\n  66 |     await expect(startField).toBeVisible({ timeout: 1_000 })\n> 67 |   }).toPass({ timeout: 15_000 })\n     |      ^\n  68 | }\n  69 |\n  70 | function plannedRoute(\n    at openRouteEditor (/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:67:6)\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:581:3"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:20:09.436Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-interprets-a-free--3615b-ride-without-live-geocoding-desktop-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-interprets-a-free--3615b-ride-without-live-geocoding-desktop-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-interprets-a-free--3615b-ride-without-live-geocoding-desktop-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-interprets-a-free--3615b-ride-without-live-geocoding-desktop-chromium/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                    "column": 6,
+                    "line": 67
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5d42237028e62295b8dc-ab4762b01c1d9f64214b",
+          "file": "planner.spec.ts",
+          "line": 493,
+          "column": 1
+        },
+        {
+          "title": "draws a rough route on the map and snaps it into editable route points",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 28416,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate\n    at openRouteEditor (/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:67:6)\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:641:3",
+                    "location": {
+                      "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                      "column": 6,
+                      "line": 67
+                    },
+                    "snippet": "  65 |     if (await options.getAttribute(\"aria-expanded\") !== \"true\") await options.click()\n  66 |     await expect(startField).toBeVisible({ timeout: 1_000 })\n> 67 |   }).toPass({ timeout: 15_000 })\n     |      ^\n  68 | }\n  69 |\n  70 | function plannedRoute("
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                        "column": 6,
+                        "line": 67
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Ride options', exact: true })\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 1000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Ride options', exact: true })\u001b[22m\n\n\nCall Log:\n- Timeout 15000ms exceeded while waiting on the predicate\n\n  65 |     if (await options.getAttribute(\"aria-expanded\") !== \"true\") await options.click()\n  66 |     await expect(startField).toBeVisible({ timeout: 1_000 })\n> 67 |   }).toPass({ timeout: 15_000 })\n     |      ^\n  68 | }\n  69 |\n  70 | function plannedRoute(\n    at openRouteEditor (/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:67:6)\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:641:3"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:20:39.362Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-draws-a-rough-rout-4e7e5--into-editable-route-points-desktop-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-draws-a-rough-rout-4e7e5--into-editable-route-points-desktop-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-draws-a-rough-rout-4e7e5--into-editable-route-points-desktop-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-draws-a-rough-rout-4e7e5--into-editable-route-points-desktop-chromium/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                    "column": 6,
+                    "line": 67
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5d42237028e62295b8dc-2816c988f65a6e862cac",
+          "file": "planner.spec.ts",
+          "line": 589,
+          "column": 1
+        },
+        {
+          "title": "offers corridor options for a drawn line instead of a single traced route",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 17690,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Route choices' }).getByRole('button', { name: 'Select Traced' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Route choices' }).getByRole('button', { name: 'Select Traced' })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Route choices' }).getByRole('button', { name: 'Select Traced' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Route choices' }).getByRole('button', { name: 'Select Traced' })\u001b[22m\n\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:766:74",
+                    "location": {
+                      "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                      "column": 74,
+                      "line": 766
+                    },
+                    "snippet": "  764 |   await expect(rail.getByRole(\"article\")).toHaveCount(3)\n  765 |   for (const option of [\"Traced\", \"Better roads nearby\", \"Leaner\"]) {\n> 766 |     await expect(rail.getByRole(\"button\", { name: `Select ${option}` })).toBeVisible()\n      |                                                                          ^\n  767 |   }\n  768 |\n  769 |   // Added minutes versus the fastest option stay visible on every card."
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                        "column": 74,
+                        "line": 766
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Route choices' }).getByRole('button', { name: 'Select Traced' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Route choices' }).getByRole('button', { name: 'Select Traced' })\u001b[22m\n\n\n  764 |   await expect(rail.getByRole(\"article\")).toHaveCount(3)\n  765 |   for (const option of [\"Traced\", \"Better roads nearby\", \"Leaner\"]) {\n> 766 |     await expect(rail.getByRole(\"button\", { name: `Select ${option}` })).toBeVisible()\n      |                                                                          ^\n  767 |   }\n  768 |\n  769 |   // Added minutes versus the fastest option stay visible on every card.\n    at /tmp/switchback-astra-audit/tests/e2e/planner.spec.ts:766:74"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:21:09.620Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-offers-corridor-op-c4a2b-ad-of-a-single-traced-route-desktop-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-offers-corridor-op-c4a2b-ad-of-a-single-traced-route-desktop-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-offers-corridor-op-c4a2b-ad-of-a-single-traced-route-desktop-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/tmp/switchback-astra-audit/astra-test-results/planner-offers-corridor-op-c4a2b-ad-of-a-single-traced-route-desktop-chromium/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/tmp/switchback-astra-audit/tests/e2e/planner.spec.ts",
+                    "column": 74,
+                    "line": 766
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5d42237028e62295b8dc-ee37b6b5711a5c9317d1",
+          "file": "planner.spec.ts",
+          "line": 674,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "critical/navigation-ia.spec.ts",
+      "file": "critical/navigation-ia.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "primary navigation exposes exactly the four V2 destinations",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11308,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:21:29.972Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d84a452e56b6d5860a8b-42d91e35b067dd784791",
+          "file": "critical/navigation-ia.spec.ts",
+          "line": 23,
+          "column": 1
+        },
+        {
+          "title": "moving between destinations updates the URL and the visible surface",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 12946,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:21:41.799Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d84a452e56b6d5860a8b-e5b0a449273b153a3178",
+          "file": "critical/navigation-ia.spec.ts",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "title": "legacy ?tab=library deep link lands on the Rides destination",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8324,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:21:54.780Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d84a452e56b6d5860a8b-3dc4e483c550d05e8035",
+          "file": "critical/navigation-ia.spec.ts",
+          "line": 104,
+          "column": 1
+        },
+        {
+          "title": "legacy ?tab=profile deep link lands on the Settings destination",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7652,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:22:03.133Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d84a452e56b6d5860a8b-b48b3438f590cd0dbffb",
+          "file": "critical/navigation-ia.spec.ts",
+          "line": 114,
+          "column": 1
+        },
+        {
+          "title": "legacy ?tab=record deep link lands on Plan without starting a recording",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8632,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:22:10.813Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d84a452e56b6d5860a8b-c682701312aa7404c12b",
+          "file": "critical/navigation-ia.spec.ts",
+          "line": 124,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "critical/planner-journeys.spec.ts",
+      "file": "critical/planner-journeys.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "the idle composer keeps trip shape and free-form planning discoverable",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10871,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:22:19.668Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-2702df4aa480874b102b",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 42,
+          "column": 1
+        },
+        {
+          "title": "Draw opens the typed sketch toolbar from the V2 composer",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10776,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:22:30.558Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-6851a256697522340a78",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 56,
+          "column": 1
+        },
+        {
+          "title": "Quick Layers keeps primary map choices bounded while Advanced preserves the map studio",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10719,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:22:41.367Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-6d61ab04a2a2aec6bc16",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "title": "a free-form ride request reaches a routed outcome",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13426,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:22:52.125Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-03260847cc472a11eeb3",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 94,
+          "column": 1
+        },
+        {
+          "title": "destination planning sends the selected points and displays the final route",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11767,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:23:05.586Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-37d5e8738c9a56967119",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 110,
+          "column": 1
+        },
+        {
+          "title": "loop planning uses one fixed start and completes with a non-empty geometry",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11279,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:23:17.370Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-80a0163d5b5c8b24f075",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 126,
+          "column": 1
+        },
+        {
+          "title": "location denial falls back to an honest approximate start and still reaches a route",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9503,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:23:28.675Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-e73435e150b3cee87028",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 153,
+          "column": 1
+        },
+        {
+          "title": "provider failure ends loading and exposes a typed actionable error",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9563,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:23:38.206Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-e66357f32fd45f7a6add",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 173,
+          "column": 1
+        },
+        {
+          "title": "a newer plan wins and a stale provider response cannot overwrite it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13611,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:23:47.786Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-01d79bbf3cc703356aab",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 198,
+          "column": 1
+        },
+        {
+          "title": "route alternatives arrive after the primary and selection updates the visible route",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 14550,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:24:01.414Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-1786ab01a4666df24053",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 247,
+          "column": 1
+        },
+        {
+          "title": "a saved route survives a reload and remains available in the library",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 18836,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:24:15.983Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-22cd66c0249281daeac4",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 276,
+          "column": 1
+        },
+        {
+          "title": "valid GPX import appears in the route library",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8721,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:24:34.843Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-8d6e8cf51a5c967be8c2",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 301,
+          "column": 1
+        },
+        {
+          "title": "Free Ride accepts one suggestion into a normal guided Ride",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13870,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:24:43.595Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-af3f78bea24dac3fc59e",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 317,
+          "column": 1
+        },
+        {
+          "title": "desktop and iPhone-sized planner layouts keep controls and route outcome inside the viewport",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "critical-chromium",
+              "projectName": "critical-chromium",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 18605,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-05T12:24:57.518Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "080405bb455679e83dc9-b3bbdba04a4d16d18898",
+          "file": "critical/planner-journeys.spec.ts",
+          "line": 367,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-05T12:09:49.999Z",
+    "duration": 926349.431,
+    "expected": 28,
+    "skipped": 0,
+    "unexpected": 6,
+    "flaky": 0
+  }
+}

@@ -154,45 +154,7 @@ export async function searchPlaces(
     )
   }
 
-  const places = (payload.features ?? []).flatMap((feature, index) => {
-    const coordinates = feature.geometry?.coordinates
-    if (
-      feature.geometry?.type !== "Point" ||
-      !coordinates ||
-      !Number.isFinite(coordinates[0]) ||
-      !Number.isFinite(coordinates[1])
-    ) {
-      return []
-    }
-    const properties = feature.properties ?? {}
-    const name = properties.name ?? properties.city ?? properties.county ?? "Unnamed place"
-    const region = properties.state ?? properties.county ?? ""
-    const country = properties.country ?? ""
-    const houseNumber = properties.housenumber ?? properties.house_number ?? ""
-    const streetAddress = [houseNumber, properties.street].filter(Boolean).join(" ")
-    const locality = properties.city && properties.city !== name ? properties.city : ""
-    const regionAndPostcode = [region, properties.postcode].filter(Boolean).join(" ")
-    const label = [...new Set([
-      name,
-      streetAddress,
-      locality,
-      regionAndPostcode,
-      country
-    ].filter(Boolean))].join(", ")
-    const kind = normalizeFeatureKind(
-      properties.osm_value ?? properties.type ?? properties.osm_key
-    )
-    return [{
-      id: `${properties.osm_type ?? "feature"}-${properties.osm_id ?? index}`,
-      label,
-      name,
-      region,
-      country,
-      lat: coordinates[1],
-      lon: coordinates[0],
-      ...(kind ? { kind } : {})
-    }]
-  })
+  const places = (payload.features ?? []).flatMap(placeFromFeature)
 
   if (!options.bias || !isCoordinateInRoutingCoverage(options.bias)) {
     return places
@@ -209,6 +171,153 @@ export async function searchPlaces(
       left.index - right.index
     )
     .map(({ place }) => place)
+}
+
+function placeFromFeature(feature: PhotonFeature, index: number): PlaceResult[] {
+  const coordinates = feature.geometry?.coordinates
+  if (
+    feature.geometry?.type !== "Point" ||
+    !coordinates ||
+    !Number.isFinite(coordinates[0]) ||
+    !Number.isFinite(coordinates[1])
+  ) {
+    return []
+  }
+  const properties = feature.properties ?? {}
+  const name = properties.name ?? properties.city ?? properties.county ?? "Unnamed place"
+  const region = properties.state ?? properties.county ?? ""
+  const country = properties.country ?? ""
+  const houseNumber = properties.housenumber ?? properties.house_number ?? ""
+  const streetAddress = [houseNumber, properties.street].filter(Boolean).join(" ")
+  const locality = properties.city && properties.city !== name ? properties.city : ""
+  const regionAndPostcode = [region, properties.postcode].filter(Boolean).join(" ")
+  const label = [...new Set([
+    name,
+    streetAddress,
+    locality,
+    regionAndPostcode,
+    country
+  ].filter(Boolean))].join(", ")
+  const kind = normalizeFeatureKind(
+    properties.osm_value ?? properties.type ?? properties.osm_key
+  )
+  return [{
+    id: `${properties.osm_type ?? "feature"}-${properties.osm_id ?? index}`,
+    label,
+    name,
+    region,
+    country,
+    lat: coordinates[1],
+    lon: coordinates[0],
+    ...(kind ? { kind } : {})
+  }]
+}
+
+/**
+ * The OSM tags that actually define each stop kind.
+ *
+ * These exist because Photon's forward search matches *names*: `q=brewery`
+ * finds "Brewery Hollow Road" and a building called "Brewery Products Company",
+ * and misses every brewery whose name does not contain the word. Category
+ * search has to come from the tags instead.
+ */
+const FUN_STOP_OSM_TAGS: Record<FunStopKind, readonly string[]> = {
+  brewery: ["craft:brewery", "amenity:pub", "amenity:bar", "amenity:biergarten"],
+  coffee: ["amenity:cafe"],
+  food: ["amenity:restaurant", "amenity:fast_food", "amenity:food_court"],
+  fuel: ["amenity:fuel"]
+}
+
+/** Photon exposes category search on `/reverse`, a sibling of the `/api` search path. */
+function reverseEndpoint(baseUrl: string): URL {
+  const url = new URL(baseUrl)
+  url.search = ""
+  url.pathname = /\/api\/?$/.test(url.pathname)
+    ? url.pathname.replace(/\/api\/?$/, "/reverse")
+    : `${url.pathname.replace(/\/+$/, "")}/reverse`
+  return url
+}
+
+/** Two hits for the same venue, tagged once as a node and once as a building. */
+function isDuplicatePlace(left: PlaceResult, right: PlaceResult): boolean {
+  return left.name.trim().toLowerCase() === right.name.trim().toLowerCase() &&
+    distanceInKilometers(left, right) < 0.1
+}
+
+export interface NearbyPlaceOptions {
+  baseUrl: string
+  center: GeocoderBias
+  radiusKm?: number
+  limit?: number
+  fetcher?: typeof fetch
+}
+
+/**
+ * Find mapped places of one kind around a point.
+ *
+ * Unlike `searchPlaces`, this is a genuine proximity query: Photon's reverse
+ * endpoint takes the OSM tags and a radius, so it returns the breweries near a
+ * rider rather than the things named "brewery" anywhere on earth. Results come
+ * back nearest-first, so the caller's radius filter keeps them honest.
+ */
+export async function searchNearbyPlaces(
+  kind: FunStopKind,
+  options: NearbyPlaceOptions
+): Promise<PlaceResult[]> {
+  const { center } = options
+  if (
+    !Number.isFinite(center.lat) || center.lat < -90 || center.lat > 90 ||
+    !Number.isFinite(center.lon) || center.lon < -180 || center.lon > 180
+  ) {
+    return []
+  }
+
+  const url = reverseEndpoint(options.baseUrl)
+  url.searchParams.set("lat", String(center.lat))
+  url.searchParams.set("lon", String(center.lon))
+  url.searchParams.set("radius", String(Math.max(1, Math.min(options.radiusKm ?? FUN_STOP_RADIUS_KM, 50))))
+  url.searchParams.set("limit", String(Math.max(1, Math.min(options.limit ?? 10, 50))))
+  for (const tag of FUN_STOP_OSM_TAGS[kind]) url.searchParams.append("osm_tag", tag)
+
+  let response: Response
+  try {
+    response = await (options.fetcher ?? fetch)(url, {
+      headers: { accept: "application/geo+json, application/json" },
+      signal: AbortSignal.timeout(8_000)
+    })
+  } catch {
+    throw new GeocoderError(
+      "Place search is temporarily unavailable",
+      "GEOCODER_UNAVAILABLE",
+      503
+    )
+  }
+
+  if (!response.ok) {
+    throw new GeocoderError(
+      "Place search is temporarily unavailable",
+      "GEOCODER_UNAVAILABLE",
+      response.status
+    )
+  }
+
+  let payload: PhotonResponse
+  try {
+    payload = (await response.json()) as PhotonResponse
+  } catch {
+    throw new GeocoderError(
+      "Place search returned an unreadable response",
+      "INVALID_GEOCODER_RESPONSE",
+      502
+    )
+  }
+
+  return (payload.features ?? [])
+    .flatMap(placeFromFeature)
+    .reduce<PlaceResult[]>((kept, place) => {
+      if (!kept.some((existing) => isDuplicatePlace(existing, place))) kept.push(place)
+      return kept
+    }, [])
 }
 
 export function selectPreferredPlace(

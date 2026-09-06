@@ -18,7 +18,8 @@ describe("grounded AI boundaries", () => {
       officialUnpavedEvidence: undefined
     })
     expect(description.summary).toContain("40.0 miles")
-    expect(description.unsupported).toEqual(expect.arrayContaining(["toll exposure", "official surface legality"]))
+    expect(description.unsupported).toEqual(expect.arrayContaining(["toll exposure", "survey surface overlap"]))
+    expect(description.unsupported).not.toContain("official surface legality")
   })
 
   it("filters spatially before lexical scoring", () => {

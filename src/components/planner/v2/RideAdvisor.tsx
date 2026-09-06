@@ -100,6 +100,8 @@ function citationList(citations: GroundingCitation[]) {
 }
 
 function rideShape(ride: ProposedRide): string {
+  const shapingPoints = ride.waypoints.filter((point) => point.role !== "road-evidence")
+  const roadEvidence = ride.waypoints.filter((point) => point.role === "road-evidence")
   return [
     ride.mode === "loop"
       ? `Loop from ${ride.start.name}`
@@ -108,7 +110,8 @@ function rideShape(ride: ProposedRide): string {
     `${ride.profile} roads`,
     ride.avoidHighways ? "avoid highways" : null,
     ride.tollPolicy === "avoid" ? "avoid tolls" : null,
-    ride.waypoints.length > 0 ? `via ${ride.waypoints.map((point) => point.name).join(", ")}` : null
+    shapingPoints.length > 0 ? `via ${shapingPoints.map((point) => point.name).join(", ")}` : null,
+    roadEvidence.length > 0 ? `road evidence ${roadEvidence.map((point) => point.name).join(", ")}` : null
   ].filter(Boolean).join(" · ")
 }
 
@@ -143,6 +146,14 @@ export function RideAdvisor({
   const [dismissedNudges, setDismissedNudges] = useState<string[]>([])
   const pending = useRef<AbortController | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * A route change normally invalidates the Goblin's stop ideas, because they
+   * were chosen along a route that no longer exists. Planning the Goblin's own
+   * proposal is the exception: the rider asked for "a brewery at the end", and
+   * dropping the brewery at the moment the ride appears loses the thing they
+   * asked for.
+   */
+  const keepStopsThroughReplan = useRef(false)
   const currentScope = scopeFor(routes, selectedRouteId)
   const [scope, setScope] = useState(currentScope)
   const scopeRef = useRef(currentScope)
@@ -167,19 +178,27 @@ export function RideAdvisor({
   useEffect(() => {
     if (scopeRef.current === currentScope) return
     const hadConversation = conversation.length > 0
+    const carryStops = keepStopsThroughReplan.current
+    keepStopsThroughReplan.current = false
     scopeRef.current = currentScope
     pending.current?.abort()
     pending.current = null
     setScope(currentScope)
     setBusy(false)
     setWorking(null)
-    setStops([])
+    // Progress was measured against the previous route, so it is no longer a
+    // fact about this one. The stop itself still is.
+    setStops((current) => carryStops
+      ? current.map((stop) => ({ ...stop, routeProgress: null }))
+      : [])
     setRide(null)
     setCitations([])
     setSecondOpinion(null)
-    setNotice(hadConversation && selectedRouteId
-      ? "Route changed — I’m looking at the one you picked now."
-      : null)
+    setNotice(carryStops
+      ? null
+      : hadConversation && selectedRouteId
+        ? "Route changed — I’m looking at the one you picked now."
+        : null)
   }, [conversation.length, currentScope, selectedRouteId])
 
   useEffect(() => {
@@ -256,11 +275,20 @@ export function RideAdvisor({
       if (controller.signal.aborted || scopeRef.current !== requestScope) return
 
       if (reply.status !== "ok") {
+        // Optimistic rider turns become transcript history only when the server
+        // accepts the turn. On failure, restore the exact pre-request history so
+        // a retry sends the text once as riderMessage rather than again in history.
+        setConversation(conversation)
+        if (riderMessage) setDraft((current) => current || riderMessage)
         setNotice(
           reply.status === "timeout"
             ? "That one took too long. Give me another crack at it."
             : reply.status === "rate-limited"
               ? "I’ve chewed through my turns for the moment. Try me again shortly."
+              : reply.status === "invalid-request"
+                ? "I couldn’t read that ride request. Shorten it or refresh the ride, then try again."
+              : reply.status === "malformed"
+                ? "I couldn’t validate that answer. Your ride hasn’t changed. Try again."
               : "I can’t reach my outside sources right now. Your Switchback planner still works normally."
         )
         return
@@ -425,6 +453,7 @@ export function RideAdvisor({
             type="button"
             className={styles.plan}
             onClick={() => {
+              keepStopsThroughReplan.current = true
               onPlanRide(visibleRide)
               setRide(null)
             }}

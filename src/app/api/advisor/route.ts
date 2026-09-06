@@ -1,8 +1,13 @@
 import {
-  array, enum_, number, object_, optional, safeParse, string, tuple
+  array, enum_, nullable, number, object_, optional, safeParse, string, tuple
 } from "@/lib/validate"
 import { createAdviserFromEnvironment, resolveAdvisorCapability } from "@/lib/advice/capability"
 import { emptyReply, type AdviceRequest } from "@/lib/advice/contracts"
+import {
+  MAX_ADVISOR_BODY_BYTES,
+  MAX_ADVISOR_CONVERSATION_TURNS
+} from "@/lib/advice/request-limits"
+import { isExplicitHomeDestinationRequest } from "@/lib/ai/ride-intent"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 
@@ -23,11 +28,12 @@ export const runtime = "nodejs"
 
 const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 8, label: "advisor turn" })
 
-const MAX_BODY_BYTES = 24 * 1024
-
 const PROFILES = [
   "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
 ] as const
+
+const HOME_DESTINATION_GUIDANCE =
+  "Home is the planner's saved browser location. Use or save it in the planner before routing home."
 
 const coordinateSchema = tuple([
   number({ finite: true, min: -180, max: 180 }),
@@ -43,18 +49,18 @@ const candidateSchema = object_({
   twistiness: number({ finite: true, min: 0, max: 100 }),
   turnCount: number({ finite: true, min: 0, max: 100_000 }),
   roadMix: optional(object_({}, { passthrough: true })),
-  surfaceMix: optional(object_({}, { passthrough: true }))
+  surfaceMix: optional(object_({}, { passthrough: true })),
+  officialUnpavedSharePercent: optional(number({ finite: true, min: 0, max: 100 }))
 }, { passthrough: true })
 
 const payloadSchema = object_({
-  // Absent while the rider is building a ride from scratch and the advisor is
-  // helping put one together.
-  context: optional(object_({
+  // The browser sends null before routing; older clients may omit it.
+  context: optional(nullable(object_({
     selectedRouteId: string({ trim: true, min: 1, max: 120 }),
     candidates: array(candidateSchema, { min: 1, max: 6 }),
     geometry: array(coordinateSchema, { min: 2, max: 64 }),
     warnings: optional(array(string({ trim: true, max: 400 }), { max: 8 }))
-  })),
+  }))),
   origin: optional(object_({
     lat: number({ finite: true, min: -90, max: 90 }),
     lon: number({ finite: true, min: -180, max: 180 }),
@@ -63,7 +69,7 @@ const payloadSchema = object_({
   conversation: optional(array(object_({
     role: enum_(["rider", "advisor"] as const),
     text: string({ trim: true, min: 1, max: 2_000 })
-  }), { max: 12 })),
+  }), { max: MAX_ADVISOR_CONVERSATION_TURNS })),
   riderMessage: optional(string({ trim: true, min: 1, max: 1_000 }))
 })
 
@@ -80,7 +86,7 @@ export async function handleAdvisorPost(request: Request): Promise<Response> {
 
   let body: unknown
   try {
-    body = await readBoundedJsonBody(request, MAX_BODY_BYTES)
+    body = await readBoundedJsonBody(request, MAX_ADVISOR_BODY_BYTES)
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) {
       return jsonError("ADVISOR_REQUEST_TOO_LARGE", "That ride is too large to discuss.", 413)
@@ -91,6 +97,10 @@ export async function handleAdvisorPost(request: Request): Promise<Response> {
   const parsed = safeParse(payloadSchema, body)
   if (!parsed.success) {
     return jsonError("INVALID_ADVISOR_REQUEST", "Send the current route and candidates.", 400)
+  }
+
+  if (parsed.data.riderMessage && isExplicitHomeDestinationRequest(parsed.data.riderMessage)) {
+    return Response.json({ ...emptyReply("ok", HOME_DESTINATION_GUIDANCE), capability })
   }
 
   const adviser = createAdviserFromEnvironment(process.env)

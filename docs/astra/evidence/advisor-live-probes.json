@@ -1,0 +1,496 @@
+[
+  {
+    "prompt": "Give me a fun 90-minute ride.",
+    "httpStatus": 400,
+    "elapsedMs": 1245,
+    "body": {
+      "error": {
+        "code": "INVALID_ADVISOR_REQUEST",
+        "message": "Send the current route and candidates."
+      }
+    }
+  },
+  {
+    "prompt": "Take me somewhere scenic.",
+    "httpStatus": 400,
+    "elapsedMs": 236,
+    "body": {
+      "error": {
+        "code": "INVALID_ADVISOR_REQUEST",
+        "message": "Send the current route and candidates."
+      }
+    }
+  },
+  {
+    "prompt": "No highways.",
+    "httpStatus": 200,
+    "elapsedMs": 3203,
+    "body": {
+      "status": "ok",
+      "message": "Skip the quick route; it's mostly straight lines. If you want to actually lean the bike, take the Twisty alternative.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "The Twisty alternative has the highest curve score at 100/100, which is worth the extra 7 minutes compared to the quick route.",
+        "cautions": [
+          "Surface legality and maintenance are unknown for these routes.",
+          "The twisty route adds 7 minutes of travel time."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 3075
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Mostly pavement but give me some easy dirt.",
+    "httpStatus": 200,
+    "elapsedMs": 3989,
+    "body": {
+      "status": "ok",
+      "message": "I checked the map and there are no reliable unpaved connectors on these routes. If you want to stick to the pavement, the Twisty alternative is your best bet for actual riding engagement.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "The twisty route offers 35 turns compared to the balanced route's 34, and significantly more than the quick route's 6, making it the most engaging option for a dual-sport rider looking for curves.",
+        "cautions": [
+          "No mapped unpaved sections found on any available route.",
+          "Surface legality and maintenance status are unknown for all options."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 1,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 3835
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Make this route twistier.",
+    "httpStatus": 200,
+    "elapsedMs": 3859,
+    "body": {
+      "status": "ok",
+      "message": "If you want the curves, take the Twisty alternative. It adds six minutes over the fastest route but gives you 35 turns and a perfect curve score.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "The twisty option maximizes the curve score at 100/100, which is the clear choice for a rider looking for more engagement than the balanced or quick routes.",
+        "cautions": [
+          "Adds 6 minutes of travel time compared to the quickest route.",
+          "Surface legality and maintenance status are unknown."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 3146
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "I am getting tired; get me home.",
+    "httpStatus": 200,
+    "elapsedMs": 8243,
+    "body": {
+      "status": "ok",
+      "message": "If you're flagging, take the Quick route. It cuts out the extra turns and gets you home in 30 minutes with the least amount of effort.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "quick-1-u9zgoy",
+        "rationale": "When you're tired, you don't want 35 turns or extra minutes. The quick route is the most efficient path.",
+        "cautions": [
+          "The quick route has the lowest curve score, so it will be less engaging.",
+          "Surface legality and toll exposure are unknown for all routes."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 6032
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Give me another option.",
+    "httpStatus": 200,
+    "elapsedMs": 3784,
+    "body": {
+      "status": "ok",
+      "message": "If you want to actually ride, skip the quick route and take the twisty one. It adds six minutes but gives you 35 turns instead of six, which is a much better use of your time.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "The twisty route offers a significantly higher curve score (100/100) compared to the balanced option, making it the superior choice for a more engaging ride.",
+        "cautions": [
+          "The twisty route adds 6 minutes compared to the fastest option.",
+          "None of these routes have mapped unpaved sections.",
+          "Surface legality is unknown for all options."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 3196
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Why did you choose this section?",
+    "httpStatus": 200,
+    "elapsedMs": 6996,
+    "body": {
+      "status": "ok",
+      "message": "The engine that built the route set recommends the Balanced alternative 2 (id balanced-2-1lhubq4), and I'd pick it too for paved fun. The Quick route is only 1 minute faster (30 vs 31) but trades almost all the corners: 6 mapped turns and a 27/100 curve score. Balanced more than doubles the twisties to 34 turns and a 72/100 curve score for that single extra minute. The Twisty alternative offers 100/100 curves and 35 turns, but costs a full 6 extra minutes over the fastest with no extra length (18.7 miles), so it's a worse time-to-smile ratio.\n\nOne thing to flag: all three show 0% mapped unpaved, so this is a pavement run, not a dirt connector. If you're looking for gravel, none of these candidates have it; tolls and official surface legality aren't known for any of them either. Since I can't pin anything without tools this turn, I'm just explaining the pick, not proposing a new route.",
+      "secondOpinion": null,
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "route-only",
+        "answeredBy": "openrouter",
+        "attempts": [
+          {
+            "providerId": "openrouter",
+            "modelId": "~deepseek/deepseek-v4-flash-latest",
+            "status": "ok",
+            "ms": 5417
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Avoid that area.",
+    "httpStatus": 200,
+    "elapsedMs": 4566,
+    "body": {
+      "status": "ok",
+      "message": "I'm not sure which area you're looking to avoid, but if you want to dodge the main corridors, the Twisty alternative is your best bet. It adds a few minutes but packs in 35 turns compared to the Quick route's 6.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "The Twisty alternative offers the highest curve score (100/100) and significantly more turns, which is usually the point of riding a dual-sport bike.",
+        "cautions": [
+          "Surface legality and maintenance are unknown for all routes.",
+          "The Twisty route adds 7 minutes of travel time compared to the Quick route."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 4527
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Keep this road but change the rest.",
+    "httpStatus": 200,
+    "elapsedMs": 6553,
+    "body": {
+      "status": "ok",
+      "message": "I can't edit the route geometry directly, but I can help you find stops to break up the ride. Since you're looking for a change, the 'Twisty alternative 2' is your best bet for actual riding quality over the quick route.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "The twisty option offers a 100/100 curve score compared to the others, which is worth the extra 6 minutes.",
+        "cautions": [
+          "No mapped unpaved sections, so keep your expectations on pavement.",
+          "Toll exposure is unknown."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 0,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 6502
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Extend this ride by about an hour.",
+    "httpStatus": 200,
+    "elapsedMs": 7479,
+    "body": {
+      "status": "ok",
+      "message": "I cannot find any mapped stops or interesting roads to pad this route out for you. The twisty option is your best bet for engagement, but you will need to find your own detour for the extra hour.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "If you want to kill time, take the twisty route. It has the highest curve score and adds the most time naturally without needing a detour.",
+        "cautions": [
+          "No mapped unpaved sections found.",
+          "No stops found to extend the ride."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 4,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 7427
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Find somewhere interesting to stop.",
+    "httpStatus": 200,
+    "elapsedMs": 5734,
+    "body": {
+      "status": "ok",
+      "message": "I've scoured the area, but there's nothing mapped for coffee or food along these routes. You'll be riding through the quiet stretches, so pack a snack.",
+      "secondOpinion": {
+        "agreesWithSwitchback": false,
+        "wouldPick": "twisty-2-njqdsa",
+        "rationale": "If you're looking for fun, the twisty-2-njqdsa route is the clear winner with a perfect curve score of 100/100. It adds about 6 minutes, but it's worth it for the extra turns.",
+        "cautions": [
+          "No mapped unpaved sections; keep an eye out if you're hunting for dirt.",
+          "Surface legality is unknown for these roads."
+        ],
+        "confidence": "high"
+      },
+      "proposedStops": [],
+      "proposedRide": null,
+      "citations": [],
+      "usage": {
+        "toolCalls": 3,
+        "groundedQueries": 0,
+        "mode": "tool-assisted",
+        "answeredBy": "gemini",
+        "attempts": [
+          {
+            "providerId": "gemini",
+            "modelId": "gemini-3.1-flash-lite",
+            "status": "ok",
+            "ms": 5680
+          }
+        ]
+      },
+      "capability": {
+        "enabled": true,
+        "sources": [
+          "switchback-local",
+          "switchback-roads",
+          "google-maps"
+        ],
+        "attributions": [
+          "Place data © OpenStreetMap contributors",
+          "Grounded with Google Maps"
+        ]
+      }
+    }
+  }
+]

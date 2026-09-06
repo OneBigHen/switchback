@@ -10,6 +10,12 @@ import {
   type MapExperienceId,
   type MapLightPreference
 } from "./map-experience"
+import {
+  PA_UNPAVED_ROADS_MIN_ZOOM,
+  PA_UNPAVED_ROADS_PROVENANCE
+} from "@/lib/roads/types"
+
+export { PA_UNPAVED_ROADS_PROVENANCE }
 
 export type LegacyMapStyleId = "clean" | "explorer" | "night"
 
@@ -189,10 +195,10 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
     id: "unpaved", name: "PA unpaved roads", category: "roads", status: "regional",
     source: "Pennsylvania Spatial Data Access (PASDA)",
-    provenance: "Pennsylvania Spatial Data Access (PASDA) official unpaved road dataset. Government-published, regional coverage. Verify currency against provider release notes.",
+    provenance: `${PA_UNPAVED_ROADS_PROVENANCE}. Government-published historic regional unpaved-road survey; mapped surface evidence only — not legal/public access, passability, maintenance, or current openness. Verify currency against provider release notes.`,
     dataCategory: "road-surface",
     freshness: "Dataset version shown by provider", coverage: "Pennsylvania",
-    legend: "Brown dashed line = official unpaved road", minZoom: 7
+    legend: "Brown dashed line = mapped unpaved-road survey", minZoom: PA_UNPAVED_ROADS_MIN_ZOOM
   },
   {
     id: "topo", name: "Topographic base", category: "base", status: "live",
@@ -426,7 +432,13 @@ export function shouldShowBaseMapFailure(
 }
 
 export function paUnpavedRoadsQuery(bounds: ViewportBounds, zoom: number): string | null {
-  if (zoom < 7 || bounds.north - bounds.south > 4 || bounds.east - bounds.west > 6) return null
+  // Matches the server's floor: below it the request is rejected, and a
+  // rejection paints the overlay as unavailable rather than as zoomed out.
+  if (
+    zoom < PA_UNPAVED_ROADS_MIN_ZOOM ||
+    bounds.north - bounds.south > 4 ||
+    bounds.east - bounds.west > 6
+  ) return null
   return new URLSearchParams({
     bbox: `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`,
     zoom: String(Math.floor(zoom)),

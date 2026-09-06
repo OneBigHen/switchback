@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
-import { filterFunStopCandidates, searchPlaces, selectPreferredPlace } from "@/lib/geocoding/photon"
+import {
+  filterFunStopCandidates,
+  searchNearbyPlaces,
+  searchPlaces,
+  selectPreferredPlace
+} from "@/lib/geocoding/photon"
 import { searchDestinationPlaces } from "@/lib/geocoding/search"
 
 describe("Photon geocoder", () => {
@@ -292,5 +297,83 @@ describe("destination geocoder", () => {
       expect.objectContaining({ id: "N-55", name: "Wellsboro" })
     ])
     expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+})
+
+/**
+ * Category search, not name search.
+ *
+ * Photon's forward endpoint answers `q=brewery` with roads called "Brewery
+ * Hollow" and misses every brewery whose name lacks the word, so asking it for
+ * a rider's stops returned nothing usable. Proximity search by OSM tag is the
+ * query that actually means "breweries near here".
+ */
+describe("Photon nearby category search", () => {
+  const nearbyResponse = () => Response.json({
+    features: [
+      {
+        geometry: { type: "Point", coordinates: [-76.8875, 40.2707] },
+        properties: {
+          osm_id: 1, osm_type: "N", osm_key: "amenity", osm_value: "bar",
+          name: "The Millworks", city: "Harrisburg", state: "Pennsylvania", country: "United States"
+        }
+      },
+      {
+        geometry: { type: "Point", coordinates: [-76.88751, 40.27071] },
+        properties: {
+          osm_id: 2, osm_type: "W", osm_key: "building", osm_value: "yes",
+          name: "The Millworks", city: "Harrisburg", state: "Pennsylvania", country: "United States"
+        }
+      }
+    ]
+  })
+
+  it("queries the reverse endpoint with the tags that define the stop kind", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => nearbyResponse())
+    await searchNearbyPlaces("brewery", {
+      baseUrl: "https://photon.test/api/",
+      center: { lat: 40.2732, lon: -76.8867 },
+      radiusKm: 25,
+      fetcher
+    })
+
+    const url = new URL(String(fetcher.mock.calls[0]![0]))
+    expect(url.pathname).toBe("/reverse")
+    expect(url.searchParams.get("lat")).toBe("40.2732")
+    expect(url.searchParams.get("radius")).toBe("25")
+    expect(url.searchParams.getAll("osm_tag")).toContain("craft:brewery")
+    expect(url.searchParams.getAll("osm_tag")).toContain("amenity:pub")
+    expect(url.searchParams.get("q")).toBeNull()
+  })
+
+  it("collapses the same venue mapped twice as a node and a building", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => nearbyResponse())
+    const places = await searchNearbyPlaces("brewery", {
+      baseUrl: "https://photon.test/api/",
+      center: { lat: 40.2732, lon: -76.8867 },
+      fetcher
+    })
+
+    expect(places.map((place) => place.name)).toEqual(["The Millworks"])
+    expect(places[0]).toMatchObject({ kind: "bar" })
+  })
+
+  it("reports an outage rather than an empty neighbourhood", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response("nope", { status: 502 }))
+    await expect(searchNearbyPlaces("coffee", {
+      baseUrl: "https://photon.test/api/",
+      center: { lat: 40.2732, lon: -76.8867 },
+      fetcher
+    })).rejects.toMatchObject({ code: "GEOCODER_UNAVAILABLE" })
+  })
+
+  it("refuses an unusable centre instead of searching the null island", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => nearbyResponse())
+    await expect(searchNearbyPlaces("fuel", {
+      baseUrl: "https://photon.test/api/",
+      center: { lat: Number.NaN, lon: -76.8867 },
+      fetcher
+    })).resolves.toEqual([])
+    expect(fetcher).not.toHaveBeenCalled()
   })
 })

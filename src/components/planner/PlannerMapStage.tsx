@@ -17,6 +17,7 @@ import { buildNavigationMapFeatures } from "@/lib/client/navigation-map"
 import "@/app/styles/map-stage-road-locks.css"
 import "@/app/styles/route-sculpting.css"
 import {
+  PA_UNPAVED_ROADS_PROVENANCE,
   type RiderLayerId,
   shouldShowBaseMapFailure
 } from "@/lib/client/map-layers"
@@ -1154,8 +1155,8 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       {curvatureStatus === "loading" ? <div className="map-layer-status" role="status">Loading curve overlay…</div> : null}
       {curvatureStatus === "zoom" ? <div className="map-layer-status">Zoom in to see curve data</div> : null}
       {curvatureStatus === "error" ? <div className="map-layer-status map-layer-error" role="status">Curve overlay unavailable</div> : null}
-      {unpavedStatus === "loading" ? <div className="map-layer-status unpaved-status" role="status">Loading official PA gravel roads…</div> : null}
-      {unpavedStatus === "error" ? <div className="map-layer-status map-layer-error unpaved-status" role="status">PA gravel overlay unavailable</div> : null}
+      {unpavedStatus === "loading" ? <div className="map-layer-status unpaved-status" role="status">Loading {PA_UNPAVED_ROADS_PROVENANCE} survey…</div> : null}
+      {unpavedStatus === "error" ? <div className="map-layer-status map-layer-error unpaved-status" role="status">{PA_UNPAVED_ROADS_PROVENANCE} survey unavailable</div> : null}
       {riderFeaturesStatus === "loading" ? (
         <div className="map-layer-status map-feature-banner" role="status" aria-live="polite">
           <span className="map-layer-spinner" aria-hidden="true" />

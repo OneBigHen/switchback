@@ -30,7 +30,11 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
 ]
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "switchback.home.arpa"],
+  // Hosts allowed to load dev-only `/_next/*` resources. A host missing here
+  // still serves HTML but has its bundles and HMR blocked, which looks like a
+  // half-rendered, unresponsive app rather than a permissions error.
+  // `ride.henning.rodeo` is the tunnelled host this instance is reached on.
+  allowedDevOrigins: ["127.0.0.1", "switchback.home.arpa", "ride.henning.rodeo"],
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
