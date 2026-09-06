@@ -1,6 +1,7 @@
 # Astra implementation checkpoint
 
-Updated 2026-09-06. **Wave 0 landed on `main`; Wave 1 open. No wave is
+Updated 2026-09-06. **Wave 0 landed on `main`; Wave 1 is verification-complete
+on `implement/astra-wave-1` and merges on green (PR #64). No wave is
 release-qualified. DO NOT SHIP.**
 
 ## Repository and authority
@@ -118,7 +119,7 @@ location seed); a late recovery that loses to the rider is `superseded`, not
 `conflict`, and keeps checkpointing; the checkpoint no longer declares a result
 field it never wrote; `seedCurrentLocation` cannot cut a redo branch.
 
-## Wave 1 verification (application SHA `371e5df`, tree `45e53bb`)
+## Wave 1 verification at review handoff (application SHA `371e5df`, tree `45e53bb`)
 
 Node 24.15.0 (`PATH=/root/.n/bin:$PATH`; non-login shells default to Node 22).
 
@@ -137,10 +138,66 @@ Node 24.15.0 (`PATH=/root/.n/bin:$PATH`; non-login shells default to Node 22).
   `--repeat-each=3`). The same step fails on the untouched base `6744b01`, so it
   is pre-existing, not Wave 1. CI runs with `retries: 1`.
 
+## The `45e53bb` rebaseline was captured with a key the reference has not
+
+CI `visual` was red from `45e53bb` to `3fc2e73` (55/60). All five failures had
+one cause, and it was in the baselines, not the product.
+
+Gravel Goblin is a **server-declared, key-gated capability** (ADR 0021):
+`advisorCapability` reports `enabled` only when `GEMINI_API_KEY` or
+`ADVISOR_OPENROUTER_API_KEY` is present. This working copy's `.env.local` sets
+both, so `next dev` served `GET /api/advisor` as enabled and the planner drew
+the "Need a ride idea?" invite. CI holds no advisor secret, so it never draws
+it. `45e53bb` regenerated seven snapshots on the keyed machine and baked that
+optional card into five **generic** planner baselines.
+
+Evidence, not inference: four of the five CI actuals are **byte-identical** to
+the pre-`45e53bb` baselines that were green on `main` (`3841df8`); the fifth
+(`plan-empty-320x700`) differs from it by **14 px, max channel delta 5** —
+antialiasing, against a `maxDiffPixelRatio` of 0.02. The rebaseline, not the
+Wave 1 code, moved those images.
+
+- **Fix.** `installPlannerServices` now declares the optional advisor **absent**,
+  so every generic fixture exercises the key-free baseline the product
+  guarantees regardless of which machine runs it. `advisor.spec.ts` and
+  `visual/gravel-goblin.spec.ts` install their own `/api/advisor` mock and own
+  the enabled contract; neither uses `installPlannerServices`. Deleting the
+  `expectAdvisorReady` wait (`fbc9f03`/`ed3bb57`) removed the assertion but left
+  the environment dependence — the stub is what actually removes it.
+- **Baselines.** The five generic snapshots are restored to the advisor-free
+  product state. `map-provider-failure--desktop` was contaminated the same way
+  and was **passing on threshold luck** (the card sits just under 2% of a
+  1440x900 canvas); it is regenerated advisor-free. `gravel-goblin-routed-phone`
+  keeps its `45e53bb` content — that spec mocks the capability on deliberately.
+- `defaultRideIntent().profile` is `balanced`, matching the rider-settings
+  default, so no snapshot depends on a first-route profile race.
+
+## Wave 1 verification (application source unchanged from `371e5df`)
+
+Full exact-head local run, Node 24.15.0, after the baseline correction:
+
+- `npm run lint` (`--max-warnings=0`) passed; `npm run typecheck` passed.
+- Vitest **324 files / 2,067 passed / 1 skipped / 0 failed** (401.38s).
+- Production build passed, **537** route-atlas manifest routes.
+- `--project=visual` **60/60**, twice, without `--update-snapshots`.
+- `--project=critical-chromium` **19/19**; `--project=critical-webkit-smoke`
+  **2/2**; `--project=road-lock` **1/1**.
+- `npm run test:e2e:pwa` **2/2**; `npm run test:e2e:real-router` **5/5** against
+  the local pinned GraphHopper 11.0 fixture.
+- `mobile-core` (`webkit-standard` + `chromium-standard`, `tests/e2e/mobile-qa/core`):
+  **46/48 on this host**. The two failures are both in `ride.core.spec.ts`
+  ("recording starts…two bounded GPS samples" on WebKit, timeout; "off-route
+  recovery presents a bounded rejoin action" on Chromium, an aborted
+  `pa-unpaved-roads` request). Both reproduce **unchanged on the untouched
+  head with these edits stashed**, and both pass in CI at that same head, so
+  they are a property of this host's browser builds, not of Wave 1. CI's
+  `mobile-core` is the reference for this gate.
+
 ## Next exact task
 
-Independent adversarial review of the Wave 1 PR by a fresh session, before
-merge. Do not open Wave 2 until that review closes.
+Merge PR #64 once every required check is green on this exact head, then open
+Wave 2 in `IMPLEMENTATION-BACKLOG.md` dependency order. Do not reopen the
+closed remediation campaign.
 
 ## Release boundaries
 

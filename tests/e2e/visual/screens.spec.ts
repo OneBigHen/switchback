@@ -182,9 +182,10 @@ for (const viewport of PLAN_EMPTY_VIEWPORTS) {
       await assertPanelVisible(page.locator(".planner-deck"), 0)
       await expect(page.locator(".planner-deck")).toHaveClass(/is-idle-plan/)
       await assertIdlePlanGeometry(page, viewport)
-      // Gravel Goblin has its own capability-mocked visual contract. The
-      // generic planner baseline must remain valid when that optional feature
-      // is unavailable rather than waiting for a region that may not exist.
+      // Gravel Goblin has its own capability-mocked visual contract. This
+      // baseline is the key-free planner (installPlannerServices declares the
+      // optional advisor absent), so it stays valid whether or not the machine
+      // running it holds an advisor API key.
       await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
   })

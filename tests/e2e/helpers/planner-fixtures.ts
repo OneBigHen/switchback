@@ -124,6 +124,18 @@ export async function installPlannerServices(page: Page): Promise<void> {
     contentType: "application/json",
     body: JSON.stringify({ importedRoutes: 0, routes: [] })
   }))
+  // Gravel Goblin is a server-declared, key-gated capability (ADR 0021), so a
+  // machine holding GEMINI_API_KEY / ADVISOR_OPENROUTER_API_KEY renders an
+  // extra planner card that a key-free machine — including CI — never shows.
+  // Fixtures that are not about the advisor must not inherit that difference:
+  // declare the optional capability absent so every generic suite exercises
+  // the same key-free baseline the product guarantees. Advisor suites install
+  // their own /api/advisor mock and are unaffected by this one.
+  await page.route("**/api/advisor", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ capability: { enabled: false, sources: [], attributions: [] } })
+  }))
   // Background corridor-hint cache warming. The real endpoint is deliberately
   // capped at 6/min per client key, and a suite sharing one origin blows that
   // budget within a few specs — WebKit then logs the 429 as a failed resource
