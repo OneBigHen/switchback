@@ -187,9 +187,9 @@ export function classifyPaRouteRegion(geometry: readonly Coordinate[] | undefine
 
 export function rideRegionMatches(summary: RideRegionSummary | undefined, filter: RideRegionFilter): boolean {
   if (filter === "all") return true
-  if (!summary) return filter === "outside"
+  if (!summary) return false
   if (filter === "cross") return summary.crossRegion
-  if (filter === "outside") return summary.primary === null
+  if (filter === "outside") return summary.primary === null && summary.label === "Outside PA"
   return summary.regions.includes(filter)
 }
 
