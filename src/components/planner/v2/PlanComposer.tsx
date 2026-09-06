@@ -164,7 +164,7 @@ export function PlanComposer({
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
   const placementActive = armedPoint !== null || addingVia
-  const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
+  const canSubmitRequest = ridePrompt.trim().length >= 3 && !requestBusy
 
   const cancelPlacement = useCallback(() => {
     if (addingVia) {
@@ -192,7 +192,10 @@ export function PlanComposer({
       {planningBusy ? (
         <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
           <SpinnerGap className="spin" aria-hidden="true" />
-          <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
+          <span>
+            {lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}
+            {elapsedSeconds >= 12 ? <small> Still working — road search can take longer on weak connections.</small> : null}
+          </span>
           <button type="button" aria-label="Cancel ride change" onClick={onCancelRideChange}>Cancel</button>
         </div>
       ) : null}
