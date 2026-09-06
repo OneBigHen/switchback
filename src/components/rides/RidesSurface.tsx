@@ -3,6 +3,12 @@
 import { Crosshair, FileArrowUp } from "@phosphor-icons/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RoadLockMode } from "@/lib/roads/road-locks"
+import type { Coordinate } from "@/lib/routing/types"
+import {
+  rideRegionMatches,
+  type RideRegionFilter,
+  type RideRegionSummary
+} from "@/lib/rides/route-library-intelligence"
 import { haversineMiles } from "@/lib/client/geo"
 import { useNearMe } from "@/lib/client/near-me"
 import { DestinationHeader } from "@/components/v2/DestinationHeader"
@@ -33,17 +39,33 @@ export interface RideLibraryItem {
   updatedAt: string | null
   /** Representative `[lon, lat]` for distance-from-me ordering; null when unplaceable. */
   center?: readonly [number, number] | null
+  /** Stored route geometry used for truthful, offline-safe card previews. */
+  geometry?: Coordinate[]
+  region?: RideRegionSummary
+  roadNames?: string[]
+  ascentMeters?: number | null
   tags: string[]
   management?: RideLibraryManagement
 }
 
-export type RideSort = "recent" | "nearest" | "longest" | "shortest"
+export type RideSort = "recent" | "nearest" | "longest" | "shortest" | "highest-climb"
 
 const SORT_OPTIONS: ReadonlyArray<{ id: RideSort; label: string; needsLocation?: boolean }> = [
   { id: "recent", label: "Recently updated" },
   { id: "nearest", label: "Nearest to me", needsLocation: true },
   { id: "longest", label: "Longest ride" },
-  { id: "shortest", label: "Shortest ride" }
+  { id: "shortest", label: "Shortest ride" },
+  { id: "highest-climb", label: "Most climbing" }
+]
+
+const REGION_FILTERS: ReadonlyArray<{ id: RideRegionFilter; label: string }> = [
+  { id: "all", label: "All regions" },
+  { id: "ne", label: "NE" },
+  { id: "nw", label: "NW" },
+  { id: "se", label: "SE" },
+  { id: "sw", label: "SW" },
+  { id: "cross", label: "Cross" },
+  { id: "outside", label: "Outside PA" }
 ]
 
 const PAGE_SIZE = 40
@@ -83,6 +105,24 @@ export function countsForRideFilters(items: RideLibraryItem[]): RideFilterCounts
   }, { all: 0, planned: 0, recorded: 0, trips: 0, imported: 0 })
 }
 
+function countsForRideRegions(items: RideLibraryItem[]): Record<RideRegionFilter, number> {
+  const counts: Record<RideRegionFilter, number> = {
+    all: items.length,
+    ne: 0,
+    nw: 0,
+    se: 0,
+    sw: 0,
+    cross: 0,
+    outside: 0
+  }
+  for (const item of items) {
+    for (const filter of REGION_FILTERS) {
+      if (filter.id !== "all" && rideRegionMatches(item.region, filter.id)) counts[filter.id] += 1
+    }
+  }
+  return counts
+}
+
 interface RankedRide {
   item: RideLibraryItem
   awayMiles: number | null
@@ -102,6 +142,8 @@ function rankRides(items: RideLibraryItem[], sort: RideSort, anchor: { lat: numb
       return ranked.sort((a, b) => b.item.distanceMiles - a.item.distanceMiles || byName(a, b))
     case "shortest":
       return ranked.sort((a, b) => a.item.distanceMiles - b.item.distanceMiles || byName(a, b))
+    case "highest-climb":
+      return ranked.sort((a, b) => (b.item.ascentMeters ?? -1) - (a.item.ascentMeters ?? -1) || byName(a, b))
     case "recent":
     default:
       return ranked
@@ -110,6 +152,7 @@ function rankRides(items: RideLibraryItem[], sort: RideSort, anchor: { lat: numb
 
 export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRoads, onOrganize, onDelete }: RidesSurfaceProps) {
   const [filter, setFilter] = useState<RideFilter>("all")
+  const [region, setRegion] = useState<RideRegionFilter>("all")
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<RideSort>("recent")
   const [importOpen, setImportOpen] = useState(false)
@@ -118,19 +161,27 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const counts = useMemo(() => countsForRideFilters(items), [items])
+  const regionCounts = useMemo(() => countsForRideRegions(items), [items])
 
   const filtered = useMemo(() => items.filter((item) => {
     if (!itemMatchesRideFilter(item, filter)) return false
+    if (!rideRegionMatches(item.region, region)) return false
     if (!normalizedQuery) return true
-    return `${item.name} ${item.sourceLabel} ${item.tags.join(" ")}`.toLocaleLowerCase().includes(normalizedQuery)
-  }), [filter, items, normalizedQuery])
+    return [
+      item.name,
+      item.sourceLabel,
+      item.tags.join(" "),
+      item.region?.label ?? "",
+      item.roadNames?.join(" ") ?? ""
+    ].join(" ").toLocaleLowerCase().includes(normalizedQuery)
+  }), [filter, items, normalizedQuery, region])
 
   const effectiveSort: RideSort = sort === "nearest" && !located ? "recent" : sort
   const ranked = useMemo(() => rankRides(filtered, effectiveSort, anchor), [filtered, effectiveSort, anchor])
 
   // Reset the page window whenever the result set changes (React's "adjust
   // state during render" pattern — no effect, no cascading renders).
-  const windowKey = `${filter}|${normalizedQuery}|${effectiveSort}|${ranked.length}`
+  const windowKey = `${filter}|${region}|${normalizedQuery}|${effectiveSort}|${ranked.length}`
   const [prevWindowKey, setPrevWindowKey] = useState(windowKey)
   if (windowKey !== prevWindowKey) {
     setPrevWindowKey(windowKey)
@@ -160,7 +211,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
       <DestinationHeader
         eyebrow="Your roads"
         title="Rides"
-        description="Plans, recordings, trips, and imported tracks — organized around the roads you actually want to ride."
+        description="Plans, recordings, trips, and imported tracks — organized by the roads and Pennsylvania regions you actually ride."
         graphic={<RouteGraphic seed={`rides:${items.map((item) => item.id).join("|") || "empty"}`} variant="library" />}
         actions={(
           <button
@@ -184,6 +235,21 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         onChange={setFilter}
         onQueryChange={setQuery}
       />
+
+      <div className={styles.tabs} role="group" aria-label="Pennsylvania regions">
+        {REGION_FILTERS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={option.id === region}
+            aria-label={`${option.label} ${regionCounts[option.id]}`}
+            onClick={() => setRegion(option.id)}
+          >
+            <span>{option.label}</span>
+            <b aria-hidden="true">{regionCounts[option.id]}</b>
+          </button>
+        ))}
+      </div>
 
       <div className={styles.sortBar}>
         <label className={styles.sortField}>
@@ -252,7 +318,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         </>
       ) : items.length === 0 ? (
         <div className={styles.empty}>
-          <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
+          <RouteGraphic seed={`empty:${filter}:${region}:${normalizedQuery}`} variant="library" />
           <strong>No rides yet.</strong>
           <span>Import a GPX or save a planned route to start your library.</span>
           <button type="button" className={styles.importButton} onClick={() => setImportOpen(true)}>
@@ -262,14 +328,15 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         </div>
       ) : (
         <div className={styles.empty}>
-          <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
+          <RouteGraphic seed={`empty:${filter}:${region}:${normalizedQuery}`} variant="library" />
           <strong>No rides match this view.</strong>
-          <span>Try another type or clear the search.</span>
+          <span>Try another type or region, or clear the search.</span>
           <button
             type="button"
             onClick={() => {
               setQuery("")
               setFilter("all")
+              setRegion("all")
             }}
           >
             Clear search & filters
