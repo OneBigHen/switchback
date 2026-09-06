@@ -164,6 +164,17 @@ function startQuery(prompt: string): string | null {
     : query
 }
 
+function nearbyLoopOrigin(prompt: string): string | null {
+  const match = prompt.match(
+    /\b(?:near|around)\s+(.+?)(?=\s+(?:for|with|without|avoiding|on|using|and|then)\b|[.;!?]|$)/i
+  )
+  const query = cleanPlaceQuery(match?.[1])
+  if (!query || /^(?:me|here|my\s+(?:current\s+)?location|current\s+location|where\s+i\s+am(?:\s+now)?)$/i.test(query)) {
+    return null
+  }
+  return query
+}
+
 /**
  * "New Hope to Stockton NJ" reads naturally as from New Hope to Stockton.
  * When no explicit origin keyword is present, infer the origin from the text
@@ -219,9 +230,9 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
   const destination = homeDestinationRequest
     ? "Home"
     : destinationQuery(prompt) ?? conciseDestinationQuery(prompt, duration)
-  const origin = startQuery(prompt) ?? inferOriginFromTo(prompt)
   const loop = (!homeDestinationRequest && /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)) ||
     (destination === null && !homeDestinationRequest)
+  const origin = startQuery(prompt) ?? (loop ? nearbyLoopOrigin(prompt) : null) ?? inferOriginFromTo(prompt)
   const stopQuery = /\b(?:brewery|beer|brewpub)\b/.test(normalized)
     ? "brewery"
     : /\b(?:coffee|cafe|café)\b/.test(normalized)
