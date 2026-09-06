@@ -3,7 +3,11 @@ import {
 } from "@/lib/validate"
 import { createAdviserFromEnvironment, resolveAdvisorCapability } from "@/lib/advice/capability"
 import { emptyReply, type AdviceRequest } from "@/lib/advice/contracts"
-import { MAX_ADVISOR_BODY_BYTES } from "@/lib/advice/request-limits"
+import {
+  MAX_ADVISOR_BODY_BYTES,
+  MAX_ADVISOR_CONVERSATION_TURNS
+} from "@/lib/advice/request-limits"
+import { isExplicitHomeDestinationRequest } from "@/lib/ai/ride-intent"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { BodyTooLargeError, readBoundedJsonBody } from "@/lib/server/http-body"
 
@@ -27,6 +31,9 @@ const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 8, label: "adv
 const PROFILES = [
   "quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"
 ] as const
+
+const HOME_DESTINATION_GUIDANCE =
+  "Home is the planner's saved browser location. Use or save it in the planner before routing home."
 
 const coordinateSchema = tuple([
   number({ finite: true, min: -180, max: 180 }),
@@ -62,7 +69,7 @@ const payloadSchema = object_({
   conversation: optional(array(object_({
     role: enum_(["rider", "advisor"] as const),
     text: string({ trim: true, min: 1, max: 2_000 })
-  }), { max: 12 })),
+  }), { max: MAX_ADVISOR_CONVERSATION_TURNS })),
   riderMessage: optional(string({ trim: true, min: 1, max: 1_000 }))
 })
 
@@ -90,6 +97,10 @@ export async function handleAdvisorPost(request: Request): Promise<Response> {
   const parsed = safeParse(payloadSchema, body)
   if (!parsed.success) {
     return jsonError("INVALID_ADVISOR_REQUEST", "Send the current route and candidates.", 400)
+  }
+
+  if (parsed.data.riderMessage && isExplicitHomeDestinationRequest(parsed.data.riderMessage)) {
+    return Response.json({ ...emptyReply("ok", HOME_DESTINATION_GUIDANCE), capability })
   }
 
   const adviser = createAdviserFromEnvironment(process.env)

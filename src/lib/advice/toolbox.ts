@@ -6,10 +6,12 @@ import {
   type PlaceResult
 } from "@/lib/geocoding/photon"
 import type { CurvatureSegment } from "@/lib/curvature/repository"
-import type {
-  PaUnpavedRoadBounds,
-  PaUnpavedRoadFeature,
-  PaUnpavedRoadFeatureCollection
+import {
+  PA_UNPAVED_ROADS_PROVENANCE,
+  PA_UNPAVED_ROADS_SURFACE_BOUNDARY,
+  type PaUnpavedRoadBounds,
+  type PaUnpavedRoadFeature,
+  type PaUnpavedRoadFeatureCollection
 } from "@/lib/roads/types"
 import type { Coordinate } from "@/lib/routing/types"
 import { haversine } from "@/lib/routing/scoring"
@@ -159,34 +161,33 @@ function surfaceNote(input: {
   const curveEvidence = returned > 0
     ? ` ${returned} curve-scored road${returned === 1 ? " is" : "s are"} mapped as unpaved in Switchback's road data.`
     : ""
-  const accessBoundary =
-    " Treat surface evidence as surface-only; it does not establish current legal access or passability."
+  const accessBoundary = ` ${PA_UNPAVED_ROADS_SURFACE_BOUNDARY}.`
 
   if (wantsGravel && official.places.length > 0) {
-    return `officialUnpavedRoads lists ${official.places.length} PA DEP Unpaved Roads 2009_07 survey ` +
-      "features near here. Mention them as historic official surface evidence or a proposed stop; do not make a " +
+    return `officialUnpavedRoads lists ${official.places.length} ${PA_UNPAVED_ROADS_PROVENANCE} survey ` +
+      "features near here. Mention them as historic surveyed/mapped unpaved surface evidence or a proposed stop; do not make a " +
       "survey midpoint a hard waypoint in a timeboxed loop. Do not call this tool again for surface." +
       curveEvidence + blindSpot + accessBoundary
   }
   if (wantsGravel && official.status === "unavailable") {
-    return "The official PA DEP Unpaved Roads 2009_07 survey did not answer just now, so its evidence is " +
+    return `The ${PA_UNPAVED_ROADS_PROVENANCE} survey did not answer just now, so its evidence is ` +
       "UNCHECKED, not absent. Never turn that outage into a claim that there is no gravel." +
       curveEvidence + blindSpot + accessBoundary
   }
   if (wantsGravel && official.status === "absent") {
     if (returned > 0) {
-      return "No official unpaved-road survey is configured here." + curveEvidence + blindSpot + accessBoundary
+      return `The ${PA_UNPAVED_ROADS_PROVENANCE} survey is not configured here.` + curveEvidence + blindSpot + accessBoundary
     }
-    return "No official unpaved-road survey is configured here, so gravel is UNCHECKED, not absent. " +
+    return `The ${PA_UNPAVED_ROADS_PROVENANCE} survey is not configured here, so gravel is UNCHECKED, not absent. ` +
       "The curve-scored roads returned no known unpaved tags; where surface tags are missing, surface is unknown rather than paved." +
       blindSpot + accessBoundary
   }
   if (wantsGravel && returned > 0) {
-    return "No surveyed unpaved roads near here were returned by this bounded PA DEP Unpaved Roads 2009_07 lookup." +
+    return `No ${PA_UNPAVED_ROADS_PROVENANCE} survey features near here were returned by this bounded lookup.` +
       curveEvidence + blindSpot + accessBoundary
   }
   if (wantsGravel) {
-    return "No surveyed unpaved roads near here were returned by this bounded PA DEP Unpaved Roads 2009_07 lookup. " +
+    return `No ${PA_UNPAVED_ROADS_PROVENANCE} survey features near here were returned by this bounded lookup. ` +
       "That does not prove gravel is absent; the curve-scored roads returned no known unpaved tags, and missing " +
       "surface tags remain unknown." + blindSpot + accessBoundary
   }
@@ -223,9 +224,9 @@ function osmCitation(lat: number, lon: number) {
   }
 }
 
-function officialSurveyCitation(feature: PaUnpavedRoadFeature) {
+function officialSurveyCitation() {
   return {
-    title: `${feature.properties.source} — ${feature.properties.dataset}`,
+    title: PA_UNPAVED_ROADS_PROVENANCE,
     url: PA_UNPAVED_ROADS_LAYER_URL,
     source: "switchback-local" as const
   }
@@ -379,13 +380,13 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
   }
 
   /**
-   * PA DEP's surveyed unpaved-road evidence near a point.
+   * Historic surveyed/mapped unpaved surface evidence near a point.
    *
-   * The source is the historic `Unpaved Roads 2009_07` dataset. It supplies
-   * official surface evidence and geometry, not current access, closure,
-   * maintenance or passability. It publishes county and length but no road name,
-   * so the midpoint is only an evidence anchor unless the rider explicitly asks
-   * to visit it.
+   * The source is the `PA DEP/PASDA — Unpaved Roads 2009_07` dataset. It supplies
+   * surface evidence and geometry only, not legal or public access, current
+   * openness, closure, maintenance or passability. It publishes county and
+   * length but no road name, so the midpoint is only an evidence anchor unless
+   * the rider explicitly asks to visit it.
    */
   const officialGravelPlaces = async (anchor: Coordinate): Promise<OfficialGravelLookup> => {
     const queryOfficialUnpaved = options.queryOfficialUnpaved
@@ -419,10 +420,10 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
           lat: midpoint[1],
           lon: midpoint[0],
           detail: [
-            `${feature.properties.source} ${feature.properties.dataset} survey`,
+            PA_UNPAVED_ROADS_SURFACE_BOUNDARY,
             miles === null ? null : `${miles} mi segment`
           ].filter(Boolean).join(", "),
-          citations: [officialSurveyCitation(feature)]
+          citations: [officialSurveyCitation()]
         }]
       })
       .sort((left, right) =>
@@ -586,8 +587,8 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
           description:
             "Find roads Switchback has actually scored as good riding near a point — curvature " +
             "score and mapped surface. Set surface to 'unpaved' to find gravel and dirt: that also " +
-            "returns PA DEP Unpaved Roads 2009_07 survey features as additional historic official " +
-            "surface evidence. Neither source proves current legal access or passability. One call per area is enough. " + where,
+            `returns ${PA_UNPAVED_ROADS_PROVENANCE} survey features as additional historic surveyed/mapped unpaved surface evidence only. ` +
+            "Neither source proves legal access, public access, current openness, passability, maintenance, closures, or other current conditions. One call per area is enough. " + where,
           parameters: {
             type: "object",
             properties: {

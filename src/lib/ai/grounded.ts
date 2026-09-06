@@ -30,7 +30,7 @@ export function describeRouteGrounded(route: Pick<PlannedRoute, "distanceMiles" 
   const roadMix = knownMix(route.roadMix)
   const unsupported: string[] = []
   if (!route.tollEvidence?.known) unsupported.push("toll exposure")
-  if (!route.officialUnpavedEvidence) unsupported.push("official surface legality")
+  if (!route.officialUnpavedEvidence) unsupported.push("survey surface overlap")
   if (Object.keys(surfaceMix).length === 0) unsupported.push("surface mix")
   const summary = `${distanceMiles.toFixed(1)} miles, about ${Math.round(durationMinutes)} minutes, with ${Math.round(turnCount)} mapped turns.`
   return {

@@ -111,9 +111,10 @@ export function createAdviserFromEnvironment(env: AdvisorEnvironment): RouteAdvi
 
   const toolbox = createAdvisorToolbox({
     ...(env.PHOTON_URL?.trim() ? { geocoderUrl: env.PHOTON_URL.trim() } : {}),
-    // Pennsylvania's official unpaved-road survey is the only dataset here that
-    // actually knows where the gravel is; the curvature scores do not carry
-    // surface. Injected rather than imported so the provider stays server-side.
+    // The historic PA DEP/PASDA — Unpaved Roads 2009_07 survey supplies surveyed /
+    // mapped unpaved surface evidence; curvature supplies independent local road
+    // evidence. Neither source establishes current access or passability. The
+    // provider is injected rather than imported so it stays server-side.
     queryOfficialUnpaved: (bounds) =>
       fetchPaUnpavedRoads({ bounds, limit: PA_UNPAVED_ROADS_MAX_FEATURES }),
     ...(repository

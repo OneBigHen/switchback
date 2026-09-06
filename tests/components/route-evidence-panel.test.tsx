@@ -7,7 +7,7 @@ afterEach(cleanup)
 
 // Mirrors the canonical "twisty-1" PlannedRoute fixture used across the
 // planner test suite (see route-comparison.test.tsx), carrying a populated
-// officialUnpavedEvidence block so the official-evidence branch is exercised.
+// officialUnpavedEvidence block so the survey-evidence branch is exercised.
 const routeWithOfficialEvidence: PlannedRoute = {
   id: "twisty-1",
   name: "Twisty route",
@@ -100,28 +100,52 @@ describe("route evidence panel", () => {
     })
   })
 
-  describe("official unpaved-road evidence", () => {
-    it("shows the aligned official share when evidence is present", () => {
+  describe("unpaved-road survey evidence", () => {
+    it("describes positive overlap as historic mapped surface evidence only", () => {
       render(<RouteEvidencePanel route={routeWithOfficialEvidence} />)
 
       const panel = screen.getByRole("region", { name: "Why this route was chosen" })
-      expect(panel).toHaveTextContent("Access evidence")
+      expect(panel).toHaveTextContent("Unpaved-road survey")
       // sharePercent 1.4 rendered via toFixed(1)
-      expect(panel).toHaveTextContent("1.4% aligns with official PA unpaved-road data.")
+      expect(panel).toHaveTextContent(
+        "1.4% overlaps PA DEP/PASDA — Unpaved Roads 2009_07; historic surveyed/mapped unpaved-surface overlap only — not legal/public access, passability, maintenance, or current openness."
+      )
+      expect(panel).not.toHaveTextContent("Access evidence")
       expect(panel).not.toHaveTextContent(
-        "No official access overlay matched this route in the current region."
+        "official PA unpaved-road data"
       )
     })
 
-    it("shows the missing-overlay message when evidence is absent", () => {
+    it("shows an informational zero-overlap state without erasing routing surface evidence", () => {
+      render(<RouteEvidencePanel route={{
+        ...routeWithOfficialEvidence,
+        officialUnpavedEvidence: {
+          ...routeWithOfficialEvidence.officialUnpavedEvidence!,
+          sharePercent: 0,
+          matchedMeters: 0,
+          matchedFeatureCount: 0
+        }
+      }} />)
+
+      const panel = screen.getByRole("region", { name: "Why this route was chosen" })
+      expect(panel).toHaveTextContent("Surface mix")
+      expect(panel).toHaveTextContent("44% non-paved mix from routing tags")
+      expect(panel).toHaveTextContent(
+        "0% overlap with PA DEP/PASDA — Unpaved Roads 2009_07; an informational zero-overlap result—access, passability, maintenance, and current openness remain unknown; routing/OSM surface evidence remains separate."
+      )
+      expect(panel).not.toHaveTextContent("aligns")
+      expect(panel).not.toHaveTextContent("Access evidence")
+    })
+
+    it("shows unavailable survey evidence without converting absence into zero", () => {
       render(<RouteEvidencePanel route={routeWithoutOfficialEvidence} />)
 
       const panel = screen.getByRole("region", { name: "Why this route was chosen" })
-      expect(panel).toHaveTextContent("Access evidence")
       expect(panel).toHaveTextContent(
-        "No official access overlay matched this route in the current region."
+        "PA DEP/PASDA — Unpaved Roads 2009_07 survey overlap unavailable; absence is not a confirmed zero and does not replace routing/OSM surface evidence."
       )
-      expect(panel).not.toHaveTextContent("aligns with official PA unpaved-road data.")
+      expect(panel).not.toHaveTextContent("0% overlap")
+      expect(panel).not.toHaveTextContent("aligns")
     })
   })
 })

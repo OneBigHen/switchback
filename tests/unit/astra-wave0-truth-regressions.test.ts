@@ -5,6 +5,8 @@ import type { AdvisorRouteContext } from "@/lib/advice/contracts"
 import type { CurvatureSegment } from "@/lib/curvature/repository"
 import type { PaUnpavedRoadFeatureCollection } from "@/lib/roads/types"
 
+const PASDA_PROVENANCE = "PA DEP/PASDA — Unpaved Roads 2009_07"
+
 const context: AdvisorRouteContext = {
   selectedRouteId: "gravel-loop",
   candidates: [{
@@ -54,9 +56,13 @@ describe("Astra Wave 0 evidence truth", () => {
     const briefing = briefingText(context)
 
     expect(briefing).toContain("31.4%")
-    expect(briefing).toContain("Unpaved Roads 2009_07")
+    expect(briefing).toContain(PASDA_PROVENANCE)
+    expect(briefing).toContain("historic surveyed/mapped unpaved surface evidence only")
     expect(briefing.toLowerCase()).toContain("legal access")
+    expect(briefing.toLowerCase()).toContain("public access")
     expect(briefing.toLowerCase()).toContain("current passability")
+    expect(briefing.toLowerCase()).toContain("current openness")
+    expect(briefing.toLowerCase()).toContain("maintenance")
   })
 
   it("attributes PA DEP survey road evidence to the survey rather than OpenStreetMap", async () => {
@@ -71,8 +77,7 @@ describe("Astra Wave 0 evidence truth", () => {
 
     expect(result.places).toHaveLength(1)
     const citation = result.places[0]?.citations[0]
-    expect(citation?.title).toContain("Pennsylvania")
-    expect(citation?.title).toContain("Unpaved Roads 2009_07")
+    expect(citation?.title).toBe(PASDA_PROVENANCE)
     expect(citation?.url).not.toContain("openstreetmap.org")
   })
 
@@ -107,6 +112,12 @@ describe("Astra Wave 0 evidence truth", () => {
     const note = JSON.stringify(result.content)
 
     expect(result.places.map((place) => place.name)).toContain("Pine Grove Road")
+    const retainedRoad = result.places.find((place) => place.name === "Pine Grove Road")
+    expect(retainedRoad?.citations).toEqual([expect.objectContaining({
+      title: "OpenStreetMap",
+      url: expect.stringContaining("openstreetmap.org")
+    })])
+    expect(retainedRoad?.citations[0]?.title).not.toBe(PASDA_PROVENANCE)
     expect(note).toContain("curve-scored")
     expect(note).toContain("mapped as unpaved")
     expect(note).not.toContain("curve dataset carries no surface tags")

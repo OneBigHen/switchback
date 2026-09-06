@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { enrichAdventureRoutesWithPaData } from "@/lib/roads/adventure-route-enricher"
-import type { PaUnpavedRoadFeatureCollection } from "@/lib/roads/types"
+import { PA_UNPAVED_ROADS_PROVENANCE, type PaUnpavedRoadFeatureCollection } from "@/lib/roads/types"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 function route(id: string, latitudeOffset = 0): PlannedRoute {
@@ -109,8 +109,12 @@ describe("Adventure route official-road enrichment", () => {
     })
 
     expect(unavailable.routes).toEqual(routes)
-    expect(unavailable.warnings.join(" ")).toMatch(/official PA unpaved-road scoring unavailable/i)
+    expect(unavailable.warnings).toEqual([
+      `${PA_UNPAVED_ROADS_PROVENANCE} survey scoring unavailable; survey surface overlap is unknown; using mapped surface data only.`
+    ])
     expect(truncated.routes).toEqual(routes)
-    expect(truncated.warnings.join(" ")).toMatch(/incomplete/i)
+    expect(truncated.warnings).toEqual([
+      `${PA_UNPAVED_ROADS_PROVENANCE} survey scoring skipped because the corridor result was incomplete; survey surface overlap is unknown.`
+    ])
   })
 })

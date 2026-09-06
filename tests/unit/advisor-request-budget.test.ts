@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { AdvisorRouteContext } from "@/lib/advice/contracts"
 import {
-  MAX_POSTED_CONVERSATION,
   requestAdvisorTurn,
   type AdvisorTurnInput
 } from "@/lib/client/advisor-client"
-import { MAX_ADVISOR_BODY_BYTES } from "@/lib/advice/request-limits"
+import {
+  MAX_ADVISOR_BODY_BYTES,
+  MAX_ADVISOR_CONVERSATION_TURNS
+} from "@/lib/advice/request-limits"
 
 const capability = { enabled: true, sources: [], attributions: [] }
 
@@ -26,6 +28,11 @@ function bodyFrom(fetcher: ReturnType<typeof vi.fn>): { payload: AdvisorTurnInpu
   const init = fetcher.mock.calls[0]?.[1] as RequestInit
   const body = init.body as string
   return { payload: JSON.parse(body) as AdvisorTurnInput, bytes: new TextEncoder().encode(body).byteLength }
+}
+
+function sharedTurnLimit(): number {
+  expect(MAX_ADVISOR_CONVERSATION_TURNS).toBe(12)
+  return MAX_ADVISOR_CONVERSATION_TURNS
 }
 
 function context(overrides: Partial<AdvisorRouteContext> = {}): AdvisorRouteContext {
@@ -71,7 +78,8 @@ describe("advisor request byte budget", () => {
   it("trims oldest whole messages by actual UTF-8 JSON bytes while retaining the latest input and context", async () => {
     const fetcher = vi.fn(async () => response())
     vi.stubGlobal("fetch", fetcher)
-    const conversation = Array.from({ length: MAX_POSTED_CONVERSATION }, (_, index) => ({
+    const maxTurns = sharedTurnLimit()
+    const conversation = Array.from({ length: maxTurns }, (_, index) => ({
       role: index % 2 === 0 ? "rider" as const : "advisor" as const,
       text: `${index.toString().padStart(2, "0")}${"🙂".repeat(999)}`
     }))
@@ -88,9 +96,29 @@ describe("advisor request byte budget", () => {
     expect(posted.bytes).toBeLessThanOrEqual(MAX_ADVISOR_BODY_BYTES)
     expect(posted.payload.context).toEqual(routeContext)
     expect(posted.payload.riderMessage).toBe(input.riderMessage)
-    expect(posted.payload.conversation.length).toBeLessThan(MAX_POSTED_CONVERSATION)
+    expect(posted.payload.conversation.length).toBeLessThan(maxTurns)
     expect(posted.payload.conversation).toEqual(conversation.slice(-posted.payload.conversation.length))
     expect(posted.payload.conversation.every((message) => message.text.length === 2_000)).toBe(true)
+  })
+
+  it("prunes a conversation over the shared turn limit to the newest turns", async () => {
+    const fetcher = vi.fn(async () => response())
+    vi.stubGlobal("fetch", fetcher)
+    const maxTurns = sharedTurnLimit()
+    const conversation = Array.from({ length: maxTurns + 3 }, (_, index) => ({
+      role: index % 2 === 0 ? "rider" as const : "advisor" as const,
+      text: `turn ${index}`
+    }))
+
+    await expect(requestAdvisorTurn({
+      context: null,
+      conversation,
+      riderMessage: "Use the newest context."
+    })).resolves.toMatchObject({ status: "ok" })
+
+    const posted = bodyFrom(fetcher)
+    expect(posted.payload.conversation).toHaveLength(maxTurns)
+    expect(posted.payload.conversation).toEqual(conversation.slice(-maxTurns))
   })
 
   it("returns invalid-request without a network call when context alone exceeds the byte limit", async () => {

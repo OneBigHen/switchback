@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
-import { interpretRidePrompt, parseRidePromptLocally } from "@/lib/ai/ride-intent"
+import {
+  interpretRidePrompt,
+  isExplicitHomeDestinationRequest,
+  parseRidePromptLocally
+} from "@/lib/ai/ride-intent"
 
 describe("ride intent parser", () => {
   it("treats a concise place request as a destination from the rider's current location", () => {
@@ -178,6 +182,22 @@ describe("ride intent parser", () => {
     "avoid Home Depot"
   ])("does not turn negated or named Home language into a return-home destination: %s", (prompt) => {
     expect(parseRidePromptLocally(prompt).destinationQuery).not.toBe("Home")
+  })
+
+  it.each([
+    ["Home", true],
+    ["Take me Home", true],
+    ["back home", true],
+    ["return home", true],
+    ["head home", true],
+    ["I am tired; get me home", true],
+    ["loop back home", false],
+    ["three-hour loop back home", false],
+    ["Free Ride home", false],
+    ["do not take me home", false],
+    ["avoid Home Depot", false]
+  ])("shares the explicit Home destination boundary for %s", (prompt, expected) => {
+    expect(isExplicitHomeDestinationRequest(prompt)).toBe(expected)
   })
 
   it("uses OpenRouter structured output when a key is configured", async () => {

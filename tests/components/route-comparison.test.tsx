@@ -234,7 +234,7 @@ describe("route comparison rack", () => {
     expect(screen.getByText("28.4")).toBeInTheDocument()
     expect(screen.getByText(/72% secondary/i)).toBeInTheDocument()
     expect(screen.getAllByText(/44% unpaved/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/1.4% official PA unpaved/i)).toBeInTheDocument()
+    expect(screen.getByText("1.4% survey surface overlap · PA DEP/PASDA — Unpaved Roads 2009_07")).toBeInTheDocument()
     expect(screen.getByText(/most curves and direction changes/i)).toBeInTheDocument()
     expect(screen.getByText(/lowest travel time/i)).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Why this route was chosen" })).not.toBeInTheDocument()
@@ -398,6 +398,25 @@ describe("route comparison rack", () => {
 
     expect(screen.getAllByText("Surface data unavailable").length).toBeGreaterThan(0)
     expect(screen.queryByText("0% unpaved")).not.toBeInTheDocument()
+  })
+
+  it("keeps zero survey overlap informational and preserves routing surface evidence", () => {
+    const route = {
+      ...routes[0],
+      officialUnpavedEvidence: {
+        ...routes[0]!.officialUnpavedEvidence!,
+        sharePercent: 0,
+        matchedMeters: 0,
+        matchedFeatureCount: 0
+      }
+    }
+
+    render(<RouteComparison routes={[route]} selectedId={route.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
+
+    expect(screen.getByText(/44% unpaved/i)).toBeInTheDocument()
+    expect(screen.getByText("0% survey overlap · PA DEP/PASDA — Unpaved Roads 2009_07 · conditions unknown")).toBeInTheDocument()
+    expect(screen.queryByText(/official PA unpaved/i)).not.toBeInTheDocument()
+    expect(screen.queryByText("Official PA data checked")).not.toBeInTheDocument()
   })
 
   it("turns internal route score explanations into grounded rider copy", async () => {

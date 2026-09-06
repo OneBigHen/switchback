@@ -150,7 +150,6 @@ export function PlannerShell() {
   const status = usePlannerStore((state) => state.status)
   const plan = usePlannerStore((state) => state.plan)
   const selectedRouteId = usePlannerStore((state) => state.selectedRouteId)
-  const selectionSource = usePlannerStore((state) => state.selectionSource)
   const isRecalculating = usePlannerStore((state) => state.isRecalculating)
   const error = usePlannerStore((state) => state.error)
   const curvatureVisible = usePlannerStore((state) => state.curvatureVisible)
@@ -291,9 +290,7 @@ export function PlannerShell() {
     () => routeEntityCache.getMany(plan?.routes.map((route) => route.id) ?? []),
     [plan]
   )
-  const selectedRoute = routes.length > 1 && selectionSource !== "user"
-    ? null
-    : routes.find((route) => route.id === selectedRouteId) ?? null
+  const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? null
   const previousRoute = previousRouteId ? routeEntityCache.get(previousRouteId) ?? null : null
   const rideOriginalRoute = rideOriginalRouteId ? routeEntityCache.get(rideOriginalRouteId) ?? null : null
 

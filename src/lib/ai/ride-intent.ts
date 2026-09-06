@@ -99,7 +99,7 @@ const EXACT_HOME_DESTINATION_REQUEST = /^(?:home|(?:take|navigate|route|guide|ge
 const NEGATED_HOME_REQUEST = /\b(?:do\s+not|don't|dont|never|not|avoid(?:ing)?|skip)\b[\s\S]*\bhome\b/i
 const FATIGUE_HOME_DESTINATION_REQUEST = /\b(?:tired|exhausted|fatigued)\b[\s\S]*\b(?:take|navigate|route|guide|get|bring)\s+me\s+home[.!?]*$/i
 
-function isHomeDestinationRequest(prompt: string): boolean {
+export function isExplicitHomeDestinationRequest(prompt: string): boolean {
   const trimmed = prompt.trim()
   if (NEGATED_HOME_REQUEST.test(trimmed)) return false
   return EXACT_HOME_DESTINATION_REQUEST.test(trimmed) || FATIGUE_HOME_DESTINATION_REQUEST.test(trimmed)
@@ -215,7 +215,7 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
                     : "balanced"
   const avoidTolls = /\b(?:(?:avoid(?:ing)?|no|skip|without|stay\s+off)\s+(?:the\s+)?(?:tolls?|toll\s+roads?|tollways?|turnpikes?)|toll[ -]?free)\b/i.test(normalized)
   const tollPolicy: TollPolicy = avoidTolls ? "avoid" : "allow-with-warning"
-  const homeDestinationRequest = isHomeDestinationRequest(prompt)
+  const homeDestinationRequest = isExplicitHomeDestinationRequest(prompt)
   const destination = homeDestinationRequest
     ? "Home"
     : destinationQuery(prompt) ?? conciseDestinationQuery(prompt, duration)

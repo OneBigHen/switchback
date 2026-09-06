@@ -7,7 +7,8 @@ import {
   briefingText,
   MAX_CONTEXT_CANDIDATES
 } from "@/lib/advice/route-context"
-import { MAX_POSTED_CONVERSATION, requestAdvisorTurn } from "@/lib/client/advisor-client"
+import { requestAdvisorTurn } from "@/lib/client/advisor-client"
+import { MAX_ADVISOR_CONVERSATION_TURNS } from "@/lib/advice/request-limits"
 import type { AdvisorRouteContext, GroundedPlace } from "@/lib/advice/contracts"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
@@ -175,7 +176,7 @@ describe("turn payload stays inside the endpoint's contract", () => {
     await requestAdvisorTurn({ context: null, conversation, riderMessage: "and now?" })
 
     const body = posted[0]!
-    expect(body.conversation).toHaveLength(MAX_POSTED_CONVERSATION)
+    expect(body.conversation).toHaveLength(MAX_ADVISOR_CONVERSATION_TURNS)
     expect(body.conversation.at(-1)).toEqual({ role: "advisor", text: "turn 29" })
   })
 

@@ -641,6 +641,7 @@
 .route-character > .official-unpaved {
   background: #eee4d5;
   color: #75542f;
+  white-space: normal;
 }
 
 .route-slip-stats {

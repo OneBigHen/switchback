@@ -8,6 +8,7 @@ import { discoverPlaceIdeas } from "@/lib/client/place-ideas-client"
 import { requestRideIntent } from "@/lib/client/ride-intent-client"
 import { requestRideResearch } from "@/lib/client/ride-research-client"
 import { requestTripPlan } from "@/lib/client/routing-client"
+import { savePlannerHome } from "@/lib/client/planner-location"
 import type { RideIntent } from "@/lib/ai/ride-intent"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { TripPlan } from "@/lib/routing/planner"
@@ -158,6 +159,7 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
       <section>
         <h1>Where do you want to ride?</h1>
         <button type="button" onClick={() => intent.onRidePrompt("test ride request")}>Plan prompt</button>
+        <button type="button" onClick={() => intent.onRidePrompt("Home")}>Plan Home prompt</button>
         <button type="button" onClick={() => intent.onChooseStopIdea({ lat: 40.42, lon: -76.68, label: "Trailhead Brewing" })}>Choose stop idea</button>
         <button type="button" onClick={onClearRoute}>Clear test route</button>
         <button type="button" onClick={() => waypoint.onMoveVia(1, 0)}>Move second stop</button>
@@ -321,7 +323,7 @@ describe("free-form planner place resolution", () => {
     expect(usePlannerStore.getState().finish).toMatchObject({ label: wellsboro.label })
   })
 
-  it("does not synthesize a selected route when alternatives have no explicit selection", () => {
+  it("keeps the automatic Best ride selected when alternatives merge", () => {
     const alternatives: PlannedRoute[] = [
       route,
       { ...route, id: "route-2", name: "Alternative ride" },
@@ -336,10 +338,10 @@ describe("free-form planner place resolution", () => {
 
     render(<PlannerShell />)
 
-    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent("none")
+    expect(screen.getByTestId("shell-selected-route")).toHaveTextContent(route.id)
     expect(screen.getByTestId("shell-selection-source")).toHaveTextContent("automatic")
-    expect(screen.getByTestId("shell-stage")).toHaveTextContent("Choose")
-    expect(screen.getByRole("button", { name: "Select Test ride" })).toHaveAttribute("aria-pressed", "false")
+    expect(screen.getByTestId("shell-stage")).toHaveTextContent("Prepare")
+    expect(screen.getByRole("button", { name: "Select Test ride" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("button", { name: "Select Alternative ride" })).toHaveAttribute("aria-pressed", "false")
     expect(screen.getByRole("button", { name: "Select Scenic ride" })).toHaveAttribute("aria-pressed", "false")
   })
@@ -495,6 +497,36 @@ describe("free-form planner place resolution", () => {
         expect.objectContaining({ label: destination.label })
       ]
     }), expect.anything(), expect.anything())
+  })
+
+  it("asks for a current start instead of routing saved Home to itself", async () => {
+    const user = userEvent.setup()
+    const home = { lat: 40.31, lon: -76.71, label: "Home" }
+    usePlannerStore.setState(initialPlannerState)
+    window.localStorage.removeItem("switchback.planner-location.v1")
+    savePlannerHome(window.localStorage, home)
+    vi.mocked(requestRideIntent).mockResolvedValue(intent({
+      mode: "destination",
+      targetMinutes: null,
+      destinationQuery: "Home"
+    }))
+    Object.defineProperty(window.navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(_success: PositionCallback, failure?: PositionErrorCallback | null) {
+          failure?.({} as GeolocationPositionError)
+        }
+      }
+    })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Plan Home prompt" }))
+
+    expect(await screen.findByText(/choose your start point/i)).toBeInTheDocument()
+    expect(requestTripPlan).not.toHaveBeenCalled()
+    expect(searchPlacesClient).not.toHaveBeenCalled()
+    expect(usePlannerStore.getState()).toMatchObject({ start: null, finish: null })
+    window.localStorage.removeItem("switchback.planner-home.v1")
   })
 
   it("rejects distant and non-POI stop results and keeps the unshaped ride", async () => {

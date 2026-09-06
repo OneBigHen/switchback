@@ -31,7 +31,7 @@ describe("map layer settings", () => {
   /**
    * The overlay is on by default, so a client gate looser than the server's
    * meant every zoomed-out session fired a request the API always rejected and
-   * painted "PA gravel overlay unavailable" over working data.
+   * painted a survey-unavailable state over working data.
    */
   it("does not request zoom levels the API refuses to serve", () => {
     const bounds = { west: -77.2, south: 40.1, east: -76.6, north: 40.6 }
@@ -50,12 +50,20 @@ describe("map layer settings", () => {
   })
 
   it("ships functional map layers with provenance and safely normalizes saved settings", () => {
+    const unpaved = layerCatalog.find((layer) => layer.id === "unpaved")
     expect(layerCatalog).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "curvature", source: expect.stringMatching(/Switchback/i) }),
       expect.objectContaining({ id: "weather", freshness: expect.any(String) }),
       expect.objectContaining({ id: "fuel", coverage: expect.any(String) }),
       expect.objectContaining({ id: "mvum", status: "live" })
     ]))
+    expect(unpaved).toMatchObject({
+      source: "Pennsylvania Spatial Data Access (PASDA)",
+      provenance: expect.stringContaining("PA DEP/PASDA — Unpaved Roads 2009_07"),
+      legend: expect.stringContaining("mapped unpaved-road survey")
+    })
+    expect(unpaved?.provenance).not.toMatch(/official unpaved road dataset/i)
+    expect(unpaved?.legend).not.toMatch(/official unpaved road/i)
     expect(layerCatalog.every((layer) => layer.status !== "planned")).toBe(true)
     expect(layerCatalog.every((layer) => mapLayerRuntime(layer.id) !== null)).toBe(true)
 

@@ -10,7 +10,12 @@ import {
   type MapExperienceId,
   type MapLightPreference
 } from "./map-experience"
-import { PA_UNPAVED_ROADS_MIN_ZOOM } from "@/lib/roads/types"
+import {
+  PA_UNPAVED_ROADS_MIN_ZOOM,
+  PA_UNPAVED_ROADS_PROVENANCE
+} from "@/lib/roads/types"
+
+export { PA_UNPAVED_ROADS_PROVENANCE }
 
 export type LegacyMapStyleId = "clean" | "explorer" | "night"
 
@@ -190,10 +195,10 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
     id: "unpaved", name: "PA unpaved roads", category: "roads", status: "regional",
     source: "Pennsylvania Spatial Data Access (PASDA)",
-    provenance: "Pennsylvania Spatial Data Access (PASDA) official unpaved road dataset. Government-published, regional coverage. Verify currency against provider release notes.",
+    provenance: `${PA_UNPAVED_ROADS_PROVENANCE}. Government-published historic regional unpaved-road survey; mapped surface evidence only — not legal/public access, passability, maintenance, or current openness. Verify currency against provider release notes.`,
     dataCategory: "road-surface",
     freshness: "Dataset version shown by provider", coverage: "Pennsylvania",
-    legend: "Brown dashed line = official unpaved road", minZoom: PA_UNPAVED_ROADS_MIN_ZOOM
+    legend: "Brown dashed line = mapped unpaved-road survey", minZoom: PA_UNPAVED_ROADS_MIN_ZOOM
   },
   {
     id: "topo", name: "Topographic base", category: "base", status: "live",

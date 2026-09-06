@@ -8,6 +8,7 @@ import { requestRideIntent } from "@/lib/client/ride-intent-client"
 import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { resolveRidePromptWaypoints, type RideStartLocation, type RideStartLocationSource } from "@/lib/planner/ride-prompt-flow"
+import { isExplicitHomeDestinationRequest } from "@/lib/ai/ride-intent"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { GeocoderBias } from "@/lib/geocoding/photon"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
@@ -91,6 +92,7 @@ export function usePlannerRideIntent({
       // A destination ride is time-shaped only when the rider actually named a
       // duration ("2 hour ride to X"); otherwise it plans fast with alternatives.
       const nextTimeShaped = nextMode === "destination" && intent.targetMinutes != null
+      const isHomeDestination = nextMode === "destination" && isExplicitHomeDestinationRequest(prompt)
       const planningId = createPlanningId()
       store.setPlanningPhase("geocoding")
 
@@ -117,6 +119,9 @@ export function usePlannerRideIntent({
             if (saved) return { waypoint: saved, source: "saved" }
           } catch {
             // Private-mode or blocked storage; keep going.
+          }
+          if (isHomeDestination) {
+            throw new Error("Choose a current start point before planning a ride home.")
           }
           if (home) return { waypoint: home, source: "home" }
           return { waypoint: REGION_DEFAULT_START, source: "region" }

@@ -3,7 +3,7 @@
 import { Stack, X } from "@phosphor-icons/react"
 import { useEffect, useState, type KeyboardEvent } from "react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
-import { catalogLayerSettings, featureMapLayerIds, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
+import { catalogLayerSettings, featureMapLayerIds, PA_UNPAVED_ROADS_PROVENANCE, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
 import {
   MAP_LIGHT_PREFERENCES,
   type MapExperienceId,
@@ -243,7 +243,17 @@ export function MapStageLayerControl({
             const layerState = isFeatureLayer ? riderLayerStates[definition.id] : undefined
             const layerCount = isFeatureLayer ? (riderLayerCounts[definition.id] ?? 0) : 0
             const detail = (() => {
-              if (definition.id === "unpaved" && unpavedStatus === "ready") return `${unpavedCount} in view · official PASDA`
+              if (definition.id === "unpaved") {
+                if (unpavedStatus === "ready") {
+                  return unpavedCount > 0
+                    ? `${unpavedCount} in view · ${PA_UNPAVED_ROADS_PROVENANCE}`
+                    : `No survey features in view · ${PA_UNPAVED_ROADS_PROVENANCE} · route overlap unknown`
+                }
+                if (unpavedStatus === "loading") return `Fetching ${PA_UNPAVED_ROADS_PROVENANCE}…`
+                if (unpavedStatus === "zoom") return `Zoom in to ${definition.minZoom}+ to load · ${PA_UNPAVED_ROADS_PROVENANCE}`
+                if (unpavedStatus === "error") return `Unavailable · ${PA_UNPAVED_ROADS_PROVENANCE}`
+                return `${PA_UNPAVED_ROADS_PROVENANCE} · ${definition.coverage}`
+              }
               if (!isFeatureLayer || layerState === undefined) return `${definition.source} · ${definition.coverage}`
               switch (layerState) {
                 case "loading": return "Fetching features…"

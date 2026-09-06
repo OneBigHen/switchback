@@ -14,6 +14,8 @@ import type { CurvatureSegment } from "@/lib/curvature/repository"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 
+const PASDA_PROVENANCE = "PA DEP/PASDA — Unpaved Roads 2009_07"
+
 function geometry(): Coordinate[] {
   return Array.from({ length: 11 }, (_, index): Coordinate => [-77 + index * 0.04, 40.2])
 }
@@ -144,7 +146,7 @@ describe("advisor route context", () => {
     expect(prompt).toContain("Mapped gravel and dirt can be a feature")
     // The persona must never turn "dual-sport" into a capability or legality claim.
     expect(prompt).toContain("never infer the rider's skill, bike capability")
-    expect(prompt).toContain("legal access, road maintenance, or current passability")
+    expect(prompt).toContain("legal or public access, road maintenance, current openness, or current passability")
     expect(prompt).toContain("id=best-ride")
   })
 
@@ -877,6 +879,11 @@ describe("gravel evidence", () => {
     expect(result.content).toMatchObject({
       surfaceCoverage: { officialUnpavedRoadsNearby: 1 }
     })
+    expect(result.places[0]!.citations[0]).toMatchObject({
+      title: PASDA_PROVENANCE,
+      url: expect.not.stringContaining("openstreetmap.org")
+    })
+    expect(JSON.stringify(result.content)).toContain("historic surveyed/mapped unpaved surface evidence only")
     expect(JSON.stringify(result.content)).toContain("0.6 mi segment")
   })
 
@@ -914,7 +921,7 @@ describe("gravel evidence", () => {
     }).call("find_good_roads", { surface: "unpaved" }, { context, conversation: [] })
 
     expect(result.content).toMatchObject({ officialSurvey: "ok" })
-    expect(JSON.stringify(result.content)).toContain("No surveyed unpaved roads near here")
+    expect(JSON.stringify(result.content)).toContain(`No ${PASDA_PROVENANCE} survey features near here`)
   })
 
   it("never passes an untagged road off as pavement", async () => {
@@ -938,12 +945,17 @@ describe("gravel evidence", () => {
       ...context,
       candidates: [{ ...context.candidates[0]!, officialUnpavedSharePercent: 31.4 }]
     })
-    expect(briefing).toContain("31.4% on the official PA unpaved-road network")
-    expect(briefing).not.toContain("official surface legality")
+    expect(briefing).toContain(`31.4% from ${PASDA_PROVENANCE}`)
+    expect(briefing).not.toContain("survey surface overlap")
+    expect(briefing).toContain("legal access")
+    expect(briefing).toContain("public access")
+    expect(briefing).toContain("current openness")
+    expect(briefing).toContain("current passability")
+    expect(briefing).toContain("maintenance")
   })
 
   it("still admits the official surface gap when the lookup did not run", () => {
-    expect(briefingText(context)).toContain("official surface legality")
+    expect(briefingText(context)).toContain("survey surface overlap")
   })
 
   it("keeps the official share available when mapped surface tags are missing entirely", () => {
@@ -956,7 +968,7 @@ describe("gravel evidence", () => {
       }]
     })
     expect(briefing).toContain("unpaved share unknown from mapped surface tags")
-    expect(briefing).toContain("12% on the official PA unpaved-road network")
+    expect(briefing).toContain(`12% from ${PASDA_PROVENANCE}`)
   })
 
   it("hands the official share to the advisor context so a gravel route can be explained", () => {
