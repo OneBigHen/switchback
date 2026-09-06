@@ -11,7 +11,14 @@ import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
 async function expectPlannerReady(page: import("@playwright/test").Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
+  // A fresh shell exposes Ride options. A recovered complete ride may
+  // immediately re-plan and expose Edit route instead. Both are valid ready
+  // states; requiring only the empty-composer control made recovery look like
+  // a PWA failure precisely when recovery succeeded quickly.
+  await expect(
+    page.getByRole("button", { name: "Ride options", exact: true })
+      .or(page.getByRole("button", { name: "Edit route", exact: true }))
+  ).toBeVisible()
 }
 
 async function establishServiceWorker(page: import("@playwright/test").Page): Promise<void> {

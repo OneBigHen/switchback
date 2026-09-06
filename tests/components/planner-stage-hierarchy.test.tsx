@@ -36,8 +36,12 @@ function viewModel(): PlannerDeckViewModel {
       armedPoint: null,
       via: [],
       addingVia: false,
-      canUndoRoutePoints: false,
-      canRedoRoutePoints: false
+    },
+    rideHistory: {
+      canUndoRideChange: false,
+      canRedoRideChange: false,
+      lastChangeLabel: null,
+      hasUnappliedChange: false
     },
     rideConfig: {
       planMode: "destination",
@@ -82,10 +86,11 @@ function commands(): PlannerDeckCommands {
     waypoint: {
       onPointChange: vi.fn(), onPointQueryChange: vi.fn(), onArm: vi.fn(), onSwap: vi.fn(),
       onToggleAddVia: vi.fn(), onRemoveVia: vi.fn(), onMoveVia: vi.fn(), onReverseRoute: vi.fn(),
-      onUndoRoutePoints: vi.fn(), onRedoRoutePoints: vi.fn(), onToggleViaLock: vi.fn()
+      onToggleViaLock: vi.fn()
     },
+    rideHistory: { onUndoRideChange: vi.fn(), onRedoRideChange: vi.fn() },
     rideConfig: {
-      onPlanModeChange: vi.fn(), onTargetMinutesChange: vi.fn(), onTimeShapedChange: vi.fn(),
+      onPlanModeChange: vi.fn(), onRideTimeChange: vi.fn(),
       onProfileChange: vi.fn(), onBikeProfileChange: vi.fn(), onCurvatureChange: vi.fn(),
       onAvoidHighwaysChange: vi.fn(), onTollPolicyChange: vi.fn(), onSegmentProfileChange: vi.fn(),
       onRemoveAvoidArea: vi.fn(), onAddRoadLock: vi.fn(), onUpdateRoadLock: vi.fn(),
@@ -94,7 +99,7 @@ function commands(): PlannerDeckCommands {
     intent: { onRidePrompt: vi.fn(), onChooseStopIdea: vi.fn(), onResearchRideIdea: vi.fn() },
     onClearRoute: vi.fn(),
     onPlan: vi.fn(),
-    onCancelPlanning: vi.fn(),
+    onCancelRideChange: vi.fn(),
     onOpenLibrary: vi.fn(),
     onStartFreeRide: vi.fn(),
     onUseCurrentLocation: vi.fn()

@@ -63,7 +63,7 @@ interface PlannerDeckProps {
 }
 
 export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps) {
-  const { waypoint, rideConfig, intent, ui, lifecycle, providerHealth } = viewModel
+  const { waypoint, rideHistory, rideConfig, intent, ui, lifecycle, providerHealth } = viewModel
 
   const start = waypoint.start
   const finish = waypoint.finish
@@ -72,8 +72,8 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const armedPoint = waypoint.armedPoint
   const via = waypoint.via
   const addingVia = waypoint.addingVia
-  const canUndoRoutePoints = waypoint.canUndoRoutePoints
-  const canRedoRoutePoints = waypoint.canRedoRoutePoints
+  const canUndoRideChange = rideHistory.canUndoRideChange
+  const canRedoRideChange = rideHistory.canRedoRideChange
 
   const profile = rideConfig.profile
   const status = ui.status
@@ -106,7 +106,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     : 0
 
   const { waypoint: wc, rideConfig: rc, intent: ic } = commands
-  const onCancelPlanning = commands.onCancelPlanning
+  const onCancelRideChange = commands.onCancelRideChange
   const onRetryProviderHealth = commands.onRetryProviderHealth
 
   const onPointChange = wc.onPointChange
@@ -117,8 +117,8 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onRemoveVia = wc.onRemoveVia
   const onMoveVia = wc.onMoveVia
   const onReverseRoute = wc.onReverseRoute
-  const onUndoRoutePoints = wc.onUndoRoutePoints
-  const onRedoRoutePoints = wc.onRedoRoutePoints
+  const onUndoRideChange = commands.rideHistory.onUndoRideChange
+  const onRedoRideChange = commands.rideHistory.onRedoRideChange
   const onToggleViaLock = wc.onToggleViaLock
 
   const onProfileChange = rc.onProfileChange
@@ -127,8 +127,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
   const onTollPolicyChange = rc.onTollPolicyChange
   const onPlanModeChange = rc.onPlanModeChange
-  const onTargetMinutesChange = rc.onTargetMinutesChange
-  const onTimeShapedChange = rc.onTimeShapedChange
+  const onRideTimeChange = rc.onRideTimeChange
   const onSegmentProfileChange = rc.onSegmentProfileChange
   const onRemoveAvoidArea = rc.onRemoveAvoidArea
 
@@ -372,8 +371,8 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 armedPoint={armedPoint}
                 via={via}
                 addingVia={addingVia}
-                canUndoRoutePoints={canUndoRoutePoints}
-                canRedoRoutePoints={canRedoRoutePoints}
+                canUndoRideChange={canUndoRideChange}
+                canRedoRideChange={canRedoRideChange}
                 profile={profile}
                 bikeProfile={rideConfig.bikeProfile}
                 curvatureVisible={curvatureVisible}
@@ -395,7 +394,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 error={error}
                 editing={editing}
                 onEditingChange={setEditing}
-                onCancelPlanning={onCancelPlanning}
+                onCancelRideChange={onCancelRideChange}
                 onPointChange={onPointChange}
                 onPointQueryChange={onPointQueryChange}
                 onArm={onArm}
@@ -404,16 +403,15 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 onRemoveVia={onRemoveVia}
                 onMoveVia={onMoveVia}
                 onReverseRoute={onReverseRoute}
-                onUndoRoutePoints={onUndoRoutePoints}
-                onRedoRoutePoints={onRedoRoutePoints}
+                onUndoRideChange={onUndoRideChange}
+                onRedoRideChange={onRedoRideChange}
                 onToggleViaLock={onToggleViaLock}
                 onProfileChange={onProfileChange}
                 onBikeProfileChange={onBikeProfileChange}
                 onCurvatureChange={onCurvatureChange}
                 onAvoidHighwaysChange={onAvoidHighwaysChange}
                 onTollPolicyChange={onTollPolicyChange}
-                onTargetMinutesChange={onTargetMinutesChange}
-                onTimeShapedChange={onTimeShapedChange}
+                onRideTimeChange={onRideTimeChange}
                 onSegmentProfileChange={onSegmentProfileChange}
                 onOpenRoadLocks={() => setRoadLocksOpen(true)}
                 onRemoveAvoidArea={onRemoveAvoidArea}

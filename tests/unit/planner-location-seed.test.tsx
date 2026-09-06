@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { usePlannerLocationSeed } from "@/components/planner/usePlannerLocationSeed"
 import type { Waypoint } from "@/lib/routing/types"
-import type { PlanningPhase } from "@/stores/planner-store"
+import type { PlannerStatus, PlanningPhase } from "@/stores/planner-store"
+
+type RecoveryStatus = "loading" | "ready" | "restored" | "superseded" | "unavailable" | "invalid" | "conflict"
 
 const savedLocation: Waypoint = { lat: 40.1, lon: -76.9, label: "Saved location" }
 const liveLocation: Waypoint = { lat: 40.2, lon: -76.8, label: "Live location" }
@@ -22,12 +24,25 @@ vi.mock("@/lib/client/planner-location", () => ({
 const originalGeolocation = Object.getOwnPropertyDescriptor(navigator, "geolocation")
 const originalPermissions = Object.getOwnPropertyDescriptor(navigator, "permissions")
 
-function planner(past: unknown[] = []) {
+function planner(overrides: Partial<{
+  start: Waypoint | null
+  canUndoRideChange: boolean
+  canRedoRideChange: boolean
+  startQuery: string
+  planningPhase: PlanningPhase
+  status: PlannerStatus
+  recoveryStatus: RecoveryStatus
+}> = {}) {
   return {
-    routePointPast: past,
+    start: null as Waypoint | null,
+    canUndoRideChange: false,
+    canRedoRideChange: false,
+    recoveryStatus: "ready" as RecoveryStatus,
     startQuery: "",
     planningPhase: "idle" as PlanningPhase,
-    seedCurrentLocation: vi.fn()
+    status: "idle" as PlannerStatus,
+    seedCurrentLocation: vi.fn(),
+    ...overrides
   }
 }
 
@@ -83,7 +98,7 @@ describe("planner location seed", () => {
     locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
     locationApi.createPlannerLocation.mockReturnValue(liveLocation)
     installGrantedLocation()
-    const state = planner([{}])
+    const state = planner({ canUndoRideChange: true })
 
     renderHook(() => usePlannerLocationSeed({
       gate: createLatestRequestGate(),
@@ -92,6 +107,112 @@ describe("planner location seed", () => {
     }))
 
     await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it("still seeds a recovered ride that has no start of its own", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    // Recovery restored preferences but never resolved a start point; a
+    // location fix is exactly what this ride is missing.
+    const state = planner({ recoveryStatus: "restored", start: null })
+
+    renderHook(() => usePlannerLocationSeed({
+      gate: createLatestRequestGate(),
+      getPlanner: () => state,
+      onSeed: vi.fn()
+    }))
+
+    await waitFor(() => expect(state.seedCurrentLocation).toHaveBeenCalledWith(savedLocation))
+  })
+
+  it("never overwrites a start the rider or recovery already authored", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    const state = planner({
+      recoveryStatus: "restored",
+      start: { lat: 41.1, lon: -75.5, label: "Recovered start" }
+    })
+
+    renderHook(() => usePlannerLocationSeed({
+      gate: createLatestRequestGate(),
+      getPlanner: () => state,
+      onSeed: vi.fn()
+    }))
+
+    await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it("does not cut a redo branch with a passive location fix", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    // The rider undid their only change: there is no start and no undo step,
+    // but the undone change is still waiting to be redone.
+    const state = planner({ canUndoRideChange: false, canRedoRideChange: true })
+
+    renderHook(() => usePlannerLocationSeed({
+      gate: createLatestRequestGate(),
+      getPlanner: () => state,
+      onSeed: vi.fn()
+    }))
+
+    await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it("holds a fix that arrives before recovery settles, then applies it", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    // IndexedDB answered more slowly than the location callback. Dropping the
+    // fix here left the rider with no start at all.
+    const state = planner({ recoveryStatus: "loading" })
+
+    const view = renderHook(
+      ({ recoveryStatus }: { recoveryStatus: RecoveryStatus }) => usePlannerLocationSeed({
+        gate: createLatestRequestGate(),
+        getPlanner: () => state,
+        onSeed: vi.fn(),
+        recoveryStatus
+      }),
+      { initialProps: { recoveryStatus: "loading" as RecoveryStatus } }
+    )
+
+    await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    expect(state.seedCurrentLocation).not.toHaveBeenCalled()
+
+    state.recoveryStatus = "ready"
+    view.rerender({ recoveryStatus: "ready" })
+
+    await waitFor(() => expect(state.seedCurrentLocation).toHaveBeenCalledWith(liveLocation))
+  })
+
+  it("discards a held fix when recovery restored a ride that already has a start", async () => {
+    locationApi.readStoredPlannerLocation.mockReturnValue(savedLocation)
+    locationApi.createPlannerLocation.mockReturnValue(liveLocation)
+    installGrantedLocation()
+    const state = planner({ recoveryStatus: "loading" })
+
+    const view = renderHook(
+      ({ recoveryStatus }: { recoveryStatus: RecoveryStatus }) => usePlannerLocationSeed({
+        gate: createLatestRequestGate(),
+        getPlanner: () => state,
+        onSeed: vi.fn(),
+        recoveryStatus
+      }),
+      { initialProps: { recoveryStatus: "loading" as RecoveryStatus } }
+    )
+
+    await waitFor(() => expect(navigator.permissions.query).toHaveBeenCalledOnce())
+    state.recoveryStatus = "restored"
+    state.start = { lat: 41.1, lon: -75.5, label: "Recovered start" }
+    view.rerender({ recoveryStatus: "restored" })
+
+    await waitFor(() => expect(state.recoveryStatus).toBe("restored"))
     expect(state.seedCurrentLocation).not.toHaveBeenCalled()
   })
 

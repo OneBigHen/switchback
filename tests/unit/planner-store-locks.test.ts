@@ -48,21 +48,24 @@ describe("planner-store road locks", () => {
     localStorage.clear()
   })
 
-  it("adds a road lock and invalidates the active plan", () => {
+  it("keeps the committed route while adding a road lock creates a new intent revision", () => {
     const store = usePlannerStore.getState()
     store.applyPlan({
       selectedRouteId: "r1",
       routes: [],
       warnings: []
     })
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
     const lock = makeLock("must", "Ridge Road")
     store.addRoadLock(lock)
 
     const next = usePlannerStore.getState()
     expect(next.roadLocks).toEqual([lock])
-    expect(next.plan).toBeNull()
-    expect(next.selectedRouteId).toBeNull()
-    expect(next.status).toBe("idle")
+    expect(next.plan).toBe(before.plan)
+    expect(next.selectedRouteId).toBe("r1")
+    expect(next.getIntentIdentity()).not.toBe(beforeIdentity)
+    expect(next.rideHistory.past.at(-1)?.intent.roadLocks).toEqual([])
   })
 
   it("ignores an add with an existing id so duplicates cannot pile up", () => {
@@ -93,6 +96,7 @@ describe("planner-store road locks", () => {
       mode: "must"
     })
     expect(next.plan).toBeNull()
+    expect(next.getIntentIdentity()).not.toBe(initialPlannerState.rideHistory.identity)
   })
 
   it("converts a must lock to prefer while preserving provenance and edge ids", () => {
@@ -119,7 +123,7 @@ describe("planner-store road locks", () => {
     expect(usePlannerStore.getState().roadLocks[0]!.mode).toBe("prefer")
   })
 
-  it("removes a single lock and invalidates the active plan", () => {
+  it("keeps the committed route while removing a single road lock", () => {
     const store = usePlannerStore.getState()
     const first = makeLock("must", "A")
     const second = makeLock("prefer", "B")
@@ -130,12 +134,15 @@ describe("planner-store road locks", () => {
       routes: [],
       warnings: []
     })
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
     store.removeRoadLock(first.id)
 
     const next = usePlannerStore.getState()
     expect(next.roadLocks.map((l) => l.id)).toEqual([second.id])
-    expect(next.plan).toBeNull()
-    expect(next.selectedRouteId).toBeNull()
+    expect(next.plan).toBe(before.plan)
+    expect(next.selectedRouteId).toBe("r2")
+    expect(next.getIntentIdentity()).not.toBe(beforeIdentity)
   })
 
   it("clears every road lock in one pass", () => {
@@ -147,23 +154,26 @@ describe("planner-store road locks", () => {
     expect(usePlannerStore.getState().roadLocks).toEqual([])
   })
 
-  it("switches bike profiles and invalidates the active plan", () => {
+  it("keeps the committed route while switching bike profiles", () => {
     const store = usePlannerStore.getState()
     store.applyPlan({
       selectedRouteId: "r3",
       routes: [],
       warnings: []
     })
+    const before = usePlannerStore.getState()
+    const beforeIdentity = before.getIntentIdentity()
     const adventure = MOTORCYCLE_PROFILES.find((p) => p.category === "adventure")!
     store.setBikeProfile({ ...adventure })
 
     const next = usePlannerStore.getState()
     expect(next.bikeProfile.category).toBe("adventure")
-    expect(next.plan).toBeNull()
-    expect(next.status).toBe("idle")
+    expect(next.plan).toBe(before.plan)
+    expect(next.selectedRouteId).toBe("r3")
+    expect(next.getIntentIdentity()).not.toBe(beforeIdentity)
   })
 
-  it("preserves road locks and bike profile across persistence", () => {
+  it("keeps active intent out of the UI-only persistence fragment", () => {
     const store = usePlannerStore.getState()
     const lock = makeLock("must", "Persisted")
     store.addRoadLock(lock)
@@ -174,13 +184,16 @@ describe("planner-store road locks", () => {
       persist: { getOptions: () => { partialize: (s: unknown) => unknown } }
     }).persist.getOptions().partialize(usePlannerStore.getState())
     expect(persisted).toMatchObject({
-      roadLocks: [expect.objectContaining({ id: lock.id })],
-      bikeProfile: expect.objectContaining({ category: "dual-sport" })
+      savedPlaces: [],
+      searchHistory: [],
+      curvatureVisible: true
     })
+    expect(persisted).not.toHaveProperty("roadLocks")
+    expect(persisted).not.toHaveProperty("bikeProfile")
 
     const serialized = JSON.stringify(persisted)
-    expect(serialized).toContain(lock.id)
-    expect(serialized).toContain("dual-sport")
+    expect(serialized).not.toContain(lock.id)
+    expect(serialized).not.toContain("dual-sport")
   })
 
   it("resets to an empty lock set with initialPlannerState", () => {

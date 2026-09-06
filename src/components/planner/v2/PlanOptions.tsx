@@ -30,8 +30,8 @@ export interface PlanOptionsProps {
   armedPoint: PlannerPointId | null
   via: Waypoint[]
   addingVia: boolean
-  canUndoRoutePoints: boolean
-  canRedoRoutePoints: boolean
+  canUndoRideChange: boolean
+  canRedoRideChange: boolean
   avoidAreaCount: number
   roadLockCount: number
   savedCount: number
@@ -41,8 +41,9 @@ export interface PlanOptionsProps {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTollPolicyChange(policy: TollPolicy): void
-  onTargetMinutesChange(minutes: number): void
-  onTimeShapedChange(shaped: boolean): void
+  /** Duration and time-shaping as one ride change, so choosing "90 min" is a
+   *  single revision and a single replan rather than two of each. */
+  onRideTimeChange(minutes: number, shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onPointChange(id: PlannerPointId, point: Waypoint): void
   onPointQueryChange(id: PlannerPointId, query: string): void
@@ -52,8 +53,8 @@ export interface PlanOptionsProps {
   onRemoveVia(index: number): void
   onMoveVia(fromIndex: number, toIndex: number): void
   onReverseRoute(): void
-  onUndoRoutePoints(): void
-  onRedoRoutePoints(): void
+  onUndoRideChange(): void
+  onRedoRideChange(): void
   onToggleViaLock(index: number): void
   onOpenRoadLocks(): void
   onRemoveAvoidArea(): void
@@ -94,8 +95,8 @@ export function PlanOptions({
   armedPoint,
   via,
   addingVia,
-  canUndoRoutePoints,
-  canRedoRoutePoints,
+  canUndoRideChange,
+  canRedoRideChange,
   avoidAreaCount,
   roadLockCount,
   savedCount,
@@ -105,8 +106,7 @@ export function PlanOptions({
   onCurvatureChange,
   onAvoidHighwaysChange,
   onTollPolicyChange,
-  onTargetMinutesChange,
-  onTimeShapedChange,
+  onRideTimeChange,
   onSegmentProfileChange,
   onPointChange,
   onPointQueryChange,
@@ -116,8 +116,8 @@ export function PlanOptions({
   onRemoveVia,
   onMoveVia,
   onReverseRoute,
-  onUndoRoutePoints,
-  onRedoRoutePoints,
+  onUndoRideChange,
+  onRedoRideChange,
   onToggleViaLock,
   onOpenRoadLocks,
   onRemoveAvoidArea,
@@ -136,15 +136,22 @@ export function PlanOptions({
   const choosePreset = (minutes: number) => {
     setCustomTimingOpen(false)
     setCustomMinutes(String(minutes))
-    onTargetMinutesChange(minutes)
+    onRideTimeChange(minutes, true)
   }
 
-  const updateCustomMinutes = (raw: string) => {
-    setCustomMinutes(raw)
-    const minutes = Number(raw)
-    if (Number.isInteger(minutes) && minutes >= MIN_CUSTOM_MINUTES && minutes <= MAX_CUSTOM_MINUTES) {
-      onTargetMinutesChange(minutes)
+  /**
+   * The typed value is a draft until the rider is done with it. Committing on
+   * every keystroke turned "240" into a ride change at "24" as well, which
+   * both replanned against a duration nobody asked for and buried the real
+   * change in the undo stack.
+   */
+  const commitCustomMinutes = () => {
+    const minutes = Number(customMinutes)
+    if (!Number.isInteger(minutes) || minutes < MIN_CUSTOM_MINUTES || minutes > MAX_CUSTOM_MINUTES) {
+      setCustomMinutes(String(targetMinutes))
+      return
     }
+    onRideTimeChange(minutes, true)
   }
 
   return (
@@ -192,7 +199,7 @@ export function PlanOptions({
                   <button
                     type="button"
                     aria-pressed={!timeShaped}
-                    onClick={() => onTimeShapedChange(false)}
+                    onClick={() => onRideTimeChange(targetMinutes, false)}
                   >
                     Fastest
                   </button>
@@ -202,10 +209,7 @@ export function PlanOptions({
                     type="button"
                     key={minutes}
                     aria-pressed={timeActive && !customTimingOpen && minutes === targetMinutes}
-                    onClick={() => {
-                      onTimeShapedChange(true)
-                      choosePreset(minutes)
-                    }}
+                    onClick={() => choosePreset(minutes)}
                   >
                     {durationLabel(minutes)}
                   </button>
@@ -214,9 +218,9 @@ export function PlanOptions({
                   type="button"
                   aria-pressed={timeActive && (customTimingOpen || !targetIsPreset)}
                   onClick={() => {
-                    onTimeShapedChange(true)
                     setCustomMinutes(String(targetMinutes))
                     setCustomTimingOpen(true)
+                    if (!timeActive) onRideTimeChange(targetMinutes, true)
                   }}
                 >
                   Custom
@@ -233,7 +237,14 @@ export function PlanOptions({
                     inputMode="numeric"
                     aria-label={planMode === "loop" ? "Custom loop duration in minutes" : "Target ride time in minutes"}
                     value={customMinutes}
-                    onChange={(event) => updateCustomMinutes(event.target.value)}
+                    onChange={(event) => setCustomMinutes(event.target.value)}
+                    onBlur={commitCustomMinutes}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        commitCustomMinutes()
+                      }
+                    }}
                   />
                   <small>30–720 min</small>
                 </label>
@@ -310,9 +321,9 @@ export function PlanOptions({
                 ))}
               </div>
             ) : null}
-            <div className="plan-v2__edit-actions" aria-label="Route edit history">
-              <button type="button" aria-label="Undo route edit" disabled={!canUndoRoutePoints} onClick={onUndoRoutePoints}>Undo</button>
-              <button type="button" aria-label="Redo route edit" disabled={!canRedoRoutePoints} onClick={onRedoRoutePoints}>Redo</button>
+            <div className="plan-v2__edit-actions" aria-label="Ride change history">
+              <button type="button" aria-label="Undo ride change" disabled={!canUndoRideChange} onClick={onUndoRideChange}>Undo</button>
+              <button type="button" aria-label="Redo ride change" disabled={!canRedoRideChange} onClick={onRedoRideChange}>Redo</button>
               <button type="button" aria-label="Reverse route" disabled={planMode === "destination" ? !start || !finish : via.length === 0} onClick={onReverseRoute}>Reverse</button>
             </div>
           </OptionGroup>

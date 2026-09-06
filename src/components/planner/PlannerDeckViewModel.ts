@@ -30,8 +30,17 @@ export interface PlannerWaypointViewModel {
   armedPoint: PlannerPointId | null
   via: Waypoint[]
   addingVia: boolean
-  canUndoRoutePoints: boolean
-  canRedoRoutePoints: boolean
+}
+
+/** Whole-ride change history. Undo reverses the rider's last ride change,
+ *  whatever it touched — not whichever field happens to own a setter. */
+export interface PlannerRideHistoryViewModel {
+  canUndoRideChange: boolean
+  canRedoRideChange: boolean
+  /** Plain-language description of the last rider change, for confirmation. */
+  lastChangeLabel: string | null
+  /** True while the shown route answers an older ride than the current one. */
+  hasUnappliedChange: boolean
 }
 
 export interface PlannerRideConfigViewModel {
@@ -80,6 +89,7 @@ export interface PlannerLifecycleViewModel {
 
 export interface PlannerDeckViewModel {
   waypoint: PlannerWaypointViewModel
+  rideHistory: PlannerRideHistoryViewModel
   rideConfig: PlannerRideConfigViewModel
   intent: PlannerIntentViewModel
   ui: PlannerUiViewModel
@@ -116,15 +126,19 @@ export interface PlannerWaypointCommands {
   onRemoveVia(index: number): void
   onMoveVia(fromIndex: number, toIndex: number): void
   onReverseRoute(): void
-  onUndoRoutePoints(): void
-  onRedoRoutePoints(): void
   onToggleViaLock(index: number): void
+}
+
+export interface PlannerRideHistoryCommands {
+  onUndoRideChange(): void
+  onRedoRideChange(): void
 }
 
 export interface PlannerRideConfigCommands {
   onPlanModeChange(mode: PlanMode): void
-  onTargetMinutesChange(minutes: number): void
-  onTimeShapedChange(shaped: boolean): void
+  /** Ride time is one decision — how long, and whether time shapes the route
+   *  at all — so it travels as one command and lands as one ride change. */
+  onRideTimeChange(minutes: number, shaped: boolean): void
   onProfileChange(profile: RouteProfileId): void
   onBikeProfileChange(profile: BikeProfile): void
   onCurvatureChange(visible: boolean): void
@@ -147,6 +161,7 @@ export interface PlannerIntentCommands {
 
 export interface PlannerDeckCommands {
   waypoint: PlannerWaypointCommands
+  rideHistory: PlannerRideHistoryCommands
   rideConfig: PlannerRideConfigCommands
   intent: PlannerIntentCommands
   onClearRoute(): void
@@ -160,7 +175,11 @@ export interface PlannerDeckCommands {
   /** Enter the existing map sketch surface from the compact Plan composer. */
   onStartDrawing?(): void
   onSaveOffline?(route: PlannedRoute, options?: import("@/lib/client/offline-pack-coordinator").OfflinePackCorridorOptions): void
-  onCancelPlanning(): void
+  /**
+   * One Cancel, one meaning: stop the calculation in flight and put the last
+   * usable ride back. With nothing committed yet it simply stops planning.
+   */
+  onCancelRideChange(): void
   onRetryProviderHealth?(): void
   /** Request the browser location and use it as the route start. */
   onUseCurrentLocation?(): void
@@ -186,8 +205,10 @@ export function buildPlannerDeckViewModel(state: {
   addingVia: boolean
   segmentProfiles: RouteProfileId[]
   avoidAreaCount: number
-  canUndoRoutePoints: boolean
-  canRedoRoutePoints: boolean
+  canUndoRideChange: boolean
+  canRedoRideChange: boolean
+  lastChangeLabel: string | null
+  hasUnappliedChange: boolean
   planMode: PlanMode
   targetMinutes: number
   timeShaped: boolean
@@ -211,9 +232,13 @@ export function buildPlannerDeckViewModel(state: {
       finishQuery: state.finishQuery,
       armedPoint: state.armedPoint,
       via: state.via,
-      addingVia: state.addingVia,
-      canUndoRoutePoints: state.canUndoRoutePoints,
-      canRedoRoutePoints: state.canRedoRoutePoints
+      addingVia: state.addingVia
+    },
+    rideHistory: {
+      canUndoRideChange: state.canUndoRideChange,
+      canRedoRideChange: state.canRedoRideChange,
+      lastChangeLabel: state.lastChangeLabel,
+      hasUnappliedChange: state.hasUnappliedChange
     },
     rideConfig: {
       planMode: state.planMode,

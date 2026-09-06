@@ -17,8 +17,12 @@ function viewModel(): PlannerDeckViewModel {
       armedPoint: null,
       via: [],
       addingVia: false,
-      canUndoRoutePoints: false,
-      canRedoRoutePoints: false
+    },
+    rideHistory: {
+      canUndoRideChange: false,
+      canRedoRideChange: false,
+      lastChangeLabel: null,
+      hasUnappliedChange: false
     },
     rideConfig: {
       planMode: "destination",
@@ -69,14 +73,15 @@ function commands(): PlannerDeckCommands {
       onRemoveVia: vi.fn(),
       onMoveVia: vi.fn(),
       onReverseRoute: vi.fn(),
-      onUndoRoutePoints: vi.fn(),
-      onRedoRoutePoints: vi.fn(),
       onToggleViaLock: vi.fn()
+    },
+    rideHistory: {
+      onUndoRideChange: vi.fn(),
+      onRedoRideChange: vi.fn(),
     },
     rideConfig: {
       onPlanModeChange: vi.fn(),
-      onTargetMinutesChange: vi.fn(),
-      onTimeShapedChange: vi.fn(),
+      onRideTimeChange: vi.fn(),
       onProfileChange: vi.fn(),
       onBikeProfileChange: vi.fn(),
       onCurvatureChange: vi.fn(),
@@ -97,7 +102,7 @@ function commands(): PlannerDeckCommands {
     },
     onClearRoute: vi.fn(),
     onPlan: vi.fn(),
-    onCancelPlanning: vi.fn(),
+    onCancelRideChange: vi.fn(),
     onOpenLibrary: vi.fn(),
     onStartFreeRide: vi.fn(),
     onUseCurrentLocation: vi.fn()
