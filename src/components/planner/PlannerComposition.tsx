@@ -83,9 +83,25 @@ export function PlannerComposition({
     setDetails({ routeId: id, routeSetKey })
   }
 
+  /**
+   * Bootstrap is *reported*, never enforced by making the deck unusable.
+   *
+   * `inert` here swallowed the rider's first keystrokes: the composer accepted
+   * focus-less key events into a void, so someone who started describing their
+   * ride the instant the app painted lost the text and was left with a submit
+   * button that stayed disabled until they typed it again. Nothing was told to
+   * them, because inert has no visible state.
+   *
+   * Nothing needed that protection. Bootstrap is only unsafe if a rider edit
+   * can be overwritten by a checkpoint that resolves after it, and the store
+   * already forbids exactly that: `restoreRide` adopts a checkpoint only while
+   * the intent identity is still the one recovery started with, and reports
+   * `superseded` otherwise. Rider defaults are seeded only into a semantically
+   * pristine ride. The rider's ride wins on its own terms, so the deck stays
+   * interactive and only says that it is still settling.
+   */
   return (
     <div
-      inert={bootstrapPending ? true : undefined}
       aria-busy={bootstrapPending || undefined}
       style={{ display: "contents" }}
     >

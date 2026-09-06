@@ -172,6 +172,38 @@ Wave 1 code, moved those images.
 - `defaultRideIntent().profile` is `balanced`, matching the rider-settings
   default, so no snapshot depends on a first-route profile race.
 
+## The bootstrap gate was swallowing the rider's first words
+
+`planner.spec.ts` "turns a free-form timebox into a gravel loop" passes on
+`main` and failed on this branch. It is not a required check, so CI never said
+so. The cause was a real rider-facing regression, not a stale spec.
+
+`1a43f1f` gated the planner deck with `inert` while `recoveryStatus` is
+`loading`. `inert` cannot buffer input: instrumenting the load showed the
+composer inert at first paint, `#ride-prompt` still empty after a full phrase
+was typed, and the submit control disabled from then on. A rider who starts
+describing their ride the moment the app paints loses the text and is told
+nothing, because `inert` has no visible state.
+
+Nothing needed that protection. Bootstrap is unsafe only if a checkpoint that
+resolves late can overwrite an edit the rider already made, and the store
+already forbids that: `restoreRide` adopts a checkpoint only while the intent
+identity is still the one recovery started with and reports `superseded`
+otherwise, and rider defaults seed only a semantically pristine ride. The gate
+duplicated a guarantee the store makes, and charged the rider's input for it.
+
+- **Fix.** `PlannerComposition` keeps `aria-busy` and drops `inert`. Bootstrap
+  is reported, not enforced by confiscating the deck.
+- **Guard.** `tests/components/planner-bootstrap-gate.test.tsx` asserts the
+  attribute contract directly — busy is reported, the subtree is not inert, and
+  the composer is inside the reported region. It fails against the `inert`
+  wrapper, which was verified by restoring it. A browser-level version of this
+  test was written and **discarded**: bootstrap settles faster than Playwright
+  can type on a warm machine, so it passed with the bug present and would have
+  implied coverage it did not have.
+- `planner.spec.ts --project=desktop-chromium` is now **8/8** (was 7/8 with this
+  regression); `ride-recovery.spec.ts` stays **3/3**.
+
 ## Wave 1 verification (application source unchanged from `371e5df`)
 
 Full exact-head local run, Node 24.15.0, after the baseline correction:
