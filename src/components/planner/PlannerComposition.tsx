@@ -51,8 +51,21 @@ export function PlannerComposition({
   advisorOrigin
 }: PlannerCompositionProps) {
   const [details, setDetails] = useState<DetailWorkspace | null>(null)
+  // Clearing the plan ends the workspace. Route ids are derived from profile and
+  // geometry, so replanning the same trip yields the same ids — a details state
+  // that survived the gap would silently reopen over the route-choice stage
+  // instead of letting the rider choose again. Reset during render rather than
+  // in an effect so the stale workspace can never paint first.
+  if (!comparison && details) setDetails(null)
   const routeSetKey = comparison?.routes.map((route) => route.id).join("|") ?? ""
-  const selectedDetailsRoute = comparison && details?.routeSetKey === routeSetKey
+  // The details workspace follows the plan's own selection, not just the
+  // control that opened it. Selection can also move from the map, and a
+  // workspace left pointing at the previous route would keep its directions,
+  // preparation actions and Start ride button aimed at a route the rider is no
+  // longer looking at.
+  const selectedDetailsRoute = comparison
+    && details?.routeSetKey === routeSetKey
+    && details.routeId === comparison.selectedId
     ? comparison.routes.find((route) => route.id === details.routeId) ?? null
     : null
   const showingDetails = Boolean(comparison && selectedDetailsRoute)

@@ -27,10 +27,35 @@ export interface RouteDecisionPresentation {
   warning: string | null
 }
 
-function nonAsphaltShare(route: PlannedRoute): number {
+/**
+ * Surfaces we are willing to call unpaved to a rider.
+ *
+ * This is an allow-list on purpose. Counting "everything that is not asphalt"
+ * turns `unknown` into gravel, and a route with no surface data at all — a
+ * Valhalla candidate arrives with an empty `surfaceMix` — into a fully unpaved
+ * one. Saying "30% unpaved" about a road nobody mapped is exactly the kind of
+ * invented fact the product is not allowed to state.
+ */
+const UNPAVED_SURFACES = new Set([
+  "gravel", "fine_gravel", "compacted", "dirt", "earth", "ground", "unpaved",
+  "sand", "mud", "grass", "sett", "cobblestone", "pebblestone", "rock"
+])
+
+/** Share of the route on surfaces actually mapped as unpaved. */
+function unpavedShare(route: PlannedRoute): number {
   return Object.entries(route.surfaceMix).reduce((total, [surface, share]) => (
-    surface.toLowerCase() === "asphalt" || surface.toLowerCase() === "paved" ? total : total + share
+    UNPAVED_SURFACES.has(surface.toLowerCase()) ? total + share : total
   ), 0)
+}
+
+/**
+ * Whether this route carries any usable surface evidence. A route with an empty
+ * mix, or one that is only `unknown`, tells us nothing — so it cannot take part
+ * in a surface comparison.
+ */
+function hasSurfaceEvidence(route: PlannedRoute): boolean {
+  return Object.entries(route.surfaceMix)
+    .some(([surface, share]) => share > 0 && surface.toLowerCase() !== "unknown")
 }
 
 function signedInteger(value: number, suffix: string, separator = " "): string | null {
@@ -45,15 +70,35 @@ function signedDecimal(value: number, suffix: string): string | null {
   return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} ${suffix}`
 }
 
-function comparisonLabel(route: PlannedRoute, selectedRoute: PlannedRoute | null): string | null {
+function comparisonLabel(
+  route: PlannedRoute,
+  selectedRoute: PlannedRoute | null,
+  routes: PlannedRoute[]
+): string | null {
   if (!selectedRoute) return null
-  if (route.id === selectedRoute.id) return "Current route"
+
+  // Added minutes versus the fastest candidate are always shown (ADR 0022), so
+  // this is computed for every card — including the selected one, whose detour
+  // cost is precisely the number the rider is deciding about.
+  const fastestMinutes = Math.min(...routes.map((candidate) => candidate.durationMinutes))
+  const versusFastest = signedInteger(route.durationMinutes - fastestMinutes, "min vs fastest")
+
+  if (route.id === selectedRoute.id) {
+    return versusFastest ? `Current route · ${versusFastest}` : "Current route"
+  }
+
+  // A surface delta is only meaningful when both sides actually carry surface
+  // evidence; otherwise the comparison invents one.
+  const surfaceComparable = hasSurfaceEvidence(route) && hasSurfaceEvidence(selectedRoute)
 
   const parts = [
     signedInteger(route.durationMinutes - selectedRoute.durationMinutes, "min"),
     signedDecimal(route.distanceMiles - selectedRoute.distanceMiles, "mi"),
-    signedInteger(nonAsphaltShare(route) - nonAsphaltShare(selectedRoute), "% unpaved", ""),
-    signedInteger(route.twistiness - selectedRoute.twistiness, "curve")
+    surfaceComparable
+      ? signedInteger(unpavedShare(route) - unpavedShare(selectedRoute), "% unpaved", "")
+      : null,
+    signedInteger(route.twistiness - selectedRoute.twistiness, "curve"),
+    versusFastest
   ].filter((part): part is string => Boolean(part))
 
   return parts.length > 0 ? parts.join(" · ") : "Same key metrics"
@@ -81,7 +126,7 @@ export function buildRouteDecisionPresentation(
   selectedRouteId?: string | null
 ): RouteDecisionPresentation {
   const selectedRoute = routes.find((candidate) => candidate.id === selectedRouteId) ?? null
-  const roughShare = nonAsphaltShare(route)
+  const roughShare = unpavedShare(route)
   const character = roughShare >= 25
     ? `${Math.round(roughShare)}% mixed surface · ${Math.round(route.twistiness)} curve score`
     : route.twistiness >= 80
@@ -109,7 +154,7 @@ export function buildRouteDecisionPresentation(
       : route.name,
     timeLabel: `${Math.round(route.durationMinutes)} min`,
     distanceLabel: `${route.distanceMiles.toFixed(1)} mi`,
-    deltaLabel: comparisonLabel(route, selectedRoute),
+    deltaLabel: comparisonLabel(route, selectedRoute, routes),
     character: corridorCharacter,
     warning
   }

@@ -15,7 +15,8 @@ export interface GroundedRouteDescription {
   unsupported: string[]
 }
 
-function knownMix(mix: Record<string, number>): Record<string, number> {
+function knownMix(mix: Record<string, number> | null | undefined): Record<string, number> {
+  if (!mix) return {}
   return Object.fromEntries(Object.entries(mix).filter(([, value]) => Number.isFinite(value) && value >= 0))
 }
 

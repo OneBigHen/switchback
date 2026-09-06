@@ -1395,6 +1395,7 @@ export function PlannerShell() {
           setAvoidAreas((areas) => [...areas, area].slice(0, 3))
           setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} will be excluded when you replan.` })
         }}
+        onRouteSculptCommit={() => handlePlan()}
           />
         </MapCanvas>
 

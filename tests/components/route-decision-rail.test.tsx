@@ -54,7 +54,7 @@ describe("RouteDecisionRail", () => {
     const selected = screen.getByRole("article", { name: /Maximum Twisties/i })
     expect(selected).toHaveAttribute("data-selected", "true")
     expect(within(selected).getByText("Selected")).toBeInTheDocument()
-    expect(within(selected).getByText("Current route")).toBeInTheDocument()
+    expect(within(selected).getByText(/^Current route/)).toBeInTheDocument()
     expect(within(selected).getByText("71 min")).toBeInTheDocument()
     expect(within(selected).getByText("44.8 mi")).toBeInTheDocument()
 
@@ -138,6 +138,66 @@ describe("RouteDecisionRail", () => {
     expect(screen.getByRole("button", { name: "Show turn-by-turn directions" })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Back to route choices" }))
+    expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
+  })
+
+  it("closes the details workspace when the selection moves on without it", () => {
+    // Selection can change from the map, which does not go through the control
+    // that opened the workspace. Left open, its directions and Start ride button
+    // would still act on the route the rider navigated away from.
+    const base = {
+      routes,
+      onSelect: vi.fn(),
+      onSave: vi.fn(),
+      onExport: vi.fn(),
+      onRide: vi.fn()
+    }
+    const { rerender } = render(
+      <PlannerComposition
+        viewModel={{} as PlannerDeckViewModel}
+        commands={{} as PlannerDeckCommands}
+        comparison={{ ...base, selectedId: "twisty" }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))
+    expect(screen.getByText("Selected route")).toBeInTheDocument()
+
+    rerender(
+      <PlannerComposition
+        viewModel={{} as PlannerDeckViewModel}
+        commands={{} as PlannerDeckCommands}
+        comparison={{ ...base, selectedId: "balanced" }}
+      />
+    )
+
+    expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
+  })
+
+  it("does not reopen stale details when the same trip is planned again", () => {
+    // Route ids are derived from profile and geometry, so replanning the same
+    // trip returns the same ids. Details that survived the cleared plan would
+    // reopen over the route-choice stage the rider expects to land on.
+    const comparison = {
+      routes,
+      selectedId: "twisty",
+      onSelect: vi.fn(),
+      onSave: vi.fn(),
+      onExport: vi.fn(),
+      onRide: vi.fn()
+    }
+    const props = { viewModel: {} as PlannerDeckViewModel, commands: {} as PlannerDeckCommands }
+    const { rerender } = render(<PlannerComposition {...props} comparison={comparison} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))
+    expect(screen.getByText("Selected route")).toBeInTheDocument()
+
+    // The rider clears the plan, then plans the identical trip again.
+    rerender(<PlannerComposition {...props} comparison={null} />)
+    rerender(<PlannerComposition {...props} comparison={comparison} />)
+
     expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
   })

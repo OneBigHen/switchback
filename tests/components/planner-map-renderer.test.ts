@@ -89,7 +89,10 @@ describe("premium route ribbon", () => {
       // Sits on top of the visible stack, near-transparent and filtered to the
       // alternatives: it exists so a rider can tap a candidate whose drawn line
       // is thinner than a fingertip.
-      "switchback-route-hit-area"
+      "switchback-route-hit-area",
+      // The alternatives-only layer above deliberately skips the selected route,
+      // so sculpting — which drags that very line — gets its own grab target.
+      "switchback-selected-route-hit-area"
     ])
   })
 

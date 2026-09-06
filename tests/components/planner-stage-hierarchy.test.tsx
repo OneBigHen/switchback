@@ -104,6 +104,7 @@ function commands(): PlannerDeckCommands {
 afterEach(() => {
   cleanup()
   usePlannerStore.setState({ sheetDetentOverride: null })
+  window.localStorage.removeItem("switchback:rider-settings")
 })
 
 describe("planner stage hierarchy", () => {
@@ -126,5 +127,18 @@ describe("planner stage hierarchy", () => {
     expect(screen.getByRole("button", { name: "Ride options" })).toHaveAttribute("aria-expanded", "true")
     expect(container.querySelector(".planner-stage-content")).toHaveClass("is-suppressed")
     expect(screen.getByTestId("route-results")).toBeInTheDocument()
+  })
+
+  it("states the collapsed route summary in the rider's saved units", () => {
+    window.localStorage.setItem(
+      "switchback:rider-settings",
+      JSON.stringify({ version: 1, units: "metric", bikes: [], activeBikeId: "" })
+    )
+
+    render(<PlannerDeck viewModel={viewModel()} commands={commands()} />)
+
+    // 58.4 mi is 94.0 km: a metric rider must never read the raw mile value here.
+    expect(screen.getByText(/180 min · 94\.0 km/i)).toBeInTheDocument()
+    expect(screen.queryByText(/58\.4 mi/i)).not.toBeInTheDocument()
   })
 })

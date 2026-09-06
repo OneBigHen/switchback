@@ -21,6 +21,8 @@ import {
   type ReactNode
 } from "react"
 import { listProfiles } from "@/lib/routing/profiles"
+import { loadRiderSettings, type UnitSystem } from "@/lib/settings/rider-settings"
+import { formatDistanceMiles, type FormattedDistance } from "@/lib/settings/rider-units"
 import { usePlannerStore } from "@/stores/planner-store"
 import { DownloadModePicker, DOWNLOAD_MODE_PICKER_DEFAULT, type DownloadModePickerValue } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
@@ -168,8 +170,15 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const selectedProfileLabel = selectedRoute
     ? listProfiles().find((item) => item.id === selectedRoute.profile)?.label ?? selectedRoute.profile
     : null
-  const selectedRouteMeta = selectedRoute
-    ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRoute.distanceMiles.toFixed(1)} mi${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
+  // The collapsed summary is the rider's primary result context, so it reads the
+  // saved unit setting the same way RouteComparison does — a metric rider must
+  // not see kilometres in the route rack and miles one line above it.
+  const units: UnitSystem = loadRiderSettings().units
+  const selectedRouteDistance: FormattedDistance | null = selectedRoute
+    ? formatDistanceMiles(selectedRoute.distanceMiles, units)
+    : null
+  const selectedRouteMeta = selectedRoute && selectedRouteDistance
+    ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
     : null
 
   const durationLabel = targetMinutes % 60 === 0

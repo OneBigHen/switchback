@@ -1,0 +1,85 @@
+.map-route-sculpt-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.map-route-sculpt-preview line {
+  stroke: var(--sb-ember-strong, #e85f2c);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 7 6;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 28%));
+}
+
+.map-route-sculpt-menu {
+  position: absolute;
+  z-index: 32;
+  display: grid;
+  width: min(276px, calc(100% - 20px));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--sb-border) 84%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sb-surface) 96%, transparent);
+  box-shadow: 0 12px 30px rgb(20 29 27 / 22%);
+  backdrop-filter: blur(12px);
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.map-route-sculpt-menu strong {
+  grid-column: 1 / -1;
+  color: var(--sb-text);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.map-route-sculpt-menu button {
+  min-width: 0;
+  min-height: var(--sb-touch-target, 44px);
+  padding: 0 8px;
+  border: 1px solid var(--sb-border);
+  border-radius: 9px;
+  background: var(--sb-surface-raised);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.map-route-sculpt-menu button:hover,
+.map-route-sculpt-menu button:focus-visible {
+  border-color: var(--sb-focus-ring);
+  outline: none;
+}
+
+.map-route-sculpt-menu button[data-mode="must"] {
+  border-color: color-mix(in srgb, var(--sb-ember-strong) 58%, var(--sb-border));
+}
+
+.map-route-sculpt-menu button[data-mode="avoid"] {
+  color: var(--sb-danger, #a33f34);
+}
+
+@media (max-width: 760px) {
+  .map-route-sculpt-menu {
+    right: 10px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 10px !important;
+    top: auto !important;
+    width: auto;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-route-sculpt-preview line {
+    filter: none;
+  }
+}
