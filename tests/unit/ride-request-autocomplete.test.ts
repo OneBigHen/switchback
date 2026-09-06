@@ -17,6 +17,13 @@ describe("ride request place autocomplete", () => {
     expect(ridePromptPlaceQuery("A scenic ride with curves and coffee")).toBeNull()
   })
 
+  it("does not turn current-location language into a place search", () => {
+    expect(ridePromptPlaceQuery("90-minute loop near me")).toBeNull()
+    expect(ridePromptPlaceQuery("loop near current location")).toBeNull()
+    expect(ridePromptPlaceQuery("starting near my location")).toBeNull()
+    expect(ridePromptPlaceQuery("here")).toBeNull()
+  })
+
   it("preserves ride constraints when completing a trailing place", () => {
     expect(completeRidePromptWithPlace(
       "90-minute scenic loop near Aus",
