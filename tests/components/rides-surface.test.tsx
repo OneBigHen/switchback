@@ -37,6 +37,35 @@ const items: RideLibraryItem[] = [
   }
 ]
 
+const geographicItems: RideLibraryItem[] = [
+  {
+    ...items[0]!,
+    geometry: [[-75.70, 41.30], [-75.55, 41.45]],
+    roadNames: ["River Road", "PA-92"],
+    region: {
+      primary: "ne",
+      regions: ["ne"],
+      shares: { ne: 1 },
+      outsideShare: 0,
+      crossRegion: false,
+      label: "NE PA"
+    }
+  },
+  {
+    ...items[1]!,
+    geometry: [[-75.40, 40.00], [-75.10, 40.20]],
+    roadNames: ["Dark Hollow Road"],
+    region: {
+      primary: "se",
+      regions: ["se"],
+      shares: { se: 1 },
+      outsideShare: 0,
+      crossRegion: false,
+      label: "SE PA"
+    }
+  }
+]
+
 describe("RidesSurface", () => {
   it("renders Rides as a destination section instead of a closable modal", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
@@ -60,6 +89,20 @@ describe("RidesSurface", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Search rides" }), { target: { value: "MABDR" } })
     expect(screen.getByText("MABDR Section 3")).toBeInTheDocument()
     expect(screen.queryByText("Sunday ride")).not.toBeInTheDocument()
+  })
+
+  it("browses PA regions independently of ride type and searches actual route road names", () => {
+    render(<RidesSurface items={geographicItems} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    expect(screen.getByRole("group", { name: "Pennsylvania regions" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "NE 1" }))
+    expect(screen.getByText("Pine Creek back roads")).toBeInTheDocument()
+    expect(screen.queryByText("Sunday ride")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "All regions 2" }))
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search rides" }), { target: { value: "Dark Hollow" } })
+    expect(screen.getByText("Sunday ride")).toBeInTheDocument()
+    expect(screen.queryByText("Pine Creek back roads")).not.toBeInTheDocument()
   })
 
   it("keeps an imported saved GPX in Imported and out of Planned", () => {
