@@ -97,7 +97,7 @@ describe("primary ride request autocomplete", () => {
     expect(screen.queryByRole("listbox", { name: "Place suggestions" })).not.toBeInTheDocument()
   })
 
-  it("sends the current route start only as a provider bias, never as a hard replacement", async () => {
+  it("keeps explicit typed place searches free of current-route proximity bias", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ places }))
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
@@ -108,7 +108,7 @@ describe("primary ride request autocomplete", () => {
 
     const requested = String(fetchMock.mock.calls[0]?.[0])
     expect(requested).toContain("q=Austin")
-    expect(requested).toContain("lat=40.2732")
-    expect(requested).toContain("lon=-76.8867")
+    expect(requested).not.toContain("lat=")
+    expect(requested).not.toContain("lon=")
   })
 })
