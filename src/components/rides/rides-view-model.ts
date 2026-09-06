@@ -1,6 +1,10 @@
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { centerOfBbox, centerOfPath } from "@/lib/client/geo"
-import type { Coordinate } from "@/lib/routing/types"
+import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
+import {
+  classifyPaRouteRegion,
+  extractRouteRoadNames
+} from "@/lib/rides/route-library-intelligence"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { SavedRoute } from "@/lib/storage/route-library"
 import type { TripPlan } from "@/lib/trip/trip-plan"
@@ -17,6 +21,15 @@ function recordedDurationMinutes(ride: RecordedRide): number {
 /** Representative point for "distance from me" ordering; null when unplaceable. */
 function centerOf(geometry: Coordinate[] | undefined): readonly [number, number] | null {
   return Array.isArray(geometry) ? centerOfPath(geometry) : null
+}
+
+function routeIntelligence(route: Pick<PlannedRoute, "geometry" | "instructions" | "ascentMeters">) {
+  return {
+    geometry: route.geometry,
+    region: classifyPaRouteRegion(route.geometry),
+    roadNames: extractRouteRoadNames(route.instructions),
+    ascentMeters: route.ascentMeters
+  }
 }
 
 export interface NormalizeRidesInput {
@@ -49,6 +62,7 @@ export function normalizeRideLibrary({
       updatedAt: route.updatedAt,
       center: centerOf(route.geometry),
       tags: route.tags ?? [],
+      ...routeIntelligence(route),
       management: {
         canDelete: true,
         canMatchRoads: route.routingSource === "imported",
@@ -68,6 +82,7 @@ export function normalizeRideLibrary({
       updatedAt: ride.endedAt || ride.updatedAt,
       center: centerOf(ride.route.geometry),
       tags: ride.photos.length > 0 ? [`${ride.photos.length} photo${ride.photos.length === 1 ? "" : "s"}`] : [],
+      ...routeIntelligence(ride.route),
       management: { canDelete: true }
     })),
     ...trips.map((trip): RideLibraryItem => ({
@@ -81,6 +96,7 @@ export function normalizeRideLibrary({
       updatedAt: trip.updatedAt,
       center: centerOf(trip.route.geometry),
       tags: [],
+      ...routeIntelligence(trip.route),
       management: { canDelete: true }
     })),
     ...projectRoutes.map((route): RideLibraryItem => ({
