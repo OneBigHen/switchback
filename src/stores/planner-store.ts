@@ -626,7 +626,7 @@ export const usePlannerStore = create<PlannerState>()(
           planningPhase: "cancelled" as const,
           planningStartedAt: null,
           isRecalculating: false,
-          status: "idle" as const
+          status: state.plan ? "ready" as const : "idle" as const
         }
       }),
       /**
