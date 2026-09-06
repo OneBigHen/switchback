@@ -69,7 +69,7 @@ export const RIDE_HISTORY_LIMIT = 50
 export function defaultRideIntent(): RideIntent {
   return {
     start: null, finish: null, via: [], mode: "destination", targetMinutes: 120,
-    timeShaped: false, profile: "twisty", bikeProfile: { ...MOTORCYCLE_PROFILES[0]! },
+    timeShaped: false, profile: "balanced", bikeProfile: { ...MOTORCYCLE_PROFILES[0]! },
     avoidHighways: false, tollPolicy: "allow-with-warning", avoidAreas: [],
     roadLocks: [], segmentProfiles: [], sketchCorridor: null
   }
