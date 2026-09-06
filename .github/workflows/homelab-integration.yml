@@ -1,0 +1,195 @@
+name: Homelab integration
+
+# Validates the real routing stack over the LAN, from inside the homelab.
+#
+# `Trusted live validation` already checks the deployed app through Cloudflare
+# on a GitHub-hosted runner. That path cannot see the providers: GraphHopper and
+# Valhalla are deliberately not on the public internet, so it reports them
+# NOT CONFIGURED and can only tell you *that* the site broke, never *which*
+# hop broke. This workflow runs on the homelab runner, which can reach the LAN
+# addresses directly, and separates the origin from the tunnel in front of it.
+#
+# Security posture — this repository is public and the runner is a real machine
+# on a home network, so untrusted code must never reach it:
+#
+#   * There is no `pull_request` trigger, and there must never be one. Fork PRs
+#     would otherwise execute contributor code on the runner. GitHub's
+#     "first-time contributors" approval is not a substitute: it stops only the
+#     first PR from any given account.
+#   * `workflow_dispatch` requires write access, and the guard job below refuses
+#     any ref that is not `main`, so only reviewed code runs here.
+#   * The job installs nothing. `run-live-smoke.mjs` uses Node built-ins only,
+#     so there is no `npm ci` and therefore no third-party lifecycle script
+#     executing inside the homelab.
+#
+# Ordinary deterministic gates (lint, typecheck, vitest, build, e2e, visual)
+# stay on GitHub-hosted runners in quality.yml. Nothing here is a merge gate.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # Not cancel-in-progress: a half-finished run leaves a confusing partial
+  # report about live infrastructure, and these runs are short anyway.
+  group: switchback-homelab-integration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: trusted-ref guard
+    # Deliberately GitHub-hosted: the ref is decided before anything reaches
+    # the homelab runner.
+    runs-on: ubuntu-latest
+    if: github.repository == 'OneBigHen/switchback'
+    timeout-minutes: 5
+    steps:
+      - name: Require main ref
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo 'BLOCKED — HOMELAB WORKFLOW MUST RUN FROM MAIN' >> "$GITHUB_STEP_SUMMARY"
+            echo '::error title=BLOCKED — UNTRUSTED REF::Dispatch this workflow from main.'
+            exit 1
+          fi
+
+  endpoints:
+    name: homelab-endpoints
+    needs: guard
+    if: needs.guard.result == 'success'
+    runs-on: [self-hosted, linux, x64, homelab-ci]
+    timeout-minutes: 15
+    env:
+      # Mapped onto the names run-live-smoke.mjs already reads. These are
+      # secrets rather than variables only so LAN addresses stay masked in the
+      # public run log, not because the values are sensitive on their own.
+      SWITCHBACK_LIVE_BASE_URL: ${{ secrets.HOMELAB_SWITCHBACK_URL }}
+      GRAPHHOPPER_URL: ${{ secrets.HOMELAB_GRAPHHOPPER_URL }}
+      VALHALLA_URL: ${{ secrets.HOMELAB_VALHALLA_URL }}
+      VALHALLA_ELEVATION_URL: ${{ secrets.HOMELAB_VALHALLA_ELEVATION_URL }}
+      PHOTON_URL: ${{ secrets.HOMELAB_PHOTON_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The runner workspace persists between runs.
+          clean: true
+
+      - name: Check runtime and configuration
+        run: |
+          set -euo pipefail
+          major="$(node -p 'process.versions.node.split(".")[0]')"
+          if (( major < 20 )); then
+            echo "::error title=NODE TOO OLD::run-live-smoke.mjs needs fetch and AbortSignal.timeout; runner has $(node --version)."
+            exit 1
+          fi
+          echo "runner: $(hostname), node $(node --version)"
+
+          # This workflow exists to exercise the LAN. Skipping quietly when the
+          # addresses are absent would turn it into a green no-op.
+          missing=()
+          [[ -z "${SWITCHBACK_LIVE_BASE_URL:-}" ]] && missing+=("HOMELAB_SWITCHBACK_URL")
+          [[ -z "${GRAPHHOPPER_URL:-}" ]] && missing+=("HOMELAB_GRAPHHOPPER_URL")
+          if ((${#missing[@]})); then
+            {
+              echo '### BLOCKED — HOMELAB ENDPOINT NOT CONFIGURED'
+              echo
+              echo 'Set these repository secrets to the LAN addresses:'
+              printf -- '- `%s`\n' "${missing[@]}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo '::error title=BLOCKED — HOMELAB ENDPOINT NOT CONFIGURED::See the job summary.'
+            exit 1
+          fi
+
+      - name: Validate LAN endpoints
+        run: node scripts/qa/run-live-smoke.mjs
+
+      # Valhalla and the elevation service are bound to loopback on the app host
+      # on purpose, so nothing on the LAN can reach them directly and the check
+      # above reports them NOT CONFIGURED. The app itself can reach them, and
+      # its health endpoint reports per-provider liveness — so assert that
+      # rather than pretend Valhalla went unverified, or widen its binding.
+      - name: Validate loopback-bound providers through the app
+        run: |
+          set -euo pipefail
+          health="$(curl -fsS --max-time 20 "$SWITCHBACK_LIVE_BASE_URL/api/health")"
+          echo "$health" | jq '{ok, degraded, router, providers, degradedProviders, configurationIssues}'
+          echo "$health" | jq -e '.providers.graphhopper.ok == true' >/dev/null \
+            || { echo '::error title=PROVIDER DOWN::App reports GraphHopper unhealthy.'; exit 1; }
+          echo "$health" | jq -e '.providers.valhalla.ok == true' >/dev/null \
+            || { echo '::error title=PROVIDER DOWN::App reports Valhalla unhealthy.'; exit 1; }
+          echo "$health" | jq -e '.ok == true' >/dev/null \
+            || { echo '::error title=APP DEGRADED::App health reports not ok.'; exit 1; }
+
+      # A bare "curl exited 7" says nothing about which hop failed. Split the
+      # question into TCP reachability, TLS/HTTP status, timing breakdown and a
+      # bounded body excerpt, per endpoint, so the report names the hop.
+      - name: Collect failure diagnostics
+        if: failure()
+        run: |
+          set +e
+          mkdir -p artifacts/quality
+          out=artifacts/quality/homelab-diagnostics.txt
+          {
+            echo "# Homelab diagnostics"
+            echo "run: $GITHUB_RUN_ID  runner: $(hostname)  at: $(date -Is)"
+            echo
+            echo "## runner network"
+            ip -4 -brief addr 2>&1
+            ip -4 route 2>&1
+            echo
+            probe() {
+              local name="$1" base="$2" path="$3"
+              echo "## $name"
+              if [[ -z "$base" ]]; then
+                echo "  not configured (endpoint is not exposed to the LAN)"; echo; return
+              fi
+              local url="${base}${path}"
+              local hostport host port
+              hostport="$(printf '%s' "$url" | sed -E 's#^[a-z]+://([^/]+).*#\1#')"
+              host="${hostport%%:*}"; port="${hostport##*:}"
+              [[ "$host" == "$port" ]] && port=""
+              if [[ -n "$port" ]]; then
+                timeout 5 bash -c "echo > /dev/tcp/$host/$port" 2>/dev/null \
+                  && echo "  tcp: open" || echo "  tcp: CLOSED or filtered"
+              fi
+              curl -sS -o /tmp/body.$$ -D /tmp/hdr.$$ --max-time 20 \
+                -w "  http: %{http_code}  dns:%{time_namelookup}s connect:%{time_connect}s tls:%{time_appconnect}s ttfb:%{time_starttransfer}s total:%{time_total}s\n" \
+                "$url" 2>&1
+              echo "  --- response headers ---"
+              sed -e 's/^/  /' /tmp/hdr.$$ 2>/dev/null | head -15
+              echo "  --- body (first 500 bytes) ---"
+              head -c 500 /tmp/body.$$ 2>/dev/null | sed -e 's/^/  /'
+              echo; echo
+              rm -f /tmp/body.$$ /tmp/hdr.$$
+            }
+
+            probe switchback       "$SWITCHBACK_LIVE_BASE_URL" "/api/health"
+            probe graphhopper      "$GRAPHHOPPER_URL"          "/health"
+            probe graphhopper-info "$GRAPHHOPPER_URL"          "/info"
+            probe photon           "$PHOTON_URL"               "?q=Harrisburg&limit=1"
+            probe valhalla         "$VALHALLA_URL"             "/status"
+          } > "$out" 2>&1
+          cat "$out"
+          { echo '### Diagnostics'; echo; echo '```'; cat "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish report
+        if: always()
+        run: |
+          if [[ -f docs/quality/LIVE_PROVIDER_RESULTS.md ]]; then
+            cat docs/quality/LIVE_PROVIDER_RESULTS.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: homelab-integration-results
+          path: |
+            artifacts/quality/live-provider-results.json
+            artifacts/quality/homelab-diagnostics.txt
+            docs/quality/LIVE_PROVIDER_RESULTS.md
+          if-no-files-found: ignore
+          retention-days: 14

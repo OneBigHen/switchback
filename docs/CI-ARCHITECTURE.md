@@ -67,6 +67,52 @@ Node, Docker, Compose, Chromium, and WebKit. Use it for controlled diagnostics,
 not for arbitrary fork code. A serious runner compromise means rebuilding the
 guest; Docker access is intentionally confined to that disposable appliance.
 
+Two workflows use that runner, and they answer different questions:
+
+- `homelab-ci-smoke.yml` — is the *appliance* healthy? Node, Docker, Compose,
+  Chromium, WebKit. `workflow_dispatch` only.
+- `homelab-integration.yml` — is the *routing stack* healthy on the LAN?
+  `workflow_dispatch` plus pushes to `main`.
+
+`homelab-integration.yml` exists because the trusted live validation above can
+only see the public origin. When `ride.henning.rodeo` returns 502 that job says
+the site is down but not which hop broke — and it reports the engines
+`NOT CONFIGURED`, because they are private by policy. The homelab runner sits on
+the same LAN, so it can reach them directly and split the question up:
+
+| Hop | Checked by | Address |
+|---|---|---|
+| Cloudflare tunnel → origin | `live-validation` (GitHub-hosted) | public origin |
+| Origin app, direct | `homelab-integration` | app host, port 3100 |
+| GraphHopper, direct | `homelab-integration` | `switchback-router` LXC, port 8989 |
+| Valhalla + elevation | `homelab-integration`, via app health | loopback on the app host |
+| Photon | both | the configured Photon endpoint |
+
+Addresses live in `HOMELAB_*` repository secrets rather than in the workflow —
+they are not sensitive, but this repository is public and masking keeps LAN
+topology out of run logs. Both workflows reuse `scripts/qa/run-live-smoke.mjs`,
+so there is one definition of what a healthy provider means.
+
+Valhalla is bound to loopback on the app host (`127.0.0.1:8002` in its compose
+file) and so is unreachable from the LAN by design. Rather than widen that
+binding for CI, `homelab-integration.yml` asserts the app's own
+`/api/health` provider block, which is a real liveness check of the running
+Valhalla via the only process that can reach it. Set `HOMELAB_VALHALLA_URL` if a
+direct endpoint is ever exposed; until then it reports `NOT CONFIGURED`.
+
+Two properties of that workflow are deliberate and should survive edits:
+
+- **No `pull_request` trigger, ever.** This repository is public. A fork PR
+  would run contributor code on a real machine on a home network. GitHub's
+  "require approval for first-time contributors" does not cover this: it stops
+  only an account's first PR. A GitHub-hosted `guard` job decides the ref before
+  anything reaches the runner, and refuses anything but `main`.
+- **No `npm ci`.** `run-live-smoke.mjs` uses Node built-ins only, so the job
+  installs nothing and no third-party lifecycle script runs inside the homelab.
+
+Neither homelab workflow is a merge gate; the required checks stay on
+GitHub-hosted runners.
+
 ## Cirun
 
 Cirun is optional. No Cirun workflow or `.cirun.yml` is required because public
