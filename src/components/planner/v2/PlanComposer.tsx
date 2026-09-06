@@ -165,7 +165,10 @@ export function PlanComposer({
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
   const placementActive = armedPoint !== null || addingVia
-  const canSubmitRequest = ridePrompt.trim().length >= 3 && !requestBusy
+  // A rider must be able to supersede an in-flight route request with a newer
+  // prompt. Route planning already fences stale provider responses; only the
+  // intent interpreter itself needs to block a new prompt submission.
+  const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
 
   const cancelPlacement = useCallback(() => {
     if (addingVia) {
