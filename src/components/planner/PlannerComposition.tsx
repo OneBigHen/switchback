@@ -85,7 +85,6 @@ export function PlannerComposition({
 
   return (
     <div
-      className="planner-composition-bootstrap"
       inert={bootstrapPending ? true : undefined}
       aria-busy={bootstrapPending || undefined}
       style={{ display: "contents" }}
