@@ -43,20 +43,21 @@ export function RideRequestAutocomplete({
   const [searching, setSearching] = useState(false)
 
   const searchQuery = ridePromptPlaceQuery(value)
-  const open = !dismissed && suggestions.length > 0
+  // Disabled/empty input is a render-state decision, not state that needs to
+  // be synchronised back through an effect. Keeping it derived avoids a second
+  // render and means an externally disabled composer hides stale suggestions
+  // immediately even before any request cleanup runs.
+  const searchAvailable = !disabled && Boolean(searchQuery)
+  const open = searchAvailable && !dismissed && suggestions.length > 0
+  const visiblySearching = searchAvailable && searching
 
   useEffect(() => {
-    if (disabled || !searchQuery) {
-      setSuggestions([])
-      setActiveIndex(-1)
-      setSearching(false)
-      return
-    }
+    if (!searchAvailable) return
     if (suppressSearchForValue.current === value) {
+      // Choosing a suggestion already clears the visible results in the click
+      // handler. This ref only prevents the completed place label from being
+      // immediately searched again on the parent-controlled value update.
       suppressSearchForValue.current = null
-      setSuggestions([])
-      setActiveIndex(-1)
-      setSearching(false)
       return
     }
 
@@ -65,7 +66,7 @@ export function RideRequestAutocomplete({
       setSearching(true)
       // Explicit text is global truth. Do not send the current ride location as
       // a geocoder bias or "Austin" can be pulled toward a local namesake.
-      void searchPlacesClient(searchQuery, fetch, controller.signal)
+      void searchPlacesClient(searchQuery!, fetch, controller.signal)
         .then((places) => {
           if (controller.signal.aborted) return
           setSuggestions(places.slice(0, 5))
@@ -83,13 +84,14 @@ export function RideRequestAutocomplete({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [disabled, searchQuery, value])
+  }, [searchAvailable, searchQuery, value])
 
   const choose = (place: PlaceResult) => {
     const completed = completeRidePromptWithPlace(value, place.label, planMode)
     suppressSearchForValue.current = completed
     setSuggestions([])
     setActiveIndex(-1)
+    setSearching(false)
     setDismissed(true)
     onChange(completed)
   }
@@ -100,6 +102,7 @@ export function RideRequestAutocomplete({
       setDismissed(true)
       setSuggestions([])
       setActiveIndex(-1)
+      setSearching(false)
       return
     }
     if (!open) return
@@ -130,6 +133,7 @@ export function RideRequestAutocomplete({
             setDismissed(true)
             setSuggestions([])
             setActiveIndex(-1)
+            setSearching(false)
           }
         }, 0)
       }}
@@ -146,14 +150,19 @@ export function RideRequestAutocomplete({
         aria-expanded={open}
         aria-controls={listId}
         aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
-        aria-busy={searching}
+        aria-busy={visiblySearching}
         disabled={disabled}
         onChange={(event) => {
+          // A new typed value invalidates the old result list synchronously at
+          // the interaction boundary; the debounced effect only performs I/O.
           setDismissed(false)
+          setSuggestions([])
+          setActiveIndex(-1)
+          setSearching(false)
           onChange(event.target.value)
         }}
         onFocus={() => {
-          if (suggestions.length > 0) setDismissed(false)
+          if (searchAvailable && suggestions.length > 0) setDismissed(false)
         }}
         onKeyDown={onKeyDown}
       />
