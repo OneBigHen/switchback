@@ -132,6 +132,7 @@ export function usePlannerRideIntent({
       // road feel, stops and both endpoints land together as a single
       // revision, so a single Undo takes the rider back to the ride they had
       // before they asked — not back through eight half-applied fragments.
+      const nextFinish = nextMode === "destination" ? resolved.finish : null
       usePlannerStore.getState().editRide({
         mode: nextMode,
         targetMinutes: nextDuration,
@@ -140,7 +141,7 @@ export function usePlannerRideIntent({
         profile: intent.profile as RouteProfileId,
         via: [],
         start: resolved.start,
-        ...(nextMode === "destination" && resolved.finish ? { finish: resolved.finish } : {})
+        finish: nextFinish
       }, `Planned "${prompt.trim().slice(0, 60)}"`)
       if (resolved.locationSource === "live") {
         try {
@@ -162,7 +163,7 @@ export function usePlannerRideIntent({
       const request = buildRideTripRequest({
         mode: nextMode,
         start: usePlannerStore.getState().start,
-        finish: resolved.finish,
+        finish: nextFinish,
         profile: intent.profile as RouteProfileId,
         bikeProfile: usePlannerStore.getState().bikeProfile,
         roadLocks: usePlannerStore.getState().roadLocks,

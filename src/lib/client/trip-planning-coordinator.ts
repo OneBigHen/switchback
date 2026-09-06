@@ -72,6 +72,16 @@ export async function runLatestTripPlan({
       && !controller.signal.aborted
       && getPlanner().getIntentIdentity?.() === intentIdentity
   }
+  const settleStaleIntent = () => {
+    // Settle only this still-current request when the ride itself superseded
+    // it. A newer request owns its own lifecycle and must never be cancelled by
+    // an older response arriving late.
+    if (requestGate.isCurrent(requestId)
+      && !controller.signal.aborted
+      && getPlanner().getIntentIdentity?.() !== intentIdentity) {
+      getPlanner().cancelPlanning()
+    }
+  }
   gate = fencedGate
   getPlanner().beginRouting(identity)
   getPlanner().beginPlanning()
@@ -81,7 +91,10 @@ export async function runLatestTripPlan({
       { ...request, compare: false, candidateSet: "primary" },
       controller.signal
     )
-    if (!gate.isCurrent(requestId)) return null
+    if (!gate.isCurrent(requestId)) {
+      settleStaleIntent()
+      return null
+    }
     if (identity) getPlanner().applyPlan(primary, identity)
     else getPlanner().applyPlan(primary)
     if (primary.warnings.length > 0) onWarning(primary.warnings.join(" "))
@@ -97,11 +110,15 @@ export async function runLatestTripPlan({
       controller,
       requestPlan,
       getPlanner,
-      identity
+      identity,
+      settleStaleIntent
     })
     return primary
   } catch (caught) {
-    if (!gate.isCurrent(requestId)) return null
+    if (!gate.isCurrent(requestId)) {
+      settleStaleIntent()
+      return null
+    }
     const failure = caught instanceof RoutingClientError
       ? caught
       : new RoutingClientError("This trip could not be routed.", "ROUTE_PLANNING_FAILED", 500)
@@ -119,6 +136,7 @@ interface LoadAlternativesOptions {
   controller: AbortController
   requestPlan(request: TripPlanRequest, signal?: AbortSignal): Promise<TripPlan>
   getPlanner(): PlannerRouteLifecycle
+  settleStaleIntent(): void
 }
 
 async function loadAlternatives({
@@ -129,7 +147,8 @@ async function loadAlternatives({
   controller,
   requestPlan,
   getPlanner,
-  identity
+  identity,
+  settleStaleIntent
 }: LoadAlternativesOptions): Promise<void> {
   const primaryRoute = primary.routes.find((route) => route.id === primary.selectedRouteId)
     ?? primary.routes[0]
@@ -148,7 +167,10 @@ async function loadAlternatives({
       planningId: primary.planningId ?? request.planningId,
       primaryRoute: { id: primaryRoute.id, geometry }
     }, controller.signal)
-    if (!gate.isCurrent(requestId)) return
+    if (!gate.isCurrent(requestId)) {
+      settleStaleIntent()
+      return
+    }
     if (alternatives.routes.length === 0) {
       // An empty successful alternative set is final, not an error.
       getPlanner().setPlanningPhase("ready")
@@ -166,5 +188,6 @@ async function loadAlternatives({
     // finish the lifecycle so the UI does not spin on "Adding alternatives…"
     // forever when they time out or error.
     if (gate.isCurrent(requestId)) getPlanner().setPlanningPhase("ready")
+    else settleStaleIntent()
   }
 }

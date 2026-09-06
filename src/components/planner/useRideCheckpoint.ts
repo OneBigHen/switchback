@@ -34,7 +34,7 @@ export function useRideCheckpoint(): void {
       if (!disposed) usePlannerStore.setState({ recoveryStatus })
     }
 
-    const write = () => {
+    const write = (allowAfterDispose = false) => {
       const state = usePlannerStore.getState()
       const snapshot = {
         rideId: state.rideHistory.rideId,
@@ -43,7 +43,7 @@ export function useRideCheckpoint(): void {
         intent: getRideIntent(state)
       }
       queue = queue.then(async () => {
-        if (blocked || disposed) return
+        if (blocked || (disposed && !allowAfterDispose)) return
         const result = await database.save(snapshot, token)
         if (result.status === "saved") {
           token = result.token
@@ -65,7 +65,16 @@ export function useRideCheckpoint(): void {
 
     const watch = () => {
       unsubscribe = usePlannerStore.subscribe((state, previous) => {
-        if (state.rideHistory.identity !== previous.rideHistory.identity) save()
+        if (state.rideHistory.identity !== previous.rideHistory.identity) {
+          // "restored" describes the checkpoint adoption event, not a mode the
+          // tab remains in forever. The first later ride revision belongs to
+          // the rider, so settle recovery before PlannerShell can interpret
+          // that revision as another recovered ride and auto-plan underneath it.
+          if (state.recoveryStatus === "restored" && previous.recoveryStatus === "restored") {
+            usePlannerStore.setState({ recoveryStatus: "ready" })
+          }
+          save()
+        }
       })
       write()
     }
@@ -124,13 +133,14 @@ export function useRideCheckpoint(): void {
 
     return () => {
       unsubscribe()
-      // Flush a coalesced save before tearing down, or the rider's last edit
-      // before navigating away would be the one edit that never got saved.
       if (timer !== null) {
         clearTimeout(timer)
         timer = null
-        write()
       }
+      // Always enqueue the final current snapshot before marking the hook
+      // disposed. This write is allowed to complete after unmount; only UI
+      // status updates are suppressed after disposal.
+      write(true)
       disposed = true
       void queue.finally(() => database.close())
     }

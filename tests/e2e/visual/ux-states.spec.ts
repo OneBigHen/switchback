@@ -24,6 +24,10 @@ function screenshotOptions(page: Page): { maxDiffPixelRatio: number; mask: Locat
   return { maxDiffPixelRatio: 0.02, mask: [page.locator(".nextjs-toast")] }
 }
 
+async function expectAdvisorReady(page: Page): Promise<void> {
+  await expect(page.getByRole("region", { name: "Gravel Goblin ride builder" })).toBeVisible()
+}
+
 /**
  * Phase 1 gate containment guard: the ride telemetry rail must fit entirely
  * inside the viewport. A pixel snapshot alone cannot catch off-canvas
@@ -53,6 +57,7 @@ for (const viewport of STATE_VIEWPORTS) {
       await pinVisualClock(page)
       await uxState.home(page)
       await settleMapDelay(page)
+      await expectAdvisorReady(page)
       await captureEvidence(page, evidenceName("home"))
       await expect(page).toHaveScreenshot(`${evidenceName("home")}.png`, screenshotOptions(page))
     })
@@ -135,6 +140,7 @@ for (const viewport of STATE_VIEWPORTS) {
       await pinVisualClock(page)
       await uxState.mapProviderFailure(page)
       await settleMapDelay(page)
+      await expectAdvisorReady(page)
       await captureEvidence(page, evidenceName("map-provider-failure"))
       await expect(page).toHaveScreenshot(`${evidenceName("map-provider-failure")}.png`, screenshotOptions(page))
     })

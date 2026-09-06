@@ -1,6 +1,6 @@
 "use client"
 
-import { usePlannerStore } from "@/stores/planner-store"
+import { getRideIntent, usePlannerStore } from "@/stores/planner-store"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
 import styles from "./RideIntentFeedback.module.css"
 
@@ -27,9 +27,18 @@ export function RideIntentFeedback({
   const shaped = usePlannerStore((state) => state.timeShaped)
   const updating = usePlannerStore((state) => state.isRecalculating)
   const failed = usePlannerStore((state) => state.status === "error")
+  const currentIntentKey = usePlannerStore((state) => JSON.stringify(getRideIntent(state)))
+  const committedIntentKey = usePlannerStore((state) => state.committedRide
+    ? JSON.stringify(state.committedRide.intent)
+    : null)
 
-  const { canUndoRideChange, canRedoRideChange, lastChangeLabel, hasUnappliedChange } = viewModel.rideHistory
+  const { canUndoRideChange, canRedoRideChange, lastChangeLabel } = viewModel.rideHistory
   const { onUndoRideChange, onRedoRideChange } = commands.rideHistory
+  // Identity says which calculation produced a route; the rider-facing action
+  // asks a different question: does the shown route answer the ride currently
+  // authored? Cancel restores the same intent with a fresh revision identity,
+  // so compare the canonical intents here instead of forcing a second Cancel.
+  const hasUnappliedChange = Boolean(plan && committedIntentKey && currentIntentKey !== committedIntentKey)
   // A failed update is only a *recoverable* failure while a usable route is
   // still on screen to fall back to.
   const updateFailed = failed && Boolean(plan)
