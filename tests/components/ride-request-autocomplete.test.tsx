@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useState } from "react"
 import { RideRequestAutocomplete } from "@/components/planner/v2/RideRequestAutocomplete"
+import type { PlanMode } from "@/components/planner/PlannerDeckViewModel"
 
 const places = [
   {
@@ -31,7 +32,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function Harness({ mode = "destination" as const }) {
+function Harness({ mode = "destination" }: { mode?: PlanMode }) {
   const [value, setValue] = useState("")
   return (
     <RideRequestAutocomplete
