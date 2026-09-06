@@ -9,12 +9,14 @@ import {
   type RideRegionFilter,
   type RideRegionSummary
 } from "@/lib/rides/route-library-intelligence"
+import { searchRideLibrary } from "@/lib/rides/ride-library-search"
 import { haversineMiles } from "@/lib/client/geo"
 import { useNearMe } from "@/lib/client/near-me"
 import { DestinationHeader } from "@/components/v2/DestinationHeader"
 import { RouteGraphic } from "@/components/v2/RouteGraphic"
 import { ImportFlow } from "./ImportFlow"
 import { RideFilters, type RideFilter, type RideFilterCounts } from "./RideFilters"
+import { RideLibraryGoblin } from "./RideLibraryGoblin"
 import { RideListRow } from "./RideListRow"
 import styles from "./RidesSurface.module.css"
 
@@ -78,6 +80,7 @@ export interface RidesSurfaceProps {
   onMatchRoads?(item: RideLibraryItem): void
   onOrganize?(item: RideLibraryItem, organization: { folder?: string; tags?: string[]; visible?: boolean }): void
   onDelete?(item: RideLibraryItem): void
+  onGenerateNew?(): void
 }
 
 export function isImportedRideLibraryItem(item: RideLibraryItem): boolean {
@@ -150,10 +153,11 @@ function rankRides(items: RideLibraryItem[], sort: RideSort, anchor: { lat: numb
   }
 }
 
-export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRoads, onOrganize, onDelete }: RidesSurfaceProps) {
+export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRoads, onOrganize, onDelete, onGenerateNew }: RidesSurfaceProps) {
   const [filter, setFilter] = useState<RideFilter>("all")
   const [region, setRegion] = useState<RideRegionFilter>("all")
   const [query, setQuery] = useState("")
+  const [goblinQuery, setGoblinQuery] = useState("")
   const [sort, setSort] = useState<RideSort>("recent")
   const [importOpen, setImportOpen] = useState(false)
   const [shown, setShown] = useState(PAGE_SIZE)
@@ -162,8 +166,11 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const counts = useMemo(() => countsForRideFilters(items), [items])
   const regionCounts = useMemo(() => countsForRideRegions(items), [items])
+  const goblinMatches = useMemo(() => searchRideLibrary(items, goblinQuery), [goblinQuery, items])
+  const goblinMatchIds = useMemo(() => new Set(goblinMatches.map((item) => item.id)), [goblinMatches])
 
   const filtered = useMemo(() => items.filter((item) => {
+    if (goblinQuery.trim() && !goblinMatchIds.has(item.id)) return false
     if (!itemMatchesRideFilter(item, filter)) return false
     if (!rideRegionMatches(item.region, region)) return false
     if (!normalizedQuery) return true
@@ -174,14 +181,14 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
       item.region?.label ?? "",
       item.roadNames?.join(" ") ?? ""
     ].join(" ").toLocaleLowerCase().includes(normalizedQuery)
-  }), [filter, items, normalizedQuery, region])
+  }), [filter, goblinMatchIds, goblinQuery, items, normalizedQuery, region])
 
   const effectiveSort: RideSort = sort === "nearest" && !located ? "recent" : sort
   const ranked = useMemo(() => rankRides(filtered, effectiveSort, anchor), [filtered, effectiveSort, anchor])
 
   // Reset the page window whenever the result set changes (React's "adjust
   // state during render" pattern — no effect, no cascading renders).
-  const windowKey = `${filter}|${region}|${normalizedQuery}|${effectiveSort}|${ranked.length}`
+  const windowKey = `${filter}|${region}|${normalizedQuery}|${goblinQuery.trim()}|${effectiveSort}|${ranked.length}`
   const [prevWindowKey, setPrevWindowKey] = useState(windowKey)
   if (windowKey !== prevWindowKey) {
     setPrevWindowKey(windowKey)
@@ -227,6 +234,13 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
       />
 
       {importOpen ? <ImportFlow onImportRoute={onImport} onImportRoads={onImportRoads} /> : null}
+
+      <RideLibraryGoblin
+        query={goblinQuery}
+        resultCount={goblinMatches.length}
+        onQueryChange={setGoblinQuery}
+        onGenerateNew={() => onGenerateNew?.()}
+      />
 
       <RideFilters
         value={filter}
@@ -328,13 +342,14 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         </div>
       ) : (
         <div className={styles.empty}>
-          <RouteGraphic seed={`empty:${filter}:${region}:${normalizedQuery}`} variant="library" />
+          <RouteGraphic seed={`empty:${filter}:${region}:${normalizedQuery}:${goblinQuery}`} variant="library" />
           <strong>No rides match this view.</strong>
           <span>Try another type or region, or clear the search.</span>
           <button
             type="button"
             onClick={() => {
               setQuery("")
+              setGoblinQuery("")
               setFilter("all")
               setRegion("all")
             }}
