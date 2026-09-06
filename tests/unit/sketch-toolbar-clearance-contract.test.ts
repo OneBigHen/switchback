@@ -6,9 +6,9 @@ const mapPlacement = readFileSync(resolve(process.cwd(), "src/app/styles/map-pla
 const toolbarStyles = readFileSync(resolve(process.cwd(), "src/components/planner/v2/SketchRouteToolbar.module.css"), "utf8")
 
 describe("route sketch usable-map clearance", () => {
-  it("drops the phantom half-sheet clearance while the planner sheet is absent", () => {
+  it("drops the phantom half-sheet clearance while keeping map credits above the sketch actions", () => {
     expect(mapPlacement).toContain(`.planner-shell[data-sketching="true"] {
-    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-space-2));
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-touch-target) + var(--sb-space-6));
   }`)
   })
 
