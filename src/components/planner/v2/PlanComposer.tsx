@@ -11,6 +11,7 @@ import type { PlanMode, PlannerProviderHealthViewModel } from "../PlannerDeckVie
 import { ProviderHealthNotice } from "../ProviderHealthNotice"
 import { PlanModeSelector } from "./PlanModeSelector"
 import { PlanOptions } from "./PlanOptions"
+import { RideRequestAutocomplete } from "./RideRequestAutocomplete"
 
 export interface PlanComposerProps {
   planMode: PlanMode
@@ -220,14 +221,15 @@ export function PlanComposer({
           ) : (
             <span className="plan-v2__location-marker" aria-hidden="true"><MapPin weight="fill" /></span>
           )}
-          <label className="sr-only" htmlFor="ride-prompt">Ride request</label>
-          <input
+          <RideRequestAutocomplete
             id="ride-prompt"
             name="ride-prompt"
+            planMode={planMode}
             value={ridePrompt}
-            onChange={(event) => onRidePromptChange(event.target.value)}
             placeholder={placeholder}
-            autoComplete="off"
+            disabled={false}
+            bias={start ? { lat: start.lat, lon: start.lon } : undefined}
+            onChange={onRidePromptChange}
           />
           <button
             type="button"
