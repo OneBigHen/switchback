@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { getRideIntent, usePlannerStore, LEGACY_PLANNER_STORAGE_KEY, sanitizePersistedState } from "@/stores/planner-store"
 import { RideCheckpointStore } from "@/lib/storage/ride-checkpoint"
-import { isRideIntent } from "@/lib/domain/ride-intent"
+import { defaultRideIntent, isRideIntent } from "@/lib/domain/ride-intent"
 import { bikeProfileFromRiderSettings, loadRiderSettings } from "@/lib/settings/rider-settings"
 
 /** Bursts of edits collapse into one write instead of one write per keystroke. */
@@ -81,15 +81,30 @@ export function useRideCheckpoint(): void {
     }
 
     /**
+     * Same identity alone is not proof that a ride is untouched: tests,
+     * hydration adapters, or future bootstrap code can project authored fields
+     * without advancing history. Defaults may only seed the exact domain
+     * baseline, never an already-authored ride.
+     */
+    const isPristineRide = () => {
+      const state = usePlannerStore.getState()
+      return state.rideHistory.identity === initialIdentity
+        && state.rideHistory.sequence === 0
+        && state.rideHistory.past.length === 0
+        && state.rideHistory.future.length === 0
+        && state.plan === null
+        && state.status === "idle"
+        && JSON.stringify(getRideIntent(state)) === JSON.stringify(defaultRideIntent())
+    }
+
+    /**
      * Apply the current rider defaults while recovery still owns the bootstrap
      * boundary. `ready` must mean more than "IndexedDB returned empty": it must
      * also mean the first rider interaction will see the settings they saved.
-     * Otherwise a fast tap can author a ride against the domain fallback before
-     * PlannerShell's later effect gets a chance to seed these values.
      */
     const applyRiderDefaults = () => {
+      if (!isPristineRide()) return
       const state = usePlannerStore.getState()
-      if (state.rideHistory.identity !== initialIdentity) return
       const settings = loadRiderSettings()
       state.editRide({
         profile: settings.defaultProfile,
@@ -106,11 +121,11 @@ export function useRideCheckpoint(): void {
      */
     const adoptLegacyPreferences = (): boolean => {
       try {
+        if (!isPristineRide()) return false
         const raw = localStorage.getItem(LEGACY_PLANNER_STORAGE_KEY)
         if (!raw) return false
         const legacy = sanitizePersistedState((JSON.parse(raw) as { state?: unknown }).state)
         const state = usePlannerStore.getState()
-        if (state.rideHistory.identity !== initialIdentity) return false
         const intent = {
           ...getRideIntent(state),
           ...(legacy.profile ? { profile: legacy.profile } : {}),
