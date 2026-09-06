@@ -64,4 +64,33 @@ describe("planning session settlement", () => {
     expect(usePlannerStore.getState().planningPhase).not.toBe("alternatives")
     expect(usePlannerStore.getState().pendingResultIdentity).toBeNull()
   })
+
+  it("settles only the old alternatives lifecycle when the ride changes after primary commit", async () => {
+    const alternatives = deferred<TripPlan>()
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(plan)
+      .mockReturnValueOnce(alternatives.promise)
+    const controller = createPlanningSessionController({
+      getPlanner: usePlannerStore.getState,
+      requestPlan
+    })
+
+    await expect(controller.run(request, vi.fn())).resolves.toEqual(plan)
+    await vi.waitFor(() => expect(requestPlan).toHaveBeenCalledTimes(2))
+    expect(usePlannerStore.getState().status).toBe("ready")
+    expect(usePlannerStore.getState().planningPhase).toBe("alternatives")
+
+    usePlannerStore.getState().setProfile("adventure")
+    alternatives.resolve({
+      selectedRouteId: "late-alternative",
+      routes: [{ ...route, id: "late-alternative", name: "Late alternative" }],
+      warnings: [],
+      candidateSet: "alternatives"
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(usePlannerStore.getState().status).toBe("ready")
+    expect(usePlannerStore.getState().planningPhase).not.toBe("alternatives")
+    expect(usePlannerStore.getState().plan?.routes.map(({ id }) => id)).toEqual([route.id])
+  })
 })
