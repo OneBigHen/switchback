@@ -83,44 +83,64 @@ release-qualified. DO NOT SHIP.**
   under `docs/astra/evidence/` and `docs/astra/evidence/wave0/` are historical
   evidence, not current acceptance.
 
-## Next exact tasks — Wave 1: "One recoverable ride intent"
+## Wave 1 — "One recoverable ride intent" (implemented, awaiting adversarial review)
 
-Backlog: `docs/astra/IMPLEMENTATION-BACKLOG.md` § Wave 1. Depends only on
-Wave 0 decisions and regression fixtures (now on `main`).
+Branch `implement/astra-wave-1`. Application SHA `371e5df`; visual baselines
+`45e53bb`. Not merged, not deployed.
 
-**Target:** a change preserves the previous usable ride until a valid result
-is ready; undo restores the entire change; refresh restores the same intent.
+**What changed.** Ride intent is one authored owner (`lib/domain/ride-intent` +
+the planner store's `editRide`); a route is an answer to one revision of it.
+Contract and rationale: `WAVE1-ARCHITECTURE.md`. Storage/rollback:
+`WAVE1-MIGRATION.md`. Both are authoritative; this file is the checkpoint.
 
-**Acceptance (all required before Wave 1 is done):**
-- Every route-defining field has one writable owner.
-- Every migrated UI callback dispatches a typed command; legacy setters
-  removed as each is migrated.
-- 50-entry bounded intent history covering all intent fields (no large
-  geometry duplicated into history).
-- Pending/result revision identity enforced; stale responses cannot commit.
-- Controller-local abort.
-- Atomic IndexedDB draft/result checkpoint.
-- Safe migration from existing preferences/locks without losing library data.
-- Cross-tab conflict detection.
+**Acceptance, against the Wave 1 list:**
+- One writable owner per route-defining field — done; no direct field setter
+  survives, and the last `SetStateAction` adapters are gone.
+- Typed commands per migrated callback, legacy setters removed — done. Ride
+  prompt, Advisor hand-off, saved-route restore, track import, sketch, settings
+  and duration presets each land as one revision.
+- 50-entry bounded intent history, no geometry — done; history is strictly
+  linear, and any command that changes intent cuts redo.
+- Pending/result revision identity enforced — done, in the coordinator's single
+  fenced gate and again in the store.
+- Controller-local abort — done.
+- Atomic IndexedDB checkpoint — done, **intent only** (decision recorded in
+  `WAVE1-ARCHITECTURE.md`); recovery replans automatically.
+- Safe migration without losing library data — done; the pre-Wave-1 key is
+  read-only, and the UI index carries over through the store's storage bridge.
+- Cross-tab conflict detection — done, via a rotating write token.
 
-**Likely systems:** `planner-store.ts`, `PlannerShell.tsx`,
-`planning-session-controller.ts`, `trip-planning-coordinator.ts`,
-`route-entity-cache.ts`, plus new narrow intent/command/checkpoint modules
-under existing planner/client/storage directories.
+**Corrections to the interrupted work.** Failed updates no longer rewrite the
+rider's intent or fabricate a rider revision; Cancel has one meaning;
+`cancelPlanning()` no longer reports a cancellation when nothing was in flight
+(this had left the planner permanently "cancelled" and silently disabled the
+location seed); a late recovery that loses to the rider is `superseded`, not
+`conflict`, and keeps checkpointing; the checkpoint no longer declares a result
+field it never wrote; `seedCurrentLocation` cannot cut a redo branch.
 
-**First step (not started):** audit route-defining state ownership in
-`planner-store.ts` and the planner shell/controllers, and stand up the
-intent/command/checkpoint module boundary with the Wave 1 regression
-fixtures (compound edit→undo→redo; edit→cancel; slow A then fast B;
-A-primary/B-primary/A-alternatives; double Apply; selection survives
-alternatives; excluded area + highway preference survive reload;
-corrupt/partial/quota-denied storage; migration/rollback with existing
-libraries) written first and red. No production migration until the owner
-boundary and fixtures exist.
+## Wave 1 verification (application SHA `371e5df`, tree `45e53bb`)
 
-**Guardrails:** no competing refactor roadmap; follow backlog dependency
-order. Wave 2 design prototypes may be reviewed during Wave 1, but any state
-write must go through the new owner.
+Node 24.15.0 (`PATH=/root/.n/bin:$PATH`; non-login shells default to Node 22).
+
+- `npm run typecheck` passed; `npm run lint` passed (`--max-warnings=0`).
+- Vitest **320 files / 2,061 passed / 1 skipped / 0 failed** (382.95s).
+- Production build passed, **537** route-atlas manifest routes.
+- Playwright `planner.spec.ts --project=desktop-chromium` **5/5**
+  (was **2/5** on the untouched branch base `6744b01`).
+- Playwright `ride-recovery.spec.ts --project=desktop-chromium` **3/3** — reload
+  recovery, whole-ride undo/redo, failed-update + Cancel.
+- `--project=road-lock` **1/1**; `--project=critical-chromium` **19/19**;
+  `--project=critical-webkit-smoke` **2/2**.
+- `--project=visual` **60/60** after rebaselining 7 planner snapshots.
+- **Known flake:** `planner.spec.ts` "draws a rough route…" failed once at the
+  Reverse-route step across three full-file runs (3/3 in isolation,
+  `--repeat-each=3`). The same step fails on the untouched base `6744b01`, so it
+  is pre-existing, not Wave 1. CI runs with `retries: 1`.
+
+## Next exact task
+
+Independent adversarial review of the Wave 1 PR by a fresh session, before
+merge. Do not open Wave 2 until that review closes.
 
 ## Release boundaries
 
@@ -129,11 +149,13 @@ marked passed from simulation: phone advisor error-sheet layout,
 tiny-phone / short-landscape baselines, `mobile-core` spec refresh,
 production source/build/provider baseline without secrets, real device /
 PWA / GPS / background / airplane-mode evidence, rider corpus / usability
-review. Original critical findings outside the Wave 0 slice also remain
-open: draft/session loss on reload (Wave 1 target), Free Ride
-recording/constraint continuity, intent-wide undo (Wave 1 target), editable
-polygons/sketches, full typed AI proposals, responsive composition, honest
-route-specific offline recovery. Audit artifacts are historical evidence,
+review. Draft/session loss on reload and intent-wide undo were the Wave 1 targets and
+are closed. Still open outside the Wave 1 slice: Free Ride
+recording/constraint continuity, editable polygons/sketches, full typed AI
+proposals, responsive composition, honest route-specific offline recovery.
+Wave 1 adds one boundary of its own: recovering with no connectivity restores
+the ride but not a drawn route, because the checkpoint deliberately stores no
+route geometry. Audit artifacts are historical evidence,
 not current acceptance.
 
 ## Delegated ownership
