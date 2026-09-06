@@ -88,7 +88,7 @@ describe("primary ride request autocomplete", () => {
     await waitFor(() => expect(screen.getByRole("listbox", { name: "Place suggestions" })).toBeInTheDocument())
 
     await user.keyboard("{ArrowDown}{Enter}")
-    expect(input).toHaveValue("Ride to Austin, Pennsylvania, United States")
+    expect(input).toHaveValue("Ride to Austin, Texas, United States")
 
     await user.clear(input)
     await user.type(input, "Aus")
