@@ -55,13 +55,6 @@ async function expectPlanReady(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
 }
 
-async function expectAdvisorReady(page: Page): Promise<void> {
-  // Gravel Goblin is capability-gated asynchronously. Snapshot only after the
-  // deterministic fixture has resolved that capability, otherwise CI races
-  // between the pre-probe and post-probe layouts.
-  await expect(page.getByRole("region", { name: "Gravel Goblin ride builder" })).toBeVisible()
-}
-
 async function assertIdlePlanGeometry(page: Page, viewport: { width: number; height: number }): Promise<void> {
   const panel = page.locator(".planner-deck")
   const box = await panel.boundingBox()
@@ -189,7 +182,9 @@ for (const viewport of PLAN_EMPTY_VIEWPORTS) {
       await assertPanelVisible(page.locator(".planner-deck"), 0)
       await expect(page.locator(".planner-deck")).toHaveClass(/is-idle-plan/)
       await assertIdlePlanGeometry(page, viewport)
-      await expectAdvisorReady(page)
+      // Gravel Goblin has its own capability-mocked visual contract. The
+      // generic planner baseline must remain valid when that optional feature
+      // is unavailable rather than waiting for a region that may not exist.
       await expect(page).toHaveScreenshot(`plan-empty-${viewport.name}.png`, screenshotOptions(page))
     })
   })
