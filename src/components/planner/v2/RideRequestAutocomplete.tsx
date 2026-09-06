@@ -9,6 +9,7 @@ import {
   ridePromptPlaceQuery
 } from "@/lib/planner/ride-request-autocomplete"
 import type { PlanMode } from "../PlannerDeckViewModel"
+import styles from "./RideRequestAutocomplete.module.css"
 
 export interface RideRequestAutocompleteProps {
   id: string
@@ -119,7 +120,7 @@ export function RideRequestAutocomplete({
   return (
     <div
       ref={rootRef}
-      className="plan-v2__search-autocomplete"
+      className={styles.root}
       onBlur={() => {
         window.setTimeout(() => {
           if (!rootRef.current?.contains(document.activeElement)) {
@@ -155,7 +156,7 @@ export function RideRequestAutocomplete({
       />
 
       {open ? (
-        <div className="plan-v2__search-suggestions" id={listId} role="listbox" aria-label="Place suggestions">
+        <div className={styles.suggestions} id={listId} role="listbox" aria-label="Place suggestions">
           {suggestions.map((place, index) => (
             <button
               key={place.id}
@@ -164,7 +165,7 @@ export function RideRequestAutocomplete({
               role="option"
               aria-label={place.label}
               aria-selected={activeIndex === index}
-              className={activeIndex === index ? "is-active" : undefined}
+              className={activeIndex === index ? styles.active : undefined}
               onMouseDown={(event) => event.preventDefault()}
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => choose(place)}
