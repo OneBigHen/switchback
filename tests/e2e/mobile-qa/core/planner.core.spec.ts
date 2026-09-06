@@ -10,7 +10,6 @@ import {
 } from "../planner-mobile-states"
 import { expandPhonePlanner, installPlannerServices, installRouteApi, openPlannerEditor, tripPlan } from "../../helpers/planner-fixtures"
 import { settleMapDelay } from "../../helpers/ux-state-fixtures"
-import { expectOnlyDeliberateNetworkFailures } from "../persistence-mobile-states"
 
 async function expectIdleComposer(page: import("@playwright/test").Page): Promise<void> {
   await expandPhonePlanner(page)
