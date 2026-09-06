@@ -118,6 +118,21 @@
  * shared clearance here so it wins at every mobile width.
  */
 @media (max-width: 760px) {
+  /* Sketch mode deliberately removes the ContextSheet while the rider draws.
+     The default mobile variable still assumes a half-height sheet, which used
+     to leave attribution/scale stranded halfway up an otherwise empty map.
+     Keep only the real bottom occlusion: navigation, its gap and one gutter. */
+  .planner-shell[data-sketching="true"] {
+    --sb-map-sheet-clearance: calc(var(--sb-mobile-sheet-bottom) + var(--sb-space-2));
+  }
+
+  /* The drawing controls belong to that same usable-map floor. Anchoring them
+     to the physical viewport put Done/Cancel behind the phone navigation even
+     though the controls were technically present in the DOM. */
+  .planner-shell[data-sketching="true"] .map-sketch-toolbar {
+    bottom: calc(var(--sb-mobile-sheet-bottom) + var(--sb-space-2));
+  }
+
   .planner-shell .map-stage:not(.is-ride-mode) :where(
     .maplibregl-ctrl-bottom-left,
     .mapboxgl-ctrl-bottom-left,
@@ -142,6 +157,17 @@
     .mapboxgl-ctrl-bottom-left
   ) {
     display: none;
+  }
+}
+
+/* Short landscape moves primary navigation to a left rail. Recenter the
+   compact sketch toolbar in the remaining map instead of the raw viewport,
+   and restore its normal safe-area floor because there is no bottom nav. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-shell[data-sketching="true"] .map-sketch-toolbar {
+    bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+    left: calc(50% + 40px);
+    width: min(360px, calc(100vw - 104px));
   }
 }
 
