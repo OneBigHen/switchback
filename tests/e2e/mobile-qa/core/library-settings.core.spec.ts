@@ -80,6 +80,10 @@ test("saved Rides destination supports list, detail load, and navigation", async
   await row.tap()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText(route.name).first()).toBeVisible()
+  // V2 deliberately separates route choice from dense preparation details.
+  // Loading a saved route returns to the route card first; Details is the
+  // explicit disclosure into the preparation workspace.
+  await page.getByRole("button", { name: `Details for ${route.name}` }).tap()
   await expect(page.getByRole("button", { name: /Show route details/i })).toBeVisible()
   await openLibrary(page)
   await expect(page.getByRole("button", { name: `Open ${route.name}` })).toBeVisible()
