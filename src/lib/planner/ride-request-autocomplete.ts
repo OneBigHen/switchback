@@ -2,9 +2,11 @@ import type { PlanMode } from "@/components/planner/PlannerDeckViewModel"
 
 const TRAILING_PLACE_FRAGMENT = /(\b(?:to|near|around|from|starting\s+(?:in|near)|start(?:ing)?\s+(?:in|near|at))\s+)([^,;]{2,100})$/i
 const RIDE_PROSE = /\b(?:ride|route|loop|round[ -]?trip|scenic|twist(?:y|ies)|curvy|curves?|gravel|dirt|unpaved|adventure|balanced|quick|fastest|avoid|skip|without|highways?|interstates?|minutes?|mins?|hours?|hrs?|coffee|cafe|brewery|food|lunch|dinner)\b/i
+const CURRENT_LOCATION_LANGUAGE = /^(?:me|here|my\s+(?:current\s+)?location|current\s+location|where\s+i\s+am(?:\s+now)?)$/i
 
 function cleanFragment(value: string): string | null {
   const cleaned = value.replace(/[.!?]+$/, "").trim()
+  if (CURRENT_LOCATION_LANGUAGE.test(cleaned)) return null
   return cleaned.length >= 2 && cleaned.length <= 100 ? cleaned : null
 }
 
@@ -13,6 +15,8 @@ function cleanFragment(value: string): string | null {
  * rider keep natural-language constraints ("90-minute scenic loop near …")
  * while the geocoder searches just the location text rather than the entire
  * sentence. Bare short text remains a normal Google-Maps-style place search.
+ * Current-location phrases stay with the planner's location flow instead of
+ * creating nonsense place suggestions for "me" or "here".
  */
 export function ridePromptPlaceQuery(prompt: string): string | null {
   const trimmed = prompt.trim()
