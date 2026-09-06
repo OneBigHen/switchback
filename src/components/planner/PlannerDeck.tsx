@@ -156,7 +156,11 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [editing, setEditing] = useState(false)
   const isIdlePlan = !selectedRoute && !editing && ui.routesCount === 0
   const [roadLocksOpen, setRoadLocksOpen] = useState(false)
-  const [offlinePackOpen, setOfflinePackOpen] = useState(false)
+  // Keep modal ownership tied to the route that opened it. A route switch then
+  // closes it by derivation in the very same render instead of synchronously
+  // resetting React state from an effect (and can never flash the new route
+  // inside a modal opened for the old one).
+  const [offlinePackRouteId, setOfflinePackRouteId] = useState<string | null>(null)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
   const [acceptedTimeboxRouteId, setAcceptedTimeboxRouteId] = useState<string | null>(null)
   const previousReadyStateRef = useRef({ phase: lifecycle.phase, routesCount: ui.routesCount })
@@ -180,12 +184,10 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
     : null
   const timeboxMismatch = getLoopTimeboxMismatch(selectedRoute)
+  // Acceptance is already route-keyed; a different selected id is naturally
+  // unaccepted, so there is nothing to reset in an effect.
   const timeboxAccepted = !timeboxMismatch || acceptedTimeboxRouteId === selectedRoute?.id
-
-  useEffect(() => {
-    setAcceptedTimeboxRouteId(null)
-    setOfflinePackOpen(false)
-  }, [selectedRoute?.id])
+  const offlinePackOpen = selectedRoute?.id != null && offlinePackRouteId === selectedRoute.id
 
   const durationLabel = targetMinutes % 60 === 0
     ? `${targetMinutes / 60}-hour`
@@ -519,7 +521,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               </button>
             ) : null}
             {!minimized && editing && onSaveOffline && !hasUnappliedChange && timeboxAccepted ? (
-              <button type="button" className="offline-pack-button" onClick={() => setOfflinePackOpen(true)}>
+              <button type="button" className="offline-pack-button" onClick={() => setOfflinePackRouteId(selectedRoute.id)}>
                 <DownloadSimple weight="bold" aria-hidden="true" />
                 <span>Offline pack</span>
               </button>
@@ -561,9 +563,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           route={selectedRoute}
           value={downloadMode}
           onChange={setDownloadMode}
-          onCancel={() => setOfflinePackOpen(false)}
+          onCancel={() => setOfflinePackRouteId(null)}
           onSave={(route) => {
-            setOfflinePackOpen(false)
+            setOfflinePackRouteId(null)
             onSaveOffline?.(route, {
               level: downloadMode.level,
               corridorMiles: downloadMode.corridorMiles
