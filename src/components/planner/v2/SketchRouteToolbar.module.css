@@ -1,6 +1,6 @@
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(0, 1fr);
   gap: var(--sb-space-1, 4px);
   width: min(100%, 360px);
   padding: var(--sb-space-1, 4px);
