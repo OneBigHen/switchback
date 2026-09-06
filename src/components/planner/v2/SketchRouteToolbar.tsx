@@ -1,6 +1,7 @@
 "use client"
 
-import { ArrowCounterClockwise, Check, Trash, X } from "@phosphor-icons/react"
+import { ArrowCounterClockwise, Check, Keyboard, Trash, X } from "@phosphor-icons/react"
+import { useEffect } from "react"
 import styles from "./SketchRouteToolbar.module.css"
 
 export interface SketchRouteToolbarProps {
@@ -22,6 +23,16 @@ export function SketchRouteToolbar({
   onDone,
   onCancel
 }: SketchRouteToolbarProps) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || busy) return
+      event.preventDefault()
+      onCancel()
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [busy, onCancel])
+
   return (
     <div className={styles.toolbar} role="toolbar" aria-label="Draw route controls" aria-busy={busy || undefined}>
       <button type="button" className={styles.secondary} aria-label="Undo drawing point" disabled={busy || !canUndo} onClick={onUndo}>
@@ -36,9 +47,13 @@ export function SketchRouteToolbar({
         <Check weight="bold" aria-hidden="true" />
         <span>{busy ? "Planning…" : "Plan route"}</span>
       </button>
-      <button type="button" className={styles.cancel} aria-label="Cancel drawing" onClick={onCancel}>
+      <button type="button" className={styles.cancel} aria-label="Cancel drawing" disabled={busy} onClick={onCancel}>
         <X weight="bold" aria-hidden="true" />
         <span>Cancel</span>
+      </button>
+      <button type="button" className={styles.fieldsAlternative} aria-label="Use route fields instead" disabled={busy} onClick={onCancel}>
+        <Keyboard weight="bold" aria-hidden="true" />
+        <span>Use route fields instead</span>
       </button>
     </div>
   )
