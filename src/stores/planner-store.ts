@@ -649,12 +649,22 @@ export const usePlannerStore = create<PlannerState>()(
         }
         if (!committed || committed.identity === state.rideHistory.identity) return settled
         const restored = applyIntentEdit(state, committed.intent, "Cancelled ride change")
-        // An identity that differs while the intent already matches (undo and
-        // redo back to the committed ride) still has to stop reading as an
-        // unapplied change.
-        return Object.keys(restored).length > 0
-          ? { ...restored, ...settled }
-          : { ...settled, committedRide: historyOf(state) }
+        if (Object.keys(restored).length === 0) {
+          // The live intent already equals the route's intent (for example,
+          // undo then redo back to the committed ride). Adopt the current
+          // revision so identity-based readiness cannot remain stale.
+          return { ...settled, committedRide: historyOf(state) }
+        }
+        // Restoring a committed intent is deliberately a *new* linear-history
+        // revision so Undo can recover the cancelled edit and old async results
+        // remain fenced out. The retained route answers the restored intent,
+        // so atomically adopt that new revision as the route's committed ride.
+        const restoredState = { ...state, ...restored } as PlannerState
+        return {
+          ...restored,
+          ...settled,
+          committedRide: historyOf(restoredState)
+        }
       }),
       selectRoute: (selectedRouteId) => set({ selectedRouteId, selectionSource: "user" as const }),
       // Automatic selection must never replace an explicit user pick (SB-005);
