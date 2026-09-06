@@ -64,7 +64,9 @@ describe("planner lifecycle phase", () => {
     expect(state.planningPhase).toBe("cancelled")
     expect(state.isRecalculating).toBe(false)
     expect(state.plan?.selectedRouteId).toBe("old-route")
-    expect(state.status).toBe("idle")
+    // Cancel stopped the replacement calculation, not the usable route that
+    // remains on screen. A retained route is still a ready planner state.
+    expect(state.status).toBe("ready")
   })
 
   it("clears the recalculation flag and ends the lifecycle when the primary applies", () => {
