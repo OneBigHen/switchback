@@ -51,7 +51,7 @@ async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<vo
 }
 
 async function expectPlanReady(page: Page): Promise<void> {
-  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
 }
 
