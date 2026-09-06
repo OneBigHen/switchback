@@ -18,6 +18,8 @@ export interface RideRequestAutocompleteProps {
   value: string
   placeholder: string
   disabled: boolean
+  /** Reserved for contextual discovery. Explicit typed place searches are
+   * intentionally un-biased so "Austin" cannot become a nearer namesake. */
   bias?: GeocoderBias
   onChange(value: string): void
 }
@@ -29,7 +31,6 @@ export function RideRequestAutocomplete({
   value,
   placeholder,
   disabled,
-  bias,
   onChange
 }: RideRequestAutocompleteProps) {
   const generatedId = useId().replace(/:/g, "")
@@ -62,7 +63,9 @@ export function RideRequestAutocomplete({
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       setSearching(true)
-      void searchPlacesClient(searchQuery, fetch, controller.signal, bias)
+      // Explicit text is global truth. Do not send the current ride location as
+      // a geocoder bias or "Austin" can be pulled toward a local namesake.
+      void searchPlacesClient(searchQuery, fetch, controller.signal)
         .then((places) => {
           if (controller.signal.aborted) return
           setSuggestions(places.slice(0, 5))
@@ -80,7 +83,7 @@ export function RideRequestAutocomplete({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [bias?.lat, bias?.lon, disabled, searchQuery, value])
+  }, [disabled, searchQuery, value])
 
   const choose = (place: PlaceResult) => {
     const completed = completeRidePromptWithPlace(value, place.label, planMode)
@@ -165,7 +168,6 @@ export function RideRequestAutocomplete({
               role="option"
               aria-label={place.label}
               aria-selected={activeIndex === index}
-              className={activeIndex === index ? styles.active : undefined}
               onMouseDown={(event) => event.preventDefault()}
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => choose(place)}
