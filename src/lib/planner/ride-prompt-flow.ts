@@ -1,9 +1,5 @@
 import type { RideIntent } from "@/lib/ai/ride-intent"
-import {
-  selectPreferredPlace,
-  type GeocoderBias,
-  type PlaceResult
-} from "@/lib/geocoding/photon"
+import type { GeocoderBias, PlaceResult } from "@/lib/geocoding/photon"
 import type { Waypoint } from "@/lib/routing/types"
 
 const DEFAULT_SEARCH_BIAS: GeocoderBias = { lat: 40.2732, lon: -76.8867 }
@@ -56,7 +52,12 @@ async function resolvePlace(
   search: RidePromptWaypointOptions["search"]
 ): Promise<Waypoint> {
   const places = await search(query, bias)
-  const place = selectPreferredPlace(places, bias)
+  // The provider has already ranked a textual query, including whatever
+  // proximity bias it supports. Re-selecting the nearest result here can turn
+  // an explicit "Austin" into a different Austin near the current route.
+  // Trust the provider's top match and let routing report out-of-coverage
+  // honestly instead of silently substituting another place.
+  const place = places[0]
   if (!place) {
     throw new Error(`I understood the ride, but could not find “${query}”.`)
   }
@@ -67,7 +68,8 @@ async function resolvePlace(
  * Resolve the geographic part of a free-form ride request independently from
  * React and planner-store mutations. Explicit origins win, fresh browsers ask
  * for location before destination search, and every search is biased from the
- * origin that will actually be routed.
+ * origin that will actually be routed. Provider ranking remains authoritative
+ * so the bias cannot silently replace an explicit named place.
  */
 export async function resolveRidePromptWaypoints(
   options: RidePromptWaypointOptions
