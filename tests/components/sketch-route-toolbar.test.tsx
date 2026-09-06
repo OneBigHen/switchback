@@ -25,7 +25,7 @@ describe("SketchRouteToolbar", () => {
     expect(screen.getByRole("toolbar", { name: "Draw route controls" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Undo drawing point" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Clear drawing" })).toBeEnabled()
-    expect(screen.getByRole("button", { name: "Plan drawn route" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Finish drawing and plan route" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Cancel drawing" })).toBeEnabled()
 
     fireEvent.click(screen.getByRole("button", { name: "Clear drawing" }))
@@ -49,7 +49,7 @@ describe("SketchRouteToolbar", () => {
       />
     )
 
-    const plan = screen.getByRole("button", { name: "Plan drawn route" })
+    const plan = screen.getByRole("button", { name: "Finish drawing and plan route" })
     expect(plan).toHaveTextContent("Plan route")
 
     fireEvent.click(screen.getByRole("button", { name: "Undo drawing point" }))
