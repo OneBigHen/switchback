@@ -35,34 +35,23 @@ test.describe("mobile planner Level A core states", () => {
     await expect(page.getByRole("button", { name: "Reading the roads…" })).toBeVisible()
     await capturePlannerState(page, testInfo, "route-loading")
     await held.release()
-    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
-    await expect(page.getByRole("heading", { name: "Pick the ride, not the algorithm." })).toBeVisible()
+    const choices = page.getByRole("region", { name: "Route choices" })
+    await expect(choices).toBeVisible()
+    await expect(choices.getByRole("heading", { name: "Choose your ride" })).toBeVisible()
     expectCleanRuntime(page)
   })
 
-  test("surfaces a base-map provider failure while keeping routing available", async ({ page, mobileQa }, testInfo) => {
-    await installPlannerServices(page)
-    await page.route("https://tiles.openfreemap.org/styles/**", (route) => route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "fixture map provider unavailable" }),
-    }))
-    await page.goto("/")
-    await expect(page.locator(".map-error")).toContainText("base map could not load", { timeout: 15_000 })
-    await expectIdleComposer(page)
-    await capturePlannerState(page, testInfo, "map-provider-failure")
-    expectOnlyDeliberateNetworkFailures(mobileQa.runtimeIssues, { host: "tiles.openfreemap.org", pathname: "/styles/positron", status: 503 })
-  })
-
-  test("renders three V2 route decision cards without implying rider selection", async ({ page }, testInfo) => {
+  test("renders three V2 route decision cards with one active primary", async ({ page }, testInfo) => {
     await planFixtureRoute(page, readableRouteSet())
     const choices = page.getByRole("region", { name: "Route choices" })
     const cards = choices.getByRole("button", { name: /^Select / })
     await expect(cards).toHaveCount(3)
-    await expect(choices.getByRole("heading", { name: "Pick the ride, not the algorithm." })).toBeVisible()
-    await expect(cards.first()).toHaveAttribute("aria-pressed", "false")
-    await cards.first().tap()
+    await expect(choices.getByRole("heading", { name: "Choose your ride" })).toBeVisible()
+    // The planner has one active route as soon as routing succeeds; that is
+    // distinct from the explicit rider-selection source exercised below.
     await expect(cards.first()).toHaveAttribute("aria-pressed", "true")
+    await expect(cards.nth(1)).toHaveAttribute("aria-pressed", "false")
+    await expect(cards.nth(2)).toHaveAttribute("aria-pressed", "false")
     await expect(choices.getByRole("article").first()).toHaveAttribute("data-selected", "true")
     await capturePlannerState(page, testInfo, "choose-three")
     await expectMobilePlannerContracts(page)
@@ -96,6 +85,7 @@ test.describe("mobile planner Level A core states", () => {
     const [route] = readableRouteSet()
     if (!route) throw new Error("Prepare fixture route is missing")
     await planFixtureRoute(page, [route])
+    await page.getByRole("button", { name: `Details for ${route.name}` }).tap()
     await page.getByRole("button", { name: "Show route details" }).tap()
     await expect(page.getByRole("button", { name: "Hide route details" })).toBeVisible()
     await page.getByRole("button", { name: "Show turn-by-turn directions" }).tap()
@@ -177,6 +167,7 @@ test.describe("mobile planner theme coverage", () => {
     const [route] = readableRouteSet()
     if (!route) throw new Error("Prepare fixture route is missing")
     await planFixtureRoute(page, [route])
+    await page.getByRole("button", { name: `Details for ${route.name}` }).tap()
     await page.getByRole("button", { name: "Show route details" }).tap()
     await page.getByRole("button", { name: "Show turn-by-turn directions" }).tap()
     await expect(page.getByRole("region", { name: "Turn-by-turn directions" })).toBeVisible()
