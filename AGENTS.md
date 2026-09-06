@@ -74,3 +74,13 @@ product/interaction/architecture direction. `docs/release/ROADMAP-WAVES.md`
 records its integration into the same premium wave. Follow Astra backlog
 dependencies and release gates; do not run competing refactor roadmaps.
 Record exact implementation evidence and the next task in `ASTRA-STATE.md`.
+
+**Human exploratory QA.** When asked to test Switchback like a rider, run the
+protocol in `docs/quality/LUNA-HUMAN-QA.md`; one high-budget coordinator can use
+`docs/quality/LUNA-QA-COORDINATOR.md` to delegate the missions in
+`docs/quality/HUMAN-QA-MISSIONS.md`. Exploratory evidence discovers unknown
+human/product failures; it never replaces deterministic Vitest/Playwright/
+visual/mobile/PWA/real-router gates or honest physical-device evidence. Workers
+test black-box before reading source, record the exact deployed build when it
+can be proven, and do not mass-create issues or silently redesign product
+contracts.
