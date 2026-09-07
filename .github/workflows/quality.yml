@@ -27,6 +27,8 @@ jobs:
       - name: Install fixture tools
         run: sudo apt-get update && sudo apt-get install --yes osmium-tool
       - run: npm ci
+      - name: Reviewed install-script policy
+        run: npm run verify:install-scripts
       - name: Dependency audit (moderate+)
         run: npm audit --audit-level=moderate
       - run: npm run lint

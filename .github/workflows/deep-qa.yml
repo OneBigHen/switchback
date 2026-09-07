@@ -2,8 +2,6 @@ name: Deep QA
 
 on:
   workflow_dispatch:
-  pull_request:
-    types: [edited]
 
 permissions:
   contents: read
@@ -14,7 +12,6 @@ concurrency:
 
 jobs:
   full-webkit:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- deep-qa -->'))
     name: full-webkit
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -40,7 +37,6 @@ jobs:
           retention-days: 7
 
   full-responsive-e2e:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- deep-qa -->'))
     name: full-responsive-e2e
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -66,7 +62,6 @@ jobs:
           retention-days: 7
 
   visual:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- deep-qa -->'))
     name: visual-deep-qa
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -92,7 +87,6 @@ jobs:
           retention-days: 7
 
   memory-soak:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- deep-qa -->'))
     name: memory-soak
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -119,7 +113,6 @@ jobs:
           retention-days: 7
 
   real-router:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- deep-qa -->'))
     name: real-router-deep-qa
     runs-on: ubuntu-latest
     timeout-minutes: 35

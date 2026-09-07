@@ -26,6 +26,7 @@
     "test:e2e:memory-soak": "playwright test tests/e2e/memory-soak.spec.ts --project=memory-soak",
     "test:live-smoke": "node scripts/qa/run-live-smoke.mjs",
     "qa": "npm run qa:quick",
+    "verify:install-scripts": "node scripts/qa/verify-install-scripts.mjs",
     "qa:quick": "node scripts/qa/quick.mjs",
     "qa:pr": "npm run lint && npm run typecheck && npm test && npm run test:e2e:critical && npm run build",
     "quality:summary": "node scripts/qa/summarize-results.mjs",
