@@ -10,15 +10,22 @@ import {
 import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
 async function expectPlannerReady(page: import("@playwright/test").Page): Promise<void> {
-  await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
-  // A fresh shell exposes Ride options. A recovered complete ride may
-  // immediately re-plan and expose Edit route instead. Both are valid ready
-  // states; requiring only the empty-composer control made recovery look like
-  // a PWA failure precisely when recovery succeeded quickly.
-  await expect(
-    page.getByRole("button", { name: "Ride options", exact: true })
-      .or(page.getByRole("button", { name: "Edit route", exact: true }))
-  ).toBeVisible()
+  const rideRequest = page.getByRole("combobox", { name: "Ride request" })
+  const rideOptions = page.getByRole("button", { name: "Ride options", exact: true })
+  const editRoute = page.getByRole("button", { name: "Edit route", exact: true })
+
+  // A fresh shell exposes the request composer and Ride options. A recovered
+  // valid saved ride can immediately expose Edit route instead. Prove that the
+  // planner reached either actionable V2 state without requiring it to first
+  // render an empty composer that recovery may legitimately skip.
+  await expect.poll(async () => (
+    await rideRequest.isVisible().catch(() => false)
+    || await editRoute.isVisible().catch(() => false)
+  ), { timeout: 12_000 }).toBe(true)
+  await expect.poll(async () => (
+    await rideOptions.isVisible().catch(() => false)
+    || await editRoute.isVisible().catch(() => false)
+  ), { timeout: 12_000 }).toBe(true)
 }
 
 async function establishServiceWorker(page: import("@playwright/test").Page): Promise<void> {
@@ -65,8 +72,7 @@ async function planAndSaveRoute(
   await expect(finish).toHaveValue(/Fixture finish/i)
   await page.getByRole("button", { name: "Plan route" }).click()
   await expectRouteOutcome(page, capture)
-  await page.getByRole("button", { name: /Details for .*/i }).click()
-  await page.getByRole("button", { name: /Show route details/i }).click()
+  await page.getByRole("button", { name: /^Details for /i }).click()
   await page.getByRole("button", { name: "Save route" }).click()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
 }
