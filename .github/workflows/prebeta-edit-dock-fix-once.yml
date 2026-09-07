@@ -1,0 +1,63 @@
+name: Prebeta edit dock fix once
+
+on:
+  push:
+    branches:
+      - fix/prebeta-hold-20260906
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/prebeta-hold-20260906
+          fetch-depth: 0
+      - name: Keep Edit dock focused and non-overlapping
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/planner/PlannerDeck.tsx')
+          text = p.read_text()
+
+          replacements = [
+            (
+              '        {!minimized && selectedRoute ? (\n          <button\n            type="button"\n            className={`road-locks-dock-button',
+              '        {!minimized && selectedRoute && !editing ? (\n          <button\n            type="button"\n            className={`road-locks-dock-button'
+            ),
+            (
+              '        {!minimized && bikeProfileMismatch ? (',
+              '        {!minimized && !editing && bikeProfileMismatch ? ('
+            ),
+            (
+              '        {!minimized && selectedRoute && hasUnappliedChange ? (',
+              '        {!minimized && !editing && selectedRoute && hasUnappliedChange ? ('
+            ),
+            (
+              '        {!minimized && selectedRoute ? (\n          <button\n            type="button"\n            className="clear-route-button"',
+              '        {!minimized && selectedRoute && !editing ? (\n          <button\n            type="button"\n            className="clear-route-button"'
+            )
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one exact match, found {count}: {old[:90]!r}')
+              text = text.replace(old, new, 1)
+          p.write_text(text)
+          PY
+          rm -f .github/workflows/prebeta-edit-dock-fix-once.yml
+          git diff --check
+      - name: Commit hit-target fix
+        shell: bash
+        run: |
+          git config user.name "switchback-ci"
+          git config user.email "switchback-ci@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "fix planner edit dock hit targets"
+          git push origin HEAD:fix/prebeta-hold-20260906
