@@ -36,6 +36,31 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  full-responsive-e2e:
+    name: full-responsive-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Run the complete responsive E2E suite
+        run: npm run test:e2e
+      - name: Upload full-E2E failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-qa-full-e2e-failure
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   visual:
     name: visual-deep-qa
     runs-on: ubuntu-latest
