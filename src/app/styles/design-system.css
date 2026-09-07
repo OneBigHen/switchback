@@ -278,7 +278,7 @@ h6,
     right: 8px;
     bottom: 8px;
     left: 80px;
-    width: min(420px, 48vw);
+    width: min(420px, 42vw);
     max-height: none;
     border-radius: var(--sb-radius-card);
   }
@@ -291,7 +291,7 @@ h6,
   .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
   .planner-shell .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
     bottom: calc(var(--sb-map-sheet-clearance) - var(--sb-space-10));
-    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 48vw) + var(--sb-space-2));
+    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 42vw) + var(--sb-space-2));
   }
 
   .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
@@ -389,6 +389,28 @@ h6,
     top: var(--sb-space-2);
     right: var(--sb-space-2);
     left: auto;
+  }
+
+  /* Short landscape has no bottom navigation. The idle composer therefore
+     uses the same left side-deck geometry as an expanded ride sheet; keeping
+     the portrait bottom anchor here puts its top edge above the viewport on a
+     320px-tall phone. The combined selector wins over the generic mobile
+     sheet height rule without changing portrait detents. */
+  .planner-shell .sb-bottom-sheet.planner-deck.is-idle-plan {
+    top: var(--sb-space-2);
+    right: auto;
+    bottom: var(--sb-space-2);
+    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2));
+    width: min(420px, 42vw);
+    height: auto;
+    max-height: none;
+    border-radius: var(--sb-radius-card);
+  }
+
+  .planner-shell .sb-bottom-sheet.planner-deck.is-idle-plan .planner-scroll {
+    height: auto;
+    min-height: 0;
+    overflow-y: auto;
   }
 }
 

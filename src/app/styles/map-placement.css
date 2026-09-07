@@ -50,6 +50,19 @@
   letter-spacing: 0.04em;
 }
 
+/* The sketch surface intentionally owns map pointer events, but map controls
+ * remain independent controls. Raise their corner containers above that
+ * surface so visible zoom/location/credit affordances are genuinely usable
+ * instead of merely painted above the canvas. */
+.planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) :where(
+  .maplibregl-ctrl-bottom-left,
+  .maplibregl-ctrl-bottom-right,
+  .mapboxgl-ctrl-bottom-left,
+  .mapboxgl-ctrl-bottom-right
+) {
+  z-index: 7;
+}
+
 /* Phone portrait uses the same top/bottom occlusion numbers as
  * calculateMapViewportInsets(): top 90px, side gutters 34px, and a bottom
  * inset derived from the ContextSheet detent. These formulas place the target
@@ -171,6 +184,39 @@
   }
 }
 
+/* Portrait sketch mode has no sheet to reserve a large bottom map band. The
+ * drawing toolbar is the bottom action surface, so move map-owned controls
+ * above it and move Layers to the opposite corner of the instruction banner.
+ * Each stack keeps its own hit area instead of relying on z-index to make
+ * overlapping controls appear clickable. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .planner-shell[data-sketching="true"] .map-layer-control {
+    top: max(16px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
+  }
+
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
+    top: auto;
+    right: auto;
+    bottom: calc(var(--sb-mobile-sheet-bottom) + 112px);
+    left: max(var(--sb-mobile-edge), env(safe-area-inset-left));
+  }
+
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-right,
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-right {
+    top: calc(max(8px, env(safe-area-inset-top)) + 184px);
+    right: max(var(--sb-mobile-edge), env(safe-area-inset-right));
+    bottom: auto;
+    left: auto;
+  }
+
+  .planner-shell[data-sketching="true"] .map-sketch-toolbar {
+    z-index: 5;
+  }
+}
+
 /* The scale bar rides the same bottom-left stack as the credit. Its stock
  * colours assume a dark basemap; give it a legible chip so it reads on the
  * light planning basemap and the night preset alike. Ride mode keeps its own
@@ -181,4 +227,74 @@
   border-radius: 0 0 4px 4px;
   background: color-mix(in srgb, var(--sb-paper) 66%, transparent);
   color: color-mix(in srgb, var(--sb-ink) 82%, transparent);
+}
+
+/* A short landscape phone has a left navigation rail and a side planner deck,
+ * not a bottom sheet. Move the map-owned controls back to the physical
+ * viewport floor instead of reusing the portrait sheet-clearance variable.
+ * The custom Layers control stays top-right, so the two control groups have a
+ * deliberate vertical separation and remain independently tappable. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
+    top: auto;
+    right: auto;
+    bottom: var(--sb-space-2);
+    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 42vw) + var(--sb-space-2));
+  }
+
+  .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-right,
+  .planner-shell .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-right {
+    top: auto;
+    right: var(--sb-space-2);
+    bottom: var(--sb-space-2);
+    left: auto;
+  }
+}
+
+/* In short-landscape sketch mode the left rail, the instruction banner, the
+ * native navigation stack, and the five-button drawing toolbar all need a
+ * named lane. Keep the banner out of the rail, give credits the upper-right
+ * map lane, and put native navigation in the slim gutter beside the toolbar. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .planner-shell[data-sketching="true"] .map-sketch-instructions {
+    top: 68px;
+    right: 230px;
+    left: 80px;
+    width: auto;
+    min-width: 0;
+    padding: 7px 10px;
+    transform: none;
+  }
+
+  .planner-shell[data-sketching="true"] .map-sketch-instructions strong {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .planner-shell[data-sketching="true"] .map-sketch-instructions span {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .planner-shell[data-sketching="true"] .map-sketch-instructions small {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
+    top: 68px;
+    right: auto;
+    bottom: auto;
+    left: calc(100% - 223px);
+  }
+
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-right,
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-right {
+    top: 164px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+  }
 }

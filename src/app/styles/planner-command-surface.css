@@ -422,6 +422,39 @@
   }
 }
 
+/* The 568px short-landscape viewport gives the planner only a narrow side
+ * deck. Keep the action names visible without allowing a horizontal label to
+ * run into its neighbour or the minimize target. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .plan-v2__draw-action,
+  .plan-v2__free-ride,
+  .plan-v2__options-trigger {
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    padding: 2px 3px;
+    font-size: 12px;
+    line-height: 1.05;
+    white-space: normal;
+  }
+
+  .plan-v2__draw-action span,
+  .plan-v2__free-ride span,
+  .plan-v2__options-trigger span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .plan-v2__draw-action svg,
+  .plan-v2__free-ride svg,
+  .plan-v2__options-trigger svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .plan-v2__search,
   .plan-v2__minimize-control,
