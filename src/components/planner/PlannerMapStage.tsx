@@ -40,6 +40,7 @@ import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime
 import { usePlannerStore } from "@/stores/planner-store"
 import { useNavigationFrame } from "@/stores/navigation-store"
 import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"
+import { calculateMapViewportInsets } from "./workspace/map-viewport-insets"
 import { NavigationCameraController } from "@/lib/client/navigation-camera-controller"
 import {
   addRiderMapLayers,
@@ -153,6 +154,9 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   const [avoidEnd, setAvoidEnd] = useState<SketchScreenPoint | null>(null)
   const [sketchPoints, setSketchPoints] = useState<SketchScreenPoint[]>([])
   const [sketchMessage, setSketchMessage] = useState("")
+  const [sketchBusy, setSketchBusy] = useState(false)
+  const [sketchRetry, setSketchRetry] = useState(false)
+  const sketchOwnsRideEditRef = useRef(false)
   const lastDrawCommandIdRef = useRef<number | null>(null)
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
@@ -223,6 +227,31 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     setSketchPoints(points)
   }
 
+  const fitSketchTrace = (trace: Waypoint[]) => {
+    const map = mapRef.current
+    if (!map || trace.length < 2) return
+    const phoneViewport = typeof window.matchMedia === "function"
+      && window.matchMedia("(max-width: 760px)").matches
+    const padding = calculateMapViewportInsets({
+      viewportWidthPx: window.innerWidth,
+      viewportHeightPx: window.innerHeight,
+      mode: "planning",
+      sheetDetent: sheetDetentOverride ?? (phoneViewport ? "peek" : "half")
+    })
+    const longitudes = trace.map((point) => point.lon)
+    const latitudes = trace.map((point) => point.lat)
+    map.fitBounds([
+      [Math.min(...longitudes), Math.min(...latitudes)],
+      [Math.max(...longitudes), Math.max(...latitudes)]
+    ], { padding, duration: 650, maxZoom: 15 })
+  }
+
+  const discardSubmittedSketch = () => {
+    if (!sketchOwnsRideEditRef.current) return
+    sketchOwnsRideEditRef.current = false
+    propsRef.current.onSketchCancel?.()
+  }
+
   const screenPoint = (
     event: ReactPointerEvent<HTMLDivElement>,
     clientX = event.clientX,
@@ -233,10 +262,11 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   }
 
   const beginSketch = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return
+    if (sketchBusy || (event.pointerType === "mouse" && event.button !== 0)) return
     event.preventDefault()
     sketchDrawingRef.current = true
     setSketchMessage("")
+    setSketchRetry(false)
     setCurrentSketchPoints([screenPoint(event)])
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
@@ -260,30 +290,56 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     event.currentTarget.releasePointerCapture?.(event.pointerId)
   }
 
-  const completeSketch = () => {
+  const completeSketch = async () => {
+    if (sketchBusy) return
     const points = sketchPointsRef.current
     const map = mapRef.current
     if (!map || !ready) {
-      setSketchMessage("Wait for the map to finish loading, then draw again.")
-      setCurrentSketchPoints([])
+      setSketchMessage("Wait for the map to finish loading, then try this line again.")
       return
     }
     if (!hasUsableSketch(points)) {
       setSketchMessage("Draw a longer line through the roads you want.")
-      setCurrentSketchPoints([])
       return
     }
     const trace = routeSketchWaypoints(map, points)
-    propsRef.current.onRouteSketch(trace)
-    setCurrentSketchPoints([])
-    setSketchMode(false)
-    propsRef.current.onSketchModeChange(false)
+    sketchOwnsRideEditRef.current = true
+    setSketchBusy(true)
+    setSketchRetry(false)
+    setSketchMessage("Planning your drawn corridor…")
+    try {
+      const outcome = await propsRef.current.onRouteSketch(trace)
+      if (outcome.ok) {
+        sketchOwnsRideEditRef.current = false
+        setCurrentSketchPoints([])
+        setSketchMessage("")
+        setSketchMode(false)
+        propsRef.current.onSketchModeChange(false)
+        return
+      }
+      const rawMessage = outcome.message ?? "The rough route could not be routed."
+      const message = outcome.code === "OUT_OF_COVERAGE" && !/^Map region ends here/i.test(rawMessage)
+        ? `Map region ends here — ${rawMessage}`
+        : rawMessage
+      setSketchMessage(message)
+      setSketchRetry(true)
+      fitSketchTrace(trace)
+    } catch (caught) {
+      setSketchMessage(caught instanceof Error ? caught.message : "The rough route could not be routed.")
+      setSketchRetry(true)
+      fitSketchTrace(trace)
+    } finally {
+      setSketchBusy(false)
+    }
   }
 
   const cancelSketch = () => {
     sketchDrawingRef.current = false
+    discardSubmittedSketch()
     setCurrentSketchPoints([])
     setSketchMessage("")
+    setSketchRetry(false)
+    setSketchBusy(false)
     setSketchMode(false)
     propsRef.current.onSketchModeChange(false)
   }
@@ -1243,7 +1299,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           onPointerDown={beginSketch}
           onPointerMove={continueSketch}
           onPointerUp={finishSketchStroke}
-          onPointerCancel={cancelSketch}
+          onPointerCancel={finishSketchStroke}
         >
           <svg className="map-sketch-line" aria-hidden="true">
             <polyline points={sketchPoints.map((point) => `${point.x},${point.y}`).join(" ")} />
@@ -1257,12 +1313,16 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             <SketchRouteToolbar
               canUndo={sketchPoints.length > 0}
               canFinish={hasUsableSketch(sketchPoints)}
+              busy={sketchBusy}
+              retry={sketchRetry}
               onUndo={() => setCurrentSketchPoints(sketchPointsRef.current.slice(0, -1))}
               onClear={() => {
+                discardSubmittedSketch()
                 setCurrentSketchPoints([])
                 setSketchMessage("")
+                setSketchRetry(false)
               }}
-              onDone={completeSketch}
+              onDone={() => void completeSketch()}
               onCancel={cancelSketch}
             />
           </div>

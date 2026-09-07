@@ -57,6 +57,25 @@ describe("SketchRouteToolbar", () => {
     expect(onDone).toHaveBeenCalledOnce()
   })
 
+  it("offers Retry after a failed sketch without changing the draft controls", () => {
+    const onDone = vi.fn()
+    render(
+      <SketchRouteToolbar
+        canUndo
+        canFinish
+        retry
+        onUndo={vi.fn()}
+        onClear={vi.fn()}
+        onDone={onDone}
+        onCancel={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry drawing route" }))
+    expect(onDone).toHaveBeenCalledOnce()
+    expect(screen.getByText("Retry route")).toBeInTheDocument()
+  })
+
   it("cancels draw mode with Escape so keyboard users cannot become trapped", async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()

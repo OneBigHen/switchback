@@ -8,6 +8,7 @@ export interface SketchRouteToolbarProps {
   canUndo: boolean
   canFinish: boolean
   busy?: boolean
+  retry?: boolean
   onUndo(): void
   onClear(): void
   onDone(): void
@@ -18,6 +19,7 @@ export function SketchRouteToolbar({
   canUndo,
   canFinish,
   busy = false,
+  retry = false,
   onUndo,
   onClear,
   onDone,
@@ -43,9 +45,9 @@ export function SketchRouteToolbar({
         <Trash weight="bold" aria-hidden="true" />
         <span>Clear</span>
       </button>
-      <button type="button" className={styles.primary} aria-label="Finish drawing and plan route" disabled={busy || !canFinish} onClick={onDone}>
+      <button type="button" className={styles.primary} aria-label={retry ? "Retry drawing route" : "Finish drawing and plan route"} disabled={busy || !canFinish} onClick={onDone}>
         <Check weight="bold" aria-hidden="true" />
-        <span>{busy ? "Planning…" : "Plan route"}</span>
+        <span>{busy ? "Planning…" : retry ? "Retry route" : "Plan route"}</span>
       </button>
       <button type="button" className={styles.cancel} aria-label="Cancel drawing" disabled={busy} onClick={onCancel}>
         <X weight="bold" aria-hidden="true" />

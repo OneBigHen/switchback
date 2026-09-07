@@ -20,6 +20,12 @@ export interface MapStageDrawCommand {
  * renderer-neutral stage, the Mapbox stage, and PlannerShell can share it
  * without a cycle.
  */
+export interface RouteSketchResult {
+  ok: boolean
+  code?: string
+  message?: string
+}
+
 export interface MapStageProps {
   routes: PlannedRoute[]
   selectedRouteId: string | null
@@ -52,7 +58,8 @@ export interface MapStageProps {
   onReferenceMapChange(reference: ReferenceMap | null): void
   onWaypointDrag(kind: "start" | "finish" | "via", index: number, point: Waypoint): void
   onMapPick(point: Waypoint): void
-  onRouteSketch(trace: Waypoint[]): void
+  onRouteSketch(trace: Waypoint[]): Promise<RouteSketchResult>
+  onSketchCancel?(): void
   onSketchModeChange(active: boolean): void
   drawCommand?: MapStageDrawCommand | null
   avoidAreas: AvoidArea[]
