@@ -61,6 +61,32 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  memory-soak:
+    name: memory-soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run the 10-cycle planner resource soak
+        run: npm run test:e2e:memory-soak
+      - name: Upload memory-soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-qa-memory-soak
+          path: |
+            artifacts/quality/memory-soak.json
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   real-router:
     name: real-router-deep-qa
     runs-on: ubuntu-latest
