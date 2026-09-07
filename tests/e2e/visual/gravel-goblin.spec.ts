@@ -164,6 +164,10 @@ for (const viewport of [
       await page.getByRole("button", { name: "Plan this ride" }).click()
       await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
       await expect(page.getByLabel("Gravel Goblin conversation")).toBeVisible()
+      // The route context mounts after the advisor transcript. Waiting for its
+      // committed V2 action keeps the screenshot from capturing the transient
+      // pre-route frame on faster or slower CI runners.
+      await expect(page.getByRole("button", { name: "Edit route", exact: true })).toBeVisible()
       await expect(page).toHaveScreenshot(`gravel-goblin-routed-${viewport.name}.png`, {
         maxDiffPixelRatio: 0.02,
         mask: [page.locator(".nextjs-toast")]
