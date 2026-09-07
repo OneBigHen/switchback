@@ -35,6 +35,9 @@ jobs:
         run: |
           set -euo pipefail
           expected='tests/e2e/visual/gravel-goblin.spec.ts-snapshots/gravel-goblin-routed-phone-visual-linux.png'
+          # Next can refresh this generated declaration while the dev server boots;
+          # it is not part of the reviewed visual change.
+          git restore -- next-env.d.ts
           changed="$(git diff --name-only)"
           if [[ -z "$changed" ]]; then
             echo 'Reviewed baseline is already current.'
