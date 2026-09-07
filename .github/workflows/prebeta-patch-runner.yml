@@ -29,6 +29,28 @@ jobs:
           body = source.split(start, 1)[1].split(end, 1)[0]
           lines = body.splitlines()
           body = "\n".join(line[10:] if line.startswith("          ") else line for line in lines) + "\n"
+
+          # YAML block-scalar indentation is structural, but replacement #13
+          # contains a nested JSX block whose literal child indentation is data.
+          # Restore only those two SketchRouteToolbar triple-quoted snippets.
+          marker = "'''            <SketchRouteToolbar\n"
+          cursor = 0
+          for _ in range(2):
+              start_index = body.find(marker, cursor)
+              if start_index < 0:
+                  raise SystemExit('SketchRouteToolbar patch snippet missing')
+              end_index = body.find("\n'''", start_index)
+              if end_index < 0:
+                  raise SystemExit('SketchRouteToolbar patch terminator missing')
+              segment = body[start_index:end_index]
+              segment_lines = segment.splitlines()
+              repaired = "\n".join([
+                  segment_lines[0],
+                  *[("          " + line) if line else line for line in segment_lines[1:]]
+              ])
+              body = body[:start_index] + repaired + body[end_index:]
+              cursor = start_index + len(repaired)
+
           body = body.replace(
               "def replace(path, old, new):\n    p = Path(path)",
               "replace_counter = 0\ndef replace(path, old, new):\n    global replace_counter\n    replace_counter += 1\n    p = Path(path)",
@@ -42,7 +64,7 @@ jobs:
           Path('/tmp/prebeta_patch.py').write_text(body)
           PY
           python3 /tmp/prebeta_patch.py
-          rm -f .github/workflows/prebeta-patch-runner.yml
+          rm -f .github/workflows/prebeta-patch-runner.yml .github/workflows/prebeta-patch-once.yml
           git diff --check
       - name: Commit recovery patch
         shell: bash
