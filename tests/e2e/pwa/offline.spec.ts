@@ -73,6 +73,7 @@ async function planAndSaveRoute(
   await page.getByRole("button", { name: "Plan route" }).click()
   await expectRouteOutcome(page, capture)
   await page.getByRole("button", { name: /^Details for /i }).click()
+  await page.getByRole("button", { name: "Show route details" }).click()
   await page.getByRole("button", { name: "Save route" }).click()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
 }
