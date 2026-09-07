@@ -1,0 +1,612 @@
+name: Prebeta patch once
+
+on:
+  push:
+    branches:
+      - fix/prebeta-hold-20260906
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/prebeta-hold-20260906
+          fetch-depth: 0
+      - name: Apply exact recovery patches
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one exact match, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          # A newer free-form request is explicitly allowed by PlanComposer while
+          # routing. PlannerDeck accidentally serialized it anyway.
+          replace(
+              "src/components/planner/PlannerDeck.tsx",
+              '    if (prompt.length < 3 || intentStatus === "interpreting" || planningActive) return\n',
+              '    if (prompt.length < 3 || intentStatus === "interpreting") return\n'
+          )
+
+          # The map owns the raw finger stroke, so submission must report whether
+          # routing actually accepted it and Cancel needs an explicit rollback hook.
+          replace(
+              "src/components/planner/map-stage-props.ts",
+              'export interface MapStageProps {\n',
+              'export interface RouteSketchResult {\n  ok: boolean\n  code?: string\n  message?: string\n}\n\nexport interface MapStageProps {\n'
+          )
+          replace(
+              "src/components/planner/map-stage-props.ts",
+              '  onRouteSketch(trace: Waypoint[]): void\n  onSketchModeChange(active: boolean): void\n',
+              '  onRouteSketch(trace: Waypoint[]): Promise<RouteSketchResult>\n  onSketchCancel?(): void\n  onSketchModeChange(active: boolean): void\n'
+          )
+
+          # Planning already returns null on a fenced/provider failure. Preserve that
+          # result so the sketch path cannot publish a success toast after failure.
+          replace(
+              "src/components/planner/PlannerShell.tsx",
+              '''  const handlePlan = async () => {
+    const current = usePlannerStore.getState()
+    try {
+      loopSeed.current += 1
+      const customSegmentProfiles = current.mode === "destination" && current.segmentProfiles.some((item) => item !== current.profile)
+        ? normalizedSegmentProfiles(current.segmentProfiles, current.via.length + 1, current.profile)
+        : undefined
+      await runTripPlan(buildRideTripRequest({
+        mode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        profile: current.profile,
+        bikeProfile: current.bikeProfile,
+        roadLocks: current.roadLocks,
+        targetMinutes: current.targetMinutes,
+        timeShaped: current.timeShaped,
+        seed: loopSeed.current,
+        via: current.via,
+        avoidHighways: current.avoidHighways,
+        avoidAreas: current.avoidAreas,
+        segmentProfiles: customSegmentProfiles,
+        tollPolicy: current.tollPolicy,
+        planningId: createPlanningId(),
+        ...(current.sketchCorridor ? { sketchCorridor: current.sketchCorridor } : {})
+      }))
+    } catch (caught) {
+      current.failRouting({
+        code: "MISSING_WAYPOINTS",
+        message: caught instanceof Error ? caught.message : "Choose the points for this ride first."
+      })
+    }
+  }
+''',
+              '''  const handlePlan = async (): Promise<TripPlan | null> => {
+    const current = usePlannerStore.getState()
+    try {
+      loopSeed.current += 1
+      const customSegmentProfiles = current.mode === "destination" && current.segmentProfiles.some((item) => item !== current.profile)
+        ? normalizedSegmentProfiles(current.segmentProfiles, current.via.length + 1, current.profile)
+        : undefined
+      return await runTripPlan(buildRideTripRequest({
+        mode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        profile: current.profile,
+        bikeProfile: current.bikeProfile,
+        roadLocks: current.roadLocks,
+        targetMinutes: current.targetMinutes,
+        timeShaped: current.timeShaped,
+        seed: loopSeed.current,
+        via: current.via,
+        avoidHighways: current.avoidHighways,
+        avoidAreas: current.avoidAreas,
+        segmentProfiles: customSegmentProfiles,
+        tollPolicy: current.tollPolicy,
+        planningId: createPlanningId(),
+        ...(current.sketchCorridor ? { sketchCorridor: current.sketchCorridor } : {})
+      }))
+    } catch (caught) {
+      current.failRouting({
+        code: "MISSING_WAYPOINTS",
+        message: caught instanceof Error ? caught.message : "Choose the points for this ride first."
+      })
+      return null
+    }
+  }
+'''
+          )
+          replace(
+              "src/components/planner/PlannerShell.tsx",
+              '''  const handleRouteSketch = async (trace: Waypoint[]) => {
+    routeRequestGate.invalidate()
+    try {
+      const current = usePlannerStore.getState()
+      const intent = routeIntentFromSketch({
+        currentMode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        trace,
+        hasExistingRoute: Boolean(current.plan)
+      })
+      if (current.editRide({
+        ...intent.points,
+        mode: intent.mode,
+        segmentProfiles: [],
+        sketchCorridor: intent.corridor.length >= 2 ? intent.corridor : null
+      }, "Read route sketch", "drawing") !== "applied") return
+      setAddingVia(false)
+      await handlePlan()
+      setNotice({
+        kind: "success",
+        message: `Read your line as a corridor — ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}, with options on the way.`
+      })
+    } catch (caught) {
+      setNotice({
+        kind: "warning",
+        message: caught instanceof Error ? caught.message : "The rough route could not be read."
+      })
+    }
+  }
+''',
+              '''  const handleRouteSketch = async (trace: Waypoint[]) => {
+    routeRequestGate.invalidate()
+    try {
+      const current = usePlannerStore.getState()
+      const intent = routeIntentFromSketch({
+        currentMode: current.mode,
+        start: current.start,
+        finish: current.finish,
+        trace,
+        hasExistingRoute: Boolean(current.plan)
+      })
+      const editOutcome = current.editRide({
+        ...intent.points,
+        mode: intent.mode,
+        segmentProfiles: [],
+        sketchCorridor: intent.corridor.length >= 2 ? intent.corridor : null
+      }, "Read route sketch", "drawing")
+      // Retry submits the same preserved stroke, which is intentionally a noop
+      // intent edit. It must still route; only a genuinely rejected edit stops.
+      if (editOutcome === "stale" || editOutcome === "invalid") {
+        return { ok: false, message: "The drawn route changed before it could be planned. Draw it again." }
+      }
+      setAddingVia(false)
+      const planned = await handlePlan()
+      if (!planned) {
+        const failure = usePlannerStore.getState().error
+        return {
+          ok: false,
+          code: failure?.code,
+          message: failure?.message ?? "The rough route could not be routed."
+        }
+      }
+      setNotice({
+        kind: "success",
+        message: `Read your line as a corridor — ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}, with options on the way.`
+      })
+      return { ok: true }
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "The rough route could not be read."
+      setNotice({ kind: "warning", message })
+      return { ok: false, message }
+    }
+  }
+
+  const handleCancelRouteSketch = () => {
+    const beforeCancel = usePlannerStore.getState()
+    const undoUncommittedSketch = !beforeCancel.committedRide
+      && beforeCancel.rideHistory.lastChange?.source === "drawing"
+    // Existing-route sketches use the canonical committed-ride rollback. A
+    // first-ever failed sketch has no committed result yet, so undo its one
+    // compound drawing command after the session settles.
+    planningSession.cancel()
+    if (undoUncommittedSketch) usePlannerStore.getState().undoRideChange()
+  }
+'''
+          )
+          replace(
+              "src/components/planner/PlannerShell.tsx",
+              '        onRouteSketch={(trace) => void handleRouteSketch(trace)}\n        sketchReference={sketchCorridor}\n        onSketchModeChange={setSketching}\n',
+              '        onRouteSketch={handleRouteSketch}\n        onSketchCancel={handleCancelRouteSketch}\n        sketchReference={sketchCorridor}\n        onSketchModeChange={setSketching}\n'
+          )
+
+          # Preserve and retry the raw screen-space stroke. Failed sketches stay in
+          # Draw mode; only success or explicit Clear/Cancel discards them.
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              'import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"\n',
+              'import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"\nimport { calculateMapViewportInsets } from "./workspace/map-viewport-insets"\n'
+          )
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              '  const [sketchPoints, setSketchPoints] = useState<SketchScreenPoint[]>([])\n  const [sketchMessage, setSketchMessage] = useState("")\n',
+              '  const [sketchPoints, setSketchPoints] = useState<SketchScreenPoint[]>([])\n  const [sketchMessage, setSketchMessage] = useState("")\n  const [sketchBusy, setSketchBusy] = useState(false)\n  const [sketchRetry, setSketchRetry] = useState(false)\n  const sketchOwnsRideEditRef = useRef(false)\n'
+          )
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              '''  const setCurrentSketchPoints = (points: SketchScreenPoint[]) => {
+    sketchPointsRef.current = points
+    setSketchPoints(points)
+  }
+
+''',
+              '''  const setCurrentSketchPoints = (points: SketchScreenPoint[]) => {
+    sketchPointsRef.current = points
+    setSketchPoints(points)
+  }
+
+  const fitSketchTrace = (trace: Waypoint[]) => {
+    const map = mapRef.current
+    if (!map || trace.length < 2) return
+    const phoneViewport = typeof window.matchMedia === "function"
+      && window.matchMedia("(max-width: 760px)").matches
+    const padding = calculateMapViewportInsets({
+      viewportWidthPx: window.innerWidth,
+      viewportHeightPx: window.innerHeight,
+      mode: "planning",
+      sheetDetent: sheetDetentOverride ?? (phoneViewport ? "peek" : "half")
+    })
+    const longitudes = trace.map((point) => point.lon)
+    const latitudes = trace.map((point) => point.lat)
+    map.fitBounds([
+      [Math.min(...longitudes), Math.min(...latitudes)],
+      [Math.max(...longitudes), Math.max(...latitudes)]
+    ], { padding, duration: 650, maxZoom: 15 })
+  }
+
+  const discardSubmittedSketch = () => {
+    if (!sketchOwnsRideEditRef.current) return
+    sketchOwnsRideEditRef.current = false
+    propsRef.current.onSketchCancel?.()
+  }
+
+'''
+          )
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              '''  const beginSketch = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return
+    event.preventDefault()
+    sketchDrawingRef.current = true
+    setSketchMessage("")
+    setCurrentSketchPoints([screenPoint(event)])
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+''',
+              '''  const beginSketch = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (sketchBusy || (event.pointerType === "mouse" && event.button !== 0)) return
+    event.preventDefault()
+    sketchDrawingRef.current = true
+    setSketchMessage("")
+    setSketchRetry(false)
+    setCurrentSketchPoints([screenPoint(event)])
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+'''
+          )
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              '''  const completeSketch = () => {
+    const points = sketchPointsRef.current
+    const map = mapRef.current
+    if (!map || !ready) {
+      setSketchMessage("Wait for the map to finish loading, then draw again.")
+      setCurrentSketchPoints([])
+      return
+    }
+    if (!hasUsableSketch(points)) {
+      setSketchMessage("Draw a longer line through the roads you want.")
+      setCurrentSketchPoints([])
+      return
+    }
+    const trace = routeSketchWaypoints(map, points)
+    propsRef.current.onRouteSketch(trace)
+    setCurrentSketchPoints([])
+    setSketchMode(false)
+    propsRef.current.onSketchModeChange(false)
+  }
+
+  const cancelSketch = () => {
+    sketchDrawingRef.current = false
+    setCurrentSketchPoints([])
+    setSketchMessage("")
+    setSketchMode(false)
+    propsRef.current.onSketchModeChange(false)
+  }
+''',
+              '''  const completeSketch = async () => {
+    if (sketchBusy) return
+    const points = sketchPointsRef.current
+    const map = mapRef.current
+    if (!map || !ready) {
+      setSketchMessage("Wait for the map to finish loading, then try this line again.")
+      return
+    }
+    if (!hasUsableSketch(points)) {
+      setSketchMessage("Draw a longer line through the roads you want.")
+      return
+    }
+    const trace = routeSketchWaypoints(map, points)
+    sketchOwnsRideEditRef.current = true
+    setSketchBusy(true)
+    setSketchRetry(false)
+    setSketchMessage("Planning your drawn corridor…")
+    try {
+      const outcome = await propsRef.current.onRouteSketch(trace)
+      if (outcome.ok) {
+        sketchOwnsRideEditRef.current = false
+        setCurrentSketchPoints([])
+        setSketchMessage("")
+        setSketchMode(false)
+        propsRef.current.onSketchModeChange(false)
+        return
+      }
+      const rawMessage = outcome.message ?? "The rough route could not be routed."
+      const message = outcome.code === "OUT_OF_COVERAGE" && !/^Map region ends here/i.test(rawMessage)
+        ? `Map region ends here — ${rawMessage}`
+        : rawMessage
+      setSketchMessage(message)
+      setSketchRetry(true)
+      fitSketchTrace(trace)
+    } catch (caught) {
+      setSketchMessage(caught instanceof Error ? caught.message : "The rough route could not be routed.")
+      setSketchRetry(true)
+      fitSketchTrace(trace)
+    } finally {
+      setSketchBusy(false)
+    }
+  }
+
+  const cancelSketch = () => {
+    sketchDrawingRef.current = false
+    discardSubmittedSketch()
+    setCurrentSketchPoints([])
+    setSketchMessage("")
+    setSketchRetry(false)
+    setSketchBusy(false)
+    setSketchMode(false)
+    propsRef.current.onSketchModeChange(false)
+  }
+'''
+          )
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              '          onPointerUp={finishSketchStroke}\n          onPointerCancel={cancelSketch}\n',
+              '          onPointerUp={finishSketchStroke}\n          onPointerCancel={finishSketchStroke}\n'
+          )
+          replace(
+              "src/components/planner/PlannerMapStage.tsx",
+              '''            <SketchRouteToolbar
+              canUndo={sketchPoints.length > 0}
+              canFinish={hasUsableSketch(sketchPoints)}
+              onUndo={() => setCurrentSketchPoints(sketchPointsRef.current.slice(0, -1))}
+              onClear={() => {
+                setCurrentSketchPoints([])
+                setSketchMessage("")
+              }}
+              onDone={completeSketch}
+              onCancel={cancelSketch}
+            />
+''',
+              '''            <SketchRouteToolbar
+              canUndo={sketchPoints.length > 0}
+              canFinish={hasUsableSketch(sketchPoints)}
+              busy={sketchBusy}
+              retry={sketchRetry}
+              onUndo={() => setCurrentSketchPoints(sketchPointsRef.current.slice(0, -1))}
+              onClear={() => {
+                discardSubmittedSketch()
+                setCurrentSketchPoints([])
+                setSketchMessage("")
+                setSketchRetry(false)
+              }}
+              onDone={() => void completeSketch()}
+              onCancel={cancelSketch}
+            />
+'''
+          )
+
+          replace(
+              "src/components/planner/v2/SketchRouteToolbar.tsx",
+              '  busy?: boolean\n  onUndo(): void\n',
+              '  busy?: boolean\n  retry?: boolean\n  onUndo(): void\n'
+          )
+          replace(
+              "src/components/planner/v2/SketchRouteToolbar.tsx",
+              '  busy = false,\n  onUndo,\n',
+              '  busy = false,\n  retry = false,\n  onUndo,\n'
+          )
+          replace(
+              "src/components/planner/v2/SketchRouteToolbar.tsx",
+              '      <button type="button" className={styles.primary} aria-label="Finish drawing and plan route" disabled={busy || !canFinish} onClick={onDone}>\n        <Check weight="bold" aria-hidden="true" />\n        <span>{busy ? "Planning…" : "Plan route"}</span>\n',
+              '      <button type="button" className={styles.primary} aria-label={retry ? "Retry drawing route" : "Finish drawing and plan route"} disabled={busy || !canFinish} onClick={onDone}>\n        <Check weight="bold" aria-hidden="true" />\n        <span>{busy ? "Planning…" : retry ? "Retry route" : "Plan route"}</span>\n'
+          )
+
+          # Component regression: Retry is an explicit action and reuses the same
+          # submission callback rather than forcing the rider to redraw.
+          test_path = Path("tests/components/sketch-route-toolbar.test.tsx")
+          test_text = test_path.read_text()
+          marker = '''  it("cancels draw mode with Escape so keyboard users cannot become trapped", async () => {\n'''
+          retry_test = '''  it("offers Retry after a failed sketch without changing the draft controls", () => {
+    const onDone = vi.fn()
+    render(
+      <SketchRouteToolbar
+        canUndo
+        canFinish
+        retry
+        onUndo={vi.fn()}
+        onClear={vi.fn()}
+        onDone={onDone}
+        onCancel={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry drawing route" }))
+    expect(onDone).toHaveBeenCalledOnce()
+    expect(screen.getByText("Retry route")).toBeInTheDocument()
+  })
+
+'''
+          if marker not in test_text:
+              raise SystemExit("sketch toolbar test insertion marker missing")
+          test_path.write_text(test_text.replace(marker, retry_test + marker, 1))
+
+          # Browser regression for issue #40. Exercise both phone portrait and a
+          # short landscape viewport: fail -> preserve -> Cancel -> fail -> Retry -> success.
+          Path("tests/e2e/critical/sketch-recovery.spec.ts").write_text(r'''import { expect, test, type Page } from "@playwright/test"
+import { installPlannerServices, makeRoute, tripPlan, expandPhonePlanner } from "../helpers/planner-fixtures"
+
+async function drawUsableStroke(page: Page) {
+  const region = page.getByRole("region", { name: "Draw a rough route" })
+  await expect(region).toBeVisible()
+  const box = await region.boundingBox()
+  expect(box).not.toBeNull()
+  const startX = box!.x + Math.min(90, box!.width * 0.2)
+  const startY = box!.y + Math.min(120, box!.height * 0.28)
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  for (let index = 1; index <= 8; index += 1) {
+    await page.mouse.move(
+      startX + Math.min(box!.width * 0.55, 28 * index),
+      startY + Math.sin(index / 2) * Math.min(45, box!.height * 0.12),
+      { steps: 2 }
+    )
+  }
+  await page.mouse.up()
+  const polyline = region.locator("polyline")
+  await expect(polyline).toHaveAttribute("points", /,/) 
+  return await polyline.getAttribute("points")
+}
+
+for (const viewport of [
+  { name: "phone portrait", width: 390, height: 844 },
+  { name: "short landscape", width: 844, height: 390 }
+]) {
+  test(`drawn route survives provider failure, Cancel discards it, and Retry reuses it on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await installPlannerServices(page)
+    const primaryRequests: Array<Record<string, unknown>> = []
+    const success = tripPlan([makeRoute("twisty", { id: `sketch-${viewport.name}`, name: "Recovered sketch route" })])
+    await page.route("**/api/routes", async (route) => {
+      const request = route.request().postDataJSON() as Record<string, unknown>
+      if (request.candidateSet === "primary") primaryRequests.push(request)
+      const primaryAttempt = primaryRequests.length
+      if (request.candidateSet === "primary" && primaryAttempt <= 2) {
+        await route.fulfill({
+          status: 422,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: "OUT_OF_COVERAGE", message: "That ride leaves the covered map area." } })
+        })
+        return
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success) })
+    })
+
+    await page.goto("/")
+    await expandPhonePlanner(page)
+    await page.getByRole("button", { name: "Draw", exact: true }).click()
+    const firstStroke = await drawUsableStroke(page)
+    await page.getByRole("button", { name: "Finish drawing and plan route" }).click()
+    const region = page.getByRole("region", { name: "Draw a rough route" })
+    await expect(region).toContainText(/Map region ends here.*covered map area/i)
+    await expect(region.locator("polyline")).toHaveAttribute("points", firstStroke!)
+    await expect(page.getByRole("button", { name: "Retry drawing route" })).toBeVisible()
+
+    await page.getByRole("button", { name: "Cancel drawing" }).click()
+    await expect(region).toHaveCount(0)
+    await expect(page.getByText("Route unavailable", { exact: true })).toHaveCount(0)
+
+    await expandPhonePlanner(page)
+    await page.getByRole("button", { name: "Draw", exact: true }).click()
+    const retryStroke = await drawUsableStroke(page)
+    await page.getByRole("button", { name: "Finish drawing and plan route" }).click()
+    const retryRegion = page.getByRole("region", { name: "Draw a rough route" })
+    await expect(retryRegion).toContainText(/Map region ends here.*covered map area/i)
+    await expect(retryRegion.locator("polyline")).toHaveAttribute("points", retryStroke!)
+    await page.getByRole("button", { name: "Retry drawing route" }).click()
+
+    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText("Recovered sketch route", { exact: true })).toBeVisible()
+    await expect(retryRegion).toHaveCount(0)
+    expect(primaryRequests).toHaveLength(3)
+    expect(primaryRequests[1]?.sketchCorridor).toBeTruthy()
+    expect(primaryRequests[2]?.sketchCorridor).toEqual(primaryRequests[1]?.sketchCorridor)
+  })
+}
+''')
+
+          # Browser regression for issue #77: Details is inspection only. It may
+          # change local workspace state, never the selected route or Start action.
+          Path("tests/e2e/critical/route-details-identity.spec.ts").write_text(r'''import { expect, test } from "@playwright/test"
+import {
+  ensureFixtureStart,
+  fillFixtureFinish,
+  installPlannerServices,
+  makeRoute,
+  openPlannerEditor,
+  tripPlan
+} from "../helpers/planner-fixtures"
+
+test("opening and closing Route Details preserves the selected route and Start action", async ({ page }) => {
+  await installPlannerServices(page)
+  const primary = makeRoute("balanced", { id: "details-primary", name: "Primary detail route" })
+  const twisty = makeRoute("twisty", { id: "details-twisty", name: "Twisty detail route", distanceMiles: 9.1 })
+  const requests: Array<Record<string, unknown>> = []
+  await page.route("**/api/routes", async (route) => {
+    const request = route.request().postDataJSON() as Record<string, unknown>
+    requests.push(request)
+    const response = request.candidateSet === "alternatives" ? tripPlan([twisty]) : tripPlan([primary])
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) })
+  })
+
+  await page.goto("/")
+  await openPlannerEditor(page)
+  await ensureFixtureStart(page)
+  await fillFixtureFinish(page)
+  await page.getByRole("button", { name: "Plan route" }).click()
+  const choices = page.getByRole("region", { name: "Route choices" })
+  await expect(choices.getByText("Twisty detail route", { exact: true })).toBeVisible({ timeout: 30_000 })
+  await choices.getByRole("button", { name: "Select Twisty detail route" }).click()
+  const selected = choices.getByRole("article", { name: /Twisty detail route route option/i })
+  await expect(selected).toHaveAttribute("data-selected", "true")
+  const start = page.getByRole("button", { name: "Start Twisty route" })
+  await expect(start).toBeEnabled()
+  const requestCountBeforeDetails = requests.length
+
+  await choices.getByRole("button", { name: "Details for Twisty detail route" }).click()
+  const details = page.getByRole("region", { name: "Route details workspace" })
+  await expect(details.getByText("Twisty detail route", { exact: true })).toBeVisible()
+  await expect(start).toBeEnabled()
+  expect(requests).toHaveLength(requestCountBeforeDetails)
+  await expect(page.getByText("Route cleared", { exact: false })).toHaveCount(0)
+
+  await details.getByRole("button", { name: "Back to route choices" }).click()
+  await expect(choices.getByRole("article", { name: /Twisty detail route route option/i })).toHaveAttribute("data-selected", "true")
+  await expect(start).toBeEnabled()
+  expect(requests).toHaveLength(requestCountBeforeDetails)
+})
+''')
+
+          # This workflow is intentionally self-deleting; the resulting product
+          # commit contains only product/test changes and cannot loop.
+          Path(".github/workflows/prebeta-patch-once.yml").unlink()
+          PY
+          git diff --check
+      - name: Commit recovery patch
+        shell: bash
+        run: |
+          git config user.name "switchback-ci"
+          git config user.email "switchback-ci@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "fix planner supersession and sketch recovery"
+          git push origin HEAD:fix/prebeta-hold-20260906
