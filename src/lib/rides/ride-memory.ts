@@ -10,6 +10,13 @@ export type RideMemorySource =
   | "trip-plan"
   | "project-gpx"
 
+export interface RideFingerprintEvidence {
+  twistiness: boolean
+  elevation: boolean
+  surface: boolean
+  roadClass: boolean
+}
+
 export interface RideFingerprint {
   version: 1
   rideId: string
@@ -21,6 +28,12 @@ export interface RideFingerprint {
   gravelShare: number | null
   highwayShare: number | null
   confidence: number
+  /**
+   * Explicit provenance for values that must not silently become learned facts.
+   * Older/manual fingerprints may omit this; their explicitly supplied values
+   * remain usable for backwards-compatible deterministic fixtures.
+   */
+  evidence?: RideFingerprintEvidence
 }
 
 export interface RideFingerprintMetadata {
@@ -45,6 +58,23 @@ const MIN_LEARNING_SAMPLES = 3
 const FULL_CONFIDENCE_SAMPLES = 8
 const ELEVATION_FULL_SCALE_METERS_PER_MILE = 50
 
+const KNOWN_SURFACES = new Set([
+  "PAVED",
+  "ASPHALT",
+  "CONCRETE",
+  "PAVING_STONES",
+  "COBBLESTONE",
+  "COMPACTED",
+  "GRAVEL",
+  "FINE_GRAVEL",
+  "UNPAVED",
+  "DIRT",
+  "GROUND",
+  "GRASS",
+  "SAND",
+  "ICE"
+])
+
 const GRAVEL_SURFACES = new Set([
   "GRAVEL",
   "FINE_GRAVEL",
@@ -53,6 +83,25 @@ const GRAVEL_SURFACES = new Set([
   "GROUND",
   "GRASS",
   "SAND"
+])
+
+const KNOWN_ROAD_CLASSES = new Set([
+  "MOTORWAY",
+  "MOTORWAY_LINK",
+  "TRUNK",
+  "TRUNK_LINK",
+  "PRIMARY",
+  "PRIMARY_LINK",
+  "SECONDARY",
+  "SECONDARY_LINK",
+  "TERTIARY",
+  "TERTIARY_LINK",
+  "RESIDENTIAL",
+  "UNCLASSIFIED",
+  "SERVICE",
+  "ROAD",
+  "TRACK",
+  "OTHER"
 ])
 
 const HIGHWAY_ROAD_CLASSES = new Set([
@@ -84,19 +133,25 @@ function finiteNonNegative(value: number | null | undefined): number | null {
 
 function normalizedDistributionShare(
   distribution: Readonly<Record<string, number>>,
-  selected: ReadonlySet<string>
+  selected: ReadonlySet<string>,
+  known: ReadonlySet<string>
 ): number | null {
-  let total = 0
+  let recognizedTotal = 0
   let matching = 0
 
   for (const [rawKey, rawValue] of Object.entries(distribution)) {
     if (!Number.isFinite(rawValue) || rawValue <= 0) continue
-    total += rawValue
-    if (selected.has(rawKey.trim().toUpperCase())) matching += rawValue
+    const key = rawKey.trim().toUpperCase()
+    if (!known.has(key)) continue
+    recognizedTotal += rawValue
+    if (selected.has(key)) matching += rawValue
   }
 
-  if (total <= 0) return null
-  return clampUnit(matching / total)
+  // A distribution containing only unknown classifications is not evidence of
+  // zero gravel/highway use. Preserve the distinction so learning cannot turn
+  // missing provider semantics into a confident preference.
+  if (recognizedTotal <= 0) return null
+  return clampUnit(matching / recognizedTotal)
 }
 
 function median(values: readonly number[]): number {
@@ -128,20 +183,22 @@ export function fingerprintPlannedRoute(
   const distanceMiles = finiteNonNegative(route.distanceMiles) ?? 0
   const durationMinutes = finiteNonNegative(route.durationMinutes)
   const ascentMeters = finiteNonNegative(route.ascentMeters)
+  const rawTwistiness = finiteNonNegative(route.twistiness)
 
   const ascentMetersPerMile = ascentMeters !== null && distanceMiles > 0
     ? Number((ascentMeters / distanceMiles).toFixed(4))
     : null
-  const gravelShare = normalizedDistributionShare(route.surfaceMix, GRAVEL_SURFACES)
-  const highwayShare = normalizedDistributionShare(route.roadMix, HIGHWAY_ROAD_CLASSES)
-  const twistiness = clampUnit((finiteNonNegative(route.twistiness) ?? 0) / 100)
+  const gravelShare = normalizedDistributionShare(route.surfaceMix, GRAVEL_SURFACES, KNOWN_SURFACES)
+  const highwayShare = normalizedDistributionShare(route.roadMix, HIGHWAY_ROAD_CLASSES, KNOWN_ROAD_CLASSES)
+  const twistiness = clampUnit((rawTwistiness ?? 0) / 100)
+  const evidence: RideFingerprintEvidence = {
+    twistiness: rawTwistiness !== null,
+    elevation: ascentMetersPerMile !== null,
+    surface: gravelShare !== null,
+    roadClass: highwayShare !== null
+  }
 
-  const observedAxes = [
-    true,
-    ascentMetersPerMile !== null,
-    gravelShare !== null,
-    highwayShare !== null
-  ].filter(Boolean).length
+  const observedAxes = Object.values(evidence).filter(Boolean).length
 
   return {
     version: 1,
@@ -153,7 +210,8 @@ export function fingerprintPlannedRoute(
     ascentMetersPerMile,
     gravelShare,
     highwayShare,
-    confidence: Number((observedAxes / 4).toFixed(4))
+    confidence: Number((observedAxes / 4).toFixed(4)),
+    evidence
   }
 }
 
@@ -168,14 +226,57 @@ function support(samples: number): LearnedAxisSupport {
   }
 }
 
+function safeConfidence(fingerprint: RideFingerprint): number {
+  return Number.isFinite(fingerprint.confidence)
+    ? Math.max(0, Math.min(1, fingerprint.confidence))
+    : 0
+}
+
+function fingerprintTieBreakKey(fingerprint: RideFingerprint): string {
+  const evidence = fingerprint.evidence
+  return [
+    fingerprint.source,
+    fingerprint.distanceMiles,
+    fingerprint.durationMinutes ?? "",
+    fingerprint.twistiness,
+    fingerprint.ascentMetersPerMile ?? "",
+    fingerprint.gravelShare ?? "",
+    fingerprint.highwayShare ?? "",
+    safeConfidence(fingerprint),
+    evidence?.twistiness === false ? 0 : 1,
+    evidence?.elevation === false ? 0 : 1,
+    evidence?.surface === false ? 0 : 1,
+    evidence?.roadClass === false ? 0 : 1
+  ].join("|")
+}
+
+function preferredDuplicate(left: RideFingerprint, right: RideFingerprint): RideFingerprint {
+  const leftConfidence = safeConfidence(left)
+  const rightConfidence = safeConfidence(right)
+  if (leftConfidence !== rightConfidence) {
+    return leftConfidence > rightConfidence ? left : right
+  }
+
+  // Conflicting records for one stable ride id are bad input, but learning must
+  // still be deterministic. Choose the same canonical record regardless of the
+  // order storage returned them in rather than allowing array order to affect
+  // a rider profile.
+  return fingerprintTieBreakKey(left).localeCompare(fingerprintTieBreakKey(right)) >= 0
+    ? left
+    : right
+}
+
 function uniqueFingerprints(fingerprints: readonly RideFingerprint[]): RideFingerprint[] {
   const byId = new Map<string, RideFingerprint>()
   for (const fingerprint of fingerprints) {
     const id = fingerprint.rideId.trim()
-    if (!id || byId.has(id)) continue
-    byId.set(id, fingerprint)
+    if (!id) continue
+    const existing = byId.get(id)
+    byId.set(id, existing ? preferredDuplicate(existing, fingerprint) : fingerprint)
   }
-  return [...byId.values()]
+  return [...byId.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, fingerprint]) => fingerprint)
 }
 
 function measuredValues(
@@ -203,14 +304,18 @@ export function deriveLearnedRiderProfile(
   const unique = uniqueFingerprints(fingerprints)
 
   const values: Partial<Record<RidePreferenceAxis, number[]>> = {
-    twistiness: measuredValues(unique, (fingerprint) => fingerprint.twistiness),
-    gravel: measuredValues(unique, (fingerprint) => fingerprint.gravelShare),
-    elevation: measuredValues(unique, (fingerprint) => fingerprint.ascentMetersPerMile === null
-      ? null
-      : fingerprint.ascentMetersPerMile / ELEVATION_FULL_SCALE_METERS_PER_MILE),
-    highwayAversion: measuredValues(unique, (fingerprint) => fingerprint.highwayShare === null
-      ? null
-      : 1 - fingerprint.highwayShare)
+    twistiness: measuredValues(unique, (fingerprint) =>
+      fingerprint.evidence?.twistiness === false ? null : fingerprint.twistiness),
+    gravel: measuredValues(unique, (fingerprint) =>
+      fingerprint.evidence?.surface === false ? null : fingerprint.gravelShare),
+    elevation: measuredValues(unique, (fingerprint) =>
+      fingerprint.evidence?.elevation === false || fingerprint.ascentMetersPerMile === null
+        ? null
+        : fingerprint.ascentMetersPerMile / ELEVATION_FULL_SCALE_METERS_PER_MILE),
+    highwayAversion: measuredValues(unique, (fingerprint) =>
+      fingerprint.evidence?.roadClass === false || fingerprint.highwayShare === null
+        ? null
+        : 1 - fingerprint.highwayShare)
   }
 
   const axisSupport = Object.fromEntries(AXES.map((axis) => [
