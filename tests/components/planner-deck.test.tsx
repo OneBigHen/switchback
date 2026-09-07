@@ -436,7 +436,7 @@ describe("planner ride composer", () => {
     expect(screen.queryByRole("button", { name: "Scenic" })).not.toBeInTheDocument()
   })
 
-  it("keeps clear route beside replan and start route while editing", async () => {
+  it("keeps replan and start route reachable while editing without restoring the retired clear action", async () => {
     const user = userEvent.setup()
     renderDeck({
       vm: { ui: { selectedRoute: plannedRoute } },
@@ -445,7 +445,7 @@ describe("planner ride composer", () => {
 
     await user.click(screen.getByRole("button", { name: "Ride options" }))
 
-    expect(screen.getByRole("button", { name: "Clear route" })).toBeVisible()
+    expect(screen.queryByRole("button", { name: "Clear route" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Replan" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Start Twisty route" })).toBeVisible()
   })
