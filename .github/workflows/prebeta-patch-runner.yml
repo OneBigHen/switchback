@@ -29,6 +29,16 @@ jobs:
           body = source.split(start, 1)[1].split(end, 1)[0]
           lines = body.splitlines()
           body = "\n".join(line[10:] if line.startswith("          ") else line for line in lines) + "\n"
+          body = body.replace(
+              "def replace(path, old, new):\n    p = Path(path)",
+              "replace_counter = 0\ndef replace(path, old, new):\n    global replace_counter\n    replace_counter += 1\n    p = Path(path)",
+              1
+          )
+          body = body.replace(
+              'raise SystemExit(f"{path}: expected one exact match, found {count}")',
+              'raise SystemExit(f"replace #{replace_counter} {path}: expected one exact match, found {count}; old={old[:120]!r}")',
+              1
+          )
           Path('/tmp/prebeta_patch.py').write_text(body)
           PY
           python3 /tmp/prebeta_patch.py
