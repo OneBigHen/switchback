@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import {
   ensureFixtureStart,
   fillFixtureFinish,
@@ -59,6 +59,17 @@ test("10 planner cycles keep measurable browser resources bounded", async ({ pag
     await expect(page.getByRole("region", { name: "Route choices" })).toBeHidden({ timeout: 15_000 })
   }
 
+  // Persist the completed measurements before evaluating bounds so a failing
+  // resource assertion still leaves useful evidence in CI. Clean checkouts do
+  // not contain artifacts/quality, so create it explicitly instead of relying
+  // on a developer workspace to have done so already.
+  await mkdir("artifacts/quality", { recursive: true })
+  await writeFile("artifacts/quality/memory-soak.json", `${JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    scenario: "planner-cycle-v2",
+    cycles: samples
+  }, null, 2)}\n`)
+
   const measured = samples.filter((sample): sample is BrowserMemorySample & { usedJSHeapSize: number } => sample.usedJSHeapSize != null)
   if (measured.length >= 2) {
     const baseline = measured[0]!.usedJSHeapSize
@@ -66,10 +77,4 @@ test("10 planner cycles keep measurable browser resources bounded", async ({ pag
     expect(settled).toBeLessThanOrEqual(Math.max(baseline * 1.2, baseline + 10 * 1024 * 1024))
   }
   if (samples.length > 0) expect(new Set(samples.map((sample) => sample.mapInstances))).toEqual(new Set([1]))
-
-  await writeFile("artifacts/quality/memory-soak.json", `${JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    scenario: "planner-cycle-v2",
-    cycles: samples
-  }, null, 2)}\n`)
 })
