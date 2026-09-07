@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test"
 import { writeFile } from "node:fs/promises"
-import { installPlannerServices, installRouteApi, openPlannerEditor } from "./helpers/planner-fixtures"
+import {
+  ensureFixtureStart,
+  fillFixtureFinish,
+  installPlannerServices,
+  installRouteApi,
+  openPlannerEditor
+} from "./helpers/planner-fixtures"
 
 interface BrowserMemorySample {
   cycle: number
@@ -28,28 +34,29 @@ test("10 planner cycles keep measurable browser resources bounded", async ({ pag
   await installPlannerServices(page)
   await installRouteApi(page)
   await page.goto("/")
-  await openPlannerEditor(page)
 
   const samples: BrowserMemorySample[] = []
   const cycleCount = Number(process.env.SWITCHBACK_MEMORY_SOAK_CYCLES ?? 10)
   for (let cycle = 1; cycle <= cycleCount; cycle += 1) {
+    console.log(`memory-soak cycle ${cycle}/${cycleCount}: open V2 route editor`)
+    await openPlannerEditor(page)
+    await ensureFixtureStart(page)
+    await fillFixtureFinish(page)
+
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: plan`)
-    if (cycle === 1) await page.getByRole("button", { name: "Loop ride" }).click()
-    console.log(`memory-soak cycle ${cycle}/${cycleCount}: click plan`)
-    await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
-    console.log(`memory-soak cycle ${cycle}/${cycleCount}: click profile`)
-    await page.getByRole("button", { name: "Twisty", exact: true }).click()
+    const planRoute = page.getByRole("button", { name: "Plan route" })
+    await expect(planRoute).toBeEnabled()
+    await planRoute.click()
+
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: wait result`)
-    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
+    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible({ timeout: 30_000 })
     samples.push(await sampleBrowserMemory(page, cycle))
+
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: clear`)
-    await page.getByRole("button", { name: "Clear route" }).click()
-    await page.getByRole("button", { name: "Loop ride" }).click()
-    await page.getByRole("button", { name: "Set start on map" }).click()
-    const mapBox = await page.locator(".map-stage").boundingBox()
-    expect(mapBox).not.toBeNull()
-    await page.mouse.click(mapBox!.x + mapBox!.width * 0.78, mapBox!.y + mapBox!.height * 0.5)
-    await expect(page.getByRole("button", { name: "Plan a 2-hour loop" })).toBeEnabled()
+    const clearRoute = page.getByRole("button", { name: "Clear route" })
+    await expect(clearRoute).toBeVisible({ timeout: 15_000 })
+    await clearRoute.click()
+    await expect(page.getByRole("region", { name: "Route choices" })).toBeHidden({ timeout: 15_000 })
   }
 
   const measured = samples.filter((sample): sample is BrowserMemorySample & { usedJSHeapSize: number } => sample.usedJSHeapSize != null)
@@ -62,7 +69,7 @@ test("10 planner cycles keep measurable browser resources bounded", async ({ pag
 
   await writeFile("artifacts/quality/memory-soak.json", `${JSON.stringify({
     generatedAt: new Date().toISOString(),
-    scenario: "planner-cycle",
+    scenario: "planner-cycle-v2",
     cycles: samples
   }, null, 2)}\n`)
 })
