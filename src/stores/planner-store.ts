@@ -632,10 +632,12 @@ export const usePlannerStore = create<PlannerState>()(
       /**
        * Cancel means exactly one thing: "drop the change I am in the middle
        * of and put my last usable ride back". It restores the committed
-       * intent as one undoable revision (so a mis-tap is recoverable), clears
-       * the failed-update state, and leaves the displayed route untouched —
-       * aborting the in-flight request is the session controller's half of
-       * the same command.
+       * intent while keeping the abandoned attempt as the final undoable
+       * history entry. Because the displayed route was never recomputed,
+       * Cancel restores the original committed revision identity too; this
+       * keeps map/editor/Start CTA readiness aligned with the route actually
+       * on screen while stale attempted requests remain fenced by their
+       * different identity.
        */
       cancelRideUpdate: () => set((state) => {
         const committed = state.committedRide
@@ -650,20 +652,24 @@ export const usePlannerStore = create<PlannerState>()(
         if (!committed || committed.identity === state.rideHistory.identity) return settled
         const restored = applyIntentEdit(state, committed.intent, "Cancelled ride change")
         if (Object.keys(restored).length === 0) {
-          // The live intent already equals the route's intent (for example,
-          // undo then redo back to the committed ride). Adopt the current
-          // revision so identity-based readiness cannot remain stale.
-          return { ...settled, committedRide: historyOf(state) }
+          // The live intent already equals the retained route's intent. The
+          // route still belongs to its original committed revision.
+          return { ...settled, committedRide: committed }
         }
-        // Restoring a committed intent is deliberately a *new* linear-history
-        // revision so Undo can recover the cancelled edit and old async results
-        // remain fenced out. The retained route answers the restored intent,
-        // so atomically adopt that new revision as the route's committed ride.
-        const restoredState = { ...state, ...restored } as PlannerState
+        const projectedHistory = restored.rideHistory
+        if (!projectedHistory) return { ...settled, committedRide: committed }
+        const lastChange = projectedHistory.lastChange
+          ? { ...projectedHistory.lastChange, resultingIdentity: committed.identity }
+          : null
         return {
           ...restored,
+          rideHistory: {
+            ...projectedHistory,
+            identity: committed.identity,
+            lastChange
+          },
           ...settled,
-          committedRide: historyOf(restoredState)
+          committedRide: committed
         }
       }),
       selectRoute: (selectedRouteId) => set({ selectedRouteId, selectionSource: "user" as const }),
