@@ -43,7 +43,7 @@ for (const viewport of VIEWPORTS) {
     // name. This is a layout test, so take the first offered route rather than
     // binding to a role assignment that scoring is free to change.
     await page.getByRole("button", { name: /^Select / }).first().click()
-    await page.getByRole("button", { name: /Show route details/i }).click()
+    await page.getByRole("button", { name: /^Details for / }).click()
     await expect(page.locator("#route-preparation")).toBeVisible()
 
     // "One scroll region" is a containment claim, not a claim about where the
@@ -102,7 +102,7 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator(".route-selection-identity")).toHaveCount(0)
     await page.getByRole("button", { name: "Expand planner" }).click()
     await expectSelectedIdentityInScroll("expand")
-    await page.getByRole("button", { name: /Show route details/i }).click()
+    await page.getByRole("button", { name: /^Details for / }).click()
     await expect(page.locator("#route-preparation")).toBeVisible()
 
     const entry = await page.evaluate(() => {
