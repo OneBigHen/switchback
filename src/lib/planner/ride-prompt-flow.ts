@@ -1,5 +1,5 @@
 import type { RideIntent } from "@/lib/ai/ride-intent"
-import { selectPreferredPlace, type GeocoderBias, type PlaceResult } from "@/lib/geocoding/photon"
+import type { GeocoderBias, PlaceResult } from "@/lib/geocoding/photon"
 import type { Waypoint } from "@/lib/routing/types"
 
 const DEFAULT_SEARCH_BIAS: GeocoderBias = { lat: 40.2732, lon: -76.8867 }
@@ -46,18 +46,60 @@ function resolveHome(home: Waypoint | null | undefined): Waypoint {
   return { ...home, label: "Home" }
 }
 
+function normalizePlaceText(value: string): string {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+}
+
+function queryExplicitlyScopesPlace(query: string, place: PlaceResult): boolean {
+  if (query.includes(",")) return true
+  const normalizedQuery = normalizePlaceText(query)
+  const normalizedName = normalizePlaceText(place.name)
+  if (!normalizedQuery || normalizedQuery === normalizedName) return false
+  return [place.region, place.country]
+    .map(normalizePlaceText)
+    .filter(Boolean)
+    .some((scope) => normalizedQuery.includes(scope))
+}
+
+function distanceInKilometers(from: GeocoderBias, to: GeocoderBias): number {
+  const earthRadiusKm = 6_371
+  const toRadians = (degrees: number) => degrees * Math.PI / 180
+  const latitudeDelta = toRadians(to.lat - from.lat)
+  const longitudeDelta = toRadians(to.lon - from.lon)
+  const fromLatitude = toRadians(from.lat)
+  const toLatitude = toRadians(to.lat)
+  const haversine = Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(longitudeDelta / 2) ** 2
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function selectRidePromptPlace(
+  query: string,
+  places: PlaceResult[],
+  bias: GeocoderBias
+): PlaceResult | undefined {
+  const providerWinner = places[0]
+  if (!providerWinner) return undefined
+
+  // A rider who names a scope ("Austin, Texas" / "Paris, France") gets that
+  // provider-resolved place even when it is far from the current route. A bare
+  // ambiguous name is different: resolve it around the origin that will
+  // actually be routed instead of silently sending the rider to a distant
+  // namesake just because the provider happened to rank that one first.
+  if (queryExplicitlyScopesPlace(query, providerWinner)) return providerWinner
+
+  return [...places].sort((left, right) =>
+    distanceInKilometers(bias, left) - distanceInKilometers(bias, right)
+  )[0]
+}
+
 async function resolvePlace(
   query: string,
   bias: GeocoderBias,
   search: RidePromptWaypointOptions["search"]
 ): Promise<Waypoint> {
   const places = await search(query, bias)
-  // Prefer the provider's best local match near the actual route origin, but
-  // never turn an explicit global result into a nearby namesake. The shared
-  // selector preserves an out-of-coverage provider winner (for example Austin,
-  // Texas) while resolving genuinely local ambiguity (for example Carlisle,
-  // PA vs NJ) from the rider's route origin.
-  const place = selectPreferredPlace(places, bias)
+  const place = selectRidePromptPlace(query, places, bias)
   if (!place) {
     throw new Error(`I understood the ride, but could not find “${query}”.`)
   }
@@ -68,8 +110,8 @@ async function resolvePlace(
  * Resolve the geographic part of a free-form ride request independently from
  * React and planner-store mutations. Explicit origins win, fresh browsers ask
  * for location before destination search, and every search is biased from the
- * origin that will actually be routed. Provider ranking remains authoritative
- * for explicit global matches so the bias cannot silently replace a named place.
+ * origin that will actually be routed. Geographically qualified place names
+ * remain authoritative while bare ambiguous names resolve around that origin.
  */
 export async function resolveRidePromptWaypoints(
   options: RidePromptWaypointOptions
