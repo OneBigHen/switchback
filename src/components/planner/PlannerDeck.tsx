@@ -450,7 +450,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       )}
 
       <div className="planner-action-dock" aria-label="Route actions">
-        {!minimized && selectedRoute ? (
+        {!minimized && selectedRoute && !editing ? (
           <button
             type="button"
             className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
@@ -465,21 +465,21 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           </button>
         ) : null}
 
-        {!minimized && bikeProfileMismatch ? (
+        {!minimized && !editing && bikeProfileMismatch ? (
           <span className="planner-dock-mismatch" role="status">
             <WarningCircle aria-hidden="true" weight="fill" />
             Profile mismatch
           </span>
         ) : null}
 
-        {!minimized && selectedRoute && hasUnappliedChange ? (
+        {!minimized && !editing && selectedRoute && hasUnappliedChange ? (
           <span className="planner-dock-mismatch" role="status">
             <WarningCircle aria-hidden="true" weight="fill" />
             Previous route shown · changes not applied
           </span>
         ) : null}
 
-        {!minimized && selectedRoute ? (
+        {!minimized && selectedRoute && !editing ? (
           <button
             type="button"
             className="clear-route-button"
