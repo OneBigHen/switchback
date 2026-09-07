@@ -1487,7 +1487,7 @@ message: failure?.message ?? "The rough route could not be routed."
           setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} was added to this ride.` })
           if (outcome === "applied") replanAfterIntentEdit()
         }}
-        onRouteSculptCommit={() => handlePlan()}
+        onRouteSculptCommit={() => { void handlePlan() }}
           />
         </MapCanvas>
 

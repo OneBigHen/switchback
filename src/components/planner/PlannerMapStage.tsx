@@ -22,6 +22,7 @@ import {
   shouldShowBaseMapFailure
 } from "@/lib/client/map-layers"
 import type { MapStageProps } from "./map-stage-props"
+import type { Waypoint } from "@/lib/routing/types"
 import { resolveLightPreset, resolveMapExperience } from "@/lib/client/map-experience"
 import { useDayPhase } from "@/lib/client/day-phase"
 import type { PlannerMap, PlannerMapRenderer } from "./planner-map-renderer"
