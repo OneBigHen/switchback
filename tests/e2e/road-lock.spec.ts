@@ -183,7 +183,7 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   })
 
   await page.goto(startUrl)
-  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
   await openRouteEditor(page)
   await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toHaveAttribute("aria-expanded", "true")
