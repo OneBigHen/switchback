@@ -50,6 +50,15 @@ async function assertPanelVisible(locator: Locator, minHeight = 200): Promise<vo
   expect(box!.height).toBeGreaterThan(minHeight)
 }
 
+async function settleVisualFrame(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts.ready
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
+  })
+}
+
 async function expectPlanReady(page: Page): Promise<void> {
   await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
@@ -144,10 +153,17 @@ for (const viewport of VIEWPORTS) {
     test("Settings screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Settings", exact: true }).click()
+      const settingsTab = page.getByRole("button", { name: "Settings", exact: true })
+      await settingsTab.click()
       const panel = page.getByRole("main", { name: "Settings destination" })
       await assertPanelVisible(panel)
       await expect(page.getByRole("region", { name: "Settings" })).toBeVisible()
+      await expect(settingsTab).toHaveClass(/is-active/)
+      // Chromium can briefly retain the previous fixed-navigation paint layer
+      // while the destination panel swaps. Two animation frames after the
+      // active tab and fonts settle forces a real composed frame without
+      // weakening or masking the navigation visual contract.
+      await settleVisualFrame(page)
       await expect(page).toHaveScreenshot(`profile-${viewport.name}.png`, screenshotOptions(page))
     })
 
