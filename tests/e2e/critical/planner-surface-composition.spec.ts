@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { pinVisualClock, settleMapDelay, uxState } from "../helpers/ux-state-fixtures"
+import { ensureFixtureStart, fillFixtureFinish, installPlannerServices, openPlannerEditor } from "../helpers/planner-fixtures"
 
 /**
  * The action dock and the planner scroll have collided in both directions:
@@ -123,3 +124,39 @@ for (const viewport of BANNER_VIEWPORTS) {
     expect(result!.collisions, "banners clear the map controls, layer control and planner surfaces").toEqual([])
   })
 }
+
+/**
+ * A failed route request renders its explanation below the expanded Ride
+ * options panel. Without help that lands roughly a thousand pixels under the
+ * fold, so tapping Plan route and having it fail looked like nothing happened.
+ */
+test("a failed route plan shows the rider why, without hunting for it", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await pinVisualClock(page)
+  await installPlannerServices(page)
+  await page.goto("/")
+  await openPlannerEditor(page)
+  await ensureFixtureStart(page)
+  await fillFixtureFinish(page)
+  await page.route("**/api/routes", async (route) => {
+    await route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Routing provider unavailable" })
+    })
+  })
+  await page.getByRole("button", { name: "Plan route" }).click()
+
+  const alert = page.getByRole("alert").filter({ hasText: "Route unavailable" })
+  await expect(alert).toBeVisible()
+  await expect(alert).toBeInViewport()
+
+  const inScrollOwner = await alert.evaluate((node) => {
+    const scroll = node.closest<HTMLElement>(".planner-scroll")
+    if (!scroll) return false
+    const box = node.getBoundingClientRect()
+    const scrollBox = scroll.getBoundingClientRect()
+    return box.top >= scrollBox.top - 1 && box.bottom <= scrollBox.bottom + 1
+  })
+  expect(inScrollOwner, "the failure explanation is inside the planner scroll viewport").toBe(true)
+})

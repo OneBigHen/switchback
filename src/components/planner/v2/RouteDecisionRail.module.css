@@ -68,6 +68,15 @@
   .rail::-webkit-scrollbar {
     display: none;
   }
+
+  /* A single route has nothing to peek at, so the 78% card plus a 14% gutter
+     just left the one card narrow and pushed off-centre -- it read as clipped
+     against the sheet edge. Give it the full width when it is alone. */
+  .rail:not(:has(> :nth-child(2))) {
+    grid-auto-columns: minmax(100%, 1fr);
+    overflow-x: hidden;
+    padding-right: 1px;
+  }
 }
 
 @media (min-width: 761px) and (max-width: 1100px) {
@@ -92,4 +101,10 @@
     scrollbar-width: none;
   }
   .rail::-webkit-scrollbar { display: none; }
+
+  .rail:not(:has(> :nth-child(2))) {
+    grid-auto-columns: minmax(100%, 1fr);
+    overflow-x: hidden;
+    padding-right: 1px;
+  }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import type { PlannedRoute } from "@/lib/routing/types"
 import {
   clearRoutePreviewIfInvalid,
@@ -28,10 +28,32 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeKey])
 
+  // Results are inserted into a scroll owner the rider has already scrolled to
+  // the bottom of while filling in the editor, so a new candidate set landed
+  // 78-298px above the fold on every phone size: the rider asked for routes,
+  // got them, and saw none of them. Bring the rack itself into view, the same
+  // way the legacy rack re-anchors its selected identity.
+  const surfaceRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const surface = surfaceRef.current
+      const scroll = surface?.closest<HTMLElement>(".planner-scroll")
+      if (!surface || !scroll) return
+      const surfaceBox = surface.getBoundingClientRect()
+      const scrollBox = scroll.getBoundingClientRect()
+      if (surfaceBox.top >= scrollBox.top && surfaceBox.top < scrollBox.bottom) return
+      scroll.scrollTo({
+        top: Math.max(0, scroll.scrollTop + surfaceBox.top - scrollBox.top - 8),
+        behavior: "auto"
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [routeKey])
+
   if (routes.length === 0) return null
 
   return (
-    <section className={styles.surface} role="region" aria-label="Route choices">
+    <section ref={surfaceRef} className={styles.surface} role="region" aria-label="Route choices">
       <header className={styles.header}>
         <div>
           <span>Route options</span>

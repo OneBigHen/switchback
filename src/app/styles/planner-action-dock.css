@@ -448,12 +448,14 @@
   grid-row: 2;
 }
 
-/* A short landscape viewport is the tightest case: the panel is both narrow
-   (~42vw) and short, and the full-height dock overflowed it, clipping the
-   Start CTA off the bottom of the screen. The stack is still the right shape
-   there -- three columns crush the CTA label -- so keep it and compact the
-   rows instead. 44px is the floor: still a legal touch target. */
-@media (orientation: landscape) and (max-height: 520px) {
+/* Short viewports are the tightest case. In landscape the panel is both
+   narrow (~42vw) and short, and the full-height dock overflowed it, clipping
+   the Start CTA off the bottom of the screen. In a 568px-tall portrait the
+   half-detent sheet is 284px and a full-height dock took ~156px of it,
+   leaving 88px of route results. The stack is still the right shape -- three
+   columns crush the CTA label -- so keep it and compact the rows instead.
+   44px is the floor: still a legal touch target. */
+@media (max-height: 620px) {
   .planner-action-dock {
     min-height: 0;
     gap: 7px;

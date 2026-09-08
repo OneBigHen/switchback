@@ -1,7 +1,7 @@
 "use client"
 
 import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
-import { useCallback, useEffect, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
@@ -189,6 +189,26 @@ export function PlanComposer({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [cancelPlacement, placementActive])
 
+  // The error renders below the expanded Ride options panel, which puts it
+  // roughly a thousand pixels under the fold: tapping Plan route and having it
+  // fail looked like nothing happened at all. Bring it into the planner's one
+  // scroll owner so the rider reads why.
+  const errorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!error) return
+    const node = errorRef.current
+    const scroll = node?.closest<HTMLElement>(".planner-scroll")
+    if (!node || !scroll) return
+    const nodeBox = node.getBoundingClientRect()
+    const scrollBox = scroll.getBoundingClientRect()
+    if (nodeBox.top >= scrollBox.top && nodeBox.bottom <= scrollBox.bottom) return
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    scroll.scrollTo({
+      top: scroll.scrollTop + nodeBox.top - scrollBox.top - 12,
+      behavior: reduceMotion ? "auto" : "smooth"
+    })
+  }, [error])
+
   return (
     <div className="plan-v2" data-plan-mode={planMode} data-editing={editing ? "true" : "false"}>
       {providerHealth ? <ProviderHealthNotice health={providerHealth} onRetry={onRetryProviderHealth} /> : null}
@@ -330,7 +350,7 @@ export function PlanComposer({
       </div>
 
       {error ? (
-        <div className="plan-v2__error" role="alert">
+        <div ref={errorRef} className="plan-v2__error" role="alert">
           <strong>{error.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
           <p>{error.message}</p>
         </div>

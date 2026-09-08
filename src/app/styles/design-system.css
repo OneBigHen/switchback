@@ -499,6 +499,12 @@ h6,
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* Two fixed columns left the editor's lone "Plan route" CTA at half width
+     with a dead column beside it. A single action owns the whole row. */
+  .planner-shell .sb-bottom-sheet > .planner-action-dock:not(:has(> * ~ *)) > * {
+    grid-column: 1 / -1;
+  }
+
   .planner-shell .sb-bottom-sheet.is-minimized .planner-action-dock {
     padding-bottom: max(13px, env(safe-area-inset-bottom));
   }

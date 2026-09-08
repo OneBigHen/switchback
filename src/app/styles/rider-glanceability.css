@@ -483,3 +483,15 @@
     font-size: 12px;
   }
 }
+
+/* Four stats in a three-column phone grid dropped route progress into a lone
+   114px cell with 228px of dead space beside it, and wrapped its label across
+   two lines against the divider. It reads as a summary of the row above, so
+   give it that row. */
+@media (max-width: 760px) {
+  .ride-hud:not(.free-ride-hud) .ride-telemetry > .ride-progress-readout {
+    grid-column: 1 / -1;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
