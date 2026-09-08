@@ -1,14 +1,17 @@
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
 import type { Coordinate as RouteCoordinate } from "@/lib/routing/types"
-import { calculateRideFollowInsets } from "./workspace/map-viewport-insets"
 import type {
   FollowCameraMap,
   NavigationCameraController
 } from "@/lib/client/navigation-camera-controller"
 import { usePlannerStore } from "@/stores/planner-store"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
-import { calculateMapViewportInsets, type WorkspaceMapContext } from "./workspace/map-viewport-insets"
+import {
+  calculateMapViewportInsets,
+  resolveRideFollowInsets,
+  resolveWorkspaceMapInsets
+} from "./workspace/map-viewport-insets"
 import type { ContextSheetDetent } from "./workspace/context-sheet-state"
 
 interface RouteViewportProps {
@@ -31,26 +34,10 @@ function routeFitInsets(
   map: Partial<Pick<MapLibreMap, "getContainer">>,
   props: RouteViewportProps
 ): ReturnType<typeof calculateMapViewportInsets> {
-  const phoneViewport = typeof window.matchMedia === "function"
-    && window.matchMedia("(max-width: 760px)").matches
-  const sheetDetent = props.sheetDetent
-    ?? usePlannerStore.getState().sheetDetentOverride
-    ?? (phoneViewport ? "peek" : "half")
-  const container = typeof map.getContainer === "function" ? map.getContainer() : null
-  // MapLibre validates fitBounds padding against its own drawable canvas, not
-  // the browser window. Mobile app chrome and context sheets can make those
-  // dimensions differ substantially, especially in short landscape. Keep the
-  // window fallback for lightweight map adapters and unit-test doubles that
-  // intentionally implement only fitBounds.
-  const viewportWidthPx = container?.clientWidth || window.innerWidth
-  const viewportHeightPx = container?.clientHeight || window.innerHeight
-  const context: WorkspaceMapContext = {
-    viewportWidthPx,
-    viewportHeightPx,
+  return resolveWorkspaceMapInsets(map, {
     mode: props.rideMode ? "ride" : "planning",
-    sheetDetent
-  }
-  return calculateMapViewportInsets(context)
+    sheetDetentOverride: props.sheetDetent ?? usePlannerStore.getState().sheetDetentOverride
+  })
 }
 
 export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {
@@ -84,11 +71,7 @@ export function followNavigationFrame(
   frame: NavigationFrame,
   options: { routeGeometry?: readonly RouteCoordinate[]; immediate?: boolean } = {}
 ): boolean {
-  const padding = calculateRideFollowInsets({
-    viewportWidthPx: window.innerWidth,
-    viewportHeightPx: window.innerHeight,
-    mode: "ride"
-  })
+  const padding = resolveRideFollowInsets(map)
   const context = { padding, routeGeometry: options.routeGeometry }
   if (options.immediate) {
     controller.recenter(map as unknown as FollowCameraMap, frame, context)

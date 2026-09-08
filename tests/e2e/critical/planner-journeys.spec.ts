@@ -77,7 +77,7 @@ test("Quick Layers keeps primary map choices bounded while Advanced preserves th
   await page.getByRole("button", { name: "Open map layers" }).click()
   const quick = page.getByRole("region", { name: "Quick map layers" })
   await expect(quick).toBeVisible()
-  await expect(quick.getByRole("radio", { name: "Standard" })).toBeVisible()
+  await expect(quick.getByRole("radio", { name: "Road" })).toBeVisible()
   await expect(quick.getByRole("radio", { name: "Terrain" })).toBeVisible()
   await expect(quick.getByRole("checkbox")).toHaveCount(4)
   await expect(quick.getByRole("checkbox", { name: "Fuel" })).toHaveCount(0)

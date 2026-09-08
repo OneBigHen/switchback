@@ -217,3 +217,58 @@ export function calculateRideFollowInsets(ctx: WorkspaceMapContext): MapViewport
     left: base.left
   }
 }
+
+/**
+ * The renderer's own drawable canvas. Both MapLibre and Mapbox validate
+ * `fitBounds` padding against this, not against the browser window, and mobile
+ * app chrome plus context sheets can make the two differ substantially in short
+ * landscape.
+ */
+export interface MapViewportMeasurable {
+  getContainer?(): { clientWidth: number; clientHeight: number } | null | undefined
+}
+
+export interface WorkspaceMapInsetOptions {
+  mode?: WorkspaceMapMode
+  /** The rider's pinned detent, when the workspace has one. */
+  sheetDetentOverride?: ContextSheetDetent | null
+}
+
+/**
+ * The one measurement of the map's visible region.
+ *
+ * Every camera fit reads this: route fitting, sketch fitting, follow mode.
+ * Deriving the size from `window` instead means the preserved geography and the
+ * polyline the rider drew on screen disagree once the camera moves, so there is
+ * deliberately no second way to ask the question. The window fallback exists
+ * only for lightweight map doubles that implement `fitBounds` and nothing else.
+ */
+export function measureMapViewport(
+  map: MapViewportMeasurable | null | undefined
+): { viewportWidthPx: number; viewportHeightPx: number } {
+  const container = map && typeof map.getContainer === "function" ? map.getContainer() : null
+  return {
+    viewportWidthPx: container?.clientWidth || window.innerWidth,
+    viewportHeightPx: container?.clientHeight || window.innerHeight
+  }
+}
+
+export function resolveWorkspaceMapInsets(
+  map: MapViewportMeasurable | null | undefined,
+  options: WorkspaceMapInsetOptions = {}
+): MapViewportInsets {
+  const phoneViewport = typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 760px)").matches
+  return calculateMapViewportInsets({
+    ...measureMapViewport(map),
+    mode: options.mode ?? "planning",
+    sheetDetent: options.sheetDetentOverride ?? (phoneViewport ? "peek" : "half")
+  })
+}
+
+/** The follow camera reads the same canvas every other fit reads. */
+export function resolveRideFollowInsets(
+  map: MapViewportMeasurable | null | undefined
+): MapViewportInsets {
+  return calculateRideFollowInsets({ ...measureMapViewport(map), mode: "ride" })
+}

@@ -106,9 +106,6 @@ export function provenanceSummary(): ProvenanceSummary {
 const VALID_DATA_CATEGORIES: Set<string> = new Set([
   "road-geometry",
   "road-surface",
-  "basemap-imagery",
-  "basemap-topo",
-  "basemap-terrain",
   "access-boundary",
   "access-mvum",
   "conditions-construction",
@@ -138,7 +135,7 @@ export function verifyProvenance(): ProvenanceVerification {
 
   const allCatalogIds = new Set(layerCatalog.map((layer) => layer.id))
   const allDefinedIds = new Set<RiderLayerId>([
-    "curvature", "unpaved", "topo", "satellite", "terrain",
+    "curvature", "unpaved",
     "public-land", "private-land", "mvum", "closures", "road-controls",
     "weather", "fuel", "food", "camping", "lodging", "repair",
     "cell-coverage"

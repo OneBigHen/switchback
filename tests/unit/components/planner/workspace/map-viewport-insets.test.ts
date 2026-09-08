@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import {
   MAP_VIEWPORT_GUTTER_PX,
   calculateMapViewportInsets,
-  calculateNavigationFollowInsets
+  calculateNavigationFollowInsets,
+  calculateRideFollowInsets,
+  measureMapViewport,
+  resolveRideFollowInsets,
+  resolveWorkspaceMapInsets
 } from "@/components/planner/workspace/map-viewport-insets"
 import { CONTEXT_SHEET_PEEK_HEIGHT_PX } from "@/components/planner/workspace/context-sheet-state"
 
@@ -132,5 +136,63 @@ describe("follow-camera breakpoint parity", () => {
       .toEqual({ top: 150, right: 88, bottom: 100, left: 430 })
     expect(calculateMapViewportInsets({ ...viewport, mode: "planning" }))
       .toEqual({ top: 90, right: 34, bottom: 450, left: 34 })
+  })
+})
+
+describe("one map-visible-region measurement", () => {
+  const mapWithCanvas = (clientWidth: number, clientHeight: number) => ({
+    getContainer: () => ({ clientWidth, clientHeight })
+  })
+
+  beforeEach(() => {
+    // A phone in landscape whose browser chrome leaves the map canvas much
+    // shorter than the window reports.
+    window.innerWidth = 844
+    window.innerHeight = 390
+    window.matchMedia = ((query: string) => ({
+      matches: /max-width:\s*760px/.test(query) ? false : false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {}
+    })) as unknown as typeof window.matchMedia
+  })
+
+  it("measures the map canvas, not the browser window", () => {
+    expect(measureMapViewport(mapWithCanvas(844, 320)))
+      .toEqual({ viewportWidthPx: 844, viewportHeightPx: 320 })
+  })
+
+  it("falls back to the window only for a map double with no container", () => {
+    expect(measureMapViewport({}))
+      .toEqual({ viewportWidthPx: 844, viewportHeightPx: 390 })
+    expect(measureMapViewport(null))
+      .toEqual({ viewportWidthPx: 844, viewportHeightPx: 390 })
+  })
+
+  it("gives route fitting and sketch fitting identical insets for one canvas", () => {
+    // The sketch's preserved geography and the polyline drawn on screen must
+    // agree after the camera moves, which they cannot if the two callers
+    // measure different rectangles.
+    const map = mapWithCanvas(844, 320)
+    expect(resolveWorkspaceMapInsets(map, { sheetDetentOverride: "half" }))
+      .toEqual(resolveWorkspaceMapInsets(map, { mode: "planning", sheetDetentOverride: "half" }))
+    expect(resolveWorkspaceMapInsets(map))
+      .toEqual(calculateMapViewportInsets({
+        viewportWidthPx: 844,
+        viewportHeightPx: 320,
+        mode: "planning",
+        sheetDetent: "half"
+      }))
+  })
+
+  it("keeps the follow camera on the same canvas as every other fit", () => {
+    const map = mapWithCanvas(844, 320)
+    expect(resolveRideFollowInsets(map)).toEqual(
+      calculateRideFollowInsets({ viewportWidthPx: 844, viewportHeightPx: 320, mode: "ride" })
+    )
+    // The window would have produced a different short-landscape verdict.
+    expect(resolveRideFollowInsets(map)).not.toEqual(
+      calculateRideFollowInsets({ viewportWidthPx: 844, viewportHeightPx: 390, mode: "ride" })
+    )
   })
 })

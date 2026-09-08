@@ -23,7 +23,7 @@ import {
 } from "@/lib/client/map-layers"
 import type { MapStageProps } from "./map-stage-props"
 import type { Waypoint } from "@/lib/routing/types"
-import { resolveLightPreset, resolveMapExperience } from "@/lib/client/map-experience"
+import { resolveLightPreset, resolveMapPresentation } from "@/lib/client/map-experience"
 import { useDayPhase } from "@/lib/client/day-phase"
 import type { PlannerMap, PlannerMapRenderer } from "./planner-map-renderer"
 import {
@@ -41,7 +41,7 @@ import { setMapRuntimeProbe, setRouteRuntimeMetrics } from "@/lib/client/runtime
 import { usePlannerStore } from "@/stores/planner-store"
 import { useNavigationFrame } from "@/stores/navigation-store"
 import { fitSelectedRoute, followNavigationFrame } from "./map-stage-navigation"
-import { calculateMapViewportInsets } from "./workspace/map-viewport-insets"
+import { resolveWorkspaceMapInsets } from "./workspace/map-viewport-insets"
 import { NavigationCameraController } from "@/lib/client/navigation-camera-controller"
 import {
   addRiderMapLayers,
@@ -195,8 +195,8 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   // Auto lighting follows the route start's own day phase, not the browser's
   // clock alone; a fallback keeps the map lit before a start exists.
   const dayPhase = useDayPhase(props.start?.lat ?? 40.2732, props.start?.lon ?? -76.8867)
-  const experience = resolveMapExperience({
-    experience: props.mapExperience,
+  const experience = resolveMapPresentation({
+    preset: props.mapPreset,
     // Explore is the map before a route exists; once routes are on the map
     // they are what the rider is reading, so the profile steps back.
     surface: props.rideMode ? "ride" : props.routes.length > 0 ? "plan" : "explore",
@@ -240,14 +240,10 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   const fitSketchTrace = (trace: Waypoint[]) => {
     const map = mapRef.current
     if (!map || trace.length < 2) return
-    const phoneViewport = typeof window.matchMedia === "function"
-      && window.matchMedia("(max-width: 760px)").matches
-    const padding = calculateMapViewportInsets({
-      viewportWidthPx: window.innerWidth,
-      viewportHeightPx: window.innerHeight,
-      mode: "planning",
-      sheetDetent: sheetDetentOverride ?? (phoneViewport ? "peek" : "half")
-    })
+    // The same measurement route fitting uses. Reading `window` here instead
+    // let the preserved sketch geography drift from the line the rider drew,
+    // because the map canvas is not the window on a phone in landscape.
+    const padding = resolveWorkspaceMapInsets(map, { sheetDetentOverride })
     const longitudes = trace.map((point) => point.lon)
     const latitudes = trace.map((point) => point.lat)
     map.fitBounds([
@@ -1012,7 +1008,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     ready,
     styleKey,
     experience.lightPreset,
-    experience.id,
+    experience.preset,
     experience.surface,
     experience.terrain?.exaggeration,
     experience.atmosphere,
@@ -1286,7 +1282,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       ) : null}
       {!props.rideMode ? <MapStageLayerControl
         avoidMode={avoidMode}
-        mapExperience={props.mapExperience}
+        mapPreset={props.mapPreset}
         lightPreference={props.lightPreference}
         premiumExperiences={renderer.id === "mapbox"}
         riderLayers={props.riderLayers}
@@ -1307,7 +1303,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             propsRef.current.onSketchModeChange(true)
           }
         }}
-        onMapExperienceChange={props.onMapExperienceChange}
+        onMapPresetChange={props.onMapPresetChange}
         onLightPreferenceChange={props.onLightPreferenceChange}
         onRiderLayerChange={props.onRiderLayerChange}
         onMoveRiderLayer={props.onMoveRiderLayer}

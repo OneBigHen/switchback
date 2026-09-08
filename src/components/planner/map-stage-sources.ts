@@ -41,9 +41,6 @@ export function riderFeatureLayerIds(id: RiderLayerId): string[] {
   return [`switchback-${id}-fill`, `switchback-${id}-lines`, `switchback-${id}-points`]
 }
 
-export function riderRasterLayerId(id: RiderLayerId): string {
-  return `switchback-${id}-raster`
-}
 
 function riderLayerColor(id: RiderLayerId): string {
   switch (id) {
@@ -64,25 +61,6 @@ function riderLayerColor(id: RiderLayerId): string {
 }
 
 export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer) {
-  for (const definition of layerCatalog) {
-    const runtime = mapLayerRuntime(definition.id)
-    if (runtime?.kind !== "raster") continue
-    map.addSource(`switchback-${definition.id}-raster-source`, {
-      type: "raster",
-      tiles: runtime.tiles,
-      tileSize: 256,
-      attribution: runtime.attribution,
-      maxzoom: runtime.maxzoom
-    })
-    renderer.addLayer(map, {
-      id: riderRasterLayerId(definition.id),
-      type: "raster",
-      source: `switchback-${definition.id}-raster-source`,
-      layout: { visibility: "none" },
-      paint: { "raster-opacity": 1, "raster-fade-duration": 0 }
-    }, { slot: "bottom", beforeId: "switchback-route-shadow" })
-  }
-
   map.addSource(RIDER_FEATURE_SOURCE, { type: "geojson", data: emptyFeatureCollection() })
   for (const id of featureMapLayerIds) {
     const filter: ["==", string, string] = ["==", "layerId", id]
@@ -117,11 +95,7 @@ export function updateRiderMapLayerPresentation(
     const runtime = mapLayerRuntime(definition.id)
     if (!setting || !runtime) continue
     const visibility = setting.visible ? "visible" : "none"
-    if (runtime.kind === "raster") {
-      const id = riderRasterLayerId(definition.id)
-      map.setLayoutProperty(id, "visibility", visibility)
-      map.setPaintProperty(id, "raster-opacity", setting.opacity)
-    } else if (runtime.kind === "features") {
+    if (runtime.kind === "features") {
       for (const id of riderFeatureLayerIds(definition.id)) map.setLayoutProperty(id, "visibility", visibility)
       map.setPaintProperty(riderFeatureLayerIds(definition.id)[0], "fill-opacity", setting.opacity * 0.2)
       map.setPaintProperty(riderFeatureLayerIds(definition.id)[1], "line-opacity", setting.opacity)
@@ -130,7 +104,7 @@ export function updateRiderMapLayerPresentation(
   }
   for (const setting of sorted) {
     const runtime = mapLayerRuntime(setting.id)
-    const ids = runtime?.kind === "raster" ? [riderRasterLayerId(setting.id)] : runtime?.kind === "features" ? riderFeatureLayerIds(setting.id) : []
+    const ids = runtime?.kind === "features" ? riderFeatureLayerIds(setting.id) : []
     // Slot placement already keeps rider layers under the route; the move
     // only reorders them among themselves. A cross-slot `beforeId` would be
     // rejected, so the slotted renderer moves to the top of its own slot.

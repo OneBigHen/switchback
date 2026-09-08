@@ -4,12 +4,11 @@
  * state is a `MapPresetId` plus a `MapLightPreference` (ADR 0015).
  */
 import {
-  isMapExperienceId,
+  isLegacyMapExperienceId,
   isMapLightPreference,
-  legacyMapExperienceFor,
   migrateLegacyMapExperience,
   migrateLegacyMapStyle,
-  type MapExperienceId,
+  type LegacyMapExperienceId,
   type MapLightPreference
 } from "./map-experience"
 import { isMapPresetId, type MapPresetId } from "./map-preset-registry"
@@ -28,9 +27,6 @@ export type MapStyleId = LegacyMapStyleId
 export type RiderLayerId =
   | "curvature"
   | "unpaved"
-  | "topo"
-  | "satellite"
-  | "terrain"
   | "public-land"
   | "private-land"
   | "mvum"
@@ -58,9 +54,6 @@ export type FeatureLayerState = "idle" | "loading" | "ready" | "empty" | "zoom" 
 export type DataCategory =
   | "road-geometry"
   | "road-surface"
-  | "basemap-imagery"
-  | "basemap-topo"
-  | "basemap-terrain"
   | "access-boundary"
   | "access-mvum"
   | "conditions-construction"
@@ -76,7 +69,7 @@ export type DataCategory =
 export interface RiderLayerDefinition {
   id: RiderLayerId
   name: string
-  category: "base" | "roads" | "access" | "conditions" | "stops"
+  category: "roads" | "access" | "conditions" | "stops"
   status: RiderLayerStatus
   source: string
   provenance: string
@@ -113,8 +106,12 @@ export interface RiderMapPack {
   updatedAt: string
   /** Canonical map choice for packs written by Phase 1 and later. */
   preset?: MapPresetId
-  /** Compatibility-only premium-wave field for rollback readers. */
-  experience?: MapExperienceId
+  /**
+   * Rollback-only premium-wave field. It holds a `LegacyMapExperienceId`
+   * ("standard" | "terrain" | "satellite"), not a canonical preset id, so it
+   * must be validated with `isLegacyMapExperienceId` before migration.
+   */
+  experience?: LegacyMapExperienceId
   /**
    * Packs written before the premium wave carry only a legacy style. It is
    * still written so an older build can read a pack this one saved.
@@ -135,28 +132,6 @@ export interface ViewportBounds {
 export type RiderLayerRuntime =
   | { kind: "local" }
   | { kind: "features" }
-  | { kind: "raster"; tiles: string[]; attribution: string; maxzoom: number }
-
-const rasterLayerRuntimes: Partial<Record<RiderLayerId, RiderLayerRuntime>> = {
-  topo: {
-    kind: "raster",
-    tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
-    attribution: "© OpenTopoMap contributors",
-    maxzoom: 17
-  },
-  satellite: {
-    kind: "raster",
-    tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-    attribution: "Tiles © Esri",
-    maxzoom: 19
-  },
-  terrain: {
-    kind: "raster",
-    tiles: ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}"],
-    attribution: "USGS National Map",
-    maxzoom: 16
-  }
-}
 
 export const featureMapLayerIds = [
   "public-land",
@@ -177,13 +152,12 @@ const featureLayerIdSet = new Set<RiderLayerId>(featureMapLayerIds)
 
 export function mapLayerRuntime(id: RiderLayerId): RiderLayerRuntime | null {
   if (id === "curvature" || id === "unpaved") return { kind: "local" }
-  return rasterLayerRuntimes[id] ?? (featureLayerIdSet.has(id) ? { kind: "features" } : null)
+  return featureLayerIdSet.has(id) ? { kind: "features" } : null
 }
 
 /** Human-readable limits shown beside every planning layer. */
 export function riderLayerConfidence(definition: RiderLayerDefinition): string {
   if (definition.status === "planned") return "Planned layer; no map data is available yet."
-  if (rasterLayerRuntimes[definition.id]) return "Provider imagery coverage and update cadence vary by location."
   if (definition.source.startsWith("OpenStreetMap")) return "Mapped context can be incomplete; verify legal access and current conditions."
   if (definition.status === "regional") return "Regional dataset; use only inside the stated coverage area."
   return "Capability-backed data; confirm conditions before relying on it in motion."
@@ -205,30 +179,6 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
     dataCategory: "road-surface",
     freshness: "Dataset version shown by provider", coverage: "Pennsylvania",
     legend: "Brown dashed line = mapped unpaved-road survey", minZoom: PA_UNPAVED_ROADS_MIN_ZOOM
-  },
-  {
-    id: "topo", name: "Topographic base", category: "base", status: "live",
-    source: "OpenTopoMap",
-    provenance: "OpenTopoMap tile service rendering OpenStreetMap data. CC-BY-SA. Tile freshness varies by region.",
-    dataCategory: "basemap-topo",
-    freshness: "Provider tiles", coverage: "Global basemap",
-    legend: "Topographic map overlay", minZoom: 0
-  },
-  {
-    id: "satellite", name: "Satellite imagery", category: "base", status: "live",
-    source: "Esri World Imagery",
-    provenance: "Esri World Imagery tile service. Proprietary imagery with community-contributed updates. Resolution and age vary by location.",
-    dataCategory: "basemap-imagery",
-    freshness: "Provider imagery updates", coverage: "Provider coverage",
-    legend: "Satellite image overlay", minZoom: 0
-  },
-  {
-    id: "terrain", name: "Terrain and hillshade", category: "base", status: "live",
-    source: "USGS National Map",
-    provenance: "USGS National Map shaded relief tiles. Public domain. Terrain is static — does not reflect recent earthworks or trail changes.",
-    dataCategory: "basemap-terrain",
-    freshness: "Static terrain tiles", coverage: "United States",
-    legend: "Shaded relief overlay", minZoom: 8
   },
   {
     id: "public-land", name: "Protected and public land", category: "access", status: "live",
@@ -366,6 +316,26 @@ const RENAMED_LAYER_IDS: Record<string, RiderLayerId> = {
   traffic: "road-controls"
 }
 
+/**
+ * Basemap choices that used to sit in this overlay catalog. They are the map
+ * itself, not something drawn on top of it, and every one of them duplicated a
+ * canonical map preset — a rider could pick Satellite twice, from two controls,
+ * and mean two different renderers. `migrateRetiredBasemapLayer` turns a stored
+ * choice back into the preset it always meant; the layer id itself is dropped.
+ */
+const RETIRED_BASEMAP_LAYER_PRESETS: Record<string, MapPresetId> = {
+  satellite: "satellite",
+  terrain: "terrain",
+  // OpenTopoMap replaced the whole basemap, which the Standard/Standard
+  // Satellite renderer model (ADR 0015) has no place for. Terrain is the
+  // nearest canonical preset that still reads relief.
+  topo: "terrain"
+}
+
+export function migrateRetiredBasemapLayer(id: string): MapPresetId | null {
+  return RETIRED_BASEMAP_LAYER_PRESETS[id] ?? null
+}
+
 export function migrateRiderLayerId(id: string): RiderLayerId | null {
   const renamed = RENAMED_LAYER_IDS[id]
   if (renamed) return renamed
@@ -395,11 +365,26 @@ export function normalizeRiderLayerSettings(settings: readonly RiderLayerSetting
 
 export interface AppliedRiderMapPack {
   preset: MapPresetId
-  /** @deprecated Planner still consumes this until Task 5 propagation lands. */
-  experience: MapExperienceId
   lightPreference: MapLightPreference
   routeVisibility: RiderMapPack["routeVisibility"]
   layers: RiderLayerSetting[]
+}
+
+/**
+ * A pack saved before the basemap layers were retired may carry the rider's
+ * real basemap intent in its layer list rather than its preset. Satellite wins
+ * over relief when both were switched on, because imagery is the more specific
+ * request.
+ */
+function retiredBasemapPreset(pack: RiderMapPack): MapPresetId | null {
+  let relief: MapPresetId | null = null
+  for (const layer of pack.layers ?? []) {
+    if (!layer?.visible) continue
+    const preset = migrateRetiredBasemapLayer(String(layer.id))
+    if (preset === "satellite") return "satellite"
+    if (preset) relief = preset
+  }
+  return relief
 }
 
 function storedMapPackPresentation(pack: RiderMapPack): {
@@ -410,20 +395,26 @@ function storedMapPackPresentation(pack: RiderMapPack): {
     ? pack.lightPreference
     : undefined
 
+  const retiredBasemap = retiredBasemapPreset(pack)
+
   if (isMapPresetId(pack.preset)) {
-    return { preset: pack.preset, lightPreference: lightPreference ?? "auto" }
+    // The rider's explicit preset wins, except where they had also switched on
+    // a retired basemap layer that the flat Road canvas cannot express.
+    const preset = pack.preset === "road" && retiredBasemap ? retiredBasemap : pack.preset
+    return { preset, lightPreference: lightPreference ?? "auto" }
   }
 
-  if (isMapExperienceId(pack.experience)) {
+  if (isLegacyMapExperienceId(pack.experience)) {
+    const preset = migrateLegacyMapExperience(pack.experience)
     return {
-      preset: migrateLegacyMapExperience(pack.experience),
+      preset: preset === "road" && retiredBasemap ? retiredBasemap : preset,
       lightPreference: lightPreference ?? "auto"
     }
   }
 
   const legacy = migrateLegacyMapStyle(pack.mapStyle)
   return {
-    preset: legacy.preset,
+    preset: legacy.preset === "road" && retiredBasemap ? retiredBasemap : legacy.preset,
     lightPreference: lightPreference ?? legacy.lightPreference
   }
 }
@@ -441,7 +432,6 @@ export function applyRiderMapPack(
   const presentation = storedMapPackPresentation(pack)
   return {
     preset: presentation.preset,
-    experience: legacyMapExperienceFor(presentation.preset),
     lightPreference: presentation.lightPreference,
     routeVisibility: pack.routeVisibility,
     layers: source.map((layer) => overrides.get(layer.id) ?? layer)

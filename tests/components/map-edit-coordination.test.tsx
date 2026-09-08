@@ -19,7 +19,7 @@ function renderMapStage() {
       addingVia={false}
       curvatureVisible
       unpavedVisible
-      mapExperience="standard"
+      mapPreset="road"
       lightPreference="auto"
       riderLayers={[]}
       routeVisibility="standard"
@@ -28,7 +28,7 @@ function renderMapStage() {
       rideMode={false}
       onCurvatureChange={vi.fn()}
       onUnpavedChange={vi.fn()}
-      onMapExperienceChange={vi.fn()}
+      onMapPresetChange={vi.fn()}
       onLightPreferenceChange={vi.fn()}
       onRiderLayerChange={vi.fn()}
       onMoveRiderLayer={vi.fn()}
@@ -98,7 +98,7 @@ describe("map edit coordination", () => {
           addingVia={false}
           curvatureVisible
           unpavedVisible
-          mapExperience="standard"
+          mapPreset="road"
           lightPreference="auto"
           riderLayers={[]}
           routeVisibility="standard"
@@ -107,7 +107,7 @@ describe("map edit coordination", () => {
           rideMode={false}
           onCurvatureChange={vi.fn()}
           onUnpavedChange={vi.fn()}
-          onMapExperienceChange={vi.fn()}
+          onMapPresetChange={vi.fn()}
           onLightPreferenceChange={vi.fn()}
           onRiderLayerChange={vi.fn()}
           onMoveRiderLayer={vi.fn()}

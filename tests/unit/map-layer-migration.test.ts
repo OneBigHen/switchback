@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
   applyRiderMapPack,
+  layerCatalog,
+  migrateRetiredBasemapLayer,
   migrateRiderLayerId,
   normalizeRiderLayerSettings,
+  type RiderLayerId,
   type RiderMapPack
 } from "@/lib/client/map-layers"
 
@@ -111,5 +114,55 @@ describe("map pack migration", () => {
       layers: [{ id: "traffic" as never, visible: true, opacity: 0.5, order: 0 }]
     }))
     expect(applied.layers.find((layer) => layer.id === "road-controls")?.visible).toBe(true)
+  })
+})
+
+describe("retired basemap layers", () => {
+  it("no longer offers a basemap as an overlay", () => {
+    // Terrain and Satellite existed both as a map preset and as a rider layer,
+    // so the rider could choose the same idea twice from two controls that
+    // meant two different renderers.
+    for (const id of ["topo", "satellite", "terrain"]) {
+      expect(layerCatalog.some((layer) => layer.id === id)).toBe(false)
+      expect(migrateRiderLayerId(id)).toBeNull()
+    }
+  })
+
+  it("turns a stored basemap layer back into the preset it meant", () => {
+    expect(migrateRetiredBasemapLayer("satellite")).toBe("satellite")
+    expect(migrateRetiredBasemapLayer("terrain")).toBe("terrain")
+    expect(migrateRetiredBasemapLayer("topo")).toBe("terrain")
+    expect(migrateRetiredBasemapLayer("curvature")).toBeNull()
+  })
+
+  it("recovers a rider's imagery choice from a pack that stored it as a layer", () => {
+    const applied = applyRiderMapPack([], {
+      id: "pack",
+      name: "Imagery",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      preset: "road",
+      mapStyle: "clean",
+      lightPreference: "auto",
+      routeVisibility: "standard",
+      layers: [{ id: "satellite" as RiderLayerId, visible: true, opacity: 1, order: 0 }]
+    })
+    expect(applied.preset).toBe("satellite")
+    expect(applied.layers.some((layer) => String(layer.id) === "satellite")).toBe(false)
+  })
+
+  it("leaves an explicit non-road preset alone", () => {
+    const applied = applyRiderMapPack([], {
+      id: "pack",
+      name: "Terrain with old imagery layer",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      preset: "terrain",
+      mapStyle: "explorer",
+      lightPreference: "night",
+      routeVisibility: "standard",
+      layers: [{ id: "topo" as RiderLayerId, visible: true, opacity: 1, order: 0 }]
+    })
+    expect(applied.preset).toBe("terrain")
   })
 })

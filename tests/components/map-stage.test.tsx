@@ -26,14 +26,14 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible
         unpavedVisible
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[
           { id: "curvature", visible: true, opacity: 1, order: 0 },
           { id: "unpaved", visible: false, opacity: 1, order: 1 },
           { id: "closures", visible: false, opacity: 1, order: 2 },
           { id: "road-controls", visible: false, opacity: 1, order: 3 },
-          { id: "satellite", visible: false, opacity: 1, order: 4 },
+          { id: "public-land", visible: false, opacity: 1, order: 4 },
           { id: "fuel", visible: false, opacity: 1, order: 5 }
         ]}
         routeVisibility="standard"
@@ -42,7 +42,7 @@ describe("map layer controls", () => {
         rideMode={false}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={vi.fn()}
         onMoveRiderLayer={vi.fn()}
@@ -61,7 +61,7 @@ describe("map layer controls", () => {
 
     await user.click(screen.getByRole("button", { name: "Open map layers" }))
     expect(screen.getByRole("region", { name: "Quick map layers" })).toBeVisible()
-    expect(screen.getByRole("radio", { name: "Standard" })).toBeVisible()
+    expect(screen.getByRole("radio", { name: "Road" })).toBeVisible()
     expect(screen.getByRole("radio", { name: "Terrain" })).toBeVisible()
     // MapStage uses the renderer-neutral fallback; Satellite remains correctly
     // capability-gated while the premium LayersSheet contract covers it.
@@ -95,7 +95,7 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible={false}
         unpavedVisible={false}
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[]}
         routeVisibility="standard"
@@ -105,7 +105,7 @@ describe("map layer controls", () => {
         navigationFrame={navigationFrame}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={vi.fn()}
         onMoveRiderLayer={vi.fn()}
@@ -138,7 +138,7 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible
         unpavedVisible
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[]}
         routeVisibility="standard"
@@ -147,7 +147,7 @@ describe("map layer controls", () => {
         rideMode={false}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={vi.fn()}
         onMoveRiderLayer={vi.fn()}
@@ -186,7 +186,7 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible
         unpavedVisible
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[{ id: "curvature", visible: true, opacity: 0.5, order: 0 }]}
         routeVisibility="standard"
@@ -195,7 +195,7 @@ describe("map layer controls", () => {
         rideMode={false}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={onRiderLayerChange}
         onMoveRiderLayer={vi.fn()}
@@ -215,12 +215,12 @@ describe("map layer controls", () => {
     await user.click(screen.getByRole("button", { name: "Open map layers" }))
     await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
     expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
-    expect(screen.getByText(/Legend: Satellite image overlay/i)).toBeVisible()
-    expect(screen.getAllByText(/Confidence: Provider imagery coverage/i)).not.toHaveLength(0)
-    const satellite = screen.getByRole("checkbox", { name: /satellite imagery/i })
-    expect(satellite).toBeEnabled()
-    await user.click(satellite)
-    expect(onRiderLayerChange).toHaveBeenCalledWith("satellite", { visible: true })
+    expect(screen.getByText(/Legend: Green fill = mapped protected or public land/i)).toBeVisible()
+    expect(screen.getAllByText(/Confidence: Mapped context can be incomplete/i)).not.toHaveLength(0)
+    const publicLand = screen.getByRole("checkbox", { name: /protected and public land/i })
+    expect(publicLand).toBeEnabled()
+    await user.click(publicLand)
+    expect(onRiderLayerChange).toHaveBeenCalledWith("public-land", { visible: true })
     await user.type(screen.getByLabelText("New map pack name"), "Gravel scouting")
     await user.click(screen.getByRole("button", { name: "Save" }))
     expect(onSaveMapPack).toHaveBeenCalledWith("Gravel scouting")
@@ -240,7 +240,7 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible
         unpavedVisible
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[]}
         routeVisibility="standard"
@@ -249,7 +249,7 @@ describe("map layer controls", () => {
         rideMode={false}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={vi.fn()}
         onMoveRiderLayer={vi.fn()}
@@ -294,7 +294,7 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible
         unpavedVisible
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[]}
         routeVisibility="standard"
@@ -303,7 +303,7 @@ describe("map layer controls", () => {
         rideMode={false}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={vi.fn()}
         onMoveRiderLayer={vi.fn()}
@@ -343,7 +343,7 @@ describe("map layer controls", () => {
         addingVia={false}
         curvatureVisible
         unpavedVisible
-        mapExperience="standard"
+        mapPreset="road"
         lightPreference="auto"
         riderLayers={[]}
         routeVisibility="standard"
@@ -352,7 +352,7 @@ describe("map layer controls", () => {
         rideMode={false}
         onCurvatureChange={vi.fn()}
         onUnpavedChange={vi.fn()}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onLightPreferenceChange={vi.fn()}
         onRiderLayerChange={vi.fn()}
         onMoveRiderLayer={vi.fn()}

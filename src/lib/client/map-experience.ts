@@ -12,18 +12,20 @@ export type MapLightPreset = "dawn" | "day" | "dusk" | "night"
 /** What the rider chooses. `auto` follows the route-start locale's day phase. */
 export type MapLightPreference = "auto" | MapLightPreset
 
-/** Premium-wave IDs kept only while stored data and callers migrate. */
+/**
+ * The map id shape written by the premium-wave build.
+ *
+ * Compatibility containment: this type and the two functions that convert it
+ * exist only at the storage boundary (rider map packs and offline packs), so
+ * an older build can still read a pack this one wrote. No runtime concept and
+ * no component prop uses it. Delete it once no stored pack predates the
+ * canonical `preset` field.
+ */
 export type LegacyMapExperienceId = "standard" | "terrain" | "satellite"
-
-/** @deprecated Use `MapPresetId`; this alias exists only during Phase 1 migration. */
-export type MapExperienceId = LegacyMapExperienceId
 
 export type MapPresentationStyle =
   | "mapbox://styles/mapbox/standard"
   | "mapbox://styles/mapbox/standard-satellite"
-
-/** @deprecated Use `MapPresentationStyle`. */
-export type MapExperienceStyle = MapPresentationStyle
 
 export interface MapTerrainConfig {
   exaggeration: number
@@ -74,32 +76,18 @@ export interface MapPresentationInput {
   lightPreset: MapLightPreset
 }
 
-/**
- * Transitional shape used by callers not yet migrated in this phase. The
- * resolved presentation is canonical even though `id` echoes the old input.
- */
-export type MapExperienceConfig = MapPresentation & { id: LegacyMapExperienceId }
-
-/** @deprecated Use `MapPresentationInput`. */
-export interface MapExperienceInput {
-  experience: LegacyMapExperienceId
-  surface: MapSurfaceProfile
-  lightPreset: MapLightPreset
-}
-
-/** @deprecated Legacy runtime IDs; remove after planner propagation is complete. */
-export const MAP_EXPERIENCES: readonly LegacyMapExperienceId[] = ["standard", "terrain", "satellite"]
-
 export const MAP_LIGHT_PREFERENCES: readonly MapLightPreference[] =
   ["auto", "dawn", "day", "dusk", "night"]
 
-/** @deprecated Validate canonical runtime values with `isMapPresetId`. */
-export function isMapExperienceId(value: unknown): value is LegacyMapExperienceId {
-  return typeof value === "string" && (MAP_EXPERIENCES as readonly string[]).includes(value)
-}
-
 export function isMapLightPreference(value: unknown): value is MapLightPreference {
   return typeof value === "string" && (MAP_LIGHT_PREFERENCES as readonly string[]).includes(value)
+}
+
+const LEGACY_MAP_EXPERIENCE_IDS: readonly LegacyMapExperienceId[] = ["standard", "terrain", "satellite"]
+
+/** Narrow a stored premium-wave value before migrating it. */
+export function isLegacyMapExperienceId(value: unknown): value is LegacyMapExperienceId {
+  return typeof value === "string" && (LEGACY_MAP_EXPERIENCE_IDS as readonly string[]).includes(value)
 }
 
 /** Convert the premium-wave stored ID to the canonical rider preset. */
@@ -158,11 +146,10 @@ export function migrateLegacyMapStyle(
  * old explorer style; newer canonical/premium fields retain the exact choice.
  */
 export function legacyMapStyleFor(
-  presetOrExperience: MapPresetId | LegacyMapExperienceId,
+  preset: MapPresetId,
   lightPreference: MapLightPreference
 ): LegacyMapStyleId {
   if (lightPreference === "night") return "night"
-  const preset = presetOrExperience === "standard" ? "road" : presetOrExperience
   return preset === "road" ? "clean" : "explorer"
 }
 
@@ -215,12 +202,3 @@ export function resolveMapPresentation(input: MapPresentationInput): MapPresenta
   }
 }
 
-/** @deprecated Migrate caller state to canonical presets, then call `resolveMapPresentation`. */
-export function resolveMapExperience(input: MapExperienceInput): MapExperienceConfig {
-  const presentation = resolveMapPresentation({
-    preset: migrateLegacyMapExperience(input.experience),
-    surface: input.surface,
-    lightPreset: input.lightPreset
-  })
-  return { ...presentation, id: input.experience }
-}

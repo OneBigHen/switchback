@@ -1,6 +1,6 @@
 import type { FilterSpecification, LayerSpecification } from "maplibre-gl"
 import type { PlannerMap, PlannerMapRenderer } from "./planner-map-renderer"
-import type { MapExperienceConfig } from "@/lib/client/map-experience"
+import type { MapPresentation } from "@/lib/client/map-experience"
 
 export const ROAD_LOCK_LINE_LAYER = "switchback-road-lock-lines"
 export const ROAD_LOCK_UNRESOLVED_LINE_LAYER = "switchback-road-lock-lines-unresolved"
@@ -49,7 +49,7 @@ export function roadLockDashPaint(
  */
 export function routeRibbonLayers(
   renderer: PlannerMapRenderer,
-  experience: MapExperienceConfig,
+  experience: MapPresentation,
   routeVisibility: "standard" | "high-contrast" = "standard"
 ): LayerSpecification[] {
   const bright = experience.routeEmphasis === "bright"
@@ -166,7 +166,7 @@ export function routeRibbonLayers(
  */
 export function roadCharacterLayer(
   renderer: PlannerMapRenderer,
-  experience: MapExperienceConfig,
+  experience: MapPresentation,
   /** The rider's own opacity for this layer, from the layers panel. */
   layerOpacity = 1
 ): LayerSpecification {
