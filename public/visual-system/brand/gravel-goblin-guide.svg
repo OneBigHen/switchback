@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none">
+  <defs>
+    <linearGradient id="gg-skin" x1="58" y1="42" x2="120" y2="136" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#739B65"/>
+      <stop offset="1" stop-color="#416E52"/>
+    </linearGradient>
+  </defs>
+  <circle cx="90" cy="90" r="82" fill="#10251E"/>
+  <path d="M38 84 12 66l30 2M142 84l26-18-30 2" fill="#5E875D" stroke="#D6A958" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M43 76c2-31 22-50 47-50s45 19 47 50v30c0 31-20 50-47 50s-47-19-47-50V76Z" fill="url(#gg-skin)"/>
+  <path d="M51 71c8-21 25-32 39-32s31 11 39 32" stroke="#17362B" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+  <g>
+    <rect x="49" y="54" width="82" height="24" rx="12" fill="#49382E" transform="rotate(-5 49 54)"/>
+    <circle cx="70" cy="64" r="17" fill="#D9E7DE" fill-opacity=".34" stroke="#D6A958" stroke-width="4"/>
+    <circle cx="112" cy="61" r="17" fill="#D9E7DE" fill-opacity=".34" stroke="#D6A958" stroke-width="4"/>
+    <path d="M87 63h8" stroke="#D6A958" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <path d="M60 91c8-7 15-7 23 0M98 90c7-7 15-7 22 0" stroke="#17362B" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="73" cy="96" rx="5" ry="6" fill="#10251E"/>
+  <ellipse cx="109" cy="95" rx="5" ry="6" fill="#10251E"/>
+  <path d="M89 101c-5 9-4 17 3 18" stroke="#31553E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M67 126c12 12 35 14 49-2" stroke="#17362B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M74 126c8 4 25 5 35-1" stroke="#F8F3E8" stroke-width="3" stroke-linecap="round"/>
+  <path d="M47 131c10 26 30 38 43 38s34-12 44-38l-12-7c-8 15-19 22-32 22s-24-7-32-22l-11 7Z" fill="#2B3E39"/>
+  <path d="M83 150h14l5 18H78l5-18Z" fill="#B9663C"/>
+  <circle cx="90" cy="157" r="4" fill="#D6A958"/>
+</svg>
