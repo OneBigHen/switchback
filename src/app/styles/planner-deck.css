@@ -783,11 +783,15 @@
   text-underline-offset: 4px;
 }
 
+/* Layout only, plus an explicit tie to the rider-glanceability token. A
+   hard-coded 11px here dropped the caption under the >=14px outdoor
+   readability contract that tests/e2e/mobile-qa asserts on Prepare, and
+   omitting font-size entirely let <small> fall back to the UA's `smaller`
+   (~11px) once this rule owned the cascade slot. */
 .route-details-toggle > small {
   display: block;
   margin-top: 2px;
-  font-size: 11px;
-  font-weight: 550;
+  font-size: var(--sb-route-meta-size, 14px);
   text-decoration: none;
 }
 
