@@ -47,11 +47,14 @@ function score(value: number | null | undefined): number | null {
 
 export function RideCharacterBars({ values, label = "Ride character" }: RideCharacterBarsProps) {
   return (
-    <div className={styles.characterRoot} aria-label={label}>
+    <div className={styles.characterRoot} role="group" aria-label={label}>
       {values.map((item, index) => {
         const meta = AXES[item.axis]
         const current = score(item.value)
         const previous = score(item.previousValue)
+        const evidenceCount = Number.isFinite(item.evidenceCount)
+          ? Math.max(0, Math.round(item.evidenceCount as number))
+          : null
         const Icon = meta.Icon
         return (
           <div className={styles.characterRow} key={`${item.axis}-${index}`} data-character-axis={item.axis}>
@@ -70,7 +73,7 @@ export function RideCharacterBars({ values, label = "Ride character" }: RideChar
               ) : (
                 <span className={styles.characterTransition}>{previous} → {current}</span>
               )}
-              {item.evidenceCount !== undefined ? <small> · {Math.max(0, Math.round(item.evidenceCount))} rides</small> : null}
+              {evidenceCount !== null ? <small> · {evidenceCount} rides</small> : null}
             </span>
           </div>
         )
