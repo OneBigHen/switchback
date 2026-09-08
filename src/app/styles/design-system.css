@@ -479,11 +479,14 @@ h6,
     flex-direction: column;
   }
 
+  /* The dock below is a static flex sibling, so it already reserves its own
+     height. Also padding the scroll by a dock height left ~150px of blank
+     Paper under the last control on every phone. Keep a normal content gutter. */
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) .planner-scroll {
     flex: 1 1 0%;
     min-height: 0;
     height: auto !important;
-    padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;
+    padding-block-end: var(--sb-space-4) !important;
   }
 
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {

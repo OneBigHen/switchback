@@ -84,15 +84,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) .clear-route-button,
-.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) .dock-ride-button {
-  grid-area: auto;
-}
-
 .planner-action-dock:has(.offline-pack-button) {
   grid-template-columns: minmax(94px, 0.72fr) minmax(108px, 0.8fr) minmax(142px, 1.2fr);
 }
@@ -204,17 +195,8 @@
 }
 
 @media (max-width: 390px) {
-    .planner-action-dock:has(.dock-ride-button) {
+    .planner-action-dock:has(.dock-ride-button):not(:has(.clear-route-button)) {
       grid-template-columns: 96px minmax(0, 1fr);
-    }
-
-    .planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
-      grid-template-columns: 96px minmax(0, 1fr);
-    }
-
-    .planner-action-dock .ride-button,
-    .replan-button {
-      font-size: 12px;
     }
 }
 
@@ -416,10 +398,6 @@
       padding: 16px 14px calc(env(safe-area-inset-bottom) + 14px);
     }
 
-    .road-locks-dock-button > span:not(.road-locks-dock-count) {
-      display: none;
-    }
-
     .road-locks-dock-button {
       min-width: 48px;
       padding: 0 10px;
@@ -440,25 +418,57 @@
     }
 }
 
-/* V2.1 W1 §8: on phones the three-child prepare dock fell into a 2-column
-   grid, squeezing the primary Start CTA into a ~96px column that wrapped its
-   label across three lines and made Clear route outweigh it. The CTA gets a
-   full-width row; Clear (lower emphasis) and the road-locks utility share the
-   line above. Placed last with explicit grid lines so it wins the cascade
-   against every earlier template in this file. */
-@media (max-width: 760px) {
-  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+/* V2.1 W1 §8 (widened for pre-beta): the three-child prepare dock squeezed
+   the primary Start CTA into a ~96px column that wrapped its label across
+   three lines and let Clear route outweigh it. On phones that came from a
+   2-column grid; on desktop from a 4-column grid that also left a dead fourth
+   column. One layout now serves both: the CTA owns a full-width row, and the
+   road-locks utility plus Clear route (lower emphasis) share the line above in
+   DOM order, so focus order matches what the rider sees. Placed last with
+   explicit grid lines so it wins the cascade against every earlier template in
+   this file. */
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .road-locks-dock-button {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .clear-route-button {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .dock-ride-button {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* A short landscape viewport is the tightest case: the panel is both narrow
+   (~42vw) and short, and the full-height dock overflowed it, clipping the
+   Start CTA off the bottom of the screen. The stack is still the right shape
+   there -- three columns crush the CTA label -- so keep it and compact the
+   rows instead. 44px is the floor: still a legal touch target. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .planner-action-dock {
+    min-height: 0;
+    gap: 7px;
+    padding: 9px 12px max(10px, env(safe-area-inset-bottom));
   }
 
-  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .clear-route-button {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .dock-ride-button {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .planner-shell .planner-deck > .planner-action-dock .plan-button,
+  .planner-shell .planner-deck > .planner-action-dock .ride-button,
+  .planner-shell .planner-deck > .planner-action-dock .dock-ride-button,
+  .planner-shell .planner-deck > .planner-action-dock .clear-route-button,
+  .planner-shell .planner-deck > .planner-action-dock .replan-button,
+  .planner-shell .planner-deck > .planner-action-dock .offline-pack-button,
+  .planner-shell .planner-deck > .planner-action-dock .start-new-route-button,
+  .planner-shell .planner-deck > .planner-action-dock .road-locks-dock-button {
+    min-height: 44px;
+    font-size: 13px;
   }
 }

@@ -768,9 +768,27 @@
   font: inherit;
   font-size: 13px;
   font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Underline the action, not the sentence. The blanket rule ran the toggle's
+   label and its supporting description together into one underlined run-on
+   ("Hide preparation Weather, surface, route evidence, offline limits, and
+   export"), which read as a single wrapped link rather than a control with a
+   caption. */
+.edit-route-button,
+.route-details-toggle > span {
   text-decoration: underline;
   text-underline-offset: 4px;
-  cursor: pointer;
+}
+
+.route-details-toggle > small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 550;
+  text-decoration: none;
 }
 
 @media (max-width: 760px) {

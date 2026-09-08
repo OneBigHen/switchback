@@ -632,8 +632,8 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             "text-field": ["get", "label"],
             "text-size": 11,
             "text-font": renderer.boldFont,
-            "text-anchor": "center",
-            "text-offset": [0, 0],
+            "text-anchor": "bottom",
+            "text-offset": [0, -0.7],
             "text-allow-overlap": true,
             "symbol-sort-key": 0
           },
@@ -652,8 +652,8 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
             "text-field": ["get", "label"],
             "text-size": 12,
             "text-font": renderer.boldFont,
-            "text-anchor": "center",
-            "text-offset": [0, 0],
+            "text-anchor": "bottom",
+            "text-offset": [0, -0.7],
             "text-allow-overlap": true,
             "symbol-sort-key": 1
           },

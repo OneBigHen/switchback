@@ -254,7 +254,7 @@ export function PlanComposer({
             onChange={onPlanModeChange}
             disabled={requestBusy}
           />
-          <button type="button" className="plan-v2__draw-action" aria-label="Draw" disabled={requestBusy} onClick={onDraw}>
+          <button type="button" className="plan-v2__draw-action" disabled={requestBusy} onClick={onDraw}>
             <PencilLine aria-hidden="true" />
             <span>Draw route</span>
           </button>

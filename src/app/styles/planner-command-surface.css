@@ -237,6 +237,10 @@
   gap: 10px;
 }
 
+/* A sticky element parks below the scroll container's own top padding, so the
+   route identity scrolled up into that band and showed above the header as a
+   sliced line of text. The unblurred box-shadow paints the band in the header's
+   own surface colour; the deck clips it, so no extra element is needed. */
 .planner-route-details__header {
   position: sticky;
   top: 0;
@@ -248,6 +252,7 @@
   padding: 8px 0 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--sb-border) 72%, transparent);
   background: var(--sb-surface);
+  box-shadow: 0 -32px 0 var(--sb-surface);
 }
 
 .planner-route-details__header > button {
@@ -399,22 +404,23 @@
   }
 }
 
+/* At 320px the rail used to hide the Draw and Free Ride labels and leave two
+   bare glyphs beside a fully labelled "Ride options" -- the two distinctive
+   actions were the least discoverable things on the sheet, and the mundane one
+   kept its label. Squeezing all four onto one row cannot fit compact text, so
+   the rail wraps instead: Draw and Free Ride share a labelled row, options and
+   the collapse control take the row below. Costs one row of sheet height on
+   the shortest phones and keeps every action readable. */
 @media (max-width: 360px) {
-  .plan-v2__draw-action span,
-  .plan-v2__free-ride span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
   .plan-v2__draw-action,
   .plan-v2__free-ride {
-    flex: 0 0 var(--sb-touch-target);
-    width: var(--sb-touch-target);
-    padding: 0;
+    flex: 1 1 calc(50% - 3px);
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .plan-v2__options-trigger {
+    flex: 1 1 auto;
   }
 
   .planner-route-context__identity > span {

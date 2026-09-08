@@ -175,7 +175,7 @@ describe("V2 compact Plan composer", () => {
     expect(within(tripShape).getByRole("button", { name: "Destination" })).toBeInTheDocument()
     expect(within(tripShape).getByRole("button", { name: "Loop" })).toBeInTheDocument()
     expect(within(tripShape).queryByRole("button", { name: /Draw/i })).not.toBeInTheDocument()
-    const draw = screen.getByRole("button", { name: "Draw" })
+    const draw = screen.getByRole("button", { name: "Draw route" })
     expect(draw).toHaveTextContent("Draw route")
     expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Minimize planner" })).toBeInTheDocument()

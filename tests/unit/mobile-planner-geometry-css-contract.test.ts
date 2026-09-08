@@ -17,7 +17,13 @@ describe("mobile planner geometry contract", () => {
     expect(designSystem).toContain(".planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {")
     expect(designSystem).toContain("position: static;")
     expect(designSystem).toContain("height: auto !important;")
-    expect(designSystem).toContain("padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;")
+    // The dock is a static flex sibling inside this block, so it already
+    // reserves its own height. Re-reserving a whole dock height as scroll
+    // padding stacked the two and left ~150px of blank Paper under the last
+    // control on every phone; the scroll keeps a normal content gutter.
+    // tests/e2e/critical/planner-dock-clearance.spec.ts proves the behaviour.
+    expect(designSystem).toContain("padding-block-end: var(--sb-space-4) !important;")
+    expect(designSystem).not.toContain("padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;")
   })
 
   it("scopes static dock flow to mobile and leaves clearance ownership to dock CSS", () => {

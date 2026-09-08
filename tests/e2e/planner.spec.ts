@@ -630,7 +630,7 @@ test("draws a rough route on the map and snaps it into editable route points", a
   await page.goto(appUrl)
   await openRouteEditor(page)
   await expect(page.locator(".map-loading")).toBeHidden({ timeout: 15_000 })
-  await page.getByRole("button", { name: "Draw", exact: true }).click()
+  await page.getByRole("button", { name: "Draw route", exact: true }).click()
   const surface = page.getByRole("region", { name: "Draw a rough route" })
   await expect(surface).toBeVisible()
   if (testInfo.project.name === "mobile-safari") {
@@ -760,7 +760,7 @@ test("offers corridor options for a drawn line instead of a single traced route"
   await page.goto(appUrl)
   await openRouteEditor(page)
   await expect(page.locator(".map-loading")).toBeHidden({ timeout: 15_000 })
-  await page.getByRole("button", { name: "Draw", exact: true }).click()
+  await page.getByRole("button", { name: "Draw route", exact: true }).click()
   const surface = page.getByRole("region", { name: "Draw a rough route" })
   await expect(surface).toBeVisible()
   const box = await surface.boundingBox()

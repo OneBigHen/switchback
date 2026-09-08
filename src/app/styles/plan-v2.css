@@ -757,22 +757,10 @@
   }
 }
 
+/* Free Ride keeps its label at every width. The wrapped rail (see the 360px
+   rule in planner-command-surface.css) gives it a half-row instead of the
+   44px glyph it used to collapse to below 340px. */
 @media (max-width: 340px) {
-  .plan-v2__free-ride span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .plan-v2__free-ride {
-    min-width: 44px;
-    width: 44px;
-    padding: 0;
-  }
-
   .plan-v2__options-trigger {
     min-width: 68px;
   }

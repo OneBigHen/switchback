@@ -49,7 +49,7 @@ body: JSON.stringify({ error: { code: "OUT_OF_COVERAGE", message: "That ride lea
 
     await page.goto("/")
     await expandPhonePlanner(page)
-    await page.getByRole("button", { name: "Draw", exact: true }).click()
+    await page.getByRole("button", { name: "Draw route", exact: true }).click()
     const firstStroke = await drawUsableStroke(page)
     await page.getByRole("button", { name: "Finish drawing and plan route" }).click()
     const region = page.getByRole("region", { name: "Draw a rough route" })
@@ -62,7 +62,7 @@ body: JSON.stringify({ error: { code: "OUT_OF_COVERAGE", message: "That ride lea
     await expect(page.getByText("Route unavailable", { exact: true })).toHaveCount(0)
 
     await expandPhonePlanner(page)
-    await page.getByRole("button", { name: "Draw", exact: true }).click()
+    await page.getByRole("button", { name: "Draw route", exact: true }).click()
     const retryStroke = await drawUsableStroke(page)
     await page.getByRole("button", { name: "Finish drawing and plan route" }).click()
     const retryRegion = page.getByRole("region", { name: "Draw a rough route" })

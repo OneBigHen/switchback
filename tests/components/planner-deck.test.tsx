@@ -247,7 +247,7 @@ describe("planner ride composer", () => {
     expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Destination" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Loop" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Draw" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Draw route" })).toBeInTheDocument()
     expect(screen.queryByText("Router live")).not.toBeInTheDocument()
     expect(screen.queryByRole("combobox", { name: "Start" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Plan route" })).not.toBeInTheDocument()
