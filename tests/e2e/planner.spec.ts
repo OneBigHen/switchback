@@ -300,7 +300,16 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
     )
   }
 
-  await page.getByRole("button", { name: /Minimize planner|Collapse planner sheet by dragging down or tapping/ }).last().click()
+  // Minimizing is a rung on the V2 sheet ladder, not a single control. The deck
+  // header that owns "Minimize planner" is hidden on a phone until the sheet is
+  // at its full detent, and the sheet handle there expands rather than
+  // minimizes — so raise the sheet first, exactly as a rider would, instead of
+  // matching a retired combined label.
+  const minimizePlanner = page.getByRole("button", { name: "Minimize planner" })
+  if (!await minimizePlanner.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: "Expand planner sheet" }).click()
+  }
+  await minimizePlanner.click()
   await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
   await expectInsideViewport(page, page.getByRole("button", { name: "Plan route" }))
   await page.getByRole("button", { name: "Expand planner" }).click()
@@ -503,6 +512,11 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   await expect(page.getByText(/72% non-paved mix/)).toBeVisible()
   await expect(page.getByRole("heading", { name: "Ride weather" })).toBeVisible()
 
+  // A full-height planner deliberately clears the map furniture off the phone
+  // screen, and "Show map tools" is the V2 way back to it. On a wide window the
+  // controls were never hidden, so this is a no-op there.
+  const showMapTools = page.getByRole("button", { name: "Show map tools" })
+  if (await showMapTools.isVisible().catch(() => false)) await showMapTools.click()
   await page.getByRole("button", { name: "Open map layers" }).click()
   const layers = page.getByRole("dialog", { name: "Map layers and style" })
   await expect(layers).toBeVisible()

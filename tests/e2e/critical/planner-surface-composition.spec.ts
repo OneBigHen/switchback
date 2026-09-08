@@ -151,14 +151,19 @@ test("a failed route plan shows the rider why, without hunting for it", async ({
   await expect(alert).toBeVisible()
   await expect(alert).toBeInViewport()
 
-  const inScrollOwner = await alert.evaluate((node) => {
+  // The deck settles into place (the sheet carries a 220ms transition, and the
+  // planner scrolls its result surface into view on a rAF), so a single
+  // instantaneous measurement can sample a layout that is still moving — this
+  // read flaked exactly that way under WebKit. Poll the same geometry instead
+  // of asserting a lone sample: the contract is unchanged, it just has to hold
+  // once the surface has come to rest.
+  await expect.poll(() => alert.evaluate((node) => {
     const scroll = node.closest<HTMLElement>(".planner-scroll")
     if (!scroll) return false
     const box = node.getBoundingClientRect()
     const scrollBox = scroll.getBoundingClientRect()
     return box.top >= scrollBox.top - 1 && box.bottom <= scrollBox.bottom + 1
-  })
-  expect(inScrollOwner, "the failure explanation is inside the planner scroll viewport").toBe(true)
+  }), "the failure explanation is inside the planner scroll viewport").toBe(true)
 })
 
 /**
