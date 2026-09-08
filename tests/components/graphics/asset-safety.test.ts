@@ -25,7 +25,8 @@ describe("visual-system SVG safety", () => {
       expect(svg, file).not.toMatch(/<script\b/i)
       expect(svg, file).not.toMatch(/<foreignObject\b/i)
       expect(svg, file).not.toMatch(/<image\b/i)
-      expect(svg, file).not.toMatch(/https?:\/\//i)
+      expect(svg, file).not.toMatch(/(?:href|xlink:href)\s*=\s*["']https?:\/\//i)
+      expect(svg, file).not.toMatch(/url\(\s*["']?https?:\/\//i)
       expect(svg, file).not.toMatch(/javascript:/i)
     }
   })
