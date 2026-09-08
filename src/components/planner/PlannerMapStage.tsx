@@ -1207,12 +1207,14 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   return (
     <div className={`map-stage${props.rideMode ? " is-ride-mode" : ""}${lockDrawMode ? " is-lock-drawing" : ""}${props.recalculating ? " is-recalculating" : ""}`} aria-label="Interactive route map" data-recalculating={props.recalculating ? "true" : "false"}>
       <div ref={containerRef} className="map-canvas" />
+      {/* Every transient map notice used to position itself, so two at once
+          landed on the same coordinates and drew on top of each other -- the
+          base-map toast and the layer banners collided on desktop, and the
+          phone placement fought the Layers button. One stack owns the
+          placement and they queue down it. */}
+      <div className="map-layer-status-stack">
       {!ready && !mapError ? <div className="map-loading">Reading the map…</div> : null}
       {mapError ? <div className="map-error" role="status">{mapError}</div> : null}
-      {/* Each layer banner used to position itself, so two of them at once
-          landed on the same coordinates and rendered on top of each other.
-          The stack owns the placement; the banners just flow down it. */}
-      <div className="map-layer-status-stack">
       {curvatureStatus === "loading" ? <div className="map-layer-status" role="status">Loading curve overlay…</div> : null}
       {curvatureStatus === "zoom" ? <div className="map-layer-status">Zoom in to see curve data</div> : null}
       {curvatureStatus === "error" ? <div className="map-layer-status map-layer-error" role="status">Curve overlay unavailable</div> : null}

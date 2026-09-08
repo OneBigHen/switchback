@@ -36,16 +36,14 @@
   box-shadow: inset 0 0 96px rgb(0 0 0 / 28%);
 }
 
-/* The layers control owns the top-right corner at z-index 6, so a toast
-   anchored to the same corner at z-index 2 lost its right edge behind it and
-   clipped the message mid-word. Park these below that control instead. */
+/* Placement belongs to .map-layer-status-stack; these only carry their own
+   look. Anchoring them independently put the toast under the layers control
+   on desktop and on top of it on phones. */
 .map-loading,
 .map-error {
-  position: absolute;
-  top: 72px;
-  right: 24px;
+  position: relative;
   z-index: 2;
-  max-width: 320px;
+  max-width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -517,10 +515,10 @@ h2 {
        Layers button at 320px. Keep it in the clear band between them. */
     .map-layer-status-stack {
       top: 20px;
-      right: 60px;
+      right: 12px;
       left: 68px;
       transform: none;
-      justify-items: start;
+      justify-items: stretch;
       max-width: none;
     }
 
@@ -537,10 +535,7 @@ h2 {
 
     .map-loading,
     .map-error {
-      top: 68px;
-      right: 12px;
-      left: 12px;
-      max-width: none;
+      max-width: 100%;
       text-align: center;
     }
 

@@ -83,6 +83,12 @@
   .rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* A fixed two-column grid left a single route at half width with a dead
+     column beside it, wrapping its name and metrics for no reason. */
+  .rail:not(:has(> :nth-child(2))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Short landscape uses one dominant route choice at a time. A two-column
