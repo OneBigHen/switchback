@@ -21,7 +21,6 @@ function pack(overrides: Partial<RiderMapPack> = {}): RiderMapPack {
 
 describe("renamed rider layer ids", () => {
   it("migrates the old traffic id to road controls", () => {
-    // The layer was always OSM signals and stops, never live congestion.
     expect(migrateRiderLayerId("traffic")).toBe("road-controls")
     expect(migrateRiderLayerId("road-controls")).toBe("road-controls")
   })
@@ -38,7 +37,6 @@ describe("renamed rider layer ids", () => {
     expect(migrated).toBeDefined()
     expect(migrated!.visible).toBe(true)
     expect(migrated!.opacity).toBe(0.4)
-    // The old id is gone rather than lingering as a second, dead entry.
     expect(settings.some((layer) => (layer.id as string) === "traffic")).toBe(false)
   })
 
@@ -54,31 +52,58 @@ describe("renamed rider layer ids", () => {
 })
 
 describe("map pack migration", () => {
-  it("migrates a pack saved before the premium wave", () => {
+  it("migrates packs saved before the premium wave", () => {
     expect(applyRiderMapPack([], pack({ mapStyle: "explorer" })))
-      .toMatchObject({ experience: "terrain", lightPreference: "auto" })
+      .toMatchObject({ preset: "terrain", lightPreference: "auto" })
     expect(applyRiderMapPack([], pack({ mapStyle: "night" })))
-      .toMatchObject({ experience: "standard", lightPreference: "night" })
+      .toMatchObject({ preset: "road", lightPreference: "night" })
     expect(applyRiderMapPack([], pack({ mapStyle: "clean" })))
-      .toMatchObject({ experience: "standard", lightPreference: "auto" })
+      .toMatchObject({ preset: "road", lightPreference: "auto" })
   })
 
-  it("prefers the premium fields when a newer pack has them", () => {
+  it("migrates premium-wave experience ids to canonical presets", () => {
+    expect(applyRiderMapPack([], pack({ experience: "standard" })))
+      .toMatchObject({ preset: "road", lightPreference: "auto" })
+    expect(applyRiderMapPack([], pack({ experience: "terrain" })))
+      .toMatchObject({ preset: "terrain", lightPreference: "auto" })
+    expect(applyRiderMapPack([], pack({ experience: "satellite" })))
+      .toMatchObject({ preset: "satellite", lightPreference: "auto" })
+  })
+
+  it("prefers a valid canonical preset over older rollback fields", () => {
     const applied = applyRiderMapPack([], pack({
+      preset: "satellite",
+      experience: "standard",
       mapStyle: "clean",
-      experience: "satellite",
       lightPreference: "dusk"
     }))
-    expect(applied).toMatchObject({ experience: "satellite", lightPreference: "dusk" })
+    expect(applied).toMatchObject({ preset: "satellite", lightPreference: "dusk" })
   })
 
-  it("ignores premium fields that are not valid values", () => {
-    const applied = applyRiderMapPack([], pack({
-      mapStyle: "explorer",
-      experience: "hologram" as never,
+  it("falls through invalid newer fields instead of poisoning the row", () => {
+    const premiumFallback = applyRiderMapPack([], pack({
+      preset: "hologram" as never,
+      experience: "terrain",
+      mapStyle: "clean",
       lightPreference: "strobe" as never
     }))
-    expect(applied).toMatchObject({ experience: "terrain", lightPreference: "auto" })
+    expect(premiumFallback).toMatchObject({ preset: "terrain", lightPreference: "auto" })
+
+    const styleFallback = applyRiderMapPack([], pack({
+      preset: "hologram" as never,
+      experience: "warp" as never,
+      mapStyle: "explorer"
+    }))
+    expect(styleFallback).toMatchObject({ preset: "terrain", lightPreference: "auto" })
+  })
+
+  it("uses a safe Road default when every stored presentation field is invalid", () => {
+    const applied = applyRiderMapPack([], pack({
+      preset: "hologram" as never,
+      experience: "warp" as never,
+      mapStyle: "unknown" as never
+    }))
+    expect(applied).toMatchObject({ preset: "road", lightPreference: "auto" })
   })
 
   it("carries a renamed layer choice through a saved pack", () => {

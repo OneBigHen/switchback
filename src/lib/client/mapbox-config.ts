@@ -1,5 +1,3 @@
-import type { MapExperienceConfig } from "./map-experience"
-
 /**
  * Mapbox Standard slots. Switchback places every custom layer by slot so the
  * premium basemap can keep evolving without breaking route visibility
@@ -47,23 +45,4 @@ export function mapboxRendererStatus(
 
 export function isPremiumMapboxRendererEnabled(): boolean {
   return mapboxRendererStatus().enabled
-}
-
-/**
- * Mapbox Standard exposes its presentation as style configuration rather than
- * separate styles, so a mode change is a set of config properties on the same
- * map instance — no extra map load.
- */
-export function standardConfigProperties(
-  experience: MapExperienceConfig
-): Record<string, string | boolean> {
-  return {
-    lightPreset: experience.lightPreset,
-    theme: experience.theme,
-    show3dObjects: experience.show3dBuildings,
-    showTransitLabels: false,
-    showPlaceLabels: true,
-    showRoadLabels: experience.showRoadLabels,
-    showPointOfInterestLabels: experience.showPointOfInterestLabels
-  }
 }

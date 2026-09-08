@@ -28,11 +28,6 @@ describe("map layer settings", () => {
     expect(paUnpavedRoadsQuery({ west: -80, south: 38, east: -72, north: 43 }, 10)).toBeNull()
   })
 
-  /**
-   * The overlay is on by default, so a client gate looser than the server's
-   * meant every zoomed-out session fired a request the API always rejected and
-   * painted a survey-unavailable state over working data.
-   */
   it("does not request zoom levels the API refuses to serve", () => {
     const bounds = { west: -77.2, south: 40.1, east: -76.6, north: 40.6 }
     for (const zoom of [7, 8]) {
@@ -92,8 +87,7 @@ describe("map layer settings", () => {
       layers: [{ id: "weather", visible: true, opacity: 0.75, order: 0 }]
     })
 
-    // A pack saved as the old night style is a lighting choice, not a mode.
-    expect(pack.experience).toBe("standard")
+    expect(pack.preset).toBe("road")
     expect(pack.lightPreference).toBe("night")
     expect(pack.routeVisibility).toBe("high-contrast")
     expect(pack.layers.find((layer) => layer.id === "weather")).toMatchObject({ visible: true, opacity: 0.75 })

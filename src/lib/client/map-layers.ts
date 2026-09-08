@@ -1,15 +1,18 @@
 /**
  * The pre-premium map styles. Kept only so stored map packs, rider settings,
  * and offline packs written before the premium wave can still be read; new
- * state is a `MapExperienceId` plus a `MapLightPreference` (ADR 0015).
+ * state is a `MapPresetId` plus a `MapLightPreference` (ADR 0015).
  */
 import {
   isMapExperienceId,
   isMapLightPreference,
+  legacyMapExperienceFor,
+  migrateLegacyMapExperience,
   migrateLegacyMapStyle,
   type MapExperienceId,
   type MapLightPreference
 } from "./map-experience"
+import { isMapPresetId, type MapPresetId } from "./map-preset-registry"
 import {
   PA_UNPAVED_ROADS_MIN_ZOOM,
   PA_UNPAVED_ROADS_PROVENANCE
@@ -19,7 +22,7 @@ export { PA_UNPAVED_ROADS_PROVENANCE }
 
 export type LegacyMapStyleId = "clean" | "explorer" | "night"
 
-/** @deprecated Use `MapExperienceId` and `MapLightPreference`. */
+/** @deprecated Use `MapPresetId` and `MapLightPreference`. */
 export type MapStyleId = LegacyMapStyleId
 
 export type RiderLayerId =
@@ -108,12 +111,15 @@ export interface RiderMapPack {
   name: string
   createdAt: string
   updatedAt: string
+  /** Canonical map choice for packs written by Phase 1 and later. */
+  preset?: MapPresetId
+  /** Compatibility-only premium-wave field for rollback readers. */
+  experience?: MapExperienceId
   /**
    * Packs written before the premium wave carry only a legacy style. It is
    * still written so an older build can read a pack this one saved.
    */
   mapStyle: LegacyMapStyleId
-  experience?: MapExperienceId
   lightPreference?: MapLightPreference
   routeVisibility: "standard" | "high-contrast"
   layers: RiderLayerSetting[]
@@ -388,16 +394,43 @@ export function normalizeRiderLayerSettings(settings: readonly RiderLayerSetting
 }
 
 export interface AppliedRiderMapPack {
+  preset: MapPresetId
+  /** @deprecated Planner still consumes this until Task 5 propagation lands. */
   experience: MapExperienceId
   lightPreference: MapLightPreference
   routeVisibility: RiderMapPack["routeVisibility"]
   layers: RiderLayerSetting[]
 }
 
+function storedMapPackPresentation(pack: RiderMapPack): {
+  preset: MapPresetId
+  lightPreference: MapLightPreference
+} {
+  const lightPreference = isMapLightPreference(pack.lightPreference)
+    ? pack.lightPreference
+    : undefined
+
+  if (isMapPresetId(pack.preset)) {
+    return { preset: pack.preset, lightPreference: lightPreference ?? "auto" }
+  }
+
+  if (isMapExperienceId(pack.experience)) {
+    return {
+      preset: migrateLegacyMapExperience(pack.experience),
+      lightPreference: lightPreference ?? "auto"
+    }
+  }
+
+  const legacy = migrateLegacyMapStyle(pack.mapStyle)
+  return {
+    preset: legacy.preset,
+    lightPreference: lightPreference ?? legacy.lightPreference
+  }
+}
+
 /**
- * A pack saved before the premium wave only knows a legacy style, so it is
- * migrated on read: `clean` becomes Standard, `explorer` becomes Terrain, and
- * `night` becomes Standard under the night lighting the rider actually chose.
+ * Restore any saved generation deterministically. Canonical preset wins;
+ * otherwise premium-wave experience is migrated, then the pre-premium style.
  */
 export function applyRiderMapPack(
   currentLayers: readonly RiderLayerSetting[],
@@ -405,10 +438,11 @@ export function applyRiderMapPack(
 ): AppliedRiderMapPack {
   const overrides = new Map(normalizeRiderLayerSettings(pack.layers).map((layer) => [layer.id, layer]))
   const source = normalizeRiderLayerSettings(currentLayers)
-  const legacy = migrateLegacyMapStyle(pack.mapStyle)
+  const presentation = storedMapPackPresentation(pack)
   return {
-    experience: isMapExperienceId(pack.experience) ? pack.experience : legacy.experience,
-    lightPreference: isMapLightPreference(pack.lightPreference) ? pack.lightPreference : legacy.lightPreference,
+    preset: presentation.preset,
+    experience: legacyMapExperienceFor(presentation.preset),
+    lightPreference: presentation.lightPreference,
     routeVisibility: pack.routeVisibility,
     layers: source.map((layer) => overrides.get(layer.id) ?? layer)
   }
