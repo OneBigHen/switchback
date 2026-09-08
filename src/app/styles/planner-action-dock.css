@@ -84,15 +84,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) .clear-route-button,
-.planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) .dock-ride-button {
-  grid-area: auto;
-}
-
 .planner-action-dock:has(.offline-pack-button) {
   grid-template-columns: minmax(94px, 0.72fr) minmax(108px, 0.8fr) minmax(142px, 1.2fr);
 }
@@ -204,17 +195,8 @@
 }
 
 @media (max-width: 390px) {
-    .planner-action-dock:has(.dock-ride-button) {
+    .planner-action-dock:has(.dock-ride-button):not(:has(.clear-route-button)) {
       grid-template-columns: 96px minmax(0, 1fr);
-    }
-
-    .planner-action-dock:has(.clear-route-button):not(:has(.offline-pack-button)):not(:has(.replan-button)) {
-      grid-template-columns: 96px minmax(0, 1fr);
-    }
-
-    .planner-action-dock .ride-button,
-    .replan-button {
-      font-size: 12px;
     }
 }
 
@@ -232,6 +214,19 @@
 }
 
 @media (min-width: 761px) {
+  /* On a wide window the scroll region is sized to stop exactly where the dock
+     begins, so this clearance has to be the dock's real height. Measured, that
+     is 156px — two 58px rows, 14/16px padding, a 9px gap and the 1px top border
+     — while the shared expression reserves 148px, running the scroller 8px
+     under the dock instead of up to it. Take the wider spacing step here, the
+     same way the home-height clearance above does. Correcting it here rather
+     than in the token keeps it off the phone, where that token also feeds
+     already-tuned scroll padding and where the dock is in flow with nothing to
+     overlap. */
+  .planner-deck:has(> .planner-action-dock .dock-ride-button):not(.is-minimized) {
+    --sb-route-dock-clearance: calc(var(--sb-sheet-dock-expanded-height) + var(--sb-space-6));
+  }
+
   .planner-deck:not(.is-minimized):has(> .planner-action-dock) .planner-scroll {
     height: calc(100% - var(--sb-route-dock-clearance)) !important;
   }
@@ -416,10 +411,6 @@
       padding: 16px 14px calc(env(safe-area-inset-bottom) + 14px);
     }
 
-    .road-locks-dock-button > span:not(.road-locks-dock-count) {
-      display: none;
-    }
-
     .road-locks-dock-button {
       min-width: 48px;
       padding: 0 10px;
@@ -440,25 +431,59 @@
     }
 }
 
-/* V2.1 W1 §8: on phones the three-child prepare dock fell into a 2-column
-   grid, squeezing the primary Start CTA into a ~96px column that wrapped its
-   label across three lines and made Clear route outweigh it. The CTA gets a
-   full-width row; Clear (lower emphasis) and the road-locks utility share the
-   line above. Placed last with explicit grid lines so it wins the cascade
-   against every earlier template in this file. */
-@media (max-width: 760px) {
-  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+/* V2.1 W1 §8 (widened for pre-beta): the three-child prepare dock squeezed
+   the primary Start CTA into a ~96px column that wrapped its label across
+   three lines and let Clear route outweigh it. On phones that came from a
+   2-column grid; on desktop from a 4-column grid that also left a dead fourth
+   column. One layout now serves both: the CTA owns a full-width row, and the
+   road-locks utility plus Clear route (lower emphasis) share the line above in
+   DOM order, so focus order matches what the rider sees. Placed last with
+   explicit grid lines so it wins the cascade against every earlier template in
+   this file. */
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .road-locks-dock-button {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .clear-route-button {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+.planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .dock-ride-button {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* Short viewports are the tightest case. In landscape the panel is both
+   narrow (~42vw) and short, and the full-height dock overflowed it, clipping
+   the Start CTA off the bottom of the screen. In a 568px-tall portrait the
+   half-detent sheet is 284px and a full-height dock took ~156px of it,
+   leaving 88px of route results. The stack is still the right shape -- three
+   columns crush the CTA label -- so keep it and compact the rows instead.
+   44px is the floor: still a legal touch target. */
+@media (max-height: 620px) {
+  .planner-action-dock {
+    min-height: 0;
+    gap: 7px;
+    padding: 9px 12px max(10px, env(safe-area-inset-bottom));
   }
 
-  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .clear-route-button {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  .planner-shell .planner-deck > .planner-action-dock:has(.dock-ride-button):not(:has(.replan-button)):not(:has(.offline-pack-button)) .dock-ride-button {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .planner-shell .planner-deck > .planner-action-dock .plan-button,
+  .planner-shell .planner-deck > .planner-action-dock .ride-button,
+  .planner-shell .planner-deck > .planner-action-dock .dock-ride-button,
+  .planner-shell .planner-deck > .planner-action-dock .clear-route-button,
+  .planner-shell .planner-deck > .planner-action-dock .replan-button,
+  .planner-shell .planner-deck > .planner-action-dock .offline-pack-button,
+  .planner-shell .planner-deck > .planner-action-dock .start-new-route-button,
+  .planner-shell .planner-deck > .planner-action-dock .road-locks-dock-button {
+    min-height: 44px;
+    font-size: 13px;
   }
 }

@@ -132,6 +132,41 @@ interface GlControls {
 }
 
 /**
+ * MapLibre/Mapbox size their canvas once during construction. The planner shell
+ * can change size afterwards without a window resize — checkpoint recovery,
+ * mobile browser chrome, sheet detents and orientation all do this. When that
+ * happens the canvas and its control corners otherwise keep the stale box,
+ * which is why attribution could appear halfway up a freshly restored page.
+ */
+function keepMapSizedToContainer(map: PlannerMap, container: HTMLDivElement): void {
+  if (typeof window === "undefined") return
+
+  let frame: number | null = null
+  const resize = () => {
+    if (frame !== null) window.cancelAnimationFrame(frame)
+    frame = window.requestAnimationFrame(() => {
+      frame = null
+      map.resize()
+    })
+  }
+
+  const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(resize)
+  observer?.observe(container)
+  window.visualViewport?.addEventListener("resize", resize)
+
+  // Run once after controls and shell layout have both had a paint. This fixes
+  // the hydration/recovery case even in browsers without ResizeObserver.
+  resize()
+
+  map.once("remove", () => {
+    observer?.disconnect()
+    window.visualViewport?.removeEventListener("resize", resize)
+    if (frame !== null) window.cancelAnimationFrame(frame)
+    frame = null
+  })
+}
+
+/**
  * Both renderers ship the same control set with the same constructor options,
  * so control wiring is shared instead of duplicated per renderer.
  */
@@ -171,6 +206,7 @@ function addStandardControls(map: PlannerMap, gl: GlControls, options: CreatePla
     anyMap.addControl(geolocate, "bottom-right")
   }
   anyMap.addControl(new gl.ScaleControl({ maxWidth: 110, unit: "imperial" }), "bottom-left")
+  keepMapSizedToContainer(map, options.container)
 }
 
 export const maplibreRenderer: PlannerMapRenderer = {

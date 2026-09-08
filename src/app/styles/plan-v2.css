@@ -55,6 +55,15 @@
   line-height: 1.2;
 }
 
+/* On a 320px sheet the field is ~135px wide, so the hint was sliced mid-word
+   ("Search a place or c"). text-overflow belongs on the input, not on
+   ::placeholder, for the placeholder to inherit it. */
+.plan-v2__search input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .plan-v2__search input::placeholder {
   color: var(--sb-text-muted);
   opacity: 1;
@@ -757,22 +766,10 @@
   }
 }
 
+/* Free Ride keeps its label at every width. The wrapped rail (see the 360px
+   rule in planner-command-surface.css) gives it a half-row instead of the
+   44px glyph it used to collapse to below 340px. */
 @media (max-width: 340px) {
-  .plan-v2__free-ride span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .plan-v2__free-ride {
-    min-width: 44px;
-    width: 44px;
-    padding: 0;
-  }
-
   .plan-v2__options-trigger {
     min-width: 68px;
   }

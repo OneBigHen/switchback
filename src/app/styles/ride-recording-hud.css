@@ -28,7 +28,7 @@
   padding: 10px 12px 10px 18px;
   border: 1px solid var(--line);
   border-radius: 15px;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
   box-shadow:
     0 24px 70px rgb(0 0 0 / 42%),
     inset 0 0 0 5px rgb(243 239 230 / 2%);
@@ -82,7 +82,7 @@
   width: 176px;
   height: 176px;
   border-radius: 50%;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
   box-shadow:
     0 24px 70px rgb(0 0 0 / 42%),
     inset 0 0 0 5px rgb(243 239 230 / 3%);
@@ -100,7 +100,7 @@
   padding: 10px 20px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
 }
 
 .recording-altitude strong {
@@ -142,7 +142,7 @@
   height: 72px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
   overflow: hidden;
 }
 
@@ -160,7 +160,7 @@
   padding: 10px 14px;
   border: 1px dashed var(--line);
   border-radius: 12px;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
   color: #9fb0c0;
   font-size: 11px;
 }
@@ -194,7 +194,7 @@
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
   color: #f3efe6;
   font-size: 12px;
   font-weight: 750;
@@ -241,5 +241,162 @@
   }
   .recording-ride-hud .recording-controls .recording-finish {
     grid-column: 1 / -1;
+  }
+}
+
+/* Keep the recording telemetry and destructive actions in separate instrument
+   bands on phones. The original two-row control rule allowed the controls to
+   paint over the telemetry rail, which made both the numbers and the actions
+   difficult to read and hit reliably. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .ride-hud.recording-ride-hud:not(.free-ride-hud) .ride-telemetry {
+    right: 8px;
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 52px + 10px);
+    left: 8px;
+    width: auto;
+    min-height: 116px;
+    box-sizing: border-box;
+    padding: 12px 14px 16px;
+  }
+
+  .recording-ride-hud .ride-telemetry > div {
+    min-width: 0;
+  }
+
+  .recording-ride-hud .recording-controls {
+    right: 8px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 8px;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.3fr) minmax(0, 0.8fr);
+    gap: 8px;
+  }
+
+  .recording-ride-hud .recording-controls .recording-finish {
+    grid-column: auto;
+  }
+
+  .recording-ride-hud .recording-controls button {
+    min-height: 52px;
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+}
+
+/* A short landscape phone has enough horizontal room for two compact
+   instrument columns, but not enough vertical room for the desktop center
+   stack. Give the recording state the same deliberate left/right lanes as the
+   shaped planner and draw states. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .recording-ride-hud > header {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    padding: 7px 8px 7px 12px;
+  }
+
+  .recording-ride-hud .recording-main {
+    top: 72px;
+    left: 80px;
+    width: min(244px, calc(50% - 40px));
+    transform: none;
+    justify-items: stretch;
+    gap: 6px;
+  }
+
+  .recording-ride-hud .recording-speed.ride-speed-badge {
+    display: none;
+  }
+
+  .recording-ride-hud .recording-altitude {
+    justify-items: start;
+    padding: 7px 10px;
+    border-radius: 12px;
+  }
+
+  .recording-ride-hud .recording-altitude strong {
+    font-size: 20px;
+  }
+
+  .recording-ride-hud .recording-altitude > span {
+    font-size: 12px;
+  }
+
+  .recording-ride-hud .recording-gain {
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 0;
+    font-size: 12px;
+  }
+
+  .recording-ride-hud .recording-elevation,
+  .recording-ride-hud .recording-elevation-empty {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .recording-ride-hud .recording-elevation {
+    height: 58px;
+  }
+
+  .recording-ride-hud .recording-elevation-empty {
+    min-height: 58px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .recording-ride-hud .recording-elevation-empty svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+  }
+
+  .ride-hud.recording-ride-hud:not(.free-ride-hud) .ride-telemetry {
+    top: 72px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: min(260px, calc(40% - 12px));
+    min-height: 0;
+    box-sizing: border-box;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px 8px 12px;
+  }
+
+  .recording-ride-hud .ride-telemetry strong {
+    font-size: 16px;
+  }
+
+  .recording-ride-hud .ride-telemetry span {
+    font-size: 12px;
+  }
+
+  .recording-ride-hud .recording-controls {
+    right: auto;
+    bottom: 8px;
+    left: 80px;
+    width: min(244px, calc(50% - 40px));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .recording-ride-hud .recording-controls .recording-finish {
+    grid-column: auto;
+  }
+
+  .recording-ride-hud .recording-controls button {
+    min-height: 56px;
+    min-width: 0;
+    gap: 4px;
+    padding-inline: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .recording-ride-hud .recording-controls button svg {
+    width: 12px;
+    height: 12px;
   }
 }

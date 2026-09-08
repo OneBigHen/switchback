@@ -278,7 +278,7 @@ h6,
     right: 8px;
     bottom: 8px;
     left: 80px;
-    width: min(420px, 48vw);
+    width: min(420px, 42vw);
     max-height: none;
     border-radius: var(--sb-radius-card);
   }
@@ -291,7 +291,7 @@ h6,
   .planner-shell .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
   .planner-shell .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
     bottom: calc(var(--sb-map-sheet-clearance) - var(--sb-space-10));
-    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 48vw) + var(--sb-space-2));
+    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 42vw) + var(--sb-space-2));
   }
 
   .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="full"]) .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
@@ -390,6 +390,28 @@ h6,
     right: var(--sb-space-2);
     left: auto;
   }
+
+  /* Short landscape has no bottom navigation. The idle composer therefore
+     uses the same left side-deck geometry as an expanded ride sheet; keeping
+     the portrait bottom anchor here puts its top edge above the viewport on a
+     320px-tall phone. The combined selector wins over the generic mobile
+     sheet height rule without changing portrait detents. */
+  .planner-shell .sb-bottom-sheet.planner-deck.is-idle-plan {
+    top: var(--sb-space-2);
+    right: auto;
+    bottom: var(--sb-space-2);
+    left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2));
+    width: min(420px, 42vw);
+    height: auto;
+    max-height: none;
+    border-radius: var(--sb-radius-card);
+  }
+
+  .planner-shell .sb-bottom-sheet.planner-deck.is-idle-plan .planner-scroll {
+    height: auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 760px) {
@@ -457,11 +479,14 @@ h6,
     flex-direction: column;
   }
 
+  /* The dock below is a static flex sibling, so it already reserves its own
+     height. Also padding the scroll by a dock height left ~150px of blank
+     Paper under the last control on every phone. Keep a normal content gutter. */
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) .planner-scroll {
     flex: 1 1 0%;
     min-height: 0;
     height: auto !important;
-    padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;
+    padding-block-end: var(--sb-space-4) !important;
   }
 
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock:not(:empty)) > .planner-action-dock {
@@ -472,6 +497,12 @@ h6,
 
   .planner-shell .sb-bottom-sheet:has(> .planner-action-dock):not(:has(> .planner-action-dock .dock-ride-button)) > .planner-action-dock {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Two fixed columns left the editor's lone "Plan route" CTA at half width
+     with a dead column beside it. A single action owns the whole row. */
+  .planner-shell .sb-bottom-sheet > .planner-action-dock:not(:has(> * ~ *)) > * {
+    grid-column: 1 / -1;
   }
 
   .planner-shell .sb-bottom-sheet.is-minimized .planner-action-dock {

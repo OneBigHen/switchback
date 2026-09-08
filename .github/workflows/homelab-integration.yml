@@ -72,7 +72,7 @@ jobs:
       VALHALLA_ELEVATION_URL: ${{ secrets.HOMELAB_VALHALLA_ELEVATION_URL }}
       PHOTON_URL: ${{ secrets.HOMELAB_PHOTON_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # The runner workspace persists between runs.
           clean: true
@@ -184,7 +184,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: homelab-integration-results
           path: |

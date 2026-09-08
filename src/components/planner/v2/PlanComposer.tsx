@@ -1,7 +1,7 @@
 "use client"
 
 import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
-import { useCallback, useEffect, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
@@ -11,6 +11,7 @@ import type { PlanMode, PlannerProviderHealthViewModel } from "../PlannerDeckVie
 import { ProviderHealthNotice } from "../ProviderHealthNotice"
 import { PlanModeSelector } from "./PlanModeSelector"
 import { PlanOptions } from "./PlanOptions"
+import { RideRequestAutocomplete } from "./RideRequestAutocomplete"
 
 export interface PlanComposerProps {
   planMode: PlanMode
@@ -164,6 +165,9 @@ export function PlanComposer({
   const intentBusy = intentStatus === "interpreting"
   const requestBusy = intentBusy || planningBusy
   const placementActive = armedPoint !== null || addingVia
+  // A rider must be able to supersede an in-flight route request with a newer
+  // prompt. Route planning already fences stale provider responses; only the
+  // intent interpreter itself needs to block a new prompt submission.
   const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
 
   const cancelPlacement = useCallback(() => {
@@ -185,6 +189,26 @@ export function PlanComposer({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [cancelPlacement, placementActive])
 
+  // The error renders below the expanded Ride options panel, which puts it
+  // roughly a thousand pixels under the fold: tapping Plan route and having it
+  // fail looked like nothing happened at all. Bring it into the planner's one
+  // scroll owner so the rider reads why.
+  const errorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!error) return
+    const node = errorRef.current
+    const scroll = node?.closest<HTMLElement>(".planner-scroll")
+    if (!node || !scroll) return
+    const nodeBox = node.getBoundingClientRect()
+    const scrollBox = scroll.getBoundingClientRect()
+    if (nodeBox.top >= scrollBox.top && nodeBox.bottom <= scrollBox.bottom) return
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    scroll.scrollTo({
+      top: scroll.scrollTop + nodeBox.top - scrollBox.top - 12,
+      behavior: reduceMotion ? "auto" : "smooth"
+    })
+  }, [error])
+
   return (
     <div className="plan-v2" data-plan-mode={planMode} data-editing={editing ? "true" : "false"}>
       {providerHealth ? <ProviderHealthNotice health={providerHealth} onRetry={onRetryProviderHealth} /> : null}
@@ -192,7 +216,10 @@ export function PlanComposer({
       {planningBusy ? (
         <div className="plan-v2__status" role="status" aria-label="Ride planning progress" aria-live="polite">
           <SpinnerGap className="spin" aria-hidden="true" />
-          <span>{lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}</span>
+          <span>
+            {lifecycleLabel}{elapsedSeconds >= 1 ? ` · ${elapsedSeconds}s` : ""}
+            {elapsedSeconds >= 12 ? <small> Still working — road search can take longer on weak connections.</small> : null}
+          </span>
           <button type="button" aria-label="Cancel ride change" onClick={onCancelRideChange}>Cancel</button>
         </div>
       ) : null}
@@ -217,14 +244,15 @@ export function PlanComposer({
           ) : (
             <span className="plan-v2__location-marker" aria-hidden="true"><MapPin weight="fill" /></span>
           )}
-          <label className="sr-only" htmlFor="ride-prompt">Ride request</label>
-          <input
+          <RideRequestAutocomplete
             id="ride-prompt"
             name="ride-prompt"
+            planMode={planMode}
             value={ridePrompt}
-            onChange={(event) => onRidePromptChange(event.target.value)}
             placeholder={placeholder}
-            autoComplete="off"
+            disabled={false}
+            bias={start ? { lat: start.lat, lon: start.lon } : undefined}
+            onChange={onRidePromptChange}
           />
           <button
             type="button"
@@ -246,7 +274,7 @@ export function PlanComposer({
             onChange={onPlanModeChange}
             disabled={requestBusy}
           />
-          <button type="button" className="plan-v2__draw-action" aria-label="Draw" disabled={requestBusy} onClick={onDraw}>
+          <button type="button" className="plan-v2__draw-action" disabled={requestBusy} onClick={onDraw}>
             <PencilLine aria-hidden="true" />
             <span>Draw route</span>
           </button>
@@ -322,7 +350,7 @@ export function PlanComposer({
       </div>
 
       {error ? (
-        <div className="plan-v2__error" role="alert">
+        <div ref={errorRef} className="plan-v2__error" role="alert">
           <strong>{error.code === "OUT_OF_COVERAGE" ? "Map region ends here" : "Route unavailable"}</strong>
           <p>{error.message}</p>
         </div>

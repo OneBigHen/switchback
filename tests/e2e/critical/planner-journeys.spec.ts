@@ -47,7 +47,7 @@ test("the idle composer keeps trip shape and free-form planning discoverable", a
   const composer = page.locator(".plan-v2")
   await expect(composer.getByRole("button", { name: "Destination" })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Loop" })).toBeVisible()
-  await expect(composer.getByRole("button", { name: "Draw" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Draw route" })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Free Ride" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toHaveCount(0)
   await expect(page.getByText("Try", { exact: true })).toHaveCount(0)
@@ -58,7 +58,7 @@ test("Draw opens the typed sketch toolbar from the V2 composer", async ({ page }
   await page.goto("/")
   await expandPhonePlanner(page)
 
-  await page.getByRole("button", { name: "Draw", exact: true }).click()
+  await page.getByRole("button", { name: "Draw route", exact: true }).click()
 
   await expect(page.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
   await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()

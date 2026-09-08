@@ -64,11 +64,11 @@
   gap: 1px;
   overflow: hidden;
   justify-items: stretch;
-  border: 1px solid var(--line);
+  border: 1px solid var(--sb-ride-border);
   border-radius: 16px;
-  background: var(--line);
+  background: var(--sb-ride-border);
   color: var(--sb-paper);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
+  box-shadow: var(--sb-shadow);
 }
 
 .free-ride-hud .free-ride-dock .free-ride-speed {
@@ -80,7 +80,7 @@
   gap: 10px;
   padding: 12px 18px 10px;
   border-radius: 0;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
   box-shadow: none;
   place-content: initial;
 }
@@ -99,12 +99,12 @@
   padding: 9px 18px;
   border: 0;
   border-radius: 0;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
 }
 
 .free-ride-hud .free-ride-dock .free-ride-instruction {
   padding: 9px 18px;
-  background: rgb(11 14 13 / 96%);
+  background: var(--sb-ride-surface);
 }
 
 .free-ride-hud .free-ride-dock .free-ride-telemetry {
@@ -200,7 +200,7 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
 /* ── Free Ride / Neural Map HUD ─────────────────────────────────────── */
 .free-ride-topbar .ride-route-name h1 {
   margin: 0;
-  color: var(--instrument);
+  color: var(--sb-ride-text);
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 720;
@@ -208,8 +208,8 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
 }
 
 .free-ride-topbar .ride-route-name strong {
-  color: var(--metal);
-  font-size: 11px;
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
   font-weight: 620;
 }
 
@@ -224,8 +224,8 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--sb-warning);
-  font-size: 10px;
+  color: var(--sb-ride-warning);
+  font-size: 12px;
   font-weight: 750;
   line-height: 1.2;
   letter-spacing: 0.08em;
@@ -243,7 +243,7 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
   padding: 6px 8px;
   border: 1px solid rgb(214 255 80 / 35%);
   border-radius: 9px;
-  color: var(--success);
+  color: var(--sb-ride-success);
   font-family: var(--font-display);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -258,18 +258,18 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
 .free-ride-suggestion-actions button {
   min-height: 44px;
   padding: 0 8px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--sb-ride-border);
   border-radius: 10px;
-  background: var(--raised);
-  color: var(--instrument);
-  font-size: 10px;
+  background: var(--sb-ride-surface-raised);
+  color: var(--sb-ride-text);
+  font-size: 12px;
   font-weight: 720;
   cursor: pointer;
 }
 
 .free-ride-suggestion-actions button:hover,
 .free-ride-suggestion-actions button:focus-visible {
-  border-color: var(--signal);
+  border-color: var(--sb-ride-signal);
 }
 
 .free-ride-suggestion-actions .free-ride-accept {
@@ -277,12 +277,12 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-color: var(--signal);
-  background: var(--signal);
+  border-color: var(--sb-ride-signal);
+  background: var(--sb-ride-signal);
   /* `--signal` is tuned as a foreground on the dark HUD, so it is a pale blue.
      Used as a fill it needs dark ink, not white — white on it measured 1.58:1,
      on the one button the whole feature exists to offer. */
-  color: var(--machined);
+  color: var(--sb-ride-surface-raised);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -356,10 +356,17 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
 /* Free Ride's control row is a real grid: three actions normally, four when
    Head Home is offered. The column counts came from switchback-v1.css; the
    dock rules above already neutralise the old absolute positioning. */
+/* Three equal columns gave the primary the same ~120px as Pause and Exit,
+   which wrapped "Finish & save" onto two lines. The primary earns the wider
+   column; the other two have short labels and fit comfortably. */
 .free-ride-hud .free-ride-dock .free-ride-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr) minmax(0, 0.85fr);
   gap: 8px;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-controls > button {
+  white-space: nowrap;
 }
 
 .free-ride-hud .free-ride-dock .free-ride-controls.has-home {
@@ -384,4 +391,169 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
   .free-ride-hud .free-ride-dock .free-ride-telemetry { padding: 8px 4px; }
   .free-ride-hud .free-ride-dock .free-ride-suggestion,
   .free-ride-hud .free-ride-dock .free-ride-empty { padding: 10px 12px; }
+}
+
+/* Free Ride is an instrument surface over a live map. Its status and
+ * experiment disclosure must remain legible over any basemap, including a
+ * dark style or a partially loaded tile set. */
+.free-ride-hud .free-ride-topbar {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  left: 18px;
+  z-index: 7;
+  min-height: 0;
+  padding: 10px 12px 10px 16px;
+  border: 1px solid var(--sb-ride-border);
+  border-radius: 15px;
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+  pointer-events: auto;
+}
+
+.free-ride-hud .free-ride-topbar .gps-status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.free-ride-hud .free-ride-topbar .gps-status svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: var(--sb-ride-signal);
+}
+
+.free-ride-hud .free-ride-topbar .ride-exit {
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+  border-color: var(--sb-ride-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-ride-surface-raised);
+  color: var(--sb-ride-text);
+}
+
+.free-ride-hud .free-ride-topbar .ride-exit:hover,
+.free-ride-hud .free-ride-topbar .ride-exit:focus-visible {
+  border-color: var(--sb-ride-signal);
+  color: var(--sb-ride-signal);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-suggestion,
+.free-ride-hud .free-ride-dock .free-ride-empty {
+  border: 1px solid var(--sb-ride-border);
+  border-radius: 12px;
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+  line-height: 1.35;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-telemetry {
+  border: 1px solid var(--sb-ride-border);
+  border-radius: 12px;
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-telemetry strong {
+  color: var(--sb-ride-text);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-telemetry span {
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-instruction {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--sb-ride-text-muted);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-instruction svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--sb-ride-signal);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-instruction span {
+  min-width: 0;
+  color: var(--sb-ride-text-muted);
+}
+
+.free-ride-hud .free-ride-dock .recording-error {
+  padding: 10px 14px;
+  border: 1px solid var(--sb-ride-danger);
+  border-radius: 12px;
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-empty {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-empty strong {
+  color: var(--sb-ride-text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-empty span {
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-suggestion h2 {
+  color: var(--sb-ride-text);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-suggestion-reasons {
+  color: var(--sb-ride-text-muted);
+}
+
+.free-ride-hud .free-ride-dock .free-ride-suggestion-actions button {
+  border-color: var(--sb-ride-border);
+  background: var(--sb-ride-surface-raised);
+  color: var(--sb-ride-text);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .free-ride-hud .free-ride-topbar {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    left: max(8px, env(safe-area-inset-left));
+    padding: 8px;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .free-ride-hud .free-ride-topbar {
+    top: max(8px, env(safe-area-inset-top));
+    right: 8px;
+    left: 8px;
+    display: flex;
+    min-height: 56px;
+    padding: 6px 8px 6px 12px;
+  }
 }

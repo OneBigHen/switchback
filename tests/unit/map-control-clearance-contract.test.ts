@@ -38,7 +38,7 @@ describe("short-landscape map control clearance", () => {
         `.planner-shell .map-stage:not(.is-ride-mode) .${prefix}-ctrl-bottom-left`
       )
       expect(bottomLeft).toContain(
-        "left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 48vw) + var(--sb-space-2))"
+        "left: calc(var(--sb-mobile-edge) + 64px + var(--sb-space-2) + min(420px, 42vw) + var(--sb-space-2))"
       )
     }
   })

@@ -165,6 +165,7 @@
 .panel {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: 10px;
   padding: 12px 13px;
@@ -175,6 +176,13 @@
     radial-gradient(circle at 96% 0%, color-mix(in srgb, var(--sb-ember-strong) 8%, transparent), transparent 34%),
     radial-gradient(circle, color-mix(in srgb, var(--goblin-charcoal) 7%, transparent) 0 0.65px, transparent 0.85px) 0 0 / 5px 5px,
     color-mix(in srgb, var(--goblin-olive) 4%, var(--sb-surface));
+}
+
+.panel > *,
+.header,
+.thread,
+.composer {
+  min-width: 0;
 }
 
 .header {

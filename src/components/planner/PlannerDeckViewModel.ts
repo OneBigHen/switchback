@@ -74,6 +74,9 @@ export interface PlannerUiViewModel {
   home: Waypoint | null | undefined
   /** Candidate count for the Choose/Prepare stage (SB-025). */
   routesCount: number
+  /** Canonical identity of the result revision the shown routes came from.
+   *  Null only for imported/shared plans that never ran a request. */
+  resultRevision: string | null
 }
 
 export interface PlannerLifecycleViewModel {
@@ -222,6 +225,7 @@ export function buildPlannerDeckViewModel(state: {
   planningPhase: PlanningPhase
   planningStartedAt: number | null
   isRecalculating: boolean
+  resultRevision?: string | null
   providerHealth?: PlannerProviderHealthViewModel
 }): PlannerDeckViewModel {
   return {
@@ -266,7 +270,8 @@ export function buildPlannerDeckViewModel(state: {
       savedCount: state.savedCount,
       selectedRoute: state.selectedRoute,
       home: state.home,
-      routesCount: state.plan?.routes.length ?? 0
+      routesCount: state.plan?.routes.length ?? 0,
+      resultRevision: state.resultRevision ?? null
     },
     lifecycle: {
       phase: state.planningPhase,

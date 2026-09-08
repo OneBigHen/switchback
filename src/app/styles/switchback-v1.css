@@ -621,8 +621,7 @@
     scroll-padding-block: 88px 80px;
   }
 
-  .planner-deck.has-expanded-route-dock > .planner-action-dock .free-ride-button,
-  .planner-deck.has-expanded-route-dock > .planner-action-dock .road-locks-dock-button {
+  .planner-deck.has-expanded-route-dock > .planner-action-dock .free-ride-button {
     display: none;
   }
 
@@ -630,23 +629,12 @@
     scroll-margin-block: 88px 80px;
   }
 
-  .planner-deck > .planner-action-dock,
-  .planner-deck > .planner-action-dock:has(.clear-route-button):has(.offline-pack-button) {
-    min-height: 72px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-areas: "replan clear start offline";
-    gap: 6px;
-    padding: 8px;
-  }
-
-  .planner-deck > .planner-action-dock .ride-button,
-  .planner-deck > .planner-action-dock .replan-button,
-  .planner-deck > .planner-action-dock .clear-route-button,
-  .planner-deck > .planner-action-dock .offline-pack-button {
-    min-height: 48px;
-    padding: 0 6px;
-    font-size: 11px;
-  }
+  /* The V1 four-column "replan clear start offline" landscape dock and its
+     button sizing moved to planner-action-dock.css, which now owns the dock
+     layout at every viewport. Keeping a second grid here made the two fight:
+     the survivor was a 129px dock inside a 304px panel, which pushed the Start
+     CTA off the bottom of the screen. Road locks is a safety control and stays
+     visible in landscape rather than being hidden to buy width. */
 
   .planner-shell .map-layer-control {
     top: 8px;

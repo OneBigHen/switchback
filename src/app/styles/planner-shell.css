@@ -36,13 +36,14 @@
   box-shadow: inset 0 0 96px rgb(0 0 0 / 28%);
 }
 
+/* Placement belongs to .map-layer-status-stack; these only carry their own
+   look. Anchoring them independently put the toast under the layers control
+   on desktop and on top of it on phones. */
 .map-loading,
 .map-error {
-  position: absolute;
-  top: 24px;
-  right: 24px;
+  position: relative;
   z-index: 2;
-  max-width: 320px;
+  max-width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -56,11 +57,50 @@
   border-color: rgb(227 93 84 / 48%);
 }
 
-.map-layer-status {
+/* The stack owns placement so simultaneous banners queue instead of
+   overlapping; an empty stack must not eat map clicks. */
+.map-layer-status-stack {
   position: absolute;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: calc(100% - 40px);
+  pointer-events: none;
+}
+
+.map-layer-status-stack:empty {
+  display: none;
+}
+
+/* The deck owns the left workspace and paints over this stack, so centring on
+   the viewport hid the start of every banner. Centre on the map instead --
+   same 250px inset the crosshair uses. */
+@media (min-width: 761px) {
+  .map-layer-status-stack {
+    left: calc(50% + 250px);
+  }
+}
+
+/* Short landscape puts the panel on the left instead; start clear of it.
+   Scoped to .map-stage so it beats the generic phone rule further down. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .map-stage .map-layer-status-stack {
+    /* Clear of the panel on the left and below the layer + map controls,
+       which share the top edge of the remaining map in this orientation. */
+    top: 62px;
+    right: 12px;
+    left: calc(48vw + 92px);
+    transform: none;
+    justify-items: start;
+  }
+}
+
+.map-layer-status {
+  position: relative;
   z-index: 4;
   padding: 8px 14px;
   border: 1px solid var(--line);
@@ -470,14 +510,23 @@ h2 {
       bottom: 260px;
     }
 
-    .map-layer-status {
-      top: 64px;
-      /* Anchor to the left of the visible area below the toolbar so the
-         banner does not run off the edge of a narrow phone screen. The
-         default desktop rule centers it horizontally. */
-      left: 12px;
+    /* On phones the layer control owns the top-left corner and the native map
+       controls own the top-right, so a centred banner landed on top of the
+       Layers button at 320px. Keep it in the clear band between them. */
+    .map-layer-status-stack {
+      top: 20px;
+      right: 12px;
+      left: 68px;
       transform: none;
-      max-width: calc(100% - 24px);
+      justify-items: stretch;
+      max-width: none;
+    }
+
+    .map-layer-status {
+      overflow: hidden;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .map-feature-banner {
@@ -486,10 +535,7 @@ h2 {
 
     .map-loading,
     .map-error {
-      top: 12px;
-      right: 12px;
-      left: 12px;
-      max-width: none;
+      max-width: 100%;
       text-align: center;
     }
 

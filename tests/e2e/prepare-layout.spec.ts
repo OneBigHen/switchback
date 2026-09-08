@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Locator } from "@playwright/test"
 import {
   ensureFixtureStart,
   expandPhonePlanner,
@@ -38,12 +38,27 @@ for (const viewport of VIEWPORTS) {
     await fillFixtureFinish(page)
     await page.getByRole("button", { name: "Plan route" }).click()
     await expectRouteOutcome(page, capture)
-    // The decision rail labels its actions by the role a route was given
-    // ("Select Best Ride", "Select Maximum Twisties"), never by the route's own
-    // name. This is a layout test, so take the first offered route rather than
-    // binding to a role assignment that scoring is free to change.
-    await page.getByRole("button", { name: /^Select / }).first().click()
-    await page.getByRole("button", { name: /Show route details/i }).click()
+    // Every card in the decision rail offers both "Select <route>" and
+    // "Details for <route>", so neither label is unique on its own. Take the
+    // first offered route rather than binding to a role assignment that scoring
+    // is free to change, then read back the route that card actually named and
+    // open details for that same route. `.first()` on the details button would
+    // resolve the ambiguity just as quietly while letting selection and details
+    // drift onto two different routes, which is precisely the regression the
+    // rest of this test exists to catch.
+    const chosenOption = page.getByRole("button", { name: /^Select / }).first()
+    const chosenLabel = await chosenOption.getAttribute("aria-label")
+    const chosenRoute = (chosenLabel ?? "").replace(/^Select /, "")
+    expect(chosenRoute, "the decision rail must name the route each card offers").not.toBe("")
+    await chosenOption.click()
+    await page.getByRole("button", { name: `Details for ${chosenRoute}`, exact: true }).click()
+    // Prepare is two disclosures deep, and they are not interchangeable. The
+    // card action above swaps the rail for the route details workspace; the
+    // toggle below is the one that expands #route-preparation inside it. The
+    // rail unmounts once the workspace is open, so this is also the only
+    // control that can reopen preparation later in the test.
+    const openPreparation = page.getByRole("button", { name: "Show route details", exact: true })
+    await openPreparation.click()
     await expect(page.locator("#route-preparation")).toBeVisible()
 
     // "One scroll region" is a containment claim, not a claim about where the
@@ -54,47 +69,69 @@ for (const viewport of VIEWPORTS) {
     // planner scroll region, and it is not owned by some second scroller — then
     // scroll it into view and prove it lands inside that region rather than
     // being clipped by it.
-    const expectSelectedIdentityInScroll = async (checkpoint: string): Promise<void> => {
-      const identity = page.locator(".route-selection-identity")
-      await expect(identity, `${checkpoint}: selected route identity must be attached`).toBeAttached()
+    const expectOwnedByPlannerScroll = async (target: Locator, what: string, checkpoint: string): Promise<void> => {
+      await expect(target, `${checkpoint}: ${what} must be attached`).toBeAttached()
 
-      const ownership = await identity.evaluate((element) => {
+      // Ownership is a structural fact, so test it structurally: the nearest
+      // ancestor that *can* scroll must be the planner scroll region. Also
+      // requiring that it currently overflows would make the claim depend on
+      // how tall the fixture route's content happens to render — a deck that
+      // comfortably fits its content reported "the document" and failed for
+      // being tidy, which is the opposite of the regression being guarded.
+      const ownership = await target.evaluate((element) => {
         for (let node = element.parentElement; node !== null; node = node.parentElement) {
           const style = getComputedStyle(node)
-          const scrolls = /(auto|scroll|overlay)/.test(style.overflowY)
-            && node.scrollHeight > node.clientHeight + 1
-          if (scrolls) return { owner: node.className, isPlannerScroll: node.classList.contains("planner-scroll") }
+          if (/(auto|scroll|overlay)/.test(style.overflowY)) {
+            return { owner: node.className, isPlannerScroll: node.classList.contains("planner-scroll") }
+          }
         }
         return { owner: null, isPlannerScroll: false }
       })
       expect(ownership.isPlannerScroll,
-        `${checkpoint}: selected route identity must be owned by the planner scroll region, not ${ownership.owner ?? "the document"}`)
+        `${checkpoint}: ${what} must be owned by the planner scroll region, not ${ownership.owner ?? "the document"}`)
         .toBe(true)
 
-      await identity.scrollIntoViewIfNeeded()
-      const identityBox = await identity.boundingBox()
+      await target.scrollIntoViewIfNeeded()
+      const targetBox = await target.boundingBox()
       const scrollBox = await page.locator(".planner-scroll").boundingBox()
-      expect(identityBox, `${checkpoint}: selected route identity must have a box`).not.toBeNull()
+      expect(targetBox, `${checkpoint}: ${what} must have a box`).not.toBeNull()
       expect(scrollBox, `${checkpoint}: planner scroll must have a box`).not.toBeNull()
-      expect(identityBox?.width, `${checkpoint}: selected route identity must be measurable`).toBeGreaterThan(0)
-      expect(identityBox?.height, `${checkpoint}: selected route identity must be measurable`).toBeGreaterThan(0)
-      const identityTop = identityBox?.y ?? 0
-      const identityBottom = identityTop + (identityBox?.height ?? 0)
+      expect(targetBox?.width, `${checkpoint}: ${what} must be measurable`).toBeGreaterThan(0)
+      expect(targetBox?.height, `${checkpoint}: ${what} must be measurable`).toBeGreaterThan(0)
+      const targetTop = targetBox?.y ?? 0
+      const targetBottom = targetTop + (targetBox?.height ?? 0)
       const scrollTop = scrollBox?.y ?? 0
       const scrollBottom = scrollTop + (scrollBox?.height ?? 0)
-      expect(identityTop, `${checkpoint}: selected route identity must start in the scroll region`).toBeGreaterThanOrEqual(scrollTop - 1)
-      expect(identityBottom, `${checkpoint}: selected route identity must end in the scroll region`).toBeLessThanOrEqual(scrollBottom + 1)
+      expect(targetTop, `${checkpoint}: ${what} must start in the scroll region`).toBeGreaterThanOrEqual(scrollTop - 1)
+      expect(targetBottom, `${checkpoint}: ${what} must end in the scroll region`).toBeLessThanOrEqual(scrollBottom + 1)
     }
+
+    const selectedIdentity = page.locator(".route-selection-identity")
+    const expectSelectedIdentityInScroll = (checkpoint: string): Promise<void> =>
+      expectOwnedByPlannerScroll(selectedIdentity, "selected route identity", checkpoint)
 
     await expectSelectedIdentityInScroll("selection")
     // "Edit route" was folded into the single V2 disclosure authority; Ride
     // options is the one way back into the editor, and openPlannerEditor owns
     // reaching it on every viewport this test runs at.
     await openPlannerEditor(page)
-    await expectSelectedIdentityInScroll("edit")
+    // Edit is a whole stage in V2, not a panel beside the results: opening the
+    // composer suppresses the stage content, and the route details workspace
+    // goes with it. So there is no selected-route identity on screen to
+    // contain here, and asserting one would be asserting the retired V1 layout
+    // where editor and results shared the deck. The containment claim still
+    // holds for what the stage does show, so hold the editor itself to it.
+    await expect(selectedIdentity, "edit: the editor replaces the results stage").toBeHidden()
+    // Anchor on the start field rather than the whole Ride options panel. The
+    // panel is taller than the deck on every viewport here — being scrollable
+    // is the point — so only a control that must fit can carry the containment
+    // half of this claim, while still proving the editor is served by the one
+    // planner scroll region and not a nested second scroller.
+    await expectOwnedByPlannerScroll(
+      page.getByRole("combobox", { name: "Start", exact: true }), "ride start field", "edit")
     await page.getByRole("button", { name: "Minimize planner" }).click()
     const compactIdentity = page.locator(".planner-mini-header strong")
-    await expect(compactIdentity).toHaveText("Twisty fixture route")
+    await expect(compactIdentity).toHaveText(chosenRoute)
     const compactIdentityBox = await compactIdentity.boundingBox()
     expect(compactIdentityBox, "minimize: selected route identity must have a compact box").not.toBeNull()
     expect(compactIdentityBox?.width, "minimize: selected route identity must be measurable").toBeGreaterThan(0)
@@ -102,7 +139,7 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator(".route-selection-identity")).toHaveCount(0)
     await page.getByRole("button", { name: "Expand planner" }).click()
     await expectSelectedIdentityInScroll("expand")
-    await page.getByRole("button", { name: /Show route details/i }).click()
+    await openPreparation.click()
     await expect(page.locator("#route-preparation")).toBeVisible()
 
     const entry = await page.evaluate(() => {

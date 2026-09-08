@@ -27,15 +27,26 @@ interface RouteViewportProps {
  * padding tables now live in the tested inset model; this adapter keeps
  * `fitSelectedRoute` call sites unchanged.
  */
-function routeFitInsets(props: RouteViewportProps): ReturnType<typeof calculateMapViewportInsets> {
+function routeFitInsets(
+  map: Partial<Pick<MapLibreMap, "getContainer">>,
+  props: RouteViewportProps
+): ReturnType<typeof calculateMapViewportInsets> {
   const phoneViewport = typeof window.matchMedia === "function"
     && window.matchMedia("(max-width: 760px)").matches
   const sheetDetent = props.sheetDetent
     ?? usePlannerStore.getState().sheetDetentOverride
     ?? (phoneViewport ? "peek" : "half")
+  const container = typeof map.getContainer === "function" ? map.getContainer() : null
+  // MapLibre validates fitBounds padding against its own drawable canvas, not
+  // the browser window. Mobile app chrome and context sheets can make those
+  // dimensions differ substantially, especially in short landscape. Keep the
+  // window fallback for lightweight map adapters and unit-test doubles that
+  // intentionally implement only fitBounds.
+  const viewportWidthPx = container?.clientWidth || window.innerWidth
+  const viewportHeightPx = container?.clientHeight || window.innerHeight
   const context: WorkspaceMapContext = {
-    viewportWidthPx: window.innerWidth,
-    viewportHeightPx: window.innerHeight,
+    viewportWidthPx,
+    viewportHeightPx,
     mode: props.rideMode ? "ride" : "planning",
     sheetDetent
   }
@@ -54,14 +65,12 @@ export function fitSelectedRoute(map: MapLibreMap, props: RouteViewportProps) {
       [Math.max(...longitudes), Math.max(...latitudes)]
     ],
     {
-      padding: routeFitInsets(props),
+      padding: routeFitInsets(map, props),
       duration: 900,
       maxZoom: 15
     }
   )
 }
-
-
 
 /**
  * Applies one navigation frame to the ride camera through the follow-camera

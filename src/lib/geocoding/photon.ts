@@ -160,6 +160,15 @@ export async function searchPlaces(
     return places
   }
 
+  // A provider's top textual result outside the local routing region is an
+  // explicit global match, not an invitation to substitute a nearby namesake.
+  // Keep provider order intact and let routing report coverage honestly. When
+  // the provider's own top result is inside our region, proximity ranking is
+  // still useful for genuinely local ambiguous searches such as Newville.
+  if (places[0] && !isPlaceInRoutingCoverage(places[0])) {
+    return places
+  }
+
   return places
     .map((place, index) => ({ place, index }))
     .sort((left, right) =>
@@ -325,6 +334,7 @@ export function selectPreferredPlace(
   bias?: GeocoderBias
 ): PlaceResult | undefined {
   if (!bias) return places[0]
+  if (places[0] && !isPlaceInRoutingCoverage(places[0])) return places[0]
   const candidates = isCoordinateInRoutingCoverage(bias)
     ? places.filter(isPlaceInRoutingCoverage)
     : places

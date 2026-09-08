@@ -1,6 +1,6 @@
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(0, 1fr);
   gap: var(--sb-space-1, 4px);
   width: min(100%, 360px);
   padding: var(--sb-space-1, 4px);
@@ -48,6 +48,12 @@
   color: color-mix(in srgb, var(--sb-paper) 82%, transparent);
 }
 
+.fieldsAlternative {
+  grid-column: 1 / -1;
+  background: color-mix(in srgb, var(--sb-paper) 7%, transparent);
+  color: color-mix(in srgb, var(--sb-paper) 90%, transparent);
+}
+
 .toolbar button:hover:not(:disabled),
 .toolbar button:focus-visible {
   border-color: color-mix(in srgb, var(--sb-paper) 48%, transparent);
@@ -63,16 +69,12 @@
   opacity: 0.42;
 }
 
+/* Below 360px the four commands used to drop their labels, leaving a bare
+   trash can and a bare tick to mean "Clear" and "Plan route" -- the two most
+   consequential things a rider can do to a drawing they just made. Draw mode
+   has an almost empty map underneath, so spend one more row instead. */
 @media (max-width: 360px) {
-  .toolbar button span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }

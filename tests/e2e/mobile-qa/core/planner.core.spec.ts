@@ -13,7 +13,7 @@ import { settleMapDelay } from "../../helpers/ux-state-fixtures"
 
 async function expectIdleComposer(page: import("@playwright/test").Page): Promise<void> {
   await expandPhonePlanner(page)
-  await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
 }
 
@@ -118,7 +118,7 @@ test.describe("mobile planner Level A core states", () => {
     await installPlannerServices(page)
     await page.goto("/")
     await expandPhonePlanner(page)
-    const prompt = page.getByRole("textbox", { name: "Ride request" })
+    const prompt = page.getByRole("combobox", { name: "Ride request" })
     await prompt.tap()
     await page.keyboard.type("A scenic ride")
     await expect(page.getByRole("button", { name: "Find ride options" })).toBeEnabled()
@@ -141,7 +141,7 @@ test.describe("mobile planner Level A core states", () => {
     await expect.poll(() => capture.requests.length).toBeGreaterThan(0)
     await expect(page.getByRole("region", { name: "Route choices" })).toHaveCount(0)
     await expect(page.getByRole("button", { name: /^Select / })).toHaveCount(0)
-    await expect(page.getByRole("textbox", { name: "Ride request" })).toBeVisible()
+    await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
     await expect(page.getByRole("status", { name: "Ride planning progress" })).toBeHidden()
     await capturePlannerState(page, testInfo, "empty-no-results")
     await expectMobilePlannerContracts(page)

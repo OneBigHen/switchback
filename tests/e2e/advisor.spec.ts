@@ -176,8 +176,13 @@ test("Gravel Goblin is available before routing and becomes the route companion 
   await expect(avoidTolls).toBeChecked()
 
   await avoidTolls.uncheck()
-  await page.getByRole("button", { name: "Replan", exact: true }).click()
-  await expect.poll(() => primaryRequests[1]).toMatchObject({
+  // Changing a ride option *is* the replan in V2: the toll switch applies the
+  // edit, re-runs routing itself, and leaves the editor once the new route is
+  // ready. The separate "Replan" tap belonged to V1 and now races that exit —
+  // on a phone the button has already unmounted by the time the tap lands. So
+  // assert the ride the rider ends up with, both on the wire and on screen.
+  await expect(page.getByText("Allowed tolls")).toBeVisible({ timeout: 30_000 })
+  await expect.poll(() => primaryRequests[1], { timeout: 30_000 }).toMatchObject({
     profile: "adventure",
     targetMinutes: 180,
     avoidHighways: true,

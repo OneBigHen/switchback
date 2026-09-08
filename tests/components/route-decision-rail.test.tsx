@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RouteDecisionRail } from "@/components/planner/v2/RouteDecisionRail"
+import { buildRouteDecisionPresentation } from "@/components/planner/v2/RouteDecisionCard"
 import { PlannerComposition } from "@/components/planner/PlannerComposition"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "@/components/planner/PlannerDeckViewModel"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
@@ -221,5 +222,24 @@ describe("RouteDecisionRail", () => {
 
     expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
+  })
+})
+
+describe("timeboxed loop warning copy", () => {
+  it("calls an under-length loop a shorter ride", () => {
+    const short = { ...route("loop", "scenic", 60, 30, 60), loopTargetMinutes: 90 }
+    expect(buildRouteDecisionPresentation(short, [short]).warning)
+      .toBe("60 min route — requested 90 min. Accept this shorter ride before starting.")
+  })
+
+  it("calls an over-length loop a longer ride instead of claiming it is shorter", () => {
+    const long = { ...route("loop", "scenic", 120, 70, 60), loopTargetMinutes: 90 }
+    expect(buildRouteDecisionPresentation(long, [long]).warning)
+      .toBe("120 min route — requested 90 min. Accept this longer ride before starting.")
+  })
+
+  it("leaves a loop inside tolerance unwarned", () => {
+    const fine = { ...route("loop", "scenic", 95, 55, 60), loopTargetMinutes: 90 }
+    expect(buildRouteDecisionPresentation(fine, [fine]).warning).toBeNull()
   })
 })

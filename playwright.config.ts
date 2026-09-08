@@ -10,7 +10,10 @@ const mobileQaTree = /\/e2e\/mobile-qa\//
 const qualitySuites = /\/e2e\/(critical|real-router|pwa|visual)\//
 const memorySoakSpec = /\/memory-soak\.spec\.ts$/
 const roadLockSpec = /\/road-lock\.spec\.ts$/
-const criticalMainMatch = /\/e2e\/critical\/(planner-journeys|navigation-ia)\.spec\.ts$/
+// Every spec under tests/e2e/critical/ must be named here: the tree is excluded
+// from the broad projects by `qualitySuites`, so a spec this list forgets runs
+// in no project at all and silently guards nothing.
+const criticalMainMatch = /\/e2e\/critical\/(planner-journeys|navigation-ia|planner-surface-composition|sketch-recovery|route-details-identity|community-routes)\.spec\.ts$/
 const criticalWebkitSmokeMatch = /\/e2e\/critical\/webkit-smoke\.spec\.ts$/
 const realRouterMatch = /\/e2e\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/e2e\/pwa\/.*\.spec\.ts$/

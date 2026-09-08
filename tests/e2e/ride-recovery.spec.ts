@@ -47,6 +47,40 @@ async function openRideOptions(page: Page): Promise<void> {
   await expect(options).toHaveAttribute("aria-expanded", "true")
 }
 
+/**
+ * Read the ride intent the app has actually committed to IndexedDB.
+ *
+ * Checkpoint writes are deliberately coalesced (a burst of edits becomes one
+ * write) and then land asynchronously, so reloading the instant the summary
+ * updates races the write instead of testing recovery. This reads the durable
+ * record the reload is about to depend on, so the test waits for the real
+ * contract rather than for a fixed number of milliseconds.
+ */
+async function persistedRideIntent(page: Page): Promise<Record<string, unknown> | null> {
+  return page.evaluate(async () => {
+    const databases = await indexedDB.databases()
+    if (!databases.some((entry) => entry.name === "switchback-ride-intent")) return null
+    const opened = await new Promise<IDBDatabase | null>((resolve) => {
+      const request = indexedDB.open("switchback-ride-intent")
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => resolve(null)
+      request.onblocked = () => resolve(null)
+    })
+    if (!opened) return null
+    if (!opened.objectStoreNames.contains("checkpoints")) {
+      opened.close()
+      return null
+    }
+    const record = await new Promise<{ intent?: Record<string, unknown> } | null>((resolve) => {
+      const request = opened.transaction("checkpoints", "readonly").objectStore("checkpoints").get("active")
+      request.onsuccess = () => resolve(request.result ?? null)
+      request.onerror = () => resolve(null)
+    })
+    opened.close()
+    return record?.intent ?? null
+  })
+}
+
 /** The ride summary is the planner's resting surface; the editor covers it. */
 async function closeRideEditor(page: Page): Promise<void> {
   const options = page.getByRole("button", { name: "Ride options", exact: true })
@@ -64,9 +98,14 @@ test("a preference edit survives a reload and comes back as the same ride", asyn
   await avoidHighways.check()
   await expect(avoidHighways).toBeChecked()
 
-  // The checkpoint is written asynchronously; reloading is the whole point.
+  // The checkpoint is written asynchronously; reloading is the whole point. On
+  // screen the edit is already applied, but that only proves the in-memory
+  // ride — so wait for it to reach the store before reloading, which also
+  // makes "the edit was durably checkpointed" an assertion in its own right.
   await closeRideEditor(page)
   await expect(page.getByRole("region", { name: "Your ride" })).toContainText("No highways")
+  await expect.poll(() => persistedRideIntent(page), { timeout: 15_000 })
+    .toMatchObject({ avoidHighways: true })
   await page.reload()
 
   await expect(page.getByRole("region", { name: "Your ride" })).toContainText("Ride restored")

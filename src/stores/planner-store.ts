@@ -632,10 +632,12 @@ export const usePlannerStore = create<PlannerState>()(
       /**
        * Cancel means exactly one thing: "drop the change I am in the middle
        * of and put my last usable ride back". It restores the committed
-       * intent as one undoable revision (so a mis-tap is recoverable), clears
-       * the failed-update state, and leaves the displayed route untouched —
-       * aborting the in-flight request is the session controller's half of
-       * the same command.
+       * intent while keeping the abandoned attempt as the final undoable
+       * history entry. Because the displayed route was never recomputed,
+       * Cancel restores the original committed revision identity too; this
+       * keeps map/editor/Start CTA readiness aligned with the route actually
+       * on screen while stale attempted requests remain fenced by their
+       * different identity.
        */
       cancelRideUpdate: () => set((state) => {
         const committed = state.committedRide
@@ -649,12 +651,26 @@ export const usePlannerStore = create<PlannerState>()(
         }
         if (!committed || committed.identity === state.rideHistory.identity) return settled
         const restored = applyIntentEdit(state, committed.intent, "Cancelled ride change")
-        // An identity that differs while the intent already matches (undo and
-        // redo back to the committed ride) still has to stop reading as an
-        // unapplied change.
-        return Object.keys(restored).length > 0
-          ? { ...restored, ...settled }
-          : { ...settled, committedRide: historyOf(state) }
+        if (Object.keys(restored).length === 0) {
+          // The live intent already equals the retained route's intent. The
+          // route still belongs to its original committed revision.
+          return { ...settled, committedRide: committed }
+        }
+        const projectedHistory = restored.rideHistory
+        if (!projectedHistory) return { ...settled, committedRide: committed }
+        const lastChange = projectedHistory.lastChange
+          ? { ...projectedHistory.lastChange, resultingIdentity: committed.identity }
+          : null
+        return {
+          ...restored,
+          rideHistory: {
+            ...projectedHistory,
+            identity: committed.identity,
+            lastChange
+          },
+          ...settled,
+          committedRide: committed
+        }
       }),
       selectRoute: (selectedRouteId) => set({ selectedRouteId, selectionSource: "user" as const }),
       // Automatic selection must never replace an explicit user pick (SB-005);

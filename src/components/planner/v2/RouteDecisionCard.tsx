@@ -2,6 +2,7 @@
 
 import { ArrowRight, WarningCircle } from "@phosphor-icons/react"
 import type { FocusEvent, MouseEvent } from "react"
+import { getLoopTimeboxMismatch } from "@/lib/planner/route-readiness"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { CORRIDOR_OPTION_PRESENTATION } from "@/lib/routing/sketch-corridor"
 import styles from "./RouteDecisionCard.module.css"
@@ -27,32 +28,17 @@ export interface RouteDecisionPresentation {
   warning: string | null
 }
 
-/**
- * Surfaces we are willing to call unpaved to a rider.
- *
- * This is an allow-list on purpose. Counting "everything that is not asphalt"
- * turns `unknown` into gravel, and a route with no surface data at all — a
- * Valhalla candidate arrives with an empty `surfaceMix` — into a fully unpaved
- * one. Saying "30% unpaved" about a road nobody mapped is exactly the kind of
- * invented fact the product is not allowed to state.
- */
 const UNPAVED_SURFACES = new Set([
   "gravel", "fine_gravel", "compacted", "dirt", "earth", "ground", "unpaved",
   "sand", "mud", "grass", "sett", "cobblestone", "pebblestone", "rock"
 ])
 
-/** Share of the route on surfaces actually mapped as unpaved. */
 function unpavedShare(route: PlannedRoute): number {
   return Object.entries(route.surfaceMix).reduce((total, [surface, share]) => (
     UNPAVED_SURFACES.has(surface.toLowerCase()) ? total + share : total
   ), 0)
 }
 
-/**
- * Whether this route carries any usable surface evidence. A route with an empty
- * mix, or one that is only `unknown`, tells us nothing — so it cannot take part
- * in a surface comparison.
- */
 function hasSurfaceEvidence(route: PlannedRoute): boolean {
   return Object.entries(route.surfaceMix)
     .some(([surface, share]) => share > 0 && surface.toLowerCase() !== "unknown")
@@ -76,10 +62,6 @@ function comparisonLabel(
   routes: PlannedRoute[]
 ): string | null {
   if (!selectedRoute) return null
-
-  // Added minutes versus the fastest candidate are always shown (ADR 0022), so
-  // this is computed for every card — including the selected one, whose detour
-  // cost is precisely the number the rider is deciding about.
   const fastestMinutes = Math.min(...routes.map((candidate) => candidate.durationMinutes))
   const versusFastest = signedInteger(route.durationMinutes - fastestMinutes, "min vs fastest")
 
@@ -87,10 +69,7 @@ function comparisonLabel(
     return versusFastest ? `Current route · ${versusFastest}` : "Current route"
   }
 
-  // A surface delta is only meaningful when both sides actually carry surface
-  // evidence; otherwise the comparison invents one.
   const surfaceComparable = hasSurfaceEvidence(route) && hasSurfaceEvidence(selectedRoute)
-
   const parts = [
     signedInteger(route.durationMinutes - selectedRoute.durationMinutes, "min"),
     signedDecimal(route.distanceMiles - selectedRoute.distanceMiles, "mi"),
@@ -139,13 +118,16 @@ export function buildRouteDecisionPresentation(
     ? `${Math.round(route.corridorAdherence.coveredShare * 100)}% of your line · ${character}`
     : character
 
-  const warning = route.previewOnly
-    ? "Preview route — verify before riding."
-    : route.navigationMode === "track-only"
-      ? "Track guidance only; turn-by-turn is unavailable."
-      : route.lockSatisfaction?.some((lock) => lock.satisfied === false)
-        ? "A required road could not be included."
-        : null
+  const timeboxMismatch = getLoopTimeboxMismatch(route)
+  const warning = timeboxMismatch
+    ? `${timeboxMismatch.actualMinutes} min route — requested ${timeboxMismatch.requestedMinutes} min. Accept this ${timeboxMismatch.direction} ride before starting.`
+    : route.previewOnly
+      ? "Preview route — verify before riding."
+      : route.navigationMode === "track-only"
+        ? "Track guidance only; turn-by-turn is unavailable."
+        : route.lockSatisfaction?.some((lock) => lock.satisfied === false)
+          ? "A required road could not be included."
+          : null
 
   return {
     role: routeDecisionRole(route, routes),

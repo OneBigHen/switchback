@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -27,9 +27,34 @@ jobs:
         run: npx playwright test --project=critical-webkit-full
       - name: Upload WebKit failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deep-qa-webkit-failure
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  full-responsive-e2e:
+    name: full-responsive-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Run the complete responsive E2E suite
+        run: npm run test:e2e
+      - name: Upload full-E2E failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deep-qa-full-e2e-failure
           path: |
             test-results
             playwright-report
@@ -41,8 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -52,10 +77,36 @@ jobs:
         run: npx playwright test --project=visual
       - name: Upload visual failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deep-qa-visual-failure
           path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  memory-soak:
+    name: memory-soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run the 10-cycle planner resource soak
+        run: npm run test:e2e:memory-soak
+      - name: Upload memory-soak evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deep-qa-memory-soak
+          path: |
+            artifacts/quality/memory-soak.json
             test-results
             playwright-report
           if-no-files-found: ignore
@@ -66,8 +117,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -95,7 +146,7 @@ jobs:
           GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router
       - name: Upload real-router failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deep-qa-real-router-failure
           path: |

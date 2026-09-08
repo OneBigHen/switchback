@@ -68,11 +68,26 @@
   .rail::-webkit-scrollbar {
     display: none;
   }
+
+  /* A single route has nothing to peek at, so the 78% card plus a 14% gutter
+     just left the one card narrow and pushed off-centre -- it read as clipped
+     against the sheet edge. Give it the full width when it is alone. */
+  .rail:not(:has(> :nth-child(2))) {
+    grid-auto-columns: minmax(100%, 1fr);
+    overflow-x: hidden;
+    padding-right: 1px;
+  }
 }
 
 @media (min-width: 761px) and (max-width: 1100px) {
   .rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* A fixed two-column grid left a single route at half width with a dead
+     column beside it, wrapping its name and metrics for no reason. */
+  .rail:not(:has(> :nth-child(2))) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -92,4 +107,10 @@
     scrollbar-width: none;
   }
   .rail::-webkit-scrollbar { display: none; }
+
+  .rail:not(:has(> :nth-child(2))) {
+    grid-auto-columns: minmax(100%, 1fr);
+    overflow-x: hidden;
+    padding-right: 1px;
+  }
 }

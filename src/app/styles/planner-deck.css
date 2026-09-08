@@ -160,6 +160,31 @@
   padding-top: 10px;
 }
 
+/* The peek height was sized for a header-only peek, but a minimized deck can
+   also carry the action dock and the Free Ride peek actions. Both overflowed a
+   fixed 146px and `overflow: hidden` then swallowed them:
+
+   - wide windows: the dock is absolutely positioned against the deck's bottom,
+     so at 138px it covered the entire 70px mini header — taking "Expand
+     planner" and the route identity with it, and stranding the rider with no
+     way back into the planner;
+   - phones: header (68px) + peek actions (54px) + dock (78px) is 200px, so the
+     Plan/Start control was clipped away, and in short landscape it fell off
+     the bottom of the screen entirely.
+
+   Both are the same bug, so fix them the same way: let a minimized deck that
+   carries a dock size to its own content, and keep the dock in flow — there is
+   no scroll region under it to overlay. The already-tuned case is unchanged;
+   header plus dock still measures exactly the peek height. */
+.planner-deck.is-minimized:has(> .planner-action-dock:not(:empty)) {
+  height: auto;
+  max-height: none;
+}
+
+.planner-deck.is-minimized > .planner-action-dock:not(:empty) {
+  position: static;
+}
+
 @media (max-width: 760px) {
     .planner-deck:not(.is-idle-plan) {
       max-height: var(--sb-sheet-half-height);
@@ -768,9 +793,31 @@
   font: inherit;
   font-size: 13px;
   font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Underline the action, not the sentence. The blanket rule ran the toggle's
+   label and its supporting description together into one underlined run-on
+   ("Hide preparation Weather, surface, route evidence, offline limits, and
+   export"), which read as a single wrapped link rather than a control with a
+   caption. */
+.edit-route-button,
+.route-details-toggle > span {
   text-decoration: underline;
   text-underline-offset: 4px;
-  cursor: pointer;
+}
+
+/* Layout only, plus an explicit tie to the rider-glanceability token. A
+   hard-coded 11px here dropped the caption under the >=14px outdoor
+   readability contract that tests/e2e/mobile-qa asserts on Prepare, and
+   omitting font-size entirely let <small> fall back to the UA's `smaller`
+   (~11px) once this rule owned the cascade slot. */
+.route-details-toggle > small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--sb-route-meta-size, 14px);
+  text-decoration: none;
 }
 
 @media (max-width: 760px) {

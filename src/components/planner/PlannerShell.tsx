@@ -162,6 +162,11 @@ export function PlannerShell() {
   const canRedoRideChange = usePlannerStore((state) => state.canRedoRideChange)
   const lastRideChange = usePlannerStore((state) => state.rideHistory.lastChange)
   const committedRideIdentity = usePlannerStore((state) => state.committedRide?.identity ?? null)
+  // One canonical string for "which result revision is on screen". Derived in
+  // the selector so it stays a primitive and never re-renders on identity.
+  const resultRevision = usePlannerStore((state) => (state.resultIdentity
+    ? `${state.resultIdentity.intentIdentity}#${state.resultIdentity.requestId}`
+    : null))
   const rideIdentity = usePlannerStore((state) => state.rideHistory.identity)
   useRideCheckpoint()
   const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
@@ -543,14 +548,14 @@ export function PlannerShell() {
     }
   }
 
-  const handlePlan = async () => {
+  const handlePlan = async (): Promise<TripPlan | null> => {
     const current = usePlannerStore.getState()
     try {
       loopSeed.current += 1
       const customSegmentProfiles = current.mode === "destination" && current.segmentProfiles.some((item) => item !== current.profile)
         ? normalizedSegmentProfiles(current.segmentProfiles, current.via.length + 1, current.profile)
         : undefined
-      await runTripPlan(buildRideTripRequest({
+      return await runTripPlan(buildRideTripRequest({
         mode: current.mode,
         start: current.start,
         finish: current.finish,
@@ -573,6 +578,7 @@ export function PlannerShell() {
         code: "MISSING_WAYPOINTS",
         message: caught instanceof Error ? caught.message : "Choose the points for this ride first."
       })
+      return null
     }
   }
 
@@ -1283,24 +1289,48 @@ export function PlannerShell() {
         trace,
         hasExistingRoute: Boolean(current.plan)
       })
-      if (current.editRide({
+      const editOutcome = current.editRide({
         ...intent.points,
         mode: intent.mode,
         segmentProfiles: [],
         sketchCorridor: intent.corridor.length >= 2 ? intent.corridor : null
-      }, "Read route sketch", "drawing") !== "applied") return
+      }, "Read route sketch", "drawing")
+      // Retry submits the same preserved stroke, which is intentionally a noop
+      // intent edit. It must still route; only a genuinely rejected edit stops.
+      if (editOutcome === "stale" || editOutcome === "invalid") {
+        return { ok: false, message: "The drawn route changed before it could be planned. Draw it again." }
+      }
       setAddingVia(false)
-      await handlePlan()
+      const planned = await handlePlan()
+      if (!planned) {
+        const failure = usePlannerStore.getState().error
+        return {
+ok: false,
+code: failure?.code,
+message: failure?.message ?? "The rough route could not be routed."
+        }
+      }
       setNotice({
         kind: "success",
         message: `Read your line as a corridor — ${intent.points.via.length} editable shaping stop${intent.points.via.length === 1 ? "" : "s"}, with options on the way.`
       })
+      return { ok: true }
     } catch (caught) {
-      setNotice({
-        kind: "warning",
-        message: caught instanceof Error ? caught.message : "The rough route could not be read."
-      })
+      const message = caught instanceof Error ? caught.message : "The rough route could not be read."
+      setNotice({ kind: "warning", message })
+      return { ok: false, message }
     }
+  }
+
+  const handleCancelRouteSketch = () => {
+    const beforeCancel = usePlannerStore.getState()
+    const undoUncommittedSketch = !beforeCancel.committedRide
+      && beforeCancel.rideHistory.lastChange?.source === "drawing"
+    // Existing-route sketches use the canonical committed-ride rollback. A
+    // first-ever failed sketch has no committed result yet, so undo its one
+    // compound drawing command after the session settles.
+    planningSession.cancel()
+    if (undoUncommittedSketch) usePlannerStore.getState().undoRideChange()
   }
 
   /**
@@ -1446,7 +1476,8 @@ export function PlannerShell() {
         recordingTrail={recording.isActive
           ? recording.state.points.map((point) => point.coordinate)
           : null}
-        onRouteSketch={(trace) => void handleRouteSketch(trace)}
+        onRouteSketch={handleRouteSketch}
+        onSketchCancel={handleCancelRouteSketch}
         sketchReference={sketchCorridor}
         onSketchModeChange={setSketching}
         drawCommand={drawCommandId > 0 ? { type: "start", id: drawCommandId } : null}
@@ -1461,7 +1492,7 @@ export function PlannerShell() {
           setNotice({ kind: "warning", message: `${area.name ?? "Avoid area"} was added to this ride.` })
           if (outcome === "applied") replanAfterIntentEdit()
         }}
-        onRouteSculptCommit={() => handlePlan()}
+        onRouteSculptCommit={() => { void handlePlan() }}
           />
         </MapCanvas>
 
@@ -1521,6 +1552,7 @@ export function PlannerShell() {
             planningPhase,
             planningStartedAt,
             isRecalculating,
+            resultRevision,
             providerHealth
           })}
           commands={{

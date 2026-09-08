@@ -1,10 +1,165 @@
-/* Rider-facing safety/readability overrides.
+/* Rider-facing safety/readability composition.
  *
- * Keep these rules narrow: this file only corrects controls and telemetry that
- * must remain readable and reachable in turn-by-turn Ride Mode, especially on
- * short phone landscape viewports. Free Ride deliberately shares the legacy
- * `.ride-hud` class, so every selector excludes `.free-ride-hud` explicitly.
+ * The map remains the visual field, but guidance and trust-critical controls
+ * need opaque instrument surfaces over every basemap. This file is loaded
+ * after the older HUD rules so the active Ride and Free Ride compositions have
+ * one final, auditable layout owner. Planner state and route identity remain
+ * owned by their existing components/stores.
  */
+
+.ride-hud {
+  color: var(--sb-ride-text);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-topbar {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  left: 18px;
+  z-index: 12;
+  min-height: 64px;
+  padding: 8px 12px 8px 16px;
+  border: 1px solid var(--sb-ride-border);
+  border-radius: 15px;
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+  pointer-events: auto;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-route-name small {
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-route-name strong {
+  display: block;
+  overflow: hidden;
+  color: var(--sb-ride-text);
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ride-hud:not(.free-ride-hud) .gps-status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ride-hud:not(.free-ride-hud) .gps-status svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--sb-ride-signal);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-exit {
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+  border-color: var(--sb-ride-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-ride-surface-raised);
+  color: var(--sb-ride-text);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-exit:hover,
+.ride-hud:not(.free-ride-hud) .ride-exit:focus-visible {
+  border-color: var(--sb-ride-signal);
+  color: var(--sb-ride-signal);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-instruction {
+  position: absolute;
+  right: auto;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  width: min(680px, calc(58vw - 36px));
+  min-height: 172px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  padding: 22px;
+  overflow: auto;
+  border: 1px solid var(--sb-ride-border);
+  border-radius: 18px;
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+  pointer-events: auto;
+}
+
+.ride-hud:not(.free-ride-hud) .maneuver-icon {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--sb-ride-signal) 58%, var(--sb-ride-border));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--sb-ride-signal) 11%, var(--sb-ride-surface-raised));
+  color: var(--sb-ride-signal);
+}
+
+.ride-hud:not(.free-ride-hud) .maneuver-icon svg {
+  width: 42px;
+  height: 42px;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-instruction h2 {
+  color: var(--sb-ride-text);
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.08;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-instruction p {
+  margin-top: 5px;
+  color: var(--sb-ride-text-muted);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-telemetry {
+  border: 1px solid var(--sb-ride-border);
+  background: var(--sb-ride-surface);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-telemetry strong {
+  color: var(--sb-ride-text);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-telemetry span {
+  color: var(--sb-ride-text-muted);
+  font-size: 12px;
+}
+
+.ride-hud:not(.free-ride-hud) .ride-record-toggle {
+  min-height: var(--sb-touch-target);
+  border-color: var(--sb-ride-border);
+  background: var(--sb-ride-surface-raised);
+  color: var(--sb-ride-text);
+}
+
+.ride-hud:not(.free-ride-hud) .ride-record-toggle.is-recording {
+  border-color: var(--sb-ride-danger);
+  background: color-mix(in srgb, var(--sb-ride-danger) 62%, var(--sb-ride-surface-raised));
+  color: var(--sb-ride-text);
+}
 
 /* Trust-critical GPS state and recording state cannot live at micro-caption
  * sizes. The component already truncates GPS copy and exposes full state to
@@ -34,6 +189,19 @@
 .ride-hud:not(.free-ride-hud) .ride-hud-corridor-badge small,
 .ride-hud:not(.free-ride-hud) .ride-hud-corridor-exit-alert small {
   font-size: 11px;
+}
+
+/* The map owns legal attribution, but the Ride HUD owns the bottom of a phone
+ * viewport. Leaving MapLibre/Mapbox's bottom-left control corner there puts
+ * attribution and the scale underneath telemetry or the variable-height turn
+ * card. In ride mode move that whole control corner just below the top rail;
+ * it remains continuously visible without guessing the lower card's height. */
+@media (max-width: 760px) {
+  .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
+  .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-left {
+    top: calc(max(8px, env(safe-area-inset-top)) + 124px);
+    bottom: auto;
+  }
 }
 
 /* Short-landscape is the constrained riding case. Keep only the route, GPS,
@@ -127,8 +295,25 @@
     font-size: 11px;
   }
 
+  /* Three stat columns in a ~215px landscape panel left ~70px each, which
+     wrapped "MILES LEFT" onto two lines and pushed "MINUTES" hard against the
+     divider. Drop the tracking and a half point of size so each label fits its
+     column on one line. */
   .ride-hud:not(.free-ride-hud) .ride-telemetry span {
-    font-size: 9px;
+    font-size: 8.5px;
+    letter-spacing: 0;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-telemetry > div:not(.ride-progress-track) {
+    padding: 0 4px;
+  }
+
+  /* The short-landscape rail has a smaller primary topbar plus a secondary
+     record/overnight rail, so attribution can sit closer than in portrait. */
+  .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
+  .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-left {
+    top: calc(max(8px, env(safe-area-inset-top)) + 104px);
+    bottom: auto;
   }
 }
 
@@ -144,5 +329,178 @@
   .ride-hud:not(.free-ride-hud) .ride-progress-track > span,
   .ride-hud:not(.free-ride-hud) .reroute-option {
     transition: none !important;
+  }
+}
+
+/* Final phone composition. The lower deck becomes the layout owner in
+ * portrait, so the instruction card must give up its desktop width/position
+ * here; otherwise a 390px screen inherits the 58vw card and wraps every word
+ * into a narrow column. */
+@media (max-width: 760px) {
+  .ride-hud:not(.free-ride-hud) .ride-topbar {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    left: max(8px, env(safe-area-inset-left));
+    min-height: 112px;
+    padding: 8px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-lower-deck {
+    /* Leave a real visual gutter between the variable-height instruction
+       surface and the telemetry rail. The rail is independently anchored to
+       the phone floor, so this extra gap keeps the two dark cards from
+       reading as one accidental block. */
+    bottom: calc(140px + var(--sb-space-3) + var(--sb-space-3) + var(--sb-space-2));
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-lower-deck .ride-instruction {
+    position: static;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    min-height: 118px;
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    border-radius: 15px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .maneuver-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 12px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .maneuver-icon svg {
+    width: 38px;
+    height: 38px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-instruction h2 {
+    font-size: 24px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-instruction p {
+    margin-top: 3px;
+    font-size: 12px;
+  }
+}
+
+/* At desktop widths the lower instruction surface occupies the map's bottom
+ * left corner. Keep the map's attribution/scale stack visible below the
+ * compact top rail instead of letting the guidance card paint over it. */
+@media (min-width: 761px) {
+  .planner-shell .map-stage.is-ride-mode .maplibregl-ctrl-bottom-left,
+  .planner-shell .map-stage.is-ride-mode .mapboxgl-ctrl-bottom-left {
+    top: max(96px, env(safe-area-inset-top));
+    right: auto;
+    bottom: auto;
+  }
+}
+
+/* Map credits and scale remain visible in Ride mode, but the planning
+ * stylesheet's light-map treatment is too faint against the route HUD. Give
+ * the legal credit a small instrument chip without changing its placement. */
+.planner-shell .map-stage.is-ride-mode :where(.maplibregl-ctrl-scale, .mapboxgl-ctrl-scale) {
+  border-color: rgb(243 239 230 / 48%);
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+  background: rgb(11 14 13 / 86%);
+  color: rgb(243 239 230 / 82%);
+}
+
+.planner-shell .map-stage.is-ride-mode :where(.maplibregl-ctrl-attrib, .mapboxgl-ctrl-attrib) {
+  border-color: var(--sb-border-dark);
+  background: rgb(11 14 13 / 90%);
+  color: rgb(243 239 230 / 72%);
+}
+
+.planner-shell .map-stage.is-ride-mode :where(.maplibregl-ctrl-attrib a, .mapboxgl-ctrl-attrib a) {
+  color: var(--sb-paper);
+}
+
+/* Short landscape keeps the side-by-side reading geometry, but uses the same
+ * opaque card treatment and explicit bounds as portrait. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .ride-hud:not(.free-ride-hud) .ride-lower-deck {
+    display: contents;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-topbar {
+    top: max(8px, env(safe-area-inset-top));
+    right: 8px;
+    left: 8px;
+    min-height: 56px;
+    padding: 4px 8px 4px 12px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-lower-deck .ride-instruction {
+    position: absolute;
+    right: auto;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    width: calc(60% - 12px);
+    min-height: 132px;
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+    border-radius: 15px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .maneuver-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 11px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .maneuver-icon svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-instruction h2 {
+    max-width: none;
+    font-size: clamp(22px, 2.7vw, 26px);
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-instruction p {
+    margin-top: 3px;
+    overflow: hidden;
+    font-size: 12px;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-telemetry {
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: auto;
+    width: calc(40% - 12px);
+    min-height: 132px;
+    padding: 16px 10px 20px;
+    border-radius: 15px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-telemetry > div:not(.ride-progress-track) {
+    min-width: 0;
+    padding: 0 6px;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-telemetry span {
+    font-size: 12px;
+  }
+}
+
+/* Four stats in a three-column phone grid dropped route progress into a lone
+   114px cell with 228px of dead space beside it, and wrapped its label across
+   two lines against the divider. It reads as a summary of the row above, so
+   give it that row. */
+@media (max-width: 760px) {
+  .ride-hud:not(.free-ride-hud) .ride-telemetry > .ride-progress-readout {
+    grid-column: 1 / -1;
+    padding-left: 0;
+    border-left: 0;
   }
 }

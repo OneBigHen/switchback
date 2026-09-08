@@ -184,22 +184,42 @@ export async function installRouteApi(
 export async function openPlannerEditor(page: Page): Promise<void> {
   const editor = page.getByRole("combobox", { name: "Start", exact: true })
   if (await editor.isVisible().catch(() => false)) return
-  await expandPhonePlanner(page)
+  // Only the sheet needs to be up here. Demanding the composer prompt as well
+  // would contradict the stage this helper exists to leave: once a route has
+  // been planned the phone sheet deliberately shows the route context, and the
+  // composer stays collapsed until "Edit route" below reopens it.
+  await expandPhoneSheet(page)
   const editRoute = page.getByRole("button", { name: "Edit route", exact: true })
   if (await editRoute.isVisible().catch(() => false)) await editRoute.click()
   // V2 has one disclosure authority. A real tap must reach Ride options; force-click
   // would hide the exact mobile overlap regression this helper is meant to catch.
   const options = page.getByRole("button", { name: "Ride options", exact: true })
   await expect(options).toBeVisible({ timeout: 15_000 })
-  await options.click()
+  // That single authority is why this is a state, not a tap: "Edit route" and
+  // "Ride options" drive the same `editing` flag, so clicking unconditionally
+  // after "Edit route" closes the panel again and takes the start/finish fields
+  // with it. Drive the disclosure to open instead of flipping it.
+  if (await options.getAttribute("aria-expanded") !== "true") await options.click()
   await expect(editor).toBeVisible()
+}
+
+/**
+ * Raise the phone sheet, and prove only that. What an expanded sheet shows is
+ * the planning stage's business — the composer in Search, the route context
+ * after results — so the honest post-condition is that the sheet no longer
+ * offers to expand.
+ */
+export async function expandPhoneSheet(page: Page): Promise<void> {
+  if (!await page.evaluate(() => window.matchMedia("(max-width: 760px)").matches)) return
+  const expand = page.getByRole("button", { name: "Expand planner" })
+  if (await expand.isVisible().catch(() => false)) await expand.click()
+  await expect(expand, "mobile planner sheet must be expanded").toHaveCount(0, { timeout: 15_000 })
 }
 
 export async function expandPhonePlanner(page: Page): Promise<void> {
   if (!await page.evaluate(() => window.matchMedia("(max-width: 760px)").matches)) return
-  const expand = page.getByRole("button", { name: "Expand planner" })
+  await expandPhoneSheet(page)
   const prompt = page.getByPlaceholder("Search a place or describe a ride")
-  if (await expand.isVisible().catch(() => false)) await expand.click()
   await expect(prompt, "mobile planner prompt must appear after expanding").toBeVisible({ timeout: 15_000 })
 }
 

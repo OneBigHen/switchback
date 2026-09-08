@@ -56,6 +56,18 @@
   --sb-warning: var(--sb-golden-hour);
   --sb-danger: #A83E32;
   --sb-success: #3E6B55;
+  /* Active riding uses a dark instrument surface in either planning theme.
+     These are canonical semantic tokens so feature styles consume one ride
+     vocabulary instead of redefining the V1 aliases locally. */
+  --sb-ride-surface: var(--sb-ink);
+  --sb-ride-surface-raised: var(--sb-dark-raised);
+  --sb-ride-text: var(--sb-paper);
+  --sb-ride-text-muted: color-mix(in srgb, var(--sb-paper) 72%, var(--sb-dark-raised));
+  --sb-ride-border: var(--sb-border-dark);
+  --sb-ride-signal: color-mix(in srgb, var(--sb-signal) 48%, var(--sb-paper));
+  --sb-ride-success: color-mix(in srgb, var(--sb-success) 48%, var(--sb-paper));
+  --sb-ride-danger: color-mix(in srgb, var(--sb-danger) 45%, var(--sb-paper));
+  --sb-ride-warning: color-mix(in srgb, var(--sb-golden-hour) 44%, var(--sb-paper));
   /* Interactive text (links, eyebrows) on themed surfaces. Validated AA
      (>= 4.5:1) on Canvas, Paper and Raised in both themes; raw brand Ember
      and Signal reach only ~4.4:1 as text on Canvas. */

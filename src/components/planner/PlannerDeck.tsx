@@ -20,6 +20,7 @@ import {
   type FormEvent,
   type ReactNode
 } from "react"
+import { getLoopTimeboxMismatch, loopTimeboxAcceptanceKey } from "@/lib/planner/route-readiness"
 import { listProfiles } from "@/lib/routing/profiles"
 import { loadRiderSettings, type UnitSystem } from "@/lib/settings/rider-settings"
 import { formatDistanceMiles, type FormattedDistance } from "@/lib/settings/rider-units"
@@ -74,6 +75,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const addingVia = waypoint.addingVia
   const canUndoRideChange = rideHistory.canUndoRideChange
   const canRedoRideChange = rideHistory.canRedoRideChange
+  const hasUnappliedChange = rideHistory.hasUnappliedChange
 
   const profile = rideConfig.profile
   const status = ui.status
@@ -154,8 +156,13 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const [editing, setEditing] = useState(false)
   const isIdlePlan = !selectedRoute && !editing && ui.routesCount === 0
   const [roadLocksOpen, setRoadLocksOpen] = useState(false)
-  const [offlinePackOpen, setOfflinePackOpen] = useState(false)
+  // Keep modal ownership tied to the route that opened it. A route switch then
+  // closes it by derivation in the very same render instead of synchronously
+  // resetting React state from an effect (and can never flash the new route
+  // inside a modal opened for the old one).
+  const [offlinePackRouteId, setOfflinePackRouteId] = useState<string | null>(null)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
+  const [acceptedTimeboxKey, setAcceptedTimeboxKey] = useState<string | null>(null)
   const previousReadyStateRef = useRef({ phase: lifecycle.phase, routesCount: ui.routesCount })
 
   const planningStage: "Search" | "Choose" | "Edit" | "Prepare" = editing
@@ -169,9 +176,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const selectedProfileLabel = selectedRoute
     ? listProfiles().find((item) => item.id === selectedRoute.profile)?.label ?? selectedRoute.profile
     : null
-  // The collapsed summary is the rider's primary result context, so it reads the
-  // saved unit setting the same way RouteComparison does — a metric rider must
-  // not see kilometres in the route rack and miles one line above it.
   const units: UnitSystem = loadRiderSettings().units
   const selectedRouteDistance: FormattedDistance | null = selectedRoute
     ? formatDistanceMiles(selectedRoute.distanceMiles, units)
@@ -179,6 +183,15 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const selectedRouteMeta = selectedRoute && selectedRouteDistance
     ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
     : null
+  const timeboxMismatch = getLoopTimeboxMismatch(selectedRoute)
+  // Acceptance belongs to the exact result the rider was shown, not to a route
+  // id: a replan can return a materially different candidate under the same id.
+  // A different key is naturally unaccepted, so nothing needs resetting in an
+  // effect.
+  const timeboxAcceptanceKey = loopTimeboxAcceptanceKey(selectedRoute, ui.resultRevision)
+  const timeboxAccepted = !timeboxMismatch
+    || (timeboxAcceptanceKey !== null && acceptedTimeboxKey === timeboxAcceptanceKey)
+  const offlinePackOpen = selectedRoute?.id != null && offlinePackRouteId === selectedRoute.id
 
   const durationLabel = targetMinutes % 60 === 0
     ? `${targetMinutes / 60}-hour`
@@ -336,7 +349,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
             {composerCollapsed ? (
               <section className="planner-route-context" aria-label="Current route setup">
                 <span className="planner-route-context__identity">
-                  <small>{ui.routesCount > 1 ? `${ui.routesCount} route options` : "Route ready"}</small>
+                  <small>{hasUnappliedChange ? "Previous route · changes not applied" : ui.routesCount > 1 ? `${ui.routesCount} route options` : "Route ready"}</small>
                   <strong>{selectedRoute?.name ?? "Choose a route"}</strong>
                   {selectedRouteMeta ? <span>{selectedRouteMeta}</span> : null}
                 </span>
@@ -441,7 +454,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
       )}
 
       <div className="planner-action-dock" aria-label="Route actions">
-        {!minimized && selectedRoute ? (
+        {!minimized && selectedRoute && !editing ? (
           <button
             type="button"
             className={`road-locks-dock-button${mustLockCount > 0 ? " has-must-locks" : ""}`}
@@ -456,14 +469,21 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
           </button>
         ) : null}
 
-        {!minimized && bikeProfileMismatch ? (
+        {!minimized && !editing && bikeProfileMismatch ? (
           <span className="planner-dock-mismatch" role="status">
             <WarningCircle aria-hidden="true" weight="fill" />
             Profile mismatch
           </span>
         ) : null}
 
-        {!minimized && selectedRoute ? (
+        {!minimized && !editing && selectedRoute && hasUnappliedChange ? (
+          <span className="planner-dock-mismatch" role="status">
+            <WarningCircle aria-hidden="true" weight="fill" />
+            Previous route shown · changes not applied
+          </span>
+        ) : null}
+
+        {!minimized && selectedRoute && !editing ? (
           <button
             type="button"
             className="clear-route-button"
@@ -498,16 +518,39 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 <span>{status === "routing" ? "Replanning…" : "Replan"}</span>
               </button>
             ) : null}
-            {!minimized && editing && onSaveOffline ? (
-              <button type="button" className="offline-pack-button" onClick={() => setOfflinePackOpen(true)}>
+            {!minimized && hasUnappliedChange ? (
+              <button type="button" className="replan-button" onClick={onCancelRideChange}>
+                <X weight="bold" aria-hidden="true" />
+                <span>Cancel ride change</span>
+              </button>
+            ) : null}
+            {!minimized && editing && onSaveOffline && !hasUnappliedChange && timeboxAccepted ? (
+              <button type="button" className="offline-pack-button" onClick={() => setOfflinePackRouteId(selectedRoute.id)}>
                 <DownloadSimple weight="bold" aria-hidden="true" />
                 <span>Offline pack</span>
               </button>
             ) : null}
-            <button type="button" className="ride-button dock-ride-button" onClick={() => onStartRide(selectedRoute)}>
-              <NavigationArrow weight="fill" aria-hidden="true" />
-              <span>Start {listProfiles().find((item) => item.id === selectedRoute.profile)?.label ?? "Ride"} route</span>
-            </button>
+            {hasUnappliedChange ? (
+              <button type="button" className="ride-button dock-ride-button" disabled aria-disabled="true">
+                <WarningCircle weight="fill" aria-hidden="true" />
+                <span>Update route before starting</span>
+              </button>
+            ) : timeboxMismatch && !timeboxAccepted ? (
+              <button
+                type="button"
+                className="ride-button dock-ride-button"
+                onClick={() => setAcceptedTimeboxKey(timeboxAcceptanceKey)}
+                aria-label={`Accept ${timeboxMismatch.actualMinutes}-minute route instead of requested ${timeboxMismatch.requestedMinutes} minutes`}
+              >
+                <WarningCircle weight="fill" aria-hidden="true" />
+                <span>Accept {timeboxMismatch.actualMinutes}-min route</span>
+              </button>
+            ) : (
+              <button type="button" className="ride-button dock-ride-button" onClick={() => onStartRide(selectedRoute)}>
+                <NavigationArrow weight="fill" aria-hidden="true" />
+                <span>Start {listProfiles().find((item) => item.id === selectedRoute.profile)?.label ?? "Ride"} route</span>
+              </button>
+            )}
           </>
         ) : editing ? (
           <button type="button" className="plan-button" disabled={planDisabled} onClick={onPlan}>
@@ -519,14 +562,14 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
 
       <RoadLockLibraryDrawer open={roadLocksOpen} onClose={() => setRoadLocksOpen(false)} />
 
-      {offlinePackOpen && selectedRoute ? (
+      {offlinePackOpen && selectedRoute && !hasUnappliedChange && timeboxAccepted ? (
         <OfflinePackModal
           route={selectedRoute}
           value={downloadMode}
           onChange={setDownloadMode}
-          onCancel={() => setOfflinePackOpen(false)}
+          onCancel={() => setOfflinePackRouteId(null)}
           onSave={(route) => {
-            setOfflinePackOpen(false)
+            setOfflinePackRouteId(null)
             onSaveOffline?.(route, {
               level: downloadMode.level,
               corridorMiles: downloadMode.corridorMiles
