@@ -36,4 +36,17 @@ describe("RideCharacterBars", () => {
       expect(screen.getByText(label)).toBeTruthy()
     }
   })
+
+  it("exposes its label as an accessible group name", () => {
+    render(<RideCharacterBars label="Learned ride character" values={[{ axis: "twistiness", value: 0.5 }]} />)
+    expect(screen.getByRole("group", { name: "Learned ride character" })).toBeTruthy()
+  })
+
+  it("does not stringify non-finite evidence counts", () => {
+    const { rerender } = render(<RideCharacterBars values={[{ axis: "twistiness", value: 0.5, evidenceCount: Number.NaN }]} />)
+    expect(screen.queryByText(/NaN rides/i)).toBeNull()
+
+    rerender(<RideCharacterBars values={[{ axis: "twistiness", value: 0.5, evidenceCount: Number.POSITIVE_INFINITY }]} />)
+    expect(screen.queryByText(/Infinity rides/i)).toBeNull()
+  })
 })
