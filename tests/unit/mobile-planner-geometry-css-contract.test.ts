@@ -21,7 +21,7 @@ describe("mobile planner geometry contract", () => {
     // reserves its own height. Re-reserving a whole dock height as scroll
     // padding stacked the two and left ~150px of blank Paper under the last
     // control on every phone; the scroll keeps a normal content gutter.
-    // tests/e2e/critical/planner-dock-clearance.spec.ts proves the behaviour.
+    // tests/e2e/critical/planner-surface-composition.spec.ts proves the behaviour.
     expect(designSystem).toContain("padding-block-end: var(--sb-space-4) !important;")
     expect(designSystem).not.toContain("padding-block-end: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-4)) !important;")
   })

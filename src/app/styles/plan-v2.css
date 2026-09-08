@@ -55,6 +55,15 @@
   line-height: 1.2;
 }
 
+/* On a 320px sheet the field is ~135px wide, so the hint was sliced mid-word
+   ("Search a place or c"). text-overflow belongs on the input, not on
+   ::placeholder, for the placeholder to inherit it. */
+.plan-v2__search input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .plan-v2__search input::placeholder {
   color: var(--sb-text-muted);
   opacity: 1;

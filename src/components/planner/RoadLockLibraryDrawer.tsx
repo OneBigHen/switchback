@@ -282,17 +282,20 @@ export function RoadLockLibraryDrawer({
         <footer>
           <strong>{visibleLocks.length}</strong>
           <span>active road lock{visibleLocks.length === 1 ? "" : "s"}</span>
-          <button
-            type="button"
-            className="road-lock-clear"
-            aria-label="Clear all road locks"
-            onClick={() => {
-              usePlannerStore.getState().clearRoadLocks()
-              setLibraryLocks([])
-            }}
-          >
-            Clear all
-          </button>
+          {/* Nothing to clear is not a state that needs a destructive button. */}
+          {visibleLocks.length > 0 ? (
+            <button
+              type="button"
+              className="road-lock-clear"
+              aria-label="Clear all road locks"
+              onClick={() => {
+                usePlannerStore.getState().clearRoadLocks()
+                setLibraryLocks([])
+              }}
+            >
+              Clear all
+            </button>
+          ) : null}
         </footer>
       </aside>
       </KeyboardScope>

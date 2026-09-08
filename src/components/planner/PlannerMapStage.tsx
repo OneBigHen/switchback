@@ -1209,6 +1209,10 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       <div ref={containerRef} className="map-canvas" />
       {!ready && !mapError ? <div className="map-loading">Reading the map…</div> : null}
       {mapError ? <div className="map-error" role="status">{mapError}</div> : null}
+      {/* Each layer banner used to position itself, so two of them at once
+          landed on the same coordinates and rendered on top of each other.
+          The stack owns the placement; the banners just flow down it. */}
+      <div className="map-layer-status-stack">
       {curvatureStatus === "loading" ? <div className="map-layer-status" role="status">Loading curve overlay…</div> : null}
       {curvatureStatus === "zoom" ? <div className="map-layer-status">Zoom in to see curve data</div> : null}
       {curvatureStatus === "error" ? <div className="map-layer-status map-layer-error" role="status">Curve overlay unavailable</div> : null}
@@ -1231,6 +1235,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           <button type="button" className="map-feature-retry" onClick={retryRiderFeatures}>Retry</button>
         </div>
       ) : null}
+      </div>
       {props.rideMode && navigationFrame ? renderIntoRideDeck(
         <button
           type="button"
