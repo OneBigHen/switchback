@@ -42,7 +42,7 @@ advances the branch but not the tested identity.
 | Advisor desktop | `npx playwright test tests/e2e/advisor.spec.ts --project=desktop-chromium` | **PASS** — 8 passed |
 | Road lock | `npx playwright test --project=road-lock` | **PASS** — 1 passed |
 | Visual | `npx playwright test --project=visual` | **PASS** — 60/60, no snapshot-update flag, no baseline moved |
-| Full responsive E2E | `npm run test:e2e` | **PASS** — 122 passed, 0 failed, 6 skipped (20.3m) |
+| Full responsive E2E | `npm run test:e2e` | **PASS** — 122 passed, 0 failed, 6 skipped (20.3m) — but see *Correction* below |
 | PWA | `npm run test:e2e:pwa` | **PASS** — 2 passed |
 | Memory soak | `npm run test:e2e:memory-soak` | **PASS** — fresh artifact, see below |
 | Deep QA: full WebKit | `npx playwright test --project=critical-webkit-full` | **PASS** — 31 passed |
