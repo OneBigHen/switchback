@@ -217,6 +217,26 @@
   }
 }
 
+/* Below 360px the sketch toolbar keeps its command labels by wrapping onto a
+   second row (SketchRouteToolbar.module.css), which grows it by one 44px row
+   plus a gap. The bottom-left credit/scale stack clears the single-row height,
+   so give it the taller floor here or the scale bar lands on Undo. */
+@media (max-width: 360px) and (orientation: portrait) {
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
+    bottom: calc(var(--sb-mobile-sheet-bottom) + 164px);
+  }
+
+  /* The zoom stack cleared the single-row toolbar by sitting below the
+     instruction banner. The banner only reaches x=238 at this width and the
+     stack starts at x=256, so they never share a line: tuck the stack under
+     the layer control instead and it clears the taller toolbar outright. */
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .maplibregl-ctrl-bottom-right,
+  .planner-shell[data-sketching="true"] .map-stage:not(.is-ride-mode) .mapboxgl-ctrl-bottom-right {
+    top: calc(max(8px, env(safe-area-inset-top)) + 64px);
+  }
+}
+
 /* The scale bar rides the same bottom-left stack as the credit. Its stock
  * colours assume a dark basemap; give it a legible chip so it reads on the
  * light planning basemap and the night preset alike. Ride mode keeps its own

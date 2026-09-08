@@ -160,3 +160,65 @@ test("a failed route plan shows the rider why, without hunting for it", async ({
   })
   expect(inScrollOwner, "the failure explanation is inside the planner scroll viewport").toBe(true)
 })
+
+/**
+ * Draw mode has no sheet, so the sketch toolbar, the instruction banner, the
+ * layer control, the native map controls and the credit/scale stack all share
+ * one empty map. Keeping the command labels below 360px costs the toolbar an
+ * extra row, and every one of those neighbours has to move out of its way.
+ */
+const DRAW_VIEWPORTS = [
+  { name: "320x568 narrow phone", width: 320, height: 568 },
+  { name: "390x844 phone", width: 390, height: 844 },
+  { name: "430x932 phone", width: 430, height: 932 }
+] as const
+
+for (const viewport of DRAW_VIEWPORTS) {
+  test(`draw controls stay labelled and clear of the map furniture at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await pinVisualClock(page)
+    await uxState.home(page)
+    await page.getByRole("button", { name: "Draw route" }).click()
+    await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
+    await settleMapDelay(page)
+
+    const result = await page.evaluate(() => {
+      const toolbar = document.querySelector<HTMLElement>(".map-sketch-toolbar")
+      if (!toolbar) return null
+      const box = toolbar.getBoundingClientRect()
+      const overlaps = (other: DOMRect) =>
+        box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom
+      const collisions = [
+        ".map-sketch-instructions",
+        ".map-layer-control",
+        ".maplibregl-ctrl-bottom-left",
+        ".mapboxgl-ctrl-bottom-left",
+        ".maplibregl-ctrl-bottom-right",
+        ".mapboxgl-ctrl-bottom-right"
+      ]
+        .map((selector) => ({ selector, element: document.querySelector<HTMLElement>(selector) }))
+        .filter((entry): entry is { selector: string; element: HTMLElement } =>
+          entry.element !== null && entry.element.getBoundingClientRect().height > 0)
+        .filter((entry) => overlaps(entry.element.getBoundingClientRect()))
+        .map((entry) => entry.selector)
+      const unlabelled = [...toolbar.querySelectorAll("button")]
+        .filter((button) => {
+          const span = button.querySelector("span")
+          if (!span) return true
+          const style = getComputedStyle(span)
+          return style.position === "absolute" || style.width === "1px"
+        })
+        .map((button) => button.getAttribute("aria-label") ?? "")
+      return {
+        onScreen: box.top >= 0 && box.bottom <= window.innerHeight + 1,
+        collisions,
+        unlabelled
+      }
+    })
+
+    expect(result, "the sketch toolbar is present").not.toBeNull()
+    expect(result!.onScreen, "the whole sketch toolbar is on screen").toBe(true)
+    expect(result!.collisions, "the sketch toolbar clears the banner, layer control and map controls").toEqual([])
+    expect(result!.unlabelled, "every draw command keeps a visible label").toEqual([])
+  })
+}

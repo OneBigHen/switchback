@@ -98,6 +98,15 @@
   animation: road-lock-scrim-in 200ms ease both;
 }
 
+/* On desktop the drawer is a right-anchored panel inside the deck region.
+   On a phone it is a floating card over the sheet, and flex-end left it with
+   a 77px gutter on one side and 17px on the other. Centre it there. */
+@media (max-width: 760px) {
+  .road-lock-scrim {
+    justify-content: center;
+  }
+}
+
 @keyframes road-lock-scrim-in {
   from { opacity: 0; }
   to { opacity: 1; }
