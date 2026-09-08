@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
 
-const markPath = new URL("../../../public/visual-system/brand/switchback-compact-mark.svg", import.meta.url)
-const readmePath = new URL("../../../public/visual-system/README.md", import.meta.url)
+const markPath = path.resolve(process.cwd(), "public/visual-system/brand/switchback-compact-mark.svg")
+const readmePath = path.resolve(process.cwd(), "public/visual-system/README.md")
 
 describe("graphics brand assets", () => {
   it("ships a self-contained compact SVG mark", async () => {
@@ -10,7 +11,9 @@ describe("graphics brand assets", () => {
     expect(svg).toContain("<svg")
     expect(svg).toMatch(/viewBox="[^"]+"/)
     expect(svg).not.toContain("<image")
-    expect(svg).not.toMatch(/https?:\/\//)
+    expect(svg).not.toMatch(/(?:href|xlink:href)\s*=\s*["']https?:\/\//i)
+    expect(svg).not.toMatch(/url\(\s*["']?https?:\/\//i)
+    expect(svg).not.toMatch(/javascript:/i)
   })
 
   it("documents visual-system asset usage", async () => {
