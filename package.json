@@ -52,7 +52,7 @@
     "@fontsource-variable/sora": "5.3.0",
     "@phosphor-icons/react": "2.1.10",
     "@simplewebauthn/browser": "13.3.0",
-    "@simplewebauthn/server": "13.3.0",
+    "@simplewebauthn/server": "13.3.3",
     "@turf/along": "^7.3.5",
     "@turf/bearing": "^7.3.5",
     "@turf/boolean-point-in-polygon": "^7.3.5",
