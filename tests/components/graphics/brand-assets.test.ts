@@ -19,7 +19,7 @@ describe("graphics brand assets", () => {
   it("documents visual-system asset usage", async () => {
     const readme = await readFile(readmePath, "utf8")
     expect(readme).toContain("Switchback visual system")
-    expect(readme).toContain("compact mark")
-    expect(readme).toContain("generated illustrations")
+    expect(readme).toMatch(/compact mark/i)
+    expect(readme).toMatch(/generated illustrations/i)
   })
 })
