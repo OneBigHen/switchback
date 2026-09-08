@@ -1,0 +1,6 @@
+export { TwistinessIcon } from "./TwistinessIcon"
+export { SceneryIcon } from "./SceneryIcon"
+export { GravelIcon } from "./GravelIcon"
+export { TechnicalityIcon } from "./TechnicalityIcon"
+export { ElevationIcon } from "./ElevationIcon"
+export { HighwayAvoidanceIcon } from "./HighwayAvoidanceIcon"

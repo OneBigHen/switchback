@@ -1,7 +1,7 @@
 "use client"
 
-import { Gauge, Motorcycle, Wind } from "@phosphor-icons/react"
 import { useMemo, useState } from "react"
+import { MotorcycleSilhouette } from "@/components/graphics"
 import {
   MOTORCYCLE_PROFILES,
   listBikeProfiles,
@@ -98,9 +98,7 @@ export function BikeProfilePicker({ value, onChange, routingProfile, id }: BikeP
               onClick={() => handleSelectPreset(preset)}
             >
               <span className="bike-profile-option-glyph" aria-hidden="true">
-                {preset.category === "street" || preset.category === "touring" ? <Motorcycle /> : null}
-                {preset.category === "adventure" ? <Wind /> : null}
-                {preset.category === "dual-sport" ? <Gauge /> : null}
+                <MotorcycleSilhouette category={preset.category} />
               </span>
               <span className="bike-profile-option-text">
                 <strong>{preset.name}</strong>
