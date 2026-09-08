@@ -27,3 +27,12 @@ describe("evidence graphics", () => {
     expect(screen.getByText("High confidence")).toBeTruthy()
   })
 })
+
+describe("ElevationSparkline unavailable evidence", () => {
+  it("draws no baseline, because a flat line would claim a flat route", () => {
+    const { container } = render(<ElevationSparkline samples={[]} label="Climb" />)
+    expect(container.querySelector("svg")?.getAttribute("data-elevation-state")).toBe("unavailable")
+    expect(container.querySelector("path")).toBeNull()
+    expect(screen.getByText("Elevation unavailable")).toBeTruthy()
+  })
+})

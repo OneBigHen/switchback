@@ -25,3 +25,22 @@ describe("RouteThumbnail", () => {
     expect(screen.getByText("Route shape unavailable")).toBeTruthy()
   })
 })
+
+describe("RouteThumbnail unavailable geometry", () => {
+  it("shows a generic glyph rather than an invented route line", () => {
+    const { container } = render(<RouteThumbnail points={[]} label="Imported ride" />)
+    const svg = container.querySelector("svg")
+    expect(svg?.getAttribute("data-route-thumbnail")).toBe("unavailable")
+    // A real ride with no stored geometry must not be given a shape.
+    expect(container.querySelector("[data-route-line]")).toBeNull()
+    expect(container.querySelector("[data-route-start]")).toBeNull()
+    expect(container.querySelector("[data-route-finish]")).toBeNull()
+    expect(screen.getByText("Route shape unavailable")).toBeTruthy()
+  })
+
+  it("refuses to draw a route from a single stored point", () => {
+    const { container } = render(<RouteThumbnail points={[[-76.88, 40.27]]} label="One fix" />)
+    expect(container.querySelector("svg")?.getAttribute("data-route-thumbnail")).toBe("unavailable")
+    expect(container.querySelector("[data-route-line]")).toBeNull()
+  })
+})

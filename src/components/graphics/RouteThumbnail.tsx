@@ -29,9 +29,17 @@ export function RouteThumbnail({ points, label, className }: RouteThumbnailProps
         focusable="false"
         data-route-thumbnail="unavailable"
       >
-        <path className={styles.routeHalo} d="M18 42 C34 22 54 52 81 30" />
-        <path className={styles.routeLine} d="M18 42 C34 22 54 52 81 30" strokeDasharray="3 5" />
-        <text className={styles.unavailableText} x="50" y="64" textAnchor="middle">Route shape unavailable</text>
+        {/*
+          A generic route-file glyph, never a drawn line. A placeholder curve
+          here would read as this ride's shape, which is exactly the fact that
+          is missing.
+        */}
+        <path
+          className={styles.unavailableGlyph}
+          d="M40 14h14l8 8v22H40zM54 14v8h8"
+          strokeDasharray="4 3"
+        />
+        <text className={styles.unavailableText} x="50" y="62" textAnchor="middle">Route shape unavailable</text>
       </svg>
     )
   }

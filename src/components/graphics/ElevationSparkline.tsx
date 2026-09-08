@@ -42,10 +42,9 @@ export function ElevationSparkline({ samples, label, className }: ElevationSpark
       {normalized.length >= 2 ? (
         <path className={styles.sparkLine} d={pathFrom(normalized)} data-elevation-line="true" />
       ) : (
-        <>
-          <path className={styles.sparkLine} d="M8 26 H92" strokeDasharray="3 5" />
-          <text className={styles.unavailableText} x="50" y="37" textAnchor="middle">Elevation unavailable</text>
-        </>
+        // No baseline either: a flat line reads as a flat route, which is a
+        // claim this component has no evidence for.
+        <text className={styles.unavailableText} x="50" y="24" textAnchor="middle">Elevation unavailable</text>
       )}
     </svg>
   )
