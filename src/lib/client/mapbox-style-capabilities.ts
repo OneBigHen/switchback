@@ -4,10 +4,16 @@ export type MapboxBasemapConfig = Record<string, string | boolean>
 
 /**
  * Translate a resolved Switchback presentation into only the configuration
- * properties supported by the active Mapbox style family.
+ * properties the active Mapbox style family actually supports.
  *
- * Mapbox Standard exposes theme and granular 3D controls. Standard Satellite
- * intentionally does not receive those properties; sending unsupported
+ * Every key below is a real Mapbox Standard basemap config property. The
+ * Standard import accepts `lightPreset`, `theme`, `font`, `show3dObjects`,
+ * `showRoadsAndTransit`, `showPedestrianRoads`, `showPlaceLabels`,
+ * `showRoadLabels`, `showPointOfInterestLabels` and `showTransitLabels` —
+ * so `show3dBuildings` is the product's word for the choice and
+ * `show3dObjects` is the property the renderer reads.
+ *
+ * Standard Satellite exposes neither `theme` nor `show3dObjects`; sending
  * Standard-only configuration there makes style changes fragile and couples
  * the product model to renderer implementation details.
  */
@@ -27,9 +33,6 @@ export function mapboxBasemapConfig(
   return {
     ...shared,
     theme: presentation.theme,
-    show3dBuildings: presentation.show3dBuildings,
-    show3dTrees: presentation.show3dTrees,
-    show3dLandmarks: presentation.show3dLandmarks,
-    show3dFacades: presentation.show3dFacades
+    show3dObjects: presentation.show3dBuildings
   }
 }

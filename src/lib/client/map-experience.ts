@@ -49,17 +49,18 @@ export interface MapPresentation {
   style: MapPresentationStyle
   lightPreset: MapLightPreset
   theme: "default" | "faded" | "monochrome"
+  /** Mapbox Standard's `show3dObjects`. Standard Satellite does not take it. */
   show3dBuildings: boolean
-  show3dTrees: boolean
-  show3dLandmarks: boolean
-  show3dFacades: boolean
   showRoadLabels: boolean
   showPointOfInterestLabels: boolean
   /** Null disables terrain entirely rather than flattening it. */
   terrain: MapTerrainConfig | null
   /** Subtle horizon depth. Never enough to wash out road contrast. */
   atmosphere: boolean
-  /** Temporary compatibility until semantic visual tokens replace it. */
+  /**
+   * Imagery and night lighting need a brighter route ribbon than a pale
+   * basemap does. Read by `planner-map-layers` when it paints the route.
+   */
   routeEmphasis: "standard" | "bright"
   surface: MapSurfaceProfile
   camera: MapCameraDefaults
@@ -203,9 +204,6 @@ export function resolveMapPresentation(input: MapPresentationInput): MapPresenta
     lightPreset: input.lightPreset,
     theme: input.preset === "road" ? "faded" : "default",
     show3dBuildings: true,
-    show3dTrees: explore,
-    show3dLandmarks: !ride,
-    show3dFacades: explore && !satellite,
     showRoadLabels: true,
     showPointOfInterestLabels: explore && input.preset !== "road",
     terrain: relief ? { exaggeration: ride ? 1 : explore ? 1.3 : 1.12 } : null,

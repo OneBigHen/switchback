@@ -35,7 +35,6 @@ describe("map presentation configuration", () => {
     const plan = resolveMapPresentation({ preset: "terrain", surface: "plan", lightPreset: "day" })
     const ride = resolveMapPresentation({ preset: "terrain", surface: "ride", lightPreset: "day" })
 
-    expect(explore.show3dTrees).toBe(true)
     expect(explore.showPointOfInterestLabels).toBe(true)
     expect(explore.atmosphere).toBe(true)
 
@@ -43,8 +42,6 @@ describe("map presentation configuration", () => {
     expect(plan.camera.pitch).toBeLessThan(explore.camera.pitch)
     expect(plan.terrain?.exaggeration).toBeLessThan(explore.terrain!.exaggeration)
 
-    expect(ride.show3dTrees).toBe(false)
-    expect(ride.show3dFacades).toBe(false)
     expect(ride.showPointOfInterestLabels).toBe(false)
     expect(ride.atmosphere).toBe(false)
     expect(ride.show3dBuildings).toBe(true)

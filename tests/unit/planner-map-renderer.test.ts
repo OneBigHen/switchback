@@ -74,13 +74,9 @@ describe("Mapbox planner presentation boundary", () => {
       "showRoadLabels",
       "showPointOfInterestLabels",
       "theme",
-      "show3dBuildings",
-      "show3dTrees",
-      "show3dLandmarks",
-      "show3dFacades"
+      "show3dObjects"
     ])
     expect(state.configCalls.every(([importId]) => importId === "basemap")).toBe(true)
-    expect(configNames(state.configCalls)).not.toContain("show3dObjects")
   })
 
   it("keeps unsupported theme and 3D config out of Standard Satellite", () => {
