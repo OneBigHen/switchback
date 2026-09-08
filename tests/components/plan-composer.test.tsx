@@ -67,6 +67,7 @@ function viewModel(overrides: Partial<PlannerDeckViewModel> = {}): PlannerDeckVi
       selectedRoute: null,
       home: null,
       routesCount: 0,
+      resultRevision: null,
       ...overrides.ui
     },
     lifecycle: {

@@ -6,6 +6,9 @@ export interface LoopTimeboxMismatch {
   requestedMinutes: number
   actualMinutes: number
   errorRatio: number
+  /** Which way the candidate misses the request. The rider is told the truth:
+   *  an over-long loop is never described as a shorter ride. */
+  direction: "shorter" | "longer"
 }
 
 /**
@@ -22,10 +25,34 @@ export function getLoopTimeboxMismatch(route: PlannedRoute | null | undefined): 
   return {
     requestedMinutes: Math.round(route.loopTargetMinutes),
     actualMinutes: Math.round(actualMinutes),
-    errorRatio
+    errorRatio,
+    direction: actualMinutes < route.loopTargetMinutes ? "shorter" : "longer"
   }
 }
 
 export function routeNeedsExplicitAcceptance(route: PlannedRoute | null | undefined): boolean {
   return getLoopTimeboxMismatch(route) !== null
+}
+
+/**
+ * Identity of the exact result a rider accepted a timebox miss for.
+ *
+ * A route id alone is too weak: a replan can return a materially different
+ * candidate under the same id, and a stale acceptance must not carry over to
+ * it. The key binds the acceptance to the canonical result revision *and* to
+ * the two numbers the rider was actually shown when they accepted, so any
+ * newer answer — or any different duration — asks again.
+ */
+export function loopTimeboxAcceptanceKey(
+  route: PlannedRoute | null | undefined,
+  resultRevision: string | null | undefined
+): string | null {
+  const mismatch = getLoopTimeboxMismatch(route)
+  if (!mismatch || !route) return null
+  return [
+    resultRevision ?? "unidentified-result",
+    route.id,
+    mismatch.requestedMinutes,
+    mismatch.actualMinutes
+  ].join("|")
 }

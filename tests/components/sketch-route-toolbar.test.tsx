@@ -95,6 +95,44 @@ describe("SketchRouteToolbar", () => {
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
+  it("keeps every escape hatch live while a drawn route is still planning", async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    const onDone = vi.fn()
+    const onClear = vi.fn()
+
+    render(
+      <SketchRouteToolbar
+        canUndo
+        canFinish
+        busy
+        onUndo={vi.fn()}
+        onClear={onClear}
+        onDone={onDone}
+        onCancel={onCancel}
+      />
+    )
+
+    // The work in flight is protected; the rider never is.
+    expect(screen.getByRole("button", { name: "Undo drawing point" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Clear drawing" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Finish drawing and plan route" })).toBeDisabled()
+    expect(screen.getByText("Planning…")).toBeInTheDocument()
+
+    const cancel = screen.getByRole("button", { name: "Cancel drawing" })
+    const fields = screen.getByRole("button", { name: "Use route fields instead" })
+    expect(cancel).toBeEnabled()
+    expect(fields).toBeEnabled()
+
+    await user.click(cancel)
+    await user.click(fields)
+    await user.keyboard("{Escape}")
+
+    expect(onCancel).toHaveBeenCalledTimes(3)
+    expect(onDone).not.toHaveBeenCalled()
+    expect(onClear).not.toHaveBeenCalled()
+  })
+
   it("offers a keyboard-operable alternative that returns to route fields", async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()

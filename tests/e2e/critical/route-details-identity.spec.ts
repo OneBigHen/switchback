@@ -36,7 +36,9 @@ test("opening and closing Route Details preserves the selected route and Start a
 
   await choices.getByRole("button", { name: "Details for Twisty detail route" }).click()
   const details = page.getByRole("region", { name: "Route details workspace" })
-  await expect(details.getByText("Twisty detail route", { exact: true })).toBeVisible()
+  // Scope to the details panel itself: the workspace header names the route too.
+  await expect(details.getByLabel("Route details", { exact: true })
+    .getByText("Twisty detail route", { exact: true })).toBeVisible()
   await expect(start).toBeEnabled()
   expect(requests).toHaveLength(requestCountBeforeDetails)
   await expect(page.getByText("Route cleared", { exact: false })).toHaveCount(0)

@@ -97,6 +97,7 @@ function defaultViewModel(): PlannerDeckViewModel {
       savedCount: 419,
       selectedRoute: null,
       routesCount: 0,
+      resultRevision: null,
       home: null
     },
     lifecycle: {
@@ -855,5 +856,71 @@ describe("planner mobile flow stages (SB-025)", () => {
       vm: { ui: { status: "ready", error: null, savedCount: 1, selectedRoute: route, home: null, routesCount: 1 } }
     })
     expect(screen.getByLabelText("Planning stage: Prepare")).toBeInTheDocument()
+  })
+})
+
+describe("timeboxed loop acceptance identity", () => {
+  function timeboxedRoute(overrides: Partial<PlannedRoute> = {}): PlannedRoute {
+    return {
+      ...plannedRoute,
+      id: "loop-a",
+      name: "Ninety minute loop",
+      durationMinutes: 105,
+      loopTargetMinutes: 90,
+      ...overrides
+    }
+  }
+
+  function deck(route: PlannedRoute, resultRevision: string | null, onStartRide = vi.fn()) {
+    const vm = defaultViewModel()
+    Object.assign(vm.ui, {
+      status: "ready" as const,
+      selectedRoute: route,
+      routesCount: 1,
+      resultRevision
+    })
+    Object.assign(vm.rideConfig, { planMode: "loop" as const, targetMinutes: 90 })
+    const cmds = defaultCommands()
+    cmds.onStartRide = onStartRide
+    return <PlannerDeck viewModel={vm} commands={cmds} />
+  }
+
+  const acceptLabel = "Accept 105-minute route instead of requested 90 minutes"
+
+  it("lets the rider accept a loop that missed its timebox and then start it", async () => {
+    const user = userEvent.setup()
+    render(deck(timeboxedRoute(), "intent-1#4"))
+
+    await user.click(screen.getByRole("button", { name: acceptLabel }))
+    expect(screen.queryByRole("button", { name: acceptLabel })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^Start .* route$/ })).toBeVisible()
+  })
+
+  it("asks again when a replan reuses the route id for a different answer", async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(deck(timeboxedRoute(), "intent-1#4"))
+
+    await user.click(screen.getByRole("button", { name: acceptLabel }))
+    expect(screen.queryByRole("button", { name: acceptLabel })).not.toBeInTheDocument()
+
+    // Same semantic route id, genuinely different result: the old acceptance
+    // must not carry over onto a ride the rider never looked at.
+    rerender(deck(timeboxedRoute({ durationMinutes: 140 }), "intent-1#5"))
+
+    expect(screen.getByRole("button", {
+      name: "Accept 140-minute route instead of requested 90 minutes"
+    })).toBeVisible()
+    expect(screen.queryByRole("button", { name: /^Start .* route$/ })).not.toBeInTheDocument()
+  })
+
+  it("keeps an acceptance across a re-render of the very same result", async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(deck(timeboxedRoute(), "intent-1#4"))
+
+    await user.click(screen.getByRole("button", { name: acceptLabel }))
+    rerender(deck(timeboxedRoute(), "intent-1#4"))
+
+    expect(screen.queryByRole("button", { name: acceptLabel })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^Start .* route$/ })).toBeVisible()
   })
 })

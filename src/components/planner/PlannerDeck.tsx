@@ -20,7 +20,7 @@ import {
   type FormEvent,
   type ReactNode
 } from "react"
-import { getLoopTimeboxMismatch } from "@/lib/planner/route-readiness"
+import { getLoopTimeboxMismatch, loopTimeboxAcceptanceKey } from "@/lib/planner/route-readiness"
 import { listProfiles } from "@/lib/routing/profiles"
 import { loadRiderSettings, type UnitSystem } from "@/lib/settings/rider-settings"
 import { formatDistanceMiles, type FormattedDistance } from "@/lib/settings/rider-units"
@@ -162,7 +162,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   // inside a modal opened for the old one).
   const [offlinePackRouteId, setOfflinePackRouteId] = useState<string | null>(null)
   const [downloadMode, setDownloadMode] = useState<DownloadModePickerValue>(DOWNLOAD_MODE_PICKER_DEFAULT)
-  const [acceptedTimeboxRouteId, setAcceptedTimeboxRouteId] = useState<string | null>(null)
+  const [acceptedTimeboxKey, setAcceptedTimeboxKey] = useState<string | null>(null)
   const previousReadyStateRef = useRef({ phase: lifecycle.phase, routesCount: ui.routesCount })
 
   const planningStage: "Search" | "Choose" | "Edit" | "Prepare" = editing
@@ -184,9 +184,13 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
     : null
   const timeboxMismatch = getLoopTimeboxMismatch(selectedRoute)
-  // Acceptance is already route-keyed; a different selected id is naturally
-  // unaccepted, so there is nothing to reset in an effect.
-  const timeboxAccepted = !timeboxMismatch || acceptedTimeboxRouteId === selectedRoute?.id
+  // Acceptance belongs to the exact result the rider was shown, not to a route
+  // id: a replan can return a materially different candidate under the same id.
+  // A different key is naturally unaccepted, so nothing needs resetting in an
+  // effect.
+  const timeboxAcceptanceKey = loopTimeboxAcceptanceKey(selectedRoute, ui.resultRevision)
+  const timeboxAccepted = !timeboxMismatch
+    || (timeboxAcceptanceKey !== null && acceptedTimeboxKey === timeboxAcceptanceKey)
   const offlinePackOpen = selectedRoute?.id != null && offlinePackRouteId === selectedRoute.id
 
   const durationLabel = targetMinutes % 60 === 0
@@ -535,7 +539,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <button
                 type="button"
                 className="ride-button dock-ride-button"
-                onClick={() => setAcceptedTimeboxRouteId(selectedRoute.id)}
+                onClick={() => setAcceptedTimeboxKey(timeboxAcceptanceKey)}
                 aria-label={`Accept ${timeboxMismatch.actualMinutes}-minute route instead of requested ${timeboxMismatch.requestedMinutes} minutes`}
               >
                 <WarningCircle weight="fill" aria-hidden="true" />

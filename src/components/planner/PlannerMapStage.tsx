@@ -158,6 +158,15 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   const [sketchBusy, setSketchBusy] = useState(false)
   const [sketchRetry, setSketchRetry] = useState(false)
   const sketchOwnsRideEditRef = useRef(false)
+  // Monotonic token for one "draw → plan" attempt. Cancelling bumps it, so a
+  // late response from an aborted attempt can never repaint the drawing,
+  // its error, or its camera fit onto a surface the rider already left.
+  const sketchSessionRef = useRef(0)
+  // The geography the rider actually drew, held for the life of one stroke.
+  // Screen points alone cannot answer Retry: the failure's own camera fit
+  // moves the map under them, so re-unprojecting would submit a different
+  // line than the one on screen. Retry re-sends this, unchanged.
+  const submittedSketchTraceRef = useRef<Waypoint[] | null>(null)
   const lastDrawCommandIdRef = useRef<number | null>(null)
   const roadLocks = usePlannerStore((state) => state.roadLocks)
   const addRoadLock = usePlannerStore((state) => state.addRoadLock)
@@ -248,6 +257,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
   }
 
   const discardSubmittedSketch = () => {
+    submittedSketchTraceRef.current = null
     if (!sketchOwnsRideEditRef.current) return
     sketchOwnsRideEditRef.current = false
     propsRef.current.onSketchCancel?.()
@@ -266,6 +276,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     if (sketchBusy || (event.pointerType === "mouse" && event.button !== 0)) return
     event.preventDefault()
     sketchDrawingRef.current = true
+    submittedSketchTraceRef.current = null
     setSketchMessage("")
     setSketchRetry(false)
     setCurrentSketchPoints([screenPoint(event)])
@@ -303,15 +314,20 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       setSketchMessage("Draw a longer line through the roads you want.")
       return
     }
-    const trace = routeSketchWaypoints(map, points)
+    const trace = submittedSketchTraceRef.current ?? routeSketchWaypoints(map, points)
+    submittedSketchTraceRef.current = trace
+    const session = sketchSessionRef.current + 1
+    sketchSessionRef.current = session
     sketchOwnsRideEditRef.current = true
     setSketchBusy(true)
     setSketchRetry(false)
     setSketchMessage("Planning your drawn corridor…")
     try {
       const outcome = await propsRef.current.onRouteSketch(trace)
+      if (sketchSessionRef.current !== session) return
       if (outcome.ok) {
         sketchOwnsRideEditRef.current = false
+        submittedSketchTraceRef.current = null
         setCurrentSketchPoints([])
         setSketchMessage("")
         setSketchMode(false)
@@ -326,15 +342,19 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       setSketchRetry(true)
       fitSketchTrace(trace)
     } catch (caught) {
+      if (sketchSessionRef.current !== session) return
       setSketchMessage(caught instanceof Error ? caught.message : "The rough route could not be routed.")
       setSketchRetry(true)
       fitSketchTrace(trace)
     } finally {
-      setSketchBusy(false)
+      if (sketchSessionRef.current === session) setSketchBusy(false)
     }
   }
 
   const cancelSketch = () => {
+    // Retire any in-flight attempt first: `discardSubmittedSketch` aborts the
+    // routing request, and this token stops its late answer from painting.
+    sketchSessionRef.current += 1
     sketchDrawingRef.current = false
     discardSubmittedSketch()
     setCurrentSketchPoints([])

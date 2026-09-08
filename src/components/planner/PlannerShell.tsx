@@ -162,6 +162,11 @@ export function PlannerShell() {
   const canRedoRideChange = usePlannerStore((state) => state.canRedoRideChange)
   const lastRideChange = usePlannerStore((state) => state.rideHistory.lastChange)
   const committedRideIdentity = usePlannerStore((state) => state.committedRide?.identity ?? null)
+  // One canonical string for "which result revision is on screen". Derived in
+  // the selector so it stays a primitive and never re-renders on identity.
+  const resultRevision = usePlannerStore((state) => (state.resultIdentity
+    ? `${state.resultIdentity.intentIdentity}#${state.resultIdentity.requestId}`
+    : null))
   const rideIdentity = usePlannerStore((state) => state.rideHistory.identity)
   useRideCheckpoint()
   const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
@@ -1547,6 +1552,7 @@ message: failure?.message ?? "The rough route could not be routed."
             planningPhase,
             planningStartedAt,
             isRecalculating,
+            resultRevision,
             providerHealth
           })}
           commands={{

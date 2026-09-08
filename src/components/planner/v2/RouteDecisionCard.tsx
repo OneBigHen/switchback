@@ -120,7 +120,7 @@ export function buildRouteDecisionPresentation(
 
   const timeboxMismatch = getLoopTimeboxMismatch(route)
   const warning = timeboxMismatch
-    ? `${timeboxMismatch.actualMinutes} min route — requested ${timeboxMismatch.requestedMinutes} min. Accept this shorter ride before starting.`
+    ? `${timeboxMismatch.actualMinutes} min route — requested ${timeboxMismatch.requestedMinutes} min. Accept this ${timeboxMismatch.direction} ride before starting.`
     : route.previewOnly
       ? "Preview route — verify before riding."
       : route.navigationMode === "track-only"

@@ -25,15 +25,17 @@ export function SketchRouteToolbar({
   onDone,
   onCancel
 }: SketchRouteToolbarProps) {
+  // Escape stays live while a sketch is routing. A slow or hung provider must
+  // never trap the rider inside Draw with no way out.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || busy) return
+      if (event.key !== "Escape") return
       event.preventDefault()
       onCancel()
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [busy, onCancel])
+  }, [onCancel])
 
   return (
     <div className={styles.toolbar} role="toolbar" aria-label="Draw route controls" aria-busy={busy || undefined}>
@@ -49,11 +51,11 @@ export function SketchRouteToolbar({
         <Check weight="bold" aria-hidden="true" />
         <span>{busy ? "Planning…" : retry ? "Retry route" : "Plan route"}</span>
       </button>
-      <button type="button" className={styles.cancel} aria-label="Cancel drawing" disabled={busy} onClick={onCancel}>
+      <button type="button" className={styles.cancel} aria-label="Cancel drawing" onClick={onCancel}>
         <X weight="bold" aria-hidden="true" />
         <span>Cancel</span>
       </button>
-      <button type="button" className={styles.fieldsAlternative} aria-label="Use route fields instead" disabled={busy} onClick={onCancel}>
+      <button type="button" className={styles.fieldsAlternative} aria-label="Use route fields instead" onClick={onCancel}>
         <Keyboard weight="bold" aria-hidden="true" />
         <span>Use route fields instead</span>
       </button>

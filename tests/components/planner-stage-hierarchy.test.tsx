@@ -69,7 +69,8 @@ function viewModel(): PlannerDeckViewModel {
       savedCount: 0,
       selectedRoute,
       home: null,
-      routesCount: 3
+      routesCount: 3,
+      resultRevision: null
     },
     lifecycle: {
       phase: "ready",
