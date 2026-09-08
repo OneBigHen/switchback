@@ -52,6 +52,26 @@ advances the branch but not the tested identity.
 `npm ci` was not re-run: no dependency changed on this SHA relative to the
 audited predecessor.
 
+### Correction — a local responsive pass is not a remote one
+
+The 122/0 above was true on the development host and **not reproducible in
+CI**. `tests/e2e/short-landscape-geometry.spec.ts` asserted the open Gravel
+Goblin panel's geometry without stubbing the advisor capability, so it read
+whatever the machine declared. Gravel Goblin is server-declared and key-gated
+(ADR 0021): a host holding `GEMINI_API_KEY` / `ADVISOR_OPENROUTER_API_KEY`
+renders the invite and a key-free host — every CI runner — never does. The
+development host has both keys in `.env.local`; the Deep QA runners have
+neither, so the same suite returned 118/4 remotely on 2026-09-08 (runs
+34193496907 and 34266459995), failing that one test on all four projects.
+
+`tests/e2e/helpers/planner-fixtures.ts` already declares the capability absent
+for exactly this reason; this spec bypassed it by calling `page.goto("/")`
+directly. It now stubs the capability present, which is what its layout
+contract actually needs, and passes on a host with and without keys.
+
+**Remote Deep QA on the head is the authority for this gate.** A local
+`npm run test:e2e` on a key-holding host cannot certify it.
+
 The 6 skips in the responsive suite are deliberate `test.skip` guards, not
 silent gaps: the WebAuthn publish journey is `chromium`-only (3 projects skip),
 and one short-landscape Ride check runs only at the narrow landscape viewport

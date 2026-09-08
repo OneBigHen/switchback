@@ -147,6 +147,24 @@ test.describe("short landscape Advisor composition", () => {
   })
 
   test("keeps the open Advisor panel and recovery controls inside its narrow deck", async ({ page }) => {
+    // Gravel Goblin is a server-declared, key-gated capability (ADR 0021): a
+    // machine holding an advisor key renders the invite and a key-free one —
+    // including CI — never does. This test is about the open panel's geometry,
+    // so declare the capability present instead of inheriting the machine's.
+    await page.route("**/api/advisor", async (routeRequest) => {
+      if (routeRequest.request().method() !== "GET") {
+        await routeRequest.fallback()
+        return
+      }
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          capability: { enabled: true, sources: ["switchback-local"], attributions: [] }
+        })
+      })
+    })
+
     await page.goto("/")
     await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
 
