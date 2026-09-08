@@ -214,6 +214,19 @@
 }
 
 @media (min-width: 761px) {
+  /* On a wide window the scroll region is sized to stop exactly where the dock
+     begins, so this clearance has to be the dock's real height. Measured, that
+     is 156px — two 58px rows, 14/16px padding, a 9px gap and the 1px top border
+     — while the shared expression reserves 148px, running the scroller 8px
+     under the dock instead of up to it. Take the wider spacing step here, the
+     same way the home-height clearance above does. Correcting it here rather
+     than in the token keeps it off the phone, where that token also feeds
+     already-tuned scroll padding and where the dock is in flow with nothing to
+     overlap. */
+  .planner-deck:has(> .planner-action-dock .dock-ride-button):not(.is-minimized) {
+    --sb-route-dock-clearance: calc(var(--sb-sheet-dock-expanded-height) + var(--sb-space-6));
+  }
+
   .planner-deck:not(.is-minimized):has(> .planner-action-dock) .planner-scroll {
     height: calc(100% - var(--sb-route-dock-clearance)) !important;
   }
