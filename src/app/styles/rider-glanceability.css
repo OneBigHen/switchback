@@ -295,8 +295,17 @@
     font-size: 11px;
   }
 
+  /* Three stat columns in a ~215px landscape panel left ~70px each, which
+     wrapped "MILES LEFT" onto two lines and pushed "MINUTES" hard against the
+     divider. Drop the tracking and a half point of size so each label fits its
+     column on one line. */
   .ride-hud:not(.free-ride-hud) .ride-telemetry span {
-    font-size: 9px;
+    font-size: 8.5px;
+    letter-spacing: 0;
+  }
+
+  .ride-hud:not(.free-ride-hud) .ride-telemetry > div:not(.ride-progress-track) {
+    padding: 0 4px;
   }
 
   /* The short-landscape rail has a smaller primary topbar plus a secondary

@@ -115,9 +115,17 @@
   filter: brightness(1.08);
 }
 
+/* A filter darkens the label along with the fill, so the primary CTA became a
+   muddy brown block with dim text -- it read as broken rather than as "not
+   yet". Use an explicit inactive surface, matching how the other dock buttons
+   show their disabled state, so both "Plan route" and "Reading the roads..."
+   stay legible. */
 .plan-button:disabled {
   cursor: not-allowed;
-  filter: saturate(0.4) brightness(0.64);
+  border: 1px solid var(--sb-border);
+  background: var(--sb-surface-raised);
+  color: var(--sb-text-muted);
+  box-shadow: none;
 }
 
 .plan-button svg {

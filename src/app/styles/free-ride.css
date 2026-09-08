@@ -356,10 +356,17 @@ body.ride-mode-active .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
 /* Free Ride's control row is a real grid: three actions normally, four when
    Head Home is offered. The column counts came from switchback-v1.css; the
    dock rules above already neutralise the old absolute positioning. */
+/* Three equal columns gave the primary the same ~120px as Pause and Exit,
+   which wrapped "Finish & save" onto two lines. The primary earns the wider
+   column; the other two have short labels and fit comfortably. */
 .free-ride-hud .free-ride-dock .free-ride-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr) minmax(0, 0.85fr);
   gap: 8px;
+}
+
+.free-ride-hud .free-ride-dock .free-ride-controls > button {
+  white-space: nowrap;
 }
 
 .free-ride-hud .free-ride-dock .free-ride-controls.has-home {
