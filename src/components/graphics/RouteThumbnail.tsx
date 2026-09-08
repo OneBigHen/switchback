@@ -1,8 +1,9 @@
 import type { CoordinatePoint } from "./graphics-types"
-import { normalizePoints } from "./graphics-math"
+import { normalizePoints, projectGeographicPoints } from "./graphics-math"
 import styles from "./graphics.module.css"
 
 export interface RouteThumbnailProps {
+  /** Stored route polyline as `[longitude, latitude]` degrees. */
   points: ReadonlyArray<CoordinatePoint>
   label?: string
   className?: string
@@ -13,7 +14,7 @@ function pathFrom(points: ReadonlyArray<{ x: number; y: number }>): string {
 }
 
 export function RouteThumbnail({ points, label, className }: RouteThumbnailProps) {
-  const normalized = normalizePoints(points, { width: 100, height: 72, padding: 7 })
+  const normalized = normalizePoints(projectGeographicPoints(points), { width: 100, height: 72, padding: 7 })
   const labelled = Boolean(label?.trim())
   const classes = [styles.graphic, styles.routeFrame, className].filter(Boolean).join(" ")
 

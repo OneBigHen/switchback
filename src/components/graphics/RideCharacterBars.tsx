@@ -73,7 +73,7 @@ export function RideCharacterBars({ values, label = "Ride character" }: RideChar
               ) : (
                 <span className={styles.characterTransition}>{previous} → {current}</span>
               )}
-              {evidenceCount !== null ? <small> · {evidenceCount} rides</small> : null}
+              {evidenceCount !== null ? <small> · {evidenceCount} {evidenceCount === 1 ? "ride" : "rides"}</small> : null}
             </span>
           </div>
         )

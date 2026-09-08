@@ -157,7 +157,9 @@
 
 .bike-profile-option-glyph {
   display: grid;
-  width: 22px;
+  /* The category silhouette is wider than it is tall (108x64 viewBox); a
+     square slot would letterbox it down to an unreadable smudge. */
+  width: 34px;
   height: 22px;
   place-items: center;
   border-radius: 7px;
@@ -171,8 +173,8 @@
 }
 
 .bike-profile-option-glyph svg {
-  width: 13px;
-  height: 13px;
+  width: 26px;
+  height: auto;
 }
 
 .bike-profile-option-text {

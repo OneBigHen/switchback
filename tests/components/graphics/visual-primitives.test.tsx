@@ -51,3 +51,21 @@ describe("visual primitives", () => {
     }
   })
 })
+
+describe("bike profile category glyphs", () => {
+  it("gives every routing bike category its own silhouette", async () => {
+    const { listBikeProfiles } = await import("@/lib/routing/bike-profiles")
+    const categories = new Set(listBikeProfiles().map((profile) => profile.category))
+    const { container } = render(<>
+      {[...categories].map((category) => (
+        <MotorcycleSilhouette key={category} category={category} label={`${category} bike`} />
+      ))}
+    </>)
+    // A silhouette per real category, so the picker never falls back to an
+    // unrelated metaphor for a category the router actually supports.
+    expect(container.querySelectorAll("[data-motorcycle-category]")).toHaveLength(categories.size)
+    for (const category of categories) {
+      expect(container.querySelector(`[data-motorcycle-category="${category}"]`)).toBeTruthy()
+    }
+  })
+})

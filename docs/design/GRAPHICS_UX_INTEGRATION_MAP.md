@@ -251,3 +251,43 @@ Do not merge a broad "graphics everywhere" follow-up. The integration work shoul
 6. `feat(brand): apply compact Switchback identity`
 
 Each follow-up should include mobile screenshots, accessibility assertions, and no snapshot rebaseline until behavior/layout is independently reviewed.
+
+---
+
+## Landed state (integration wave, 2026-09-08)
+
+Recorded at the point PR #83 merged, so the next agent does not have to
+re-derive which primitives are live.
+
+**Wired at merge**
+
+- `MotorcycleSilhouette` → `BikeProfilePicker` (section 6). Replaces the
+  `Motorcycle`/`Wind`/`Gauge` metaphors, which did not distinguish the four
+  routing bike categories the router actually supports. Not covered by a
+  visual baseline: the picker only mounts while the Ride options disclosure
+  is open, which no visual spec expands.
+
+**Wired by the Rides intelligence work in the same wave**
+
+- `RouteThumbnail` — the single route-preview authority for ride library
+  cards. It supersedes the separate `RouteGeometryPreview` drafted on the
+  Rides branch; that component was deleted rather than kept in parallel.
+- `SurfaceMixBar`, `ElevationSparkline`, `ConfidenceBadge`, `EvidenceMeter`,
+  `RideCharacterBars` and the rider-character icons — fed from deterministic
+  `RideFacts`, never from model output.
+
+**Corrections applied during integration**
+
+- `RouteThumbnail` projects longitude by `cos(mean latitude)`. Plotting raw
+  degrees stretched every route horizontally by about 1.31x at Pennsylvania
+  latitudes, so the drawn shape was not the shape the rider rode.
+- `SurfaceMixBar` renders an explicit `unmeasured` remainder when the
+  supplied shares do not total the whole route. It previously rescaled
+  partial evidence to fill the bar, which drew missing evidence as certainty.
+- `RideCharacterBars` no longer renders "1 rides".
+
+**Still unconsumed**
+
+- `MapStylePreview` — intended for the map preset picker (section 7).
+- `public/visual-system/illustrations/*.svg` — an asset library with a
+  README, deliberately kept ahead of its surfaces.

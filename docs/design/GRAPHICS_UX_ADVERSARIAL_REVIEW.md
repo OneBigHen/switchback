@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This review records the failure-oriented pass over the graphics UX foundation in PR #83. It is a handoff document, not a claim that the primitives are already integrated into the live planner, Rides, Discover, Settings, or navigation surfaces.
+This review records the failure-oriented pass over the graphics UX foundation in PR #83. It is a handoff document. Integration status is recorded in `GRAPHICS_UX_INTEGRATION_MAP.md`; at merge, `MotorcycleSilhouette` is wired into the planner's bike-profile picker and the remaining primitives are consumed by the Rides intelligence work that follows.
 
 The review target is the isolated foundation under `src/components/graphics/**`, the static assets under `public/visual-system/**`, and their tests. Live product integration remains intentionally deferred until the active planner and Rides branches settle.
 
@@ -102,13 +102,13 @@ These are not defects in the foundation, but downstream work must respect them.
 
 ### Surface distributions
 
-`SurfaceMixBar` is a presentation component. It normalizes positive supplied shares for bar width while preserving caller-provided percentage labels. The GPX/route domain layer must validate and map provider classifications into coherent `paved`, `gravel`, `dirt`, and `unknown` evidence before rendering.
+`SurfaceMixBar` is a presentation component. Positive supplied shares keep their caller-provided percentage labels, and shares that total less than the whole route render the shortfall as its own `unmeasured` segment rather than being scaled up to fill the bar — partial evidence must not draw as certainty. The GPX/route domain layer must still validate and map provider classifications into coherent `paved`, `gravel`, `dirt`, and `unknown` evidence before rendering.
 
 Do not use the component to repair contradictory domain evidence.
 
 ### Route thumbnails
 
-`RouteThumbnail` renders a normalized relative shape. It is not a geodesic map projection and does not imply road basemap context.
+`RouteThumbnail` renders a normalized relative shape from `[longitude, latitude]` degrees, compressing longitude by the cosine of the route's mean latitude so the drawn shape is not stretched horizontally (about 1.31x across Pennsylvania if left uncorrected). It is a local equal-aspect approximation, not a geodesic map projection, and does not imply road basemap context.
 
 For named saved, recorded, imported, or community routes:
 

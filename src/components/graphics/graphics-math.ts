@@ -51,3 +51,26 @@ export function normalizePoints(
     y: spanY === 0 ? height / 2 : offsetY + (maxY - y) * scale
   }))
 }
+
+/**
+ * Project `[longitude, latitude]` degrees onto a locally equal-aspect plane.
+ *
+ * Plotting degrees directly stretches a route horizontally by `1/cos(lat)` —
+ * about 1.31x across Pennsylvania — so a thumbnail drawn from raw degrees is
+ * not the shape the rider rode. Scaling longitude by the cosine of the route's
+ * mean latitude keeps the drawn shape faithful over the span of one ride.
+ * Latitude passes through unchanged: `normalizePoints` already flips the y
+ * axis, so north ends up at the top of the drawing.
+ */
+export function projectGeographicPoints(
+  points: ReadonlyArray<CoordinatePoint>
+): CoordinatePoint[] {
+  const valid = points.flatMap(([longitude, latitude]) =>
+    Number.isFinite(longitude) && Number.isFinite(latitude) ? [[longitude, latitude] as const] : [])
+  if (valid.length === 0) return []
+
+  const meanLatitude = valid.reduce((sum, [, latitude]) => sum + latitude, 0) / valid.length
+  // Guard the poles so a degenerate scale can never collapse the drawing.
+  const longitudeScale = Math.max(0.15, Math.cos(meanLatitude * Math.PI / 180))
+  return valid.map(([longitude, latitude]) => [longitude * longitudeScale, latitude] as CoordinatePoint)
+}

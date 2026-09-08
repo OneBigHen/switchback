@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { clamp01, finiteNumber, normalizePoints } from "@/components/graphics/graphics-math"
+import {
+  clamp01,
+  finiteNumber,
+  normalizePoints,
+  projectGeographicPoints
+} from "@/components/graphics/graphics-math"
 
 describe("graphics math", () => {
   it("keeps zero coordinates and discards non-finite points", () => {
@@ -53,5 +58,33 @@ describe("graphics math", () => {
     expect(clamp01(Number.NaN)).toBeNull()
     expect(finiteNumber(0)).toBe(0)
     expect(finiteNumber(Number.POSITIVE_INFINITY)).toBeNull()
+  })
+})
+
+describe("projectGeographicPoints", () => {
+  it("compresses longitude by the cosine of the route's mean latitude", () => {
+    // One degree of longitude covers less ground than one degree of latitude
+    // away from the equator, so a square in degrees is not a square on the road.
+    const projected = projectGeographicPoints([[-76, 40], [-75, 40], [-75, 41], [-76, 41]])
+    const width = Math.abs(projected[1]![0] - projected[0]![0])
+    const height = Math.abs(projected[2]![1] - projected[1]![1])
+    expect(width).toBeLessThan(height)
+    expect(width / height).toBeCloseTo(Math.cos(40.5 * Math.PI / 180), 3)
+  })
+
+  it("keeps a Pennsylvania route's drawn aspect faithful rather than stretched", () => {
+    // A route one degree wide and one degree tall must not render square.
+    const raw = normalizePoints([[-76, 40], [-75, 41]], { width: 100, height: 100, padding: 0 })
+    const projected = normalizePoints(
+      projectGeographicPoints([[-76, 40], [-75, 41]]),
+      { width: 100, height: 100, padding: 0 }
+    )
+    expect(Math.abs(raw[1]!.x - raw[0]!.x)).toBeCloseTo(100, 5)
+    expect(Math.abs(projected[1]!.x - projected[0]!.x)).toBeLessThan(80)
+  })
+
+  it("drops non-finite coordinates and survives an empty result", () => {
+    expect(projectGeographicPoints([[Number.NaN, 40], [-75, Number.POSITIVE_INFINITY]])).toEqual([])
+    expect(projectGeographicPoints([])).toEqual([])
   })
 })
