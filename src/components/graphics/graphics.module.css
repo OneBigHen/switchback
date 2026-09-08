@@ -1,0 +1,201 @@
+.graphic {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: currentColor;
+}
+
+.routeFrame,
+.sparkFrame,
+.mapPreview,
+.motorcycle {
+  overflow: visible;
+}
+
+.routeLine,
+.sparkLine {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.routeHalo {
+  fill: none;
+  stroke: color-mix(in srgb, currentColor 20%, transparent);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.routeStart {
+  fill: currentColor;
+}
+
+.routeFinish {
+  fill: Canvas;
+  stroke: currentColor;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.unavailableText {
+  font: 600 8px/1 system-ui, sans-serif;
+  fill: currentColor;
+  opacity: .7;
+}
+
+.surfaceRoot,
+.characterRoot,
+.evidenceRoot {
+  display: grid;
+  gap: .5rem;
+}
+
+.surfaceTrack,
+.evidenceTrack,
+.characterTrack {
+  display: flex;
+  width: 100%;
+  min-height: .55rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.surfaceSegment {
+  min-width: 1px;
+  background: currentColor;
+  opacity: .7;
+}
+
+.surfaceSegment[data-surface-kind="gravel"] {
+  background-image: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 1.2px);
+  background-size: 5px 5px;
+  opacity: .75;
+}
+
+.surfaceSegment[data-surface-kind="dirt"] {
+  opacity: .5;
+}
+
+.surfaceSegment[data-surface-kind="unknown"] {
+  background: repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 5px);
+  opacity: .55;
+}
+
+.surfaceLabels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: .75rem;
+}
+
+.evidenceTrack > span,
+.characterFill {
+  display: block;
+  min-height: inherit;
+  background: currentColor;
+}
+
+.evidenceRoot[data-evidence-state="unknown"] .evidenceTrack {
+  background: repeating-linear-gradient(135deg, transparent 0 4px, currentColor 4px 5px);
+  opacity: .45;
+}
+
+.confidenceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  width: fit-content;
+  padding: .2rem .5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: .75rem;
+  line-height: 1;
+}
+
+.confidenceBadge::before {
+  content: "";
+  width: .45rem;
+  height: .45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.confidenceBadge[data-confidence="medium"]::before {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  border: 1px solid currentColor;
+}
+
+.confidenceBadge[data-confidence="low"]::before,
+.confidenceBadge[data-confidence="unknown"]::before {
+  background: transparent;
+  border: 1px dashed currentColor;
+}
+
+.characterRow {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(6rem, 1fr) minmax(4rem, auto);
+  align-items: center;
+  gap: .5rem;
+}
+
+.characterLabel {
+  display: grid;
+  gap: .25rem;
+}
+
+.characterLabel strong,
+.characterValue {
+  font-size: .8rem;
+}
+
+.characterUnknown {
+  font-size: .75rem;
+  opacity: .7;
+}
+
+.characterTrack {
+  min-height: .4rem;
+}
+
+.characterTransition {
+  font-variant-numeric: tabular-nums;
+}
+
+.icon {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.motorcycle path,
+.motorcycle circle,
+.motorcycle line,
+.mapPreview path,
+.mapPreview circle,
+.mapPreview line,
+.mapPreview rect,
+.mapPreview polyline {
+  vector-effect: non-scaling-stroke;
+}
+
+@media (forced-colors: active) {
+  .surfaceSegment,
+  .evidenceTrack > span,
+  .characterFill {
+    background: CanvasText;
+  }
+  .surfaceSegment[data-surface-kind="unknown"] {
+    background: transparent;
+    border-inline: 1px dashed CanvasText;
+  }
+}
