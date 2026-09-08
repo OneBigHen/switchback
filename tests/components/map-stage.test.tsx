@@ -71,7 +71,11 @@ describe("map layer controls", () => {
 
     await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
     expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
-    expect(screen.getByRole("checkbox", { name: /Satellite imagery/i })).toBeVisible()
+    // Basemaps are the preset radio group above, never a second overlay
+    // checkbox that would let the rider pick imagery twice.
+    expect(screen.queryByRole("checkbox", { name: /Satellite imagery/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("checkbox", { name: /Terrain and hillshade/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("checkbox", { name: /Topographic base/i })).not.toBeInTheDocument()
   })
 
   it("exposes a touch-sized recenter control for the shared ride navigation frame", () => {
