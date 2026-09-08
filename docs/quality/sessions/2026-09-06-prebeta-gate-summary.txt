@@ -1,0 +1,28 @@
+Switchback pre-beta agentic audit gate summary
+Candidate: qa/prebeta-agentic-audit@372995dfdcfd6e0ed2276bdbc9bb190f4514cf40
+origin/main at freeze: 372995dfdcfd6e0ed2276bdbc9bb190f4514cf40
+Production SHA: unresolved
+Node: v24.15.0
+Date: 2026-09-06 America/New_York
+
+npm ci                                             0
+npm run lint                                       0
+npm run typecheck                                  0
+npm test -- --reporter=dot                        0 (325 files, 2070 passed, 0 skipped)
+npm run build                                      0 (537 manifest routes)
+npm run test:e2e:critical                         1 first: browsers absent
+npx playwright install chromium webkit             0
+npm run test:e2e:critical                         0 rerun: 21 passed
+npm run test:e2e:pwa                              0 (2 passed)
+npm run test:e2e:real-router                      1 first: detached fixture router / 503
+GRAPHHOPPER_URL=http://127.0.0.1:8998 npm run test:e2e:real-router
+                                                    0 rerun: 5 passed, 37.4s
+npm run test:e2e                                   1 (96 total: 70 passed, 23 failed, 3 skipped, 58.1m)
+npm run test:e2e:mobile-qa                         1 (48/50 discovered; 47 passed, 1 failed; WebKit recording)
+npm run test:e2e:memory-soak                       1 (cycle 1 blocked on stale Loop ride selector)
+npx playwright test --project=visual               0 (60 passed, no snapshot updates)
+
+GitHub PR #66 merge-ref run 34040359733: verify/rider-journeys/pwa/real-router/Mobile Core succeeded; visual failed (4 Rides snapshots, 56 passed). PR #66 remains draft and excluded.
+GitHub PR #68 is open/non-draft/unmerged, head 83aa99176a86ef69607a23a27bf166ca8f1616ca, and excluded.
+
+No application source or test code was changed. Generated test files/screenshots are restored before commit.
