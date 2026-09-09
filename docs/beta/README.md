@@ -11,8 +11,9 @@ It is subordinate to `AGENTS.md`, ADRs, `docs/release/ROADMAP-WAVES.md`, and the
 3. `DEBLOAT-AUDIT.md` — screen/code inventory showing what should stay primary, become contextual/post-ride/advanced, or be investigated for retirement before beta.
 4. `OPUS-COORDINATOR.md` — copy/paste execution prompt for one high-budget coordinator that may delegate bounded work to cheaper agents.
 5. `AGENT-TASKS.md` — concrete task queue with ownership, evidence, risk, and exit criteria.
-6. `SALVAGE-LEDGERS.md` — per-capability KEEP / PORT / REWRITE / DROP disposition for the stale drafts #66, #80 and #81, each with a destination on current `main` or an explicit rejection.
-7. `../superpowers/plans/2026-09-08-beta-convergence.md` — the first convergence wave. Its Task 1 (dependency gate) and Task 2 onward are superseded by the merges below; the method still applies.
+6. `PREPARE-RIDE-AUDIT.md` — DB-1 read-only inventory of the sixteen modules under `Prepare ride`: what each one does on mount, what duplicates what, which blocks have no test that renders them, and the order in which the surface can safely be simplified.
+7. `SALVAGE-LEDGERS.md` — per-capability KEEP / PORT / REWRITE / DROP disposition for the stale drafts #66, #80 and #81, each with a destination on current `main` or an explicit rejection.
+8. `../superpowers/plans/2026-09-08-beta-convergence.md` — the first convergence wave. Its Task 1 (dependency gate) and Task 2 onward are superseded by the merges below; the method still applies.
 
 ## Current baseline
 

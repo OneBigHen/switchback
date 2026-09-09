@@ -31,30 +31,34 @@ over capability, tested five times.
 
 ## Exact next task
 
-**DB-1: read-only audit of the `Prepare ride` disclosure.**
+**DB-7 test rewrite: point `route-comparison.test.tsx` at the configuration
+production actually ships.**
 
-The truth lane is finished, so the next lane is the one the product actually
-needs: `Prepare ride` is a feature inventory, not a rider task. `RouteComparison`
-mounts sixteen independent things under one toggle — data quality, GPX
-intelligence, GPX join, measured facts, route score, road-lock satisfaction,
-must-lock recovery, replay comparison, weather, evidence, multi-day staging,
-star rating, private share, community publish, save, and an always-visible GPX
-format selector.
+DB-1 is done — see `PREPARE-RIDE-AUDIT.md`. It found something that reorders the
+debloat queue: `tests/components/route-comparison.test.tsx` renders
+`RouteComparison` about fifteen times and passes `showRouteChoices` **zero**
+times, so every render exercises the default `true` branch. Production always
+passes `false` (`PlannerComposition.tsx:155`).
 
-DB-1 is deliberately read-only and produces a report, not a change. For each
-module record: what triggers it, what it fetches on mount, what information it
-duplicates from another module, its current test coverage, and its recommended
-placement (primary / contextual / post-ride / advanced / defer).
+Every DOM assertion about the preparation surface therefore describes a
+configuration the app never ships, and the shipped configuration has no
+component-level coverage at all. That has to be fixed before the surface is
+rearranged, or the rearrangement will be verified against the wrong branch.
 
-It is a good cheap-agent task, and it must precede DB-2 and DB-3 — the
-preparation surface cannot be rebuilt around a readiness summary until the
-modules are actually inventoried.
+Once those tests describe reality, the dead `showRouteChoices=true` branch
+(`RouteComparison.tsx:246-300`) can be retired, and the rest of the debloat
+sequence in `PREPARE-RIDE-AUDIT.md` becomes safe to execute.
 
-Two hazards to respect, both already recorded in `DEBLOAT-AUDIT.md`: weather is
-fetched when the disclosure mounts, so simply reordering modules changes network
-behaviour; and route rating currently trains rider preference from a ride nobody
-has taken yet, so moving it post-ride is a data-semantics change, not a layout
-change.
+Two findings from DB-1 that need an owner decision rather than an agent's
+judgement, both recorded in that document:
+
+- **Weather fetches when the disclosure mounts.** Lazy-mounting it is a
+  behavioural change to network traffic, not a layout tweak.
+- **A pre-ride 5★ rating carries `+2` while a completed ride carries `+0.5`**
+  (`rider-preferences.ts:66-79`), and the result auto-reselects routes on the
+  next plan (`PlannerShell.tsx:333-345`). The model learns more from a guess
+  than from experience. Relocating the control post-ride does not by itself
+  answer whether that weighting is intended.
 
 ## Integration status
 
