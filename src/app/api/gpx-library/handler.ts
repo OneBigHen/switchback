@@ -29,9 +29,9 @@ export interface PublicAtlasRoute {
   duplicateFamilyRole?: "canonical" | "near-duplicate"
   duplicateOf?: string
   /**
-   * Lightweight atlas path data is opt-in (`?preview=1`) so non-visual catalog
-   * consumers keep the original small payload. It is the route's real
-   * precomputed shape, never decorative or generated artwork.
+   * Real precomputed route path data for card thumbnails. Full route geometry
+   * remains in the detail endpoint; callers that do not render cards may opt
+   * out with `?preview=0`.
    */
   preview?: {
     paths: string[]
@@ -39,15 +39,9 @@ export interface PublicAtlasRoute {
     end?: readonly [number, number]
     aspect?: number
   }
-  /**
-   * Real-world extent as `[west, south, east, north]` in degrees, present when
-   * poster art was generated for this route. Lets a client sort the library by
-   * distance from the rider without downloading every route's geometry.
-   */
   bbox?: readonly [number, number, number, number]
 }
 
-/** Story + art metadata for a listed route; never host paths or full geometry. */
 type AtlasListingInput = RouteStoryInput & {
   sourceProject: string
   profile?: string
@@ -77,7 +71,7 @@ function publicAtlasRoute(
     ...(route.duplicateFamilyRole ? { duplicateFamilyRole: route.duplicateFamilyRole } : {}),
     ...(art?.duplicateOf ? { duplicateOf: art.duplicateOf } : {}),
     ...(art?.bbox ? { bbox: art.bbox } : {}),
-    ...(includePreview && art ? {
+    ...(includePreview && art && !art.duplicateOf ? {
       preview: {
         paths: art.paths.map((piece) => piece.d),
         ...(art.start ? { start: art.start } : {}),
@@ -88,13 +82,6 @@ function publicAtlasRoute(
   }
 }
 
-/**
- * Fields an anonymous visitor may see on a single route. Allow-listed rather
- * than filtered, so a new field added to the stored record cannot leak by
- * default: the stored record also carries `sourceFiles` (host filesystem
- * paths), `sourceContentSha256`, `ingest` and `mapMatch`, which are import
- * bookkeeping and must stay server-side.
- */
 const PUBLIC_DETAIL_FIELDS = [
   "id",
   "name",
@@ -128,10 +115,6 @@ function pickPublicDetailFields(route: Record<string, unknown>): Record<string, 
   return publicRoute
 }
 
-/**
- * Existing project GPX catalog, extended with atlas stories + poster metadata.
- * The original listing/detail contract is unchanged; new fields are additive.
- */
 export async function handleGpxCatalogRequest(request: Request, catalogRoot: string): Promise<Response> {
   try {
     const manifest = await readJsonCached(
@@ -140,7 +123,7 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
     const atlasArt = await readAtlasArt(catalogRoot)
     const url = new URL(request.url)
     const requestedId = url.searchParams.get("id")
-    const includePreview = url.searchParams.get("preview") === "1"
+    const includePreview = url.searchParams.get("preview") !== "0"
 
     if (!requestedId) {
       return json({
@@ -183,7 +166,6 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
       return json({ error: { code: "GPX_CATALOG_UNAVAILABLE", message: "The imported GPX intelligence report is invalid." } }, 503)
     }
 
-    // Detail payload: the allow-listed public record plus atlas story and art.
     const art = atlasArt[route.id ?? ""]
     const summaryInput = {
       id: String(route.id ?? requestedId),
