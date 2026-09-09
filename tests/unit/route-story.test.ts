@@ -11,36 +11,51 @@ describe("buildRouteStory", () => {
     turnCount: 212
   }
 
-  it("writes a deterministic editorial title and summary from route stats", () => {
+  it("is deterministic and preserves a cleaned real route name", () => {
     const first = buildRouteStory(base)
     const second = buildRouteStory(base)
     expect(first).toEqual(second)
     expect(first.title).toBe("Laurel Highlands Loop")
-    expect(first.summary).toContain("relentlessly twisty")
-    expect(first.tone).toBe("Half-day run")
+    expect(first.summary).toContain("substantial route")
+    expect(first.summary).toContain("very twisty")
+    expect(first.tone).toBe("Big ride")
   })
 
-  it("mentions turn count and rewards-attention copy for twisty routes", () => {
+  it("reports only known distance, duration, turn, and curvature facts", () => {
     const story = buildRouteStory(base)
-    expect(story.body).toContain("212")
-    expect(story.body).toMatch(/corner-after-corner/i)
+    expect(story.body).toContain("107 miles")
+    expect(story.body).toContain("3 hr 30 min")
+    expect(story.body).toContain("212 mapped turns")
+    expect(story.body).toContain("84/100")
+    expect(story.body).not.toMatch(/corner-after-corner|full attention|right hand|sightline|surface|gravel|paved/i)
   })
 
-  it("describes straight routes as covering-ground rides", () => {
+  it("uses a factual distance title when the imported track has no usable name", () => {
     const story = buildRouteStory({ ...base, name: "", twistiness: 8, turnCount: 12 })
-    expect(story.title).toBe("The 107-mile half-day run")
-    expect(story.body).toMatch(/covering-ground country/i)
+    expect(story.title).toBe("107-mile imported route")
+    expect(story.summary).toContain("low-curvature")
+    expect(story.summary).not.toMatch(/loop|half-day|country/i)
   })
 
-  it("bands distance tones from short hop through expedition", () => {
+  it("bands distance labels without pretending distance determines ride time", () => {
     expect(buildRouteStory({ ...base, distanceMiles: 4 }).tone).toBe("Short hop")
-    expect(buildRouteStory({ ...base, distanceMiles: 20 }).tone).toBe("Quick blast")
-    expect(buildRouteStory({ ...base, distanceMiles: 60 }).tone).toBe("Day loop")
-    expect(buildRouteStory({ ...base, distanceMiles: 500 }).tone).toBe("Expedition")
+    expect(buildRouteStory({ ...base, distanceMiles: 20 }).tone).toBe("Short ride")
+    expect(buildRouteStory({ ...base, distanceMiles: 60 }).tone).toBe("Mid-distance")
+    expect(buildRouteStory({ ...base, distanceMiles: 107 }).tone).toBe("Big ride")
+    expect(buildRouteStory({ ...base, distanceMiles: 250 }).tone).toBe("Long distance")
+    expect(buildRouteStory({ ...base, distanceMiles: 500 }).tone).toBe("Expedition distance")
   })
 
-  it("includes climbing when ascent data exists", () => {
-    const story = buildRouteStory({ ...base, ascentMeters: 1800 })
-    expect(story.body).toContain("1,800 m")
+  it("includes climbing only when ascent data exists", () => {
+    const withClimbing = buildRouteStory({ ...base, ascentMeters: 1800 })
+    const withoutClimbing = buildRouteStory(base)
+    expect(withClimbing.body).toContain("1,800 m")
+    expect(withoutClimbing.body).not.toMatch(/climb/i)
+  })
+
+  it("does not render a zero or unknown duration as ride time", () => {
+    const story = buildRouteStory({ ...base, durationMinutes: 0 })
+    expect(story.body).not.toContain("0 min")
+    expect(story.body).not.toMatch(/about 0|unknown min/i)
   })
 })
