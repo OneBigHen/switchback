@@ -129,15 +129,22 @@ export function usePlannerRideIntent({
       // has resolved. A failed lookup must not erase the rider's current trip.
       //
       // One prompt is one ride change: mode, duration, shaping, highways,
-      // road feel, stops and both endpoints land together as a single
+      // tolls, road feel, stops and both endpoints land together as a single
       // revision, so a single Undo takes the rider back to the ride they had
       // before they asked — not back through eight half-applied fragments.
+      //
+      // Toll policy has to be in here, not only in the route request below.
+      // The request routes one ride; the canonical intent is what the visible
+      // toll control shows, what Undo restores, and what the next replan is
+      // built from. Leaving it out routed around tolls once and then quietly
+      // put them back.
       const nextFinish = nextMode === "destination" ? resolved.finish : null
       usePlannerStore.getState().editRide({
         mode: nextMode,
         targetMinutes: nextDuration,
         timeShaped: nextTimeShaped,
         avoidHighways: intent.avoidHighways,
+        tollPolicy: intent.tollPolicy,
         profile: intent.profile as RouteProfileId,
         via: [],
         start: resolved.start,
