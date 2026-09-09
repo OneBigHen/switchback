@@ -15,7 +15,6 @@ import "./styles/region-suite-picker.css";
 import "./styles/region-downloads.css";
 import "./styles/planner-deck.css";
 import "./styles/planner-action-dock.css";
-import "./styles/ride-omnibox.css";
 import "./styles/map-layer-control.css";
 import "./styles/trip-stage-panel.css";
 import "./styles/route-share-panel.css";

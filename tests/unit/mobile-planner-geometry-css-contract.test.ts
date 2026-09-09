@@ -7,8 +7,6 @@ const roadLockStyles = readFileSync(resolve(process.cwd(), "src/app/styles/map-s
 const plannerDeck = readFileSync(resolve(process.cwd(), "src/components/planner/PlannerDeck.tsx"), "utf8")
 const dockStyles = readFileSync(resolve(process.cwd(), "src/app/styles/planner-action-dock.css"), "utf8")
 const sheetStyles = readFileSync(resolve(process.cwd(), "src/app/styles/planner-deck.css"), "utf8")
-const legacyThemeStyles = readFileSync(resolve(process.cwd(), "src/app/styles/switchback-v1.css"), "utf8")
-const omniboxStyles = readFileSync(resolve(process.cwd(), "src/app/styles/ride-omnibox.css"), "utf8")
 
 describe("mobile planner geometry contract", () => {
   it("keeps every planner dock in sheet flow so one scroll owner can clear it", () => {
@@ -36,7 +34,6 @@ describe("mobile planner geometry contract", () => {
     expect(designSystem).not.toContain("--sb-route-dock-clearance:")
     expect(dockStyles).toContain("--sb-route-dock-clearance:")
     expect(sheetStyles).not.toContain("--sb-route-dock-clearance:")
-    expect(legacyThemeStyles).not.toContain("--sb-route-dock-clearance:")
     expect(dockStyles.match(/^\s*\.planner-action-dock[^{}]*\{[^{}]*--sb-route-dock-clearance:/gms) ?? []).toHaveLength(0)
   })
 
@@ -54,14 +51,16 @@ describe("mobile planner geometry contract", () => {
     expect(sheetStyles).not.toContain(".planner-deck > .planner-action-dock {\n      bottom: -24px;")
   })
 
-  it("keeps quick intents visible in compact landscape", () => {
+  it("does not re-hide compact-landscape prompt controls", () => {
+    // The `.ride-*` quick-intent surface was retired in V2 and its stylesheet
+    // deleted on 2026-09-08. This guard remains because design-system.css must
+    // not reintroduce a blanket landscape hide for prompt controls. Touch-target
+    // size is proven against the rendered UI by
+    // tests/e2e/mobile-qa/assertions.ts (`expectMinimumTouchTargetSize`),
+    // not by matching CSS text.
     expect(designSystem).not.toContain(
       ".planner-shell .sb-bottom-sheet .ride-location-button,\n  .planner-shell .sb-bottom-sheet .ride-quick-intents,\n  .planner-shell .sb-bottom-sheet .ride-recents"
     )
-    const quickIntentButtons = omniboxStyles.match(
-      /\.ride-quick-intents button,[\s\S]*?\.ride-understanding button\s*\{([^}]*)}/
-    )?.[1] ?? ""
-    expect(quickIntentButtons).toContain("min-height: var(--sb-touch-target)")
   })
 
   it("keeps the half-sheet home prompt compact and leaves the brand header desktop-only", () => {

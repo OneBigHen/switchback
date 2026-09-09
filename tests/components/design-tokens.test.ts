@@ -44,6 +44,17 @@ describe("Switchback V2 design tokens", () => {
     expect(tokensCss).toContain('--font-body: "Inter Variable"')
   })
 
+  it("ships only the two V2 brand font families", () => {
+    // The V1 pair (Sora, DM Sans) was bundled into every page load while no
+    // stylesheet named either family. Removed 2026-09-08; keep it removed.
+    const globals = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8")
+    const fontImports = [...globals.matchAll(/@import "@fontsource-variable\/([a-z-]+)/g)].map((match) => match[1])
+    expect(fontImports.sort()).toEqual(["inter", "oswald"])
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8"))
+    expect(Object.keys(pkg.dependencies).filter((name) => name.startsWith("@fontsource")).sort())
+      .toEqual(["@fontsource-variable/inter", "@fontsource-variable/oswald"])
+  })
+
   it("keeps the light and dark planning themes in the token layer", () => {
     expect(tokensCss).toContain(":root {")
     expect(tokensCss).toContain(':root[data-theme="dark"] {')
@@ -63,6 +74,10 @@ describe("Switchback V2 design tokens", () => {
   })
 
   it("does not load the retired V1 presentation authority", () => {
+    // switchback-v1.css was deleted in the 2026-09-08 janitorial pass: it had
+    // been out of the live cascade since V2 and carried no rule any component
+    // still needed (tests/unit/global-class-coverage.test.ts proves that).
+    expect(existsSync(resolve(process.cwd(), "src/app/styles/switchback-v1.css"))).toBe(false)
     const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8")
     expect(layout).not.toContain('import "./styles/switchback-v1.css"')
   })

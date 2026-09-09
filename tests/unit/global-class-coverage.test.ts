@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
  * the live cascade.
  *
  * This exists because the V2 migration deleted three stylesheets whose names
- * implied they were dead — library-drawer.css, profile-panel.css and
- * switchback-v1.css — while they still carried the only rules for the ride
+ * implied they were dead — library-drawer.css, profile-panel.css and an
+ * earlier switchback-v1.css — while they still carried the only rules for the ride
  * recording HUD, the Free Ride suggestion card, the diagnostics panel, the
  * record preflight panel and the region-downloads modal. Those surfaces
  * shipped completely unstyled, and no test noticed: the specs asserted that

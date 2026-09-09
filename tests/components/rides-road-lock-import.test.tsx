@@ -1,12 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { LibraryDrawer } from "@/components/planner/LibraryDrawer"
+import { RidesDestination } from "@/components/rides/RidesDestination"
 
 afterEach(cleanup)
 
 function renderLibrary(onImportAsLock = vi.fn().mockResolvedValue(null), onImport = vi.fn()) {
   render(
-    <LibraryDrawer
+    <RidesDestination
       routes={[]}
       onClose={vi.fn()}
       onLoad={vi.fn()}

@@ -34,32 +34,6 @@ interface AtlasListingRoute {
   }
 }
 
-export interface AtlasCollectionCopyCounts {
-  importedVariants: number
-  uniquePosters: number
-  foldedVariants: number
-}
-
-function countLabel(count: number, singular: string): string {
-  return `${count} ${count === 1 ? singular : `${singular}s`}`
-}
-
-/**
- * Plain-language summary of how many imported variants folded into how many
- * distinct route shapes. Retained for `tests/unit/atlas-copy.test.ts`; the V2
- * browser header does not currently surface it.
- */
-export function buildAtlasCollectionCopy({
-  importedVariants,
-  uniquePosters,
-  foldedVariants
-}: AtlasCollectionCopyCounts): string {
-  const summary = `${countLabel(uniquePosters, "unique route poster")} from ${countLabel(importedVariants, "imported route variant")}.`
-  return foldedVariants > 0
-    ? `${summary} ${countLabel(foldedVariants, "imported variant")} share${foldedVariants === 1 ? "s" : ""} a route shape and ${foldedVariants === 1 ? "is" : "are"} folded into these posters.`
-    : summary
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
