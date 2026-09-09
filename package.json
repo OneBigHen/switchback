@@ -86,7 +86,7 @@
     "react-doctor": "0.9.12",
     "tsx": "^4.20.6",
     "typescript": "6.0.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "overrides": {
     "postcss": "8.5.23"
