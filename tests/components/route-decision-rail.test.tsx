@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { RouteDecisionRail } from "@/components/planner/v2/RouteDecisionRail"
 import { buildRouteDecisionPresentation } from "@/components/planner/v2/RouteDecisionCard"
 import { PlannerComposition } from "@/components/planner/PlannerComposition"
+import { createPlannerPresentationBoundary } from "@/components/planner/PlannerPresentationBoundary"
+import type { PlannerRouteComparisonProps } from "@/components/planner/PlannerPresentationBoundary"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "@/components/planner/PlannerDeckViewModel"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
 import type { ReactNode } from "react"
@@ -64,6 +66,15 @@ function compositionProps() {
       onCancelRideChange: vi.fn()
     } as unknown as PlannerDeckCommands
   }
+}
+
+/** The same model construction PlannerShell performs. */
+function boundary(comparison: PlannerRouteComparisonProps | null) {
+  return createPlannerPresentationBoundary({
+    ...compositionProps(),
+    comparison,
+    recoveryStatus: "ready"
+  })
 }
 
 describe("RouteDecisionRail", () => {
@@ -146,10 +157,7 @@ describe("RouteDecisionRail", () => {
     }
 
     render(
-      <PlannerComposition
-        {...compositionProps()}
-        comparison={comparison}
-      />
+      <PlannerComposition {...boundary(comparison)} />
     )
 
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
@@ -181,20 +189,14 @@ describe("RouteDecisionRail", () => {
       onRide: vi.fn()
     }
     const { rerender } = render(
-      <PlannerComposition
-        {...compositionProps()}
-        comparison={{ ...base, selectedId: "twisty" }}
-      />
+      <PlannerComposition {...boundary({ ...base, selectedId: "twisty" })} />
     )
 
     fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))
     expect(screen.getByText("Selected route")).toBeInTheDocument()
 
     rerender(
-      <PlannerComposition
-        {...compositionProps()}
-        comparison={{ ...base, selectedId: "balanced" }}
-      />
+      <PlannerComposition {...boundary({ ...base, selectedId: "balanced" })} />
     )
 
     expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
@@ -213,15 +215,14 @@ describe("RouteDecisionRail", () => {
       onExport: vi.fn(),
       onRide: vi.fn()
     }
-    const props = compositionProps()
-    const { rerender } = render(<PlannerComposition {...props} comparison={comparison} />)
+    const { rerender } = render(<PlannerComposition {...boundary(comparison)} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))
     expect(screen.getByText("Selected route")).toBeInTheDocument()
 
     // The rider clears the plan, then plans the identical trip again.
-    rerender(<PlannerComposition {...props} comparison={null} />)
-    rerender(<PlannerComposition {...props} comparison={comparison} />)
+    rerender(<PlannerComposition {...boundary(null)} />)
+    rerender(<PlannerComposition {...boundary(comparison)} />)
 
     expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
