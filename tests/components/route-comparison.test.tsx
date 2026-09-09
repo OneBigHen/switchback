@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ComponentProps } from "react"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -75,19 +75,37 @@ const routes: PlannedRoute[] = [
 
 afterEach(cleanup)
 
+/**
+ * Renders the way production does.
+ *
+ * `PlannerComposition` is the only caller and always passes
+ * `showRouteChoices={false}`, so `RouteComparison` ships as route *details*.
+ * Every test here used to omit the prop and get the `true` default, which
+ * meant this file described a legacy chooser the app never renders — and the
+ * shipped configuration had no component coverage at all.
+ *
+ * Sixteen duplicated prop lists are what let that drift go unnoticed, so the
+ * default lives in one place now.
+ */
+function renderComparison(props: Partial<ComponentProps<typeof RouteComparison>> = {}) {
+  return render(
+    <RouteComparison
+      routes={routes}
+      selectedId={routes[0]!.id}
+      onSelect={vi.fn()}
+      onSave={vi.fn()}
+      onExport={vi.fn()}
+      onRide={vi.fn()}
+      showRouteChoices={false}
+      {...props}
+    />
+  )
+}
+
 describe("route comparison rack", () => {
   it("keeps the route-quality score out of the choice layer and available in preparation details", async () => {
     const user = userEvent.setup()
-    render(
-      <RouteComparison
-        routes={[routes[0]]}
-        selectedId="twisty-1"
-        onSelect={vi.fn()}
-        onSave={vi.fn()}
-        onExport={vi.fn()}
-        onRide={vi.fn()}
-      />
-    )
+    renderComparison({ routes: [routes[0]] })
 
     expect(screen.queryByText("Route quality 87/100")).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Show route details" }))
@@ -96,16 +114,7 @@ describe("route comparison rack", () => {
 
   it("separates the preparation toggle label from its supporting summary", async () => {
     const user = userEvent.setup()
-    render(
-      <RouteComparison
-        routes={[routes[0]]}
-        selectedId="twisty-1"
-        onSelect={vi.fn()}
-        onSave={vi.fn()}
-        onExport={vi.fn()}
-        onRide={vi.fn()}
-      />
-    )
+    renderComparison({ routes: [routes[0]] })
 
     const toggle = screen.getByRole("button", { name: "Show route details" })
     await user.click(toggle)
@@ -113,20 +122,11 @@ describe("route comparison rack", () => {
     expect(toggle.textContent).toMatch(/Hide preparation\s+Weather, surface, route evidence, offline limits, and export/)
   })
 
-  it("shows route choices first and keeps long-form telemetry behind an explicit details action", async () => {
+  it("keeps long-form telemetry behind an explicit details action", async () => {
     const user = userEvent.setup()
-    render(
-      <RouteComparison
-        routes={routes}
-        selectedId="twisty-1"
-        onSelect={vi.fn()}
-        onSave={vi.fn()}
-        onExport={vi.fn()}
-        onRide={vi.fn()}
-      />
-    )
+    renderComparison()
 
-    expect(screen.getByRole("heading", { name: "Choose a route" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Route details" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Show route details" })).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Why this route was chosen" })).not.toBeInTheDocument()
 
@@ -136,16 +136,7 @@ describe("route comparison rack", () => {
 
   it("turns the selected route into conservative, editable day-stage guidance", async () => {
     const user = userEvent.setup()
-    render(
-      <RouteComparison
-        routes={[{ ...routes[0], distanceMiles: 420, durationMinutes: 720 }]}
-        selectedId="twisty-1"
-        onSelect={vi.fn()}
-        onSave={vi.fn()}
-        onExport={vi.fn()}
-        onRide={vi.fn()}
-      />
-    )
+    renderComparison({ routes: [{ ...routes[0], distanceMiles: 420, durationMinutes: 720 }] })
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
     await user.click(screen.getByRole("button", { name: /stage this trip/i }))
@@ -175,9 +166,7 @@ describe("route comparison rack", () => {
       createdAt: "2026-07-18T12:00:00.000Z",
       updatedAt: "2026-07-18T12:00:00.000Z"
     }
-    render(
-      <RouteComparison routes={[route]} selectedId={route.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} savedTrip={restoredTrip} />
-    )
+    renderComparison({ routes: [route], selectedId: route.id, savedTrip: restoredTrip })
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
     await user.click(screen.getByRole("button", { name: /stage this trip/i }))
@@ -188,17 +177,7 @@ describe("route comparison rack", () => {
   it("records an explicit rating per motorcycle instead of inferring a hidden preference", async () => {
     const user = userEvent.setup()
     const onRate = vi.fn()
-    render(
-      <RouteComparison
-        routes={[routes[0]]}
-        selectedId="twisty-1"
-        onSelect={vi.fn()}
-        onSave={vi.fn()}
-        onExport={vi.fn()}
-        onRide={vi.fn()}
-        onRate={onRate}
-      />
-    )
+    renderComparison({ routes: [routes[0]], onRate: onRate })
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
     // The bike identity comes from settings (SB-011): the rating passes the
@@ -215,28 +194,36 @@ describe("route comparison rack", () => {
     const onExport = vi.fn()
     const onRide = vi.fn()
 
+    // In production the decision rail owns selection and re-renders this
+    // component with a new `selectedId`. The button stands in for that, so the
+    // contract under test — actions follow the active route, never a stale one
+    // — is exercised without the retired in-component chooser.
     function Harness() {
-      const [selectedId, setSelectedId] = useState(routes[0].id)
+      const [selectedId, setSelectedId] = useState(routes[0]!.id)
       return (
-        <RouteComparison
-          routes={routes}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onSave={onSave}
-          onExport={onExport}
-          onRide={onRide}
-        />
+        <>
+          <button type="button" onClick={() => setSelectedId(routes[1]!.id)}>
+            Rail selects {routes[1]!.name}
+          </button>
+          <RouteComparison
+            routes={routes}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onSave={onSave}
+            onExport={onExport}
+            onRide={onRide}
+            showRouteChoices={false}
+          />
+        </>
       )
     }
 
     render(<Harness />)
 
-    expect(screen.getByText("28.4")).toBeInTheDocument()
-    expect(screen.getByText(/72% secondary/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/44% unpaved/i).length).toBeGreaterThan(0)
-    expect(screen.getByText("1.4% survey surface overlap · PA DEP/PASDA — Unpaved Roads 2009_07")).toBeInTheDocument()
-    expect(screen.getByText(/most curves and direction changes/i)).toBeInTheDocument()
-    expect(screen.getByText(/lowest travel time/i)).toBeInTheDocument()
+    // The compact metric line, tradeoff copy and survey-overlap string all
+    // belonged to the chooser's route slips, which this configuration does not
+    // render. The same facts reach the rider through the evidence panel and
+    // route character below, which is what production shows.
     expect(screen.queryByRole("region", { name: "Why this route was chosen" })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
@@ -259,7 +246,7 @@ describe("route comparison rack", () => {
     await user.click(directionsButton)
     expect(screen.queryByRole("region", { name: /turn-by-turn directions/i })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: /select quick route/i }))
+    await user.click(screen.getByRole("button", { name: `Rail selects ${routes[1]!.name}` }))
     await user.click(screen.getByRole("button", { name: /save route/i }))
     await user.click(screen.getByRole("button", { name: /export gpx/i }))
     await user.click(screen.getByRole("button", { name: /start ride/i }))
@@ -269,38 +256,18 @@ describe("route comparison rack", () => {
     expect(onRide).toHaveBeenCalledWith(routes[1])
   })
 
-  it("does not imply a selected route before the rider taps one", async () => {
-    const user = userEvent.setup()
-    const onRide = vi.fn()
-    function Harness() {
-      const [selectedId, setSelectedId] = useState("")
-      return (
-        <RouteComparison
-          routes={routes}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onSave={vi.fn()}
-          onExport={vi.fn()}
-          onRide={onRide}
-        />
-      )
-    }
-    render(
-      <Harness />
-    )
-
-    expect(screen.getByRole("status")).toHaveTextContent("Choose a route above")
-    expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Start ride" })).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole("button", { name: `Select ${routes[1].name}` }))
-    expect(screen.getByRole("button", { name: `Select ${routes[1].name}` })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByText(routes[1].name, { selector: ".route-selection-identity strong" })).toBeInTheDocument()
-    expect(screen.getByText("Selected route")).toBeInTheDocument()
-  })
+    /*
+   * "does not imply a selected route before the rider taps one" lived here.
+   * PlannerComposition only mounts RouteComparison for an already-selected
+   * route (`selectedId={selectedDetailsRoute.id}`), so the empty-selection
+   * prompt it exercised is unreachable in production. The contract it stood
+   * for — never present a selection the rider did not make — belongs to the
+   * store and is covered there: planner-store.test.ts "never lets automatic
+   * selection replace an explicit user selection (SB-005)", plus the
+   * alternatives-merge and new-plan cases beside it.
+   */
 
   it("scrolls selected route controls within the planner scroll owner", async () => {
-    const user = userEvent.setup()
     const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect
     const originalScrollTo = HTMLElement.prototype.scrollTo
     const scrollTo = vi.fn()
@@ -320,7 +287,7 @@ describe("route comparison rack", () => {
     })
 
     function Harness() {
-      const [selectedId, setSelectedId] = useState("")
+      const [selectedId, setSelectedId] = useState(routes[0]!.id)
       return (
         <RouteComparison
           routes={routes}
@@ -329,14 +296,16 @@ describe("route comparison rack", () => {
           onSave={vi.fn()}
           onExport={vi.fn()}
           onRide={vi.fn()}
+          showRouteChoices={false}
         />
       )
     }
 
     try {
+      // Production opens details for a route that is already selected, so the
+      // layout effect runs on mount rather than after a chooser tap.
       const { container } = render(<div className="planner-scroll"><Harness /></div>)
       const scrollOwner = container.querySelector<HTMLElement>(".planner-scroll")
-      await user.click(screen.getByRole("button", { name: `Select ${routes[0].name}` }))
       await vi.waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 172, behavior: "auto" }))
       expect(scrollTo.mock.contexts.at(-1)).toBe(scrollOwner)
     } finally {
@@ -363,63 +332,31 @@ describe("route comparison rack", () => {
       }]
     }
     window.localStorage.setItem("switchback:rider-settings", JSON.stringify({ version: 1, units: "imperial", bikes: [], activeBikeId: "" }))
-    const { unmount } = render(<RouteComparison routes={[route]} selectedId={route.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
+    const { unmount } = renderComparison({ routes: [route], selectedId: route.id })
     await user.click(screen.getByRole("button", { name: "Show turn-by-turn directions" }))
     expect(screen.getByText("330 ft")).toBeInTheDocument()
 
     unmount()
     window.localStorage.setItem("switchback:rider-settings", JSON.stringify({ version: 1, units: "metric", bikes: [], activeBikeId: "" }))
-    render(<RouteComparison routes={[route]} selectedId={route.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
+    renderComparison({ routes: [route], selectedId: route.id })
     await user.click(screen.getByRole("button", { name: "Show turn-by-turn directions" }))
     expect(screen.getByText("100 m")).toBeInTheDocument()
     window.localStorage.removeItem("switchback:rider-settings")
   })
 
-  it("shows an unavailable surface state instead of a bare zero", () => {
-    render(<RouteComparison routes={[{ ...routes[0], surfaceMix: {} }]} selectedId={routes[0]!.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
+    /*
+   * The four surface-evidence cases that used to sit here asserted on the
+   * legacy chooser's route slips — markup `showRouteChoices={false}` never
+   * renders. Their contract, that unknown surface never becomes a measured
+   * zero, is verified against the components production does render:
+   * route-evidence-panel.test.tsx (unavailable surface, informational
+   * zero-overlap, unavailable survey evidence) and
+   * route-data-quality-panel.test.tsx (unknown-surface caveat, unavailable
+   * condition coverage). Nothing was weakened; the verification moved to
+   * where the code ships.
+   */
 
-    expect(screen.getByText("Surface data unavailable")).toBeInTheDocument()
-    expect(screen.queryByText("0% unpaved")).not.toBeInTheDocument()
-    expect(screen.queryByText(/0% non-paved mix/)).not.toBeInTheDocument()
-  })
-
-  it("uses the saved metric setting for route distance and unknown-surface tradeoffs", () => {
-    window.localStorage.setItem("switchback:rider-settings", JSON.stringify({ version: 1, units: "metric", bikes: [], activeBikeId: "" }))
-    render(<RouteComparison routes={[{ ...routes[0], surfaceMix: { asphalt: 80, unknown: 20 } }]} selectedId={routes[0]!.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
-
-    expect(screen.getByText("45.7")).toBeInTheDocument()
-    expect(screen.getByText(/9.1 km unknown surface/i)).toBeInTheDocument()
-    expect(screen.queryByText("28.4")).not.toBeInTheDocument()
-    window.localStorage.removeItem("switchback:rider-settings")
-  })
-
-  it("does not turn an unknown-only surface mix into a measured zero", () => {
-    render(<RouteComparison routes={[{ ...routes[0], surfaceMix: { unknown: 100 } }]} selectedId={routes[0]!.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
-
-    expect(screen.getAllByText("Surface data unavailable").length).toBeGreaterThan(0)
-    expect(screen.queryByText("0% unpaved")).not.toBeInTheDocument()
-  })
-
-  it("keeps zero survey overlap informational and preserves routing surface evidence", () => {
-    const route = {
-      ...routes[0],
-      officialUnpavedEvidence: {
-        ...routes[0]!.officialUnpavedEvidence!,
-        sharePercent: 0,
-        matchedMeters: 0,
-        matchedFeatureCount: 0
-      }
-    }
-
-    render(<RouteComparison routes={[route]} selectedId={route.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
-
-    expect(screen.getByText(/44% unpaved/i)).toBeInTheDocument()
-    expect(screen.getByText("0% survey overlap · PA DEP/PASDA — Unpaved Roads 2009_07 · conditions unknown")).toBeInTheDocument()
-    expect(screen.queryByText(/official PA unpaved/i)).not.toBeInTheDocument()
-    expect(screen.queryByText("Official PA data checked")).not.toBeInTheDocument()
-  })
-
-  it("turns internal route score explanations into grounded rider copy", async () => {
+        it("turns internal route score explanations into grounded rider copy", async () => {
     const user = userEvent.setup()
     const route = {
       ...routes[0],
@@ -432,7 +369,7 @@ describe("route comparison rack", () => {
         ]
       }
     }
-    render(<RouteComparison routes={[route]} selectedId={route.id} onSelect={vi.fn()} onSave={vi.fn()} onExport={vi.fn()} onRide={vi.fn()} />)
+    renderComparison({ routes: [route], selectedId: route.id })
 
     await user.click(screen.getByRole("button", { name: "Show route details" }))
     expect(within(screen.getByLabelText("Route character")).getByText("Why this route")).toBeVisible()
