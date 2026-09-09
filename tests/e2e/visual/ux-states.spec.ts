@@ -89,6 +89,64 @@ for (const viewport of STATE_VIEWPORTS) {
       await expect(page).toHaveScreenshot(`${evidenceName("route-detail")}.png`, screenshotOptions(page))
     })
 
+    /**
+     * The preparation surface, framed as itself rather than as a slice of the
+     * page.
+     *
+     * `route detail` above already opens this surface, but it screenshots the
+     * whole viewport at `maxDiffPixelRatio: 0.02`. On desktop that is a 25,920
+     * pixel budget against a 1440x900 frame, and the preparation column is a
+     * small part of it — so a change inside the column can be plainly visible
+     * and still pass. That is not hypothetical: adding the weather disclosure
+     * control changed 18,673 pixels and the gate did not notice.
+     *
+     * Framing the shot on the scroll owner that holds the surface makes the
+     * same change roughly 6% of the image instead of 1.4%.
+     *
+     * The budget is absolute rather than a ratio, because a ratio means
+     * different things on the 418x702 desktop column and the 372x226 mobile
+     * one. 120 pixels was chosen against measurement: shortening one label in
+     * this surface moves 184 pixels, so the budget catches that while leaving
+     * room for font antialiasing. Nothing existing is rebaselined by holding a
+     * new baseline to a real standard.
+     *
+     * Pixels only cover what is on screen, and the surface is far taller than
+     * the viewport. The panel assertions below therefore carry the part a
+     * screenshot cannot: that each panel is still rendered at all. A panel
+     * silently dropped below the fold is the regression that would otherwise
+     * go unseen.
+     */
+    test("route preparation surface", async ({ page }) => {
+      await pinVisualClock(page)
+      await uxState.routeDetail(page)
+      await settleMapDelay(page)
+
+      const preparation = page.locator("#route-preparation")
+      await expect(preparation).toBeVisible()
+
+      for (const panel of [
+        ".route-data-quality-panel",
+        ".route-weather",
+        ".route-evidence",
+        ".trip-stage-panel",
+        ".route-rating",
+        ".route-share-panel",
+        ".route-actions"
+      ]) {
+        await expect(preparation.locator(panel).first()).toBeAttached()
+      }
+
+      // The weather alert stays primary and the hourly detail stays contextual
+      // (PREPARE-RIDE-AUDIT.md, Hazard 1). Asserted here so the hierarchy
+      // cannot be inverted without a test saying so.
+      await expect(preparation.locator(".weather-detail-toggle")).toHaveAttribute("aria-expanded", "false")
+
+      await expect(page.locator(".planner-scroll")).toHaveScreenshot(
+        `${evidenceName("route-preparation")}.png`,
+        { maxDiffPixels: 120, mask: [page.locator(".nextjs-toast")] }
+      )
+    })
+
     test("route edit", async ({ page }) => {
       await pinVisualClock(page)
       await uxState.routeEdit(page)
