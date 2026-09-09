@@ -176,15 +176,33 @@ function addStandardControls(map: PlannerMap, gl: GlControls, options: CreatePla
     on(event: string, handler: (event: { id: string }) => void): void
     hasImage(id: string): boolean
     addImage(id: string, image: unknown, options: { sdf: boolean }): void
+    setMissingStyleImageResolver?(resolver: (id: string) => void): unknown
   }
   anyMap.addControl(
     new gl.AttributionControl({ compact: true }),
     window.innerWidth <= 760 ? "bottom-left" : "bottom-right"
   )
-  anyMap.on("styleimagemissing", (event) => {
-    const image = createFallbackStyleImage(event.id)
-    if (image && !anyMap.hasImage(event.id)) anyMap.addImage(event.id, image, { sdf: true })
-  })
+  // The style asks for `circle-N` icons no sprite ships; we generate them.
+  // How the generated image gets back to the renderer differs, and the two
+  // renderers share this function:
+  //
+  //   Mapbox GL JS v3 resolves it from a `styleimagemissing` listener.
+  //   MapLibre GL JS v6 does not — a listener "cannot resolve the missing
+  //   image for the current request", and the event now fires only after a
+  //   resolver has already declined. `setMissingStyleImageResolver` is the
+  //   supported hook, and MapLibre awaits it before giving up.
+  //
+  // Feature-detecting the resolver keeps one code path honest for both
+  // instead of branching on renderer id: the map itself says what it accepts.
+  const resolveMissingImage = (id: string) => {
+    const image = createFallbackStyleImage(id)
+    if (image && !anyMap.hasImage(id)) anyMap.addImage(id, image, { sdf: true })
+  }
+  if (typeof anyMap.setMissingStyleImageResolver === "function") {
+    anyMap.setMissingStyleImageResolver(resolveMissingImage)
+  } else {
+    anyMap.on("styleimagemissing", (event) => resolveMissingImage(event.id))
+  }
   anyMap.addControl(new gl.NavigationControl({ showCompass: false }), "bottom-right")
   // The GeolocateControl is a dead button on insecure contexts (LAN http),
   // where browsers hide navigator.geolocation entirely — only offer it when

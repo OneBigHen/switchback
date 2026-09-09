@@ -210,3 +210,119 @@ describe("premium camera transitions", () => {
     expect(easeTo).not.toHaveBeenCalled()
   })
 })
+
+describe("missing style images", () => {
+  /**
+   * The style asks for `circle-N` icons that no sprite ships, and
+   * `createFallbackStyleImage` generates them. How that generated image gets
+   * back to the renderer is renderer-specific:
+   *
+   * - Mapbox GL JS v3 resolves it from a `styleimagemissing` listener.
+   * - MapLibre GL JS v6 does not. Its own docs state that "event listeners
+   *   cannot resolve the missing image for the current request"; the event now
+   *   fires only *after* a resolver has already declined. The supported hook is
+   *   `setMissingStyleImageResolver`.
+   *
+   * Both renderers share `addStandardControls`, so the seam has to satisfy each
+   * without the other regressing. Without this test the MapLibre v6 upgrade is
+   * a silent failure: no error, just icons that never appear.
+   */
+  function controlStubs() {
+    const geolocate = { on: vi.fn() }
+    return {
+      Map: class {},
+      AttributionControl: class {},
+      NavigationControl: class {},
+      GeolocateControl: class {
+        on = geolocate.on
+      },
+      ScaleControl: class {},
+      geolocate
+    }
+  }
+
+  function stageMap({ resolver }: { resolver: boolean }) {
+    const images = new Map<string, unknown>()
+    const listeners = new Map<string, (event: { id: string }) => void>()
+    const addImage = vi.fn((id: string, image: unknown, options?: { sdf: boolean }) => {
+      images.set(id, { image, options })
+    })
+    const map: Record<string, unknown> = {
+      addControl: vi.fn(),
+      resize: vi.fn(),
+      once: vi.fn(),
+      on: vi.fn((event: string, handler: (event: { id: string }) => void) => {
+        listeners.set(event, handler)
+      }),
+      hasImage: vi.fn((id: string) => images.has(id)),
+      addImage
+    }
+    let setResolver: ((id: string) => unknown) | null = null
+    if (resolver) {
+      map.setMissingStyleImageResolver = vi.fn((fn: (id: string) => unknown) => {
+        setResolver = fn
+        return map
+      })
+    }
+    return {
+      map,
+      addImage,
+      images,
+      /** Ask for a missing icon the way the live renderer would. */
+      request: async (id: string) => {
+        if (resolver) return await setResolver?.(id)
+        return listeners.get("styleimagemissing")?.({ id })
+      }
+    }
+  }
+
+  function create(module: ReturnType<typeof controlStubs>, map: Record<string, unknown>) {
+    const gl = { ...module, Map: class { constructor() { return map } } }
+    return maplibreRenderer.create(gl, {
+      container: document.createElement("div"),
+      experience: resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" }),
+      center: [-75.2, 40.4],
+      zoom: 9,
+      onLocateMe: vi.fn()
+    })
+  }
+
+  it("resolves a missing icon through the v6 resolver when the map offers one", async () => {
+    const { map, addImage, request } = stageMap({ resolver: true })
+    create(controlStubs(), map)
+
+    expect(map.setMissingStyleImageResolver).toHaveBeenCalled()
+    await request("circle-12")
+
+    expect(addImage).toHaveBeenCalledTimes(1)
+    const [id, image, options] = addImage.mock.calls[0]
+    expect(id).toBe("circle-12")
+    expect(image).toMatchObject({ width: 12, height: 12 })
+    expect(options).toEqual({ sdf: true })
+  })
+
+  it("still uses the event on a renderer with no resolver, so Mapbox is unaffected", async () => {
+    const { map, addImage, request } = stageMap({ resolver: false })
+    create(controlStubs(), map)
+
+    await request("circle-12")
+    expect(addImage).toHaveBeenCalledWith("circle-12", expect.objectContaining({ width: 12 }), { sdf: true })
+  })
+
+  it("adds a generated icon once even when the style asks twice", async () => {
+    const { map, addImage, request } = stageMap({ resolver: true })
+    create(controlStubs(), map)
+
+    await request("circle-12")
+    await request("circle-12")
+    expect(addImage).toHaveBeenCalledTimes(1)
+  })
+
+  it("declines an id it cannot generate instead of inventing an icon", async () => {
+    const { map, addImage, request } = stageMap({ resolver: true })
+    create(controlStubs(), map)
+
+    await request("mountain-pass-shield")
+    expect(addImage).not.toHaveBeenCalled()
+  })
+})
