@@ -1,4 +1,4 @@
-import type { AdviceRequest, AdvisorReply, ProposedStop } from "./contracts"
+import type { AdviceRequest, AdvisorReply, ProposedRide, ProposedStop } from "./contracts"
 
 /**
  * What the rider expects Gravel Goblin to *do* this turn.
@@ -17,7 +17,7 @@ export type AdvisorActionIntent =
   | "build-ride"
 
 const ROUTE_ACTION = /\b(?:re-?route|reroute|better\s+(?:route|ride)|different\s+route|change\s+(?:the\s+)?route|route\s+me|take\s+me)\b/i
-const STOP_NOUN = /\b(?:stop|stops|waypoint|coffee|cafe|food|eat|lunch|dinner|breakfast|brunch|brewery|beer|fuel|gas|charger|charging)\b/i
+const STOP_NOUN = /\b(?:stop|stops|waypoint|coffee|cafe|café|food|eat|lunch|dinner|breakfast|brunch|brewery|beer|fuel|gas|charger|charging)\b/i
 const APPLY_STOP = /\b(?:add|include|insert|put|via|through|with|route\s+me|stop\s+at)\b|\bon\s+the\s+way\b|\balong\s+the\s+way\b/i
 const STOP_DISCOVERY = /\b(?:find|where|anywhere|somewhere|recommend|suggest|good|near|nearby|around|halfway|midway)\b/i
 
@@ -98,15 +98,28 @@ function safeStops(stops: readonly ProposedStop[]): ProposedStop[] {
   return stops.map((stop) => ({ ...stop, reason: safeStopReason(stop) }))
 }
 
+function safeRideSummary(ride: ProposedRide): string {
+  const visitPoints = ride.waypoints.filter((point) => point.role !== "road-evidence")
+  const via = visitPoints.length > 0 ? ` via ${visitPoints.map((point) => point.name).join(", ")}` : ""
+  const duration = ride.targetMinutes === null ? "" : `${ride.targetMinutes}-minute `
+  if (ride.mode === "loop") return `${duration}${ride.profile} loop from ${ride.start.name}${via}`
+  return `${duration}${ride.profile} ride: ${ride.start.name} → ${ride.finish?.name ?? "destination"}${via}`
+}
+
+function safeRide(ride: ProposedRide): ProposedRide {
+  return { ...ride, summary: safeRideSummary(ride) }
+}
+
 /**
  * Evidence gate for rider-facing action copy.
  *
  * Structured stops and route ids are already validated by `resolve-answer`.
- * The model's free-text `message` was the remaining escape hatch: it could say
- * "Maple & Main Cafe" even when the place resolver correctly rejected that
- * hallucination. Action turns therefore get deterministic copy built only from
- * the resolved structures. Generic conversation keeps the model's voice, but
- * is still capped so Goblin does not bury the map under a monologue.
+ * The model's free-text fields were the remaining escape hatch: a `message`,
+ * stop `reason`, route-opinion `rationale`, or ride `summary` could still name
+ * an invented place even when its structured id was rejected. Action turns
+ * therefore get deterministic copy built only from resolved structures.
+ * Generic conversation keeps the model's voice, but is still capped so Goblin
+ * does not bury the map under a monologue.
  */
 export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorReply): AdvisorReply {
   if (reply.status !== "ok") return reply
@@ -121,14 +134,22 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
       const message = intent === "route-with-stop"
         ? "I couldn’t ground a routable stop for that request, so I left the route unchanged."
         : "I couldn’t ground a useful stop from the available place search."
-      return { ...reply, message, proposedStops: [] }
+      return {
+        ...reply,
+        message,
+        secondOpinion: null,
+        proposedStops: [],
+        proposedRide: null
+      }
     }
     return {
       ...reply,
       message: intent === "route-with-stop"
         ? `Grounded stop: ${stop.name}. It’s ready to route through.`
         : `Best grounded stop: ${stop.name}.`,
-      proposedStops
+      secondOpinion: null,
+      proposedStops,
+      proposedRide: null
     }
   }
 
@@ -142,21 +163,43 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
       ? input.context?.candidates.find((entry) => entry.id === opinion.wouldPick)
       : null
 
-    if (!candidate) {
+    if (!candidate || !opinion) {
       return {
         ...reply,
-        message: "I don’t have a better verified route candidate than the one already selected."
+        message: "I don’t have a better verified route candidate than the one already selected.",
+        secondOpinion: null,
+        proposedStops: [],
+        proposedRide: null
       }
     }
-    return { ...reply, message: `Better verified candidate: ${candidate.name}. It’s ready to show on the map.` }
+
+    const selected = input.context?.candidates.find((entry) => entry.id === selectedId)
+    const timeDelta = selected ? candidate.durationMinutes - selected.durationMinutes : 0
+    const timeText = timeDelta === 0
+      ? "the same measured time"
+      : timeDelta > 0
+        ? `${timeDelta} min longer`
+        : `${Math.abs(timeDelta)} min quicker`
+    const rationale = `${candidate.distanceMiles} mi · ${candidate.durationMinutes} min · curve score ${candidate.twistiness}/100 · ${timeText}.`
+
+    return {
+      ...reply,
+      message: `Better verified candidate: ${candidate.name}. It’s ready to show on the map.`,
+      secondOpinion: { ...opinion, rationale, cautions: [] },
+      proposedStops: [],
+      proposedRide: null
+    }
   }
 
   if (intent === "build-ride") {
+    const proposedRide = reply.proposedRide ? safeRide(reply.proposedRide) : null
     return {
       ...reply,
-      message: reply.proposedRide
-        ? compactWords(reply.proposedRide.summary)
-        : "I couldn’t build a fully grounded ride from that request yet."
+      message: proposedRide
+        ? proposedRide.summary
+        : "I couldn’t build a fully grounded ride from that request yet.",
+      secondOpinion: null,
+      proposedRide
     }
   }
 
