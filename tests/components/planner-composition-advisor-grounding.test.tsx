@@ -30,6 +30,7 @@ vi.mock("@/components/planner/RideIntentFeedback", () => ({
 }))
 
 import { PlannerComposition } from "@/components/planner/PlannerComposition"
+import { createPlannerPresentationBoundary } from "@/components/planner/PlannerPresentationBoundary"
 
 const route = {
   id: "retained-route",
@@ -69,10 +70,13 @@ describe("PlannerComposition advisor grounding", () => {
   it("does not let Gravel Goblin advise from a retained route after the ride intent changed", () => {
     render(
       <PlannerComposition
-        viewModel={viewModel(true)}
-        commands={commands}
-        comparison={comparison}
-        onAddAdvisorStop={vi.fn()}
+        {...createPlannerPresentationBoundary({
+          viewModel: viewModel(true),
+          commands,
+          comparison,
+          recoveryStatus: "ready",
+          onAddAdvisorStop: vi.fn()
+        })}
       />
     )
 
@@ -83,10 +87,13 @@ describe("PlannerComposition advisor grounding", () => {
   it("keeps the advisor available when the displayed route answers the current ride", () => {
     render(
       <PlannerComposition
-        viewModel={viewModel(false)}
-        commands={commands}
-        comparison={comparison}
-        onAddAdvisorStop={vi.fn()}
+        {...createPlannerPresentationBoundary({
+          viewModel: viewModel(false),
+          commands,
+          comparison,
+          recoveryStatus: "ready",
+          onAddAdvisorStop: vi.fn()
+        })}
       />
     )
 

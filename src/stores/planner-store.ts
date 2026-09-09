@@ -18,6 +18,11 @@ import type { RideCheckpointInput } from "@/lib/storage/ride-checkpoint"
 export type PlannerPointId = "start" | "finish"
 export type PlannerSurface = "planner" | "library" | "ride" | "free-ride"
 export type PlannerStatus = "idle" | "routing" | "ready" | "error"
+/** Draft-recovery lifecycle. `superseded` means a saved draft was dropped
+ *  because the rider had already started a newer ride in this tab; that is
+ *  not a conflict and never blocks checkpointing. */
+export type RecoveryStatus =
+  | "loading" | "ready" | "restored" | "superseded" | "unavailable" | "invalid" | "conflict"
 
 /**
  * One planner lifecycle state (Phase 6). `interpreting` and `geocoding` are
@@ -232,10 +237,7 @@ function generateId(): string {
 }
 
 interface PlannerState extends RideIntent {
-  /** Draft-recovery lifecycle. `superseded` means a saved draft was dropped
-   *  because the rider had already started a newer ride in this tab; that is
-   *  not a conflict and never blocks checkpointing. */
-  recoveryStatus: "loading" | "ready" | "restored" | "superseded" | "unavailable" | "invalid" | "conflict"
+  recoveryStatus: RecoveryStatus
   restoreRide(checkpoint: RideCheckpointInput, expectedIdentity: string): boolean
   rideHistory: Omit<RideHistory, "intent">
   getIntentIdentity(): string

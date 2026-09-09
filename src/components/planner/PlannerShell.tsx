@@ -31,7 +31,6 @@ import {
   type RiderLayerId,
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
-import { createPlanningSessionController } from "@/lib/client/planning-session-controller"
 import { routeEntityCache } from "@/lib/client/route-entity-cache"
 import { importGpxRoadLock, type GpxRoadLockImportOptions } from "@/lib/client/road-lock-import"
 import { finalizeRecordedRide } from "@/lib/client/recorded-ride-finalization"
@@ -41,14 +40,14 @@ import {
   savePlannerLocation
 } from "@/lib/client/planner-location"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
+import { activeSegmentProfiles, normalizedSegmentProfiles } from "@/lib/planner/canonical-ride-request"
 import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
 import { routeIntentFromSketch } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
-import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
-import type { PlannedRoute, RouteProfileId, Waypoint } from "@/lib/routing/types"
+import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { advisorRideToPlannerHandoff, mergeAdvisorStopIntoVia } from "@/lib/advice/planner-handoff"
 import { OfflineRoutePackLibrary } from "@/lib/storage/offline-route-pack"
@@ -78,6 +77,8 @@ import { MapStage } from "./MapStage"
 import { type RideIntentStatus } from "./PlannerDeck"
 import { RideHud } from "./RideHud"
 import { PlannerComposition } from "./PlannerComposition"
+import { createPlannerPresentationBoundary } from "./PlannerPresentationBoundary"
+import { usePlanningOrchestrator } from "./usePlanningOrchestrator"
 import { MapCanvas, MapWorkspace } from "./workspace/MapWorkspace"
 import { usePlannerLibraries } from "./usePlannerLibraries"
 import { usePlannerHome } from "./usePlannerHome"
@@ -100,17 +101,6 @@ import { RecordPanel } from "@/components/shell/RecordPanel"
 import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
 import { FreeRideHud } from "@/components/shell/FreeRideHud"
 import { useRecordingSession } from "@/components/shell/useRecordingSession"
-
-function normalizedSegmentProfiles(
-  profiles: RouteProfileId[],
-  count: number,
-  fallback: RouteProfileId
-): RouteProfileId[] {
-  return Array.from({ length: Math.max(0, count) }, (_, index) => profiles[index] ?? fallback)
-}
-
-/** Bursts of ride edits collapse into one route request. */
-const REPLAN_COALESCE_MS = 180
 
 function initialThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "auto"
@@ -179,7 +169,6 @@ export function PlannerShell() {
   const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
   const [savedTrips, setSavedTrips] = useState<SavedTripPlan[]>([])
   const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
-  const [previousRouteId, setPreviousRouteId] = useState<string | null>(null)
   const [replayComparison, setReplayComparison] = useState<ReplayComparisonResult | null>(null)
   const [activeRecordedRide, setActiveRecordedRide] = useState<RecordedRide | null>(null)
   const recording = useRecordingSession()
@@ -268,14 +257,17 @@ export function PlannerShell() {
   const plannerVisible = surface !== "ride" && surface !== "free-ride"
     && navigation.destination === "plan" && !sketching
   const providerHealth = useProviderHealth(plannerVisible)
-  const [planningSession] = useState(() => createPlanningSessionController({
-    getPlanner: usePlannerStore.getState
-  }))
-  const routeRequestGate = planningSession.gate
-  useEffect(() => () => planningSession.invalidate(), [planningSession])
-
-  const replanTimerRef = useRef<number | null>(null)
-  const loopSeed = useRef(17)
+  const showWarning = useCallback((message: string) => {
+    setNotice({ kind: "warning", message })
+  }, [])
+  /**
+   * Planning orchestration lives here, not in this component: request
+   * construction, session ownership, cancellation, coalescing, previous-route
+   * retention and the replans that Undo/Redo and draft recovery trigger.
+   */
+  const planning = usePlanningOrchestrator({ onWarning: showWarning })
+  const routeRequestGate = planning.gate
+  const { nextSeed, plan: handlePlan, previousRoute, runTripPlan } = planning
   const offlinePackLibraryRef = useRef<OfflineRoutePackLibrary | null>(null)
   const riderPreferenceLibraryRef = useRef<RiderPreferenceLibrary | null>(null)
   const tripPlanLibraryRef = useRef<TripPlanLibrary | null>(null)
@@ -287,9 +279,6 @@ export function PlannerShell() {
   }
   if (tripPlanLibraryRef.current == null) tripPlanLibraryRef.current = new TripPlanLibrary()
   useEffect(() => { void tripPlanLibraryRef.current!.list().then(setSavedTrips).catch(() => undefined) }, [])
-  const showStorageWarning = useCallback((message: string) => {
-    setNotice({ kind: "warning", message })
-  }, [])
   const { home, useHome, saveHome, clearHome } = usePlannerHome({
     invalidateRequests: routeRequestGate.invalidate,
     setStart: (point) => usePlannerStore.getState().setPoint("start", point),
@@ -305,14 +294,13 @@ export function PlannerShell() {
     refreshRoutes: refreshLibrary,
     refreshMapPacks,
     refreshRideJournal
-  } = usePlannerLibraries({ onWarning: showStorageWarning })
+  } = usePlannerLibraries({ onWarning: showWarning })
 
   const routes = useMemo(
     () => routeEntityCache.getMany(plan?.routes.map((route) => route.id) ?? []),
     [plan]
   )
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? null
-  const previousRoute = previousRouteId ? routeEntityCache.get(previousRouteId) ?? null : null
   const rideOriginalRoute = rideOriginalRouteId ? routeEntityCache.get(rideOriginalRouteId) ?? null : null
 
   // Progressive alternatives arrive after the primary route. Once there are
@@ -400,9 +388,7 @@ export function PlannerShell() {
     // referenced libraries/routes are read at that moment, not subscribed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording.state.status])
-  const activeSegmentProfiles = planMode === "destination"
-    ? normalizedSegmentProfiles(segmentProfiles, via.length + 1, profile)
-    : []
+  const perLegStyles = activeSegmentProfiles({ mode: planMode, via, profile, segmentProfiles })
 
   useEffect(() => {
     void fetch("/api/gpx-library", { cache: "no-store" })
@@ -509,24 +495,6 @@ export function PlannerShell() {
     usePlannerStore.getState().setPoint(id, point)
   }
 
-  const runTripPlan = async (request: TripPlanRequest): Promise<TripPlan | null> => {
-    // Keep the previous route around for the must-lock recovery panel: when
-    // a must road-lock cannot be satisfied, the rider can restore the route
-    // that existed before this replan.
-    const current = usePlannerStore.getState()
-    const existingId = current.selectedRouteId ?? current.plan?.routes[0]?.id
-    const existing = existingId ? routeEntityCache.get(existingId) ?? null : null
-    if (previousRouteId && previousRouteId !== existing?.id) {
-      routeEntityCache.release(previousRouteId)
-      setPreviousRouteId(null)
-    }
-    if (existing) {
-      routeEntityCache.retain(existing.id)
-      setPreviousRouteId(existing.id)
-    }
-    return planningSession.run(request, (message) => setNotice({ kind: "warning", message }))
-  }
-
   const handleUseCurrentLocation = async (coordinates?: { lat: number; lon: number }) => {
     try {
       const location = coordinates
@@ -555,105 +523,14 @@ export function PlannerShell() {
     }
   }
 
-  const handlePlan = async (): Promise<TripPlan | null> => {
-    const current = usePlannerStore.getState()
-    try {
-      loopSeed.current += 1
-      const customSegmentProfiles = current.mode === "destination" && current.segmentProfiles.some((item) => item !== current.profile)
-        ? normalizedSegmentProfiles(current.segmentProfiles, current.via.length + 1, current.profile)
-        : undefined
-      return await runTripPlan(buildRideTripRequest({
-        mode: current.mode,
-        start: current.start,
-        finish: current.finish,
-        profile: current.profile,
-        bikeProfile: current.bikeProfile,
-        roadLocks: current.roadLocks,
-        targetMinutes: current.targetMinutes,
-        timeShaped: current.timeShaped,
-        seed: loopSeed.current,
-        via: current.via,
-        avoidHighways: current.avoidHighways,
-        avoidAreas: current.avoidAreas,
-        segmentProfiles: customSegmentProfiles,
-        tollPolicy: current.tollPolicy,
-        planningId: createPlanningId(),
-        ...(current.sketchCorridor ? { sketchCorridor: current.sketchCorridor } : {})
-      }))
-    } catch (caught) {
-      current.failRouting({
-        code: "MISSING_WAYPOINTS",
-        message: caught instanceof Error ? caught.message : "Choose the points for this ride first."
-      })
-      return null
-    }
-  }
-
-  /**
-   * Undo and redo replan whenever the restored ride can be routed at all, not
-   * only when a route is already on screen — the point of undoing a bad change
-   * is to get the previous ride back, drawn.
-   */
-  const replanAfterRideHistoryMove = () => {
-    if (replanTimerRef.current !== null) {
-      window.clearTimeout(replanTimerRef.current)
-      replanTimerRef.current = null
-    }
-    const current = usePlannerStore.getState()
-    if (!current.start) return
-    if (current.mode === "destination" && !current.finish) return
-    void handlePlan()
-  }
-
-  /**
-   * A ride edit only replans when there is already a route to improve on: with
-   * no route yet the rider is still composing, and planning under them would
-   * be noise. Bursts of edits (a preset, then a toggle, then another) collapse
-   * into one request instead of racing each other to the provider.
-   */
-  const replanAfterIntentEdit = () => {
-    const current = usePlannerStore.getState()
-    if (!current.plan || !current.start) return
-    if (replanTimerRef.current !== null) window.clearTimeout(replanTimerRef.current)
-    replanTimerRef.current = window.setTimeout(() => {
-      replanTimerRef.current = null
-      const latest = usePlannerStore.getState()
-      if (latest.plan && latest.start) void handlePlan()
-    }, REPLAN_COALESCE_MS)
-  }
-
-  /**
-   * A recovered ride is authored intent, not a stored answer: the checkpoint
-   * deliberately keeps no route geometry. So once recovery lands, ask for the
-   * route again — otherwise "refresh restores your ride" would hand the rider
-   * back their inputs and a blank map.
-   */
-  const recoveredRideRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (recoveryStatus !== "restored") return
-    const current = usePlannerStore.getState()
-    if (recoveredRideRef.current === current.rideHistory.identity) return
-    if (current.plan || current.status !== "idle" || !current.start) return
-    if (current.mode === "destination" && !current.finish) return
-    recoveredRideRef.current = current.rideHistory.identity
-    void handlePlan()
-    // handlePlan reads the committed store value; re-running on its identity
-    // would replan the same recovered ride twice.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recoveryStatus, rideHistorySequence])
-
-  // Declared after the functions that own the timer so the pending replan is
-  // dropped with the planner rather than firing into an unmounted tree.
-  useEffect(() => () => {
-    if (replanTimerRef.current !== null) window.clearTimeout(replanTimerRef.current)
-  }, [])
+  const { replanAfterIntentEdit, replanAfterRideHistoryMove } = planning
 
   const handleRidePrompt = usePlannerRideIntent({
     gate: routeRequestGate,
     home,
     targetMinutes,
     avoidAreas,
-    nextSeed: () => ++loopSeed.current,
+    nextSeed,
     runTripPlan,
     setStopIdeas,
     setResearchSources,
@@ -1008,7 +885,7 @@ export function PlannerShell() {
         segmentProfiles: current.segmentProfiles.length > 0 ? current.segmentProfiles : undefined,
         tollPolicy: current.tollPolicy,
         sketchCorridor: current.sketchCorridor ?? undefined,
-        seed: ++loopSeed.current,
+        seed: nextSeed(),
         planningId: createPlanningId()
       }))
       const route = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
@@ -1081,7 +958,7 @@ export function PlannerShell() {
         segmentProfiles: current.segmentProfiles.length > 0 ? current.segmentProfiles : undefined,
         tollPolicy: current.tollPolicy,
         sketchCorridor: current.sketchCorridor ?? undefined,
-        seed: ++loopSeed.current,
+        seed: nextSeed(),
         planningId: createPlanningId()
       }))
       const route = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
@@ -1251,7 +1128,6 @@ export function PlannerShell() {
       const current = usePlannerStore.getState()
       let routeToShape: PlannedRoute | null = selectedRoute
       if (current.mode === "loop" && !routeToShape) {
-        loopSeed.current += 1
         const initialLoop = await runTripPlan(buildRideTripRequest({
           mode: "loop",
           start: current.start,
@@ -1261,7 +1137,7 @@ export function PlannerShell() {
           roadLocks: current.roadLocks,
           targetMinutes: current.targetMinutes,
           timeShaped: current.timeShaped,
-          seed: loopSeed.current,
+          seed: nextSeed(),
           avoidHighways: current.avoidHighways,
           avoidAreas: current.avoidAreas,
           segmentProfiles: current.segmentProfiles.length > 0 ? current.segmentProfiles : undefined,
@@ -1335,7 +1211,7 @@ message: failure?.message ?? "The rough route could not be routed."
     // Existing-route sketches use the canonical committed-ride rollback. A
     // first-ever failed sketch has no committed result yet, so undo its one
     // compound drawing command after the session settles.
-    planningSession.cancel()
+    planning.cancel()
     if (undoUncommittedSketch) usePlannerStore.getState().undoRideChange()
   }
 
@@ -1390,9 +1266,8 @@ message: failure?.message ?? "The rough route could not be routed."
     setIntentSummary(null)
     setResearchStatus("idle")
     setResearchSources([])
-    if (previousRouteId) routeEntityCache.release(previousRouteId)
+    planning.releaseRetainedRoute()
     if (rideOriginalRouteId) routeEntityCache.release(rideOriginalRouteId)
-    setPreviousRouteId(null)
     setRideOriginalRouteId(null)
     setActiveRecordedRide(null)
     navigationStore.clear()
@@ -1515,11 +1390,13 @@ message: failure?.message ?? "The rough route could not be routed."
 
         {surface !== "ride" && surface !== "free-ride" && navigation.destination === "plan" && !sketching ? (
           <PlannerComposition
-          planWarnings={plan?.warnings ?? []}
-          onAddAdvisorStop={(stop) => void handleAddAdvisorStop(stop)}
-          onPlanAdvisorRide={(ride) => void handlePlanAdvisorRide(ride)}
-          advisorOrigin={start ?? null}
-          viewModel={buildPlannerDeckViewModel({
+          {...createPlannerPresentationBoundary({
+          recoveryStatus,
+          planWarnings: plan?.warnings ?? [],
+          onAddAdvisorStop: (stop) => void handleAddAdvisorStop(stop),
+          onPlanAdvisorRide: (ride) => void handlePlanAdvisorRide(ride),
+          advisorOrigin: start ?? null,
+          viewModel: buildPlannerDeckViewModel({
             plan,
             start,
             finish,
@@ -1537,7 +1414,7 @@ message: failure?.message ?? "The rough route could not be routed."
             savedCount: savedRoutes.length + projectRoutes.length,
             via,
             addingVia,
-            segmentProfiles: activeSegmentProfiles,
+            segmentProfiles: perLegStyles,
             avoidAreaCount: avoidAreas.length,
             canUndoRideChange,
             canRedoRideChange,
@@ -1560,8 +1437,8 @@ message: failure?.message ?? "The rough route could not be routed."
             isRecalculating,
             resultRevision,
             providerHealth
-          })}
-          commands={{
+          }),
+          commands: {
             rideHistory: {
               // Whole-ride undo: one rider change, reversed as a whole, then
               // re-answered — never a per-field setter with its own history.
@@ -1728,7 +1605,7 @@ message: failure?.message ?? "The rough route could not be routed."
             },
             onClearRoute: handleClearRoute,
             onPlan: () => void handlePlan(),
-            onCancelRideChange: planningSession.cancel,
+            onCancelRideChange: planning.cancel,
             onRetryProviderHealth: providerHealth.retry,
             onUseCurrentLocation: () => void handleUseCurrentLocation(),
             onUseHome: useHome,
@@ -1741,8 +1618,8 @@ message: failure?.message ?? "The rough route could not be routed."
               setDrawCommandId((current) => current + 1)
             },
             onSaveOffline: (route, options) => void saveOfflinePack(route, options),
-          }}
-          comparison={routes.length > 0 ? {
+          },
+          comparison: routes.length > 0 ? {
               routes: routes,
               selectedId: selectedRoute?.id ?? "",
               onSelect: (id: string) => usePlannerStore.getState().selectRoute(id),
@@ -1790,7 +1667,8 @@ message: failure?.message ?? "The rough route could not be routed."
               onResolveMustLock: handleResolveMustLock,
               previousRoute,
               replayComparison
-          } : null}
+          } : null
+          })}
           />
         ) : null}
       </MapWorkspace>

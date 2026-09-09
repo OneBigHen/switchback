@@ -2,6 +2,7 @@ import { cleanup, render } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 import { PlannerComposition } from "@/components/planner/PlannerComposition"
+import { createPlannerPresentationBoundary } from "@/components/planner/PlannerPresentationBoundary"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "@/components/planner/PlannerDeckViewModel"
 import { initialPlannerState, usePlannerStore } from "@/stores/planner-store"
 
@@ -38,6 +39,18 @@ function compositionProps() {
   }
 }
 
+/** Renders exactly the way PlannerShell does: canonical status in, model out. */
+function renderComposition() {
+  return render(
+    <PlannerComposition
+      {...createPlannerPresentationBoundary({
+        ...compositionProps(),
+        recoveryStatus: usePlannerStore.getState().recoveryStatus
+      })}
+    />
+  )
+}
+
 /**
  * Checkpoint recovery resolves asynchronously, so there is a window between
  * first paint and a settled ride. The planner may *report* that window; it may
@@ -59,7 +72,7 @@ function compositionProps() {
 describe("planner bootstrap gate", () => {
   it("reports that recovery is still settling without making the deck inert", () => {
     usePlannerStore.setState({ recoveryStatus: "loading" })
-    const { container } = render(<PlannerComposition {...compositionProps()} />)
+    const { container } = renderComposition()
 
     expect(container.querySelector("[aria-busy='true']")).not.toBeNull()
     expect(container.querySelector("[inert]")).toBeNull()
@@ -70,7 +83,7 @@ describe("planner bootstrap gate", () => {
 
   it("stops reporting busy once recovery settles", () => {
     usePlannerStore.setState({ recoveryStatus: "ready" })
-    const { container } = render(<PlannerComposition {...compositionProps()} />)
+    const { container } = renderComposition()
 
     expect(container.querySelector("[aria-busy='true']")).toBeNull()
     expect(container.querySelector("[inert]")).toBeNull()
