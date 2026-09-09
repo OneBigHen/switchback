@@ -35,6 +35,28 @@ function place(label: string, lat: number, lon: number): PlaceResult {
   }
 }
 
+function candidate(input: {
+  id: string
+  name: string
+  label: string
+  kind?: string
+  lat: number
+  lon: number
+  region?: string
+  country?: string
+}): PlaceResult {
+  return {
+    id: input.id,
+    name: input.name,
+    label: input.label,
+    lat: input.lat,
+    lon: input.lon,
+    region: input.region ?? "Pennsylvania",
+    country: input.country ?? "United States",
+    ...(input.kind ? { kind: input.kind } : {})
+  }
+}
+
 function waypoint(label: string, lat: number, lon: number): Waypoint {
   return { label, lat, lon }
 }
@@ -118,6 +140,126 @@ describe("ride prompt waypoint resolution", () => {
 
     expect(requestLocation).not.toHaveBeenCalled()
     expect(search).toHaveBeenCalledWith("Jim Thorpe", { lat: start.lat, lon: start.lon })
+  })
+
+  it("prefers the named locality over a closer street sharing the name", async () => {
+    const start = waypoint("Current location", 40.27, -76.88)
+    const closerStreet = candidate({
+      id: "street",
+      name: "Lancaster Street",
+      label: "Lancaster Street, Swatara Township, Pennsylvania, United States",
+      kind: "residential",
+      lat: 40.27,
+      lon: -76.82
+    })
+    const requestedCity = candidate({
+      id: "city",
+      name: "Lancaster",
+      label: "Lancaster, Pennsylvania, United States",
+      kind: "city",
+      lat: 40.0379,
+      lon: -76.3055
+    })
+
+    const resolved = await resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "Lancaster, PA" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [closerStreet, requestedCity])
+    })
+
+    expect(resolved.finish).toEqual(placeWaypoint(requestedCity))
+  })
+
+  it("prefers an exact named locality over an exact-named POI", async () => {
+    const start = waypoint("Current location", 40.27, -76.88)
+    const closerPoi = candidate({
+      id: "church",
+      name: "New Hope",
+      label: "New Hope, Lower Paxton Township, Pennsylvania, United States",
+      kind: "place_of_worship",
+      lat: 40.33,
+      lon: -76.78
+    })
+    const requestedTown = candidate({
+      id: "town",
+      name: "New Hope",
+      label: "New Hope, Pennsylvania, United States",
+      kind: "town",
+      lat: 40.3643,
+      lon: -74.9513
+    })
+
+    const resolved = await resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "New Hope, PA" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [closerPoi, requestedTown])
+    })
+
+    expect(resolved.finish).toEqual(placeWaypoint(requestedTown))
+  })
+
+  it("uses proximity only to break a tie between semantically equivalent localities", async () => {
+    const start = waypoint("Current location", 40.0, -75.0)
+    const fartherTown = candidate({
+      id: "farther",
+      name: "Springfield",
+      label: "Springfield, Pennsylvania, United States",
+      kind: "town",
+      lat: 41.0,
+      lon: -77.0
+    })
+    const nearerTown = candidate({
+      id: "nearer",
+      name: "Springfield",
+      label: "Springfield, Pennsylvania, United States",
+      kind: "town",
+      lat: 40.1,
+      lon: -75.1
+    })
+
+    const resolved = await resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "Springfield" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [fartherTown, nearerTown])
+    })
+
+    expect(resolved.finish).toEqual(placeWaypoint(nearerTown))
+  })
+
+  it("keeps the provider winner for a specific street address", async () => {
+    const start = waypoint("Current location", 40.0, -75.0)
+    const requestedAddress = candidate({
+      id: "address",
+      name: "Lancaster Avenue",
+      label: "123 Lancaster Avenue, Wayne, Pennsylvania, United States",
+      kind: "house",
+      lat: 40.044,
+      lon: -75.387
+    })
+    const sameNamedRoad = candidate({
+      id: "road",
+      name: "Lancaster Avenue",
+      label: "Lancaster Avenue, Reading, Pennsylvania, United States",
+      kind: "residential",
+      lat: 40.33,
+      lon: -75.93
+    })
+
+    const resolved = await resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "123 Lancaster Avenue, Wayne, PA" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [requestedAddress, sameNamedRoad])
+    })
+
+    expect(resolved.finish).toEqual(placeWaypoint(requestedAddress))
   })
 
   it("resolves an explicit Home destination from the rider's saved local Home without a lookup", async () => {
