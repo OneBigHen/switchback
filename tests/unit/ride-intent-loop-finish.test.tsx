@@ -52,7 +52,6 @@ describe("free-form loop intent", () => {
       home: null,
       targetMinutes: 120,
       avoidAreas: [],
-      segmentProfiles: [],
       nextSeed: () => 18,
       runTripPlan,
       setStopIdeas: vi.fn(),

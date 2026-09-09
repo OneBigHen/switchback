@@ -653,7 +653,6 @@ export function PlannerShell() {
     home,
     targetMinutes,
     avoidAreas,
-    segmentProfiles,
     nextSeed: () => ++loopSeed.current,
     runTripPlan,
     setStopIdeas,
