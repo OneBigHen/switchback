@@ -31,6 +31,12 @@ export interface RideLibraryItem {
   sourceLabel: string
   distanceMiles: number
   durationMinutes: number
+  /**
+   * Where `durationMinutes` came from. A recorded ride whose clock could not be
+   * read still shows the planned figure, but must say so — an unlabelled number
+   * under "Recorded ride" reads as measured elapsed time.
+   */
+  durationSource: "recorded" | "planned"
   updatedAt: string | null
   /** Representative `[lon, lat]` for distance-from-me ordering; null when unplaceable. */
   center?: readonly [number, number] | null

@@ -76,7 +76,16 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
           </span>
           <span className={styles.metrics}>
             <b>{item.distanceMiles.toFixed(1)} mi</b>
-            <span>{Math.round(item.durationMinutes)} min</span>
+            {/*
+              Only a recording can mislead here: an unlabelled figure under
+              "Recorded ride" reads as time actually spent. A saved route or
+              trip is understood to be an estimate, so labelling those would be
+              noise rather than honesty.
+            */}
+            <span>
+              {Math.round(item.durationMinutes)} min
+              {item.kind === "recorded-ride" && item.durationSource === "planned" ? " planned" : ""}
+            </span>
             {typeof distanceAwayMiles === "number" ? (
               <small className={styles.away}>{formatAway(distanceAwayMiles)}</small>
             ) : updated ? <small>{updated}</small> : <small>Project library</small>}

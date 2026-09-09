@@ -23,7 +23,12 @@ export interface ReplayComparisonResult {
   plannedDistanceMiles: number
   recordedDistanceMiles: number
   plannedDurationMinutes: number
-  recordedDurationMinutes: number
+  /**
+   * Measured elapsed time, or `null` when the recording's clock is unreadable.
+   * Never 0: a ride that happened did not take no time, and a consumer cannot
+   * tell a real zero from a missing one.
+   */
+  recordedDurationMinutes: number | null
   onTrackPercent: number
   averageOffsetMeters: number
   maxOffsetMeters: number
@@ -237,7 +242,7 @@ export function comparePlannedVsActual(
   const actualDurationMinutes =
     Number.isFinite(started) && Number.isFinite(ended)
       ? Math.round((ended - started) / 60_000)
-      : 0
+      : null
 
   return {
     contractVersion: REPLAY_CONTRACT_VERSION,

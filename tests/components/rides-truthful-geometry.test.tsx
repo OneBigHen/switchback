@@ -35,6 +35,7 @@ function item(overrides: Partial<RideLibraryItem> = {}): RideLibraryItem {
     sourceLabel: "Saved route",
     distanceMiles: 82.4,
     durationMinutes: 146,
+    durationSource: "planned",
     updatedAt: "2026-08-28T12:00:00Z",
     tags: [],
     ...overrides
