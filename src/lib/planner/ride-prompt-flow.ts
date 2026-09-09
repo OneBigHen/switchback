@@ -4,6 +4,24 @@ import type { Waypoint } from "@/lib/routing/types"
 
 const DEFAULT_SEARCH_BIAS: GeocoderBias = { lat: 40.2732, lon: -76.8867 }
 
+/**
+ * Photon exposes OSM feature kinds. These are geographic identities a rider
+ * can reasonably mean when they type a bare place name; an amenity or road
+ * sharing the same name must not outrank them merely because it is closer.
+ */
+const LOCALITY_KINDS = new Set([
+  "city",
+  "town",
+  "village",
+  "hamlet",
+  "borough",
+  "municipality",
+  "administrative",
+  "suburb",
+  "neighbourhood",
+  "neighborhood"
+])
+
 export interface RidePromptWaypointOptions {
   intent: RideIntent
   start: Waypoint | null
@@ -50,15 +68,76 @@ function normalizePlaceText(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
 }
 
-function queryExplicitlyScopesPlace(query: string, place: PlaceResult): boolean {
-  if (query.includes(",")) return true
+function normalizePlaceKind(value: string | undefined): string {
+  return value?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? ""
+}
+
+function isSpecificAddressQuery(query: string): boolean {
+  // A house number is stronger identity than a locality heuristic, but a
+  // number anywhere in the query also matches named highways such as "PA 32"
+  // and "Route 611". Only an address-shaped leading number gets provider
+  // winner treatment; semantic road/place ranking remains active otherwise.
+  const match = query.trim().match(/^\d+[a-z]?\s+(.+)$/i)
+  return Boolean(match && /[a-z]/i.test(match[1]))
+}
+
+function placeIdentityScore(query: string, place: PlaceResult): number {
+  const normalizedQuery = normalizePlaceText(query)
+  const requestedHead = normalizePlaceText(query.split(",", 1)[0] ?? query)
+  const normalizedName = normalizePlaceText(place.name)
+  const normalizedLabelHead = normalizePlaceText(place.label.split(",", 1)[0] ?? place.label)
+  const identities = new Set([normalizedName, normalizedLabelHead].filter(Boolean))
+
+  if (identities.has(requestedHead)) return 2
+  // Also recognize natural scoped input without a comma, e.g. "Austin Texas"
+  // or "Springfield MA". The candidate name consumes the identity prefix and
+  // the remaining tokens are scope, not part of the place name.
+  if ([...identities].some((identity) =>
+    normalizedQuery === identity || normalizedQuery.startsWith(`${identity} `)
+  )) return 1
+  return 0
+}
+
+function localityScore(place: PlaceResult): number {
+  return LOCALITY_KINDS.has(normalizePlaceKind(place.kind)) ? 1 : 0
+}
+
+function queryScopeParts(query: string, place: PlaceResult): string[] {
+  if (query.includes(",")) {
+    return query
+      .split(",")
+      .slice(1)
+      .map(normalizePlaceText)
+      .filter(Boolean)
+  }
   const normalizedQuery = normalizePlaceText(query)
   const normalizedName = normalizePlaceText(place.name)
-  if (!normalizedQuery || normalizedQuery === normalizedName) return false
-  return [place.region, place.country]
-    .map(normalizePlaceText)
-    .filter(Boolean)
-    .some((scope) => normalizedQuery.includes(scope))
+  if (!normalizedName || !normalizedQuery.startsWith(`${normalizedName} `)) return []
+  return [normalizedQuery.slice(normalizedName.length).trim()]
+}
+
+function scopeAliases(value: string): Set<string> {
+  const normalized = normalizePlaceText(value)
+  if (!normalized) return new Set()
+  const words = normalized.split(" ").filter(Boolean)
+  return new Set([
+    normalized,
+    words.join(""),
+    ...(words.length > 1 ? [words.map((word) => word[0]).join("")] : [])
+  ])
+}
+
+function placeScopeMatches(query: string, place: PlaceResult): boolean {
+  const scopeParts = queryScopeParts(query, place)
+  if (scopeParts.length === 0) return false
+
+  const evidence = [place.region, place.country, ...place.label.split(",")]
+    .flatMap((value) => [...scopeAliases(value)])
+  return scopeParts.every((part) => evidence.includes(part))
+}
+
+function queryHasExplicitScope(query: string, places: PlaceResult[]): boolean {
+  return places.some((place) => queryScopeParts(query, place).length > 0)
 }
 
 function distanceInKilometers(from: GeocoderBias, to: GeocoderBias): number {
@@ -80,17 +159,50 @@ function selectRidePromptPlace(
 ): PlaceResult | undefined {
   const providerWinner = places[0]
   if (!providerWinner) return undefined
+  if (isSpecificAddressQuery(query)) return providerWinner
+  const hasExplicitScope = queryHasExplicitScope(query, places)
 
-  // A rider who names a scope ("Austin, Texas" / "Paris, France") gets that
-  // provider-resolved place even when it is far from the current route. A bare
-  // ambiguous name is different: resolve it around the origin that will
-  // actually be routed instead of silently sending the rider to a distant
-  // namesake just because the provider happened to rank that one first.
-  if (queryExplicitlyScopesPlace(query, providerWinner)) return providerWinner
+  let ranked = places.map((place, index) => ({
+    place,
+    index,
+    identity: placeIdentityScore(query, place),
+    locality: localityScore(place),
+    distanceKm: distanceInKilometers(bias, place)
+  }))
 
-  return [...places].sort((left, right) =>
-    distanceInKilometers(bias, left) - distanceInKilometers(bias, right)
-  )[0]
+  // An explicit region/country is semantic evidence only when the candidate
+  // itself supports every requested scope part. Contradictory same-name
+  // candidates are excluded before proximity and provider order can decide.
+  if (hasExplicitScope) {
+    ranked = ranked.filter((candidate) => placeScopeMatches(query, candidate.place))
+    if (ranked.length === 0) return undefined
+  }
+
+  const bestIdentity = Math.max(...ranked.map((candidate) => candidate.identity))
+
+  // If none of the provider results actually preserves the rider's named
+  // identity, do not invent confidence by choosing whichever unrelated feature
+  // happens to be closest. The provider's textual ranking is the least lossy
+  // fallback and downstream routing can still reject unsupported coverage.
+  if (bestIdentity === 0) {
+    return hasExplicitScope ? undefined : providerWinner
+  }
+
+  const identityMatches = ranked.filter((candidate) => candidate.identity === bestIdentity)
+  const bestLocality = Math.max(...identityMatches.map((candidate) => candidate.locality))
+  const semanticPeers = identityMatches.filter((candidate) => candidate.locality === bestLocality)
+
+  // Explicit scope ("New Hope, PA" / "Austin Texas") is semantic evidence.
+  // Preserve provider ordering among otherwise equivalent candidates so a
+  // locality qualifier is never overwritten by origin proximity. Bare
+  // ambiguous names use proximity only after identity and entity kind tie.
+  if (hasExplicitScope) {
+    return semanticPeers.sort((left, right) => left.index - right.index)[0]!.place
+  }
+
+  return semanticPeers.sort((left, right) =>
+    left.distanceKm - right.distanceKm || left.index - right.index
+  )[0]!.place
 }
 
 async function resolvePlace(
@@ -110,8 +222,8 @@ async function resolvePlace(
  * Resolve the geographic part of a free-form ride request independently from
  * React and planner-store mutations. Explicit origins win, fresh browsers ask
  * for location before destination search, and every search is biased from the
- * origin that will actually be routed. Geographically qualified place names
- * remain authoritative while bare ambiguous names resolve around that origin.
+ * origin that will actually be routed. Semantic place identity outranks
+ * proximity; proximity only breaks ties between equivalent bare-name matches.
  */
 export async function resolveRidePromptWaypoints(
   options: RidePromptWaypointOptions
