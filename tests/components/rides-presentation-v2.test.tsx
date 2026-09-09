@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RidesSurface, type RideLibraryItem } from "@/components/rides/RidesSurface"
 
@@ -35,5 +35,29 @@ describe("Rides V2 presentation", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
     expect(screen.getByRole("button", { name: /Import ride/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Open Ridge Run/i })).toBeInTheDocument()
+  })
+
+  it("labels a saved route imported from GPX with the same Imported identity used by counts and filters", () => {
+    const imported: RideLibraryItem = {
+      id: "saved:gpx",
+      sourceId: "gpx",
+      kind: "saved-route",
+      name: "Luna PA NJ Synthetic Test",
+      sourceLabel: "Saved route",
+      distanceMiles: 35.9,
+      durationMinutes: 0,
+      durationSource: "planned",
+      updatedAt: "2026-09-09T12:00:00Z",
+      tags: [],
+      management: { imported: true, canMatchRoads: true, canDelete: true }
+    }
+
+    render(<RidesSurface items={[imported]} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    expect(screen.getByRole("button", { name: /Planned 0/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Imported 1/i })).toBeInTheDocument()
+    const row = screen.getByRole("button", { name: /Open Luna PA NJ Synthetic Test/i })
+    expect(within(row).getByText("Imported")).toBeInTheDocument()
+    expect(within(row).queryByText("Planned")).not.toBeInTheDocument()
   })
 })
