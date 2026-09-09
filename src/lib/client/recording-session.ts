@@ -32,6 +32,7 @@ export type RecordingSessionAction =
   | { type: "sample"; point: RecordedRidePoint }
   | { type: "pause"; at: number }
   | { type: "resume"; at: number }
+  | { type: "retry" }
   | { type: "finish"; at: number }
   | { type: "recover"; snapshot: RecordingSessionSnapshot }
   | { type: "permission_denied"; message: string }
@@ -78,8 +79,14 @@ export function recordingSessionReducer(
             pausedMillis: state.pausedMillis + Math.max(0, action.at - (state.pausedAt ?? action.at))
           }
         : state
-    case "finish":
-      return state.status === "recording" || state.status === "paused"
+    case "retry":
+      return state.startedAt != null && (state.status === "denied" || state.status === "error")
+        ? { ...state, status: "recording", pausedAt: null, error: null }
+        : state
+    case "finish": {
+      const finishable = state.status === "recording" || state.status === "paused" ||
+        ((state.status === "denied" || state.status === "error") && state.startedAt != null)
+      return finishable
         ? {
             ...state,
             status: "finished",
@@ -90,6 +97,7 @@ export function recordingSessionReducer(
             pausedAt: null
           }
         : state
+    }
     case "recover": {
       const interrupted = action.snapshot.status === "recording"
       return {
@@ -107,6 +115,13 @@ export function recordingSessionReducer(
     case "reset":
       return createRecordingState()
   }
+}
+
+/** A recording remains an open rider session even if its GPS watcher failed. */
+export function isOpenRecordingSession(state: RecordingSessionState): boolean {
+  if (state.startedAt == null || state.endedAt != null) return false
+  return state.status === "recording" || state.status === "paused" ||
+    state.status === "denied" || state.status === "error"
 }
 
 export function activeRecordingMillis(state: RecordingSessionState, now: number): number {
