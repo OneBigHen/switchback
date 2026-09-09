@@ -6,6 +6,7 @@ import { AtlasRouteThumbnail, RouteThumbnail } from "@/components/graphics"
 import { formatAway } from "@/lib/client/geo"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
+import discoveryStyles from "./RidesDiscovery.module.css"
 
 function dateLabel(value: string | null): string | null {
   if (!value) return null
@@ -77,7 +78,7 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
           <span className={styles.identity}>
             <small>{item.sourceLabel}</small>
             <strong>{item.name}</strong>
-            <span className={item.summary ? styles.routeSummary : styles.noTags}>{secondaryLine(item)}</span>
+            <span className={item.summary ? discoveryStyles.routeSummary : styles.noTags}>{secondaryLine(item)}</span>
           </span>
           <span className={styles.metrics}>
             <b>{item.distanceMiles.toFixed(1)} mi</b>
