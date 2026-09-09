@@ -231,6 +231,10 @@ describe("missing style images", () => {
     const geolocate = { on: vi.fn() }
     return {
       Map: class {},
+      // MapLibre v6 needs one setWorkerUrl call before a map is constructed;
+      // without it every GeoJSON source stays empty. The stub records it so the
+      // renderer cannot quietly stop making the call.
+      setWorkerUrl: vi.fn(),
       AttributionControl: class {},
       NavigationControl: class {},
       GeolocateControl: class {
@@ -324,5 +328,86 @@ describe("missing style images", () => {
 
     await request("mountain-pass-shield")
     expect(addImage).not.toHaveBeenCalled()
+  })
+})
+
+describe("fallback renderer worker", () => {
+  /**
+   * MapLibre v6 tiles every GeoJSON source in a web worker, and it splits that
+   * worker into `maplibre-gl-worker.mjs` plus the `maplibre-gl-shared.mjs`
+   * chunk it imports as a relative sibling. Upstream requires bundler consumers
+   * to point `setWorkerUrl` at it; Turbopack's own `new URL(...)` handling
+   * emits the worker without its sibling, so the pair is published to
+   * `public/maplibre/` and addressed there instead.
+   *
+   * Getting this wrong fails silently and completely. The map, its controls and
+   * the basemap all still draw, so nothing looks broken — but the route, its
+   * casing, the waypoints and the labels never appear, because every one of
+   * them comes from a GeoJSON source. A rider on the fallback renderer would be
+   * looking at an empty map.
+   */
+  function loadedModule() {
+    const setWorkerUrl = vi.fn()
+    const constructed: Array<Record<string, unknown>> = []
+    const map = {
+      addControl: vi.fn(),
+      resize: vi.fn(),
+      once: vi.fn(),
+      on: vi.fn(),
+      hasImage: vi.fn(() => false),
+      addImage: vi.fn(),
+      setMissingStyleImageResolver: vi.fn()
+    }
+    const gl = {
+      setWorkerUrl,
+      Map: class {
+        constructor(options: Record<string, unknown>) {
+          constructed.push(options)
+          return map as unknown as object
+        }
+      },
+      AttributionControl: class {},
+      NavigationControl: class {},
+      GeolocateControl: class { on = vi.fn() },
+      ScaleControl: class {}
+    }
+    return { gl, setWorkerUrl, constructed, map }
+  }
+
+  function create(gl: ReturnType<typeof loadedModule>["gl"]) {
+    return maplibreRenderer.create(gl, {
+      container: document.createElement("div"),
+      experience: resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" }),
+      center: [-75.2, 40.4],
+      zoom: 9,
+      onLocateMe: vi.fn()
+    })
+  }
+
+  it("points MapLibre at the worker copy that ships beside its shared chunk", () => {
+    const { gl, setWorkerUrl, constructed } = loadedModule()
+    create(gl)
+
+    expect(setWorkerUrl).toHaveBeenCalledTimes(1)
+    const [url] = setWorkerUrl.mock.calls[0]
+    expect(url).toBe("/maplibre/maplibre-gl-worker.mjs")
+    // The worker must be configured before a map exists, not after: a map
+    // constructed against an unset worker URL never loads its sources.
+    expect(constructed.length).toBe(1)
+  })
+
+  it("configures the worker before constructing the map", () => {
+    const { gl, setWorkerUrl } = loadedModule()
+    const order: string[] = []
+    setWorkerUrl.mockImplementation(() => void order.push("setWorkerUrl"))
+    const Original = gl.Map
+    gl.Map = class extends Original {
+      constructor(options: Record<string, unknown>) {
+        order.push("Map")
+        super(options)
+      }
+    }
+    create(gl)
+    expect(order).toEqual(["setWorkerUrl", "Map"])
   })
 })
