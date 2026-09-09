@@ -183,6 +183,53 @@
   height: 19px;
 }
 
+/*
+ * The collapsed read of the ride. An alert sits above this and is never
+ * collapsed; this line is what the panel says when there is nothing wrong.
+ */
+.weather-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--sb-text);
+}
+
+.weather-summary strong {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.weather-summary span {
+  color: var(--sb-text-muted);
+  font-size: 0.86rem;
+}
+
+.weather-detail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--sb-border);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.weather-detail-toggle:hover {
+  background: var(--sb-surface-raised, transparent);
+}
+
+.weather-detail-toggle svg {
+  flex: none;
+}
+
 .weather-samples {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
