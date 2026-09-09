@@ -12,10 +12,28 @@ interface BrowseBox {
   bbox: RouteBbox
 }
 
-const PENNSYLVANIA: RouteBbox = [-80.62, 39.68, -74.65, 42.33]
 const PA_NORTH_SPLIT = 40.85
 const PA_WEST_SPLIT = -78.3
 const PA_EAST_SPLIT = -76.7
+
+/**
+ * A deliberately low-resolution PA outline used only to decide whether a route
+ * centroid belongs in the PA browse hierarchy. A single rectangle mislabeled
+ * central New Jersey as Southeast PA; this small polygon follows the Delaware
+ * River closely enough for discovery without adding a GIS dataset or geocoder.
+ */
+const PENNSYLVANIA_OUTLINE: ReadonlyArray<readonly [number, number]> = [
+  [-80.52, 39.72],
+  [-75.79, 39.72],
+  [-75.58, 39.84],
+  [-75.13, 39.95],
+  [-74.77, 40.22],
+  [-75.14, 40.68],
+  [-74.69, 41.36],
+  [-75.36, 42.0],
+  [-79.76, 42.0],
+  [-80.52, 42.27]
+]
 
 /**
  * These are intentionally coarse browse groupings, not county, forest, or legal
@@ -58,6 +76,18 @@ function intersects(left: RouteBbox, right: RouteBbox): boolean {
   return left[0] <= right[2] && left[2] >= right[0] && left[1] <= right[3] && left[3] >= right[1]
 }
 
+function pointInPolygon(point: readonly [number, number], polygon: ReadonlyArray<readonly [number, number]>): boolean {
+  let inside = false
+  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+    const a = polygon[current]!
+    const b = polygon[previous]!
+    const crosses = (a[1] > point[1]) !== (b[1] > point[1])
+      && point[0] < ((b[0] - a[0]) * (point[1] - a[1])) / (b[1] - a[1]) + a[0]
+    if (crosses) inside = !inside
+  }
+  return inside
+}
+
 function paMacroRegion(point: readonly [number, number]): string {
   const north = point[1] >= PA_NORTH_SPLIT
   if (point[0] < PA_WEST_SPLIT) return north ? "Northwest PA" : "Southwest PA"
@@ -73,7 +103,7 @@ export function classifyRouteGeography(bbox: RouteBbox | null | undefined): Rout
   if (!bbox) return { macroRegion: null, ridingAreas: [] }
 
   const routeCenter = center(bbox)
-  if (contains(PENNSYLVANIA, routeCenter)) {
+  if (pointInPolygon(routeCenter, PENNSYLVANIA_OUTLINE)) {
     return {
       macroRegion: paMacroRegion(routeCenter),
       ridingAreas: PA_RIDING_AREAS.filter((area) => intersects(bbox, area.bbox)).map((area) => area.label)
