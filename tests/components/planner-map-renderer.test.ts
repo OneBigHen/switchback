@@ -285,7 +285,7 @@ describe("missing style images", () => {
     const gl = { ...module, Map: class { constructor() { return map } } }
     return maplibreRenderer.create(gl, {
       container: document.createElement("div"),
-      experience: resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" }),
+      experience: resolveMapPresentation({ preset: "road", surface: "plan", lightPreset: "day" }),
       center: [-75.2, 40.4],
       zoom: 9,
       onLocateMe: vi.fn()
@@ -378,7 +378,7 @@ describe("fallback renderer worker", () => {
   function create(gl: ReturnType<typeof loadedModule>["gl"]) {
     return maplibreRenderer.create(gl, {
       container: document.createElement("div"),
-      experience: resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" }),
+      experience: resolveMapPresentation({ preset: "road", surface: "plan", lightPreset: "day" }),
       center: [-75.2, 40.4],
       zoom: 9,
       onLocateMe: vi.fn()
