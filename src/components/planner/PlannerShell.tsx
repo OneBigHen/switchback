@@ -1745,7 +1745,7 @@ message: failure?.message ?? "The rough route could not be routed."
           comparison={routes.length > 0 ? {
               routes: routes,
               selectedId: selectedRoute?.id ?? "",
-              onSelect: (id) => usePlannerStore.getState().selectRoute(id),
+              onSelect: (id: string) => usePlannerStore.getState().selectRoute(id),
               onSave: (route) => void handleSave(route),
               onExport: handleExport,
               recordedRide: activeRecordedRide,
