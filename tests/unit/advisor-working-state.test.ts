@@ -49,6 +49,65 @@ describe("deterministic advisor working state", () => {
     expect(line).not.toContain("240%")
   })
 
+  it("falls back to the selected surface percentage when a delta rounds to zero", () => {
+    const selected = route({
+      id: "selected",
+      durationMinutes: 200,
+      twistiness: 80,
+      surfaceMix: { unpaved: 2.4 } as never
+    })
+    const fastest = route({
+      id: "fastest",
+      durationMinutes: 180,
+      twistiness: 20,
+      surfaceMix: { unpaved: 2.1 } as never
+    })
+
+    const line = workingStateLine({ routes: [selected, fastest], selectedRouteId: "selected" })
+
+    expect(line).toBe("Weighing +20 min, 2% unpaved and +60 curve score…")
+    expect(line).not.toContain("+0%")
+  })
+
+  it.each([
+    [101, "101%"],
+    [-1, "-1%"],
+    [Number.NaN, "NaN"],
+    [Number.POSITIVE_INFINITY, "Infinity"]
+  ])("suppresses an invalid selected unpaved source: %s", (unpaved, rendered) => {
+    const selected = route({
+      id: "selected",
+      durationMinutes: 200,
+      surfaceMix: { unpaved } as never
+    })
+    const fastest = route({ id: "fastest", durationMinutes: 180 })
+
+    const line = workingStateLine({ routes: [selected, fastest], selectedRouteId: "selected" }) ?? ""
+
+    expect(line).not.toContain(rendered)
+    expect(line).not.toMatch(/(?:NaN|Infinity)/)
+  })
+
+  it("suppresses an invalid fastest unpaved source instead of clamping or comparing it", () => {
+    const selected = route({
+      id: "selected",
+      durationMinutes: 200,
+      surfaceMix: { unpaved: 12 } as never
+    })
+    const fastest = route({
+      id: "fastest",
+      durationMinutes: 180,
+      surfaceMix: { unpaved: 101 } as never
+    })
+
+    const line = workingStateLine({ routes: [selected, fastest], selectedRouteId: "selected" })
+
+    expect(line).toBe("Weighing +20 min against 12% unpaved…")
+    expect(line).not.toContain("+12% unpaved")
+    expect(line).not.toContain("101%")
+    expect(line).not.toContain("-89%")
+  })
+
   it("says something true about the fastest route when it is the one selected", () => {
     const line = workingStateLine({ routes: [best, fastest], selectedRouteId: "fastest-now" })
     // No added minutes to weigh against, so it must not invent a "+0 min".

@@ -63,9 +63,13 @@ export function workingStateLine(input: WorkingStateInput): string | null {
   const selectedUnpaved = unpavedPercent(selected)
   const fastestUnpaved = unpavedPercent(fastest)
   if (selectedUnpaved !== null && selectedUnpaved > 0) {
-    const delta = fastestUnpaved !== null ? selectedUnpaved - fastestUnpaved : selectedUnpaved
-    if (delta > 0.01) facts.push(`+${round(delta)}% unpaved`)
-    else facts.push(`${round(selectedUnpaved)}% unpaved`)
+    if (fastestUnpaved !== null) {
+      const roundedDelta = round(selectedUnpaved - fastestUnpaved)
+      if (roundedDelta > 0) facts.push(`+${roundedDelta}% unpaved`)
+      else facts.push(`${round(selectedUnpaved)}% unpaved`)
+    } else {
+      facts.push(`${round(selectedUnpaved)}% unpaved`)
+    }
   }
 
   if (fastest.id !== selected.id) {
