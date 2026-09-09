@@ -16,13 +16,16 @@ function route(overrides: Partial<PlannedRoute> & { id: string }): PlannedRoute 
   } as PlannedRoute
 }
 
+// `calculateDetailDistribution` stores route mixes as percentages (0..100),
+// not fractions. Keep these fixtures production-realistic so the working-state
+// formatter cannot accidentally multiply an already-percent value again.
 const best = route({
   id: "best-ride", name: "Best Ride", durationMinutes: 210, twistiness: 79,
-  surfaceMix: { unpaved: 0.38 } as never
+  surfaceMix: { unpaved: 38 } as never
 })
 const fastest = route({
   id: "fastest-now", name: "Fastest", durationMinutes: 185, twistiness: 22,
-  surfaceMix: { unpaved: 0.07 } as never
+  surfaceMix: { unpaved: 7 } as never
 })
 
 describe("deterministic advisor working state", () => {
@@ -30,6 +33,20 @@ describe("deterministic advisor working state", () => {
     const line = workingStateLine({ routes: [best, fastest], selectedRouteId: "best-ride" })
     // Every number here was computed by Switchback before the model was asked.
     expect(line).toBe("Weighing +25 min, +31% unpaved and +57 curve score…")
+  })
+
+  it("uses a provider surface percentage once rather than multiplying it twice", () => {
+    const selected = route({
+      id: "selected",
+      durationMinutes: 180,
+      twistiness: 100,
+      surfaceMix: { unpaved: 2.4 } as never
+    })
+
+    const line = workingStateLine({ routes: [selected], selectedRouteId: "selected" })
+
+    expect(line).toBe("Weighing 2% unpaved against a 100/100 curve score…")
+    expect(line).not.toContain("240%")
   })
 
   it("says something true about the fastest route when it is the one selected", () => {
