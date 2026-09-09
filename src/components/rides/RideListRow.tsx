@@ -4,6 +4,7 @@ import { ArrowRight, DotsThree } from "@phosphor-icons/react"
 import { useState } from "react"
 import { RouteThumbnail } from "@/components/graphics"
 import { formatAway } from "@/lib/client/geo"
+import { rideLibraryKindLabel } from "./ride-library-classification"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
 
@@ -17,13 +18,6 @@ function dateLabel(value: string | null): string | null {
 
 function parsedTags(value: string): string[] {
   return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))]
-}
-
-function kindLabel(item: RideLibraryItem): string {
-  if (item.kind === "saved-route") return "Planned"
-  if (item.kind === "recorded-ride") return "Recorded"
-  if (item.kind === "trip-plan") return "Trip"
-  return "Imported"
 }
 
 export interface RideListRowProps {
@@ -67,7 +61,7 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
               it.
             */}
             <RouteThumbnail points={item.geometry ?? []} />
-            <small>{kindLabel(item)}</small>
+            <small>{rideLibraryKindLabel(item)}</small>
           </span>
           <span className={styles.identity}>
             <small>{item.sourceLabel}</small>
