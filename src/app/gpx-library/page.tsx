@@ -5,9 +5,10 @@ import { readDerivedCached } from "@/lib/gpx/catalog-cache"
 import { curvatureBand, readAtlasArt } from "@/lib/gpx/atlas"
 import type { AtlasRouteArt } from "@/lib/gpx/atlas"
 import { buildRouteStory } from "@/lib/gpx/route-story"
+import { classifyRouteGeography } from "@/lib/gpx/route-regions"
 import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import { AtlasBrowser } from "./AtlasBrowser"
-import { classifyRegion, type AtlasBrowseRoute } from "./atlas-browse"
+import type { AtlasBrowseRoute } from "./atlas-browse"
 
 export const dynamic = "force-dynamic"
 
@@ -71,11 +72,6 @@ function validateAtlasListing(parsed: unknown): { routes: AtlasListingRoute[]; g
   }
 }
 
-/**
- * The manifest is hundreds of kilobytes and this page is public and
- * uncacheable, so the parse and the per-route validation are memoised against
- * the file's mtime rather than repeated per request.
- */
 async function loadAtlasRoutes(): Promise<{ routes: AtlasListingRoute[]; generatedAt?: string }> {
   try {
     const root = process.env.GPX_LIBRARY_PATH ?? path.join(process.cwd(), "data/gpx-library")
@@ -93,10 +89,10 @@ function formatUpdated(value: string | undefined): string | null {
     : `Updated ${date.toLocaleDateString("en-US", { dateStyle: "medium" })}`
 }
 
-/** Fold one manifest row + its poster art into the shape the browser UI wants. */
 function toBrowseRoute(route: AtlasListingRoute, art: AtlasRouteArt | undefined): AtlasBrowseRoute {
   const story = buildRouteStory(route)
   const bbox = art?.bbox ?? null
+  const geography = classifyRouteGeography(bbox)
   return {
     id: route.id,
     name: route.name,
@@ -107,11 +103,10 @@ function toBrowseRoute(route: AtlasListingRoute, art: AtlasRouteArt | undefined)
     durationMinutes: route.durationMinutes,
     turnCount: route.turnCount,
     twistiness: route.twistiness,
-    // The public listing carries no surface mix; the field stays wired for when
-    // the importer starts persisting it.
     unpavedShare: null,
     bbox,
-    region: classifyRegion(bbox),
+    region: geography.macroRegion,
+    ridingAreas: geography.ridingAreas,
     aspect: typeof art?.aspect === "number" && art.aspect > 0 ? art.aspect : 1,
     paths: art ? art.paths.map((piece) => piece.d) : [],
     start: art?.start ?? null,
@@ -137,10 +132,6 @@ export default async function GpxLibraryAtlasPage() {
 
   const [{ routes, generatedAt }, art] = await Promise.all([loadAtlasRoutes(), readAtlasArt()])
 
-  // One card per ride, not per import. Two passes fold repeats: the atlas
-  // builder marks geometry-identical re-imports with `duplicateOf`, and the
-  // importer groups near-identical tracks into `duplicateFamilyId` families —
-  // keep that family's canonical (or its longest track when none is flagged).
   const drawable = routes.filter((route) => art[route.id] && !art[route.id]?.duplicateOf)
   const familyPick = new Map<string, AtlasListingRoute>()
   for (const route of drawable) {
@@ -158,9 +149,6 @@ export default async function GpxLibraryAtlasPage() {
     .filter((route) => !route.duplicateFamilyId || familyPick.get(route.duplicateFamilyId)?.id === route.id)
     .map((route) => toBrowseRoute(route, art[route.id]))
 
-  // Bulk imports name several genuinely different rides identically ("… Loops",
-  // "Huntington Motor Inn Connector"). When a title repeats, tag each with its
-  // distance so the cards stay tellable apart.
   const titleTally = new Map<string, number>()
   for (const route of browseRoutes) titleTally.set(route.title, (titleTally.get(route.title) ?? 0) + 1)
   const disambiguated: AtlasBrowseRoute[] = browseRoutes.map((route) =>
@@ -184,8 +172,8 @@ export default async function GpxLibraryAtlasPage() {
       <header className="atlas-head">
         <h1>Route atlas</h1>
         <p className="atlas-lede">
-          Every ride imported into Switchback, drawn from its own GPS line. Start with the roads closest to
-          you, then narrow by how far you want to go and how hard you want to work.
+          Every ride imported into Switchback, drawn from its own GPS line. Start with the part of Pennsylvania
+          you want to ride, then narrow by recognizable riding area, distance, length, and corner character.
         </p>
       </header>
 
