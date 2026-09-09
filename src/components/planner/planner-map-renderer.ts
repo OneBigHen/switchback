@@ -176,15 +176,33 @@ function addStandardControls(map: PlannerMap, gl: GlControls, options: CreatePla
     on(event: string, handler: (event: { id: string }) => void): void
     hasImage(id: string): boolean
     addImage(id: string, image: unknown, options: { sdf: boolean }): void
+    setMissingStyleImageResolver?(resolver: (id: string) => void): unknown
   }
   anyMap.addControl(
     new gl.AttributionControl({ compact: true }),
     window.innerWidth <= 760 ? "bottom-left" : "bottom-right"
   )
-  anyMap.on("styleimagemissing", (event) => {
-    const image = createFallbackStyleImage(event.id)
-    if (image && !anyMap.hasImage(event.id)) anyMap.addImage(event.id, image, { sdf: true })
-  })
+  // The style asks for `circle-N` icons no sprite ships; we generate them.
+  // How the generated image gets back to the renderer differs, and the two
+  // renderers share this function:
+  //
+  //   Mapbox GL JS v3 resolves it from a `styleimagemissing` listener.
+  //   MapLibre GL JS v6 does not — a listener "cannot resolve the missing
+  //   image for the current request", and the event now fires only after a
+  //   resolver has already declined. `setMissingStyleImageResolver` is the
+  //   supported hook, and MapLibre awaits it before giving up.
+  //
+  // Feature-detecting the resolver keeps one code path honest for both
+  // instead of branching on renderer id: the map itself says what it accepts.
+  const resolveMissingImage = (id: string) => {
+    const image = createFallbackStyleImage(id)
+    if (image && !anyMap.hasImage(id)) anyMap.addImage(id, image, { sdf: true })
+  }
+  if (typeof anyMap.setMissingStyleImageResolver === "function") {
+    anyMap.setMissingStyleImageResolver(resolveMissingImage)
+  } else {
+    anyMap.on("styleimagemissing", (event) => resolveMissingImage(event.id))
+  }
   anyMap.addControl(new gl.NavigationControl({ showCompass: false }), "bottom-right")
   // The GeolocateControl is a dead button on insecure contexts (LAN http),
   // where browsers hide navigator.geolocation entirely — only offer it when
@@ -209,6 +227,38 @@ function addStandardControls(map: PlannerMap, gl: GlControls, options: CreatePla
   keepMapSizedToContainer(map, options.container)
 }
 
+const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs"
+
+const maplibreWorkerConfigured = new WeakSet<object>()
+
+/**
+ * MapLibre v6 splits its worker into a separate `maplibre-gl-worker.mjs`
+ * chunk, and upstream requires bundler consumers to make one `setWorkerUrl`
+ * call so the worker is resolved rather than guessed at runtime.
+ *
+ * It has to be served from `public/`, not resolved through the bundler.
+ * Turbopack honours `new URL(..., import.meta.url)` by emitting the worker
+ * alone as a static asset, but the worker imports `./maplibre-gl-shared.mjs`
+ * as a relative sibling, and that chunk is not emitted beside it — the import
+ * 404s and the worker dies before it registers a single handler.
+ * `scripts/copy-maplibre-worker.mjs` publishes both files together so the
+ * relative import resolves.
+ *
+ * Without it the failure is silent and total: the map, its controls and any
+ * main-thread layer still draw, so the map looks alive, but every GeoJSON
+ * source is tiled in the worker — so the route, its casing, the waypoints and
+ * the labels never appear. A rider on the fallback renderer would see an empty
+ * basemap and no route at all.
+ */
+function configureMapLibreWorker(maplibre: typeof import("maplibre-gl")): void {
+  // Keyed on the loaded module rather than a module-level flag: the call is
+  // configuration of that specific MapLibre instance, and repeating it on every
+  // map construction is wasted work.
+  if (maplibreWorkerConfigured.has(maplibre)) return
+  maplibreWorkerConfigured.add(maplibre)
+  maplibre.setWorkerUrl(MAPLIBRE_WORKER_URL)
+}
+
 export const maplibreRenderer: PlannerMapRenderer = {
   id: "maplibre",
   boldFont: ["Noto Sans Bold"],
@@ -218,6 +268,7 @@ export const maplibreRenderer: PlannerMapRenderer = {
   load: () => import("maplibre-gl"),
   create(module, options) {
     const maplibre = module as typeof import("maplibre-gl")
+    configureMapLibreWorker(maplibre)
     const map = new maplibre.Map({
       container: options.container,
       style: maplibreStyleUrl(options.experience),
