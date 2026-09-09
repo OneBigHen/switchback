@@ -28,6 +28,7 @@ function route(over: Partial<AtlasBrowseRoute>): AtlasBrowseRoute {
     unpavedShare: null,
     bbox: over.bbox ?? null,
     region: over.region ?? null,
+    ridingAreas: over.ridingAreas ?? [],
     aspect: 1,
     paths: over.paths ?? ["M0 0 L10 10"],
     start: null,
@@ -63,8 +64,8 @@ describe("geo maths", () => {
 })
 
 describe("classifyRegion", () => {
-  it("files a centroid into its box, else Farther afield, else null", () => {
-    expect(classifyRegion([-80, 40.2, -79, 40.6])).toBe("Western Pennsylvania")
+  it("uses the shared rider-facing macro regions", () => {
+    expect(classifyRegion([-77.9, 40.75, -77.25, 41.1])).toBe("North-Central PA")
     expect(classifyRegion([-120, 45, -119, 46])).toBe("Farther afield")
     expect(classifyRegion(null)).toBeNull()
   })
@@ -80,7 +81,26 @@ describe("lengthBucket", () => {
 
 describe("browseAtlas", () => {
   const anchor = { lat: 40.44, lon: -79.99, at: 0 }
-  const near = route({ id: "near", title: "Near loop", distanceMiles: 60, bbox: [-80.1, 40.3, -79.8, 40.6], band: "twisty", twistiness: 80 })
+  const near = route({
+    id: "near",
+    title: "Near loop",
+    distanceMiles: 60,
+    bbox: [-80.1, 40.3, -79.8, 40.6],
+    region: "Southwest PA",
+    ridingAreas: ["Laurel Highlands"],
+    band: "twisty",
+    twistiness: 80
+  })
+  const baldEagle = route({
+    id: "bald-eagle",
+    title: "Bald Eagle loop",
+    distanceMiles: 105,
+    bbox: [-77.9, 40.75, -77.25, 41.1],
+    region: "North-Central PA",
+    ridingAreas: ["PA Wilds", "Bald Eagle / Rothrock"],
+    band: "twisty",
+    twistiness: 68
+  })
   const far = route({ id: "far", title: "Far haul", distanceMiles: 300, bbox: [-90, 44, -89, 45], band: "calm", twistiness: 10 })
 
   it("orders by distance for the nearest sort and reports out-of-radius", () => {
@@ -102,6 +122,15 @@ describe("browseAtlas", () => {
     expect(browseAtlas([near, far], { ...DEFAULT_FILTERS, query: "haul" }, null).ranked.map((r) => r.route.id)).toEqual(["far"])
     expect(browseAtlas([near, far], { ...DEFAULT_FILTERS, lengths: ["big"] }, null).ranked.map((r) => r.route.id)).toEqual(["far"])
     expect(browseAtlas([near, far], { ...DEFAULT_FILTERS, bands: ["twisty"] }, null).ranked.map((r) => r.route.id)).toEqual(["near"])
+  })
+
+  it("filters by broad region then recognizable riding area", () => {
+    expect(browseAtlas([near, baldEagle, far], { ...DEFAULT_FILTERS, region: "North-Central PA" }, null).ranked.map((r) => r.route.id)).toEqual(["bald-eagle"])
+    expect(browseAtlas([near, baldEagle, far], { ...DEFAULT_FILTERS, area: "Bald Eagle / Rothrock" }, null).ranked.map((r) => r.route.id)).toEqual(["bald-eagle"])
+  })
+
+  it("searches riding-area names as well as route titles", () => {
+    expect(browseAtlas([near, baldEagle], { ...DEFAULT_FILTERS, query: "Rothrock" }, null).ranked.map((r) => r.route.id)).toEqual(["bald-eagle"])
   })
 
   it("distanceFromAnchorMiles measures to the bbox centre", () => {
