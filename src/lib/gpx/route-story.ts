@@ -10,20 +10,20 @@ export interface RouteStoryInput {
 }
 
 export interface RouteStory {
-  /** Short editorial headline, e.g. "A tight 107-mile ribbon through the hills". */
+  /** Short rider-facing headline, normally the cleaned import name. */
   title: string
-  /** One-sentence character summary of the ride. */
+  /** One sentence describing only route-level facts Switchback actually knows. */
   summary: string
-  /** 2-3 sentences of rider-oriented description grounded in the route's stats. */
+  /** Compact description grounded in imported distance/time/turn/elevation metrics. */
   body: string
-  /** Stable short tag like "Epic haul", "Half-day loop", "Quick blast". */
+  /** Stable distance band used as a compact browsing tag. */
   tone: string
 }
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
 
 function miles(distanceMiles: number): string {
-  return NUMBER_FORMAT.format(Math.round(distanceMiles))
+  return NUMBER_FORMAT.format(Math.max(0, Math.round(distanceMiles)))
 }
 
 function hours(durationMinutes: number): string {
@@ -53,63 +53,67 @@ function titleCase(value: string): string {
   return value.replace(/\b[a-z]/g, (c) => c.toUpperCase())
 }
 
-/** Distance band drives the pacing words everywhere else. */
-function toneFor(distanceMiles: number): { tone: string; pace: string } {
-  if (distanceMiles >= 400) return { tone: "Expedition", pace: "a multi-day expedition" }
-  if (distanceMiles >= 200) return { tone: "Epic haul", pace: "an epic haul" }
-  if (distanceMiles >= 90) return { tone: "Half-day run", pace: "a solid half-day run" }
-  if (distanceMiles >= 35) return { tone: "Day loop", pace: "a proper day loop" }
-  if (distanceMiles >= 12) return { tone: "Quick blast", pace: "a quick blast" }
-  return { tone: "Short hop", pace: "a short hop" }
+/**
+ * Distance alone cannot tell us whether a route is a loop, a half-day ride, or
+ * a multi-day trip. These labels deliberately describe size only.
+ */
+function toneFor(distanceMiles: number): { tone: string; phrase: string } {
+  if (distanceMiles >= 400) return { tone: "Expedition distance", phrase: "an expedition-distance route" }
+  if (distanceMiles >= 200) return { tone: "Long distance", phrase: "a long-distance route" }
+  if (distanceMiles >= 90) return { tone: "Big ride", phrase: "a substantial route" }
+  if (distanceMiles >= 35) return { tone: "Mid-distance", phrase: "a mid-distance route" }
+  if (distanceMiles >= 12) return { tone: "Short ride", phrase: "a compact route" }
+  return { tone: "Short hop", phrase: "a short route" }
 }
 
+/** Route-level curvature band. This does not claim every road has that shape. */
 function twistWord(twistiness: number): string {
-  if (twistiness >= 80) return "relentlessly twisty"
-  if (twistiness >= 60) return "nicely twisty"
-  if (twistiness >= 40) return "gently curving"
-  if (twistiness >= 20) return "mostly straight"
-  return "dead straight"
+  if (twistiness >= 72) return "very twisty"
+  if (twistiness >= 52) return "twisty"
+  if (twistiness >= 32) return "flowing"
+  if (twistiness >= 16) return "mostly open"
+  return "low-curvature"
+}
+
+function finiteNonNegative(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0
 }
 
 /**
- * Builds an editorial, human-readable story for a catalog route from its own
- * stats. Deterministic on purpose: same route, same words.
+ * Builds a deterministic route summary from metrics stored on the import.
+ * Deliberately absent: inferred surface, legality, safety, sightlines, pace,
+ * loop shape, road uniformity, or riding-time claims that the source data does
+ * not establish.
  */
 export function buildRouteStory(route: RouteStoryInput): RouteStory {
-  const { tone, pace } = toneFor(route.distanceMiles)
+  const distanceMiles = finiteNonNegative(route.distanceMiles)
+  const durationMinutes = finiteNonNegative(route.durationMinutes)
+  const turnCount = Math.round(finiteNonNegative(route.turnCount))
+  const twistiness = Math.min(100, Math.round(finiteNonNegative(route.twistiness)))
+  const { tone, phrase } = toneFor(distanceMiles)
   const name = cleanName(route.name)
+
   // A large share of imported files are named by their export timestamp
   // ("2016-07-23 08:58:57") or a bare track number. Those are filenames, not
-  // ride names, so they fall through to the generated title like any other
-  // untitled import rather than being printed as a headline.
+  // ride names, so they fall through to a generated factual title.
   const hasRealName = name.length > 0
     && !/^(?:untitled|imported|new|imported gpx|unnamed)$/i.test(name)
     && !/^[\d\s:_/.-]+$/.test(name)
     && !/^(?:track|route|activity|segment)[\s_-]*\d*$/i.test(name)
-  const twist = twistWord(route.twistiness)
-  const turns = Math.max(0, Math.round(route.turnCount || 0))
 
-  const title = hasRealName ? titleCase(name) : `The ${miles(route.distanceMiles)}-mile ${tone.toLowerCase()}`
-  const summary = `${titleCase(pace)} that stays ${twist} start to finish.`
+  const title = hasRealName
+    ? titleCase(name)
+    : `${miles(distanceMiles)}-mile imported route`
+  const character = twistWord(twistiness)
+  const summary = `${titleCase(phrase)} with a ${character} overall curvature profile.`
 
-  const lines: string[] = []
-  // Many imports carry no timing at all; claim a duration only when there is one.
-  const timePhrase = route.durationMinutes > 0 ? ` in about ${hours(route.durationMinutes)}` : ""
-  lines.push(
-    `${NUMBER_FORMAT.format(Math.round(route.distanceMiles))} miles${timePhrase}${
-      turns > 0 ? `, with roughly ${NUMBER_FORMAT.format(turns)} notable turns` : ""
-    }.`
-  )
-  if (route.twistiness >= 60 && turns > 0) {
-    lines.push(`Expect corner-after-corner riding — this one rewards a steady right hand and full attention.`)
-  } else if (route.twistiness <= 20) {
-    lines.push(`This is covering-ground country: long sightlines, relaxed pace, easy navigation.`)
-  } else {
-    lines.push(`A calm middle ground — flow enough to enjoy, straight enough to relax.`)
-  }
-  if (route.ascentMeters && route.ascentMeters > 250) {
-    lines.push(`Climbs about ${NUMBER_FORMAT.format(Math.round(route.ascentMeters))} m over the course of the ride.`)
+  const stats: string[] = [`${miles(distanceMiles)} miles`]
+  if (durationMinutes > 0) stats.push(`about ${hours(durationMinutes)}`)
+  if (turnCount > 0) stats.push(`${NUMBER_FORMAT.format(turnCount)} mapped turns`)
+  if (route.ascentMeters !== null && route.ascentMeters !== undefined && Number.isFinite(route.ascentMeters) && route.ascentMeters > 0) {
+    stats.push(`about ${NUMBER_FORMAT.format(Math.round(route.ascentMeters))} m of climbing`)
   }
 
-  return { title, summary, body: lines.join(" "), tone }
+  const body = `${stats.join(", ")}. Route-level twistiness: ${twistiness}/100 (${character} overall).`
+  return { title, summary, body, tone }
 }
