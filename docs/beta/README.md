@@ -7,8 +7,10 @@ It is subordinate to `AGENTS.md`, ADRs, `docs/release/ROADMAP-WAVES.md`, and the
 ## Start here
 
 1. `BETA-CONVERGENCE.md` — current state, beta definition, branch/PR disposition, architecture/debloat priorities, value gates, and sequencing.
-2. `OPUS-COORDINATOR.md` — copy/paste execution prompt for one high-budget coordinator that may delegate bounded work to cheaper agents.
-3. `AGENT-TASKS.md` — concrete task queue with ownership, evidence, risk, and exit criteria.
+2. `DEBLOAT-AUDIT.md` — screen/code inventory showing what should stay primary, become contextual/post-ride/advanced, or be investigated for retirement before beta.
+3. `OPUS-COORDINATOR.md` — copy/paste execution prompt for one high-budget coordinator that may delegate bounded work to cheaper agents.
+4. `AGENT-TASKS.md` — concrete task queue with ownership, evidence, risk, and exit criteria.
+5. `../superpowers/plans/2026-09-08-beta-convergence.md` — executable first convergence wave, intentionally narrower than the full task queue.
 
 ## Current baseline
 
