@@ -50,4 +50,34 @@ describe("standalone recording session", () => {
     expect(denied.status).toBe("denied")
     expect(denied.error).toMatch(/denied/i)
   })
+
+  it("keeps a started recording finishable after GPS permission is denied", () => {
+    const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
+    const sampled = recordingSessionReducer(started, {
+      type: "sample",
+      point: { coordinate: [-76.88, 40.27], recordedAt: "2026-07-21T12:00:00Z", speedMph: 20 }
+    })
+    const denied = recordingSessionReducer(sampled, {
+      type: "permission_denied",
+      message: "Location permission was denied."
+    })
+    const finished = recordingSessionReducer(denied, { type: "finish", at: 400 })
+
+    expect(denied.startedAt).toBe(100)
+    expect(finished.status).toBe("finished")
+    expect(finished.endedAt).toBe(400)
+    expect(finished.points).toEqual(sampled.points)
+  })
+
+  it("keeps a started recording finishable after a non-permission GPS error", () => {
+    const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
+    const failed = recordingSessionReducer(started, {
+      type: "error",
+      message: "GPS is not ready."
+    })
+    const finished = recordingSessionReducer(failed, { type: "finish", at: 500 })
+
+    expect(finished.status).toBe("finished")
+    expect(finished.endedAt).toBe(500)
+  })
 })
