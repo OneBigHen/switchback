@@ -27,10 +27,15 @@ const NO_ROUTES: PlannerRouteComparisonProps["routes"] = []
  * one PlannerPresentationBoundary and render PlannerCompositionBoundary
  * directly instead of extending this flat prop surface.
  */
-export type PlannerCompositionProps = PlannerPresentationInput
+export type PlannerCompositionProps = Omit<PlannerPresentationInput, "bootstrapPending">
 
 export function PlannerComposition(props: PlannerCompositionProps) {
-  return <PlannerCompositionBoundary boundary={createPlannerPresentationBoundary(props)} />
+  const bootstrapPending = usePlannerStore((state) => state.recoveryStatus === "loading")
+  return (
+    <PlannerCompositionBoundary
+      boundary={createPlannerPresentationBoundary({ ...props, bootstrapPending })}
+    />
+  )
 }
 
 export interface PlannerCompositionBoundaryProps {
@@ -48,14 +53,13 @@ export interface PlannerCompositionBoundaryProps {
  * does not own routing, storage, provider, or canonical RideIntent state.
  */
 export function PlannerCompositionBoundary({ boundary }: PlannerCompositionBoundaryProps) {
-  const { deck: viewModel, comparison, planWarnings, advisorOrigin } = boundary.model
+  const { deck: viewModel, comparison, planWarnings, advisorOrigin, bootstrapPending } = boundary.model
   const {
     deck: commands,
     addAdvisorStop: onAddAdvisorStop,
     planAdvisorRide: onPlanAdvisorRide
   } = boundary.commands
   const [details, setDetails] = useState<RouteDetailsWorkspaceState | null>(null)
-  const bootstrapPending = usePlannerStore((state) => state.recoveryStatus === "loading")
   // Clearing the plan ends the workspace. Route ids are derived from profile and
   // geometry, so replanning the same trip yields the same ids — a details state
   // that survived the gap would silently reopen over the route-choice stage

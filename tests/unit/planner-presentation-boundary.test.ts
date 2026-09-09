@@ -19,13 +19,15 @@ describe("planner presentation boundary", () => {
       planWarnings: warnings,
       onAddAdvisorStop: addAdvisorStop,
       onPlanAdvisorRide: planAdvisorRide,
-      advisorOrigin: origin
+      advisorOrigin: origin,
+      bootstrapPending: true
     })
 
     expect(boundary.model.deck).toBe(deck)
     expect(boundary.model.comparison).toBe(comparison)
     expect(boundary.model.planWarnings).toBe(warnings)
     expect(boundary.model.advisorOrigin).toBe(origin)
+    expect(boundary.model.bootstrapPending).toBe(true)
     expect(boundary.commands.deck).toBe(deckCommands)
     expect(boundary.commands.addAdvisorStop).toBe(addAdvisorStop)
     expect(boundary.commands.planAdvisorRide).toBe(planAdvisorRide)
@@ -35,7 +37,8 @@ describe("planner presentation boundary", () => {
     const boundary = createPlannerPresentationBoundary({
       viewModel: {} as PlannerDeckViewModel,
       commands: {} as PlannerDeckCommands,
-      comparison: null
+      comparison: null,
+      bootstrapPending: false
     })
 
     expect(boundary.commands.addAdvisorStop).toBeUndefined()

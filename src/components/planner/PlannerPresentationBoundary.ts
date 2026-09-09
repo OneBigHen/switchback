@@ -9,6 +9,7 @@ export interface PlannerPresentationModel {
   readonly comparison: PlannerRouteComparisonProps | null
   readonly planWarnings: string[]
   readonly advisorOrigin: { lat: number; lon: number; label?: string } | null
+  readonly bootstrapPending: boolean
 }
 
 export interface PlannerPresentationCommands {
@@ -30,6 +31,7 @@ export interface PlannerPresentationInput {
   onAddAdvisorStop?(stop: ProposedStop): void
   onPlanAdvisorRide?(ride: ProposedRide): void
   advisorOrigin?: { lat: number; lon: number; label?: string } | null
+  bootstrapPending: boolean
 }
 
 const NO_WARNINGS: string[] = []
@@ -46,14 +48,16 @@ export function createPlannerPresentationBoundary({
   planWarnings = NO_WARNINGS,
   onAddAdvisorStop,
   onPlanAdvisorRide,
-  advisorOrigin = null
+  advisorOrigin = null,
+  bootstrapPending
 }: PlannerPresentationInput): PlannerPresentationBoundary {
   return {
     model: {
       deck: viewModel,
       comparison,
       planWarnings,
-      advisorOrigin
+      advisorOrigin,
+      bootstrapPending
     },
     commands: {
       deck: commands,
