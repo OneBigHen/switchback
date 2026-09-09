@@ -35,7 +35,12 @@ production caller is `src/components/planner/PlannerComposition.tsx:150-155`.
 component body, so it reads `localStorage` on every render regardless of whether
 the disclosure is open.
 
-## Hazard 1 — weather fetches on mount: CONFIRMED
+## Hazard 1 — weather fetches on mount: CONFIRMED, but do not lazy-mount it
+
+**Correction, 2026-09-09.** The first version of this document recommended
+mounting weather lazily. That is wrong, and would have traded a safety signal
+for a network saving. Recorded here rather than quietly amended, because the
+recommendation was acted on as far as being scheduled.
 
 `RouteWeatherPanel` mounts unconditionally at `:458`, and its effect
 (`RouteWeatherPanel.tsx:35-38`) calls `requestRouteWeather` immediately, which
@@ -49,6 +54,40 @@ behavioural change and verified as one.
 Failure handling is already honest and must stay that way:
 `RouteWeatherPanel.tsx:70-71` renders an explicit error state with a retry, never
 a clean "clear" reading, and a test pins that a permanent failure stays visible.
+
+### Why lazy-mounting is the wrong fix
+
+`RouteWeatherPanel.tsx:89-96` renders severe-weather alerts in a `role="alert"`
+block **above** the per-sample cards. The panel already implements the hierarchy
+this audit asks for: the warning elevates itself, the detail follows.
+
+Mounting the panel lazily would mean the alert is only fetched — and therefore
+only seen — if the rider opens the weather section. A rider who skips it would
+get no signal that there is a severe-weather alert on their route.
+
+That contradicts the product's own rules:
+
+- `DEBLOAT-AUDIT.md`'s promotion matrix: *"Weather warning | PRIMARY if warning;
+  details contextual"* and *"warnings may elevate themselves"*;
+- `AGENTS.md`: Switchback answers *"what should I know before committing to
+  it?"*;
+- the beta HOLD conditions, which keep hard warnings visible.
+
+You cannot know whether there is an alert without fetching. So the network cost
+is the price of the warning being primary, and it is the right trade.
+
+### The corrected step
+
+Keep the fetch. The debloat available here is visual only:
+
+- the alert stays where it is, elevated and unconditional;
+- the per-sample cards — temperature, conditions, rain chance, wind, per
+  location — become a disclosure rather than a wall.
+
+The audit's original goal, *"ordinary route selection should not trigger weather
+work"*, is not reachable while warnings are primary, unless a cheaper
+alerts-only request is introduced. That would be new capability and needs its
+own decision under the integration gate; it is not a debloat task.
 
 ## Hazard 2 — pre-ride rating trains preference: CONFIRMED, and worse than assumed
 
@@ -152,7 +191,9 @@ semantics. It is entirely about prominence in the rider journey.
    `showRouteChoices={false}` configuration. Everything else is safer once the
    production surface actually has coverage.
 2. **Retire the dead chooser branch**, now that its tests do not depend on it.
-3. **Lazy-mount weather** — a behavioural change, verified as one.
+3. **Collapse the weather sample cards** behind a disclosure, keeping the fetch
+   and the elevated alert. Do **not** lazy-mount the panel — see the correction
+   under Hazard 1.
 4. **Consolidate the three explanation generators** into one read model.
 5. **One Share flow** with one privacy configuration.
 6. **DB-5 rating relocation**, with the `rating` versus `completed-ride`
