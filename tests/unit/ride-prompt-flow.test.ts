@@ -51,7 +51,7 @@ function candidate(input: {
     label: input.label,
     lat: input.lat,
     lon: input.lon,
-    region: input.region ?? "Pennsylvania",
+    region: input.region ?? "PA",
     country: input.country ?? "United States",
     ...(input.kind ? { kind: input.kind } : {})
   }
@@ -230,6 +230,131 @@ describe("ride prompt waypoint resolution", () => {
     })
 
     expect(resolved.finish).toEqual(placeWaypoint(nearerTown))
+  })
+
+  it("honors an explicit state scope over provider order and proximity", async () => {
+    const start = waypoint("Current location", 42.1, -72.6)
+    const pennsylvania = candidate({
+      id: "springfield-pa",
+      name: "Springfield",
+      label: "Springfield, Pennsylvania, United States",
+      kind: "town",
+      region: "PA",
+      lat: 39.93,
+      lon: -75.33
+    })
+    const massachusetts = candidate({
+      id: "springfield-ma",
+      name: "Springfield",
+      label: "Springfield, Massachusetts, United States",
+      kind: "city",
+      region: "MA",
+      lat: 42.10,
+      lon: -72.59
+    })
+
+    await expect(resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "Springfield, MA" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [pennsylvania, massachusetts])
+    })).resolves.toEqual({
+      start,
+      finish: placeWaypoint(massachusetts),
+      locationSource: null
+    })
+  })
+
+  it("honors an explicit country scope for same-name localities", async () => {
+    const start = waypoint("Current location", 42.1, -72.6)
+    const unitedStates = candidate({
+      id: "springfield-us",
+      name: "Springfield",
+      label: "Springfield, Massachusetts, United States",
+      kind: "city",
+      country: "United States",
+      lat: 42.1,
+      lon: -72.59
+    })
+    const canada = candidate({
+      id: "springfield-ca",
+      name: "Springfield",
+      label: "Springfield, Ontario, Canada",
+      kind: "town",
+      country: "Canada",
+      lat: 43.0,
+      lon: -81.0
+    })
+
+    await expect(resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "Springfield, Canada" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [unitedStates, canada])
+    })).resolves.toEqual({
+      start,
+      finish: placeWaypoint(canada),
+      locationSource: null
+    })
+  })
+
+  it("does not silently select a contradictory place when explicit scope has no match", async () => {
+    const start = waypoint("Current location", 42.1, -72.6)
+    const pennsylvania = candidate({
+      id: "springfield-pa",
+      name: "Springfield",
+      label: "Springfield, Pennsylvania, United States",
+      kind: "town",
+      region: "PA",
+      lat: 39.93,
+      lon: -75.33
+    })
+
+    await expect(resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: "Springfield, MA" }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [pennsylvania])
+    })).rejects.toThrow("could not find \u201cSpringfield, MA\u201d")
+  })
+
+  it.each([
+    ["PA 32", "PA 32", "PA 32, Pennsylvania, United States"],
+    ["Route 611", "Route 611", "Route 611, Pennsylvania, United States"],
+    ["US 30", "US 30", "US 30, Pennsylvania, United States"]
+  ])("keeps numbered road queries in semantic selection: %s", async (query, roadName, roadLabel) => {
+    const start = waypoint("Current location", 40.0, -75.0)
+    const nearbyPoi = candidate({
+      id: `${query}-poi`,
+      name: `${roadName} Diner`,
+      label: `${roadName} Diner, Pennsylvania, United States`,
+      kind: "restaurant",
+      lat: 40.01,
+      lon: -75.01
+    })
+    const road = candidate({
+      id: `${query}-road`,
+      name: roadName,
+      label: roadLabel,
+      kind: "trunk",
+      lat: 40.5,
+      lon: -75.5
+    })
+
+    await expect(resolveRidePromptWaypoints({
+      intent: intent({ destinationQuery: query }),
+      start,
+      finish: null,
+      requestLocation: vi.fn(),
+      search: vi.fn(async () => [nearbyPoi, road])
+    })).resolves.toEqual({
+      start,
+      finish: placeWaypoint(road),
+      locationSource: null
+    })
   })
 
   it("keeps the provider winner for a specific street address", async () => {

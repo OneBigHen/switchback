@@ -73,10 +73,12 @@ function normalizePlaceKind(value: string | undefined): string {
 }
 
 function isSpecificAddressQuery(query: string): boolean {
-  // A house number is stronger identity than a locality heuristic. Let the
-  // geocoder rank the requested address rather than reinterpreting it as a
-  // similarly named town or street near the rider.
-  return /(?:^|\s)\d+[a-z]?(?:\s|$)/i.test(query.trim())
+  // A house number is stronger identity than a locality heuristic, but a
+  // number anywhere in the query also matches named highways such as "PA 32"
+  // and "Route 611". Only an address-shaped leading number gets provider
+  // winner treatment; semantic road/place ranking remains active otherwise.
+  const match = query.trim().match(/^\d+[a-z]?\s+(.+)$/i)
+  return Boolean(match && /[a-z]/i.test(match[1]))
 }
 
 function placeIdentityScore(query: string, place: PlaceResult): number {
@@ -100,11 +102,42 @@ function localityScore(place: PlaceResult): number {
   return LOCALITY_KINDS.has(normalizePlaceKind(place.kind)) ? 1 : 0
 }
 
-function queryHasExplicitScope(query: string, place: PlaceResult): boolean {
-  if (query.includes(",")) return true
+function queryScopeParts(query: string, place: PlaceResult): string[] {
+  if (query.includes(",")) {
+    return query
+      .split(",")
+      .slice(1)
+      .map(normalizePlaceText)
+      .filter(Boolean)
+  }
   const normalizedQuery = normalizePlaceText(query)
   const normalizedName = normalizePlaceText(place.name)
-  return Boolean(normalizedName && normalizedQuery.startsWith(`${normalizedName} `))
+  if (!normalizedName || !normalizedQuery.startsWith(`${normalizedName} `)) return []
+  return [normalizedQuery.slice(normalizedName.length).trim()]
+}
+
+function scopeAliases(value: string): Set<string> {
+  const normalized = normalizePlaceText(value)
+  if (!normalized) return new Set()
+  const words = normalized.split(" ").filter(Boolean)
+  return new Set([
+    normalized,
+    words.join(""),
+    ...(words.length > 1 ? [words.map((word) => word[0]).join("")] : [])
+  ])
+}
+
+function placeScopeMatches(query: string, place: PlaceResult): boolean {
+  const scopeParts = queryScopeParts(query, place)
+  if (scopeParts.length === 0) return false
+
+  const evidence = [place.region, place.country, ...place.label.split(",")]
+    .flatMap((value) => [...scopeAliases(value)])
+  return scopeParts.every((part) => evidence.includes(part))
+}
+
+function queryHasExplicitScope(query: string, places: PlaceResult[]): boolean {
+  return places.some((place) => queryScopeParts(query, place).length > 0)
 }
 
 function distanceInKilometers(from: GeocoderBias, to: GeocoderBias): number {
@@ -127,21 +160,33 @@ function selectRidePromptPlace(
   const providerWinner = places[0]
   if (!providerWinner) return undefined
   if (isSpecificAddressQuery(query)) return providerWinner
+  const hasExplicitScope = queryHasExplicitScope(query, places)
 
-  const ranked = places.map((place, index) => ({
+  let ranked = places.map((place, index) => ({
     place,
     index,
     identity: placeIdentityScore(query, place),
     locality: localityScore(place),
     distanceKm: distanceInKilometers(bias, place)
   }))
+
+  // An explicit region/country is semantic evidence only when the candidate
+  // itself supports every requested scope part. Contradictory same-name
+  // candidates are excluded before proximity and provider order can decide.
+  if (hasExplicitScope) {
+    ranked = ranked.filter((candidate) => placeScopeMatches(query, candidate.place))
+    if (ranked.length === 0) return undefined
+  }
+
   const bestIdentity = Math.max(...ranked.map((candidate) => candidate.identity))
 
   // If none of the provider results actually preserves the rider's named
   // identity, do not invent confidence by choosing whichever unrelated feature
   // happens to be closest. The provider's textual ranking is the least lossy
   // fallback and downstream routing can still reject unsupported coverage.
-  if (bestIdentity === 0) return providerWinner
+  if (bestIdentity === 0) {
+    return hasExplicitScope ? undefined : providerWinner
+  }
 
   const identityMatches = ranked.filter((candidate) => candidate.identity === bestIdentity)
   const bestLocality = Math.max(...identityMatches.map((candidate) => candidate.locality))
@@ -151,7 +196,7 @@ function selectRidePromptPlace(
   // Preserve provider ordering among otherwise equivalent candidates so a
   // locality qualifier is never overwritten by origin proximity. Bare
   // ambiguous names use proximity only after identity and entity kind tie.
-  if (queryHasExplicitScope(query, semanticPeers[0]!.place)) {
+  if (hasExplicitScope) {
     return semanticPeers.sort((left, right) => left.index - right.index)[0]!.place
   }
 
