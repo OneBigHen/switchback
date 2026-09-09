@@ -5,12 +5,16 @@ import {
   enforceAdvisorActionReply,
   resolveAdvisorClientAction
 } from "@/lib/advice/action-policy"
+import { classifyTurn } from "@/lib/advice/execution-policy"
+import { createRoutedAdviser } from "@/lib/advice/router"
+import { createAdvisorToolbox } from "@/lib/advice/toolbox"
 import type {
   AdviceRequest,
   AdvisorReply,
   AdvisorRouteContext,
   ProposedStop
 } from "@/lib/advice/contracts"
+import type { AdvisorProvider } from "@/lib/advice/provider"
 
 const context: AdvisorRouteContext = {
   selectedRouteId: "current",
@@ -91,7 +95,15 @@ describe("Gravel Goblin action classification", () => {
   it("distinguishes a reroute command from a route opinion", () => {
     expect(classifyAdvisorAction(ask("Find me a better route"))).toBe("reroute")
     expect(classifyAdvisorAction(ask("Reroute this"))).toBe("reroute")
+    expect(classifyAdvisorAction(ask("Switch the route"))).toBe("reroute")
     expect(classifyAdvisorAction(ask("Which route would you take?"))).toBe("chat")
+    expect(classifyAdvisorAction(ask("Would a better route be worth it?"))).toBe("chat")
+    expect(classifyAdvisorAction(ask("Is there a better route?"))).toBe("chat")
+  })
+
+  it("uses the one-shot execution path for a pure reroute but tools for a stop action", () => {
+    expect(classifyTurn(ask("Find me a better route"))).toBe("route-only")
+    expect(classifyTurn(ask("Find me a better route with lunch"))).toBe("tool-assisted")
   })
 
   it("treats a no-route conversation as ride building", () => {
@@ -123,6 +135,7 @@ describe("Gravel Goblin action evidence boundary", () => {
     expect(result.message).toContain("Actual Diner")
     expect(result.message).not.toMatch(/Made Up|Imaginary Road/)
     expect(result.proposedStops[0]?.reason).toBe("Mapped food stop around 53% along the route.")
+    expect(result.secondOpinion).toBeNull()
   })
 
   it("refuses to describe an imaginary reroute when no different candidate was verified", () => {
@@ -135,7 +148,7 @@ describe("Gravel Goblin action evidence boundary", () => {
     expect(result.message).not.toMatch(/ridge loop/i)
   })
 
-  it("names only a real candidate for a reroute action", () => {
+  it("names only a real candidate and removes model-authored route rationale", () => {
     const result = enforceAdvisorActionReply(
       ask("Find me a better route"),
       reply({
@@ -143,8 +156,8 @@ describe("Gravel Goblin action evidence boundary", () => {
         secondOpinion: {
           agreesWithSwitchback: false,
           wouldPick: "better",
-          rationale: "More curves for six extra minutes.",
-          cautions: [],
+          rationale: "Fantasy Mountain Road is freshly paved and perfect today.",
+          cautions: ["Imaginary closure on Secret Ridge."],
           confidence: "high"
         }
       })
@@ -152,6 +165,16 @@ describe("Gravel Goblin action evidence boundary", () => {
 
     expect(result.message).toContain("Creek Road option")
     expect(result.message).not.toContain("Fantasy Mountain Road")
+    expect(result.secondOpinion?.rationale).toBe("45 mi · 94 min · curve score 72/100 · 6 min longer.")
+    expect(result.secondOpinion?.cautions).toEqual([])
+  })
+
+  it("asks for the missing start instead of echoing model guesses when building without an origin", () => {
+    const result = enforceAdvisorActionReply(
+      ask("Build me a three hour gravel loop", null),
+      reply({ message: "Start in Imaginaryville and take Secret Ridge." })
+    )
+    expect(result.message).toBe("Where should the ride start?")
   })
 
   it("caps ordinary model prose at 80 words", () => {
@@ -160,6 +183,33 @@ describe("Gravel Goblin action evidence boundary", () => {
       reply({ message: Array.from({ length: 110 }, (_, index) => `word${index}`).join(" ") })
     )
     expect(result.message.split(/\s+/)).toHaveLength(80)
+  })
+})
+
+describe("Gravel Goblin router integration", () => {
+  it("applies the evidence gate after a provider returns an action answer", async () => {
+    const provider: AdvisorProvider = {
+      id: "gemini",
+      async runTurn() {
+        return {
+          modelId: "stub",
+          reply: reply({
+            message: "Take Maple & Main Café on Secret Ridge. I rerouted it already.",
+            proposedStops: []
+          })
+        }
+      }
+    }
+    const adviser = createRoutedAdviser({
+      toolbox: createAdvisorToolbox({}),
+      providers: [provider],
+      preference: "auto",
+      mapsGrounding: false
+    })
+
+    const result = await adviser.advise(ask("Find me a better route with food"))
+    expect(result.message).toMatch(/couldn.t ground|unchanged/i)
+    expect(result.message).not.toMatch(/Maple|Secret Ridge|rerouted it/i)
   })
 })
 
@@ -184,10 +234,21 @@ describe("Gravel Goblin client action handoff", () => {
     expect(resolveAdvisorClientAction(input, guarded)).toEqual({ type: "select-route", routeId: "better" })
   })
 
-  it("does not auto-apply an exploratory stop suggestion", () => {
-    const input = ask("Anywhere good to stop?")
-    const guarded = enforceAdvisorActionReply(input, reply({ proposedStops: [foodStop] }))
-    expect(resolveAdvisorClientAction(input, guarded)).toBeNull()
+  it("does not auto-apply an exploratory stop suggestion or route question", () => {
+    const stopInput = ask("Anywhere good to stop?")
+    const guardedStop = enforceAdvisorActionReply(stopInput, reply({ proposedStops: [foodStop] }))
+    expect(resolveAdvisorClientAction(stopInput, guardedStop)).toBeNull()
+
+    const routeQuestion = ask("Would a better route be worth it?")
+    expect(resolveAdvisorClientAction(routeQuestion, reply({
+      secondOpinion: {
+        agreesWithSwitchback: false,
+        wouldPick: "better",
+        rationale: "Maybe.",
+        cautions: [],
+        confidence: "low"
+      }
+    }))).toBeNull()
   })
 })
 
