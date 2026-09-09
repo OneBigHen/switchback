@@ -16,13 +16,21 @@ export type AdvisorActionIntent =
   | "stop-scout"
   | "build-ride"
 
-const ROUTE_ACTION = /\b(?:re-?route|reroute|better\s+(?:route|ride)|different\s+route|change\s+(?:the\s+)?route|route\s+me|take\s+me)\b/i
-const STOP_NOUN = /\b(?:stop|stops|waypoint|coffee|cafe|café|food|eat|lunch|dinner|breakfast|brunch|brewery|beer|fuel|gas|charger|charging)\b/i
+const ROUTE_ACTION = new RegExp([
+  String.raw`\b(?:re-?route|reroute)(?:\s+me|\s+this)?\b`,
+  String.raw`\b(?:find|give|show|make|build|plan|try)(?:\s+me)?\s+(?:a\s+)?(?:better|another|alternate|alternative|different|new)\s+(?:route|ride)\b`,
+  String.raw`\b(?:change|switch)\s+(?:the\s+)?(?:route|ride)\b`,
+  String.raw`\bmake\s+(?:this|the)\s+(?:route|ride)\s+better\b`,
+  String.raw`\b(?:improve|optimize|optimise)\s+(?:(?:this|the)\s+)?(?:route|ride)\b`,
+  String.raw`\broute\s+me\b`,
+  String.raw`\btake\s+me\b`
+].join("|"), "i")
+const STOP_NOUN = /\b(?:stop|stops|stopover|waypoint|brewery|breweries|brewpub|beer|pub|bar|taproom|coffee|cafe|espresso|diner|restaurant|food|eat|lunch|dinner|breakfast|brunch|snack|bite|fuel|gas|petrol|charger|charging|hotel|motel|camp|campground|campsite|lodging|viewpoint|overlook|waterfall|park)\b/i
 const APPLY_STOP = /\b(?:add|include|insert|put|via|through|with|route\s+me|stop\s+at)\b|\bon\s+the\s+way\b|\balong\s+the\s+way\b/i
 const STOP_DISCOVERY = /\b(?:find|where|anywhere|somewhere|recommend|suggest|good|near|nearby|around|halfway|midway)\b/i
 
 function messageOf(input: Pick<AdviceRequest, "riderMessage">): string {
-  return input.riderMessage?.trim() ?? ""
+  return (input.riderMessage?.trim() ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
 }
 
 export function classifyAdvisorAction(
@@ -197,7 +205,9 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
       ...reply,
       message: proposedRide
         ? proposedRide.summary
-        : "I couldn’t build a fully grounded ride from that request yet.",
+        : input.origin
+          ? "I couldn’t build a fully grounded ride from that request."
+          : "Where should the ride start?",
       secondOpinion: null,
       proposedRide
     }
