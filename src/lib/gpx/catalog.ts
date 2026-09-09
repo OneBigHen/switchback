@@ -1,3 +1,13 @@
+import type { RouteStory } from "@/lib/gpx/route-story"
+
+export interface ProjectGpxRoutePreview {
+  /** Precomputed atlas SVG path data in a 100x125 viewBox. */
+  paths: string[]
+  start?: readonly [number, number]
+  end?: readonly [number, number]
+  aspect?: number
+}
+
 export interface ProjectGpxRouteSummary {
   id: string
   name: string
@@ -6,6 +16,15 @@ export interface ProjectGpxRouteSummary {
   twistiness: number
   turnCount: number
   sourceProject: string
+  profile?: string
+  /** Grounded deterministic rider-facing copy built from this route's own stats. */
+  story?: RouteStory
+  /** True when precomputed atlas art exists for this route. */
+  art?: boolean
+  /** Geometry-identical atlas re-import. The referenced route is the visual canonical. */
+  duplicateOf?: string
+  /** Optional lightweight shape requested by clients that actually render route cards. */
+  preview?: ProjectGpxRoutePreview
   // Redacted from the public /api/gpx-library catalog (see handler.ts)
   // because they carry host filesystem paths; anonymous clients see them
   // as absent, not present-and-empty.
