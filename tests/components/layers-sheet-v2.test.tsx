@@ -17,18 +17,18 @@ describe("LayersSheet", () => {
   it("keeps the quick surface rider-facing and bounded", () => {
     render(
       <LayersSheet
-        mapExperience="standard"
+        mapPreset="road"
         premiumExperiences
         riderLayers={layers}
         quickLayerIds={["curvature", "unpaved", "closures", "road-controls"]}
-        onMapExperienceChange={vi.fn()}
+        onMapPresetChange={vi.fn()}
         onRiderLayerVisibilityChange={vi.fn()}
         onOpenAdvanced={vi.fn()}
       />
     )
 
     expect(screen.getByRole("radiogroup", { name: "Map style" })).toBeInTheDocument()
-    expect(screen.getByRole("radio", { name: "Standard" })).toBeInTheDocument()
+    expect(screen.getByRole("radio", { name: "Road" })).toBeInTheDocument()
     expect(screen.getByRole("radio", { name: "Terrain" })).toBeInTheDocument()
     expect(screen.getByRole("radio", { name: "Satellite" })).toBeInTheDocument()
     expect(screen.getAllByRole("checkbox")).toHaveLength(4)
@@ -41,25 +41,25 @@ describe("LayersSheet", () => {
   })
 
   it("hides Satellite when the renderer cannot provide it and forwards changes", () => {
-    const onMapExperienceChange = vi.fn()
+    const onMapPresetChange = vi.fn()
     const onVisibilityChange = vi.fn()
     const onOpenAdvanced = vi.fn()
 
     render(
       <LayersSheet
-        mapExperience="terrain"
+        mapPreset="terrain"
         premiumExperiences={false}
         riderLayers={layers}
         quickLayerIds={["curvature", "unpaved"]}
-        onMapExperienceChange={onMapExperienceChange}
+        onMapPresetChange={onMapPresetChange}
         onRiderLayerVisibilityChange={onVisibilityChange}
         onOpenAdvanced={onOpenAdvanced}
       />
     )
 
     expect(screen.queryByRole("radio", { name: "Satellite" })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("radio", { name: "Standard" }))
-    expect(onMapExperienceChange).toHaveBeenCalledWith("standard")
+    fireEvent.click(screen.getByRole("radio", { name: "Road" }))
+    expect(onMapPresetChange).toHaveBeenCalledWith("road")
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Great roads" }))
     expect(onVisibilityChange).toHaveBeenCalledWith("curvature", false)

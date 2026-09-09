@@ -7,7 +7,8 @@ import {
   plannerMapsCreatedCount
 } from "@/components/planner/planner-map-renderer"
 import { addRiderMapLayers } from "@/components/planner/map-stage-sources"
-import { resolveMapExperience } from "@/lib/client/map-experience"
+import { resolveMapPresentation } from "@/lib/client/map-experience"
+import type { MapPresetId } from "@/lib/client/map-preset-registry"
 import {
   roadCharacterLayer,
   routeRibbonLayers,
@@ -77,8 +78,8 @@ describe("renderer glyphs", () => {
 })
 
 describe("premium route ribbon", () => {
-  const experience = (overrides: Partial<Parameters<typeof resolveMapExperience>[0]> = {}) =>
-    resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day", ...overrides })
+  const experience = (overrides: Partial<Parameters<typeof resolveMapPresentation>[0]> = {}) =>
+    resolveMapPresentation({ preset: "road", surface: "plan", lightPreset: "day", ...overrides })
 
   it("draws the route as a stack so it reads as an object, not a line", () => {
     const ids = routeRibbonLayers(mapboxRenderer, experience()).map((layer) => layer.id)
@@ -126,7 +127,7 @@ describe("premium route ribbon", () => {
 
 describe("road character layer", () => {
   it("scales the rider's own opacity through the curvature range", () => {
-    const experience = resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" })
+    const experience = resolveMapPresentation({ preset: "road", surface: "plan", lightPreset: "day" })
     const full = roadCharacterLayer(mapboxRenderer, experience, 1)
     const dimmed = roadCharacterLayer(mapboxRenderer, experience, 0.5)
     const strongest = (layer: unknown) =>
@@ -137,24 +138,24 @@ describe("road character layer", () => {
 })
 
 describe("map load cost", () => {
-  const config = (experience: "standard" | "terrain" | "satellite", lightPreset: "day" | "night") =>
-    resolveMapExperience({ experience, surface: "plan", lightPreset })
+  const config = (preset: MapPresetId, lightPreset: "day" | "night") =>
+    resolveMapPresentation({ preset, surface: "plan", lightPreset })
 
   it("keeps one map instance across ordinary mode and lighting switching", () => {
-    // Standard and Terrain are the same Mapbox style under different
+    // Road and Terrain are the same Mapbox style under different
     // configuration, and lighting is configuration too — so neither costs
     // another billable map load.
-    const standardDay = mapboxRenderer.styleKey(config("standard", "day"))
-    expect(mapboxRenderer.styleKey(config("terrain", "day"))).toBe(standardDay)
-    expect(mapboxRenderer.styleKey(config("standard", "night"))).toBe(standardDay)
-    expect(mapboxRenderer.styleKey(config("terrain", "night"))).toBe(standardDay)
+    const roadDay = mapboxRenderer.styleKey(config("road", "day"))
+    expect(mapboxRenderer.styleKey(config("terrain", "day"))).toBe(roadDay)
+    expect(mapboxRenderer.styleKey(config("road", "night"))).toBe(roadDay)
+    expect(mapboxRenderer.styleKey(config("terrain", "night"))).toBe(roadDay)
   })
 
   it("only rebuilds the map for a genuinely different style", () => {
     // Standard Satellite is a different style; Mapbox gives no way to reach it
     // from Standard by configuration alone.
     expect(mapboxRenderer.styleKey(config("satellite", "day")))
-      .not.toBe(mapboxRenderer.styleKey(config("standard", "day")))
+      .not.toBe(mapboxRenderer.styleKey(config("road", "day")))
   })
 
   it("counts every constructed map so the cost stays assertable", () => {
@@ -179,7 +180,7 @@ describe("premium camera transitions", () => {
   }
 
   const config = (surface: "explore" | "plan" | "ride") =>
-    resolveMapExperience({ experience: "terrain", surface, lightPreset: "day" })
+    resolveMapPresentation({ preset: "terrain", surface, lightPreset: "day" })
 
   it("moves the camera once when the tilt has to change", () => {
     const { map, easeTo } = premiumMap(0)
@@ -284,7 +285,7 @@ describe("missing style images", () => {
     const gl = { ...module, Map: class { constructor() { return map } } }
     return maplibreRenderer.create(gl, {
       container: document.createElement("div"),
-      experience: resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" }),
+      experience: resolveMapPresentation({ preset: "road", surface: "plan", lightPreset: "day" }),
       center: [-75.2, 40.4],
       zoom: 9,
       onLocateMe: vi.fn()
@@ -377,7 +378,7 @@ describe("fallback renderer worker", () => {
   function create(gl: ReturnType<typeof loadedModule>["gl"]) {
     return maplibreRenderer.create(gl, {
       container: document.createElement("div"),
-      experience: resolveMapExperience({ experience: "standard", surface: "plan", lightPreset: "day" }),
+      experience: resolveMapPresentation({ preset: "road", surface: "plan", lightPreset: "day" }),
       center: [-75.2, 40.4],
       zoom: 9,
       onLocateMe: vi.fn()

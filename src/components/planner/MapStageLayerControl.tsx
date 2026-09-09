@@ -1,14 +1,25 @@
 "use client"
 
-import { Stack, X } from "@phosphor-icons/react"
-import { useEffect, useState, type KeyboardEvent } from "react"
+import {
+  Stack,
+  X } from "@phosphor-icons/react"
+import { useEffect,
+  useState,
+  type KeyboardEvent } from "react"
 import type { ReferenceMap } from "@/lib/client/reference-map"
-import { catalogLayerSettings, featureMapLayerIds, PA_UNPAVED_ROADS_PROVENANCE, riderLayerConfidence, type FeatureLayerState, type RiderLayerId, type RiderLayerSetting, type RiderMapPack } from "@/lib/client/map-layers"
+import { catalogLayerSettings,
+  featureMapLayerIds,
+  PA_UNPAVED_ROADS_PROVENANCE,
+  riderLayerConfidence,
+  type FeatureLayerState,
+  type RiderLayerId,
+  type RiderLayerSetting,
+  type RiderMapPack } from "@/lib/client/map-layers"
 import {
   MAP_LIGHT_PREFERENCES,
-  type MapExperienceId,
   type MapLightPreference
 } from "@/lib/client/map-experience"
+import { availableMapPresets, type MapPresetId } from "@/lib/client/map-preset-registry"
 import { provenanceSummary } from "@/lib/client/map-data-provenance"
 import { subscribeMapEdit } from "./map-edit-command"
 import { useMapLayerMenu } from "./useMapLayerMenu"
@@ -16,7 +27,7 @@ import { LayersSheet } from "./v2/LayersSheet"
 
 interface MapStageLayerControlProps {
   avoidMode: boolean
-  mapExperience: MapExperienceId
+  mapPreset: MapPresetId
   lightPreference: MapLightPreference
   /** Satellite and runtime lighting exist only on the premium renderer. */
   premiumExperiences: boolean
@@ -31,7 +42,7 @@ interface MapStageLayerControlProps {
   referenceMap: ReferenceMap | null
   referenceMessage: string
   onToggleAvoid(): void
-  onMapExperienceChange(experience: MapExperienceId): void
+  onMapPresetChange(experience: MapPresetId): void
   onLightPreferenceChange(preference: MapLightPreference): void
   onRiderLayerChange(id: RiderLayerId, patch: Partial<Pick<RiderLayerSetting, "visible" | "opacity">>): void
   onMoveRiderLayer(id: RiderLayerId, direction: "earlier" | "later"): void
@@ -54,8 +65,8 @@ const LIGHT_LABELS: Record<MapLightPreference, string> = {
   night: "Night"
 }
 
-const EXPERIENCE_LABELS: Record<MapExperienceId, string> = {
-  standard: "Standard",
+const PRESET_LABELS: Record<MapPresetId, string> = {
+  road: "Road",
   terrain: "Terrain",
   satellite: "Satellite"
 }
@@ -68,14 +79,14 @@ const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "unpaved", "closures", "ro
  * Satellite is a premium-renderer capability. Offering it on the fallback
  * renderer would name a view Switchback cannot actually draw there.
  */
-function mapExperienceChoices(premium: boolean): { id: MapExperienceId; label: string }[] {
-  const ids: MapExperienceId[] = premium ? ["standard", "terrain", "satellite"] : ["standard", "terrain"]
-  return ids.map((id) => ({ id, label: EXPERIENCE_LABELS[id] }))
+function mapPresetChoices(premium: boolean): { id: MapPresetId; label: string }[] {
+  return availableMapPresets({ premiumRenderer: premium })
+    .map((preset) => ({ id: preset.id, label: PRESET_LABELS[preset.id] }))
 }
 
 export function MapStageLayerControl({
   avoidMode,
-  mapExperience,
+  mapPreset,
   lightPreference,
   premiumExperiences,
   riderLayers,
@@ -89,7 +100,7 @@ export function MapStageLayerControl({
   referenceMap,
   referenceMessage,
   onToggleAvoid,
-  onMapExperienceChange,
+  onMapPresetChange,
   onLightPreferenceChange,
   onRiderLayerChange,
   onMoveRiderLayer,
@@ -102,7 +113,7 @@ export function MapStageLayerControl({
   onRemoveReferenceMap
 }: MapStageLayerControlProps) {
   const catalogSettings = catalogLayerSettings(riderLayers)
-  const experienceChoices = mapExperienceChoices(premiumExperiences)
+  const presetChoices = mapPresetChoices(premiumExperiences)
   const {
     layerButtonRef,
     layerMenuOpen,
@@ -173,11 +184,11 @@ export function MapStageLayerControl({
       {layerMenuOpen ? <div className="map-layer-menu" role="dialog" aria-label="Map layers and style">
         {!advancedOpen ? (
           <LayersSheet
-            mapExperience={mapExperience}
+            mapPreset={mapPreset}
             premiumExperiences={premiumExperiences}
             riderLayers={riderLayers}
             quickLayerIds={QUICK_LAYER_IDS}
-            onMapExperienceChange={onMapExperienceChange}
+            onMapPresetChange={onMapPresetChange}
             onRiderLayerVisibilityChange={(id, visible) => onRiderLayerChange(id, { visible })}
             onOpenAdvanced={() => setAdvancedOpen(true)}
           />
@@ -189,13 +200,13 @@ export function MapStageLayerControl({
         <div>
           <strong>Map view</strong>
           <div className="map-style-options" role="radiogroup" aria-label="Map view">
-            {experienceChoices.map((choice) => (
+            {presetChoices.map((choice) => (
               <button
                 type="button"
                 key={choice.id}
                 role="radio"
-                aria-checked={mapExperience === choice.id}
-                onClick={() => onMapExperienceChange(choice.id)}
+                aria-checked={mapPreset === choice.id}
+                onClick={() => onMapPresetChange(choice.id)}
               >
                 <span className={`style-swatch style-${choice.id}`} aria-hidden="true" />
                 {choice.label}

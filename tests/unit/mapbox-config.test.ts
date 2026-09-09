@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
   mapboxRendererStatus,
-  mapboxSlotFor,
-  standardConfigProperties
+  mapboxSlotFor
 } from "@/lib/client/mapbox-config"
-import { resolveMapExperience } from "@/lib/client/map-experience"
 
 describe("premium Mapbox rollout gate", () => {
   it("stays off until the deployment opts in", () => {
@@ -32,14 +30,5 @@ describe("Standard slot contract", () => {
     expect(mapboxSlotFor("top")).toBe("top")
     // Mapbox has no slot above labels; `critical` is an unslotted layer.
     expect(mapboxSlotFor("critical")).toBeNull()
-  })
-
-  it("turns the experience config into Standard configuration properties", () => {
-    const config = standardConfigProperties(
-      resolveMapExperience({ experience: "standard", surface: "ride", lightPreset: "dusk" })
-    )
-    expect(config.lightPreset).toBe("dusk")
-    expect(config.showPointOfInterestLabels).toBe(false)
-    expect(config.showRoadLabels).toBe(true)
   })
 })

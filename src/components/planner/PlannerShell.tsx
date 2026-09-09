@@ -1,7 +1,14 @@
 "use client"
 
-import { CheckCircle, WarningCircle } from "@phosphor-icons/react"
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
+import {
+  CheckCircle,
+  WarningCircle } from "@phosphor-icons/react"
+import { useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState } from "react"
 import {
   appNavigationReducer,
   appModeForState,
@@ -13,9 +20,9 @@ import {
 import { isNightTime } from "@/lib/client/day-phase"
 import {
   legacyMapStyleFor,
-  type MapExperienceId,
   type MapLightPreference
 } from "@/lib/client/map-experience"
+import { type MapPresetId } from "@/lib/client/map-preset-registry"
 import { type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import {
@@ -210,7 +217,7 @@ export function PlannerShell() {
   const [researchStatus, setResearchStatus] = useState<"idle" | "researching">("idle")
   const [researchSources, setResearchSources] = useState<RideResearchSource[]>([])
   const [unpavedVisible, setUnpavedVisible] = useState(true)
-  const [mapExperience, setMapExperience] = useState<MapExperienceId>("standard")
+  const [mapPreset, setMapPreset] = useState<MapPresetId>("road")
   const [lightPreference, setLightPreference] = useState<MapLightPreference>("auto")
   const mapIsDark = lightPreference === "auto"
     ? isNightTime(new Date(), start?.lat ?? finish?.lat ?? 40.2732, start?.lon ?? finish?.lon ?? -76.8867)
@@ -858,7 +865,7 @@ export function PlannerShell() {
     return buildOfflinePackCorridor(route, options ?? {}).then((corridor) => {
       return offlinePackLibraryRef.current!.save({
         route,
-        mapStyle: legacyMapStyleFor(mapExperience, lightPreference),
+        mapStyle: legacyMapStyleFor(mapPreset, lightPreference),
         routeVisibility,
         activeLayerIds: riderLayers.filter((layer) => layer.visible).map((layer) => layer.id)
       }).then(() => corridor)
@@ -881,7 +888,7 @@ export function PlannerShell() {
       kind: "warning",
       message: caught instanceof Error ? caught.message : "Offline route pack could not be saved."
     }))
-  }, [mapExperience, lightPreference, routeVisibility, riderLayers])
+  }, [mapPreset, lightPreference, routeVisibility, riderLayers])
 
   const handleBuildCorridor = useCallback((pending: { id: string; waypoints: { lat: number; lon: number }[] }) => {
     const route = routes.find((candidate) => candidate.id === pending.id) ?? selectedRoute
@@ -1414,7 +1421,7 @@ message: failure?.message ?? "The rough route could not be routed."
         recalculating={isRecalculating}
         curvatureVisible={curvatureVisible}
         unpavedVisible={unpavedVisible}
-        mapExperience={mapExperience}
+        mapPreset={mapPreset}
         lightPreference={lightPreference}
         riderLayers={riderLayers}
         routeVisibility={routeVisibility}
@@ -1429,7 +1436,7 @@ message: failure?.message ?? "The rough route could not be routed."
           setUnpavedVisible(visible)
           setRiderLayers((layers) => layers.map((layer) => layer.id === "unpaved" ? { ...layer, visible } : layer))
         }}
-        onMapExperienceChange={setMapExperience}
+        onMapPresetChange={setMapPreset}
         onLightPreferenceChange={setLightPreference}
         onRiderLayerChange={(id: RiderLayerId, patch) => {
           setRiderLayers((layers) => layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer))
@@ -1450,7 +1457,7 @@ message: failure?.message ?? "The rough route could not be routed."
         }}
         onRouteVisibilityChange={setRouteVisibility}
         onSaveMapPack={(name) => {
-          void mapPackLibrary.save({ name, experience: mapExperience, lightPreference, routeVisibility, layers: riderLayers })
+          void mapPackLibrary.save({ name, preset: mapPreset, lightPreference, routeVisibility, layers: riderLayers })
             .then(async (pack) => {
               await refreshMapPacks()
               setNotice({ kind: "success", message: `${pack.name} map pack saved on this device.` })
@@ -1461,7 +1468,7 @@ message: failure?.message ?? "The rough route could not be routed."
           const pack = mapPacks.find((candidate) => candidate.id === id)
           if (!pack) return
           const applied = applyRiderMapPack(riderLayers, pack)
-          setMapExperience(applied.experience)
+          setMapPreset(applied.preset)
           setLightPreference(applied.lightPreference)
           setRouteVisibility(applied.routeVisibility)
           setRiderLayers(applied.layers)

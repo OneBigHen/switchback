@@ -1,11 +1,15 @@
-import type { NavigationFrame } from "@/lib/client/navigation-engine"
+import {
+  NavigationFrame } from "@/lib/client/navigation-engine"
 import type { ReferenceMap } from "@/lib/client/reference-map"
 import type {
   RiderLayerId,
   RiderLayerSetting,
   RiderMapPack
 } from "@/lib/client/map-layers"
-import type { MapExperienceId, MapLightPreference } from "@/lib/client/map-experience"
+import type {
+ MapLightPreference
+} from "@/lib/client/map-experience"
+import { type MapPresetId } from "@/lib/client/map-preset-registry"
 import type { AvoidArea, Coordinate, PlannedRoute, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
 
@@ -38,7 +42,7 @@ export interface MapStageProps {
   recalculating?: boolean
   curvatureVisible: boolean
   unpavedVisible: boolean
-  mapExperience: MapExperienceId
+  mapPreset: MapPresetId
   lightPreference: MapLightPreference
   riderLayers: RiderLayerSetting[]
   routeVisibility: "standard" | "high-contrast"
@@ -47,7 +51,7 @@ export interface MapStageProps {
   navigationFrame?: NavigationFrame | null
   onCurvatureChange(visible: boolean): void
   onUnpavedChange(visible: boolean): void
-  onMapExperienceChange(experience: MapExperienceId): void
+  onMapPresetChange(experience: MapPresetId): void
   onLightPreferenceChange(preference: MapLightPreference): void
   onRiderLayerChange(id: RiderLayerId, patch: Partial<Pick<RiderLayerSetting, "visible" | "opacity">>): void
   onMoveRiderLayer(id: RiderLayerId, direction: "earlier" | "later"): void

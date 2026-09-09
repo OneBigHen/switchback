@@ -16,7 +16,7 @@ import {
   routeRibbonLayers
 } from "@/components/planner/planner-map-layers"
 import type { PlannerMapRenderer } from "@/components/planner/planner-map-renderer"
-import { resolveMapExperience } from "@/lib/client/map-experience"
+import { resolveMapPresentation } from "@/lib/client/map-experience"
 import { buildRouteFeatures } from "@/lib/client/map-data"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
 
@@ -162,8 +162,8 @@ describe("map-native route comparison", () => {
     const renderer = {
       supportsEmissiveStrength: false
     } as PlannerMapRenderer
-    const experience = resolveMapExperience({
-      experience: "standard",
+    const experience = resolveMapPresentation({
+      preset: "road",
       surface: "plan",
       lightPreset: "day"
     })

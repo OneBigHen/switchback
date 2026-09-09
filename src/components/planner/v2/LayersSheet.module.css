@@ -191,3 +191,23 @@
     transition: none;
   }
 }
+
+.styles button {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 6px 8px;
+}
+
+/* The preview shows what the choice looks like; the label still names it,
+   so the picker never depends on reading a thumbnail. */
+.stylePreview {
+  width: 100%;
+  max-width: 52px;
+  opacity: .75;
+}
+
+.styles button.selected .stylePreview,
+.styles button[aria-checked="true"] .stylePreview {
+  opacity: 1;
+}

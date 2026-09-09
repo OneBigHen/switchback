@@ -5,14 +5,15 @@ import {
   type RiderMapPack
 } from "@/lib/client/map-layers"
 import {
+  legacyMapExperienceFor,
   legacyMapStyleFor,
-  type MapExperienceId,
   type MapLightPreference
 } from "@/lib/client/map-experience"
+import type { MapPresetId } from "@/lib/client/map-preset-registry"
 
 export interface MapPackInput {
+  preset: MapPresetId
   name: string
-  experience: MapExperienceId
   lightPreference: MapLightPreference
   routeVisibility: RiderMapPack["routeVisibility"]
   layers: RiderLayerSettingInput[]
@@ -49,13 +50,17 @@ export class MapPackLibrary {
     if (name.length > 80) throw new Error("Map pack names must be 80 characters or fewer.")
     const existing = await this.database.packs.get(id)
     const timestamp = this.now()
+    const preset = input.preset
     const pack: RiderMapPack = {
       id,
       name,
-      // The legacy style is still written so a pack saved here stays readable
-      // by an older build; the premium fields are what this one reads back.
-      mapStyle: legacyMapStyleFor(input.experience, input.lightPreference),
-      experience: input.experience,
+      preset,
+      // Rollback-only serialisation. A pack this build writes stays readable
+      // by the premium-wave and pre-premium builds; nothing here reads them
+      // back while `preset` is present. Removable once no installed build
+      // predates the canonical field.
+      experience: legacyMapExperienceFor(preset),
+      mapStyle: legacyMapStyleFor(preset, input.lightPreference),
       lightPreference: input.lightPreference,
       routeVisibility: input.routeVisibility,
       layers: normalizeRiderLayerSettings(input.layers),

@@ -4,10 +4,10 @@ import { mapStyleUrl } from "@/lib/client/map-layers"
 import {
   mapboxRendererStatus,
   mapboxSlotFor,
-  standardConfigProperties,
   type SwitchbackMapSlot
 } from "@/lib/client/mapbox-config"
-import type { MapExperienceConfig } from "@/lib/client/map-experience"
+import { mapboxBasemapConfig } from "@/lib/client/mapbox-style-capabilities"
+import type { MapPresentation } from "@/lib/client/map-experience"
 
 /**
  * Migration shim. Mapbox GL JS v3 and MapLibre GL JS 5 expose the same runtime
@@ -52,13 +52,13 @@ export function plannerMapsCreatedCount(): number {
 }
 
 /**
- * The pre-premium OpenFreeMap styles, chosen by the same experience the
+ * The pre-premium OpenFreeMap styles, chosen by the same presentation the
  * premium renderer reads. Night stays a lighting choice for the rider even
  * though MapLibre can only express it as a different style.
  */
-function maplibreStyleUrl(experience: MapExperienceConfig): string {
-  if (experience.lightPreset === "night") return mapStyleUrl("night")
-  if (experience.id === "standard") {
+function maplibreStyleUrl(presentation: MapPresentation): string {
+  if (presentation.lightPreset === "night") return mapStyleUrl("night")
+  if (presentation.preset === "road") {
     return process.env.NEXT_PUBLIC_MAP_STYLE_URL || mapStyleUrl("clean")
   }
   return mapStyleUrl("explorer")
@@ -83,7 +83,7 @@ export type PlannerMapModule = unknown
 
 export interface CreatePlannerMapOptions {
   container: HTMLDivElement
-  experience: MapExperienceConfig
+  experience: MapPresentation
   center: [number, number]
   zoom: number
   onLocateMe(point: { lat: number; lon: number }): void
@@ -102,11 +102,11 @@ export interface PlannerMapRenderer {
    */
   supportsEmissiveStrength: boolean
   /**
-   * Experiences that share a key share one map instance. Mapbox Standard
+   * Presentations that share a key share one map instance. Mapbox Standard
    * expresses mode and lighting as configuration, so ordinary switching costs
    * no additional map load.
    */
-  styleKey(experience: MapExperienceConfig): string
+  styleKey(presentation: MapPresentation): string
   /** Loads the renderer bundle. Safe to abandon: nothing is constructed yet. */
   load(): Promise<PlannerMapModule>
   /** Constructs the map. Only call this once the mount is known to be live. */
@@ -119,7 +119,7 @@ export interface PlannerMapRenderer {
    */
   moveLayer(map: PlannerMap, layerId: string, beforeId: string): void
   /** Applies the presentation profile to a live map. */
-  applyExperience(map: PlannerMap, experience: MapExperienceConfig): void
+  applyExperience(map: PlannerMap, presentation: MapPresentation): void
 }
 
 interface GlControls {
@@ -264,7 +264,7 @@ export const maplibreRenderer: PlannerMapRenderer = {
   boldFont: ["Noto Sans Bold"],
   supportsDataDrivenDash: true,
   supportsEmissiveStrength: false,
-  styleKey: (experience) => `maplibre:${maplibreStyleUrl(experience)}`,
+  styleKey: (presentation) => `maplibre:${maplibreStyleUrl(presentation)}`,
   load: () => import("maplibre-gl"),
   create(module, options) {
     const maplibre = module as typeof import("maplibre-gl")
@@ -288,8 +288,8 @@ export const maplibreRenderer: PlannerMapRenderer = {
     map.moveLayer(layerId, beforeId)
   },
   applyExperience() {
-    // A MapLibre style carries its own presentation, so a change of experience
-    // is a change of style URL — which `styleKey` already turns into a new map.
+    // A MapLibre style carries its own presentation, so a change is a change
+    // of style URL — which `styleKey` already turns into a new map.
   }
 }
 
@@ -299,11 +299,11 @@ export const maplibreRenderer: PlannerMapRenderer = {
  * the viewport-scoped rider-layer fetches, so a needless move cancels requests
  * that were already in flight.
  */
-function applyCameraDefaults(map: PlannerMap, experience: MapExperienceConfig): void {
-  const target = experience.camera.pitch
-  if (experience.surface === "ride") return
+function applyCameraDefaults(map: PlannerMap, presentation: MapPresentation): void {
+  const target = presentation.camera.pitch
+  if (presentation.surface === "ride") return
   if (Math.abs(map.getPitch() - target) < 1) return
-  map.easeTo({ pitch: target, duration: experience.transitionMillis })
+  map.easeTo({ pitch: target, duration: presentation.transitionMillis })
 }
 
 export const mapboxRenderer: PlannerMapRenderer = {
@@ -315,7 +315,7 @@ export const mapboxRenderer: PlannerMapRenderer = {
   // Mode and lighting are configuration on the style, so only Standard vs
   // Standard Satellite is a genuinely different style — and therefore the only
   // switch that costs another map load.
-  styleKey: (experience) => `mapbox:${experience.style}`,
+  styleKey: (presentation) => `mapbox:${presentation.style}`,
   async load() {
     const status = mapboxRendererStatus()
     if (!status.enabled) throw new Error(`mapbox renderer unavailable: ${status.reason}`)
@@ -325,21 +325,21 @@ export const mapboxRenderer: PlannerMapRenderer = {
   },
   create(module, options) {
     const mapboxgl = module as (typeof import("mapbox-gl"))["default"]
-    const experience = options.experience
+    const presentation = options.experience
     countPlannerMapCreated()
     const map = new mapboxgl.Map({
       container: options.container,
-      style: experience.style,
+      style: presentation.style,
       center: options.center,
       zoom: options.zoom,
       minZoom: 4,
       maxZoom: 18,
       attributionControl: false,
-      config: { basemap: standardConfigProperties(experience) }
+      config: { basemap: mapboxBasemapConfig(presentation) }
     } as ConstructorParameters<(typeof import("mapbox-gl"))["default"]["Map"]>[0]) as unknown as PlannerMap
     addStandardControls(map, mapboxgl as unknown as GlControls, options)
     // Terrain needs its DEM source, and the source outlives style config
-    // changes, so it is added once per map rather than per experience change.
+    // changes, so it is added once per map rather than per presentation change.
     map.on("style.load", () => {
       if (!map.getSource(TERRAIN_SOURCE)) {
         map.addSource(TERRAIN_SOURCE, {
@@ -349,7 +349,7 @@ export const mapboxRenderer: PlannerMapRenderer = {
           maxzoom: 14
         })
       }
-      mapboxRenderer.applyExperience(map, experience)
+      mapboxRenderer.applyExperience(map, presentation)
     })
     return map
   },
@@ -363,7 +363,7 @@ export const mapboxRenderer: PlannerMapRenderer = {
   moveLayer(map, layerId) {
     map.moveLayer(layerId)
   },
-  applyExperience(map, experience) {
+  applyExperience(map, presentation) {
     const premium = map as unknown as {
       setConfigProperty(importId: string, name: string, value: unknown): void
       setTerrain(terrain: { source?: string; exaggeration: number } | null): void
@@ -371,20 +371,22 @@ export const mapboxRenderer: PlannerMapRenderer = {
       getSource(id: string): unknown
     }
     if (typeof premium.setConfigProperty !== "function") return
-    for (const [name, value] of Object.entries(standardConfigProperties(experience))) {
+    for (const [name, value] of Object.entries(mapboxBasemapConfig(presentation))) {
       premium.setConfigProperty("basemap", name, value)
     }
     // Terrain and atmosphere are map-level, not style config. Both are removed
-    // rather than flattened when the experience does not want them.
+    // rather than flattened when the presentation does not want them.
     if (typeof premium.setTerrain === "function" && premium.getSource(TERRAIN_SOURCE)) {
       premium.setTerrain(
-        experience.terrain ? { source: TERRAIN_SOURCE, exaggeration: experience.terrain.exaggeration } : null
+        presentation.terrain
+          ? { source: TERRAIN_SOURCE, exaggeration: presentation.terrain.exaggeration }
+          : null
       )
     }
     if (typeof premium.setFog === "function") {
-      premium.setFog(experience.atmosphere ? ATMOSPHERE : null)
+      premium.setFog(presentation.atmosphere ? ATMOSPHERE : null)
     }
-    applyCameraDefaults(map, experience)
+    applyCameraDefaults(map, presentation)
   }
 }
 

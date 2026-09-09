@@ -1,36 +1,48 @@
 "use client"
 
-import { ArrowRight, MapTrifold } from "@phosphor-icons/react"
-import { layerCatalog, type RiderLayerId, type RiderLayerSetting } from "@/lib/client/map-layers"
-import type { MapExperienceId } from "@/lib/client/map-experience"
+import {
+  ArrowRight,
+  MapTrifold } from "@phosphor-icons/react"
+import {
+  MapStylePreview,
+  type MapStylePreviewVariant
+} from "@/components/graphics"
+import { layerCatalog,
+  type RiderLayerId,
+  type RiderLayerSetting } from "@/lib/client/map-layers"
+import { type MapPresetId } from "@/lib/client/map-preset-registry"
 import styles from "./LayersSheet.module.css"
 
-const MAP_STYLES: ReadonlyArray<{ id: MapExperienceId; label: string }> = [
-  { id: "standard", label: "Standard" },
-  { id: "terrain", label: "Terrain" },
-  { id: "satellite", label: "Satellite" }
+const MAP_PRESETS: ReadonlyArray<{
+  id: MapPresetId
+  label: string
+  preview: MapStylePreviewVariant
+}> = [
+  { id: "road", label: "Road", preview: "standard" },
+  { id: "terrain", label: "Terrain", preview: "terrain" },
+  { id: "satellite", label: "Satellite", preview: "satellite" }
 ]
 
 export interface LayersSheetProps {
-  mapExperience: MapExperienceId
+  mapPreset: MapPresetId
   premiumExperiences: boolean
   riderLayers: RiderLayerSetting[]
   quickLayerIds: RiderLayerId[]
-  onMapExperienceChange(experience: MapExperienceId): void
+  onMapPresetChange(experience: MapPresetId): void
   onRiderLayerVisibilityChange(id: RiderLayerId, visible: boolean): void
   onOpenAdvanced(): void
 }
 
 export function LayersSheet({
-  mapExperience,
+  mapPreset,
   premiumExperiences,
   riderLayers,
   quickLayerIds,
-  onMapExperienceChange,
+  onMapPresetChange,
   onRiderLayerVisibilityChange,
   onOpenAdvanced
 }: LayersSheetProps) {
-  const allowedStyles = MAP_STYLES.filter((style) => style.id !== "satellite" || premiumExperiences)
+  const allowedPresets = MAP_PRESETS.filter((style) => style.id !== "satellite" || premiumExperiences)
   const settings = new Map(riderLayers.map((setting) => [setting.id, setting]))
   const quickLayers = quickLayerIds.slice(0, 4).flatMap((id) => {
     const definition = layerCatalog.find((candidate) => candidate.id === id)
@@ -49,16 +61,17 @@ export function LayersSheet({
           </div>
         </div>
         <div className={styles.styles} role="radiogroup" aria-label="Map style">
-          {allowedStyles.map((style) => (
+          {allowedPresets.map((style) => (
             <button
               key={style.id}
               type="button"
               role="radio"
-              aria-checked={mapExperience === style.id}
-              className={mapExperience === style.id ? styles.selected : undefined}
-              onClick={() => onMapExperienceChange(style.id)}
+              aria-checked={mapPreset === style.id}
+              className={mapPreset === style.id ? styles.selected : undefined}
+              onClick={() => onMapPresetChange(style.id)}
             >
-              {style.label}
+              <MapStylePreview variant={style.preview} className={styles.stylePreview} />
+              <span>{style.label}</span>
             </button>
           ))}
         </div>
