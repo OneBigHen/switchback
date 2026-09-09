@@ -12,6 +12,7 @@ import { ImportFlow } from "./ImportFlow"
 import { RideFilters, type RideFilter, type RideFilterCounts } from "./RideFilters"
 import { RideListRow } from "./RideListRow"
 import styles from "./RidesSurface.module.css"
+import discoveryStyles from "./RidesDiscovery.module.css"
 import type { Coordinate } from "@/lib/routing/types"
 
 export type RideLibraryItemKind = "saved-route" | "recorded-ride" | "trip-plan" | "project-gpx"
@@ -36,13 +37,9 @@ export interface RideLibraryItem {
   updatedAt: string | null
   center?: readonly [number, number] | null
   geometry?: readonly Coordinate[]
-  /** Grounded rider-facing summary, never generated from a decorative image. */
   summary?: string
-  /** Broad browse bucket such as North-Central PA. */
   macroRegion?: string | null
-  /** Recognizable rider areas; a long route may span more than one. */
   ridingAreas?: string[]
-  /** Real precomputed route shape for imported-route cards. */
   preview?: ProjectGpxRoutePreview
   twistiness?: number
   turnCount?: number
@@ -222,8 +219,8 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
       />
 
       {regions.length > 0 ? (
-        <div className={styles.regionBrowser}>
-          <label className={styles.regionField}>
+        <div className={discoveryStyles.regionBrowser}>
+          <label className={discoveryStyles.regionField}>
             <span>Region</span>
             <select
               aria-label="Browse region"
@@ -238,7 +235,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
             </select>
           </label>
           {region && areas.length > 0 ? (
-            <div className={styles.areaChips} role="group" aria-label="Riding areas">
+            <div className={discoveryStyles.areaChips} role="group" aria-label="Riding areas">
               {areas.map((option) => (
                 <button
                   key={option}
