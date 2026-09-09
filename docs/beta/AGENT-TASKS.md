@@ -4,7 +4,25 @@ This is a bounded queue, not permission to execute everything at once. Re-evalua
 
 Scoring: `V` rider value, `T` trust/correctness reduced, `L` agent leverage, `C` cost, `X` permanent complexity. Higher `V+T+L-C-X` wins.
 
-## Integration lane
+## Status at `main` @ `01f8b53` (2026-09-09)
+
+The integration lane is **closed**. Do not re-run it.
+
+| Task | Status |
+|---|---|
+| BETA-001A Vitest advisory | **DONE** — #88 `454b76ce630837bdddc7dad4211429c51aa3e19c` |
+| BETA-001B MapLibre v6 migration | **DONE** — #88, plus the worker fix the version bump alone did not include |
+| BETA-002 canonical map PR #82 | **DONE** — merged `01f8b53233dd7ec53399b9571b92274c54b69d71` |
+| BETA-003 stale PR salvage ledger | **DONE** — `SALVAGE-LEDGERS.md` |
+| Janitorial #86 | **DONE** — `8849dc2949ea4c23ad903e1d8801a5057f9349f6` |
+
+Two advisories beyond the recorded two were found and cleared (`js-yaml`, `sharp`), and the audit was red on `main` itself rather than caused by any PR.
+
+**Next task: BETA-014**, promoted to the front of the queue because it is now a
+confirmed defect with an exact fix location rather than a suspicion. See
+`BETA-STATE.md` for the evidence.
+
+## Integration lane (closed — retained for context)
 
 ### BETA-001A — Patch Vitest advisory
 
@@ -201,8 +219,21 @@ Introduce/consume explicit duration source only if needed.
 
 ### BETA-014 — Eliminate invented route geometry for specific rides
 
-**Score:** V4 T5 L2 C1 X-1 = 11
-**Depends:** #83 is on main; reconcile #66 if needed.
+**Score:** V4 T5 L2 C1 X-1 = 11 — **NEXT TASK**
+**Depends:** nothing. #83 is on main and #66's ledger is written.
+
+**Confirmed on `main`, not suspected.** `RouteThumbnail` has zero consumers
+(`grep -rn "RouteThumbnail" src/` returns only its definition, the barrel export
+and its tests), while `src/components/rides/RideListRow.tsx:63` renders
+`<RouteGraphic seed={item.id} variant="route" />` for every ride card.
+`src/components/v2/RouteGraphic.tsx:30-36` generates a hash-seeded procedural
+path, so a saved ride with real stored geometry currently shows a route-shaped
+line that is not its route.
+
+`RouteThumbnail` already draws real geometry and already has an explicit
+`data-route-thumbnail="unavailable"` state, so this is adoption, not new
+rendering work. It is also the smallest useful slice of the #66 salvage and
+needs none of that PR's region taxonomy or second search surface.
 
 **OWN:** personal/community route card preview components/adapters.
 

@@ -1,6 +1,27 @@
 # Fresh Opus handoff — beta convergence after janitorial audit
 
-Updated: 2026-09-08
+Updated: 2026-09-09
+
+> **The integration sequence in this document is COMPLETE.** Phases 1-4 ran on
+> 2026-09-08/09 and #88, #86 and #82 are merged; `main` is
+> `01f8b53233dd7ec53399b9571b92274c54b69d71`. Read `BETA-STATE.md` first — it
+> describes the current repository. Everything below is retained because the
+> *method* still applies (exact-head verification, semantic rebases, bounded
+> read-only workers), not because the sequence needs running again.
+>
+> What the run actually found, beyond what was predicted here:
+>
+> - The audit was red on `main` itself, not caused by #82 or #86, and there
+>   were **four** advisories rather than two.
+> - The recovered security work existed only as `stash@{0}` with no commits,
+>   and changed only `package.json` and the lockfile. Applying it as-is would
+>   have shipped a fallback renderer that draws no route at all, with no error
+>   and no failing unit test. MapLibre v6 needs a served worker bundle and a
+>   missing-style-image resolver; neither was in the stash.
+> - #82 rebased with **zero conflicts** and was still semantically broken —
+>   caught only by `tsc`. A clean rebase is not evidence.
+>
+> Updated: 2026-09-08
 
 This is the recommended entrypoint for a **fresh high-budget Opus/Claude Code session** after PR #86 was opened. It does not replace `AGENTS.md`, ADRs, Astra contracts, `BETA-STATE.md`, `BETA-CONVERGENCE.md`, or `AGENT-TASKS.md`; it gives the new coordinator the current integration order so it does not revive stale work or combine unrelated risk.
 

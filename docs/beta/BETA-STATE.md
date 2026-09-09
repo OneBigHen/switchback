@@ -1,184 +1,154 @@
 # Switchback beta state
 
-Updated: 2026-09-08
-Control-plane HEAD at creation: this file lives on `chore/beta-convergence-control-plane`.
-Repository baseline used for audit: `main` @ `b53c177c1620098bfa00883257eae245411a6f5c`.
+Updated: 2026-09-09
+Repository baseline: `main` @ `01f8b53233dd7ec53399b9571b92274c54b69d71`
 
 ## Verdict
 
-**HOLD — integration and beta qualification are not complete.**
+**HOLD — the integration lane is clean, beta qualification is not done.**
 
-This is not a claim that the app is broadly broken. The deterministic core has substantial automated coverage. HOLD means the current exact candidate has not yet satisfied the integration, product-truth, physical-device and deployed-build evidence required to invite beta riders confidently.
+The integration lane described in the previous checkpoint is finished: the
+supply-chain gate is green, the janitorial cleanup has landed, and there is one
+canonical basemap authority. HOLD stands because none of the physical, deployed
+or human evidence exists yet. Automation is necessary and not sufficient.
 
 ## Exact next task
 
-**BETA-001: resolve the two dependency advisories blocking PR #82's `verify` job.**
+**BETA-014: stop rendering invented route art for real rides.**
 
-Observed CI command:
+This moved to the front because it is now a *confirmed* defect on `main`, not a
+suspicion. #83 shipped the truthful graphics primitives and nothing adopted
+them:
 
-```sh
-npm audit --audit-level=moderate
-```
+- `grep -rn "RouteThumbnail" src/` returns only its own definition, the
+  barrel export and its tests — **zero consumers**.
+- `src/components/rides/RideListRow.tsx:63` renders
+  `<RouteGraphic seed={item.id} variant="route" />` for **every** ride card.
+  `src/components/v2/RouteGraphic.tsx:30-36` generates a hash-seeded
+  procedural path.
 
-Exact log findings on PR #82 merge SHA `178928bb82723e4f21dbafe2abf3fff65f814bd8`:
+So a saved ride with real stored geometry currently shows a route-shaped line
+that is not its route. `RouteThumbnail` already draws real geometry and already
+has an explicit `data-route-thumbnail="unavailable"` state for rides without
+it.
 
-1. `@vitest/mocker` through `vitest@4.1.10` — **moderate**, GHSA-82fw-gwwq-j7x9. CI reports the fix at `vitest@4.1.11`. This is a dev/test dependency and should be the low-risk first bump, followed by the full test suite.
-2. `maplibre-gl@5.24.0` — **critical**, GHSA-jrc7-96c5-q579. Upstream advisory affects versions through 6.4.0 and reports a patched v6 line. Moving from v5 to v6 is a real migration because MapLibre v6 is ESM-only, requires WebGL2 and changes the missing-style-image API/worker behavior. Do not use `npm audit fix --force` blindly.
+RED first: a `RideLibraryItem` with real geometry must render
+`[data-route-thumbnail="ready"]` and never `[data-route-graphic="route"]`; an
+item with absent or too-short geometry must render
+`[data-route-thumbnail="unavailable"]`. That test fails on `main` today.
 
-Switchback's current rollback renderer directly relies on MapLibre and currently handles `styleimagemissing` by adding the image in the event callback; the v6 migration guide requires `setMissingStyleImageResolver` for that behavior. The migration must also verify the Next.js bundler worker URL/runtime behavior and fallback-device requirements before merge.
-
-Do not lower the audit threshold merely to pass. Resolve the Vitest advisory directly; treat MapLibre v6 as a bounded security migration with focused renderer tests and full browser/PWA verification. If the owner instead chooses to retire MapLibre immediately, that is an ADR/rollout decision and still requires rollback/production/device evidence — not a dependency-only cleanup.
-
-Once dependencies are green, rebase and exact-head verify #82, then merge it before beginning overlapping map work.
+This is also the smallest useful slice of the #66 salvage, and it needs none of
+that PR's region taxonomy or second search surface.
 
 ## Integration status
 
-| Area | Status | Evidence / action |
+| Area | Status | Exact evidence |
 |---|---|---|
-| Main baseline | KNOWN | `b53c177...`, #83 merged |
-| #83 graphics foundation | LANDED | truthful route/evidence graphics available on main |
-| #82 map presentation | BLOCKED | exact dependency blockers known: Vitest mocker moderate + MapLibre critical; Mobile Core/real-router/visual/rider-journeys observed successful on that head |
-| #66 Rides intelligence | STALE DRAFT | salvage domain/tests, do not merge wholesale |
-| #80 preference vector | STALE DRAFT | salvage into canonical command model if value proven |
-| #81 route memory | STACKED STALE DRAFT | salvage deterministic facts/search after Rides authority settles |
-| #85 beta control plane | DRAFT | docs only; rebase after integration changes |
+| #88 security | **MERGED** `454b76ce630837bdddc7dad4211429c51aa3e19c` | 4 advisories cleared; `npm audit --audit-level=moderate` → 0 vulnerabilities |
+| #86 janitorial | **MERGED** `8849dc2949ea4c23ad903e1d8801a5057f9349f6` | deletion-only cleanup; `better-sqlite3` → `node:sqlite`; tree stays clean after a visual run |
+| #82 map presentation | **MERGED** `01f8b53233dd7ec53399b9571b92274c54b69d71` | one basemap authority: `road \| terrain \| satellite` |
+| #85 beta control plane | this branch | rebased onto the three merges above |
+| #66 / #80 / #81 | STALE DRAFTS, salvage ledgers written | see `SALVAGE-LEDGERS.md`; close after ports land |
+
+All three merges were made only on an exact-head green run of the nine required
+checks (`build`, `critical-e2e`, `lint`, `pwa`, `real-router`, `road-lock`,
+`typecheck`, `visual`, `vitest`), plus the advisory `mobile-core`.
+
+### What the security lane actually found
+
+Worth recording, because the recovered work looked complete and was not. The
+previous session's `deps/security-advisories-20260908` existed only as
+`stash@{0}` — the branch had no commits — and it changed **only**
+`package.json` and the lockfile. Two MapLibre v6 breakages have no error and no
+failing unit test:
+
+1. `styleimagemissing` listeners can no longer resolve an icon for the current
+   request, so generated fallback icons silently stop appearing.
+2. v6 tiles every GeoJSON source in a worker split across two files. Turbopack
+   emits only the worker, so its sibling import 404s and the worker dies before
+   registering a handler. The map, controls, basemap and camera all look
+   correct — the route, casing, waypoints and labels never render.
+
+The visual suite caught (2) as five stable failures in both dev and production.
+`scripts/copy-maplibre-worker.mjs` now publishes both files to
+`public/maplibre/`, and tests pin the worker URL and its ordering.
+
+**The lesson for this control plane: a green dependency bump is not evidence
+that the renderer still draws.**
 
 ## Product-truth status
 
 | Contract | Status | Next evidence |
 |---|---|---|
-| One canonical authored RideIntent/history | IMPLEMENTED | preserve; existing recovery/history tests |
-| Stale routing result fencing | IMPLEMENTED | preserve coordinator/store gates |
-| Prompt toll policy coherence | UNVERIFIED | BETA-010 RED/green test |
-| Fresh-prompt segment-profile coherence | UNVERIFIED | BETA-011 adversarial test |
-| `Best Ride` role matches deterministic authority | SUSPECT | BETA-012 test; current profile heuristic needs proof |
-| Recorded elapsed-duration provenance | SUSPECT | BETA-013 test; current fallback may be planned duration |
-| Specific ride imagery always factual | NOT YET | BETA-014 / Rides reconciliation; current row may use seeded RouteGraphic |
-| Unknown route evidence stays unknown | STRONG CONTRACT | preserve across every UI simplification |
+| One canonical authored RideIntent/history | IMPLEMENTED | preserve |
+| Stale routing result fencing | IMPLEMENTED | preserve |
+| One basemap authority | **IMPLEMENTED** (#82) | preserve; presets are the only rider choice |
+| Fallback renderer actually draws routes | **IMPLEMENTED** (#88) | worker + missing-image tests |
+| Specific ride imagery always factual | **CONFIRMED DEFECT** | BETA-014 — evidence above |
+| Prompt toll policy coherence | UNVERIFIED | BETA-010 RED test |
+| Fresh-prompt segment-profile coherence | UNVERIFIED | BETA-011 RED test |
+| `Best Ride` matches deterministic authority | SUSPECT | BETA-012 RED test |
+| Recorded elapsed-duration provenance | SUSPECT | BETA-013 RED test |
+| Unknown route evidence stays unknown | STRONG CONTRACT | preserve through every simplification |
 
 ## Architecture status
+
+Unchanged from the previous checkpoint except where integration touched it.
 
 | Owner | Status | Decision |
 |---|---|---|
 | Routing/scoring/provider API | HEALTHY BOUNDARY | protect from cleanup rewrites |
 | Planner store / RideIntent | HEALTHY DIRECTION | no second authority |
-| Planning coordinator | HEALTHY BOUNDARY | reuse |
-| PlannerComposition / Deck view model | HEALTHY DIRECTION | extend grouped contracts |
-| PlannerShell | OVER-CONCENTRATED | extract one lifecycle at a time, starting planning then Free Ride as needed |
+| Map presentation | **CONSOLIDATED** (#82) | presets are the authority; legacy ids only at storage/migration |
+| MapLibre rollback renderer | **SECURE + TESTED** (#88) | now requires WebGL2 — record in the device review |
+| PlannerShell | OVER-CONCENTRATED | extract one lifecycle at a time |
 | PlannerMapStage | OVER-CONCENTRATED | exclusive interaction owner before more editing modes |
 | PlanComposer | HIGH WIRING COST | group model/commands, no new global context |
-| Global CSS authority | MIGRATION DEBT | read-only inventory then surface-by-surface retirement |
-| UI customization | QA MULTIPLIER | audit consumption; consider hiding arbitrary route-detail ordering for beta |
+| Global CSS authority | MIGRATION DEBT | 108 candidate dead rules remain; small visual-verified batches only |
+| UI customization | QA MULTIPLIER | audit consumption; hiding arbitrary route-detail ordering is a beta candidate |
 
-## Product-surface status
+## Known environmental note
 
-### Plan / route choice
-
-**Usable foundation, not beta-qualified.**
-
-Open issues for convergence:
-- role-label truth;
-- route-choice visual comprehension;
-- large planner wiring surface;
-- direct-manipulation mode ownership;
-- exact short-landscape/device review.
-
-### Prepare ride
-
-**Overloaded.**
-
-Current disclosure contains many independent products. See `DEBLOAT-AUDIT.md`.
-
-Beta direction:
-- warnings/hard conflicts + Start primary;
-- concise readiness;
-- detailed evidence/weather/offline contextual;
-- trip staging explicit;
-- rating post-ride;
-- share/publish consolidated;
-- export format chooser on demand.
-
-### Rides
-
-**Conceptually mixed.**
-
-Target is personal material only. Current/project curated GPX integration must move to Discover without data loss. Specific route cards must use truthful geometry or neutral fallback.
-
-### Discover
-
-**Duplicated browse capability.**
-
-Current community Discover is weaker than existing curated GPX Atlas. Consolidate UI/read model, not source storage. Preserve public/deep links.
-
-### Gravel Goblin / AI
-
-**Useful optional capability, not a second planner.**
-
-Keep no-key structured controls complete. Port only deterministic preference/memory value from stale drafts through canonical commands after higher-priority truth/UX gates.
-
-### Free Ride / Ride mode
-
-**Featureful but requires continuity and physical qualification.**
-
-Before beta prove recording/hard-constraint continuity through suggestion acceptance and Head Home, GPS recovery, background/foreground, PWA and real-road behavior.
-
-## Debloat status
-
-### Immediate investigate / simplify
-
-- Prepare ride module inventory.
-- Duplicate private-share vs community-publish privacy controls.
-- Pre-ride route rating.
-- Multi-day staging on ordinary single-route preparation.
-- Route-detail arbitrary order/visibility customization.
-- Duplicate browse list surfaces.
-- legacy route chooser inside RouteComparison if no live caller.
-- global stylesheet override chain and legacy font consumers.
-- always-on / recovery-era feature flags after usage/reference audit.
-- compatibility re-export shims after caller audit.
-
-### Explicitly do not remove yet
-
-- MapLibre rollback renderer before ADR/device/production retirement evidence; despite the current critical advisory, upgrading/retiring it must preserve the declared rollback contract until that contract is explicitly changed.
-- existing community/report data.
-- GPX originals / imported data.
-- stored rider UI preference fields without migration.
-- provider adapters currently required by core/fallback policy.
-- evidence/caveat logic just because the full panel is too prominent.
+`real-router` fails 3 of 5 on the homelab workstation and **identically on
+unmodified `main`**: the LAN GraphHopper's extract routes fixture paths the
+spec expects it to reject. CI's `real-router` job is authoritative and has been
+green on every merge above. Do not treat a local failure there as a regression
+without first reproducing it on an untouched checkout.
 
 ## Automated beta evidence
 
-Main branch protection requires named checks for typecheck, lint, vitest, build, critical E2E, PWA, road lock, real router and visual.
+Branch protection requires the nine checks named above. A final beta candidate
+additionally follows `docs/astra/RELEASE-GATES.md`.
 
-A final beta candidate additionally follows `docs/astra/RELEASE-GATES.md` and the beta HOLD conditions. Passing snapshots alone is never beta evidence.
-
-At this checkpoint there is **no single exact candidate documented here as fully green and deployed**. Do not aggregate passes from different SHAs into a beta claim.
+There is still **no single exact candidate documented here as fully green and
+deployed**. Do not aggregate passes from different SHAs into a beta claim.
 
 ## Physical/human evidence
 
-Current beta package does not claim a fresh exact-candidate pass for:
+Still entirely open. No fresh exact-candidate pass exists for:
 
 - real iPhone installed PWA;
-- mounted/daylight/glove readability;
-- short landscape;
-- background/foreground GPS/session continuity;
+- safe areas and short landscape;
+- background/foreground GPS and session continuity;
 - weak/no network;
-- real reroute/off-route recovery;
-- Free Ride → suggestion → Head Home recording continuity;
-- airplane/offline behavior;
-- black-box Luna coordinator run against the exact deployed candidate.
+- real off-route/reroute recovery;
+- Free Ride → suggestion → Head Home without losing recording or hard constraints;
+- keyboard/accessibility alternatives for editing flows;
+- daylight/mounted/glove glanceability;
+- at least one real safe road ride;
+- a fresh black-box Luna run against the same deployed SHA.
 
-These remain open until actually executed.
+`MapLibre v6 requires WebGL2` is new input for the device review: it narrows the
+**fallback** renderer's floor. The premium Mapbox path is unaffected.
 
 ## Update protocol
 
 After every meaningful merge:
 
-1. update baseline `main` SHA;
+1. update the baseline `main` SHA;
 2. mark tasks with evidence, not optimism;
-3. record exact test/workflow run where useful;
-4. record what architecture/data authority was removed or added;
-5. name one next task;
-6. keep verdict HOLD until all advertised-scope beta HOLD conditions are closed.
+3. record what authority was removed or added;
+4. name one next task;
+5. keep the verdict HOLD until the advertised-scope conditions are actually closed.
 
-Do not let this file become a historical diary. Keep current state concise; commit detailed evidence in the relevant PR/test report.
+Keep this file current, not historical. Detailed evidence belongs in the PR.

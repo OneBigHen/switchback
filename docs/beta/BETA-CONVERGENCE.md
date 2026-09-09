@@ -1,7 +1,16 @@
 # Switchback beta convergence program
 
-Date: 2026-09-08
-Baseline: `main` @ `b53c177c1620098bfa00883257eae245411a6f5c`
+Date: 2026-09-09
+Baseline: `main` @ `01f8b53233dd7ec53399b9571b92274c54b69d71`
+
+> **Gate 0 (clean integration lane) is closed.** #88 security
+> (`454b76c...`), #86 janitorial (`8849dc2...`) and #82 canonical map
+> presentation (`01f8b53...`) are merged, each on an exact-head green run of
+> the nine required checks. The dependency audit reports 0 vulnerabilities.
+> The stale-draft salvage ledgers are in `SALVAGE-LEDGERS.md`.
+>
+> The program below is otherwise unchanged. Start at Gate 1, with BETA-014 as
+> the first task — it is now a confirmed defect rather than a suspicion.
 
 ## Executive decision
 
