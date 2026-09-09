@@ -4,7 +4,7 @@ This is a bounded queue, not permission to execute everything at once. Re-evalua
 
 Scoring: `V` rider value, `T` trust/correctness reduced, `L` agent leverage, `C` cost, `X` permanent complexity. Higher `V+T+L-C-X` wins.
 
-## Status at `main` @ `01f8b53` (2026-09-09)
+## Status at `main` @ `b8c0f96` (2026-09-09)
 
 The integration lane is **closed**. Do not re-run it.
 
@@ -15,12 +15,43 @@ The integration lane is **closed**. Do not re-run it.
 | BETA-002 canonical map PR #82 | **DONE** — merged `01f8b53233dd7ec53399b9571b92274c54b69d71` |
 | BETA-003 stale PR salvage ledger | **DONE** — `SALVAGE-LEDGERS.md` |
 | Janitorial #86 | **DONE** — `8849dc2949ea4c23ad903e1d8801a5057f9349f6` |
+| BETA-005 control plane #85 | **DONE** — `5bc7cbc` |
 
 Two advisories beyond the recorded two were found and cleared (`js-yaml`, `sharp`), and the audit was red on `main` itself rather than caused by any PR.
 
-**Next task: BETA-014**, promoted to the front of the queue because it is now a
-confirmed defect with an exact fix location rather than a suspicion. See
-`BETA-STATE.md` for the evidence.
+### Correctness/truth lane — CLOSED
+
+Every item RED-tested first, each merged only on an exact-head green run of the
+nine required checks.
+
+| Task | Status |
+|---|---|
+| BETA-014 truthful route imagery | **DONE** — `0ece54e6bf94b09dcfd62d6dcaa9ab337c7f42a1` |
+| BETA-013 recorded duration provenance | **DONE** — `e8f0a7f481912c7a01bd673115899cb3185b0ad5` |
+| BETA-012 `Best Ride` role truth | **DONE** — `1a25965bab26a4bb29d3a7938ed7d670aefd3a53` |
+| BETA-010 toll policy coherence | **DONE** — `bb41fd4a75829140548ada3e3efe21e0c5d17250` |
+| BETA-011 segment-profile stale state | **DONE** — `b8c0f96ce66a6b4edb2a4a48bd12295924e65f9e` |
+
+Two follow-ups the lane deliberately did **not** decide, recorded so they are
+not lost or silently settled later:
+
+- **Should a recorded ride draw its GPS trace rather than its planned route?**
+  BETA-014 used `route.geometry`, which is what the card had always described.
+  The trace lives in `RecordedRide.points`. This is the same planned-vs-recorded
+  question BETA-013 answered for duration, and it belongs with a Rides read
+  model, not with a graphics change.
+- **React Doctor findings in `PlannerShell.tsx`** (giant component, many related
+  `useState`, fetch-in-effect, loading flag outside `finally`, side effects in a
+  state updater). All pre-existing, and all describing the concentration
+  BETA-020/022 exist to unpick. Not a cleanup pass — extract one lifecycle at a
+  time.
+
+
+**Next task: DB-1**, the read-only `Prepare ride` module audit. The truth lane
+is closed, so the next lane is the product debloat: `Prepare ride` mounts
+sixteen independent things under one toggle. DB-1 produces a report, not a
+change, and must precede DB-2/DB-3. See `BETA-STATE.md` for the two hazards it
+has to respect.
 
 ## Integration lane (closed — retained for context)
 
@@ -219,7 +250,7 @@ Introduce/consume explicit duration source only if needed.
 
 ### BETA-014 — Eliminate invented route geometry for specific rides
 
-**Score:** V4 T5 L2 C1 X-1 = 11 — **NEXT TASK**
+**Score:** V4 T5 L2 C1 X-1 = 11 — **DONE** `0ece54e6bf94b09dcfd62d6dcaa9ab337c7f42a1`
 **Depends:** nothing. #83 is on main and #66's ledger is written.
 
 **Confirmed on `main`, not suspected.** `RouteThumbnail` has zero consumers

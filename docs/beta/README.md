@@ -16,7 +16,7 @@ It is subordinate to `AGENTS.md`, ADRs, `docs/release/ROADMAP-WAVES.md`, and the
 
 ## Current baseline
 
-`main` @ `01f8b53233dd7ec53399b9571b92274c54b69d71` (2026-09-09).
+`main` @ `b8c0f96ce66a6b4edb2a4a48bd12295924e65f9e` (2026-09-09).
 
 The integration lane is closed. Each merge was made only on an exact-head green
 run of the nine required checks:
@@ -24,6 +24,18 @@ run of the nine required checks:
 - **#88** security — `454b76ce630837bdddc7dad4211429c51aa3e19c`. Four advisories cleared; `npm audit --audit-level=moderate` reports 0 vulnerabilities. Includes the MapLibre v6 migration *and* the served worker bundle the version bump alone omitted — without it the fallback renderer draws a basemap and no route, silently.
 - **#86** janitorial — `8849dc2949ea4c23ad903e1d8801a5057f9349f6`. Deletion-only cleanup, `better-sqlite3` → `node:sqlite`, and the working tree now stays clean after a visual run.
 - **#82** map presentation — `01f8b53233dd7ec53399b9571b92274c54b69d71`. One basemap authority: `road | terrain | satellite`, with legacy experience ids confined to storage and migration.
+
+The correctness/truth lane is closed too. All five defects were RED-tested
+before the fix and merged on exact-head green:
+
+- **#89** truthful ride-card geometry — `0ece54e…`
+- **#90** recorded duration provenance — `e8f0a7f…`
+- **#91** `Best Ride` follows the ranking — `1a25965…`
+- **#92** prompt toll-policy coherence — `bb41fd4…`
+- **#93** fresh topology drops stale per-leg styles — `b8c0f96…`
+
+Every one was a value computed correctly in one place and never carried to what
+the rider reads. None needed new capability.
 
 Remaining stale drafts, now with written dispositions in `SALVAGE-LEDGERS.md`:
 
