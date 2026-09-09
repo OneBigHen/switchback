@@ -2,7 +2,7 @@
 
 import { ArrowRight, DotsThree } from "@phosphor-icons/react"
 import { useState } from "react"
-import { RouteThumbnail } from "@/components/graphics"
+import { AtlasRouteThumbnail, RouteThumbnail } from "@/components/graphics"
 import { formatAway } from "@/lib/client/geo"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
@@ -26,9 +26,15 @@ function kindLabel(item: RideLibraryItem): string {
   return "Imported"
 }
 
+function secondaryLine(item: RideLibraryItem): string {
+  if (item.summary) return item.summary
+  if (item.ridingAreas?.length) return item.ridingAreas.slice(0, 2).join(" · ")
+  if (item.tags.length > 0) return item.tags.slice(0, 3).join(" · ")
+  return "Ready to ride"
+}
+
 export interface RideListRowProps {
   item: RideLibraryItem
-  /** Miles from the rider, shown when the library is sorted by distance. */
   distanceAwayMiles?: number
   onOpen(item: RideLibraryItem): void
   onMatchRoads?(item: RideLibraryItem): void
@@ -45,6 +51,7 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
   const management = item.management
   const canManage = Boolean(management?.canDelete || management?.canMatchRoads || (item.kind === "saved-route" && onOrganize))
   const deleteLabel = item.kind === "trip-plan" ? "trip" : item.kind === "recorded-ride" ? "recording" : "route"
+  const hasDuration = Number.isFinite(item.durationMinutes) && item.durationMinutes > 0
 
   const toggleManagement = () => {
     if (!manageOpen) {
@@ -60,35 +67,29 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
       <div className={styles.rowPrimary}>
         <button className={styles.openButton} type="button" aria-label={`Open ${item.name}`} onClick={() => onOpen(item)}>
           <span className={styles.routeGraphic}>
-            {/*
-              The ride's own stored shape, or an explicit "unavailable" glyph.
-              Never a seeded procedural path: on a named ride a generated line
-              is indistinguishable from the real route to the person who rode
-              it.
-            */}
-            <RouteThumbnail points={item.geometry ?? []} />
+            {item.preview?.paths.length ? (
+              <AtlasRouteThumbnail preview={item.preview} label={`Shape of ${item.name}`} />
+            ) : (
+              <RouteThumbnail points={item.geometry ?? []} label={item.geometry?.length ? `Shape of ${item.name}` : undefined} />
+            )}
             <small>{kindLabel(item)}</small>
           </span>
           <span className={styles.identity}>
             <small>{item.sourceLabel}</small>
             <strong>{item.name}</strong>
-            {item.tags.length > 0 ? <span>{item.tags.slice(0, 3).join(" · ")}</span> : <span className={styles.noTags}>Ready to ride</span>}
+            <span className={item.summary ? styles.routeSummary : styles.noTags}>{secondaryLine(item)}</span>
           </span>
           <span className={styles.metrics}>
             <b>{item.distanceMiles.toFixed(1)} mi</b>
-            {/*
-              Only a recording can mislead here: an unlabelled figure under
-              "Recorded ride" reads as time actually spent. A saved route or
-              trip is understood to be an estimate, so labelling those would be
-              noise rather than honesty.
-            */}
-            <span>
-              {Math.round(item.durationMinutes)} min
-              {item.kind === "recorded-ride" && item.durationSource === "planned" ? " planned" : ""}
-            </span>
+            {hasDuration ? (
+              <span>
+                {Math.round(item.durationMinutes)} min
+                {item.kind === "recorded-ride" && item.durationSource === "planned" ? " planned" : ""}
+              </span>
+            ) : null}
             {typeof distanceAwayMiles === "number" ? (
               <small className={styles.away}>{formatAway(distanceAwayMiles)}</small>
-            ) : updated ? <small>{updated}</small> : <small>Project library</small>}
+            ) : updated ? <small>{updated}</small> : <small>{item.ridingAreas?.[0] ?? "Project library"}</small>}
           </span>
           <ArrowRight weight="bold" aria-hidden="true" />
         </button>
