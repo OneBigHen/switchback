@@ -11,11 +11,19 @@ interface PlanningSessionControllerOptions {
   requestPlan?(request: TripPlanRequest, signal?: AbortSignal): Promise<TripPlan>
 }
 
-export interface PlanningSessionController {
-  readonly gate: LatestRequestGate
+export interface PlanningSessionCommands {
   run(request: TripPlanRequest, onWarning: (message: string) => void): Promise<TripPlan | null>
   invalidate(): void
   cancel(): void
+}
+
+export interface PlanningSessionController extends PlanningSessionCommands {
+  readonly gate: LatestRequestGate
+  /**
+   * Bounded command surface for presentation/controllers. Legacy direct methods
+   * remain aliases while PlannerShell is migrated lifecycle-by-lifecycle.
+   */
+  readonly commands: PlanningSessionCommands
 }
 
 /** Owns the request generation and cancellation boundary for one planner UI. */
@@ -32,27 +40,29 @@ export function createPlanningSessionController({
     getPlanner().cancelPlanning()
   }
   const gate: LatestRequestGate = { ...baseGate, invalidate }
+  const run: PlanningSessionCommands["run"] = (request, onWarning) => {
+    // Fence callbacks first: abort listeners may run synchronously.
+    baseGate.invalidate()
+    activeController?.abort()
+    activeController = new AbortController()
+    return runLatestTripPlan({
+      request,
+      gate,
+      getPlanner,
+      requestPlan,
+      onWarning,
+      controller: activeController
+    })
+  }
+  const cancel = () => {
+    invalidate()
+    getPlanner().cancelRideUpdate?.()
+  }
+  const commands: PlanningSessionCommands = { run, invalidate, cancel }
 
   return {
     gate,
-    run: (request, onWarning) => {
-      // Fence callbacks first: abort listeners may run synchronously.
-      baseGate.invalidate()
-      activeController?.abort()
-      activeController = new AbortController()
-      return runLatestTripPlan({
-        request,
-        gate,
-        getPlanner,
-        requestPlan,
-        onWarning,
-        controller: activeController
-      })
-    },
-    invalidate,
-    cancel: () => {
-      invalidate()
-      getPlanner().cancelRideUpdate?.()
-    }
+    ...commands,
+    commands
   }
 }
