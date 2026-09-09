@@ -83,6 +83,32 @@ function comparisonLabel(
   return parts.length > 0 ? parts.join(" · ") : "Same key metrics"
 }
 
+/**
+ * Whether Switchback's own scoring policy ranked this candidate first.
+ *
+ * "Best Ride" is the recommendation chip (ADR 0013), so it has to follow the
+ * deterministic ranking rather than the route's coarse profile. Profile only
+ * says what kind of ride it is; it says nothing about whether the scorer
+ * preferred it, which let a last-ranked route wear the label — and let several
+ * candidates wear it at once.
+ *
+ * Two conditions keep the claim honest:
+ *
+ * - every candidate must be scored, because a partial ranking cannot establish
+ *   a winner;
+ * - the win must be strict, because a tie means the policy did not pick one.
+ *
+ * When neither holds the route falls through to a factual label instead.
+ */
+function isTopScored(route: PlannedRoute, routes: PlannedRoute[]): boolean {
+  const total = route.routeScore?.total
+  if (typeof total !== "number") return false
+  const totals = routes.map((candidate) => candidate.routeScore?.total)
+  if (totals.some((value) => typeof value !== "number")) return false
+  const scored = totals as number[]
+  return scored.every((value) => value <= total) && scored.filter((value) => value === total).length === 1
+}
+
 export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): RouteDecisionRole {
   if (route.corridorOption) {
     return CORRIDOR_OPTION_PRESENTATION[route.corridorOption].label as RouteDecisionRole
@@ -94,7 +120,7 @@ export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): 
   if (route.profile === "twisty" && route.twistiness === maxTwistiness && route.twistiness >= 70) {
     return "Maximum Twisties"
   }
-  if (route.profile === "scenic" || route.profile === "adventure" || route.profile === "gravel") return "Best Ride"
+  if (isTopScored(route, routes)) return "Best Ride"
   if (route.twistiness === maxTwistiness && route.twistiness >= 70) return "Maximum Twisties"
   return "Fast & Fun"
 }

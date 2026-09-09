@@ -128,7 +128,10 @@ describe("RouteDecisionRail", () => {
     }
     render(<RouteDecisionRail routes={[routes[0]!, risky]} selectedId={risky.id} onSelect={vi.fn()} />)
 
-    const card = screen.getByRole("article", { name: /Best Ride/i })
+    // Selected by the candidate's own name, not by its role chip: this test is
+    // about warning lines, and pinning it to a role made it fail when the role
+    // rules changed for unrelated reasons.
+    const card = screen.getByRole("article", { name: /scenic route/i })
     expect(within(card).getAllByTestId("route-decision-warning")).toHaveLength(1)
   })
 
