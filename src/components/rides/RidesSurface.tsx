@@ -2,6 +2,7 @@
 
 import { Crosshair, FileArrowUp } from "@phosphor-icons/react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import type { ProjectGpxRoutePreview } from "@/lib/gpx/catalog"
 import type { RoadLockMode } from "@/lib/roads/road-locks"
 import { haversineMiles } from "@/lib/client/geo"
 import { useNearMe } from "@/lib/client/near-me"
@@ -31,21 +32,20 @@ export interface RideLibraryItem {
   sourceLabel: string
   distanceMiles: number
   durationMinutes: number
-  /**
-   * Where `durationMinutes` came from. A recorded ride whose clock could not be
-   * read still shows the planned figure, but must say so — an unlabelled number
-   * under "Recorded ride" reads as measured elapsed time.
-   */
   durationSource: "recorded" | "planned"
   updatedAt: string | null
-  /** Representative `[lon, lat]` for distance-from-me ordering; null when unplaceable. */
   center?: readonly [number, number] | null
-  /**
-   * Simplified `[lon, lat]` preview of the ride's own shape, for the card
-   * thumbnail. Absent when the source stored no geometry — which the card must
-   * then say, rather than drawing something plausible.
-   */
   geometry?: readonly Coordinate[]
+  /** Grounded rider-facing summary, never generated from a decorative image. */
+  summary?: string
+  /** Broad browse bucket such as North-Central PA. */
+  macroRegion?: string | null
+  /** Recognizable rider areas; a long route may span more than one. */
+  ridingAreas?: string[]
+  /** Real precomputed route shape for imported-route cards. */
+  preview?: ProjectGpxRoutePreview
+  twistiness?: number
+  turnCount?: number
   tags: string[]
   management?: RideLibraryManagement
 }
@@ -121,29 +121,46 @@ function rankRides(items: RideLibraryItem[], sort: RideSort, anchor: { lat: numb
   }
 }
 
+function searchableText(item: RideLibraryItem): string {
+  return [
+    item.name,
+    item.sourceLabel,
+    item.summary,
+    item.macroRegion,
+    ...(item.ridingAreas ?? []),
+    ...item.tags
+  ].filter(Boolean).join(" ").toLocaleLowerCase()
+}
+
 export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRoads, onOrganize, onDelete }: RidesSurfaceProps) {
   const [filter, setFilter] = useState<RideFilter>("all")
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<RideSort>("recent")
+  const [region, setRegion] = useState("")
+  const [area, setArea] = useState("")
   const [importOpen, setImportOpen] = useState(false)
   const [shown, setShown] = useState(PAGE_SIZE)
   const { anchor, status: geoStatus, located, requestLocation } = useNearMe()
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const counts = useMemo(() => countsForRideFilters(items), [items])
+  const regions = useMemo(() => [...new Set(items.map((item) => item.macroRegion).filter((value): value is string => Boolean(value)))].sort(), [items])
+  const areas = useMemo(() => [...new Set(items
+    .filter((item) => !region || item.macroRegion === region)
+    .flatMap((item) => item.ridingAreas ?? []))].sort(), [items, region])
 
   const filtered = useMemo(() => items.filter((item) => {
     if (!itemMatchesRideFilter(item, filter)) return false
+    if (region && item.macroRegion !== region) return false
+    if (area && !item.ridingAreas?.includes(area)) return false
     if (!normalizedQuery) return true
-    return `${item.name} ${item.sourceLabel} ${item.tags.join(" ")}`.toLocaleLowerCase().includes(normalizedQuery)
-  }), [filter, items, normalizedQuery])
+    return searchableText(item).includes(normalizedQuery)
+  }), [area, filter, items, normalizedQuery, region])
 
   const effectiveSort: RideSort = sort === "nearest" && !located ? "recent" : sort
   const ranked = useMemo(() => rankRides(filtered, effectiveSort, anchor), [filtered, effectiveSort, anchor])
 
-  // Reset the page window whenever the result set changes (React's "adjust
-  // state during render" pattern — no effect, no cascading renders).
-  const windowKey = `${filter}|${normalizedQuery}|${effectiveSort}|${ranked.length}`
+  const windowKey = `${filter}|${normalizedQuery}|${region}|${area}|${effectiveSort}|${ranked.length}`
   const [prevWindowKey, setPrevWindowKey] = useState(windowKey)
   if (windowKey !== prevWindowKey) {
     setPrevWindowKey(windowKey)
@@ -167,6 +184,12 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
   }, [hasMore, ranked.length])
 
   const nearMeOffered = !located && geoStatus !== "unavailable"
+  const clearFilters = () => {
+    setQuery("")
+    setFilter("all")
+    setRegion("")
+    setArea("")
+  }
 
   return (
     <section className={styles.surface} role="region" aria-label="Rides">
@@ -197,6 +220,39 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         onChange={setFilter}
         onQueryChange={setQuery}
       />
+
+      {regions.length > 0 ? (
+        <div className={styles.regionBrowser}>
+          <label className={styles.regionField}>
+            <span>Region</span>
+            <select
+              aria-label="Browse region"
+              value={region}
+              onChange={(event) => {
+                setRegion(event.currentTarget.value)
+                setArea("")
+              }}
+            >
+              <option value="">Every region</option>
+              {regions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          {region && areas.length > 0 ? (
+            <div className={styles.areaChips} role="group" aria-label="Riding areas">
+              {areas.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={area === option}
+                  onClick={() => setArea((current) => current === option ? "" : option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className={styles.sortBar}>
         <label className={styles.sortField}>
@@ -275,18 +331,10 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         </div>
       ) : (
         <div className={styles.empty}>
-          <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
+          <RouteGraphic seed={`empty:${filter}:${normalizedQuery}:${region}:${area}`} variant="library" />
           <strong>No rides match this view.</strong>
-          <span>Try another type or clear the search.</span>
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("")
-              setFilter("all")
-            }}
-          >
-            Clear search & filters
-          </button>
+          <span>Try another region, riding area, type, or search.</span>
+          <button type="button" onClick={clearFilters}>Clear search & filters</button>
         </div>
       )}
     </section>
