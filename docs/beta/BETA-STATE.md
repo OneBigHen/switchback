@@ -52,8 +52,13 @@ sequence in `PREPARE-RIDE-AUDIT.md` becomes safe to execute.
 Two findings from DB-1 that need an owner decision rather than an agent's
 judgement, both recorded in that document:
 
-- **Weather fetches when the disclosure mounts.** Lazy-mounting it is a
-  behavioural change to network traffic, not a layout tweak.
+- **Weather fetches when the disclosure mounts — and it must keep doing so.**
+  The panel renders severe-weather alerts in a `role="alert"` block above the
+  sample cards, so mounting it lazily would hide an alert from any rider who
+  did not open the weather section. You cannot know whether there is an alert
+  without fetching, so the request is the price of the warning being primary.
+  The available debloat is visual: collapse the sample cards, keep the fetch and
+  the elevated alert. `PREPARE-RIDE-AUDIT.md` records the correction.
 - **A pre-ride 5★ rating carries `+2` while a completed ride carries `+0.5`**
   (`rider-preferences.ts:66-79`), and the result auto-reselects routes on the
   next plan (`PlannerShell.tsx:333-345`). The model learns more from a guess
