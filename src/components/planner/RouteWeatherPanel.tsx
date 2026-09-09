@@ -2,6 +2,8 @@
 
 import {
   ArrowClockwise,
+  CaretDown,
+  CaretUp,
   CloudSun,
   Drop,
   Warning,
@@ -23,6 +25,7 @@ export function RouteWeatherPanel({ route }: RouteWeatherPanelProps) {
     error: string
   } | null>(null)
   const [reload, setReload] = useState(0)
+  const [detailOpen, setDetailOpen] = useState(false)
   const points = useMemo(() => sampleRouteWeatherPoints(route.geometry), [route.geometry])
   const requestKey = `${route.id}:${reload}`
   const activeResult = result?.key === requestKey ? result : null
@@ -49,6 +52,27 @@ export function RouteWeatherPanel({ route }: RouteWeatherPanelProps) {
       })
     return () => controller.abort()
   }, [points, requestKey])
+
+  /**
+   * What a collapsed panel still owes the rider: the conditions they are
+   * actually riding into, without opening anything. The per-location cards
+   * below are reference material.
+   */
+  const summary = useMemo(() => {
+    // flatMap rather than map().filter(Boolean): one pass, and the result is
+    // narrowed without a non-null assertion on every read below.
+    const hours = weather?.samples.flatMap((sample) => sample.hourly[0] ?? []) ?? []
+    if (hours.length === 0) return null
+    const temperatures = hours
+      .flatMap((hour) => (hour.temperatureF === null ? [] : [hour.temperatureF]))
+    const rain = hours.map((hour) => hour.precipitationChance ?? 0)
+    return {
+      // The high is the number that decides a jacket, so it leads.
+      temperatureF: temperatures.length > 0 ? Math.max(...temperatures) : null,
+      peakRainChance: rain.length > 0 ? Math.max(...rain) : null,
+      forecast: hours[0]!.shortForecast
+    }
+  }, [weather])
 
   const alerts = useMemo(() => {
     const unique = new Map<string, NonNullable<RouteWeatherResponse["samples"][number]>["alerts"][number]>()
@@ -96,7 +120,27 @@ export function RouteWeatherPanel({ route }: RouteWeatherPanelProps) {
         </div>
       ) : null}
 
-      <div className="weather-samples">
+      {summary ? (
+        <p className="weather-summary" data-testid="route-weather-summary">
+          <strong>{summary.temperatureF === null ? "—" : `${Math.round(summary.temperatureF)}°`}</strong>
+          <span>{summary.forecast}</span>
+          {summary.peakRainChance === null ? null : <span>{summary.peakRainChance}% rain at peak</span>}
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        className="weather-detail-toggle"
+        aria-expanded={detailOpen}
+        aria-controls="route-weather-detail"
+        onClick={() => setDetailOpen((open) => !open)}
+      >
+        <span>Hourly detail along the route</span>
+        {detailOpen ? <CaretUp aria-hidden="true" /> : <CaretDown aria-hidden="true" />}
+      </button>
+
+      {detailOpen ? (
+      <div className="weather-samples" id="route-weather-detail">
         {weather.samples.map((sample, index) => {
           const hour = sample.hourly[0]
           return (
@@ -114,6 +158,7 @@ export function RouteWeatherPanel({ route }: RouteWeatherPanelProps) {
           )
         })}
       </div>
+      ) : null}
     </section>
   )
 }
