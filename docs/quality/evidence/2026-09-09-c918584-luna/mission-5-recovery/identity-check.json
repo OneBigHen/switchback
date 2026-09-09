@@ -1,0 +1,14 @@
+{
+  "targetUrl": "https://ride.henning.rodeo",
+  "finalUrl": "https://ride.henning.rodeo/",
+  "candidateSha": "c91858479c176119ba633580cfc0902c6863ba8c",
+  "viewport": "1366x768",
+  "initialSession": "luna-m5-c918584",
+  "executionSession": "luna-m5-c918584-r2",
+  "pageTitle": "Switchback — Ride the better road",
+  "initialHydratedDomDataDplId": [],
+  "rawResponseProof": "root independently verified exact data-dpl-id in raw public HTML",
+  "assetProof": "loaded Next script URLs carried ?dpl=c91858479c176119ba633580cfc0902c6863ba8c",
+  "gate": "accepted",
+  "note": "Hydration removes data-dpl-id from live DOM; the first run's empty DOM query was a false stop"
+}

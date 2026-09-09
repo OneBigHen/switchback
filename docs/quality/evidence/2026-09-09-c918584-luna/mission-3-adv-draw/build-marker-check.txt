@@ -1,0 +1,25 @@
+Mission: Luna Mission 3 — desktop ADV/drawing and map interactions
+Target: https://ride.henning.rodeo/
+Candidate required: c91858479c176119ba633580cfc0902c6863ba8c
+Session: luna-m3-c918584 (isolated agent-browser session)
+Checked at: 2026-09-09 (America/New_York)
+
+Browser result:
+- Final URL: https://ride.henning.rodeo/
+- Title: Switchback — Ride the better road
+- Evaluated page HTML for data-dpl-id on documentElement, body, and all [data-dpl-id] matches.
+- documentElement data-dpl-id: null
+- body data-dpl-id: null
+- [data-dpl-id] matches: []
+- Browser viewport at check: innerWidth=1280, innerHeight=577 (the mission was stopped before resizing because the required marker gate failed).
+
+Gate verdict: BLOCKED — required candidate marker was not present, so no mission interactions were performed.
+
+Initial accessibility snapshot (after load):
+- Map workspace with Map region
+- Primary navigation: Plan, Rides, Discover, Settings, Record
+- Planner controls: Destination, Loop, Draw route, Free Ride, Ride options
+- No login prompt observed.
+
+Evidence:
+- screenshots/initial.png

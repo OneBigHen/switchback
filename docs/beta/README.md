@@ -17,7 +17,7 @@ It is subordinate to `AGENTS.md`, ADRs, `docs/release/ROADMAP-WAVES.md`, and the
 
 ## Current baseline
 
-`main` @ `b8c0f96ce66a6b4edb2a4a48bd12295924e65f9e` (2026-09-09).
+`main` @ `c91858479c176119ba633580cfc0902c6863ba8c` (2026-09-09).
 
 The integration lane is closed. Each merge was made only on an exact-head green
 run of the nine required checks:
@@ -38,9 +38,19 @@ before the fix and merged on exact-head green:
 Every one was a value computed correctly in one place and never carried to what
 the rider reads. None needed new capability.
 
-Remaining stale drafts, now with written dispositions in `SALVAGE-LEDGERS.md`:
+The next convergence slice is also closed: #94 recorded the truth-lane
+closeout; #95–#101 audited and simplified the shipped Prepare Ride path with a
+focused visual guard; #102 established a bounded planning orchestrator and a
+store-free presentation boundary. Candidate `c918584` has exact-head
+deployment and Luna evidence, but remains HOLD after two reproducible blockers.
+The next task is narrow RED-first remediation and exact-head requalification,
+not another implementation wave or the physical-device gate yet.
 
-- PR #66 `feat/recorded-rides-route-intelligence` — port the geometry-derived region facts, road-name extraction and their tests; drop the second search surface, the Goblin branding collision and the PA-quadrant taxonomy. Its smallest slice is BETA-014.
+Stale drafts with written dispositions in `SALVAGE-LEDGERS.md`:
+
+- PR #66 `feat/recorded-rides-route-intelligence` — **closed without merge**.
+  Its useful geometry-derived ideas remain recorded in the ledger; BETA-014
+  landed separately in #89 and is no longer a pending slice.
 - PR #80 `feat/gravel-goblin-route-intent` — keep only the relative-edit semantics, and only as a bounded adapter. `PROFILE_BASELINES` would be a second authority on what `twisty` means.
 - PR #81 `feat/gravel-goblin-route-memory` — port nothing until a canonical Rides facts model exists. Its adversarial unknown-evidence tests are the most valuable thing in either draft.
 

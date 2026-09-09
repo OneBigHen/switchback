@@ -1,27 +1,33 @@
 # Astra implementation checkpoint
 
-Updated 2026-09-08. **Waves 0 and 1 are both merged to `main` (PR #63
-2026-09-06, PR #64 2026-09-06). No wave is release-qualified. DO NOT SHIP.**
+Updated 2026-09-09. **Waves 0 and 1 are merged, the subsequent convergence
+work through PR #102 is merged, and no wave is release-qualified. DO NOT SHIP.**
 
-Landed on `main` since: PR #61 route sculpting, #65 homelab LAN CI, #67 Luna
-human-QA framework, #78 pre-beta audit evidence, #79 pre-beta stabilization,
-#83 graphics UX foundation, #84 phase-1 sync. Open integration stack:
-#82 → #66 → #80 → #81.
+Current `main` is
+`c91858479c176119ba633580cfc0902c6863ba8c`. Since the prior checkpoint, #82
+landed the canonical map authority; #88 cleared the dependency/fallback-renderer
+gate; #89–#94 fixed and closed the product-truth lane; #95–#101 completed the
+shipped Prepare Ride slice; and #102 established a bounded planning
+orchestrator plus store-free presentation boundary. PR #66 is closed without
+merge. PRs #80 and #81 remain stale salvage-only drafts, not an integration
+stack.
 
-**Next task:** Astra Wave 2 (planning/comparison) per
-[IMPLEMENTATION-BACKLOG](IMPLEMENTATION-BACKLOG.md) dependency order, gated on
-the open integration stack reconciling first.
+**Next task:** remediate and RED-test the two reproducible blockers found by
+the exact-head Luna pass (selected-place identity preservation and recording
+permission-denial recovery), then deploy and re-qualify the replacement SHA
+before the real-iPhone checklist. Do not open Astra Wave 2 or another
+refactor/UX wave in place of beta evidence.
 
 ## Repository and authority
 
-- Repo `/root/Vibe/switchback`, `main` @ `b53c177` (2026-09-08).
+- Repo `/root/Vibe/switchback`, `main` @ `c918584` (2026-09-09).
 - Wave 0 and the premium map-sculpting wave are now on `main`:
   - PR #61 `ux/map-native-route-sculpting` → `main` merge `de775f0bd59ada65de6b8f71deb5d12733da5388`.
   - Astra Wave 0 rebased onto that base, tip `e46d67cd158621b18c3a68b0b3b3578f874254e2`
     (17 commits `f10d196…16fa625` replayed unchanged; `git range-diff`
     confirmed content-identical, no squash).
   - PR #63 `implement/astra-wave-0` → `main` merge `3acc8562d688aaa84facf8ed100541e2c6e9d4bd`
-    (= current `main` HEAD).
+    (historical Wave 0 head; current `main` is recorded above).
   - Both feature branches deleted from the remote after merge.
 - Checkpoint base for review provenance: `f10d196228599ac6626bcc07ba7ce22540011228`
   (reviewed Astra package). Application baseline is now `main` @ `3acc856`.
@@ -235,9 +241,13 @@ Full exact-head local run, Node 24.15.0, after the baseline correction:
 
 ## Next exact task
 
-Merge PR #64 once every required check is green on this exact head, then open
-Wave 2 in `IMPLEMENTATION-BACKLOG.md` dependency order. Do not reopen the
-closed remediation campaign.
+The exact-candidate deployment and beta qualification against
+`c91858479c176119ba633580cfc0902c6863ba8c` completed the automated gates,
+served-build attestation, Luna black-box rider missions, and adversarial
+triage. The candidate is HOLD because the mission set reproduced wrong-place
+destination resolution and recording-control loss after GPS denial. Any code
+fix creates a new candidate and restarts the evidence chain. Do not reopen the
+closed remediation campaign or start a new architecture wave.
 
 ## Release boundaries
 
@@ -257,5 +267,6 @@ not current acceptance.
 
 ## Delegated ownership
 
-No delegation active. Root owns `implement/astra-wave-1` — branch, commits,
-docs, runtime, and integration.
+No implementation-wave delegation is active. Candidate QA workers may own
+bounded black-box rider missions; root owns the immutable-build evidence and
+deduplicated beta verdict.

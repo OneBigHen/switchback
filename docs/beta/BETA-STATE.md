@@ -1,17 +1,20 @@
 # Switchback beta state
 
 Updated: 2026-09-09
-Repository baseline: `main` @ `b8c0f96ce66a6b4edb2a4a48bd12295924e65f9e`
+Repository baseline: `main` @ `c91858479c176119ba633580cfc0902c6863ba8c`
 
 ## Verdict
 
-**HOLD — integration and the truth lane are both closed; beta qualification is
-not.**
+**HOLD — integration, the truth lane, the bounded planning-orchestration seam,
+and the Prepare Ride debloat slice are closed; beta qualification is not.**
 
 The supply-chain gate is green, the janitorial cleanup has landed, there is one
-canonical basemap authority, and all five product-truth defects are fixed. HOLD
-stands for the same reason it always did: none of the physical, deployed or
-human evidence exists yet, and no automated result can substitute for it.
+canonical basemap authority, and all five product-truth defects are fixed. An
+exact current build is now deployed and has fresh Luna evidence, but that
+evidence found two reproducible beta blockers (wrong-place destination
+resolution and recording controls disappearing after GPS denial) plus a high-
+confidence impossible Advisor percentage. Physical-device evidence remains
+open; no automated result substitutes for it.
 
 What the truth lane found is worth carrying forward. All five were the same
 shape — a value computed correctly in one place and never carried to the thing
@@ -31,39 +34,32 @@ over capability, tested five times.
 
 ## Exact next task
 
-**DB-7 test rewrite: point `route-comparison.test.tsx` at the configuration
-production actually ships.**
+**Remediate and RED-test the two reproducible beta blockers, then qualify the
+replacement immutable candidate before starting any more product or
+architecture work.**
 
-DB-1 is done — see `PREPARE-RIDE-AUDIT.md`. It found something that reorders the
-debloat queue: `tests/components/route-comparison.test.tsx` renders
-`RouteComparison` about fifteen times and passes `showRouteChoices` **zero**
-times, so every render exercises the default `true` branch. Production always
-passes `false` (`PlannerComposition.tsx:155`).
+PR #96 made the `RouteComparison` component tests use the configuration the app
+shipped, PR #97 retired the now-dead route chooser, PR #100 made weather detail
+contextual while keeping severe alerts primary, and PR #101 added a focused
+visual guard for the resulting preparation surface. PR #102 then extracted the
+bounded planning orchestrator and store-free presentation boundary. The former
+DB-7 and planning-orchestration tasks are complete; neither is the next task.
 
-Every DOM assertion about the preparation surface therefore describes a
-configuration the app never ships, and the shipped configuration has no
-component-level coverage at all. That has to be fixed before the surface is
-rearranged, or the rearrangement will be verified against the wrong branch.
+The current lane has completed exact-head gate health, deployment attestation,
+fresh Luna missions, and adversarial triage for `c918584`. The candidate found
+two blockers: selected-place identity is lost before route resolution, and a
+GPS-denied recording can become map-only. The next bounded lane is:
 
-Once those tests describe reality, the dead `showRouteChoices=true` branch
-(`RouteComparison.tsx:246-300`) can be retired, and the rest of the debloat
-sequence in `PREPARE-RIDE-AUDIT.md` becomes safe to execute.
+1. write RED tests for selected-place identity preservation and recording
+   permission-denial recovery;
+2. implement only those narrow remediations;
+3. deploy and re-verify a new exact SHA, then rerun automated and focused Luna
+   evidence;
+4. only if that replacement candidate is clean, begin the real-iPhone
+   checklist.
 
-Two findings from DB-1 that need an owner decision rather than an agent's
-judgement, both recorded in that document:
-
-- **Weather fetches when the disclosure mounts — and it must keep doing so.**
-  The panel renders severe-weather alerts in a `role="alert"` block above the
-  sample cards, so mounting it lazily would hide an alert from any rider who
-  did not open the weather section. You cannot know whether there is an alert
-  without fetching, so the request is the price of the warning being primary.
-  The available debloat is visual: collapse the sample cards, keep the fetch and
-  the elevated alert. `PREPARE-RIDE-AUDIT.md` records the correction.
-- **A pre-ride 5★ rating carries `+2` while a completed ride carries `+0.5`**
-  (`rider-preferences.ts:66-79`), and the result auto-reselects routes on the
-  next plan (`PlannerShell.tsx:333-345`). The model learns more from a guess
-  than from experience. Relocating the control post-ride does not by itself
-  answer whether that weighting is intended.
+Do not aggregate evidence across SHAs, and do not open another architecture or
+UX wave merely because the implementation backlog contains later work.
 
 ## Integration status
 
@@ -72,8 +68,12 @@ judgement, both recorded in that document:
 | #88 security | **MERGED** `454b76ce630837bdddc7dad4211429c51aa3e19c` | 4 advisories cleared; `npm audit --audit-level=moderate` → 0 vulnerabilities |
 | #86 janitorial | **MERGED** `8849dc2949ea4c23ad903e1d8801a5057f9349f6` | deletion-only cleanup; `better-sqlite3` → `node:sqlite`; tree stays clean after a visual run |
 | #82 map presentation | **MERGED** `01f8b53233dd7ec53399b9571b92274c54b69d71` | one basemap authority: `road \| terrain \| satellite` |
-| #85 beta control plane | this branch | rebased onto the three merges above |
-| #66 / #80 / #81 | STALE DRAFTS, salvage ledgers written | see `SALVAGE-LEDGERS.md`; close after ports land |
+| #85 beta control plane | **MERGED** `5bc7cbc5e6ad44fce03ade7d84140a4b81c793f2` | current convergence authority |
+| #89–#94 truth lane | **MERGED / CLOSED** through `f501b41ef3089423f9d55cc4222188a0cceb6273` | five RED-first fixes plus truth-lane closeout |
+| #95–#101 Prepare Ride | **MERGED** through `bfa3cb5b7b676fc8cf7bd4113850dbed3af2ad80` | audit, shipped-config test, dead chooser retirement, contextual weather and visual guard |
+| #102 planning orchestration | **MERGED** `c91858479c176119ba633580cfc0902c6863ba8c` | bounded lifecycle owner; store-free presentation boundary |
+| #66 | **CLOSED, NOT MERGED** | salvage ledger remains evidence; BETA-014 already landed separately |
+| #80 / #81 | OPEN STALE DRAFTS | salvage-only; not the current beta lane |
 
 All three merges were made only on an exact-head green run of the nine required
 checks (`build`, `critical-e2e`, `lint`, `pwa`, `real-router`, `road-lock`,
@@ -140,7 +140,7 @@ Unchanged from the previous checkpoint except where integration touched it.
 | Planner store / RideIntent | HEALTHY DIRECTION | no second authority |
 | Map presentation | **CONSOLIDATED** (#82) | presets are the authority; legacy ids only at storage/migration |
 | MapLibre rollback renderer | **SECURE + TESTED** (#88) | now requires WebGL2 — record in the device review |
-| PlannerShell | OVER-CONCENTRATED | extract one lifecycle at a time |
+| PlannerShell | BOUNDED PLANNING OWNER EXTRACTED (#102) | no follow-on architecture wave during candidate qualification |
 | PlannerMapStage | OVER-CONCENTRATED | exclusive interaction owner before more editing modes |
 | PlanComposer | HIGH WIRING COST | group model/commands, no new global context |
 | Global CSS authority | MIGRATION DEBT | 108 candidate dead rules remain; small visual-verified batches only |
@@ -178,28 +178,50 @@ spec expects it to reject. CI's `real-router` job is authoritative and has been
 green on every merge above. Do not treat a local failure there as a regression
 without first reproducing it on an untouched checkout.
 
-## Automated beta evidence
+## Automated and deployed beta evidence
 
 Branch protection requires the nine checks named above. A final beta candidate
 additionally follows `docs/astra/RELEASE-GATES.md`.
 
-There is still **no single exact candidate documented here as fully green and
-deployed**. Do not aggregate passes from different SHAs into a beta claim.
+Candidate `c91858479c176119ba633580cfc0902c6863ba8c` is the one attested
+deployment at https://ride.henning.rodeo, build
+`build-TfctsWXpff2fKS`. Quality run `34368327230` attempt 2 is green for the
+required contexts (`build`, `critical-e2e`, `lint`, `pwa`, `real-router`,
+`road-lock`, `typecheck`, `visual`, `vitest`) plus `verify`, `rider-journeys`,
+and `pwa-smoke`; Mobile Core run `34368327247` is also green. Attempt 1 had a
+Playwright system-package installation timeout before the app suites ran and
+is retained as an infrastructure event, not erased by the rerun.
+
+Raw public HTML and loaded Next assets carry the exact SHA deployment marker;
+the public health endpoint is green and both routers are healthy. The
+candidate-specific attestation and Luna synthesis are in
+`docs/quality/evidence/2026-09-09-c918584-luna/`.
+
+The Luna pass was fresh, black-box, and exact-SHA, but it is a HOLD: Missions 2
+and 4 independently resolved selected towns to distant streets/POIs, and
+Mission 8 plus a coordinator recheck reproduced map-only recording after GPS
+permission denial. Mission 6 also showed a transient `240% unpaved` Advisor
+status. No code fix was made, so all findings and the deployed evidence remain
+tied to this SHA.
 
 ## Physical/human evidence
 
-Still entirely open. No fresh exact-candidate pass exists for:
+The physical gate is **NOT RUN**. The exact checklist is
+`docs/quality/PHYSICAL_IPHONE_BETA_CHECKLIST_2026-09-09.md`; it is tied to the
+candidate above and marks every physical step pending. It covers:
 
-- real iPhone installed PWA;
-- safe areas and short landscape;
-- background/foreground GPS and session continuity;
-- weak/no network;
-- real off-route/reroute recovery;
-- Free Ride → suggestion → Head Home without losing recording or hard constraints;
-- keyboard/accessibility alternatives for editing flows;
-- daylight/mounted/glove glanceability;
-- at least one real safe road ride;
-- a fresh black-box Luna run against the same deployed SHA.
+- installed PWA, portrait, landscape, short landscape, safe areas, and touch
+  targets;
+- permission denial/recovery, foreground/background GPS, screen lock, and
+  interruption/resume;
+- weak/no network, route recovery, and reroute;
+- Free Ride → suggestion → Head Home while recording, with rider constraints
+  preserved;
+- daylight/glanceability and accessibility basics.
+
+Do not claim a physical pass until a real iPhone run records the device,
+viewport/orientation, exact candidate marker, actions, and result for each
+step.
 
 `MapLibre v6 requires WebGL2` is new input for the device review: it narrows the
 **fallback** renderer's floor. The premium Mapbox path is unaffected.
