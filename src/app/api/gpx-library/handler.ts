@@ -1,6 +1,7 @@
 import path from "node:path"
 import { readJsonCached } from "@/lib/gpx/catalog-cache"
 import { readAtlasArt } from "@/lib/gpx/atlas"
+import type { AtlasRouteArt } from "@/lib/gpx/atlas"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import type { RouteStoryInput } from "@/lib/gpx/route-story"
 import { isGpxIntelligenceReport } from "@/lib/gpx/intelligence"
@@ -23,6 +24,21 @@ export interface PublicAtlasRoute {
   profile?: string
   story: ReturnType<typeof buildRouteStory>
   art: boolean
+  duplicateFamilyId?: string
+  duplicateFamilySize?: number
+  duplicateFamilyRole?: "canonical" | "near-duplicate"
+  duplicateOf?: string
+  /**
+   * Lightweight atlas path data is opt-in (`?preview=1`) so non-visual catalog
+   * consumers keep the original small payload. It is the route's real
+   * precomputed shape, never decorative or generated artwork.
+   */
+  preview?: {
+    paths: string[]
+    start?: readonly [number, number]
+    end?: readonly [number, number]
+    aspect?: number
+  }
   /**
    * Real-world extent as `[west, south, east, north]` in degrees, present when
    * poster art was generated for this route. Lets a client sort the library by
@@ -31,16 +47,19 @@ export interface PublicAtlasRoute {
   bbox?: readonly [number, number, number, number]
 }
 
-/** Story + art metadata for a listed route; never host paths or geometry. */
+/** Story + art metadata for a listed route; never host paths or full geometry. */
 type AtlasListingInput = RouteStoryInput & {
   sourceProject: string
   profile?: string
+  duplicateFamilyId?: string
+  duplicateFamilySize?: number
+  duplicateFamilyRole?: "canonical" | "near-duplicate"
 }
 
 function publicAtlasRoute(
   route: AtlasListingInput,
-  hasArt: boolean,
-  bbox: readonly [number, number, number, number] | undefined
+  art: AtlasRouteArt | undefined,
+  includePreview: boolean
 ): PublicAtlasRoute {
   return {
     id: route.id,
@@ -52,8 +71,20 @@ function publicAtlasRoute(
     sourceProject: route.sourceProject,
     ...(route.profile ? { profile: route.profile } : {}),
     story: buildRouteStory(route),
-    art: hasArt,
-    ...(bbox ? { bbox } : {})
+    art: Boolean(art),
+    ...(route.duplicateFamilyId ? { duplicateFamilyId: route.duplicateFamilyId } : {}),
+    ...(typeof route.duplicateFamilySize === "number" ? { duplicateFamilySize: route.duplicateFamilySize } : {}),
+    ...(route.duplicateFamilyRole ? { duplicateFamilyRole: route.duplicateFamilyRole } : {}),
+    ...(art?.duplicateOf ? { duplicateOf: art.duplicateOf } : {}),
+    ...(art?.bbox ? { bbox: art.bbox } : {}),
+    ...(includePreview && art ? {
+      preview: {
+        paths: art.paths.map((piece) => piece.d),
+        ...(art.start ? { start: art.start } : {}),
+        ...(art.end ? { end: art.end } : {}),
+        ...(typeof art.aspect === "number" ? { aspect: art.aspect } : {})
+      }
+    } : {})
   }
 }
 
@@ -105,9 +136,11 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
   try {
     const manifest = await readJsonCached(
       path.join(catalogRoot, "manifest.json")
-    ) as import("@/lib/gpx/catalog").ProjectGpxCatalog & { routes: Array<Parameters<typeof buildRouteStory>[0] & { profile?: string }> }
+    ) as import("@/lib/gpx/catalog").ProjectGpxCatalog & { routes: Array<Parameters<typeof buildRouteStory>[0] & AtlasListingInput> }
     const atlasArt = await readAtlasArt(catalogRoot)
-    const requestedId = new URL(request.url).searchParams.get("id")
+    const url = new URL(request.url)
+    const requestedId = url.searchParams.get("id")
+    const includePreview = url.searchParams.get("preview") === "1"
 
     if (!requestedId) {
       return json({
@@ -120,7 +153,7 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
         duplicateFamilies: manifest.duplicateFamilies ?? 0,
         nearDuplicateFamilies: manifest.nearDuplicateFamilies ?? 0,
         nearDuplicateRoutes: manifest.nearDuplicateRoutes ?? 0,
-        routes: manifest.routes.map((route) => publicAtlasRoute(route, Boolean(atlasArt[route.id]), atlasArt[route.id]?.bbox))
+        routes: manifest.routes.map((route) => publicAtlasRoute(route, atlasArt[route.id], includePreview))
       })
     }
 
