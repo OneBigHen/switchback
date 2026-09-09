@@ -1,5 +1,6 @@
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { centerOfBbox, centerOfPath } from "@/lib/client/geo"
+import { simplifyGeometry } from "@/lib/routing/scoring"
 import type { Coordinate } from "@/lib/routing/types"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { SavedRoute } from "@/lib/storage/route-library"
@@ -17,6 +18,22 @@ function recordedDurationMinutes(ride: RecordedRide): number {
 /** Representative point for "distance from me" ordering; null when unplaceable. */
 function centerOf(geometry: Coordinate[] | undefined): readonly [number, number] | null {
   return Array.isArray(geometry) ? centerOfPath(geometry) : null
+}
+
+/**
+ * The ride's own shape, reduced to what a card-sized thumbnail can show.
+ *
+ * Simplified rather than copied: the list holds every ride the rider owns, and
+ * none of them needs full route detail at 100x72. `simplifyGeometry` keeps the
+ * real endpoints and drops interior points within tolerance of the chord, so
+ * the result is still this ride's shape — coarser, never invented.
+ *
+ * `undefined` when the source stored no geometry. That is a fact the card
+ * reports; it must not be filled in with a plausible-looking line.
+ */
+function previewGeometry(geometry: Coordinate[] | undefined): readonly Coordinate[] | undefined {
+  if (!Array.isArray(geometry) || geometry.length < 2) return undefined
+  return simplifyGeometry(geometry)
 }
 
 export interface NormalizeRidesInput {
@@ -48,6 +65,7 @@ export function normalizeRideLibrary({
       durationMinutes: route.durationMinutes,
       updatedAt: route.updatedAt,
       center: centerOf(route.geometry),
+      geometry: previewGeometry(route.geometry),
       tags: route.tags ?? [],
       management: {
         canDelete: true,
@@ -67,6 +85,7 @@ export function normalizeRideLibrary({
       durationMinutes: recordedDurationMinutes(ride),
       updatedAt: ride.endedAt || ride.updatedAt,
       center: centerOf(ride.route.geometry),
+      geometry: previewGeometry(ride.route.geometry),
       tags: ride.photos.length > 0 ? [`${ride.photos.length} photo${ride.photos.length === 1 ? "" : "s"}`] : [],
       management: { canDelete: true }
     })),
@@ -80,6 +99,7 @@ export function normalizeRideLibrary({
       durationMinutes: trip.route.durationMinutes,
       updatedAt: trip.updatedAt,
       center: centerOf(trip.route.geometry),
+      geometry: previewGeometry(trip.route.geometry),
       tags: [],
       management: { canDelete: true }
     })),

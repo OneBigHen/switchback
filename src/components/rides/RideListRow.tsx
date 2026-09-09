@@ -2,7 +2,7 @@
 
 import { ArrowRight, DotsThree } from "@phosphor-icons/react"
 import { useState } from "react"
-import { RouteGraphic } from "@/components/v2/RouteGraphic"
+import { RouteThumbnail } from "@/components/graphics"
 import { formatAway } from "@/lib/client/geo"
 import type { RideLibraryItem } from "./RidesSurface"
 import styles from "./RidesSurface.module.css"
@@ -60,7 +60,13 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
       <div className={styles.rowPrimary}>
         <button className={styles.openButton} type="button" aria-label={`Open ${item.name}`} onClick={() => onOpen(item)}>
           <span className={styles.routeGraphic}>
-            <RouteGraphic seed={item.id} variant="route" />
+            {/*
+              The ride's own stored shape, or an explicit "unavailable" glyph.
+              Never a seeded procedural path: on a named ride a generated line
+              is indistinguishable from the real route to the person who rode
+              it.
+            */}
+            <RouteThumbnail points={item.geometry ?? []} />
             <small>{kindLabel(item)}</small>
           </span>
           <span className={styles.identity}>
