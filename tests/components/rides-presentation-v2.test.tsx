@@ -13,7 +13,7 @@ const items: RideLibraryItem[] = [
 afterEach(cleanup)
 
 describe("Rides V2 presentation", () => {
-  it("shows source counts in accessible filter controls and generated route identity graphics", () => {
+  it("shows source counts in accessible filter controls and one route identity graphic per row", () => {
     const { container } = render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 
     expect(screen.getByRole("button", { name: /All 4/i })).toHaveAttribute("aria-pressed", "true")
@@ -21,7 +21,14 @@ describe("Rides V2 presentation", () => {
     expect(screen.getByRole("button", { name: /Recorded 1/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Trips 1/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Imported 1/i })).toBeInTheDocument()
-    expect(container.querySelectorAll("[data-route-graphic]").length).toBeGreaterThanOrEqual(5)
+    // Every row still carries a visual identity — but it is the ride's own
+    // shape, or an honest "unavailable" glyph, never a generated one. These
+    // fixtures carry no geometry, so all four rows say so.
+    expect(container.querySelectorAll("[data-route-thumbnail]").length).toBe(4)
+    expect(container.querySelectorAll('[data-route-thumbnail="unavailable"]').length).toBe(4)
+    // The remaining decorative graphic is the destination header, which is not
+    // claiming to be any particular ride.
+    expect(container.querySelectorAll('[data-route-graphic="route"]').length).toBe(0)
   })
 
   it("keeps the import action and object-first ride names prominent", () => {

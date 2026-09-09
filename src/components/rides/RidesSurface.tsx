@@ -11,6 +11,7 @@ import { ImportFlow } from "./ImportFlow"
 import { RideFilters, type RideFilter, type RideFilterCounts } from "./RideFilters"
 import { RideListRow } from "./RideListRow"
 import styles from "./RidesSurface.module.css"
+import type { Coordinate } from "@/lib/routing/types"
 
 export type RideLibraryItemKind = "saved-route" | "recorded-ride" | "trip-plan" | "project-gpx"
 
@@ -33,6 +34,12 @@ export interface RideLibraryItem {
   updatedAt: string | null
   /** Representative `[lon, lat]` for distance-from-me ordering; null when unplaceable. */
   center?: readonly [number, number] | null
+  /**
+   * Simplified `[lon, lat]` preview of the ride's own shape, for the card
+   * thumbnail. Absent when the source stored no geometry — which the card must
+   * then say, rather than drawing something plausible.
+   */
+  geometry?: readonly Coordinate[]
   tags: string[]
   management?: RideLibraryManagement
 }
