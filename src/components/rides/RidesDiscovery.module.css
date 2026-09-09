@@ -1,0 +1,99 @@
+.regionBrowser {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--sb-border) 88%, transparent);
+  border-radius: var(--sb-radius-card, 12px);
+  background: color-mix(in srgb, var(--sb-surface) 88%, transparent);
+}
+
+.regionField {
+  display: grid;
+  grid-template-columns: auto minmax(0, 220px);
+  align-items: center;
+  gap: 10px;
+  color: var(--sb-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.regionField select {
+  min-height: 40px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control, 10px);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.areaChips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  scrollbar-width: none;
+}
+
+.areaChips::-webkit-scrollbar {
+  display: none;
+}
+
+.areaChips button {
+  min-height: 38px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: var(--sb-surface);
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.areaChips button[aria-pressed="true"] {
+  border-color: var(--sb-ink);
+  background: var(--sb-ink);
+  color: var(--sb-paper);
+  box-shadow: inset 0 -2px 0 var(--sb-ember-strong);
+}
+
+.routeSummary {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sb-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 560px) {
+  .regionBrowser {
+    padding: 9px 10px;
+  }
+
+  .regionField {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .regionField select {
+    width: 100%;
+    font-size: 16px;
+  }
+
+  .routeSummary {
+    -webkit-line-clamp: 1;
+  }
+}
