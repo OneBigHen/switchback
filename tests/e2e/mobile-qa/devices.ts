@@ -58,7 +58,6 @@ export const MOBILE_QA_DEVICES: readonly MobileQaDevice[] = [
 
 const CORE_SPEC = /\/mobile-qa\/core\/.*\.spec\.ts$/
 const LAYOUT_OR_VISUAL_SPEC = /\/mobile-qa\/(?:layout\/mobile\.layout|visual\/mobile\.visual)\.spec\.ts$/
-const DEBUG_TRACE_SPEC = /\/mobile-qa\/core\/debug-free-ride-trace(?:\.spec)?\.ts$/
 
 function projectUseFor(device: MobileQaDevice): Project["use"] {
   const base = device.engine === "webkit" ? WEBKIT_BASE : CHROMIUM_BASE
@@ -78,7 +77,6 @@ function projectFor(device: MobileQaDevice): Project {
   return {
     name: device.id,
     testMatch: isCore ? [CORE_SPEC] : [LAYOUT_OR_VISUAL_SPEC],
-    testIgnore: [DEBUG_TRACE_SPEC],
     use: projectUseFor(device),
   }
 }
@@ -101,7 +99,6 @@ export function mobileQaProjects(): NonNullable<PlaywrightTestConfig["projects"]
     {
       name: "webkit-prepare",
       testMatch: [/\/mobile-qa\/visual\/prepare\.visual\.spec\.ts$/],
-      testIgnore: [DEBUG_TRACE_SPEC],
       use: projectUseFor(standardWebKit),
     },
   ]
