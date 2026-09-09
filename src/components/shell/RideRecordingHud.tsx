@@ -56,12 +56,13 @@ interface RideRecordingHudProps {
  * that matters.
  */
 export function RideRecordingHud({ controller, onDiscard }: RideRecordingHudProps) {
-  const { state, clock, elapsedMillis, pause, resume, finish } = controller
+  const { state, clock, elapsedMillis, pause, resume, retryGps, finish } = controller
   const discard = onDiscard ?? controller.discard
   const telemetry = recordingTelemetry(state, clock)
   const paused = state.status === "paused"
   const denied = state.status === "denied"
   const error = state.status === "error"
+  const gpsFailed = denied || error
 
   useEffect(() => {
     const root = document.documentElement
@@ -104,7 +105,7 @@ export function RideRecordingHud({ controller, onDiscard }: RideRecordingHudProp
 
       <div className="recording-main" role="status" aria-live="off">
         <div className="ride-speed-badge recording-speed">
-          <strong>{denied || error ? "—" : speed}</strong>
+          <strong>{gpsFailed ? "—" : speed}</strong>
           <span>mph</span>
         </div>
         <div className="recording-altitude">
@@ -162,13 +163,18 @@ export function RideRecordingHud({ controller, onDiscard }: RideRecordingHudProp
       </footer>
 
       <div className="recording-controls" aria-label="Recording controls">
-        {paused ? (
+        {gpsFailed ? (
+          <button type="button" className="recording-resume" onClick={retryGps}>
+            <Play weight="fill" aria-hidden="true" />
+            Try GPS again
+          </button>
+        ) : paused ? (
           <button type="button" className="recording-resume" onClick={resume}>
             <Play weight="fill" aria-hidden="true" />
             Resume
           </button>
         ) : (
-          <button type="button" className="recording-pause" onClick={pause} disabled={denied || error}>
+          <button type="button" className="recording-pause" onClick={pause}>
             <Pause weight="fill" aria-hidden="true" />
             Pause
           </button>
