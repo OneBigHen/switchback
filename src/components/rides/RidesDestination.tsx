@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { RoadLock, RoadLockMode } from "@/lib/roads/road-locks"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
@@ -84,12 +84,12 @@ export function RidesDestination(props: RidesDestinationProps) {
     ? previewCatalog.routes
     : projectRoutes
 
-  const items = useMemo(() => normalizeRideLibrary({
+  const items = normalizeRideLibrary({
     savedRoutes: props.routes,
     recordedRides,
     trips,
     projectRoutes: displayProjectRoutes
-  }), [displayProjectRoutes, props.routes, recordedRides, trips])
+  })
 
   const savedRouteFor = (item: RideLibraryItem) => {
     const sourceId = item.sourceId ?? item.id
