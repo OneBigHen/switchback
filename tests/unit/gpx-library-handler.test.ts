@@ -61,7 +61,7 @@ async function catalogRoot(): Promise<string> {
 }
 
 describe("GPX catalog listing for Rides", () => {
-  it("returns grounded stories, duplicate truth, and lightweight real route paths", async () => {
+  it("keeps the ordinary catalog lightweight while returning story, duplicate truth, and bbox", async () => {
     const root = await catalogRoot()
     const response = await handleGpxCatalogRequest(new Request("http://switchback.test/api/gpx-library"), root)
     const body = await response.json() as { routes: Array<Record<string, unknown>> }
@@ -73,15 +73,9 @@ describe("GPX catalog listing for Rides", () => {
       duplicateFamilyId: "bald-eagle-family",
       duplicateFamilyRole: "canonical",
       bbox: [-77.9, 40.75, -77.25, 41.1],
-      story: {
-        title: "Bald Eagle Dual Sport Loop"
-      },
-      preview: {
-        paths: ["M8 110 L35 60 L76 82 L92 12"],
-        start: [8, 110],
-        end: [92, 12]
-      }
+      story: { title: "Bald Eagle Dual Sport Loop" }
     })
+    expect(body.routes[0]).not.toHaveProperty("preview")
     expect(body.routes[1]).toMatchObject({
       id: "bald-eagle-copy",
       duplicateOf: "bald-eagle"
@@ -89,13 +83,19 @@ describe("GPX catalog listing for Rides", () => {
     expect(body.routes[1]).not.toHaveProperty("preview")
   })
 
-  it("lets non-visual catalog consumers opt out of preview paths", async () => {
+  it("adds the real lightweight route path only when a visual consumer asks for preview=1", async () => {
     const root = await catalogRoot()
-    const response = await handleGpxCatalogRequest(new Request("http://switchback.test/api/gpx-library?preview=0"), root)
+    const response = await handleGpxCatalogRequest(new Request("http://switchback.test/api/gpx-library?preview=1"), root)
     const body = await response.json() as { routes: Array<Record<string, unknown>> }
 
-    expect(body.routes[0]).not.toHaveProperty("preview")
-    expect(body.routes[0]).toHaveProperty("story")
-    expect(body.routes[0]).toHaveProperty("bbox")
+    expect(response.status).toBe(200)
+    expect(body.routes[0]).toMatchObject({
+      preview: {
+        paths: ["M8 110 L35 60 L76 82 L92 12"],
+        start: [8, 110],
+        end: [92, 12]
+      }
+    })
+    expect(body.routes[1]).not.toHaveProperty("preview")
   })
 })
