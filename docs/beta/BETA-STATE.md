@@ -146,6 +146,30 @@ Unchanged from the previous checkpoint except where integration touched it.
 | Global CSS authority | MIGRATION DEBT | 108 candidate dead rules remain; small visual-verified batches only |
 | UI customization | QA MULTIPLIER | audit consumption; hiding arbitrary route-detail ordering is a beta candidate |
 
+## Known CI flake — a required check hung for 30 minutes
+
+Recorded because "required CI red or unexplained/flaky in release scope" is
+itself a HOLD condition, so this cannot be waved away at release review.
+
+On 2026-09-09, PR #98 — a **two-file markdown diff** — had `rider-journeys`
+cancelled at exactly 30m00s (11:31:21 → 12:01:21). Every setup step succeeded;
+the `Critical rider journeys in Chromium` step simply never completed.
+`critical-e2e` and `road-lock` report from that same job and so showed as
+failures after 3–4 seconds without running.
+
+Re-running the identical commit passed in **4m49s**, its normal duration. So the
+first attempt hung for roughly six times its usual runtime before the job
+timeout killed it.
+
+One observation, not a pattern. But it is a required check hanging rather than
+failing, on a change that cannot affect it, and it must not be dismissed as
+noise if it recurs during release qualification. If a second instance appears,
+treat it as a runner defect worth chasing — the homelab runner is shared, and a
+hang looks identical to a slow suite until it is killed.
+
+Do not adopt "re-run until green" as a habit. It works here only because the
+diff was provably incapable of causing the failure and the re-run was fast.
+
 ## Known environmental note
 
 `real-router` fails 3 of 5 on the homelab workstation and **identically on
