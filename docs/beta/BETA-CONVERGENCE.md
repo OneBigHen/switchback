@@ -1,16 +1,21 @@
 # Switchback beta convergence program
 
 Date: 2026-09-09
-Baseline: `main` @ `01f8b53233dd7ec53399b9571b92274c54b69d71`
+Baseline: `main` @ `c91858479c176119ba633580cfc0902c6863ba8c`
 
-> **Gate 0 (clean integration lane) is closed.** #88 security
-> (`454b76c...`), #86 janitorial (`8849dc2...`) and #82 canonical map
-> presentation (`01f8b53...`) are merged, each on an exact-head green run of
-> the nine required checks. The dependency audit reports 0 vulnerabilities.
-> The stale-draft salvage ledgers are in `SALVAGE-LEDGERS.md`.
+> **Current execution overlay (2026-09-09).** Gates 0 and 1 are closed. The
+> five BETA-010–014 truth defects landed in #89–#93; #94 closed that lane.
+> The Prepare Ride slice landed in #95–#101, and #102 established the bounded
+> planning orchestrator and store-free presentation boundary described by the
+> first part of Gate 2. PR #66 is closed without merge; #80 and #81 remain
+> stale salvage-only drafts.
 >
-> The program below is otherwise unchanged. Start at Gate 1, with BETA-014 as
-> the first task — it is now a confirmed defect rather than a suspicion.
+> Do not restart at BETA-014, #82, DB-7, or another architecture wave. Gate 8
+> evidence now exists for candidate `c918584`, but Luna triage found wrong-place
+> destination resolution and recording-control loss after GPS denial. The
+> current task is a narrow RED-first remediation and exact-head requalification
+> before the real-iPhone checklist. The design program below remains useful as
+> product rationale, not permission to skip ahead.
 
 ## Executive decision
 
@@ -42,11 +47,11 @@ Do not rewrite these merely to make folders prettier:
 
 No Redux/XState/event-bus/service-container rewrite. No new routing engine, model gateway, vector DB, generic plugin framework, microservices, or learned route ranker for beta.
 
-## Current integration ledger
+## Closed integration ledger
 
 ### PR #82 — map presentation
 
-**Disposition: finish and integrate first.**
+**Disposition: merged as `01f8b53233dd7ec53399b9571b92274c54b69d71`.**
 
 Why it matters:
 
@@ -57,21 +62,12 @@ Why it matters:
 - unifies map viewport measurement;
 - wires #83 map-style previews into the real picker.
 
-Latest observed head at this checkpoint: `8109809a047b1fb37c0484bc289a173d3db43749`.
-
-Observed CI on that head: Mobile Core succeeded; real-router, visual, and rider-journey jobs succeeded in the observed Quality run, but the Quality run itself failed early in the `verify` job at **Dependency audit (moderate+)**, causing later lint/typecheck/unit/build steps in that job to be skipped. Treat this as a real integration blocker until the advisory is classified. Do not assume it is product-code failure; do not waive it silently either.
-
-Required before merge:
-
-- identify exact `npm audit` advisory/package path;
-- decide upgrade/override/accepted-risk with rationale;
-- rerun exact-head required checks;
-- rebase if main moved;
-- verify the graphics foundation remains intact after conflict resolution.
+The dependency blocker was resolved by #88 before merge. The fallback-renderer
+worker assets and visual coverage remain protected contracts.
 
 ### PR #66 — geometry-first Rides intelligence
 
-**Disposition: salvage, do not merge wholesale.**
+**Disposition: closed without merge; its ledger remains salvage evidence.**
 
 Valuable pieces:
 
@@ -207,9 +203,11 @@ Run a **style authority retirement audit**:
 
 Value: smaller bundle, fewer responsive regressions, less agent confusion. Risk: high if done as mass deletion; perform per surface.
 
-## Product truth bugs to test before more UX work
+## Closed product-truth regressions to preserve
 
-These are code-read findings, not yet claimed runtime defects. Convert each into a failing deterministic test before changing behavior.
+These five findings were converted to RED tests and fixed in #89–#93. The
+scenarios remain regression contracts; they are not an open implementation
+queue.
 
 ### A. Natural-language toll coherence
 
@@ -444,20 +442,22 @@ Do not implement negative/zero-value work during beta convergence without an exp
 
 ## Sequencing
 
-### Gate 0 — clean integration lane
+### Gate 0 — clean integration lane — COMPLETE
 
 - resolve #82 dependency audit and merge only on exact-head green;
 - rebase this beta-control branch on the resulting main;
 - classify #66/#80/#81 into salvage commits/tasks and close superseded drafts when accounted for;
 - no new large feature branch until this lane is clean.
 
-### Gate 1 — correctness before polish
+### Gate 1 — correctness before polish — COMPLETE
 
 Write/fix tests for toll coherence, stale segment profiles, role truth, duration provenance and any current high-confidence QA blockers.
 
-### Gate 2 — agent-friendly ownership seams
+### Gate 2 — agent-friendly ownership seams — PARTIALLY COMPLETE, PAUSED
 
-Extract planning orchestration and the minimum next-needed controller from PlannerShell with no behavior change. Refactor PlanComposer prop contract. No redesign in structural PRs.
+PR #102 extracted planning orchestration and the store-free presentation
+boundary. No additional architecture work is implied while candidate
+qualification is active.
 
 ### Gate 3 — personal Rides + canonical ride facts
 
@@ -479,9 +479,14 @@ Exclusive gesture mode, then direct-manipulation polish. No giant MapStage rewri
 
 Integrate only validated #80/#81 preference/memory value through canonical typed commands.
 
-### Gate 8 — ride/session qualification
+### Gate 8 — ride/session qualification — CURRENT, CANDIDATE HOLD
 
-Free Ride/navigation continuity, physical device, PWA/offline truth, deployed exact-build smoke and Luna black-box QA.
+Candidate `c91858479c176119ba633580cfc0902c6863ba8c` has exact-build smoke,
+automated gates, and fresh Luna black-box evidence. The pass reproduced silent
+wrong-place destination resolution and recording-control loss after GPS denial,
+so physical-device testing must wait for narrow RED-first fixes and a new
+attested SHA. Free Ride/navigation continuity, physical device, and PWA/offline
+truth remain open gates.
 
 Only after Gate 8 should cinematic 3D, broader provider federation or major new capability return to the queue.
 
