@@ -28,3 +28,4 @@ Supersede an ADR with a new one rather than rewriting history.
 | [0021](0021-premium-capabilities.md) | Server-declared, identity-gated premium capabilities; no billing, no client-only flags |
 | [0022](0022-route-policy-v2.md) | Route Policy V2: role-specific detour envelopes; V1 frozen for comparison |
 | [0023](0023-route-advisor.md) | The Gemini co-pilot proposes explanations, stops, and rides; it never ranks or selects a route |
+| [0024](0024-evidence-integrity.md) | A generated route is never its own evidence; absence is not negative evidence; community GPX is preference, not legal authority |

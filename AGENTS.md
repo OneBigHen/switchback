@@ -60,20 +60,31 @@ behind a clean interface — no generic provider framework, no microservices.
 or the Mapbox Navigation SDK, a learned/LLM route ranker, three permanent
 renderers, a plugin/provider marketplace, billing / Free-vs-Pro plans /
 entitlement tables, Redis, microservices, a social feed, native iOS/Android
-apps, CarPlay/Android Auto as a core phase.
+apps, CarPlay/Android Auto as a core phase, fully automatic route extraction
+from arbitrary map images (assisted alignment only — `lib/roads/road-locks.ts`).
 
 **Do not restart closed campaigns.** The 2026-08 UX remediation campaign closed
 with PR #20. Ledgers under `docs/quality/archive/` are evidence, not worklists.
+A 2026-09-08 janitorial pass removed the campaign's execution material (CINCO
+roadmap, phase reports P01–P36, module sweeps, V2/V2.1 wave docs, completed
+superpowers plans, historical spec ZIPs). Git history is the archive; do not
+reconstruct those files or mine them for new work.
 
 **Current wave.** The premium maps + routing wave opened 2026-08-29 (ADRs
 0015–0022, phases in `docs/release/ROADMAP-WAVES.md`). It is a deliberate new
 wave, not a reopening of the closed remediation campaign.
 
 **Astra implementation authority (2026-09-05).** `docs/astra/` is the approved
-product/interaction/architecture direction. `docs/release/ROADMAP-WAVES.md`
-records its integration into the same premium wave. Follow Astra backlog
-dependencies and release gates; do not run competing refactor roadmaps.
-Record exact implementation evidence and the next task in `ASTRA-STATE.md`.
+product/interaction/architecture direction, reduced on 2026-09-08 to its
+current set: `FULL-REFACTOR-SPEC` (entry point), `PRODUCT-NORTH-STAR`,
+`UX-AUDIT` (finding IDs U01…), `ARCHITECTURE-ASSESSMENT`, `INTERACTION-SPEC`,
+`DESIGN-SYSTEM`, `IMPLEMENTATION-BACKLOG`, `RELEASE-GATES`, and `ASTRA-STATE`.
+Waves 0 and 1 are merged, so their wave-specific instructions, the settled
+wave-reconciliation question, and the historical probe evidence are gone — git
+history holds them. `docs/release/ROADMAP-WAVES.md` records the integration
+into the same premium wave. Follow Astra backlog dependencies and release
+gates; do not run competing refactor roadmaps. Record exact implementation
+evidence and the next task in `ASTRA-STATE.md`.
 
 **Human exploratory QA.** When asked to test Switchback like a rider, run the
 protocol in `docs/quality/LUNA-HUMAN-QA.md`; one high-budget coordinator can use

@@ -1,13 +1,20 @@
 # Astra implementation checkpoint
 
-Updated 2026-09-06. **Wave 0 landed on `main`; Wave 1 is verification-complete
-on `implement/astra-wave-1` and merges on green (PR #64). No wave is
-release-qualified. DO NOT SHIP.**
+Updated 2026-09-08. **Waves 0 and 1 are both merged to `main` (PR #63
+2026-09-06, PR #64 2026-09-06). No wave is release-qualified. DO NOT SHIP.**
+
+Landed on `main` since: PR #61 route sculpting, #65 homelab LAN CI, #67 Luna
+human-QA framework, #78 pre-beta audit evidence, #79 pre-beta stabilization,
+#83 graphics UX foundation, #84 phase-1 sync. Open integration stack:
+#82 → #66 → #80 → #81.
+
+**Next task:** Astra Wave 2 (planning/comparison) per
+[IMPLEMENTATION-BACKLOG](IMPLEMENTATION-BACKLOG.md) dependency order, gated on
+the open integration stack reconciling first.
 
 ## Repository and authority
 
-- Repo `/root/Vibe/switchback`, working branch `implement/astra-wave-1`,
-  based on `main` @ `3acc8562d688aaa84facf8ed100541e2c6e9d4bd`.
+- Repo `/root/Vibe/switchback`, `main` @ `b53c177` (2026-09-08).
 - Wave 0 and the premium map-sculpting wave are now on `main`:
   - PR #61 `ux/map-native-route-sculpting` → `main` merge `de775f0bd59ada65de6b8f71deb5d12733da5388`.
   - Astra Wave 0 rebased onto that base, tip `e46d67cd158621b18c3a68b0b3b3578f874254e2`
@@ -84,15 +91,15 @@ release-qualified. DO NOT SHIP.**
   under `docs/astra/evidence/` and `docs/astra/evidence/wave0/` are historical
   evidence, not current acceptance.
 
-## Wave 1 — "One recoverable ride intent" (implemented, awaiting adversarial review)
+## Wave 1 — "One recoverable ride intent" (merged to `main`, PR #64, 2026-09-06)
 
-Branch `implement/astra-wave-1`. Application SHA `371e5df`; visual baselines
-`45e53bb`. Not merged, not deployed.
+Reviewed and merged. Not deployed, not release-qualified.
 
 **What changed.** Ride intent is one authored owner (`lib/domain/ride-intent` +
 the planner store's `editRide`); a route is an answer to one revision of it.
-Contract and rationale: `WAVE1-ARCHITECTURE.md`. Storage/rollback:
-`WAVE1-MIGRATION.md`. Both are authoritative; this file is the checkpoint.
+The wave's own architecture and migration documents were removed on 2026-09-08
+once the wave merged; the contracts they described are now the code, and this
+checkpoint plus git history carry the rationale.
 
 **Acceptance, against the Wave 1 list:**
 - One writable owner per route-defining field — done; no direct field setter
@@ -105,8 +112,9 @@ Contract and rationale: `WAVE1-ARCHITECTURE.md`. Storage/rollback:
 - Pending/result revision identity enforced — done, in the coordinator's single
   fenced gate and again in the store.
 - Controller-local abort — done.
-- Atomic IndexedDB checkpoint — done, **intent only** (decision recorded in
-  `WAVE1-ARCHITECTURE.md`); recovery replans automatically.
+- Atomic IndexedDB checkpoint — done, **intent only**: the checkpoint stores
+  the rider's intent and never route geometry, so recovery replans
+  automatically rather than restoring a stale result.
 - Safe migration without losing library data — done; the pre-Wave-1 key is
   read-only, and the UI index carries over through the store's storage bridge.
 - Cross-tab conflict detection — done, via a rotating write token.

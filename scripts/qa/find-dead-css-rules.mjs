@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// TASK-2.1: static dead-rule audit, originally for responsive.css. See
-// docs/quality/CSS-DEAD-RULES.md for why this replaced the coverage-based
-// approach the plan originally suggested, and for its own known blind spots
-// (interpolated class names, third-party-injected classes) -- always
-// spot-check anything this flags before deleting it.
+// Static dead-rule audit across every *.css file directly under
+// src/app/styles/.
 //
-// TASK-2.3 (2026-08-16) split responsive.css into per-component stylesheets
-// and deleted the god-file, so this now scans every *.css file directly
-// under src/app/styles/ rather than a single hardcoded target.
+// Static analysis rather than runtime coverage: a coverage run only proves a
+// rule was unused on the paths that run exercised, so it reports whatever the
+// suite happened not to visit as "dead". Reading the source finds every
+// reference the code can actually make.
+//
+// Known blind spots -- interpolated class names built at runtime, and classes
+// injected by third-party libraries (Mapbox/MapLibre controls) -- mean this is
+// EVIDENCE, NOT AUTHORITY. Always spot-check anything it flags, and delete in
+// batches checked against the visual suite rather than all at once.
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join, extname, relative } from "node:path"
 

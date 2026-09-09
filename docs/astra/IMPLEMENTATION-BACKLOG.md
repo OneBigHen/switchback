@@ -152,4 +152,4 @@ Implement in dependency order. Each wave is a coherent behavioral outcome; split
 
 Before each wave, record exact base SHA, current dirty state, scope, and gate. Do not reset the production checkout. Changes to the current product can ship through ordinary small PRs while later waves are designed, but no PR may create a second authoritative route intent. A failing gate becomes a named defect with a reproducer; it is not fixed by weakening an assertion or merely regenerating screenshots.
 
-See [WAVE-RECONCILIATION](WAVE-RECONCILIATION.md): waves 0–1 here are proposed to run as inserted phases of the open premium maps + routing wave in `docs/release/ROADMAP-WAVES.md`, not as a second, parallel sequencing authority.
+Waves 0–1 here run as inserted phases of the open premium maps + routing wave in [`docs/release/ROADMAP-WAVES.md`](../release/ROADMAP-WAVES.md#implementation-reconciliation--2026-09-05), never as a second, parallel sequencing authority. That reconciliation is settled, not open.
