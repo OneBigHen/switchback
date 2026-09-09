@@ -60,7 +60,6 @@ function renderIntent(runTripPlan = vi.fn().mockResolvedValue(null)) {
     home: null,
     targetMinutes: 120,
     avoidAreas: [],
-    segmentProfiles: [],
     nextSeed: () => 18,
     runTripPlan,
     setStopIdeas: vi.fn(),

@@ -39,7 +39,6 @@ interface UsePlannerRideIntentOptions {
   home: Waypoint | null
   targetMinutes: number
   avoidAreas: AvoidArea[]
-  segmentProfiles: RouteProfileId[]
   nextSeed(): number
   runTripPlan(request: TripPlanRequest): Promise<TripPlan | null>
   setStopIdeas(ideas: PlaceIdeasResult | null): void
@@ -58,7 +57,6 @@ export function usePlannerRideIntent({
   home,
   targetMinutes,
   avoidAreas,
-  segmentProfiles,
   nextSeed,
   runTripPlan,
   setStopIdeas,
@@ -147,6 +145,12 @@ export function usePlannerRideIntent({
         tollPolicy: intent.tollPolicy,
         profile: intent.profile as RouteProfileId,
         via: [],
+        // Per-leg styles describe legs, and this prompt just replaced them:
+        // `via: []` leaves a single leg where there may have been several.
+        // Cleared rather than truncated, because the rider stated one style
+        // for the new ride and keeping the old first-leg style would preserve
+        // a choice they did not repeat.
+        segmentProfiles: [],
         start: resolved.start,
         finish: nextFinish
       }, `Planned "${prompt.trim().slice(0, 60)}"`)
@@ -167,6 +171,7 @@ export function usePlannerRideIntent({
           message: `Couldn't get a live location, so this ride starts from ${sourceLabel}. Enable location access and plan again for an exact start.`
         })
       }
+      const freshSegmentProfiles = usePlannerStore.getState().segmentProfiles
       const request = buildRideTripRequest({
         mode: nextMode,
         start: usePlannerStore.getState().start,
@@ -180,7 +185,10 @@ export function usePlannerRideIntent({
         via: [],
         avoidHighways: intent.avoidHighways,
         avoidAreas,
-        segmentProfiles: segmentProfiles.length > 0 ? segmentProfiles : undefined,
+        // Read back from the store rather than from the value captured when
+        // this callback was created: the commit above has just cleared them,
+        // and the stale closure would put them straight back into the request.
+        segmentProfiles: freshSegmentProfiles.length > 0 ? freshSegmentProfiles : undefined,
         tollPolicy: intent.tollPolicy,
         planningId
       })
@@ -245,5 +253,5 @@ export function usePlannerRideIntent({
       setIntentSummary(raw)
       onNotice({ kind: "warning", message: raw })
     }
-  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, segmentProfiles, setIntentStatus, setIntentSummary, setResearchSources, setStopIdeas, targetMinutes])
+  }, [avoidAreas, gate, home, nextSeed, onNotice, runTripPlan, setIntentStatus, setIntentSummary, setResearchSources, setStopIdeas, targetMinutes])
 }
