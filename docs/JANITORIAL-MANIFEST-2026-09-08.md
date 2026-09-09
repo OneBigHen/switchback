@@ -203,7 +203,22 @@ create a rebase conflict for one.
 | `src/lib/client/map-experience.ts` `legacyMapStyleFor`, `src/lib/storage/map-pack-library.ts` | **#82** modifies both | Documented in the compatibility register instead of edited. Deletion condition is MapLibre retirement (roadmap phase 11) |
 | `PlannerShell.tsx` / `PlannerMapStage.tsx` decomposition | **#82** modifies both heavily | Not janitorial work — see §6 |
 
-Conflict risk was checked hunk-by-hunk, not assumed. The one edit this pass made
+### Integration-stack safety, verified rather than assumed
+
+All four open branches were test-merged against this cleanup with
+`git merge-tree`: **`implement/map-system-phase1` (#82),
+`feat/recorded-rides-route-intelligence` (#66),
+`feat/gravel-goblin-route-intent` (#80), and
+`feat/gravel-goblin-route-memory` (#81) all merge cleanly — zero conflicts.**
+
+A clean textual merge is not proof the result works, so #82 — by far the
+largest, and the only one that touches a file this pass edited — was actually
+merged in a scratch worktree and built: **typecheck passes and the merged suite
+is 341 files / 2,162 tests / 0 failed.** The merged tree contains no live
+reference to anything removed here (the remaining `switchback-v1.css` mentions
+are historical comments in other stylesheets, which were already accurate).
+
+Conflict risk was also checked hunk-by-hunk, not assumed. The one edit this pass made
 to a file an open PR touches is `PlannerShell.tsx` (the `LibraryDrawer` import at
 line 69 and its single JSX usage at line 1794). #82's hunks in that file are at
 lines 1–7, 13–22, 210, 858, 881, and 1414–1468 — no overlap, and not within
