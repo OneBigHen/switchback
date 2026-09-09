@@ -6,41 +6,114 @@ Scoring: `V` rider value, `T` trust/correctness reduced, `L` agent leverage, `C`
 
 ## Integration lane
 
-### BETA-001 — Classify and resolve current dependency-audit failure
+### BETA-001A — Patch Vitest advisory
 
-**Score:** V1 T5 L4 C1 X0 = 9
-**Parallel-safe:** yes, read-only investigation can run while code review proceeds.
+**Score:** V1 T4 L4 C1 X0 = 8
+**Parallel-safe:** yes, implementation is independent of renderer code but should land on/rebase into the same #82 integration head before final verification.
 
-**Rider problem:** red supply-chain gate blocks trustworthy integration even when product tests are healthy.
+**Rider problem:** a known vulnerable dev/test dependency keeps the supply-chain gate red and prevents the rest of the canonical map PR's verify job from running.
 
-**OWN:** `package.json`, lockfile, workflow dependency-audit policy only if a confirmed fix requires change.
+**Observed evidence:** PR #82's `npm audit --audit-level=moderate` reports `@vitest/mocker` through `vitest@4.1.10`, GHSA-82fw-gwwq-j7x9. CI reports a fixed `vitest@4.1.11`.
 
-**READ:** latest PR #82 workflow/job output, install-script policy, dependency tree.
+**OWN:** `package.json`, `package-lock.json`.
 
-**DO NOT CHANGE:** product code, branch protection, audit severity threshold merely to make CI green.
+**READ:** CI audit log, Vitest release notes only if tests reveal compatibility issues.
 
-**Work:** reproduce exact advisory; identify direct/transitive package, affected versions, exploit relevance, available patched version, compatibility risk. Prefer patch/minor dependency upgrade or narrow override with evidence. If no fix exists, document explicit temporary accepted risk; do not hide it.
+**DO NOT CHANGE:** test assertions, coverage policy, product code, audit severity.
 
-**Verify:** `npm ci`, repository install-script verification, `npm audit` command used by CI, lint/typecheck/unit/build if lockfile changes.
+**Work:** upgrade Vitest to 4.1.11 using npm so the lockfile is generated normally. Do not hand-edit integrity hashes.
 
-**Exit:** exact-head dependency audit classification is recorded and #82 can rerun without an unexplained early failure.
+**Verify:** `npm ci`, `npm run verify:install-scripts`, `npm audit --audit-level=moderate`, full Vitest, typecheck/lint/build. The audit may remain red solely for MapLibre until BETA-001B completes; record that explicitly.
+
+**Exit:** the Vitest/mocker advisory is absent and test behavior remains green.
+
+---
+
+### BETA-001B — Secure MapLibre rollback renderer migration
+
+**Score:** V2 T5 L5 C3 X0 = 9
+**Depends:** none technically; merge with/rebase into the #82 integration lane before final exact-head gate.
+**Coordinator review required:** yes — this is a runtime renderer/security migration, not a cheap dependency bump.
+
+**Rider problem:** Switchback's declared rollback renderer is on `maplibre-gl@5.24.0`, covered by a critical sanitizer-bypass advisory. The secure v6 line changes runtime contracts used by the app.
+
+**Observed evidence:** CI reports GHSA-jrc7-96c5-q579 for MapLibre <=6.4.0. Upstream's v5→v6 migration requires ESM-only consumption, WebGL2, revised worker/bundler setup, and `Map#setMissingStyleImageResolver` instead of satisfying `styleimagemissing` by calling `addImage` in the event handler.
+
+**OWN:**
+- `package.json`
+- `package-lock.json`
+- `src/components/planner/planner-map-renderer.ts`
+- focused renderer/config tests
+- bundler/runtime wiring only if required by the validated v6 import/worker path
+
+**READ:**
+- `src/components/planner/MapStage.tsx`
+- `src/components/planner/PlannerMapStage.tsx`
+- `src/lib/client/map-style.ts`
+- ADR 0015 / MapLibre rollback retirement criteria
+- current MapLibre v5→v6 migration guide and advisory
+
+**DO NOT CHANGE:**
+- Mapbox primary-renderer product behavior
+- routing
+- map presentation presets from #82
+- audit threshold
+- ADR rollback policy unless the owner explicitly chooses a separate retirement decision
+
+**RED / characterization before upgrade:**
+- fallback renderer can construct and remove a map once;
+- missing style images resolve through the current generated fallback image contract;
+- source/layer/camera/control operations used by `PlannerMapStage` have focused compatibility coverage;
+- fallback renderer selection still occurs when Mapbox rollout/token gate is absent;
+- a map style/presentation change does not leak resources.
+
+**Implementation:**
+1. choose a patched current v6 version deliberately (minimum secure version per upstream advisory, preferably the current compatible stable selected after checking release notes);
+2. generate lockfile with npm;
+3. replace the MapLibre missing-style-image callback with the supported v6 resolver while preserving `createFallbackStyleImage` semantics;
+4. confirm dynamic ESM import remains valid under Next.js/Turbopack and production build;
+5. explicitly configure/test worker URL handling if the existing dynamic import no longer supplies a working worker bundle;
+6. verify no code depends on removed `map.transform` or legacy nested-GeoJSON behavior;
+7. document WebGL2 as part of the rollback renderer's browser requirement and check whether any currently supported beta device would be excluded.
+
+**Adversarial:**
+- missing icon requested twice;
+- resolver returns no image;
+- map mount unmounts while module/worker loads;
+- style switch and resize after recovery;
+- WebGL2 unavailable path fails visibly and leaves the primary Mapbox path unaffected;
+- CSP/worker URL under production build;
+- PWA/offline shell does not cache a stale incompatible worker bundle.
+
+**Verify:**
+- focused renderer unit/component tests;
+- `npm ci`;
+- `npm run verify:install-scripts`;
+- `npm audit --audit-level=moderate`;
+- lint/typecheck/unit/build;
+- critical Chromium + WebKit smoke;
+- visual map states;
+- PWA;
+- map-specific/mobile tests from #82.
+
+**Exit:** no MapLibre audit advisory, fallback renderer remains a tested rollback path under the current ADR, and no `npm audit fix --force`/test weakening was used.
 
 ---
 
 ### BETA-002 — Rebase/review/merge canonical map PR #82
 
 **Score:** V4 T5 L5 C2 X-1 (removes complexity) = 13
-**Depends:** BETA-001 if the audit still blocks the exact head.
+**Depends:** BETA-001A and BETA-001B.
 
-**OWN:** PR #82 files only plus conflict resolutions caused by #83.
+**OWN:** PR #82 files plus the two bounded dependency/security fixes and conflict resolutions caused by #83.
 
 **READ:** ADR 0015, #83 graphics primitives, map experience/presentation/storage migration tests.
 
 **DO NOT CHANGE:** route provider behavior, planner RideIntent, unrelated UI redesign.
 
-**Adversarial review:** legacy map packs; Standard Satellite config support; Road/Terrain/Satellite persistence; viewport measurement on 844x390; selected route fit; map style switch without map remount; no duplicate Topo/Satellite layers.
+**Adversarial review:** legacy map packs; Standard Satellite config support; Road/Terrain/Satellite persistence; viewport measurement on 844x390; selected route fit; map style switch without Mapbox remount; secure MapLibre rollback startup; no duplicate Topo/Satellite layers.
 
-**Exit:** exact head green under required checks; current main rebased; one canonical runtime basemap authority; merge.
+**Exit:** exact head green under required checks and `npm audit --audit-level=moderate`; current main rebased; one canonical runtime basemap authority; secure rollback renderer; merge.
 
 ---
 
@@ -472,7 +545,7 @@ Run `docs/quality/LUNA-QA-COORDINATOR.md` against exact candidate. Keep workers 
 
 Verify:
 - required branch checks green;
-- dependency audit classified;
+- dependency audit clean/classified with no unresolved critical advisory;
 - zero known S1/blockers in advertised scope;
 - exact deployed build attested;
 - real iPhone/PWA evidence complete;
@@ -485,12 +558,12 @@ Only then invite beta riders.
 
 ## Cheap-agent starter batch
 
-Once #82's current head is known, a coordinator can safely run these in parallel as **read-only** tasks:
+Once the latest #82 integration head is checked out, a coordinator can safely run these in parallel:
 
-1. BETA-001 dependency advisory classification.
-2. BETA-003 PR #66 salvage analysis.
-3. BETA-003 PR #80/#81 salvage analysis.
-4. BETA-023 CSS/font authority inventory.
-5. Planner truth test design for BETA-010/011/012 without editing production code.
+1. **Read-only cheap worker:** #66 salvage ledger.
+2. **Read-only cheap worker:** #80/#81 salvage ledger.
+3. **Read-only cheap worker:** CSS/font authority inventory (BETA-023).
+4. **Read-only/test-design cheap worker:** planner truth RED-test design for BETA-010/011/012, without editing production code.
+5. **Focused implementation worker:** BETA-001A Vitest bump in its own worktree.
 
-The coordinator synthesizes results before any overlapping implementation starts.
+Keep BETA-001B MapLibre migration with a strong worker/coordinator because it changes a runtime renderer and security boundary. Do not let any of the read-only workers modify the #82 worktree.
