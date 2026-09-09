@@ -22,7 +22,7 @@ async function makeCatalog(routes: unknown[], routeDetail?: Record<string, unkno
 }
 
 describe("atlas-extended GPX catalog API", () => {
-  it("adds a story and poster flag to every listed route without leaking paths", async () => {
+  it("adds a grounded story and poster flag to every listed route without leaking paths", async () => {
     const root = await makeCatalog([
       {
         id: "project-gpx-abc123",
@@ -40,7 +40,9 @@ describe("atlas-extended GPX catalog API", () => {
     expect(listing.status).toBe(200)
     const body = await listing.json()
     const route = body.routes[0]
-    expect(route.story.tone).toBe("Day loop")
+    expect(route.story.tone).toBe("Mid-distance")
+    expect(route.story.summary).toContain("very twisty")
+    expect(route.story.summary).not.toMatch(/loop|half-day/i)
     expect(route.story.body).toContain("42 miles")
     expect(route.art).toBe(false)
     expect(JSON.stringify(body)).not.toContain("/root/Vibe")
@@ -81,7 +83,6 @@ describe("atlas-extended GPX catalog API", () => {
       waypoints: [],
       instructions: [],
       navigationMode: "track-only",
-      // Everything below is server-side import bookkeeping.
       sourceFiles: ["rideplanner/output/gpx/imported-gpx-8a77bc9d-gaia_high_detail.gpx"],
       sourceContentSha256: "5f0c1d2e",
       ingest: { sourceFormat: "gpx", segmentCount: 1 },
@@ -95,12 +96,10 @@ describe("atlas-extended GPX catalog API", () => {
 
     expect(response.status).toBe(200)
     const body = await response.json()
-    // The rider-facing contract survives...
     expect(body.id).toBe(detail.id)
     expect(body.geometry).toEqual(detail.geometry)
     expect(body.navigationMode).toBe("track-only")
     expect(body.story.title).toBe("Ridge Run")
-    // ...while the import bookkeeping does not.
     expect(body.sourceFiles).toBeUndefined()
     expect(body.sourceContentSha256).toBeUndefined()
     expect(body.ingest).toBeUndefined()
