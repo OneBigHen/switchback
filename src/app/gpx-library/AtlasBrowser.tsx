@@ -55,9 +55,6 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
   const { anchor, status: geoStatus, located, requestLocation } = useNearMe()
   const autoSortDone = useRef(false)
 
-  // First fix while the rider hasn't touched the sort: flip the default
-  // "Longest" order to "Nearest to me". Deferred so it is not a synchronous
-  // setState inside the effect.
   useEffect(() => {
     if (!anchor || autoSortDone.current) return
     autoSortDone.current = true
@@ -65,6 +62,10 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
       setFilters((current) => (current.sort === DEFAULT_FILTERS.sort ? { ...current, sort: "nearest" } : current))
     )
   }, [anchor])
+
+  const areas = useMemo(() => [...new Set(routes
+    .filter((route) => !filters.region || route.region === filters.region)
+    .flatMap((route) => route.ridingAreas))].sort((a, b) => a.localeCompare(b)), [routes, filters.region])
 
   const { ranked, outsideRadius } = useMemo(
     () => browseAtlas(routes, filters, anchor),
@@ -77,6 +78,7 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
     filters.lengths.length > 0 ||
     filters.bands.length > 0 ||
     filters.region !== null ||
+    filters.area !== null ||
     filters.query.trim() !== ""
 
   const toggleLength = (id: AtlasLengthBucket) =>
@@ -99,7 +101,6 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
     setFilters((current) => ({
       ...DEFAULT_FILTERS,
       sort: anchor ? "nearest" : DEFAULT_FILTERS.sort,
-      // keep an explicit non-default sort the rider picked on the "reset filters" path
       ...(current.sort !== DEFAULT_FILTERS.sort && current.sort !== "nearest" ? { sort: current.sort } : {})
     }))
 
@@ -127,12 +128,12 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
           )}
         </div>
         <label className="atlas-search-field">
-          <span className="atlas-visually-hidden">Search routes by name</span>
+          <span className="atlas-visually-hidden">Search routes or riding areas</span>
           <SearchGlyph />
           <input
             type="search"
             className="atlas-search-input"
-            placeholder="Search by name"
+            placeholder="Search routes or riding areas"
             value={filters.query}
             onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
           />
@@ -154,6 +155,45 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
             ))}
           </select>
         </label>
+
+        {regions.length > 1 ? (
+          <label className="atlas-field">
+            <span className="atlas-field-label">Part of PA</span>
+            <select
+              className="atlas-select"
+              value={filters.region ?? ""}
+              onChange={(event) => setFilters((current) => ({
+                ...current,
+                region: event.target.value === "" ? null : event.target.value,
+                area: null
+              }))}
+            >
+              <option value="">Every region</option>
+              {regions.map((region) => (
+                <option key={region} value={region}>{region}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {filters.region && areas.length > 0 ? (
+          <fieldset className="atlas-filter">
+            <legend className="atlas-field-label">Riding area</legend>
+            <div className="atlas-chip-row">
+              {areas.map((area) => (
+                <button
+                  key={area}
+                  type="button"
+                  className="atlas-chip"
+                  aria-pressed={filters.area === area}
+                  onClick={() => setFilters((current) => ({ ...current, area: current.area === area ? null : area }))}
+                >
+                  {area}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
 
         <fieldset className="atlas-filter" disabled={!located}>
           <legend className="atlas-field-label">Within</legend>
@@ -205,24 +245,6 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
             ))}
           </div>
         </fieldset>
-
-        {regions.length > 1 ? (
-          <label className="atlas-field">
-            <span className="atlas-field-label">Region</span>
-            <select
-              className="atlas-select"
-              value={filters.region ?? ""}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, region: event.target.value === "" ? null : event.target.value }))
-              }
-            >
-              <option value="">Every region</option>
-              {regions.map((region) => (
-                <option key={region} value={region}>{region}</option>
-              ))}
-            </select>
-          </label>
-        ) : null}
       </div>
 
       <div className="atlas-result-bar">
@@ -242,7 +264,7 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
           <p>
             {filters.radius !== "any" && outsideRadius > 0
               ? `${outsideRadius} ${outsideRadius === 1 ? "ride sits" : "rides sit"} just outside ${filters.radius} mi. Widen the radius or clear a filter.`
-              : "Widen the radius or clear a filter to see more of the collection."}
+              : "Try another region, riding area, or ride filter."}
           </p>
           <button type="button" className="atlas-reset" onClick={resetFilters}>Clear filters</button>
         </div>
@@ -280,7 +302,11 @@ export function AtlasBrowser({ routes, regions, routeCount, totalMiles, updatedL
                       <span className="atlas-ride-stat">{Math.round(route.unpavedShare * 100)}% unpaved</span>
                     ) : null}
                   </span>
-                  {route.region ? <span className="atlas-ride-region">{route.region}</span> : null}
+                  {route.region ? (
+                    <span className="atlas-ride-region">
+                      {[route.region, route.ridingAreas[0]].filter(Boolean).join(" · ")}
+                    </span>
+                  ) : null}
                 </span>
               </Link>
             </li>
@@ -311,6 +337,8 @@ function describeLocator(status: GeoStatus, anchor: NearMeAnchor | null, routeCo
 function describeResult(count: number, filters: AtlasFilterState, located: boolean): string {
   if (count === 0) return "No rides match"
   const noun = count === 1 ? "ride" : "rides"
+  if (filters.area) return `${count} ${noun} in ${filters.area}`
+  if (filters.region) return `${count} ${noun} in ${filters.region}`
   if (located && filters.radius !== "any") return `${count} ${noun} within ${filters.radius} mi`
   if (filters.query.trim() !== "") return `${count} ${noun} matching “${filters.query.trim()}”`
   return `${count} ${noun}`
