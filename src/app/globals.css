@@ -1,15 +1,14 @@
 /* Import/order responsibilities for the document stylesheets.
  *
  * Fonts bundle locally via Fontsource — no runtime Google Fonts request.
- * Sora and DM Sans stay until the last V1 surface stops referencing them;
- * Inter and Oswald are the V2 brand pair (DESIGN-CONTRACT v2.0 §4).
+ * Inter and Oswald are the V2 brand pair (DESIGN-CONTRACT v2.0 §4). The V1
+ * pair (Sora, DM Sans) was removed on 2026-09-08: no stylesheet referenced
+ * either family, so both were shipped to riders as unused font payload.
  *
  * Order: bundled fonts → canonical tokens → base reset/behavior →
  * feature stylesheets, which src/app/layout.tsx imports after this file.
  */
 @import "@fontsource-variable/inter/index.css";
 @import "@fontsource-variable/oswald/index.css";
-@import "@fontsource-variable/dm-sans/index.css";
-@import "@fontsource-variable/sora/index.css";
 @import "./styles/tokens.css";
 @import "./styles/base.css";

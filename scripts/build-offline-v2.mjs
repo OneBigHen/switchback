@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promise
 import { closeSync, openSync, writeSync } from "node:fs"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
-import Database from "better-sqlite3"
+import { DatabaseSync } from "node:sqlite"
 
 const [inputPbf, outputRoot, regionId, regionName = regionId] = process.argv.slice(2)
 if (!inputPbf || !outputRoot || !regionId || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(regionId)) {
@@ -21,9 +21,9 @@ const stagingDirectory = join(pendingDirectory, "staging")
 await mkdir(stagingDirectory)
 await mkdir(join(pendingDirectory, "tiles"))
 
-const database = new Database(join(pendingDirectory, "build.sqlite"))
-database.pragma("journal_mode = WAL")
-database.pragma("synchronous = NORMAL")
+const database = new DatabaseSync(join(pendingDirectory, "build.sqlite"))
+database.exec("PRAGMA journal_mode = WAL")
+database.exec("PRAGMA synchronous = NORMAL")
 database.exec(`
   CREATE TABLE nodes (id TEXT PRIMARY KEY, lon REAL NOT NULL, lat REAL NOT NULL) WITHOUT ROWID;
   CREATE TABLE edge_refs (
@@ -44,10 +44,27 @@ const findEdgeRefs = database.prepare(
 )
 const nodeBatch = []
 const edgeRefBatch = []
-const writeNodes = database.transaction((batch) => {
+/**
+ * node:sqlite has no `.transaction()` helper, so batches are wrapped by hand.
+ * Batching matters here: one implicit transaction per INSERT makes an import
+ * of a whole state's nodes unusably slow.
+ */
+function inTransaction(write) {
+  return (batch) => {
+    database.exec("BEGIN")
+    try {
+      write(batch)
+      database.exec("COMMIT")
+    } catch (error) {
+      database.exec("ROLLBACK")
+      throw error
+    }
+  }
+}
+const writeNodes = inTransaction((batch) => {
   for (const [id, lon, lat] of batch) insertNode.run(id, lon, lat)
 })
-const writeEdgeRefs = database.transaction((batch) => {
+const writeEdgeRefs = inTransaction((batch) => {
   for (const [wayId, nodeId, direction, edgeId] of batch) {
     insertEdgeRef.run(wayId, nodeId, direction, edgeId)
   }
