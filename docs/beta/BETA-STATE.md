@@ -1,44 +1,60 @@
 # Switchback beta state
 
 Updated: 2026-09-09
-Repository baseline: `main` @ `01f8b53233dd7ec53399b9571b92274c54b69d71`
+Repository baseline: `main` @ `b8c0f96ce66a6b4edb2a4a48bd12295924e65f9e`
 
 ## Verdict
 
-**HOLD — the integration lane is clean, beta qualification is not done.**
+**HOLD — integration and the truth lane are both closed; beta qualification is
+not.**
 
-The integration lane described in the previous checkpoint is finished: the
-supply-chain gate is green, the janitorial cleanup has landed, and there is one
-canonical basemap authority. HOLD stands because none of the physical, deployed
-or human evidence exists yet. Automation is necessary and not sufficient.
+The supply-chain gate is green, the janitorial cleanup has landed, there is one
+canonical basemap authority, and all five product-truth defects are fixed. HOLD
+stands for the same reason it always did: none of the physical, deployed or
+human evidence exists yet, and no automated result can substitute for it.
+
+What the truth lane found is worth carrying forward. All five were the same
+shape — a value computed correctly in one place and never carried to the thing
+the rider reads:
+
+| Defect | The value existed | The rider saw |
+|---|---|---|
+| BETA-014 | `RouteThumbnail`, shipped by #83 | a hash-seeded procedural line |
+| BETA-013 | the recording's own clock | the plan, unlabelled |
+| BETA-012 | `routeScore.total` on every candidate | a chip driven by profile |
+| BETA-010 | `intent.tollPolicy` in the request | a control saying the opposite |
+| BETA-011 | a topology with one leg | three per-leg styles |
+
+None needed new capability. Four of the five were fixed by carrying an existing
+value to where it was already expected. That is the argument for convergence
+over capability, tested five times.
 
 ## Exact next task
 
-**BETA-014: stop rendering invented route art for real rides.**
+**DB-1: read-only audit of the `Prepare ride` disclosure.**
 
-This moved to the front because it is now a *confirmed* defect on `main`, not a
-suspicion. #83 shipped the truthful graphics primitives and nothing adopted
-them:
+The truth lane is finished, so the next lane is the one the product actually
+needs: `Prepare ride` is a feature inventory, not a rider task. `RouteComparison`
+mounts sixteen independent things under one toggle — data quality, GPX
+intelligence, GPX join, measured facts, route score, road-lock satisfaction,
+must-lock recovery, replay comparison, weather, evidence, multi-day staging,
+star rating, private share, community publish, save, and an always-visible GPX
+format selector.
 
-- `grep -rn "RouteThumbnail" src/` returns only its own definition, the
-  barrel export and its tests — **zero consumers**.
-- `src/components/rides/RideListRow.tsx:63` renders
-  `<RouteGraphic seed={item.id} variant="route" />` for **every** ride card.
-  `src/components/v2/RouteGraphic.tsx:30-36` generates a hash-seeded
-  procedural path.
+DB-1 is deliberately read-only and produces a report, not a change. For each
+module record: what triggers it, what it fetches on mount, what information it
+duplicates from another module, its current test coverage, and its recommended
+placement (primary / contextual / post-ride / advanced / defer).
 
-So a saved ride with real stored geometry currently shows a route-shaped line
-that is not its route. `RouteThumbnail` already draws real geometry and already
-has an explicit `data-route-thumbnail="unavailable"` state for rides without
-it.
+It is a good cheap-agent task, and it must precede DB-2 and DB-3 — the
+preparation surface cannot be rebuilt around a readiness summary until the
+modules are actually inventoried.
 
-RED first: a `RideLibraryItem` with real geometry must render
-`[data-route-thumbnail="ready"]` and never `[data-route-graphic="route"]`; an
-item with absent or too-short geometry must render
-`[data-route-thumbnail="unavailable"]`. That test fails on `main` today.
-
-This is also the smallest useful slice of the #66 salvage, and it needs none of
-that PR's region taxonomy or second search surface.
+Two hazards to respect, both already recorded in `DEBLOAT-AUDIT.md`: weather is
+fetched when the disclosure mounts, so simply reordering modules changes network
+behaviour; and route rating currently trains rider preference from a ride nobody
+has taken yet, so moving it post-ride is a data-semantics change, not a layout
+change.
 
 ## Integration status
 
@@ -78,18 +94,32 @@ that the renderer still draws.**
 
 ## Product-truth status
 
-| Contract | Status | Next evidence |
+The truth lane is **closed**. Every item was RED-tested before the fix, and each
+merged only on an exact-head green run of the nine required checks.
+
+| Contract | Status | Merged |
 |---|---|---|
-| One canonical authored RideIntent/history | IMPLEMENTED | preserve |
-| Stale routing result fencing | IMPLEMENTED | preserve |
-| One basemap authority | **IMPLEMENTED** (#82) | preserve; presets are the only rider choice |
-| Fallback renderer actually draws routes | **IMPLEMENTED** (#88) | worker + missing-image tests |
-| Specific ride imagery always factual | **CONFIRMED DEFECT** | BETA-014 — evidence above |
-| Prompt toll policy coherence | UNVERIFIED | BETA-010 RED test |
-| Fresh-prompt segment-profile coherence | UNVERIFIED | BETA-011 RED test |
-| `Best Ride` matches deterministic authority | SUSPECT | BETA-012 RED test |
-| Recorded elapsed-duration provenance | SUSPECT | BETA-013 RED test |
+| One canonical authored RideIntent/history | IMPLEMENTED | pre-existing |
+| Stale routing result fencing | IMPLEMENTED | pre-existing |
+| One basemap authority | IMPLEMENTED | `01f8b53…` (#82) |
+| Fallback renderer actually draws routes | IMPLEMENTED | `454b76c…` (#88) |
+| BETA-014 specific ride imagery always factual | **FIXED** | `0ece54e6bf94b09dcfd62d6dcaa9ab337c7f42a1` |
+| BETA-013 recorded elapsed-duration provenance | **FIXED** | `e8f0a7f481912c7a01bd673115899cb3185b0ad5` |
+| BETA-012 `Best Ride` matches deterministic authority | **FIXED** | `1a25965bab26a4bb29d3a7938ed7d670aefd3a53` |
+| BETA-010 prompt toll policy coherence | **FIXED** | `bb41fd4a75829140548ada3e3efe21e0c5d17250` |
+| BETA-011 fresh-topology segment-profile coherence | **FIXED** | `b8c0f96ce66a6b4edb2a4a48bd12295924e65f9e` |
 | Unknown route evidence stays unknown | STRONG CONTRACT | preserve through every simplification |
+
+Three things the lane taught that are worth keeping:
+
+- **A test can encode the defect.** `rides-presentation-v2` asserted "generated
+  route identity graphics"; a critical journey asserted a role chip while
+  testing selection. Both were corrected to assert their real subject rather
+  than weakened.
+- **A green rebase is not evidence.** #82 rebased with zero conflicts and was
+  still semantically broken; only `tsc` caught it.
+- **A fixture that is less realistic than production hides defects.** The
+  planner journey carried no `routeScore`, which every real provider attaches.
 
 ## Architecture status
 
