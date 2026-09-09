@@ -1,4 +1,5 @@
 export { RouteThumbnail, type RouteThumbnailProps } from "./RouteThumbnail"
+export { AtlasRouteThumbnail, type AtlasRouteThumbnailProps } from "./AtlasRouteThumbnail"
 export { ElevationSparkline, type ElevationSample, type ElevationSparklineProps } from "./ElevationSparkline"
 export { SurfaceMixBar, type SurfaceKind, type SurfaceShare, type SurfaceMixBarProps } from "./SurfaceMixBar"
 export { RideCharacterBars, type RideCharacterAxis, type RideCharacterValue, type RideCharacterBarsProps } from "./RideCharacterBars"
