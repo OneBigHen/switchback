@@ -12,7 +12,7 @@ This is not a claim that the app is broadly broken. The deterministic core has s
 
 ## Exact next task
 
-**BETA-001: classify and resolve the dependency advisory blocking PR #82's `verify` job.**
+**BETA-001: resolve the two dependency advisories blocking PR #82's `verify` job.**
 
 Observed CI command:
 
@@ -20,9 +20,16 @@ Observed CI command:
 npm audit --audit-level=moderate
 ```
 
-Do not lower the threshold merely to pass. Identify the package/path/fixed versions and choose the smallest compatible resolution or explicit owner-reviewed temporary risk decision.
+Exact log findings on PR #82 merge SHA `178928bb82723e4f21dbafe2abf3fff65f814bd8`:
 
-Once resolved, rebase and exact-head verify #82, then merge it before beginning overlapping map work.
+1. `@vitest/mocker` through `vitest@4.1.10` — **moderate**, GHSA-82fw-gwwq-j7x9. CI reports the fix at `vitest@4.1.11`. This is a dev/test dependency and should be the low-risk first bump, followed by the full test suite.
+2. `maplibre-gl@5.24.0` — **critical**, GHSA-jrc7-96c5-q579. Upstream advisory affects versions through 6.4.0 and reports a patched v6 line. Moving from v5 to v6 is a real migration because MapLibre v6 is ESM-only, requires WebGL2 and changes the missing-style-image API/worker behavior. Do not use `npm audit fix --force` blindly.
+
+Switchback's current rollback renderer directly relies on MapLibre and currently handles `styleimagemissing` by adding the image in the event callback; the v6 migration guide requires `setMissingStyleImageResolver` for that behavior. The migration must also verify the Next.js bundler worker URL/runtime behavior and fallback-device requirements before merge.
+
+Do not lower the audit threshold merely to pass. Resolve the Vitest advisory directly; treat MapLibre v6 as a bounded security migration with focused renderer tests and full browser/PWA verification. If the owner instead chooses to retire MapLibre immediately, that is an ADR/rollout decision and still requires rollback/production/device evidence — not a dependency-only cleanup.
+
+Once dependencies are green, rebase and exact-head verify #82, then merge it before beginning overlapping map work.
 
 ## Integration status
 
@@ -30,7 +37,7 @@ Once resolved, rebase and exact-head verify #82, then merge it before beginning 
 |---|---|---|
 | Main baseline | KNOWN | `b53c177...`, #83 merged |
 | #83 graphics foundation | LANDED | truthful route/evidence graphics available on main |
-| #82 map presentation | BLOCKED | latest observed Quality verify failed at dependency audit; Mobile Core/real-router/visual/rider-journeys observed successful on that head |
+| #82 map presentation | BLOCKED | exact dependency blockers known: Vitest mocker moderate + MapLibre critical; Mobile Core/real-router/visual/rider-journeys observed successful on that head |
 | #66 Rides intelligence | STALE DRAFT | salvage domain/tests, do not merge wholesale |
 | #80 preference vector | STALE DRAFT | salvage into canonical command model if value proven |
 | #81 route memory | STACKED STALE DRAFT | salvage deterministic facts/search after Rides authority settles |
@@ -132,7 +139,7 @@ Before beta prove recording/hard-constraint continuity through suggestion accept
 
 ### Explicitly do not remove yet
 
-- MapLibre rollback renderer before ADR/device/production retirement evidence.
+- MapLibre rollback renderer before ADR/device/production retirement evidence; despite the current critical advisory, upgrading/retiring it must preserve the declared rollback contract until that contract is explicitly changed.
 - existing community/report data.
 - GPX originals / imported data.
 - stored rider UI preference fields without migration.
