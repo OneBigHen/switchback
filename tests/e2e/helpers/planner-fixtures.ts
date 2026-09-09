@@ -30,6 +30,32 @@ const PROFILE_LABELS: Record<RouteProfileId, string> = {
   neural: "Neural"
 }
 
+/**
+ * A complete score whose only meaningful field is the total.
+ *
+ * Ranking is what fixtures need — the components exist to satisfy the contract,
+ * and are deliberately flat so no test accidentally reads meaning into them.
+ */
+function fixtureRouteScore(total: number) {
+  return {
+    total,
+    fun: 0,
+    twistiness: 0,
+    scenic: 0,
+    elevation: 0,
+    gravel: 0,
+    traffic: 0,
+    simplicity: 0,
+    safety: 0,
+    novelty: 0,
+    confidence: 0,
+    preferenceFit: 0,
+    etaPenalty: 0,
+    explanations: [],
+    explanation: []
+  }
+}
+
 export function makeRoute(
   profile: RouteProfileId,
   options: {
@@ -40,6 +66,13 @@ export function makeRoute(
     durationMinutes?: number
     twistiness?: number
     surfaceMix?: Record<string, number>
+    /**
+     * Deterministic score total. Both providers attach a score to every real
+     * route, so a fixture needs one whenever a test depends on the ranking —
+     * the `Best Ride` role follows it. Optional so existing fixtures keep
+     * their shape.
+     */
+    routeScoreTotal?: number
   } = {}
 ): RouteFixture {
   const geometry = options.geometry ?? [
@@ -71,7 +104,8 @@ export function makeRoute(
     roadMix: { secondary: 88, residential: 12 },
     surfaceMix: options.surfaceMix ?? { asphalt: 100 },
     routingSource: "live",
-    previewOnly: false
+    previewOnly: false,
+    ...(options.routeScoreTotal === undefined ? {} : { routeScore: fixtureRouteScore(options.routeScoreTotal) })
   }
 }
 

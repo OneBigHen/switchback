@@ -246,13 +246,20 @@ test("a newer plan wins and a stale provider response cannot overwrite it", asyn
 
 test("route alternatives arrive after the primary and selection updates the visible route", async ({ page }) => {
   await installPlannerServices(page)
-  const primary = makeRoute("twisty", { id: "primary-route", name: "Primary route" })
+  // Scored, because `Best Ride` follows the deterministic ranking rather than
+  // the route's profile, and every real provider attaches a score.
+  const primary = makeRoute("twisty", {
+    id: "primary-route",
+    name: "Primary route",
+    routeScoreTotal: 40
+  })
   const alternative = makeRoute("scenic", {
     id: "alternative-route",
     name: "Scenic alternative",
     geometry: [[-76.8867, 40.2732], [-76.92, 40.32], [-76.82, 40.31]],
     distanceMiles: 9.6,
-    durationMinutes: 21
+    durationMinutes: 21,
+    routeScoreTotal: 90
   })
   const capture: RouteCapture = { requests: [], responses: [] }
   await page.route("**/api/routes", async (route) => {
