@@ -11,7 +11,7 @@ const items: RideLibraryItem[] = [
     name: "Pine Creek back roads",
     sourceLabel: "Saved route",
     distanceMiles: 82.4,
-    durationMinutes: 146,
+    durationMinutes: 146, durationSource: "planned",
     updatedAt: "2026-08-28T12:00:00Z",
     tags: ["weekend"]
   },
@@ -21,7 +21,7 @@ const items: RideLibraryItem[] = [
     name: "Sunday ride",
     sourceLabel: "Recorded ride",
     distanceMiles: 63.1,
-    durationMinutes: 118,
+    durationMinutes: 118, durationSource: "planned",
     updatedAt: "2026-08-30T12:00:00Z",
     tags: []
   },
@@ -31,7 +31,7 @@ const items: RideLibraryItem[] = [
     name: "MABDR Section 3",
     sourceLabel: "Project GPX · MABDR",
     distanceMiles: 91.8,
-    durationMinutes: 204,
+    durationMinutes: 204, durationSource: "planned",
     updatedAt: null,
     tags: []
   }
@@ -69,7 +69,7 @@ describe("RidesSurface", () => {
       name: "Imported Allegheny track",
       sourceLabel: "Saved route",
       distanceMiles: 58.2,
-      durationMinutes: 122,
+      durationMinutes: 122, durationSource: "planned",
       updatedAt: "2026-09-01T12:00:00Z",
       tags: [],
       management: { imported: true, canMatchRoads: true }
