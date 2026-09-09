@@ -1,6 +1,7 @@
 "use client"
 
-import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
+import { useEffect, useMemo, useState } from "react"
+import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { RoadLock, RoadLockMode } from "@/lib/roads/road-locks"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { SavedRoute } from "@/lib/storage/route-library"
@@ -43,16 +44,52 @@ function importDisplayName(file: File): string {
   return file.name.replace(/\.(?:gpx|kml|kmz)$/i, "") || "Imported roads"
 }
 
+interface PreviewCatalogState {
+  key: string
+  routes: ProjectGpxRouteSummary[]
+}
+
 export function RidesDestination(props: RidesDestinationProps) {
   const recordedRides = props.recordedRides ?? []
   const trips = props.trips ?? []
   const projectRoutes = props.projectRoutes ?? []
-  const items = normalizeRideLibrary({
+  const projectRouteKey = projectRoutes.map((route) => route.id).join("|")
+  const needsPreview = projectRoutes.length > 0 && projectRoutes.some((route) => !route.preview?.paths.length)
+  const [previewCatalog, setPreviewCatalog] = useState<PreviewCatalogState | null>(null)
+
+  useEffect(() => {
+    if (!needsPreview) return
+
+    let cancelled = false
+    const requestedKey = projectRouteKey
+    void fetch("/api/gpx-library?preview=1", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Project GPX previews unavailable")
+        return response.json() as Promise<ProjectGpxCatalog>
+      })
+      .then((catalog) => {
+        if (!cancelled) setPreviewCatalog({ key: requestedKey, routes: catalog.routes })
+      })
+      .catch(() => {
+        // The lightweight catalog is still useful. A preview failure must not
+        // turn Rides into an error state or hide routes that were already loaded.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [needsPreview, projectRouteKey])
+
+  const displayProjectRoutes = previewCatalog?.key === projectRouteKey
+    ? previewCatalog.routes
+    : projectRoutes
+
+  const items = useMemo(() => normalizeRideLibrary({
     savedRoutes: props.routes,
     recordedRides,
     trips,
-    projectRoutes
-  })
+    projectRoutes: displayProjectRoutes
+  }), [displayProjectRoutes, props.routes, recordedRides, trips])
 
   const savedRouteFor = (item: RideLibraryItem) => {
     const sourceId = item.sourceId ?? item.id
@@ -90,7 +127,7 @@ export function RidesDestination(props: RidesDestinationProps) {
       return
     }
 
-    const projectRoute = projectRoutes.find((candidate) => candidate.id === sourceId)
+    const projectRoute = displayProjectRoutes.find((candidate) => candidate.id === sourceId)
     if (projectRoute) props.onLoadProject?.(projectRoute)
   }
 
