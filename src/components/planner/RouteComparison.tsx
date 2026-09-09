@@ -25,7 +25,6 @@ import type { RiderPreference } from "@/lib/intelligence/rider-preferences"
 import type { TripStagePlan } from "@/lib/trip/stage-planner"
 import type { TripStageConstraints } from "@/lib/trip/stage-planner"
 import type { TripPlan } from "@/lib/trip/trip-plan"
-import type { RoadLockSatisfaction } from "@/lib/roads/road-locks"
 import { MustLockUnresolvedPanel } from "./MustLockUnresolvedPanel"
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import type { ReplayComparisonResult } from "@/lib/client/replay-comparison"
@@ -33,21 +32,24 @@ import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { GpxJoinChoice, GpxJoinPreview } from "@/lib/gpx/join"
 import {
   explainRouteFacts,
-  routeCharacterSummary,
-  routeTradeoff
+  routeCharacterSummary
 } from "@/lib/recommendation/route-explanations"
 import { loadRiderSettings } from "@/lib/settings/rider-settings"
 import {
   formatDistanceMeters,
-  formatDistanceMiles,
   formatManeuverDistance
 } from "@/lib/settings/rider-units"
 import { GpxIntelligencePanel } from "./GpxIntelligencePanel"
-import { PA_UNPAVED_ROADS_PROVENANCE } from "@/lib/client/map-layers"
 
 interface RouteComparisonProps {
   routes: PlannedRoute[]
   selectedId: string
+  /**
+   * Selection callback for the whole comparison contract. `RouteComparison`
+   * itself no longer selects anything — the decision rail does — but
+   * `PlannerComposition` reads this off the same object to wire the rail, so
+   * it stays on the type and is deliberately not destructured here.
+   */
   onSelect(id: string): void
   onSave(route: PlannedRoute): void
   onExport(route: PlannedRoute, variant: GpxExportVariant): void
@@ -69,92 +71,11 @@ interface RouteComparisonProps {
   onPrepareJoin?(route: PlannedRoute): Promise<GpxJoinPreview | null>
   onJoin?(route: PlannedRoute, preview: GpxJoinPreview, choice: GpxJoinChoice): Promise<void>
   /** Keep the legacy route rack available as preparation details during V2 migration. */
-  showRouteChoices?: boolean
-}
-
-function dominantMix(mix: Record<string, number>): string {
-  const dominant = Object.entries(mix)
-    .filter(([, share]) => Number.isFinite(share) && share > 0)
-    .sort((left, right) => right[1] - left[1])[0]
-  if (!dominant) return "Road mix unavailable"
-  return `${Math.round(dominant[1])}% ${dominant[0].replaceAll("_", " ")}`
-}
-
-const UNPAVED_SURFACES = new Set([
-  "compacted",
-  "dirt",
-  "earth",
-  "fine_gravel",
-  "grass",
-  "gravel",
-  "ground",
-  "mud",
-  "sand",
-  "unpaved"
-])
-
-function unpavedPercent(mix: Record<string, number>): number {
-  return Math.round(Object.entries(mix).reduce(
-    (total, [surface, percent]) => total + (UNPAVED_SURFACES.has(surface.toLowerCase()) ? percent : 0),
-    0
-  ))
-}
-
-function hasKnownSurfaceData(mix: Record<string, number>): boolean {
-  return Object.entries(mix).some(
-    ([surface, share]) => surface.toLowerCase() !== "unknown" && Number.isFinite(share) && share > 0
-  )
-}
-
-function hasSkippedPreferLock(route: PlannedRoute): RoadLockSatisfaction | undefined {
-  return route.lockSatisfaction?.find((row) => row.mode === "prefer" && Boolean(row.skippedReason))
-}
-
-function formatUnknownSurfaceMiles(route: PlannedRoute, units: "imperial" | "metric"): string | null {
-  const surfaceEntries = Object.entries(route.surfaceMix)
-  const surfaceTotal = surfaceEntries.reduce((sum, [, share]) => sum + (Number.isFinite(share) ? Math.max(0, share) : 0), 0)
-  if (surfaceTotal <= 0 || route.distanceMiles <= 0) return null
-  const unknown = surfaceEntries
-    .filter(([surface]) => surface.toLowerCase() === "unknown")
-    .reduce((sum, [, share]) => sum + (Number.isFinite(share) ? Math.max(0, share) / surfaceTotal : 0) * route.distanceMiles, 0)
-  if (unknown <= 0) return null
-  const formatted = formatDistanceMiles(unknown, units)
-  return `${formatted.value} ${formatted.unit}`.trim()
-}
-
-function routeReason(route: PlannedRoute): string {
-  switch (route.profile) {
-    case "quick":
-      return "Lowest travel time"
-    case "balanced":
-      return "Practical balance of pace and road quality"
-    case "twisty":
-      return "Most curves and direction changes"
-    case "scenic":
-      return "Balanced for back roads"
-    case "adventure":
-      return "Targets gravel and unpaved roads"
-    case "gravel":
-      return "Maximizes mapped gravel"
-    case "avoid-highways":
-      return "Hard-avoids motorways and trunk roads"
-    case "neural":
-      return "Ranked from your local riding history"
-  }
-}
-
-function officialUnpavedLabel(route: PlannedRoute): string | null {
-  const evidence = route.officialUnpavedEvidence
-  if (!evidence) return null
-  if (evidence.sharePercent <= 0) return `0% survey overlap · ${PA_UNPAVED_ROADS_PROVENANCE} · conditions unknown`
-  const share = evidence.sharePercent < 0.1 ? "<0.1" : evidence.sharePercent.toFixed(1)
-  return `${share}% survey surface overlap · ${PA_UNPAVED_ROADS_PROVENANCE}`
 }
 
 export function RouteComparison({
   routes,
   selectedId,
-  onSelect,
   onSave,
   onExport,
   onRide,
@@ -170,8 +91,7 @@ export function RouteComparison({
   recordedRide,
   onExportRecordedRide,
   onPrepareJoin,
-  onJoin,
-  showRouteChoices = true
+  onJoin
 }: RouteComparisonProps) {
   const [directionsOpen, setDirectionsOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -233,7 +153,7 @@ export function RouteComparison({
     <section className="route-rack" aria-labelledby="route-rack-title">
       <div className="section-heading">
         <div>
-          <h2 id="route-rack-title">{showRouteChoices ? "Choose a route" : "Route details"}</h2>
+          <h2 id="route-rack-title">Route details</h2>
           {selectedRoute ? (
             <p ref={selectedRouteIdentityRef} className="route-selection-identity">
               <span>Selected route</span>
@@ -243,61 +163,6 @@ export function RouteComparison({
         </div>
       </div>
 
-      {showRouteChoices ? (
-        <div className="route-slips">
-          {routes.map((route, index) => {
-            const selected = route.id === selectedId
-            const officialUnpaved = officialUnpavedLabel(route)
-            const unknownSurfaceLabel = formatUnknownSurfaceMiles(route, units)
-            const skippedSatisfaction = hasSkippedPreferLock(route)
-            const hasSurfaceData = hasKnownSurfaceData(route.surfaceMix)
-            const routeDistance = formatDistanceMiles(route.distanceMiles, units)
-            return (
-              <button
-                className={`route-slip${selected ? " is-selected" : ""}`}
-                type="button"
-                key={route.id}
-                aria-label={`Select ${route.name}`}
-                aria-pressed={selected}
-                onClick={() => onSelect(route.id)}
-              >
-                <span className="route-slip-index">{index + 1}.</span>
-                <span className="route-slip-body">
-                  <span className="route-slip-name">
-                    <strong>{route.name}</strong>
-                    <small>{routeReason(route)}</small>
-                    <small className="route-slip-tradeoff">{routeTradeoff(route, routes, units)}</small>
-                  </span>
-                  <span className="route-character">
-                    <span>{dominantMix(route.roadMix)}</span>
-                    <span>{hasSurfaceData ? `${unpavedPercent(route.surfaceMix)}% unpaved` : "Surface data unavailable"}</span>
-                    {unknownSurfaceLabel ? (
-                      <span className="route-character-unknown">~{unknownSurfaceLabel} unknown surface</span>
-                    ) : null}
-                    {officialUnpaved ? <span className="official-unpaved">{officialUnpaved}</span> : null}
-                    {route.overlapPercent !== undefined && route.overlapPercent < 99 ? (
-                      <span>{Math.round(100 - route.overlapPercent)}% different</span>
-                    ) : null}
-                  </span>
-                  {skippedSatisfaction ? (
-                    <RoadLockSatisfactionBadge satisfaction={skippedSatisfaction} displayName={route.name} />
-                  ) : null}
-                </span>
-                <span className="route-slip-stats">
-                  <span className="route-slip-metric">
-                      <strong>{routeDistance.value}</strong>
-                      <small>{routeDistance.unit || "distance"}</small>
-                  </span>
-                  <span className="route-slip-metric">
-                    <strong>{Math.round(route.durationMinutes)}</strong>
-                    <small>min</small>
-                  </span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
 
       {selectedRoute ? <>
 
@@ -492,7 +357,7 @@ export function RouteComparison({
       </div>
       </div> : null}
       </> : (
-        <p className="route-selection-prompt" role="status">Choose a route above to review details and prepare your ride.</p>
+        <p className="route-selection-prompt" role="status">Select a route to review its details and prepare your ride.</p>
       )}
     </section>
   )

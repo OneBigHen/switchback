@@ -152,7 +152,6 @@ export function PlannerComposition({
             <RouteComparison
               {...comparison}
               selectedId={selectedDetailsRoute.id}
-              showRouteChoices={false}
             />
           </section>
         ) : null}

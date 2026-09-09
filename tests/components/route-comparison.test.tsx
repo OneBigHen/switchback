@@ -96,7 +96,6 @@ function renderComparison(props: Partial<ComponentProps<typeof RouteComparison>>
       onSave={vi.fn()}
       onExport={vi.fn()}
       onRide={vi.fn()}
-      showRouteChoices={false}
       {...props}
     />
   )
@@ -208,11 +207,10 @@ describe("route comparison rack", () => {
           <RouteComparison
             routes={routes}
             selectedId={selectedId}
-            onSelect={setSelectedId}
-            onSave={onSave}
+          onSelect={setSelectedId}
+              onSave={onSave}
             onExport={onExport}
             onRide={onRide}
-            showRouteChoices={false}
           />
         </>
       )
@@ -296,7 +294,6 @@ describe("route comparison rack", () => {
           onSave={vi.fn()}
           onExport={vi.fn()}
           onRide={vi.fn()}
-          showRouteChoices={false}
         />
       )
     }
