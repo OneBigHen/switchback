@@ -152,7 +152,7 @@ route graph. Those claims require a separate, proven implementation and gate.
 Tests must pin the visual clock, disable animations for deterministic captures,
 use fixture-backed service responses, wait for
 the state marker, and allow the map settle window before taking a screenshot.
-Use the state construction and markers in the [UX state contract](../cinco/UX_STATE_CONTRACT.md).
+Use the state construction and markers in the [UX state contract](UX-STATE-CONTRACT.md).
 The goal is a repeatable screenshot of a named state, not a screenshot that
 happened to load successfully.
 

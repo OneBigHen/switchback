@@ -89,7 +89,7 @@ vi.mock("@/components/planner/MapStage", () => ({
     </div>
   )
 }))
-vi.mock("@/components/planner/LibraryDrawer", () => ({ LibraryDrawer: () => null }))
+vi.mock("@/components/rides/RidesDestination", () => ({ RidesDestination: () => null }))
 vi.mock("@/components/planner/RideHud", () => ({
   RideHud: ({ onExit }: { onExit(): void }) => (
     <button type="button" onClick={onExit}>Exit ride mode</button>

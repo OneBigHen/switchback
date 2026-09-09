@@ -892,3 +892,25 @@
   width: 13px;
   height: 13px;
 }
+
+/* Moved from the retired ride-omnibox.css (2026-09-08). `.ride-deck-header` is
+   rendered by PlannerDeck; the rest of that stylesheet styled the V2-retired
+   RideOmnibox surface and nothing rendered it. Specificity is unchanged: the
+   `.planner-deck .ride-deck-header` and `.planner-shell .sb-bottom-sheet
+   .ride-deck-header` rules above and in design-system.css still win. */
+.ride-deck-header {
+  margin-bottom: 8px;
+}
+
+.ride-deck-header .brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--ride-forest);
+}
+
+@media (max-width: 760px) {
+  .ride-deck-header {
+    display: none;
+  }
+}

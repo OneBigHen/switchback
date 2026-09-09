@@ -1,10 +1,13 @@
 #!/usr/bin/env node
-// TASK-1.4: for every className in src/components/**, check a matching CSS
-// rule exists anywhere in src/app/styles/*.css. Static-analysis heuristic --
-// it extracts literal string segments from className="..." and
-// className={...} expressions, so it can mis-flag class names that only
-// ever appear as dynamic template fragments; see docs/quality/ORPHANED-CLASSES.md
-// for the manually-verified result.
+// For every className in src/components/**, check a matching CSS rule exists
+// anywhere in src/app/styles/*.css.
+//
+// Static-analysis heuristic: it extracts literal string segments from
+// className="..." and className={...} expressions, so a class assembled at
+// runtime shows up as its literal prefix ("gps-", "is-", "style-",
+// "waypoint-node-") and reads as orphaned when it is not. Components styled by
+// CSS Modules are also outside its view. EVIDENCE, NOT AUTHORITY -- confirm a
+// flagged class really is unrendered before removing its rule.
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join, extname } from "node:path"
 

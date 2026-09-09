@@ -50,7 +50,7 @@ Read next:
 - [Owner workflow](OWNER_WORKFLOW.md)
 - [Test catalog](TEST_CATALOG.md)
 - [Release evidence](RELEASE_EVIDENCE.md)
-- [Implementation status](IMPLEMENTATION_STATUS.md)
+- [UX state contract](UX-STATE-CONTRACT.md)
 - [Physical iPhone drill](PHYSICAL_DEVICE_DRILL.md)
 - [Failure policy](FAILURE_POLICY.md)
 - [Level A mobile QA](LEVEL_A_MOBILE_QA.md)

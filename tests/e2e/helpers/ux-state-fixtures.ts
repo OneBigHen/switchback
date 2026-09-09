@@ -14,7 +14,7 @@ import {
   type RouteCapture
 } from "./planner-fixtures"
 
-// CINCO Phase 0 screen-state contract (docs/cinco/UX_STATE_CONTRACT.md).
+// Screen-state determinism contract (docs/quality/UX-STATE-CONTRACT.md).
 // Every required UX state must be constructible deterministically, without
 // live external services, so later phases can prove presentation changes
 // against stable state seams. These constructors own that seam; they assert
@@ -82,7 +82,7 @@ export async function captureEvidence(page: Page, name: string): Promise<void> {
 }
 
 /** Wait past the longest map camera animation so captures never straddle a
- *  transition (MAP_SETTLE_MS, documented in UX_STATE_CONTRACT.md). */
+ *  transition (MAP_SETTLE_MS, documented in UX-STATE-CONTRACT.md). */
 export async function settleMapDelay(page: Page): Promise<void> {
   await page.waitForTimeout(MAP_SETTLE_MS)
 }

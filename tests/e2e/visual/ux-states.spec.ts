@@ -6,7 +6,7 @@ import {
   uxState
 } from "../helpers/ux-state-fixtures"
 
-// CINCO Phase 0 screen-state contract evidence (docs/cinco/UX_STATE_CONTRACT.md).
+// Screen-state contract evidence (docs/quality/UX-STATE-CONTRACT.md).
 // Each test constructs one contract state through the shared deterministic
 // fixtures, asserts its marker (inside the fixture), then captures:
 //   1. a review copy under artifacts/cinco/phase-0/, and

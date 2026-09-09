@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import Database from "better-sqlite3"
+import { DatabaseSync } from "node:sqlite"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   CurvatureRepository,
@@ -15,7 +15,7 @@ describe("curvature repository", () => {
   beforeEach(() => {
     directory = mkdtempSync(join(tmpdir(), "switchback-curvature-"))
     databasePath = join(directory, "segments.db")
-    const database = new Database(databasePath)
+    const database = new DatabaseSync(databasePath)
     database.exec(`
       create table segments (
         id text primary key,

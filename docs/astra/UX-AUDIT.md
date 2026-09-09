@@ -1,5 +1,12 @@
 # Switchback UX audit
 
+> Evidence note: the production probe screenshots and JSON that this document
+> originally linked (`docs/astra/evidence/`) were removed on 2026-09-08. They
+> were historical audit captures, not current acceptance evidence
+> (`ASTRA-STATE.md` said so), and git history retains them. The findings and
+> their required outcomes below are unchanged and remain authoritative.
+
+
 Review date: 2026-09-05. Source snapshot: `63de8ef583e93a6f323662cfe390febcb8480f60`. Production: `https://ride.henning.rodeo`. Candidate: detached `/tmp/switchback-astra-audit`, local port 3123, Next webpack development mode. Production was running from the original checkout and was restarted by activity outside this audit; its exact built SHA is not attested.
 
 ## Verdict
@@ -20,8 +27,8 @@ Severity: **S1** blocks a core job, risks loss of intent, or misleads an importa
 
 | ID | Severity / evidence | Finding, reproduction, and user impact | Required outcome |
 |---|---|---|---|
-| U01 | S1 observed + code | Plan Harrisburg → Carlisle, then refresh. Route chooser and unsaved plan disappear. Store persistence excludes active points/result. [After refresh](evidence/prod-after-refresh.png) | Restore exact intent and last usable route, or explicit recoverable failure |
-| U02 | S1 observed + code | Start destination-free Free Ride, then refresh. It becomes "Recording paused," losing the Free Ride activity. [Before](evidence/prod-free-ride-phone.png), [after](evidence/prod-free-ride-refresh.png) | Restore same session/activity, paused for safe resume |
+| U01 | S1 observed + code | Plan Harrisburg → Carlisle, then refresh. Route chooser and unsaved plan disappear. Store persistence excludes active points/result. After refresh | Restore exact intent and last usable route, or explicit recoverable failure |
+| U02 | S1 observed + code | Start destination-free Free Ride, then refresh. It becomes "Recording paused," losing the Free Ride activity. Before, after | Restore same session/activity, paused for safe resume |
 | U03 | S1 observed | Ask the pre-route builder for a 90-minute ride. UI reports outside-source failure; live `context:null` request returns 400 `INVALID_ADVISOR_REQUEST`. Endpoint accepts optional object, client sends null | Fix contract and expose truthful errors; real endpoint test |
 | U04 | S1 observed | Live "I am getting tired; get me home" says the Quick route gets the rider home in 30 minutes although no Home was supplied | Resolve Home/session return point; never infer destination is Home |
 | U05 | S1 code | Free Ride accept/Home handlers finish recording and reset highway, toll, and avoid-area settings | Continuous session; preserve active constraints |
@@ -52,31 +59,26 @@ Severity: **S1** blocks a core job, risks loss of intent, or misleads an importa
 
 ### Route choice, phone and short landscape
 
-![Phone route chooser](evidence/prod-route-phone.png)
 
-![Landscape route chooser](evidence/prod-route-landscape.png)
 
 The phone view leaves the recommendation unselected, repeats headings, and clips the advisor at the bottom. The landscape panel spends substantial space on chrome and blank area while the cards are cut off. These are complete-screen defects, not acceptable consequences of a passing viewport-bounds assertion.
 
 ### Riding readability
 
-![Free Ride phone](evidence/prod-free-ride-phone.png)
 
 The main speed panel is legible, but status/instructions outside it are not protected from the daylight basemap. More warning copy does not make the riding experience safer or clearer.
 
 ### Preparation and discovery
 
-![Route details phone](evidence/prod-details-phone.png)
 
-![Discover empty](evidence/prod-discover.png)
 
 Preparation is hidden under multiple disclosure layers, while Discover uses a large authored introduction to display no rides. The application already has a catalog; the source split is a product problem to solve explicitly.
 
-Other captured sizes: [320×568](evidence/prod-route-tiny-phone.png), [430×932](evidence/prod-route-large-phone.png), [768×1024](evidence/prod-route-tablet.png), [1440×900](evidence/prod-route-desktop.png), [2560×1080](evidence/prod-route-wide-desktop.png). These are Chromium captures, not physical device certification. Map labels also overlap on shared candidate geometry in the details/landscape captures.
+Other captured sizes: 320×568, 430×932, 768×1024, 1440×900, 2560×1080. These are Chromium captures, not physical device certification. Map labels also overlap on shared candidate geometry in the details/landscape captures.
 
 ## Live AI prompt results
 
-Full responses and elapsed times: [advisor-live-probes.json](evidence/advisor-live-probes.json). First two requests used no route (`context:null`) and a Harrisburg origin. Remaining ten used captured real Harrisburg → Carlisle candidate metrics and 40 sampled coordinates, no conversation history, no Home, and no selected map span. These were live endpoint probes; they do not claim every response was exercised through an Apply UI.
+Full responses and elapsed times: advisor-live-probes.json. First two requests used no route (`context:null`) and a Harrisburg origin. Remaining ten used captured real Harrisburg → Carlisle candidate metrics and 40 sampled coordinates, no conversation history, no Home, and no selected map span. These were live endpoint probes; they do not claim every response was exercised through an Apply UI.
 
 | Request | Actual result | Assessment |
 |---|---|---|

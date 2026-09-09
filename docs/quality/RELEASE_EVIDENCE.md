@@ -22,17 +22,20 @@ or configured live environment was not available.
 
 ## Visual evidence
 
-The repository already contains canonical screenshots for the meaningful
-surfaces. The most direct release references are:
+The canonical, comparable visual evidence is the Playwright reference snapshot
+set under `tests/e2e/visual/*-snapshots/` — those are test *inputs*, compared
+on every `visual` CI job, so a change to a surface is a diff rather than a
+recollection. Reproduce a named state locally with:
 
-- [planner desktop routes](../../artifacts/screenshots/e2e-planner-desktop-chromium.png)
-- [planner iPhone Safari](../../artifacts/screenshots/e2e-planner-mobile-safari.png)
-- [planner landscape](../../artifacts/screenshots/e2e-planner-mobile-landscape-wide.png)
-- [route comparison](../../artifacts/screenshots/planner-desktop-comparison.png)
-- [Free Ride desktop](../../artifacts/screenshots/e2e-free-ride-desktop-chromium.png)
-- [guided Ride desktop](../../artifacts/screenshots/e2e-ride-desktop-chromium.png)
-- [saved Library desktop](../../artifacts/screenshots/e2e-library-desktop-chromium.png)
-- [profile controls](../../artifacts/screenshots/reskin-profile-desktop-final.png)
+```bash
+npx playwright test --project=visual
+```
+
+Ad-hoc run screenshots are no longer committed. The e2e suites still write
+captures to `artifacts/screenshots/` while they run, but that directory is
+generated output and is gitignored: it is a byproduct of the run you just did,
+not a baseline anything is checked against. Historical captures up to
+2026-09-08 remain in git history.
 
 Failure screenshots, traces, browser video, and the GraphHopper log are CI
 artifacts with seven-day retention. The separate Level A mobile workflow

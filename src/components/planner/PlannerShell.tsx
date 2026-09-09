@@ -66,7 +66,7 @@ import { canApplyRankedRouteSelection, rankRoutesForRider } from "@/lib/client/r
 import type { MustLockUnresolvedOption } from "@/lib/roads/road-locks"
 import { navigationStore } from "@/stores/navigation-store"
 import { usePlannerStore, type PlannerPointId } from "@/stores/planner-store"
-import { LibraryDrawer } from "./LibraryDrawer"
+import { RidesDestination } from "@/components/rides/RidesDestination"
 import { MapStage } from "./MapStage"
 import { type RideIntentStatus } from "./PlannerDeck"
 import { RideHud } from "./RideHud"
@@ -1791,7 +1791,7 @@ message: failure?.message ?? "The rough route could not be routed."
       {/* Surface guard: a popstate during an active ride must never mount
           the drawer over the live HUD (its a11y effect inerts the map). */}
       {surface !== "ride" && surface !== "free-ride" && navigation.destination === "rides" ? (
-        <LibraryDrawer
+        <RidesDestination
           routes={savedRoutes}
           recordedRides={recordedRides}
           trips={savedTrips}

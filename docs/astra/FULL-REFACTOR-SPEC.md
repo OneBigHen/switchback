@@ -22,10 +22,9 @@ The recommended refactor preserves the routing engine, GIS primitives, local lib
 | [ARCHITECTURE-ASSESSMENT](ARCHITECTURE-ASSESSMENT.md) | What survives, what changes, and how state flows |
 | [IMPLEMENTATION-BACKLOG](IMPLEMENTATION-BACKLOG.md) | Dependency-ordered waves with acceptance criteria and tests |
 | [RELEASE-GATES](RELEASE-GATES.md) | Objective requirements for promotion and release |
-| [WAVE-RECONCILIATION](WAVE-RECONCILIATION.md) | How this package relates to the open premium maps + routing wave |
 | [ASTRA-STATE](ASTRA-STATE.md) | Exact review checkpoint and next-session starting point |
 
-This file is the entry point; the linked documents own the detailed contracts. The user-supplied [handoff report](astra-handoff-report.md) records a blocked consultation, not a completed independent architecture verdict.
+This file is the entry point; the linked documents own the detailed contracts. Sequencing against the open premium maps + routing wave is settled in [`docs/release/ROADMAP-WAVES.md`](../release/ROADMAP-WAVES.md#implementation-reconciliation--2026-09-05) — Astra runs as inserted phases of that wave, never as a second roadmap.
 
 ## The five strongest assets
 
@@ -81,7 +80,7 @@ Make AI a route control: "more dirt," "keep this road," and "home by six" produc
 7. Consolidate discovery, GPX, saved rides, preparation, and route-specific offline readiness.
 8. Close browser, real-provider, accessibility, performance, and physical-device gates.
 
-Wave details and safe parallelization opportunities are in the backlog. Each wave must be reviewable and releasable behind a temporary migration switch. No second permanent state authority is allowed during migration. See [WAVE-RECONCILIATION](WAVE-RECONCILIATION.md) before sequencing against the open premium maps + routing wave.
+Wave details and safe parallelization opportunities are in the backlog. Each wave must be reviewable and releasable behind a temporary migration switch. No second permanent state authority is allowed during migration. Sequencing lives in [`ROADMAP-WAVES.md`](../release/ROADMAP-WAVES.md#implementation-reconciliation--2026-09-05).
 
 ## What finished should feel like
 
