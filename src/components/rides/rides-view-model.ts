@@ -1,5 +1,6 @@
 import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { centerOfBbox, centerOfPath } from "@/lib/client/geo"
+import { classifyRouteGeography } from "@/lib/gpx/route-regions"
 import { simplifyGeometry } from "@/lib/routing/scoring"
 import type { Coordinate } from "@/lib/routing/types"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
@@ -12,14 +13,6 @@ interface RideDuration {
   source: "recorded" | "planned"
 }
 
-/**
- * Elapsed time from the recording's own clock, or the plan clearly marked as
- * the plan.
- *
- * The fallback itself is reasonable — a duration the rider recognises beats a
- * blank — but it used to be indistinguishable from a measurement. Returning the
- * source with the number keeps the useful fallback and removes the false claim.
- */
 function recordedDuration(ride: RecordedRide): RideDuration {
   const start = Date.parse(ride.startedAt)
   const end = Date.parse(ride.endedAt)
@@ -28,25 +21,44 @@ function recordedDuration(ride: RecordedRide): RideDuration {
     : { minutes: ride.route.durationMinutes, source: "planned" }
 }
 
-/** Representative point for "distance from me" ordering; null when unplaceable. */
 function centerOf(geometry: Coordinate[] | undefined): readonly [number, number] | null {
   return Array.isArray(geometry) ? centerOfPath(geometry) : null
 }
 
-/**
- * The ride's own shape, reduced to what a card-sized thumbnail can show.
- *
- * Simplified rather than copied: the list holds every ride the rider owns, and
- * none of them needs full route detail at 100x72. `simplifyGeometry` keeps the
- * real endpoints and drops interior points within tolerance of the chord, so
- * the result is still this ride's shape — coarser, never invented.
- *
- * `undefined` when the source stored no geometry. That is a fact the card
- * reports; it must not be filled in with a plausible-looking line.
- */
 function previewGeometry(geometry: Coordinate[] | undefined): readonly Coordinate[] | undefined {
   if (!Array.isArray(geometry) || geometry.length < 2) return undefined
   return simplifyGeometry(geometry)
+}
+
+/**
+ * Collapse import duplication without touching storage identity. Atlas-level
+ * geometry duplicates disappear first; importer duplicate families then elect
+ * their canonical member, falling back to the longest member when old data has
+ * no explicit canonical role.
+ */
+function canonicalProjectRoutes(routes: ProjectGpxRouteSummary[]): ProjectGpxRouteSummary[] {
+  const uniqueShapes = routes.filter((route) => !route.duplicateOf)
+  const familyPick = new Map<string, ProjectGpxRouteSummary>()
+
+  for (const route of uniqueShapes) {
+    if (!route.duplicateFamilyId) continue
+    const held = familyPick.get(route.duplicateFamilyId)
+    if (!held) {
+      familyPick.set(route.duplicateFamilyId, route)
+      continue
+    }
+
+    const heldCanonical = held.duplicateFamilyRole === "canonical"
+    const routeCanonical = route.duplicateFamilyRole === "canonical"
+    if (routeCanonical && !heldCanonical) {
+      familyPick.set(route.duplicateFamilyId, route)
+    } else if (routeCanonical === heldCanonical && route.distanceMiles > held.distanceMiles) {
+      familyPick.set(route.duplicateFamilyId, route)
+    }
+  }
+
+  return uniqueShapes.filter((route) =>
+    !route.duplicateFamilyId || familyPick.get(route.duplicateFamilyId)?.id === route.id)
 }
 
 export interface NormalizeRidesInput {
@@ -56,17 +68,15 @@ export interface NormalizeRidesInput {
   projectRoutes?: ProjectGpxRouteSummary[]
 }
 
-/**
- * Presentation-only adapter for the V2 Rides destination. Storage objects keep
- * their original ids and schemas; callers use `sourceId` + `kind` to dispatch
- * back to the existing load/delete/replay/import commands.
- */
+/** Presentation adapter only; storage objects and source IDs remain untouched. */
 export function normalizeRideLibrary({
   savedRoutes = [],
   recordedRides = [],
   trips = [],
   projectRoutes = []
 }: NormalizeRidesInput): RideLibraryItem[] {
+  const canonicalProjects = canonicalProjectRoutes(projectRoutes)
+
   const items: RideLibraryItem[] = [
     ...savedRoutes.map((route): RideLibraryItem => ({
       id: `saved:${route.id}`,
@@ -122,20 +132,29 @@ export function normalizeRideLibrary({
       tags: [],
       management: { canDelete: true }
     })),
-    ...projectRoutes.map((route): RideLibraryItem => ({
-      id: `project:${route.id}`,
-      sourceId: route.id,
-      kind: "project-gpx",
-      name: route.name,
-      sourceLabel: `Project GPX · ${route.sourceProject}`,
-      distanceMiles: route.distanceMiles,
-      durationMinutes: route.durationMinutes,
-      durationSource: "planned",
-      updatedAt: null,
-      center: route.bbox ? centerOfBbox(route.bbox) : null,
-      tags: route.dataConfidenceLevel ? [`${route.dataConfidenceLevel} confidence`] : [],
-      management: { imported: true }
-    }))
+    ...canonicalProjects.map((route): RideLibraryItem => {
+      const geography = classifyRouteGeography(route.bbox)
+      return {
+        id: `project:${route.id}`,
+        sourceId: route.id,
+        kind: "project-gpx",
+        name: route.story?.title || route.name,
+        sourceLabel: geography.macroRegion ? `Imported GPX · ${geography.macroRegion}` : `Project GPX · ${route.sourceProject}`,
+        distanceMiles: route.distanceMiles,
+        durationMinutes: route.durationMinutes,
+        durationSource: "planned",
+        updatedAt: null,
+        center: route.bbox ? centerOfBbox(route.bbox) : null,
+        summary: route.story?.summary,
+        macroRegion: geography.macroRegion,
+        ridingAreas: geography.ridingAreas,
+        preview: route.preview,
+        twistiness: route.twistiness,
+        turnCount: route.turnCount,
+        tags: [route.sourceProject, ...(route.dataConfidenceLevel ? [`${route.dataConfidenceLevel} confidence`] : [])],
+        management: { imported: true }
+      }
+    })
   ]
 
   return items.sort((left, right) => {
