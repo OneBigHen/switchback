@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import {
   activeRecordingMillis,
   createRecordingState,
+  isOpenRecordingSession,
   recordingSessionReducer,
   type RecordingSessionSnapshot,
   type RecordingSessionState
@@ -85,9 +86,10 @@ export function useRecordingSession() {
     }
   }, [])
 
-  // Persist an in-progress recording so a reload can resume it.
+  // Persist any open recording, including a denied/error state. A permission
+  // failure must not erase the session before the rider can retry or finish it.
   useEffect(() => {
-    if (state.status === "recording" || state.status === "paused") {
+    if (isOpenRecordingSession(state)) {
       localStorage.setItem(RECOVERY_KEY, JSON.stringify(recoverySnapshot(state)))
     } else if (state.status === "finished" || state.status === "idle") {
       localStorage.removeItem(RECOVERY_KEY)
@@ -122,6 +124,12 @@ export function useRecordingSession() {
     watch()
   }, [watch])
 
+  const retryGps = useCallback(() => {
+    stopWatch()
+    dispatch({ type: "retry" })
+    watch()
+  }, [stopWatch, watch])
+
   const finish = useCallback(() => {
     stopWatch()
     dispatch({ type: "finish", at: Date.now() })
@@ -132,7 +140,7 @@ export function useRecordingSession() {
     dispatch({ type: "reset" })
   }, [stopWatch])
 
-  const isActive = state.status === "recording" || state.status === "paused"
+  const isActive = isOpenRecordingSession(state)
 
   return {
     state,
@@ -142,6 +150,7 @@ export function useRecordingSession() {
     start,
     pause,
     resume,
+    retryGps,
     finish,
     discard
   }
