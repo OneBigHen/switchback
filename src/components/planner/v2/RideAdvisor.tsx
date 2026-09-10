@@ -151,7 +151,7 @@ export function RideAdvisor({
   const [dismissedNudges, setDismissedNudges] = useState<string[]>([])
   const pending = useRef<AbortController | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
-  const actionMutation = useRef<"route" | "stop" | null>(null)
+  const actionPending = useRef(false)
   /**
    * A route change normally invalidates the Goblin's stop ideas, because they
    * were chosen along a route that no longer exists. Planning the Goblin's own
@@ -184,10 +184,9 @@ export function RideAdvisor({
   useEffect(() => {
     if (scopeRef.current === currentScope) return
     const hadConversation = conversation.length > 0
+    const wasActionPending = actionPending.current
     const carryStops = keepStopsThroughReplan.current
-    const mutation = actionMutation.current
     keepStopsThroughReplan.current = false
-    actionMutation.current = null
     scopeRef.current = currentScope
     pending.current?.abort()
     pending.current = null
@@ -202,14 +201,13 @@ export function RideAdvisor({
     setRide(null)
     setCitations([])
     setSecondOpinion(null)
-    setNotice(carryStops
+    // Route mutation outcomes are owned by PlannerShell. This scope reset must
+    // not infer success from a route id change while an async advisor action
+    // may still be pending or may have been rolled back.
+    setNotice(carryStops || wasActionPending
       ? null
       : hadConversation && selectedRouteId
-        ? mutation === "stop"
-          ? "Stop added — I’m looking at the rerouted ride now."
-          : mutation === "route"
-            ? "Route switched — I’m looking at the new one now."
-            : "Route changed — I’m looking at the one you picked now."
+        ? "Route changed — I’m looking at the one you picked now."
         : null)
   }, [conversation.length, currentScope, selectedRouteId])
 
@@ -285,11 +283,15 @@ export function RideAdvisor({
 
     try {
       const rawReply = await requestAdvisorTurn(request, controller.signal)
+      const selectedRoute = routes.find((route) => route.id === selectedRouteId)
+      const routeEvidence = request.context && selectedRoute
+        ? { selected: selectedRoute, candidates: routes }
+        : undefined
       // The route handler already applies this policy. Repeat it at the
       // interactive route boundary so a stale or malformed action response
       // cannot put unsupported route or POI prose into planner state.
       const reply = request.context
-        ? enforceAdvisorActionReply(request, rawReply)
+        ? enforceAdvisorActionReply(request, rawReply, routeEvidence)
         : rawReply
       if (controller.signal.aborted || scopeRef.current !== requestScope) return
 
@@ -313,7 +315,7 @@ export function RideAdvisor({
         return
       }
 
-      const clientAction = resolveAdvisorClientAction(request, reply)
+      const clientAction = resolveAdvisorClientAction(request, reply, routeEvidence)
       setConversation([...asked, threadTurn({ role: "advisor", text: reply.message })])
       setStops(clientAction?.type === "add-stop" || clientAction?.type === "route-with-stop"
         ? reply.proposedStops.filter((stop) => stop.id !== clientAction.stop.id)
@@ -327,13 +329,13 @@ export function RideAdvisor({
       // server, and these callbacks are the same planner boundaries the manual
       // "Add to ride" / "Show route" buttons use.
       if (clientAction?.type === "route-with-stop" && onRouteWithStop) {
-        actionMutation.current = "stop"
-        void onRouteWithStop(clientAction.stop)
+        actionPending.current = true
+        void Promise.resolve(onRouteWithStop(clientAction.stop)).finally(() => {
+          actionPending.current = false
+        })
       } else if (clientAction?.type === "add-stop") {
-        actionMutation.current = "stop"
         onAddStop(clientAction.stop)
       } else if (clientAction?.type === "select-route" && onSelectRoute) {
-        actionMutation.current = "route"
         onSelectRoute(clientAction.routeId)
       }
     } finally {

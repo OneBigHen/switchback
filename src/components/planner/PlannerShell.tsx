@@ -594,6 +594,9 @@ export function PlannerShell() {
     routeRequestGate.invalidate()
     const store = usePlannerStore.getState()
     const beforePlan = store.plan
+    const beforeCommittedRide = store.committedRide
+    const beforeResultIdentity = store.resultIdentity
+    const beforeSelectionSource = store.selectionSource
     const activeRouteId = store.selectedRouteId ?? beforePlan?.routes[0]?.id
     const beforeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
     const stopWaypoint: Waypoint = { lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name }
@@ -606,8 +609,17 @@ export function PlannerShell() {
       return
     }
     if (store.editRide({ via: routedVia }, "Route through advisor stop", "advisor") !== "applied") return
+    const attemptedIdentity = usePlannerStore.getState().getIntentIdentity()
 
-    const planned = await handlePlan()
+    const planningRun = handlePlan()
+    const actionRequestId = usePlannerStore.getState().pendingResultIdentity?.requestId
+    const planned = await planningRun
+    const afterPlan = usePlannerStore.getState()
+    // The planner session fences provider responses, but this callback also
+    // owns the post-plan transaction. A later rider edit/replan must not be
+    // cancelled or rolled back by an older advisor response.
+    if (afterPlan.getIntentIdentity() !== attemptedIdentity
+      || (actionRequestId !== undefined && !routeRequestGate.isCurrent(actionRequestId))) return
     const selected = planned?.routes.find((route) => route.id === planned.selectedRouteId) ?? planned?.routes[0] ?? null
     const geometryChanged = Boolean(beforeRoute && (
       beforeRoute.geometry.length !== selected?.geometry.length
@@ -620,24 +632,28 @@ export function PlannerShell() {
       || beforeRoute.turnCount !== selected.turnCount
     ))
     const routeChanged = Boolean(beforeRoute && selected && (
-      beforeRoute.id !== selected.id || geometryChanged || metricsChanged
+      geometryChanged || metricsChanged
     ))
 
     if (!planned || !selected || !routeChanged) {
-      planning.cancel()
-      if (beforePlan) {
-        const previousRoutes = beforePlan.routes.flatMap((summary) => {
-          const route = routeEntityCache.get(summary.id)
-          return route ? [route] : []
-        })
-        if (previousRoutes.length > 0) {
-          usePlannerStore.getState().applyPlan({
-            selectedRouteId: beforePlan.selectedRouteId,
-            routes: previousRoutes,
-            warnings: beforePlan.warnings,
-            ...(beforePlan.planningId ? { planningId: beforePlan.planningId } : {})
-          })
-        }
+      if (!planned) {
+        // A failed primary never replaced committedRide, so the existing
+        // planner cancellation contract restores the attempted intent and
+        // settles the failed lifecycle.
+        planning.cancel()
+      } else if (beforeCommittedRide) {
+        const restored = usePlannerStore.getState().restoreRideUpdate({
+          committedRide: beforeCommittedRide,
+          plan: beforePlan,
+          selectedRouteId: store.selectedRouteId,
+          selectionSource: beforeSelectionSource,
+          resultIdentity: beforeResultIdentity,
+          expectedRequestId: actionRequestId
+        }, attemptedIdentity)
+        if (!restored) return
+        // Restore first, then settle the lifecycle. This keeps the ordinary
+        // controller cancellation from rolling back a newer request.
+        planning.cancel()
       }
       setNotice({
         kind: "warning",

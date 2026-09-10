@@ -5,6 +5,7 @@ import {
   enforceAdvisorActionReply,
   resolveAdvisorClientAction
 } from "@/lib/advice/action-policy"
+import type { AdvisorRouteEvidence } from "@/lib/advice/action-policy"
 import { classifyTurn } from "@/lib/advice/execution-policy"
 import { createRoutedAdviser } from "@/lib/advice/router"
 import { createAdvisorToolbox } from "@/lib/advice/toolbox"
@@ -81,10 +82,23 @@ describe("Gravel Goblin action classification", () => {
   it.each([
     "Find me better route with stop",
     "Find me a better ride with something good to eat on the way",
-    "Reroute me with a coffee stop",
-    "Add a brewery to this route"
+    "Reroute me with a coffee stop"
   ])("treats %j as a route-with-stop action", (message) => {
     expect(classifyAdvisorAction(ask(message))).toBe("route-with-stop")
+  })
+
+  it("treats a stop-only imperative as an add-stop action", () => {
+    expect(classifyAdvisorAction(ask("Add a brewery to this route"))).toBe("add-stop")
+  })
+
+  it.each([
+    "What if I find a better route with a good food stop?",
+    "If I add a brewery, will this route improve?",
+    "Would a better route with lunch be worth it?",
+    "Is there a better route with food?",
+    "Would you reroute me with a coffee?"
+  ])("keeps hypothetical route-and-stop questions non-mutating: %j", (message) => {
+    expect(classifyAdvisorAction(ask(message))).toBe("chat")
   })
 
   it("keeps exploratory stop questions suggestion-only", () => {
@@ -164,6 +178,53 @@ describe("Gravel Goblin action evidence boundary", () => {
 
     expect(result.message).toMatch(/better verified route|unchanged/i)
     expect(resolveAdvisorClientAction(input, result)).toBeNull()
+  })
+
+  it("rejects a different id when local geometry proves the candidate is identical", () => {
+    const input = ask("Find me a better route")
+    const evidence: AdvisorRouteEvidence = {
+      selected: { id: "current", geometry: [[-75.16, 40.18], [-75.28, 40.31]] },
+      candidates: [{ id: "current", geometry: [[-75.16, 40.18], [-75.28, 40.31]] }, {
+        id: "better",
+        geometry: [[-75.16, 40.18], [-75.28, 40.31]]
+      }]
+    }
+    const guarded = enforceAdvisorActionReply(input, reply({
+      secondOpinion: {
+        agreesWithSwitchback: false,
+        wouldPick: "better",
+        rationale: "Different id only.",
+        cautions: [],
+        confidence: "medium"
+      }
+    }), evidence)
+
+    expect(guarded.message).toMatch(/don.t have a better verified route candidate/i)
+    expect(guarded.secondOpinion).toBeNull()
+    expect(resolveAdvisorClientAction(input, guarded, evidence)).toBeNull()
+  })
+
+  it("accepts a different candidate when local geometry proves it is distinct", () => {
+    const input = ask("Find me a better route")
+    const evidence: AdvisorRouteEvidence = {
+      selected: { id: "current", geometry: [[-75.16, 40.18], [-75.28, 40.31]] },
+      candidates: [{ id: "current", geometry: [[-75.16, 40.18], [-75.28, 40.31]] }, {
+        id: "better",
+        geometry: [[-75.16, 40.18], [-75.18, 40.22], [-75.28, 40.31]]
+      }]
+    }
+    const guarded = enforceAdvisorActionReply(input, reply({
+      secondOpinion: {
+        agreesWithSwitchback: false,
+        wouldPick: "better",
+        rationale: "More curves.",
+        cautions: [],
+        confidence: "medium"
+      }
+    }), evidence)
+
+    expect(guarded.secondOpinion?.wouldPick).toBe("better")
+    expect(resolveAdvisorClientAction(input, guarded, evidence)).toEqual({ type: "select-route", routeId: "better" })
   })
 
   it("refuses to describe an imaginary reroute when no different candidate was verified", () => {
@@ -286,6 +347,14 @@ describe("Gravel Goblin client action handoff", () => {
         confidence: "low"
       }
     }))).toBeNull()
+  })
+
+  it("hands a grounded stop-only imperative to the existing add-stop callback", () => {
+    const input = ask("Add a brewery to this route")
+    const guarded = enforceAdvisorActionReply(input, reply({ proposedStops: [foodStop] }))
+
+    expect(guarded.message).toMatch(/Actual Diner.*ready to add/i)
+    expect(resolveAdvisorClientAction(input, guarded)).toEqual({ type: "add-stop", stop: guarded.proposedStops[0] })
   })
 })
 

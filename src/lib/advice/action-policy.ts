@@ -5,6 +5,9 @@ import type {
   ProposedStop,
   RouteSecondOpinion
 } from "./contracts"
+import { routeSimilarity } from "@/lib/recommendation/route-diversity"
+import { PA_NJ_ROUTE_POLICY_V1 } from "@/lib/recommendation/route-policy"
+import type { Coordinate } from "@/lib/routing/types"
 
 /**
  * What the rider expects Gravel Goblin to *do* this turn.
@@ -19,6 +22,7 @@ export type AdvisorActionIntent =
   | "chat"
   | "reroute"
   | "route-with-stop"
+  | "add-stop"
   | "stop-scout"
   | "build-ride"
 
@@ -34,6 +38,12 @@ const ROUTE_ACTION = new RegExp([
 const STOP_NOUN = /\b(?:stop|stops|stopover|waypoint|brewery|breweries|brewpub|beer|pub|bar|taproom|coffee|cafe|espresso|diner|restaurant|food|eat|lunch|dinner|breakfast|brunch|snack|bite|fuel|gas|petrol|charger|charging|hotel|motel|camp|campground|campsite|lodging|viewpoint|overlook|waterfall|park)\b/i
 const APPLY_STOP = /\b(?:add|include|insert|put|via|through|with|route\s+me|stop\s+at)\b|\bon\s+the\s+way\b|\balong\s+the\s+way\b/i
 const STOP_DISCOVERY = /\b(?:find|where|anywhere|somewhere|recommend|suggest|good|near|nearby|around|halfway|midway)\b/i
+const HYPOTHETICAL_ACTION = /^(?:what\s+if\b|if\s+(?:i|we|you)\b|would\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b)/i
+
+export interface AdvisorRouteEvidence {
+  selected: { id: string; geometry: Coordinate[]; canonicalSegmentRefs?: { canonicalSegmentUid: string; lengthMeters: number }[] }
+  candidates: readonly { id: string; geometry: Coordinate[]; canonicalSegmentRefs?: { canonicalSegmentUid: string; lengthMeters: number }[] }[]
+}
 
 function messageOf(input: Pick<AdviceRequest, "riderMessage">): string {
   return (input.riderMessage?.trim() ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
@@ -45,12 +55,13 @@ export function classifyAdvisorAction(
   if (!input.context) return "build-ride"
   const message = messageOf(input)
   if (!message) return "chat"
+  if (HYPOTHETICAL_ACTION.test(message)) return "chat"
 
   const wantsRouteChange = ROUTE_ACTION.test(message)
   const mentionsStop = STOP_NOUN.test(message)
 
   if (wantsRouteChange && mentionsStop) return "route-with-stop"
-  if (mentionsStop && APPLY_STOP.test(message)) return "route-with-stop"
+  if (mentionsStop && APPLY_STOP.test(message)) return "add-stop"
   if (wantsRouteChange) return "reroute"
   if (mentionsStop && STOP_DISCOVERY.test(message)) return "stop-scout"
   return "chat"
@@ -73,6 +84,13 @@ export function advisorActionPrompt(
         "Return a different existing route in secondOpinion when one is verified; if none exists, do not imply that both requirements were fulfilled.",
         "Do not invent an itinerary, road, town or business when lookup fails.",
         "Do not claim the route or map changed; the client owns planner mutation after validation."
+      ].join("\n")
+    case "add-stop":
+      return [
+        "ACTION CONTRACT: the rider asked to add a grounded stop to the existing ride.",
+        "Use find_stops (or lookup_place for a specifically named place) before naming a stop.",
+        "Return the best grounded stop in proposedStops.",
+        "Do not claim that the route or map changed; the client owns the existing Add to ride action."
       ].join("\n")
     case "reroute":
       return [
@@ -135,7 +153,8 @@ function safeRide(ride: ProposedRide): ProposedRide {
  */
 function verifiedDifferentOpinion(
   input: AdviceRequest,
-  opinion: RouteSecondOpinion | null
+  opinion: RouteSecondOpinion | null,
+  routeEvidence?: AdvisorRouteEvidence
 ): RouteSecondOpinion | null {
   const selectedRouteId = input.context?.selectedRouteId
   if (!opinion || opinion.agreesWithSwitchback || !selectedRouteId) return null
@@ -144,6 +163,14 @@ function verifiedDifferentOpinion(
   const candidate = input.context?.candidates.find((entry) => entry.id === opinion.wouldPick)
   if (!candidate) return null
   const selected = input.context?.candidates.find((entry) => entry.id === selectedRouteId)
+  if (routeEvidence) {
+    const localSelected = routeEvidence.selected
+    const localCandidate = routeEvidence.candidates.find((entry) => entry.id === opinion.wouldPick)
+    if (!localCandidate) return null
+    const similarity = routeSimilarity(localSelected, localCandidate)
+    if (similarity.mode === "unknown"
+      || similarity.overlapShare > PA_NJ_ROUTE_POLICY_V1.duplicateSimilarityThreshold) return null
+  }
   const timeDelta = selected ? candidate.durationMinutes - selected.durationMinutes : 0
   const timeText = timeDelta === 0
     ? "the same measured time"
@@ -166,13 +193,17 @@ function verifiedDifferentOpinion(
  * Generic conversation keeps the model's voice, but is still capped so Goblin
  * does not bury the map under a monologue.
  */
-export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorReply): AdvisorReply {
+export function enforceAdvisorActionReply(
+  input: AdviceRequest,
+  reply: AdvisorReply,
+  routeEvidence?: AdvisorRouteEvidence
+): AdvisorReply {
   if (reply.status !== "ok") return reply
 
   const intent = classifyAdvisorAction(input)
   if (intent === "chat") return { ...reply, message: compactWords(reply.message) }
 
-  if (intent === "route-with-stop" || intent === "stop-scout") {
+  if (intent === "route-with-stop" || intent === "add-stop" || intent === "stop-scout") {
     const proposedStops = safeStops(reply.proposedStops)
     const stop = proposedStops[0]
     if (!stop) {
@@ -188,7 +219,7 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
       }
     }
     const opinion = intent === "route-with-stop"
-      ? verifiedDifferentOpinion(input, reply.secondOpinion)
+      ? verifiedDifferentOpinion(input, reply.secondOpinion, routeEvidence)
       : null
     return {
       ...reply,
@@ -196,7 +227,9 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
         ? opinion
           ? `Grounded stop: ${stop.name}. A different verified route candidate is ready; Switchback will route through the planner.`
           : `Grounded stop: ${stop.name}. I don’t have a better verified route candidate, so your route is unchanged.`
-        : `Best grounded stop: ${stop.name}.`,
+        : intent === "add-stop"
+          ? `Grounded stop: ${stop.name}. It is ready to add to this ride.`
+          : `Best grounded stop: ${stop.name}.`,
       secondOpinion: opinion,
       proposedStops,
       proposedRide: null
@@ -204,7 +237,7 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
   }
 
   if (intent === "reroute") {
-    const opinion = verifiedDifferentOpinion(input, reply.secondOpinion)
+    const opinion = verifiedDifferentOpinion(input, reply.secondOpinion, routeEvidence)
     const candidate = opinion
       ? input.context?.candidates.find((entry) => entry.id === opinion.wouldPick)
       : null
@@ -257,7 +290,8 @@ export type AdvisorClientAction =
  */
 export function resolveAdvisorClientAction(
   input: AdviceRequest,
-  reply: AdvisorReply
+  reply: AdvisorReply,
+  routeEvidence?: AdvisorRouteEvidence
 ): AdvisorClientAction | null {
   if (reply.status !== "ok") return null
   const intent = classifyAdvisorAction(input)
@@ -265,8 +299,13 @@ export function resolveAdvisorClientAction(
   if (intent === "route-with-stop") {
     const stop = reply.proposedStops[0]
     if (!stop) return null
-    if (!verifiedDifferentOpinion(input, reply.secondOpinion)) return null
+    if (!verifiedDifferentOpinion(input, reply.secondOpinion, routeEvidence)) return null
     return { type: "route-with-stop", stop }
+  }
+
+  if (intent === "add-stop") {
+    const stop = reply.proposedStops[0]
+    return stop ? { type: "add-stop", stop } : null
   }
 
   if (intent === "reroute" && reply.secondOpinion && !reply.secondOpinion.agreesWithSwitchback) {

@@ -17,7 +17,9 @@ function route(id: string, name: string, minutes: number): PlannedRoute {
     id,
     name,
     profile: id === "current" ? "balanced" : "adventure",
-    geometry: [[-75.16, 40.18], [-75.28, 40.31]],
+    geometry: id === "current"
+      ? [[-75.16, 40.18], [-75.28, 40.31]]
+      : [[-75.16, 40.18], [-75.18, 40.22], [-75.28, 40.31]],
     waypoints: [],
     instructions: [],
     distanceMiles: id === "current" ? 42 : 45,
@@ -99,6 +101,36 @@ async function openGoblin() {
 }
 
 describe("Gravel Goblin command handoff", () => {
+  it("routes a stop-only imperative through the existing add-stop callback", async () => {
+    const onAddStop = vi.fn()
+    const onRouteWithStop = vi.fn()
+    advisorClient.requestAdvisorTurn
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(ok({
+        message: "Grounded stop: Actual Diner. It is ready to add to this ride.",
+        proposedStops: [foodStop]
+      }))
+
+    render(
+      <RideAdvisor
+        routes={routes}
+        selectedRouteId="current"
+        warnings={[]}
+        onAddStop={onAddStop}
+        onRouteWithStop={onRouteWithStop}
+        onSelectRoute={vi.fn()}
+      />
+    )
+
+    const user = await openGoblin()
+    await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "Add a brewery to this route{Enter}")
+
+    await waitFor(() => expect(onAddStop).toHaveBeenCalledOnce())
+    expect(onAddStop).toHaveBeenCalledWith(expect.objectContaining({ id: foodStop.id }))
+    expect(onRouteWithStop).not.toHaveBeenCalled()
+    expect(screen.queryByRole("button", { name: /Add to ride/i })).not.toBeInTheDocument()
+  })
+
   it("routes an explicit add-stop command through the planner callback without another click", async () => {
     const onAddStop = vi.fn()
     const onRouteWithStop = vi.fn()
@@ -135,6 +167,44 @@ describe("Gravel Goblin command handoff", () => {
     expect(onRouteWithStop).toHaveBeenCalledWith(foodStop)
     expect(onAddStop).not.toHaveBeenCalled()
     expect(screen.queryByRole("button", { name: /Add to ride/i })).not.toBeInTheDocument()
+  })
+
+  it("keeps a hypothetical route-and-stop question from invoking planner callbacks", async () => {
+    const onAddStop = vi.fn()
+    const onRouteWithStop = vi.fn()
+    const onSelectRoute = vi.fn()
+    advisorClient.requestAdvisorTurn
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(ok({
+        message: "We could consider a better route with Actual Diner.",
+        proposedStops: [foodStop],
+        secondOpinion: {
+          agreesWithSwitchback: false,
+          wouldPick: "better",
+          rationale: "More curves.",
+          cautions: [],
+          confidence: "medium"
+        }
+      }))
+
+    render(
+      <RideAdvisor
+        routes={routes}
+        selectedRouteId="current"
+        warnings={[]}
+        onAddStop={onAddStop}
+        onRouteWithStop={onRouteWithStop}
+        onSelectRoute={onSelectRoute}
+      />
+    )
+
+    const user = await openGoblin()
+    await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "What if I find a better route with a food stop?{Enter}")
+    await screen.findByText(/We could consider a better route/)
+
+    expect(onAddStop).not.toHaveBeenCalled()
+    expect(onRouteWithStop).not.toHaveBeenCalled()
+    expect(onSelectRoute).not.toHaveBeenCalled()
   })
 
   it("keeps exploratory stop discovery suggestion-only", async () => {
@@ -195,5 +265,55 @@ describe("Gravel Goblin command handoff", () => {
 
     await waitFor(() => expect(onSelectRoute).toHaveBeenCalledOnce())
     expect(onSelectRoute).toHaveBeenCalledWith("better")
+  })
+
+  it("does not announce a stop success when a route action is still pending", async () => {
+    let releaseRouteAction!: () => void
+    const onRouteWithStop = vi.fn(() => new Promise<void>((resolve) => {
+      releaseRouteAction = resolve
+    }))
+    advisorClient.requestAdvisorTurn
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(ok({
+        message: "Grounded stop: Actual Diner. A different verified route candidate is ready.",
+        proposedStops: [foodStop],
+        secondOpinion: {
+          agreesWithSwitchback: false,
+          wouldPick: "better",
+          rationale: "More curves.",
+          cautions: [],
+          confidence: "medium"
+        }
+      }))
+
+    const onAddStop = vi.fn()
+    const { rerender } = render(
+      <RideAdvisor
+        routes={routes}
+        selectedRouteId="current"
+        warnings={[]}
+        onAddStop={onAddStop}
+        onRouteWithStop={onRouteWithStop}
+        onSelectRoute={vi.fn()}
+      />
+    )
+
+    const user = await openGoblin()
+    await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "Reroute me with a food stop{Enter}")
+    await waitFor(() => expect(onRouteWithStop).toHaveBeenCalledOnce())
+
+    rerender(
+      <RideAdvisor
+        routes={[routes[1]!]}
+        selectedRouteId="better"
+        warnings={[]}
+        onAddStop={onAddStop}
+        onRouteWithStop={onRouteWithStop}
+        onSelectRoute={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByText(/Stop added —/)).not.toBeInTheDocument()
+    releaseRouteAction()
   })
 })
