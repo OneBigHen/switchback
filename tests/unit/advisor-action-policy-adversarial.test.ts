@@ -83,6 +83,14 @@ describe("advisor mutation authority adversarial cases", () => {
     expect(classifyAdvisorAction(ask(message))).toBe(expected)
   })
 
+  it.each([
+    "Reroute me without coffee",
+    "Reroute me to avoid the brewery",
+    "Take me away from the park"
+  ])("never turns an excluded place category into an added stop: %j", (message) => {
+    expect(classifyAdvisorAction(ask(message))).toBe("reroute")
+  })
+
   it("refuses a direct pure-reroute action when only the route id differs", () => {
     const geometry = [[-75.16, 40.18], [-75.28, 40.31]] as [number, number][]
     const evidence: AdvisorRouteEvidence = {
