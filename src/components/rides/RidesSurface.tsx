@@ -9,6 +9,7 @@ import { DestinationHeader } from "@/components/v2/DestinationHeader"
 import { RouteGraphic } from "@/components/v2/RouteGraphic"
 import { ImportFlow } from "./ImportFlow"
 import { RideFilters, type RideFilter, type RideFilterCounts } from "./RideFilters"
+import { isImportedRideLibraryItem } from "./ride-library-classification"
 import { RideListRow } from "./RideListRow"
 import styles from "./RidesSurface.module.css"
 import type { Coordinate } from "@/lib/routing/types"
@@ -71,9 +72,7 @@ export interface RidesSurfaceProps {
   onDelete?(item: RideLibraryItem): void
 }
 
-export function isImportedRideLibraryItem(item: RideLibraryItem): boolean {
-  return item.kind === "project-gpx" || item.management?.imported === true
-}
+export { isImportedRideLibraryItem } from "./ride-library-classification"
 
 export function itemMatchesRideFilter(item: RideLibraryItem, filter: RideFilter): boolean {
   switch (filter) {

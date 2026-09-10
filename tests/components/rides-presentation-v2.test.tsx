@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RidesSurface, type RideLibraryItem } from "@/components/rides/RidesSurface"
 
@@ -35,5 +35,68 @@ describe("Rides V2 presentation", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
     expect(screen.getByRole("button", { name: /Import ride/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Open Ridge Run/i })).toBeInTheDocument()
+  })
+
+  it("labels a saved route imported from GPX with the same Imported identity used by counts and filters", () => {
+    const imported: RideLibraryItem = {
+      id: "saved:gpx",
+      sourceId: "gpx",
+      kind: "saved-route",
+      name: "Luna PA NJ Synthetic Test",
+      sourceLabel: "Saved route",
+      distanceMiles: 35.9,
+      durationMinutes: 0,
+      durationSource: "planned",
+      updatedAt: "2026-09-09T12:00:00Z",
+      tags: [],
+      management: { imported: true, canMatchRoads: true, canDelete: true }
+    }
+
+    render(<RidesSurface items={[imported]} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    expect(screen.getByRole("button", { name: /Planned 0/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Imported 1/i })).toBeInTheDocument()
+    const row = screen.getByRole("button", { name: /Open Luna PA NJ Synthetic Test/i })
+    expect(within(row).getByText("Imported")).toBeInTheDocument()
+    expect(within(row).queryByText("Planned")).not.toBeInTheDocument()
+  })
+
+  it("keeps project GPX and imported-management identities aligned across cards, filters, and counts", () => {
+    const importedItems: RideLibraryItem[] = [
+      { ...items[3], id: "project:identity", name: "Project identity" },
+      { ...items[0], id: "saved:identity", name: "Management identity", management: { imported: true } },
+      { ...items[3], id: "project:both", name: "Both identity", management: { imported: true } },
+      { ...items[0], id: "saved:planned", name: "Planned identity" },
+      { ...items[0], id: "saved:explicit-false", name: "Explicit false identity", management: { imported: false } }
+    ]
+
+    render(<RidesSurface items={importedItems} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    expect(screen.getByRole("button", { name: "All 5" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Imported 3" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Planned 2" })).toBeInTheDocument()
+
+    for (const name of ["Project identity", "Management identity", "Both identity"]) {
+      const row = screen.getByRole("button", { name: `Open ${name}` })
+      expect(within(row).getByText("Imported", { exact: true })).toBeInTheDocument()
+    }
+    for (const name of ["Planned identity", "Explicit false identity"]) {
+      const row = screen.getByRole("button", { name: `Open ${name}` })
+      expect(within(row).getByText("Planned", { exact: true })).toBeInTheDocument()
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "Imported 3" }))
+    expect(screen.getByRole("button", { name: "Open Project identity" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open Management identity" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open Both identity" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open Planned identity" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open Explicit false identity" })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Planned 2" }))
+    expect(screen.getByRole("button", { name: "Open Planned identity" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open Explicit false identity" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open Project identity" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open Management identity" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open Both identity" })).not.toBeInTheDocument()
   })
 })
