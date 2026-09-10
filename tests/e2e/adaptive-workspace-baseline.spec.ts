@@ -184,13 +184,17 @@ async function measure(page: Page) {
 async function driveToState(page: Page, state: BaselineState): Promise<void> {
   switch (state) {
     case "search":
-      return uxState.home(page)
+      await uxState.home(page)
+      return
     case "choose":
-      return uxState.routeAlternatives(page)
+      await uxState.routeAlternatives(page)
+      return
     case "edit":
-      return uxState.routeEdit(page)
+      await uxState.routeEdit(page)
+      return
     case "prepare":
-      return uxState.routeSelected(page)
+      await uxState.routeSelected(page)
+      return
     default:
       return
   }
