@@ -4,7 +4,7 @@ import type {
   AdvisorToolbox,
   RouteAdviser
 } from "./contracts"
-import { advisorActionPrompt, enforceAdvisorActionReply } from "./action-policy"
+import { advisorActionPrompt, advisorRouteEvidenceFromRequest, enforceAdvisorActionReply } from "./action-policy"
 import { advisorSystemPrompt } from "./route-context"
 import {
   classifyTurn,
@@ -171,7 +171,7 @@ export function createRoutedAdviser(options: RoutedAdviserOptions): RouteAdviser
         last = result.reply
         if (!isRetryableFailure(result.reply.status)) {
           options.onTurn?.({ mode, attempts, answeredBy: provider.id })
-          const guarded = enforceAdvisorActionReply(input, result.reply)
+          const guarded = enforceAdvisorActionReply(input, result.reply, advisorRouteEvidenceFromRequest(input))
           return withRouting(guarded, mode, attempts, provider.id)
         }
         // The rider's own deadline is not a reason to try someone else; it

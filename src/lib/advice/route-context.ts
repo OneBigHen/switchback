@@ -53,6 +53,7 @@ function candidateSummary(route: PlannedRoute): AdvisorRouteContext["candidates"
     durationMinutes: Math.round(route.durationMinutes),
     twistiness: Math.round(route.twistiness),
     turnCount: route.turnCount,
+    geometry: sampleGeometry(route.geometry),
     roadMix: route.roadMix,
     surfaceMix: route.surfaceMix,
     ...(route.ascentMeters !== null ? { ascentMeters: Math.round(route.ascentMeters) } : {}),

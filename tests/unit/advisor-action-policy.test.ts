@@ -28,6 +28,7 @@ const context: AdvisorRouteContext = {
       durationMinutes: 88,
       twistiness: 54,
       turnCount: 81,
+      geometry: [[-75.16, 40.18], [-75.28, 40.31]],
       roadMix: {},
       surfaceMix: {}
     },
@@ -39,6 +40,7 @@ const context: AdvisorRouteContext = {
       durationMinutes: 94,
       twistiness: 72,
       turnCount: 116,
+      geometry: [[-75.16, 40.18], [-75.18, 40.22], [-75.28, 40.31]],
       roadMix: {},
       surfaceMix: { gravel: 0.28 }
     }
@@ -210,6 +212,29 @@ describe("Gravel Goblin action evidence boundary", () => {
     expect(guarded.message).toMatch(/don.t have a better verified route candidate/i)
     expect(guarded.secondOpinion).toBeNull()
     expect(resolveAdvisorClientAction(input, guarded, evidence)).toBeNull()
+  })
+
+  it("rejects an identical candidate from request geometry at the server policy boundary", () => {
+    const duplicateContext: AdvisorRouteContext = {
+      ...context,
+      candidates: context.candidates.map((candidate) => ({
+        ...candidate,
+        geometry: [[-75.16, 40.18], [-75.28, 40.31]]
+      }))
+    }
+    const input = ask("Find me a better route", duplicateContext)
+    const guarded = enforceAdvisorActionReply(input, reply({
+      secondOpinion: {
+        agreesWithSwitchback: false,
+        wouldPick: "better",
+        rationale: "Different id only.",
+        cautions: [],
+        confidence: "medium"
+      }
+    }))
+
+    expect(guarded.secondOpinion).toBeNull()
+    expect(guarded.message).toMatch(/don.t have a better verified route candidate/i)
   })
 
   it("accepts a different candidate when local geometry proves it is distinct", () => {

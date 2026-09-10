@@ -45,6 +45,18 @@ export interface AdvisorRouteEvidence {
   candidates: readonly { id: string; geometry: Coordinate[]; canonicalSegmentRefs?: { canonicalSegmentUid: string; lengthMeters: number }[] }[]
 }
 
+export function advisorRouteEvidenceFromRequest(input: AdviceRequest): AdvisorRouteEvidence | undefined {
+  const context = input.context
+  if (!context) return undefined
+  const selected = context.candidates.find((candidate) => candidate.id === context.selectedRouteId)
+  if (!selected?.geometry) return undefined
+  const candidates = context.candidates
+    .filter((candidate): candidate is typeof candidate & { geometry: Coordinate[] } => Boolean(candidate.geometry))
+  return candidates.length === context.candidates.length
+    ? { selected: { id: selected.id, geometry: selected.geometry }, candidates }
+    : undefined
+}
+
 function messageOf(input: Pick<AdviceRequest, "riderMessage">): string {
   return (input.riderMessage?.trim() ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
 }
@@ -160,6 +172,7 @@ function verifiedDifferentOpinion(
   opinion: RouteSecondOpinion | null,
   routeEvidence?: AdvisorRouteEvidence
 ): RouteSecondOpinion | null {
+  routeEvidence ??= advisorRouteEvidenceFromRequest(input)
   const selectedRouteId = input.context?.selectedRouteId
   if (!opinion || opinion.agreesWithSwitchback || !selectedRouteId) return null
   if (opinion.wouldPick === selectedRouteId) return null
@@ -167,14 +180,13 @@ function verifiedDifferentOpinion(
   const candidate = input.context?.candidates.find((entry) => entry.id === opinion.wouldPick)
   if (!candidate) return null
   const selected = input.context?.candidates.find((entry) => entry.id === selectedRouteId)
-  if (routeEvidence) {
-    const localSelected = routeEvidence.selected
-    const localCandidate = routeEvidence.candidates.find((entry) => entry.id === opinion.wouldPick)
-    if (!localCandidate) return null
-    const similarity = routeSimilarity(localSelected, localCandidate)
-    if (similarity.mode === "unknown"
-      || similarity.overlapShare > PA_NJ_ROUTE_POLICY_V1.duplicateSimilarityThreshold) return null
-  }
+  if (!routeEvidence) return null
+  const localSelected = routeEvidence.selected
+  const localCandidate = routeEvidence.candidates.find((entry) => entry.id === opinion.wouldPick)
+  if (!localCandidate) return null
+  const similarity = routeSimilarity(localSelected, localCandidate)
+  if (similarity.mode === "unknown"
+    || similarity.overlapShare > PA_NJ_ROUTE_POLICY_V1.duplicateSimilarityThreshold) return null
   const timeDelta = selected ? candidate.durationMinutes - selected.durationMinutes : 0
   const timeText = timeDelta === 0
     ? "the same measured time"
