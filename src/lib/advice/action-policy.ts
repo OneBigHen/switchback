@@ -26,17 +26,27 @@ export type AdvisorActionIntent =
   | "stop-scout"
   | "build-ride"
 
+/**
+ * Planner mutation requires an imperative at the start of the rider turn.
+ * Benign acknowledgement/politeness prefixes are allowed, but words that only
+ * describe a route relationship ("with", "via", "through") never grant
+ * mutation authority by themselves.
+ */
+const COMMAND_LEAD = String.raw`^\s*(?:(?:please|okay|ok|yes|yeah|sure)[,\s]+)*`
 const ROUTE_ACTION = new RegExp([
-  String.raw`\b(?:re-?route|reroute)(?:\s+me|\s+this)?\b`,
-  String.raw`\b(?:find|give|show|make|build|plan|try)(?:\s+me)?\s+(?:a\s+)?(?:better|another|alternate|alternative|different|new)\s+(?:route|ride)\b`,
-  String.raw`\b(?:change|switch)\s+(?:the\s+)?(?:route|ride)\b`,
-  String.raw`\bmake\s+(?:this|the)\s+(?:route|ride)\s+better\b`,
-  String.raw`\b(?:improve|optimize|optimise)\s+(?:(?:this|the)\s+)?(?:route|ride)\b`,
-  String.raw`\broute\s+me\b`,
-  String.raw`\btake\s+me\b`
-].join("|"), "i")
+  String.raw`(?:re-?route|reroute)(?:\s+me|\s+this)?\b`,
+  String.raw`(?:find|give|show|make|build|plan|try)(?:\s+me)?\s+(?:a\s+)?(?:better|another|alternate|alternative|different|new)\s+(?:route|ride)\b`,
+  String.raw`(?:change|switch)\s+(?:the\s+)?(?:route|ride)\b`,
+  String.raw`make\s+(?:this|the)\s+(?:route|ride)\s+better\b`,
+  String.raw`(?:improve|optimize|optimise)\s+(?:(?:this|the)\s+)?(?:route|ride)\b`,
+  String.raw`route\s+me\b`,
+  String.raw`take\s+me\b`
+].map((pattern) => `${COMMAND_LEAD}(?:${pattern})`).join("|"), "i")
 const STOP_NOUN = /\b(?:stop|stops|stopover|waypoint|brewery|breweries|brewpub|beer|pub|bar|taproom|coffee|cafe|espresso|diner|restaurant|food|eat|lunch|dinner|breakfast|brunch|snack|bite|fuel|gas|petrol|charger|charging|hotel|motel|camp|campground|campsite|lodging|viewpoint|overlook|waterfall|park)\b/i
-const APPLY_STOP = /\b(?:add|include|insert|put|via|through|with|route\s+me|stop\s+at)\b|\bon\s+the\s+way\b|\balong\s+the\s+way\b/i
+const APPLY_STOP = new RegExp([
+  String.raw`(?:add|include|insert|put)\b`,
+  String.raw`stop\s+at\b`
+].map((pattern) => `${COMMAND_LEAD}(?:${pattern})`).join("|"), "i")
 const STOP_DISCOVERY = /\b(?:find|where|anywhere|somewhere|recommend|suggest|good|near|nearby|around|halfway|midway)\b/i
 const HYPOTHETICAL_ACTION = /\b(?:what\s+if\b|if\s+(?:i|we|you)\b|would\s+(?:a|it|this|that|you)\b|could\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b|do\s+not\b|don't\b|do\s+not\s+want\b)\b/i
 
@@ -74,7 +84,6 @@ export function classifyAdvisorAction(
   if (message.includes("?") || HYPOTHETICAL_ACTION.test(message)) {
     return !wantsRouteChange && mentionsStop && STOP_DISCOVERY.test(message) ? "stop-scout" : "chat"
   }
-
 
   if (wantsRouteChange && mentionsStop) return "route-with-stop"
   if (mentionsStop && APPLY_STOP.test(message)) return "add-stop"
@@ -326,10 +335,9 @@ export function resolveAdvisorClientAction(
     return stop ? { type: "add-stop", stop } : null
   }
 
-  if (intent === "reroute" && reply.secondOpinion && !reply.secondOpinion.agreesWithSwitchback) {
-    const routeId = reply.secondOpinion.wouldPick
-    const exists = input.context?.candidates.some((candidate) => candidate.id === routeId) === true
-    if (exists && routeId !== input.context?.selectedRouteId) return { type: "select-route", routeId }
+  if (intent === "reroute") {
+    const opinion = verifiedDifferentOpinion(input, reply.secondOpinion, routeEvidence)
+    return opinion ? { type: "select-route", routeId: opinion.wouldPick } : null
   }
 
   return null
