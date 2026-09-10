@@ -111,7 +111,7 @@ async function openGoblin() {
 }
 
 describe("Gravel Goblin stale result and action lifecycle", () => {
-  it("drops an in-flight answer when a same-id replan replaces the route geometry", async () => {
+  it("drops an in-flight answer when a same-id replan advances the canonical result revision", async () => {
     const held = deferred<AdvisorReply>()
     advisorClient.requestAdvisorTurn
       .mockResolvedValueOnce(ok())
@@ -124,13 +124,17 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
       onAddStop: vi.fn(),
       onSelectRoute
     }
-    const { rerender } = render(<RideAdvisor routes={initialRoutes} {...props} />)
+    const { rerender } = render(
+      <RideAdvisor routes={initialRoutes} resultRevision="rev-1" {...props} />
+    )
 
     const user = await openGoblin()
     await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "Find me a better route{Enter}")
     await waitFor(() => expect(advisorClient.requestAdvisorTurn).toHaveBeenCalledTimes(2))
 
-    rerender(<RideAdvisor routes={replannedSameIds} {...props} />)
+    rerender(
+      <RideAdvisor routes={replannedSameIds} resultRevision="rev-2" {...props} />
+    )
 
     held.resolve(ok({
       message: "Better verified candidate: Alternate Route. It’s ready to show on the map.",
@@ -170,6 +174,7 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
       <RideAdvisor
         routes={initialRoutes}
         selectedRouteId="current"
+        resultRevision="rev-1"
         warnings={[]}
         onAddStop={vi.fn()}
         onRouteWithStop={onRouteWithStop}
@@ -182,10 +187,47 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
     await user.type(input, "Reroute me with a food stop{Enter}")
     await waitFor(() => expect(onRouteWithStop).toHaveBeenCalledOnce())
 
+    expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).toBeDisabled()
     await user.type(input, "Add coffee{Enter}")
     expect(advisorClient.requestAdvisorTurn).toHaveBeenCalledTimes(2)
 
     action.resolve()
     await waitFor(() => expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled())
+  })
+
+  it("handles a rejected compound planner action without an unhandled rejection or false success", async () => {
+    const onRouteWithStop = vi.fn(() => Promise.reject(new Error("router failed")))
+    advisorClient.requestAdvisorTurn
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(ok({
+        message: "Grounded stop: Actual Diner. A different verified route candidate is ready.",
+        proposedStops: [foodStop],
+        secondOpinion: {
+          agreesWithSwitchback: false,
+          wouldPick: "better",
+          rationale: "More curves.",
+          cautions: [],
+          confidence: "medium"
+        }
+      }))
+
+    render(
+      <RideAdvisor
+        routes={initialRoutes}
+        selectedRouteId="current"
+        resultRevision="rev-1"
+        warnings={[]}
+        onAddStop={vi.fn()}
+        onRouteWithStop={onRouteWithStop}
+        onSelectRoute={vi.fn()}
+      />
+    )
+
+    const user = await openGoblin()
+    await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "Reroute me with a food stop{Enter}")
+
+    expect(await screen.findByText(/couldn’t apply that route change/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled()
+    expect(screen.queryByText(/verified changed route/i)).not.toBeInTheDocument()
   })
 })
