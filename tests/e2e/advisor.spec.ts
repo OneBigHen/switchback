@@ -1108,3 +1108,217 @@ test("a stale in-flight Goblin answer never paints against a route it was not as
   await expect(page.getByText("STALE ANSWER about the route you already left.")).toHaveCount(0)
   await expect(page.getByText("Three hours, gravel, end near Gettysburg")).toBeVisible()
 })
+
+// --- Real MapLibre route-source proof --------------------------------------
+//
+// Route-card text, selected IDs, aria-pressed state, and screenshots do not
+// prove that the MapLibre rendering authority received new route geometry.
+// These tests read the real `switchback-routes` GeoJSON source through the
+// generic E2E-only diagnostic seam exposed by map-stage-sources.ts.
+
+interface RouteSourceFeature {
+  properties: { routeId: string; selected: boolean }
+  geometry: { type: string; coordinates: number[][] }
+}
+
+interface RouteSourceSnapshot {
+  type: string
+  features: RouteSourceFeature[]
+}
+
+async function readRouteSource(
+  page: import("@playwright/test").Page
+): Promise<RouteSourceSnapshot | null> {
+  return page.evaluate(async () => {
+    const debug = window.__switchbackMapSourcesDebug
+    if (!debug) return null
+    return ((await debug.getSourceData("switchback-routes")) ?? null) as RouteSourceSnapshot | null
+  })
+}
+
+function selectedRouteOf(snapshot: RouteSourceSnapshot | null) {
+  if (!snapshot) return null
+  const selected = snapshot.features.filter((feature) => feature.properties.selected)
+  return selected.length === 1
+    ? {
+        routeId: selected[0]!.properties.routeId,
+        coordinates: selected[0]!.geometry.coordinates
+      }
+    : null
+}
+
+async function routeSourceUpdateCount(page: import("@playwright/test").Page): Promise<number> {
+  return page.evaluate(
+    () => window.__switchbackMapSourcesDebug?.getUpdateCount("switchback-routes") ?? -1
+  )
+}
+
+async function waitForMapSourceSeam(page: import("@playwright/test").Page) {
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.__switchbackMapSourcesDebug)), {
+      timeout: 20_000,
+      message: "E2E map source seam is missing"
+    })
+    .toBe(true)
+}
+
+test("a successful reroute pushes the newly selected route into the real MapLibre route source", async ({
+  page
+}) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        advisorTurns === 1
+          ? builderReply
+          : {
+              ...compoundReply,
+              message: "Better verified candidate: Ridge alternative.",
+              proposedStops: [],
+              secondOpinion: {
+                ...compoundReply.secondOpinion,
+                wouldPick: advisorAlternateRoute.id
+              }
+            }
+      )
+    })
+  })
+  await page.route("**/api/routes", async (routeRequest) => {
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: route.id,
+        warnings: [],
+        routes: [route, advisorAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page
+    .getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await waitForMapSourceSeam(page)
+
+  // BEFORE: the real route source's selected geometry is the original route.
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), {
+      timeout: 30_000
+    })
+    .toEqual({ routeId: "advisor-e2e", coordinates: route.geometry })
+  const updatesBefore = await routeSourceUpdateCount(page)
+
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" }).fill("Find me a better route")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await expect(page.getByText(/Better verified candidate: Ridge alternative/)).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Select Ridge alternative", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
+
+  // AFTER: the source received the NEWLY SELECTED canonical route's geometry.
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), {
+      timeout: 30_000,
+      message: "route source never received the rerouted geometry"
+    })
+    .toEqual({
+      routeId: "advisor-e2e-better",
+      coordinates: advisorAlternateRoute.geometry
+    })
+  const updatesAfter = await routeSourceUpdateCount(page)
+  expect(updatesAfter).toBeGreaterThan(updatesBefore)
+
+  const after = await readRouteSource(page)
+  const stillSelectedOld = after!.features.filter(
+    (feature) => feature.properties.routeId === "advisor-e2e" && feature.properties.selected
+  )
+  expect(stillSelectedOld).toHaveLength(0)
+})
+
+test("manual route selection updates the same MapLibre route source without an Advisor command", async ({
+  page
+}) => {
+  await mockBase(page)
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(builderReply)
+    })
+  })
+  await page.route("**/api/routes", async (routeRequest) => {
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: route.id,
+        warnings: [],
+        routes: [route, advisorAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page
+    .getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await waitForMapSourceSeam(page)
+
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), {
+      timeout: 30_000
+    })
+    .toEqual({ routeId: "advisor-e2e", coordinates: route.geometry })
+
+  const afterPlanning = await routeSourceUpdateCount(page)
+  await page.getByRole("button", { name: "Select Ridge alternative", exact: true }).click()
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), {
+      timeout: 30_000
+    })
+    .toEqual({
+      routeId: "advisor-e2e-better",
+      coordinates: advisorAlternateRoute.geometry
+    })
+  const afterAlternate = await routeSourceUpdateCount(page)
+  expect(afterAlternate).toBeGreaterThan(afterPlanning)
+
+  await page.getByRole("button", { name: "Select Ridge & gravel run", exact: true }).click()
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), {
+      timeout: 30_000
+    })
+    .toEqual({ routeId: "advisor-e2e", coordinates: route.geometry })
+  expect(await routeSourceUpdateCount(page)).toBeGreaterThan(afterAlternate)
+})
