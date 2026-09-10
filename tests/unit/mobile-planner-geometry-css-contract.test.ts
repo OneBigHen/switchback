@@ -113,7 +113,11 @@ describe("mobile planner geometry contract", () => {
 
   it("keeps a newly ready route at half height so the map remains visible", () => {
     expect(plannerDeck).toContain("function isPhoneViewport(): boolean")
-    expect(plannerDeck).toContain('typeof window.matchMedia === "function"')
+    // The compact decision must resolve through the canonical workspace-mode
+    // authority (issue #115) instead of a component-local 760px media query, so
+    // the planner deck, the map camera and the route renderer cannot disagree
+    // about the layout.
+    expect(plannerDeck).toContain("isCompactWorkspaceWidth")
     expect(plannerDeck).toContain('if (isPhoneViewport()) setSheetDetentOverride("half")')
     expect(plannerDeck).toContain('onClick={() => setSheetDetentOverride(selectedRoute ? "full" : "half")}')
   })

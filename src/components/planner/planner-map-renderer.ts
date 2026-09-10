@@ -8,6 +8,7 @@ import {
 } from "@/lib/client/mapbox-config"
 import { mapboxBasemapConfig } from "@/lib/client/mapbox-style-capabilities"
 import type { MapPresentation } from "@/lib/client/map-experience"
+import { isCompactWorkspaceWidth } from "./workspace/workspace-mode"
 
 /**
  * Migration shim. Mapbox GL JS v3 and MapLibre GL JS 5 expose the same runtime
@@ -180,7 +181,7 @@ function addStandardControls(map: PlannerMap, gl: GlControls, options: CreatePla
   }
   anyMap.addControl(
     new gl.AttributionControl({ compact: true }),
-    window.innerWidth <= 760 ? "bottom-left" : "bottom-right"
+    isCompactWorkspaceWidth(window.innerWidth) ? "bottom-left" : "bottom-right"
   )
   // The style asks for `circle-N` icons no sprite ships; we generate them.
   // How the generated image gets back to the renderer differs, and the two

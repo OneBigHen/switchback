@@ -17,6 +17,11 @@ import {
   sheetVisibleHeight,
   type ContextSheetDetent
 } from "./context-sheet-state"
+import {
+  WORKSPACE_COMPACT_MAX_WIDTH_PX,
+  isCompactWorkspaceWidth,
+  readWorkspaceViewportWidth
+} from "./workspace-mode"
 
 export interface MapViewportInsets {
   top: number
@@ -52,11 +57,16 @@ export interface WorkspaceMapContext {
 export const MAP_VIEWPORT_GUTTER_PX = 24
 
 /**
- * The follow camera switched to its desktop layout at a narrower breakpoint
- * (< 760 px) than route fitting (>= 800 px). Both are legacy truths and are
- * preserved exactly until Phase 2 retunes them.
+ * The follow camera switches to its desktop layout at the compact ceiling.
+ * It previously carried its own `760` literal, which duplicated the layout
+ * boundary and could silently drift from the planner's own decision; it now
+ * aliases the canonical workspace-mode authority (issue #115).
+ *
+ * Note it remains *narrower* than route fitting's own 800 px threshold below.
+ * That divergence predates this contract and is preserved exactly until a later
+ * phase retunes the camera against real measured sheet/panel geometry.
  */
-const NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX = 760
+const NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX = WORKSPACE_COMPACT_MAX_WIDTH_PX
 
 /*
  * Legacy-tuned occlusion constants. These reproduce today's visual camera
@@ -257,8 +267,10 @@ export function resolveWorkspaceMapInsets(
   map: MapViewportMeasurable | null | undefined,
   options: WorkspaceMapInsetOptions = {}
 ): MapViewportInsets {
-  const phoneViewport = typeof window.matchMedia === "function"
-    && window.matchMedia("(max-width: 760px)").matches
+  // Resolve through the canonical authority so the camera and the planner
+  // cannot disagree about how much of the map the workspace occupies.
+  const viewportWidth = readWorkspaceViewportWidth()
+  const phoneViewport = viewportWidth !== null && isCompactWorkspaceWidth(viewportWidth)
   return calculateMapViewportInsets({
     ...measureMapViewport(map),
     mode: options.mode ?? "planning",
