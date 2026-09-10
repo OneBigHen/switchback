@@ -42,12 +42,18 @@ const ROUTE_ACTION = new RegExp([
   String.raw`route\s+me\b`,
   String.raw`take\s+me\b`
 ].map((pattern) => `${COMMAND_LEAD}(?:${pattern})`).join("|"), "i")
-const STOP_NOUN = /\b(?:stop|stops|stopover|waypoint|brewery|breweries|brewpub|beer|pub|bar|taproom|coffee|cafe|espresso|diner|restaurant|food|eat|lunch|dinner|breakfast|brunch|snack|bite|fuel|gas|petrol|charger|charging|hotel|motel|camp|campground|campsite|lodging|viewpoint|overlook|waterfall|park)\b/i
+const ROUTE_CONCEPT = /\b(?:re-?route|reroute|route|ride)\b/i
+const STOP_NOUN_PATTERN = String.raw`(?:stop|stops|stopover|waypoint|brewery|breweries|brewpub|beer|pub|bar|taproom|coffee|cafe|espresso|diner|restaurant|food|eat|lunch|dinner|breakfast|brunch|snack|bite|fuel|gas|petrol|charger|charging|hotel|motel|camp|campground|campsite|lodging|viewpoint|overlook|waterfall|park)`
+const STOP_NOUN = new RegExp(String.raw`\b${STOP_NOUN_PATTERN}\b`, "i")
 const APPLY_STOP = new RegExp([
   String.raw`(?:add|include|insert|put)\b`,
   String.raw`stop\s+at\b`
 ].map((pattern) => `${COMMAND_LEAD}(?:${pattern})`).join("|"), "i")
 const STOP_DISCOVERY = /\b(?:find|where|anywhere|somewhere|recommend|suggest|good|near|nearby|around|halfway|midway)\b/i
+const STOP_EXCLUSION = new RegExp(
+  String.raw`\b(?:without|avoid(?:ing)?(?:\s+(?:any|the))?|away\s+from(?:\s+(?:any|the))?|skip(?:\s+(?:any|the))?|no)\s+${STOP_NOUN_PATTERN}\b`,
+  "i"
+)
 const HYPOTHETICAL_ACTION = /\b(?:what\s+if\b|if\s+(?:i|we|you)\b|would\s+(?:a|it|this|that|you)\b|could\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b|do\s+not\b|don't\b|do\s+not\s+want\b)\b/i
 
 export interface AdvisorRouteEvidence {
@@ -78,16 +84,18 @@ export function classifyAdvisorAction(
   const message = messageOf(input)
   if (!message) return "chat"
   const mentionsStop = STOP_NOUN.test(message)
+  const mentionsRouteConcept = ROUTE_CONCEPT.test(message)
   const wantsRouteChange = ROUTE_ACTION.test(message)
-  // Explicit verbs authorize a planner mutation. Questions, conditionals and
-  // negations do not: they ask Goblin to discuss an idea, not alter RideIntent.
+  const excludesStop = STOP_EXCLUSION.test(message)
+  // Questions and conditionals can still ask Goblin to scout a stop, but a
+  // route-opinion question is conversation, not an implicit place search.
+  // Negation/exclusion never authorizes an inclusion mutation.
   if (message.includes("?") || HYPOTHETICAL_ACTION.test(message)) {
-    return !wantsRouteChange && mentionsStop && STOP_DISCOVERY.test(message) ? "stop-scout" : "chat"
+    return !mentionsRouteConcept && mentionsStop && STOP_DISCOVERY.test(message) ? "stop-scout" : "chat"
   }
 
-  if (wantsRouteChange && mentionsStop) return "route-with-stop"
+  if (wantsRouteChange) return mentionsStop && !excludesStop ? "route-with-stop" : "reroute"
   if (mentionsStop && APPLY_STOP.test(message)) return "add-stop"
-  if (wantsRouteChange) return "reroute"
   if (mentionsStop && STOP_DISCOVERY.test(message)) return "stop-scout"
   return "chat"
 }
