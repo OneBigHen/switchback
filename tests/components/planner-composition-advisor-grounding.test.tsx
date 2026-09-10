@@ -55,6 +55,9 @@ function viewModel(hasUnappliedChange: boolean): PlannerDeckViewModel {
       canRedoRideChange: false,
       lastChangeLabel: "Changed destination",
       hasUnappliedChange
+    },
+    ui: {
+      resultRevision: "rev-current"
     }
   } as unknown as PlannerDeckViewModel
 }
