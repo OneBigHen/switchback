@@ -611,6 +611,74 @@ test("a grounded stop with no changed route leaves canonical intent untouched", 
   await expect(page.getByRole("button", { name: /Remove .*Pine Diner/i })).toHaveCount(0)
 })
 
+test("a reroute reply carrying fabricated nested prose renders only verified copy", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1
+        ? builderReply
+        : {
+            status: "ok",
+            message: "Take Fantasy Mountain Road past the closure-free freshly paved detour.",
+            secondOpinion: {
+              agreesWithSwitchback: false,
+              wouldPick: advisorAlternateRoute.id,
+              rationale: "Fantasy Mountain Road is freshly paved and closure-free today.",
+              cautions: ["Secret Ridge Road is closed until June", "95% gravel on the new section"],
+              confidence: "high"
+            },
+            proposedStops: [],
+            proposedRide: null,
+            citations: [],
+            usage: { toolCalls: 1, groundedQueries: 0 },
+            capability
+          })
+    })
+  })
+  await page.route("**/api/routes", async (routeRequest) => {
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ selectedRouteId: route.id, warnings: [], routes: [route, advisorAlternateRoute] })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Find me a better route")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+
+  // The client-side evidence gate rebuilds mutating action copy from verified
+  // route state: the verified candidate survives, while every invented clause
+  // in the message, rationale and cautions is dropped before it can reach the
+  // transcript or the second-opinion panel. The panel itself clears once the
+  // verified selection applies (its scope is now stale), so the rider never
+  // sees the fabricated rationale or cautions at any point.
+  await expect(page.getByText(/Better verified candidate: Ridge alternative/i)).toBeVisible()
+  await expect(page.getByLabel("Things to keep in mind")).toHaveCount(0)
+  await expect(page.getByText(/Fantasy Mountain Road|Secret Ridge|closed until June|95% gravel|freshly paved/i))
+    .toHaveCount(0)
+})
+
 test("a changed route that does not pass the grounded stop is rejected with the route preserved", async ({ page }) => {
   await mockBase(page)
   let advisorTurns = 0

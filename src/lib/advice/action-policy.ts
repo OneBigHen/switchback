@@ -204,10 +204,11 @@ function verifiedDifferentOpinion(
  * Structured stops and route ids are already validated by `resolve-answer`.
  * The model's free-text fields were the remaining escape hatch: a `message`,
  * stop `reason`, route-opinion `rationale`, or ride `summary` could still name
- * an invented place even when its structured id was rejected. Action turns
- * therefore get deterministic copy built only from resolved structures.
- * Generic conversation keeps the model's voice, but is still capped so Goblin
- * does not bury the map under a monologue.
+ * an invented place even when its structured id was rejected. Every mutating
+ * intent — including whole-ride builds, whose stop cards render stop reasons
+ * verbatim — therefore gets deterministic copy built only from resolved
+ * structures. Generic conversation keeps the model's voice, but is still
+ * capped so Goblin does not bury the map under a monologue.
  */
 export function enforceAdvisorActionReply(
   input: AdviceRequest,
@@ -287,6 +288,7 @@ export function enforceAdvisorActionReply(
           ? "I couldn’t build a fully grounded ride from that request."
           : "Where should the ride start?",
       secondOpinion: null,
+      proposedStops: safeStops(reply.proposedStops),
       proposedRide
     }
   }

@@ -299,6 +299,49 @@ describe("Gravel Goblin action evidence boundary", () => {
     expect(result.message).toBe("Where should the ride start?")
   })
 
+  it("does not let invented stop prose survive a grounded whole-ride action", () => {
+    const result = enforceAdvisorActionReply(
+      ask("Build me a three hour gravel loop", null),
+      reply({
+        message: "Done! I routed you over freshly paved Closed Mill Road.",
+        proposedStops: [{
+          ...foodStop,
+          reason: "Closed Mill Road is freshly paved, 95% gravel, has no closures, and Karl’s Fantasy Diner next door is open 24h."
+        }],
+        proposedRide: {
+          mode: "loop",
+          profile: "gravel",
+          targetMinutes: 180,
+          start: { name: "Actual Diner", lat: 40.245, lon: -75.22 },
+          finish: null,
+          waypoints: [],
+          avoidHighways: true,
+          tollPolicy: "avoid",
+          summary: "Model-authored summary that the action copy must not trust."
+        }
+      })
+    )
+
+    expect(result.proposedStops[0]?.reason).toBe("Mapped food stop around 53% along the route.")
+    expect(result.proposedStops[0]?.reason).not.toMatch(/Closed Mill Road|95%|24h|Fantasy/i)
+    expect(result.message).not.toMatch(/Closed Mill Road|model-authored/i)
+  })
+
+  it("keeps fabricated surface and closure claims out of stop suggestions when the ride draft fails", () => {
+    const result = enforceAdvisorActionReply(
+      ask("Build me a three hour gravel loop", null),
+      reply({
+        proposedStops: [{
+          ...foodStop,
+          reason: "Trailhead lot on Imaginary Run Road is closed until June; the detour is 100% pavement."
+        }]
+      })
+    )
+
+    expect(result.proposedStops[0]?.reason).toBe("Mapped food stop around 53% along the route.")
+    expect(result.proposedStops[0]?.reason).not.toMatch(/Imaginary Run Road|closed until June|100% pavement/i)
+  })
+
   it("caps ordinary model prose at 80 words", () => {
     const result = enforceAdvisorActionReply(
       ask("What do you think of this ride?"),
