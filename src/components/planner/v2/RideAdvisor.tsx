@@ -52,6 +52,8 @@ export interface RideAdvisorProps {
   routes: PlannedRoute[]
   selectedRouteId: string
   warnings: string[]
+  /** Canonical identity of the planner result these routes came from. */
+  resultRevision?: string | null
   /** Explicit planner start, when the rider has supplied one. */
   origin?: { lat: number; lon: number; label?: string } | null
   /** Accept a proposed stop with its along-route evidence intact. */
@@ -119,8 +121,12 @@ function rideShape(ride: ProposedRide): string {
   ].filter(Boolean).join(" · ")
 }
 
-function scopeFor(routes: readonly PlannedRoute[], selectedRouteId: string): string {
-  return `${selectedRouteId}|${routes.map((route) => route.id).join(",")}`
+function scopeFor(
+  routes: readonly PlannedRoute[],
+  selectedRouteId: string,
+  resultRevision: string | null | undefined
+): string {
+  return `${resultRevision ?? "unversioned"}|${selectedRouteId}|${routes.map((route) => route.id).join(",")}`
 }
 
 function confidenceLabel(confidence: RouteSecondOpinion["confidence"]): string {
@@ -131,6 +137,7 @@ export function RideAdvisor({
   routes,
   selectedRouteId,
   warnings,
+  resultRevision,
   origin,
   onAddStop,
   onRouteWithStop,
@@ -145,6 +152,7 @@ export function RideAdvisor({
   const [citations, setCitations] = useState<GroundingCitation[]>([])
   const [secondOpinion, setSecondOpinion] = useState<RouteSecondOpinion | null>(null)
   const [busy, setBusy] = useState(false)
+  const [plannerActionPending, setPlannerActionPending] = useState(false)
   const [working, setWorking] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
@@ -160,7 +168,7 @@ export function RideAdvisor({
    * asked for.
    */
   const keepStopsThroughReplan = useRef(false)
-  const currentScope = scopeFor(routes, selectedRouteId)
+  const currentScope = scopeFor(routes, selectedRouteId, resultRevision)
   const [scope, setScope] = useState(currentScope)
   const scopeRef = useRef(currentScope)
   const scopeStale = scope !== currentScope
@@ -224,7 +232,7 @@ export function RideAdvisor({
     } else {
       thread.scrollTop = thread.scrollHeight
     }
-  }, [conversation.length, busy])
+  }, [conversation.length, busy, plannerActionPending])
 
   useEffect(() => () => pending.current?.abort(), [])
 
@@ -235,8 +243,10 @@ export function RideAdvisor({
   const visibleRide = scopeStale ? null : ride
   const visibleCitations = scopeStale ? [] : citations
   const visibleSecondOpinion = scopeStale ? null : secondOpinion
-  const visibleBusy = scopeStale ? false : busy
-  const visibleWorking = scopeStale ? null : working
+  const visibleBusy = plannerActionPending || (scopeStale ? false : busy)
+  const visibleWorking = plannerActionPending
+    ? "Applying that route change…"
+    : scopeStale ? null : working
   const visibleNotice = scopeStale ? null : notice
   const nudge: Nudge | null = hasRoute
     ? selectNudge({ routes, selectedRouteId, dismissed: dismissedNudges })
@@ -246,7 +256,7 @@ export function RideAdvisor({
     : null
 
   const ask = async (riderMessage?: string) => {
-    if (busy && !scopeStale) return
+    if (actionPending.current || (busy && !scopeStale)) return
     const context = hasRoute
       ? advisorContextFromPlan({ selectedRouteId, routes, warnings })
       : null
@@ -330,9 +340,15 @@ export function RideAdvisor({
       // "Add to ride" / "Show route" buttons use.
       if (clientAction?.type === "route-with-stop" && onRouteWithStop) {
         actionPending.current = true
-        void Promise.resolve(onRouteWithStop(clientAction.stop)).finally(() => {
+        setPlannerActionPending(true)
+        try {
+          await Promise.resolve(onRouteWithStop(clientAction.stop))
+        } catch {
+          setNotice("I couldn’t apply that route change. Your ride is still at the planner’s latest state.")
+        } finally {
           actionPending.current = false
-        })
+          setPlannerActionPending(false)
+        }
       } else if (clientAction?.type === "add-stop") {
         onAddStop(clientAction.stop)
       } else if (clientAction?.type === "select-route" && onSelectRoute) {
