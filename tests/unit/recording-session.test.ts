@@ -1,10 +1,72 @@
 import { describe, expect, it } from "vitest"
 import {
   createRecordingState,
-  recordingSessionReducer
+  recordingSessionReducer,
+  type RecordingSessionSnapshot
 } from "@/lib/client/recording-session"
 
 describe("standalone recording session", () => {
+  it("records Free Ride as the session kind at start", () => {
+    const started = recordingSessionReducer(createRecordingState(), {
+      type: "start",
+      at: 100,
+      kind: "free-ride"
+    })
+
+    expect(started.kind).toBe("free-ride")
+  })
+
+  it("defaults legacy recovery snapshots to an ordinary recording", () => {
+    const recovered = recordingSessionReducer(createRecordingState(), {
+      type: "recover",
+      snapshot: {
+        status: "denied",
+        startedAt: 100,
+        pausedAt: null,
+        pausedMillis: 0,
+        endedAt: null,
+        points: []
+      }
+    })
+
+    expect(recovered.kind).toBe("planned")
+  })
+
+  it("retains Free Ride kind through recovery", () => {
+    const recovered = recordingSessionReducer(createRecordingState(), {
+      type: "recover",
+      snapshot: {
+        status: "denied",
+        kind: "free-ride",
+        startedAt: 100,
+        pausedAt: null,
+        pausedMillis: 0,
+        endedAt: null,
+        points: []
+      }
+    })
+
+    expect(recovered.kind).toBe("free-ride")
+  })
+
+  it("normalizes an unrecognized persisted kind to an ordinary recording", () => {
+    const snapshot = {
+      status: "denied",
+      kind: "unknown-mode",
+      startedAt: 100,
+      pausedAt: null,
+      pausedMillis: 0,
+      endedAt: null,
+      points: []
+    } as unknown as RecordingSessionSnapshot
+    const recovered = recordingSessionReducer(createRecordingState(), {
+      type: "recover",
+      snapshot
+    })
+
+    expect(recovered.kind).toBe("planned")
+  })
+
   it("starts, pauses, resumes, and finishes without dropping collected points", () => {
     const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
     const sampled = recordingSessionReducer(started, {
@@ -49,5 +111,84 @@ describe("standalone recording session", () => {
 
     expect(denied.status).toBe("denied")
     expect(denied.error).toMatch(/denied/i)
+  })
+
+  it("keeps a started recording finishable after GPS permission is denied", () => {
+    const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
+    const sampled = recordingSessionReducer(started, {
+      type: "sample",
+      point: { coordinate: [-76.88, 40.27], recordedAt: "2026-07-21T12:00:00Z", speedMph: 20 }
+    })
+    const denied = recordingSessionReducer(sampled, {
+      type: "permission_denied",
+      message: "Location permission was denied."
+    })
+    const finished = recordingSessionReducer(denied, { type: "finish", at: 400 })
+
+    expect(denied.startedAt).toBe(100)
+    expect(finished.status).toBe("finished")
+    expect(finished.endedAt).toBe(400)
+    expect(finished.points).toEqual(sampled.points)
+  })
+
+  it("keeps a started recording finishable after a non-permission GPS error", () => {
+    const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
+    const failed = recordingSessionReducer(started, {
+      type: "error",
+      message: "GPS is not ready."
+    })
+    const finished = recordingSessionReducer(failed, { type: "finish", at: 500 })
+
+    expect(finished.status).toBe("finished")
+    expect(finished.endedAt).toBe(500)
+  })
+
+  it("keeps the same open session and points when GPS is retried after denial", () => {
+    const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
+    const firstPoint = {
+      coordinate: [-76.88, 40.27] as [number, number],
+      recordedAt: "2026-07-21T12:00:00Z",
+      speedMph: 20
+    }
+    const sampled = recordingSessionReducer(started, { type: "sample", point: firstPoint })
+    const denied = recordingSessionReducer(sampled, {
+      type: "permission_denied",
+      message: "Location permission was denied."
+    })
+    const retried = recordingSessionReducer(denied, { type: "retry" })
+    const resumed = recordingSessionReducer(retried, {
+      type: "sample",
+      point: {
+        coordinate: [-76.87, 40.28],
+        recordedAt: "2026-07-21T12:01:00Z",
+        speedMph: 25
+      }
+    })
+
+    expect(retried.startedAt).toBe(100)
+    expect(resumed.startedAt).toBe(100)
+    expect(resumed.points).toEqual([
+      firstPoint,
+      {
+        coordinate: [-76.87, 40.28],
+        recordedAt: "2026-07-21T12:01:00Z",
+        speedMph: 25
+      }
+    ])
+    expect(resumed.status).toBe("recording")
+  })
+
+  it("finishes an immediate denial with no points as a clean terminal state", () => {
+    const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
+    const denied = recordingSessionReducer(started, {
+      type: "permission_denied",
+      message: "Location permission was denied."
+    })
+    const finished = recordingSessionReducer(denied, { type: "finish", at: 500 })
+
+    expect(finished.status).toBe("finished")
+    expect(finished.startedAt).toBe(100)
+    expect(finished.endedAt).toBe(500)
+    expect(finished.points).toEqual([])
   })
 })

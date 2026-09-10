@@ -190,7 +190,6 @@ export function PlannerShell() {
   >(undefined)
   const freeRideStateRef = useRef(freeRideRecommendation)
   const recordingStateRef = useRef(recording.state)
-  const freeRideSessionRef = useRef(false)
   const freeRideTransitionRef = useRef(false)
   useEffect(() => {
     freeRideStateRef.current = freeRideRecommendation
@@ -339,13 +338,15 @@ export function PlannerShell() {
   // recording HUD ("passively turn the app on to see everything"). Deferred
   // so the store update never runs synchronously inside the effect.
   useEffect(() => {
-    if (!recording.isActive || surface === "free-ride") return
+    if (!recording.isActive) return
+    const recordingSurface = recording.state.kind === "free-ride" ? "free-ride" : "ride"
+    if (surface === recordingSurface) return
     // Leaving the record preflight: once the HUD owns the session the
     // preflight overlay must not reappear behind the ride surface.
     dispatchNavigation({ type: "close_overlay", overlay: "record" })
-    const id = window.setTimeout(() => usePlannerStore.getState().setSurface("ride"), 0)
+    const id = window.setTimeout(() => usePlannerStore.getState().setSurface(recordingSurface), 0)
     return () => window.clearTimeout(id)
-  }, [recording.isActive, surface])
+  }, [recording.isActive, recording.state.kind, surface])
 
   // A finished recording is saved to the local ride journal, then the
   // session resets and the app returns to the Record tab. Deferred so the
@@ -354,11 +355,10 @@ export function PlannerShell() {
     if (recording.state.status !== "finished") return
     const id = window.setTimeout(() => {
       const points = recording.state.points
-      const wasFreeRide = freeRideSessionRef.current
+      const wasFreeRide = recording.state.kind === "free-ride"
       const preserveSurface = freeRideTransitionRef.current
       if (points.length < 2) {
         setNotice({ kind: "warning", message: "Record at least two GPS points before finishing." })
-        freeRideSessionRef.current = false
         recording.discard()
         if (!preserveSurface) usePlannerStore.getState().setSurface("planner")
         else freeRideTransitionRef.current = false
@@ -377,7 +377,6 @@ export function PlannerShell() {
         kind: "warning",
         message: caught instanceof Error ? caught.message : "Recorded ride could not be saved."
       })).finally(() => {
-        freeRideSessionRef.current = false
         recording.discard()
         if (preserveSurface) freeRideTransitionRef.current = false
         else usePlannerStore.getState().setSurface("planner")
@@ -778,20 +777,18 @@ export function PlannerShell() {
   const handleStartFreeRide = () => {
     routeRequestGate.invalidate()
     if (recording.isActive) recording.discard()
-    freeRideSessionRef.current = true
     freeRideTransitionRef.current = false
     dispatchFreeRideRecommendation({ type: "reset" })
     setFreeRideError(null)
     setFreeRideSuppression(undefined)
     setFreeRideLoading(false)
     usePlannerStore.getState().setSurface("free-ride")
-    recording.start()
+    recording.start("free-ride")
   }
 
   const handleExitFreeRide = () => {
     if (!confirmRecordingDiscard(recording.state.points.length)) return
     freeRideTransitionRef.current = false
-    freeRideSessionRef.current = false
     recording.discard()
     dispatchFreeRideRecommendation({ type: "clear" })
     setFreeRideError(null)

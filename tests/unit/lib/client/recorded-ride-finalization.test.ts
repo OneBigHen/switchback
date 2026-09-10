@@ -41,7 +41,7 @@ describe("finalizeRecordedRide", () => {
     })).toBe(selectedRoute)
   })
 
-  it("builds a free-ride fallback with recorded geometry and endpoints", () => {
+  it("builds a Free Ride fallback instead of reusing an unrelated selected route", () => {
     const now = new Date("2026-08-21T12:34:56.000Z")
     const route = finalizeRecordedRide({
       points,

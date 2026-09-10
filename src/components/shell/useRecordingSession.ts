@@ -4,7 +4,9 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import {
   activeRecordingMillis,
   createRecordingState,
+  isOpenRecordingSession,
   recordingSessionReducer,
+  type RecordingSessionKind,
   type RecordingSessionSnapshot,
   type RecordingSessionState
 } from "@/lib/client/recording-session"
@@ -16,11 +18,13 @@ const RECOVERY_KEY = "switchback:active-recording"
 function recoverySnapshot(state: RecordingSessionState): RecordingSessionSnapshot {
   return {
     status: state.status,
+    kind: state.kind,
     startedAt: state.startedAt,
     pausedAt: state.pausedAt,
     pausedMillis: state.pausedMillis,
     endedAt: state.endedAt,
-    points: state.points
+    points: state.points,
+    error: state.error
   }
 }
 
@@ -85,9 +89,10 @@ export function useRecordingSession() {
     }
   }, [])
 
-  // Persist an in-progress recording so a reload can resume it.
+  // Persist any open recording, including a denied/error state. A permission
+  // failure must not erase the session before the rider can retry or finish it.
   useEffect(() => {
-    if (state.status === "recording" || state.status === "paused") {
+    if (isOpenRecordingSession(state)) {
       localStorage.setItem(RECOVERY_KEY, JSON.stringify(recoverySnapshot(state)))
     } else if (state.status === "finished" || state.status === "idle") {
       localStorage.removeItem(RECOVERY_KEY)
@@ -107,8 +112,8 @@ export function useRecordingSession() {
 
   useEffect(() => stopWatch, [stopWatch])
 
-  const start = useCallback(() => {
-    dispatch({ type: "start", at: Date.now() })
+  const start = useCallback((kind: RecordingSessionKind = "planned") => {
+    dispatch({ type: "start", at: Date.now(), kind })
     watch()
   }, [watch])
 
@@ -122,6 +127,12 @@ export function useRecordingSession() {
     watch()
   }, [watch])
 
+  const retryGps = useCallback(() => {
+    stopWatch()
+    dispatch({ type: "retry" })
+    watch()
+  }, [stopWatch, watch])
+
   const finish = useCallback(() => {
     stopWatch()
     dispatch({ type: "finish", at: Date.now() })
@@ -132,7 +143,7 @@ export function useRecordingSession() {
     dispatch({ type: "reset" })
   }, [stopWatch])
 
-  const isActive = state.status === "recording" || state.status === "paused"
+  const isActive = isOpenRecordingSession(state)
 
   return {
     state,
@@ -142,6 +153,7 @@ export function useRecordingSession() {
     start,
     pause,
     resume,
+    retryGps,
     finish,
     discard
   }

@@ -51,6 +51,7 @@ const controller = {
   elapsedMillis: 12_000,
   pause: vi.fn(),
   resume: vi.fn(),
+  retryGps: vi.fn(),
   finish: vi.fn()
 } as unknown as RecordingSessionController
 
@@ -112,5 +113,41 @@ describe("Free Ride HUD", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Curvy-road data is unavailable here.")
     expect(screen.getByText("GPS 8 m")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Accept suggestion" })).not.toBeInTheDocument()
+  })
+
+  it("keeps a denied Free Ride session recoverable with same-session GPS retry", async () => {
+    const user = userEvent.setup()
+    const retryGps = vi.fn()
+    const deniedController = {
+      ...controller,
+      retryGps,
+      state: {
+        ...controller.state,
+        status: "denied" as const,
+        startedAt: Date.parse("2026-08-04T14:00:00.000Z"),
+        error: "Location permission was denied. Enable precise location for Switchback and try again."
+      }
+    } as unknown as RecordingSessionController
+
+    render(
+      <FreeRideHud
+        controller={deniedController}
+        suggestion={null}
+        loading={false}
+        error={null}
+        onAccept={vi.fn()}
+        onIgnore={vi.fn()}
+        onLessLikeThis={vi.fn()}
+        onExit={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Try GPS again" })).toBeVisible()
+    expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Finish & save" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Exit" })).toBeVisible()
+
+    await user.click(screen.getByRole("button", { name: "Try GPS again" }))
+    expect(retryGps).toHaveBeenCalledOnce()
   })
 })
