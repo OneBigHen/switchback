@@ -971,6 +971,7 @@ test("a stale in-flight Goblin answer never paints against a route it was not as
 
   let release = (): void => {}
   const held = new Promise<void>((resolve) => { release = () => resolve() })
+  let staleResponseSettled = false
   const staleReply = {
     status: "ok",
     message: "STALE ANSWER about the route you already left.",
@@ -1001,13 +1002,18 @@ test("a stale in-flight Goblin answer never paints against a route it was not as
       return
     }
     turn += 1
+    const isStaleTurn = turn === 2
     const body = turn === 1 ? builderReply : staleReply
-    if (turn === 2) await held
-    await routeRequest.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(body)
-    })
+    if (isStaleTurn) await held
+    try {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(body)
+      })
+    } finally {
+      if (isStaleTurn) staleResponseSettled = true
+    }
   })
 
   await page.route("**/api/routes", async (routeRequest) => {
@@ -1032,7 +1038,7 @@ test("a stale in-flight Goblin answer never paints against a route it was not as
 
   await page.getByRole("button", { name: "Select Fast way south", exact: true }).click()
   release()
-  await page.waitForTimeout(750)
+  await expect.poll(() => staleResponseSettled).toBe(true)
 
   await expect(page.getByText("Stale Brewery")).toHaveCount(0)
   await expect(page.getByText("STALE ANSWER about the route you already left.")).toHaveCount(0)
