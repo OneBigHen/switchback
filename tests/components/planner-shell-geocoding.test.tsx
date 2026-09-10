@@ -915,6 +915,43 @@ describe("free-form planner place resolution", () => {
     expect(input.points).toEqual(recoveredPoints)
   })
 
+  it("discards a recovered denied Free Ride through Exit and clears recovery data", async () => {
+    const user = userEvent.setup()
+    const confirm = vi.fn(() => true)
+    vi.stubGlobal("confirm", confirm)
+    window.localStorage.setItem(RECOVERY_KEY, JSON.stringify({
+      status: "denied",
+      kind: "free-ride",
+      startedAt: Date.parse("2026-08-28T14:00:00.000Z"),
+      pausedAt: null,
+      pausedMillis: 0,
+      endedAt: null,
+      points: [
+        {
+          coordinate: [-75.1, 41.1],
+          recordedAt: "2026-08-28T14:00:00.000Z",
+          speedMph: 20
+        },
+        {
+          coordinate: [-75.0, 41.2],
+          recordedAt: "2026-08-28T14:01:00.000Z",
+          speedMph: 22
+        }
+      ],
+      error: "Location permission was denied."
+    }))
+
+    render(<PlannerShell />)
+    await waitFor(() => expect(usePlannerStore.getState().surface).toBe("free-ride"))
+
+    await user.click(screen.getByRole("button", { name: "Exit" }))
+
+    expect(confirm).toHaveBeenCalledWith("Discard this recording? It has not been saved.")
+    await waitFor(() => expect(usePlannerStore.getState().surface).toBe("planner"))
+    expect(window.localStorage.getItem(RECOVERY_KEY)).toBeNull()
+    expect(rideJournalSave).not.toHaveBeenCalled()
+  })
+
   it("exits idle Free Ride immediately without asking to discard", async () => {
     const user = userEvent.setup()
     const confirm = vi.fn(() => false)
