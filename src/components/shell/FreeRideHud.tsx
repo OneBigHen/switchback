@@ -68,7 +68,7 @@ export function FreeRideHud({
   onHeadHome,
   onExit
 }: FreeRideHudProps) {
-  const { state, clock, pause, resume, finish } = controller
+  const { state, clock, pause, resume, retryGps, finish } = controller
   const telemetry = recordingTelemetry(state, clock)
   const paused = state.status === "paused"
   const unavailable = state.status === "denied" || state.status === "error"
@@ -171,12 +171,16 @@ export function FreeRideHud({
       {state.error ? <div className="recording-error" role="alert">{state.error}</div> : null}
 
       <div className={`recording-controls free-ride-controls${homeAvailable ? " has-home" : ""}`} aria-label="Free Ride controls">
-        {paused ? (
+        {unavailable ? (
+          <button type="button" className="recording-resume" onClick={retryGps}>
+            <Play weight="fill" aria-hidden="true" /> Try GPS again
+          </button>
+        ) : paused ? (
           <button type="button" className="recording-resume" onClick={resume}>
             <Play weight="fill" aria-hidden="true" /> Resume
           </button>
         ) : (
-          <button type="button" className="recording-pause" onClick={pause} disabled={unavailable}>
+          <button type="button" className="recording-pause" onClick={pause}>
             <Pause weight="fill" aria-hidden="true" /> Pause
           </button>
         )}

@@ -23,7 +23,10 @@ export interface RecordingSessionState {
 export type RecordingSessionSnapshot = Pick<
   RecordingSessionState,
   "status" | "startedAt" | "pausedAt" | "pausedMillis" | "endedAt" | "points"
->
+> & {
+  /** Optional for snapshots written before GPS failure details were persisted. */
+  error?: string | null
+}
 
 export type RecordingSessionAction =
   | { type: "request_permission" }
@@ -105,7 +108,7 @@ export function recordingSessionReducer(
         ...action.snapshot,
         status: interrupted ? "paused" : action.snapshot.status,
         pausedAt: interrupted ? Date.now() : action.snapshot.pausedAt,
-        error: null
+        error: action.snapshot.error ?? null
       }
     }
     case "permission_denied":

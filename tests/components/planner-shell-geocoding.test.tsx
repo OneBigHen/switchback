@@ -34,6 +34,8 @@ const plannerTestState = {
   finishQuery: plannerTestFinish.label
 }
 const originalGeolocation = Object.getOwnPropertyDescriptor(window.navigator, "geolocation")
+const rideJournalSave = vi.hoisted(() => vi.fn())
+const rideJournalList = vi.hoisted(() => vi.fn(async () => []))
 
 vi.mock("@/lib/client/geocoding-client", () => ({ searchPlacesClient: vi.fn() }))
 vi.mock("@/lib/client/place-ideas-client", () => ({ discoverPlaceIdeas: vi.fn() }))
@@ -54,6 +56,13 @@ vi.mock("@/lib/client/routing-client", () => ({
 vi.mock("@/lib/storage/route-library", () => ({
   RouteLibrary: class RouteLibrary {
     async list() { return [] }
+  }
+}))
+vi.mock("@/lib/storage/ride-journal", () => ({
+  RideJournalLibrary: class RideJournalLibrary {
+    async list() { return rideJournalList() }
+    async save() { return rideJournalSave() }
+    async remove() { return undefined }
   }
 }))
 vi.mock("@/components/planner/MapStage", () => ({
@@ -250,6 +259,8 @@ function place(overrides: Partial<PlaceResult> & Pick<PlaceResult, "id" | "name"
 describe("free-form planner place resolution", () => {
   beforeEach(() => {
     usePlannerStore.setState(plannerTestState)
+    rideJournalSave.mockReset()
+    rideJournalList.mockClear()
     vi.mocked(requestRideIntent).mockReset()
     vi.mocked(requestRideResearch).mockReset()
     vi.mocked(searchPlacesClient).mockReset()
@@ -831,6 +842,38 @@ describe("free-form planner place resolution", () => {
     expect(clearWatch).toHaveBeenCalledWith(1)
     expect(usePlannerStore.getState().surface).toBe("planner")
     expect(screen.queryByRole("button", { name: "Exit Free Ride" })).not.toBeInTheDocument()
+  })
+
+  it("finishes a zero-sample denied recording at the PlannerShell boundary without saving corrupt library data", async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(window.navigator, "geolocation", {
+      configurable: true,
+      value: {
+        watchPosition(_success: PositionCallback, failure: PositionErrorCallback) {
+          failure({
+            code: 1,
+            message: "User denied Geolocation",
+            PERMISSION_DENIED: 1,
+            POSITION_UNAVAILABLE: 2,
+            TIMEOUT: 3
+          } as GeolocationPositionError)
+          return 1
+        },
+        clearWatch: vi.fn()
+      }
+    })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Start test Free Ride" }))
+    await waitFor(() => expect(usePlannerStore.getState().surface).toBe("free-ride"))
+    expect(screen.getByRole("button", { name: "Finish & save" })).toBeVisible()
+
+    await user.click(screen.getByRole("button", { name: "Finish & save" }))
+
+    await waitFor(() => expect(screen.getByText("Record at least two GPS points before finishing.")).toBeVisible())
+    expect(rideJournalSave).not.toHaveBeenCalled()
+    expect(usePlannerStore.getState().surface).toBe("planner")
+    expect(window.localStorage.getItem("switchback:active-recording")).toBeNull()
   })
 
   it("exits idle Free Ride immediately without asking to discard", async () => {

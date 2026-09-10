@@ -21,7 +21,8 @@ function recoverySnapshot(state: RecordingSessionState): RecordingSessionSnapsho
     pausedAt: state.pausedAt,
     pausedMillis: state.pausedMillis,
     endedAt: state.endedAt,
-    points: state.points
+    points: state.points,
+    error: state.error
   }
 }
 
