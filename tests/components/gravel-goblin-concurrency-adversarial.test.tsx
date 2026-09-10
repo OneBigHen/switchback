@@ -148,7 +148,7 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
     expect(onSelectRoute).not.toHaveBeenCalled()
   })
 
-  it("keeps the composer blocked until a compound planner action settles", async () => {
+  it("does not accept a second command while a compound planner action is unsettled", async () => {
     const action = deferred<void>()
     const onRouteWithStop = vi.fn(() => action.promise)
     advisorClient.requestAdvisorTurn
@@ -164,6 +164,7 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
           confidence: "medium"
         }
       }))
+      .mockResolvedValueOnce(ok({ message: "This second command must not run yet." }))
 
     render(
       <RideAdvisor
@@ -181,7 +182,8 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
     await user.type(input, "Reroute me with a food stop{Enter}")
     await waitFor(() => expect(onRouteWithStop).toHaveBeenCalledOnce())
 
-    expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).toBeDisabled()
+    await user.type(input, "Add coffee{Enter}")
+    expect(advisorClient.requestAdvisorTurn).toHaveBeenCalledTimes(2)
 
     action.resolve()
     await waitFor(() => expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled())
