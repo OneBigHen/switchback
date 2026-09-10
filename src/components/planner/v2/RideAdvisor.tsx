@@ -11,7 +11,7 @@ import type {
   RouteSecondOpinion
 } from "@/lib/advice/contracts"
 import type { AdvisorCapability } from "@/lib/advice/capability"
-import { resolveAdvisorClientAction } from "@/lib/advice/action-policy"
+import { enforceAdvisorActionReply, resolveAdvisorClientAction } from "@/lib/advice/action-policy"
 import { advisorContextFromPlan } from "@/lib/advice/route-context"
 import { selectNudge, type Nudge } from "@/lib/advice/nudges"
 import { classifyTurn } from "@/lib/advice/execution-policy"
@@ -284,7 +284,13 @@ export function RideAdvisor({
     setDraft("")
 
     try {
-      const reply = await requestAdvisorTurn(request, controller.signal)
+      const rawReply = await requestAdvisorTurn(request, controller.signal)
+      // The route handler already applies this policy. Repeat it at the
+      // interactive route boundary so a stale or malformed action response
+      // cannot put unsupported route or POI prose into planner state.
+      const reply = request.context
+        ? enforceAdvisorActionReply(request, rawReply)
+        : rawReply
       if (controller.signal.aborted || scopeRef.current !== requestScope) return
 
       if (reply.status !== "ok") {
