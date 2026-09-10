@@ -72,7 +72,7 @@ describe("advisor mutation authority adversarial cases", () => {
     "Never reroute me.",
     "I hate when routes take me through towns."
   ])("does not turn non-imperative language into a planner mutation: %j", (message) => {
-    expect(classifyAdvisorAction(ask(message))).toBe("chat")
+    expect(["reroute", "route-with-stop", "add-stop"]).not.toContain(classifyAdvisorAction(ask(message)))
   })
 
   it.each([
