@@ -72,8 +72,38 @@ for (const viewport of VIEWPORTS) {
 test("short landscape route selection keeps the ride card and actions reachable at 667x375", async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await pinVisualClock(page)
-  await uxState.routeSelected(page)
+  await uxState.routeResults(page)
   await settleMapDelay(page)
+
+  const selection = page.getByRole("button", { name: /^Select / }).first()
+  const beforePointer = await page.evaluate(() => {
+    const scroll = document.querySelector<HTMLElement>(".planner-scroll")
+    const button = document.querySelector<HTMLElement>("[aria-label='Route choices'] button[aria-label^='Select ']")
+    if (!scroll || !button) return null
+    const scrollBox = scroll.getBoundingClientRect()
+    const buttonBox = button.getBoundingClientRect()
+    const center = document.elementFromPoint(buttonBox.left + buttonBox.width / 2, buttonBox.top + buttonBox.height / 2)
+    return {
+      scrollTop: scrollBox.top,
+      scrollBottom: scrollBox.bottom,
+      buttonTop: buttonBox.top,
+      buttonBottom: buttonBox.bottom,
+      centerX: buttonBox.left + buttonBox.width / 2,
+      centerY: buttonBox.top + buttonBox.height / 2,
+      reachable: center === button || button.contains(center)
+    }
+  })
+
+  expect(beforePointer, "route selection exists before rider input").not.toBeNull()
+  expect(beforePointer!.buttonTop, "unselected route choice starts inside the scroll viewport").toBeGreaterThanOrEqual(beforePointer!.scrollTop - 1)
+  expect(beforePointer!.buttonBottom, "unselected route choice is fully inside the scroll viewport").toBeLessThanOrEqual(beforePointer!.scrollBottom + 1)
+  expect(beforePointer!.reachable, "unselected route choice is not occluded").toBe(true)
+
+  // A rider taps the already visible control. Do not use Locator.click here:
+  // Playwright may pre-scroll a nested owner to make an off-screen center
+  // clickable, which is not a visible-pointer reproduction of a rider flow.
+  await page.mouse.click(beforePointer!.centerX, beforePointer!.centerY)
+  await expect(selection).toHaveAttribute("aria-pressed", "true")
 
   const geometry = await page.evaluate(async () => {
     const scroll = document.querySelector<HTMLElement>(".planner-scroll")
@@ -92,11 +122,10 @@ test("short landscape route selection keeps the ride card and actions reachable 
         reachable: center === button || button.contains(center),
       }
     }
-    const initialScroll = scroll.scrollTop
-    const initialScrollBox = scroll.getBoundingClientRect()
-    const selection = routeChoices.querySelector<HTMLElement>("button[aria-label^='Select ']")
-    if (!selection) return null
-    const initialSelection = measureControl(selection)
+    const selectedControl = routeChoices.querySelector<HTMLElement>("button[aria-label^='Select ']")
+    if (!selectedControl) return null
+    const selectedBeforeScroll = measureControl(selectedControl)
+    const scrollBoxBeforeScroll = scroll.getBoundingClientRect()
 
     scroll.scrollTop = scroll.scrollHeight
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
@@ -104,34 +133,41 @@ test("short landscape route selection keeps the ride card and actions reachable 
     const scrollBox = scroll.getBoundingClientRect()
     const dockBox = dock.getBoundingClientRect()
     const summaryBox = rideSummary.getBoundingClientRect()
-    const finalControls = [
-      ...rideSummary.querySelectorAll<HTMLElement>("button"),
-      ...dock.querySelectorAll<HTMLElement>("button"),
-    ]
+    const summaryControls = [...rideSummary.querySelectorAll<HTMLElement>("button")]
+      .filter((button) => getComputedStyle(button).display !== "none")
+      .map(measureControl)
+    const dockControls = [...dock.querySelectorAll<HTMLElement>("button")]
       .filter((button) => getComputedStyle(button).display !== "none")
       .map(measureControl)
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       sheet: { top: sheetBox.top, bottom: sheetBox.bottom },
-      initial: { scrollTop: initialScroll, scrollTopEdge: initialScrollBox.top, selection: initialSelection },
+      selectedBeforeScroll: { scrollTopEdge: scrollBoxBeforeScroll.top, selection: selectedBeforeScroll },
       scroll: { top: scrollBox.top, bottom: scrollBox.bottom, scrollTop: scroll.scrollTop, max: scroll.scrollHeight - scroll.clientHeight },
       dock: { top: dockBox.top, bottom: dockBox.bottom },
       summary: { top: summaryBox.top, bottom: summaryBox.bottom },
-      finalControls,
+      summaryControls,
+      dockControls,
     }
   })
 
   expect(geometry, "short-landscape planner geometry exists").not.toBeNull()
-  expect(geometry!.initial.selection.top, "route selection must start inside the scroll viewport").toBeGreaterThanOrEqual(geometry!.initial.scrollTopEdge - 1)
-  expect(geometry!.initial.selection.reachable, "route selection must not be occluded").toBe(true)
-  expect(geometry!.scroll.scrollTop).toBeGreaterThan(geometry!.initial.scrollTop)
+  expect(geometry!.selectedBeforeScroll.selection.top, "selected route choice must start inside the scroll viewport").toBeGreaterThanOrEqual(geometry!.selectedBeforeScroll.scrollTopEdge - 1)
+  expect(geometry!.selectedBeforeScroll.selection.bottom, "selected route choice must stay inside the scroll viewport").toBeLessThanOrEqual(geometry!.scroll.bottom + 1)
+  expect(geometry!.selectedBeforeScroll.selection.reachable, "selected route choice must not be occluded").toBe(true)
   expect(geometry!.scroll.scrollTop).toBeGreaterThanOrEqual(geometry!.scroll.max - 1)
   expect(geometry!.summary.bottom).toBeLessThanOrEqual(geometry!.scroll.bottom + 1)
   expect(geometry!.dock.bottom).toBeLessThanOrEqual(geometry!.viewport.height + 1)
-  expect(geometry!.finalControls.length).toBeGreaterThan(0)
-  for (const control of geometry!.finalControls) {
+  expect(geometry!.summaryControls.length).toBeGreaterThan(0)
+  for (const control of geometry!.summaryControls) {
     expect(control.top, `${control.label} must be within the scroll viewport`).toBeGreaterThanOrEqual(geometry!.scroll.top - 1)
     expect(control.bottom, `${control.label} must be within the scroll viewport`).toBeLessThanOrEqual(geometry!.scroll.bottom + 1)
+    expect(control.reachable, `${control.label} must not be occluded`).toBe(true)
+  }
+  expect(geometry!.dockControls.length).toBeGreaterThan(0)
+  for (const control of geometry!.dockControls) {
+    expect(control.top, `${control.label} must stay inside the action dock`).toBeGreaterThanOrEqual(geometry!.dock.top - 1)
+    expect(control.bottom, `${control.label} must stay inside the action dock`).toBeLessThanOrEqual(geometry!.dock.bottom + 1)
     expect(control.reachable, `${control.label} must not be occluded`).toBe(true)
   }
 })

@@ -147,6 +147,14 @@ async function driveToRouteResult(page: Page): Promise<RouteCapture> {
   return held.capture
 }
 
+/** Route results are present and the planner's automatic primary selection has
+ * settled, but no test-harness click has been made on a route card. */
+async function driveToRouteResults(page: Page): Promise<RouteCapture> {
+  await installPlannerServices(page)
+  await page.goto("/")
+  return driveToRouteResult(page)
+}
+
 function suggestionFixture() {
   const geometry: [number, number][] = [
     [FIXTURE_START.lon, FIXTURE_START.lat],
@@ -201,9 +209,7 @@ export const uxState = {
 
   /** State 3 — route selected (explicit user selection). */
   async routeSelected(page: Page): Promise<RouteCapture> {
-    await installPlannerServices(page)
-    await page.goto("/")
-    const capture = await driveToRouteResult(page)
+    const capture = await driveToRouteResults(page)
     // The planner auto-selects its primary candidate; an explicit tap makes
     // this a user selection (SB-005 semantics). Selected = pressed route slip
     // plus the expanded ride dock offering to start it.
@@ -212,6 +218,11 @@ export const uxState = {
     await expect(slip).toHaveAttribute("aria-pressed", "true")
     await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
     return capture
+  },
+
+  /** State 3a — automatic route result, before any route-card input. */
+  async routeResults(page: Page): Promise<RouteCapture> {
+    return driveToRouteResults(page)
   },
 
   /** State 4 — alternatives rack. */
