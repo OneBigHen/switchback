@@ -280,10 +280,12 @@ test("a grounded better-route-plus-stop command routes through canonical planner
         ...route,
         id: "advisor-e2e-with-food",
         name: "Ridge route via Pine Diner",
+        // Passes through the grounded stop anchor so the compound response is
+        // genuine stop-inclusion evidence, not merely a changed route.
         geometry: [
           [-76.8867, 40.2732],
           [-76.94, 40.22],
-          [-77.05, 40.1],
+          [-77.11, 40.16],
           [-77.2311, 39.8309]
         ],
         waypoints: [
@@ -602,6 +604,68 @@ test("a grounded stop with no changed route leaves canonical intent untouched", 
   await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
 
   await expect(page.getByText(/could not verify a different valid route|route is unchanged/i)).toBeVisible({ timeout: 30_000 })
+  await page.getByRole("button", { name: "Edit route", exact: true }).click()
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  await expect(options).toBeVisible({ timeout: 15_000 })
+  if (await options.getAttribute("aria-expanded") !== "true") await options.click()
+  await expect(page.getByRole("button", { name: /Remove .*Pine Diner/i })).toHaveCount(0)
+})
+
+test("a changed route that does not pass the grounded stop is rejected with the route preserved", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1 ? builderReply : compoundReply)
+    })
+  })
+  // The compound command receives a materially different route whose geometry
+  // never approaches the grounded stop, so route-change evidence alone must
+  // not be accepted as compound success.
+  await page.route("**/api/routes", async (routeRequest) => {
+    const body = routeRequest.request().postDataJSON() as Record<string, unknown>
+    const points = Array.isArray(body.points) ? body.points as Array<{ label?: string }> : []
+    const includesFoodStop = points.some((point) => point.label === advisorFoodStop.name)
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: includesFoodStop ? advisorAlternateRoute.id : route.id,
+        warnings: [],
+        routes: includesFoodStop ? [advisorAlternateRoute] : [route, advisorAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Find me a better route with a good food stop")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+
+  // Rejection: the committed pre-command route is preserved, a truthful
+  // failure notice replaces any success copy, and the tentative Advisor via
+  // is rolled back.
+  await expect(page.getByLabel("Current route setup").getByText("Ridge & gravel run")).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/could not verify a changed route that passes through|route is unchanged/i)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/is on a verified changed route/)).toHaveCount(0)
   await page.getByRole("button", { name: "Edit route", exact: true }).click()
   const options = page.getByRole("button", { name: "Ride options", exact: true })
   await expect(options).toBeVisible({ timeout: 15_000 })

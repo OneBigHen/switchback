@@ -47,6 +47,7 @@ import { restorePortableShare } from "@/lib/share/route-share"
 import { routeIntentFromSketch } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
+import { routePassesNearWaypoint } from "@/lib/routing/scoring"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { advisorRideToPlannerHandoff, mergeAdvisorStopIntoVia } from "@/lib/advice/planner-handoff"
@@ -586,9 +587,13 @@ export function PlannerShell() {
   /**
    * Fulfil the advisor's compound command in the canonical planner. The
    * grounded stop is only an input; the route request is the proof that the
-   * second requirement was satisfied. If routing fails or merely reproduces
-   * the current route, restore the committed ride and keep the old answer on
-   * screen rather than silently applying only the stop.
+   * second requirement was satisfied. Compound success requires BOTH a
+   * materially changed valid route AND routed geometry that demonstrably
+   * passes the grounded stop — a route that merely changed is not evidence
+   * that the stop is on it. If routing fails, merely reproduces the current
+   * route, or returns a change that bypasses the stop, restore the committed
+   * ride and keep the old answer on screen rather than silently applying only
+   * the stop.
    */
   const handleRouteWithAdvisorStop = async (stop: ProposedStop) => {
     routeRequestGate.invalidate()
@@ -649,8 +654,12 @@ export function PlannerShell() {
     const routeChanged = Boolean(beforeRoute && selected && (
       geometryChanged || metricsChanged
     ))
+    // routeChanged evidence is necessary but insufficient: the returned
+    // geometry must actually pass the grounded stop, otherwise a changed
+    // route that bypasses the stop would be presented as a routed stop.
+    const stopOnRoute = Boolean(selected && routePassesNearWaypoint(selected.geometry, stopWaypoint))
 
-    if (!planned || !selected || !routeChanged) {
+    if (!planned || !selected || !routeChanged || !stopOnRoute) {
       if (!planned) {
         // A failed primary never replaced committedRide, so the existing
         // planner cancellation contract restores the attempted intent and
@@ -672,9 +681,11 @@ export function PlannerShell() {
       }
       setNotice({
         kind: "warning",
-        message: planned
-          ? `I found ${stop.name}, but could not verify a different valid route through it. Your route is unchanged.`
-          : `I couldn’t route through ${stop.name}. Your route is unchanged.`
+        message: !planned
+          ? `I couldn’t route through ${stop.name}. Your route is unchanged.`
+          : routeChanged
+            ? `I found ${stop.name}, but could not verify a changed route that passes through it. Your route is unchanged.`
+            : `I found ${stop.name}, but could not verify a different valid route through it. Your route is unchanged.`
       })
       return
     }

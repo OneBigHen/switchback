@@ -247,6 +247,39 @@ export function pointToSegmentDistanceMeters(
 }
 
 /**
+ * How far off the route geometry a waypoint may sit and still count as
+ * "on the route". Matches the 25 m tolerance advisor stop merging uses to
+ * treat a point as the same stop (SAME_STOP_METERS in
+ * lib/advice/planner-handoff.ts), so a stop the merge accepts as present is
+ * also a stop a routed response must demonstrably pass.
+ */
+const ROUTE_WAYPOINT_TOLERANCE_METERS = 25
+
+/**
+ * Whether routed geometry demonstrably passes a grounded waypoint: the
+ * waypoint lies within the documented tolerance of some segment of the
+ * geometry. Pure geometry evidence — callers own the routing transaction.
+ */
+export function routePassesNearWaypoint(
+  geometry: readonly Coordinate[],
+  waypoint: { lat: number; lon: number }
+): boolean {
+  if (!Number.isFinite(waypoint.lat) || !Number.isFinite(waypoint.lon)) return false
+  const point: Coordinate = [waypoint.lon, waypoint.lat]
+  if (geometry.length === 1) {
+    const only = geometry[0]!
+    return Number.isFinite(only[0]) && Number.isFinite(only[1]) &&
+      haversine(point, only) <= ROUTE_WAYPOINT_TOLERANCE_METERS
+  }
+  for (let index = 1; index < geometry.length; index += 1) {
+    if (pointToSegmentDistanceMeters(point, geometry[index - 1]!, geometry[index]!) <= ROUTE_WAYPOINT_TOLERANCE_METERS) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * Douglas-Peucker simplification with a tolerance in meters. Keeps the
  * first and last coordinates; internal points are dropped when they lie
  * within the tolerance of the chord.
