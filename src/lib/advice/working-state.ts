@@ -16,11 +16,18 @@ import type { PlannedRoute } from "@/lib/routing/types"
  * here or anywhere else in the thread.
  */
 
-/** Percent of a route's mapped surface that is unpaved, or null when unknown. */
-function unpavedShare(route: PlannedRoute): number | null {
+/**
+ * Percent of a route's mapped surface that is unpaved, or null when unknown.
+ * `surfaceMix` is produced by calculateDetailDistribution on a 0..100 scale.
+ * Reject impossible source values rather than clamping a bad fact into something
+ * that merely looks plausible to the rider.
+ */
+function unpavedPercent(route: PlannedRoute): number | null {
   const mix = route.surfaceMix as Record<string, unknown> | undefined
   const unpaved = mix?.unpaved
-  return typeof unpaved === "number" && Number.isFinite(unpaved) ? unpaved : null
+  return typeof unpaved === "number" && Number.isFinite(unpaved) && unpaved >= 0 && unpaved <= 100
+    ? unpaved
+    : null
 }
 
 function round(value: number): number {
@@ -53,12 +60,16 @@ export function workingStateLine(input: WorkingStateInput): string | null {
     if (addedMinutes > 0) facts.push(`+${addedMinutes} min`)
   }
 
-  const selectedUnpaved = unpavedShare(selected)
-  const fastestUnpaved = unpavedShare(fastest)
+  const selectedUnpaved = unpavedPercent(selected)
+  const fastestUnpaved = unpavedPercent(fastest)
   if (selectedUnpaved !== null && selectedUnpaved > 0) {
-    const delta = fastestUnpaved !== null ? selectedUnpaved - fastestUnpaved : selectedUnpaved
-    if (delta > 0.01) facts.push(`+${round(delta * 100)}% unpaved`)
-    else facts.push(`${round(selectedUnpaved * 100)}% unpaved`)
+    if (fastestUnpaved !== null) {
+      const roundedDelta = round(selectedUnpaved - fastestUnpaved)
+      if (roundedDelta > 0) facts.push(`+${roundedDelta}% unpaved`)
+      else facts.push(`${round(selectedUnpaved)}% unpaved`)
+    } else {
+      facts.push(`${round(selectedUnpaved)}% unpaved`)
+    }
   }
 
   if (fastest.id !== selected.id) {
