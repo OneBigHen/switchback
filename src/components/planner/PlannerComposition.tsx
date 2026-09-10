@@ -37,6 +37,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
   const {
     deck: deckCommands,
     addAdvisorStop: onAddAdvisorStop,
+    routeWithAdvisorStop: onRouteWithAdvisorStop,
     planAdvisorRide: onPlanAdvisorRide
   } = commands
   const [details, setDetails] = useState<RouteDetailsWorkspaceState | null>(null)
@@ -116,6 +117,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
             warnings={planWarnings}
             origin={advisorOrigin}
             onAddStop={onAddAdvisorStop}
+            {...(onRouteWithAdvisorStop ? { onRouteWithStop: onRouteWithAdvisorStop } : {})}
             {...(comparison ? { onSelectRoute: selectRoute } : {})}
             {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
           />

@@ -56,6 +56,8 @@ export interface RideAdvisorProps {
   origin?: { lat: number; lon: number; label?: string } | null
   /** Accept a proposed stop with its along-route evidence intact. */
   onAddStop(stop: ProposedStop): void
+  /** Fulfil an explicit better-route-plus-stop command through the planner. */
+  onRouteWithStop?(stop: ProposedStop): void | Promise<void>
   /** Confirm a whole proposed ride and hand it to the ordinary planner. */
   onPlanRide?(ride: ProposedRide): void
   /** Preview/select an existing Switchback candidate the Goblin prefers. */
@@ -131,6 +133,7 @@ export function RideAdvisor({
   warnings,
   origin,
   onAddStop,
+  onRouteWithStop,
   onPlanRide,
   onSelectRoute
 }: RideAdvisorProps) {
@@ -306,7 +309,7 @@ export function RideAdvisor({
 
       const clientAction = resolveAdvisorClientAction(request, reply)
       setConversation([...asked, threadTurn({ role: "advisor", text: reply.message })])
-      setStops(clientAction?.type === "add-stop"
+      setStops(clientAction?.type === "add-stop" || clientAction?.type === "route-with-stop"
         ? reply.proposedStops.filter((stop) => stop.id !== clientAction.stop.id)
         : reply.proposedStops)
       setRide(reply.proposedRide)
@@ -317,7 +320,10 @@ export function RideAdvisor({
       // reaches here with structured ids/coordinates already resolved by the
       // server, and these callbacks are the same planner boundaries the manual
       // "Add to ride" / "Show route" buttons use.
-      if (clientAction?.type === "add-stop") {
+      if (clientAction?.type === "route-with-stop" && onRouteWithStop) {
+        actionMutation.current = "stop"
+        void onRouteWithStop(clientAction.stop)
+      } else if (clientAction?.type === "add-stop") {
         actionMutation.current = "stop"
         onAddStop(clientAction.stop)
       } else if (clientAction?.type === "select-route" && onSelectRoute) {

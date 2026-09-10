@@ -101,11 +101,19 @@ async function openGoblin() {
 describe("Gravel Goblin command handoff", () => {
   it("routes an explicit add-stop command through the planner callback without another click", async () => {
     const onAddStop = vi.fn()
+    const onRouteWithStop = vi.fn()
     advisorClient.requestAdvisorTurn
       .mockResolvedValueOnce(ok())
       .mockResolvedValueOnce(ok({
         message: "Grounded stop: Actual Diner. It’s ready to route through.",
-        proposedStops: [foodStop]
+        proposedStops: [foodStop],
+        secondOpinion: {
+          agreesWithSwitchback: false,
+          wouldPick: "better",
+          rationale: "More curves.",
+          cautions: [],
+          confidence: "medium"
+        }
       }))
 
     render(
@@ -114,6 +122,7 @@ describe("Gravel Goblin command handoff", () => {
         selectedRouteId="current"
         warnings={[]}
         onAddStop={onAddStop}
+        onRouteWithStop={onRouteWithStop}
         onSelectRoute={vi.fn()}
       />
     )
@@ -122,8 +131,9 @@ describe("Gravel Goblin command handoff", () => {
     const input = screen.getByRole("textbox", { name: "Ask Gravel Goblin" })
     await user.type(input, "Reroute me with a food stop{Enter}")
 
-    await waitFor(() => expect(onAddStop).toHaveBeenCalledOnce())
-    expect(onAddStop).toHaveBeenCalledWith(foodStop)
+    await waitFor(() => expect(onRouteWithStop).toHaveBeenCalledOnce())
+    expect(onRouteWithStop).toHaveBeenCalledWith(foodStop)
+    expect(onAddStop).not.toHaveBeenCalled()
     expect(screen.queryByRole("button", { name: /Add to ride/i })).not.toBeInTheDocument()
   })
 

@@ -1,4 +1,10 @@
-import type { AdviceRequest, AdvisorReply, ProposedRide, ProposedStop } from "./contracts"
+import type {
+  AdviceRequest,
+  AdvisorReply,
+  ProposedRide,
+  ProposedStop,
+  RouteSecondOpinion
+} from "./contracts"
 
 /**
  * What the rider expects Gravel Goblin to *do* this turn.
@@ -64,6 +70,7 @@ export function advisorActionPrompt(
         "ACTION CONTRACT: the rider asked to change the ride and include a stop.",
         "Use find_stops (or lookup_place for a specifically named place) before naming a stop.",
         "Put the best grounded stop first in proposedStops so the planner can route through it.",
+        "Return a different existing route in secondOpinion when one is verified; if none exists, do not imply that both requirements were fulfilled.",
         "Do not invent an itinerary, road, town or business when lookup fails.",
         "Do not claim the route or map changed; the client owns planner mutation after validation."
       ].join("\n")
@@ -119,6 +126,36 @@ function safeRide(ride: ProposedRide): ProposedRide {
 }
 
 /**
+ * Keep a route opinion only when it points at a different candidate that
+ * Switchback actually produced. The model's rationale and cautions are still
+ * prose, so action turns receive the same deterministic facts as pure
+ * reroutes. A compound command needs this evidence in addition to its
+ * grounded stop; otherwise it must remain a suggestion and cannot mutate the
+ * planner as though the route requirement had been fulfilled.
+ */
+function verifiedDifferentOpinion(
+  input: AdviceRequest,
+  opinion: RouteSecondOpinion | null
+): RouteSecondOpinion | null {
+  const selectedRouteId = input.context?.selectedRouteId
+  if (!opinion || opinion.agreesWithSwitchback || !selectedRouteId) return null
+  if (opinion.wouldPick === selectedRouteId) return null
+
+  const candidate = input.context?.candidates.find((entry) => entry.id === opinion.wouldPick)
+  if (!candidate) return null
+  const selected = input.context?.candidates.find((entry) => entry.id === selectedRouteId)
+  const timeDelta = selected ? candidate.durationMinutes - selected.durationMinutes : 0
+  const timeText = timeDelta === 0
+    ? "the same measured time"
+    : timeDelta > 0
+      ? `${timeDelta} min longer`
+      : `${Math.abs(timeDelta)} min quicker`
+  const rationale = `${candidate.distanceMiles} mi · ${candidate.durationMinutes} min · curve score ${candidate.twistiness}/100 · ${timeText}.`
+
+  return { ...opinion, rationale, cautions: [] }
+}
+
+/**
  * Evidence gate for rider-facing action copy.
  *
  * Structured stops and route ids are already validated by `resolve-answer`.
@@ -150,24 +187,25 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
         proposedRide: null
       }
     }
+    const opinion = intent === "route-with-stop"
+      ? verifiedDifferentOpinion(input, reply.secondOpinion)
+      : null
     return {
       ...reply,
       message: intent === "route-with-stop"
-        ? `Grounded stop: ${stop.name}. It’s ready to route through.`
+        ? opinion
+          ? `Grounded stop: ${stop.name}. A different verified route candidate is ready; Switchback will route through the planner.`
+          : `Grounded stop: ${stop.name}. I don’t have a better verified route candidate, so your route is unchanged.`
         : `Best grounded stop: ${stop.name}.`,
-      secondOpinion: null,
+      secondOpinion: opinion,
       proposedStops,
       proposedRide: null
     }
   }
 
   if (intent === "reroute") {
-    const opinion = reply.secondOpinion
-    const selectedId = input.context?.selectedRouteId
-    const isDifferent = opinion
-      && !opinion.agreesWithSwitchback
-      && opinion.wouldPick !== selectedId
-    const candidate = isDifferent
+    const opinion = verifiedDifferentOpinion(input, reply.secondOpinion)
+    const candidate = opinion
       ? input.context?.candidates.find((entry) => entry.id === opinion.wouldPick)
       : null
 
@@ -181,19 +219,10 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
       }
     }
 
-    const selected = input.context?.candidates.find((entry) => entry.id === selectedId)
-    const timeDelta = selected ? candidate.durationMinutes - selected.durationMinutes : 0
-    const timeText = timeDelta === 0
-      ? "the same measured time"
-      : timeDelta > 0
-        ? `${timeDelta} min longer`
-        : `${Math.abs(timeDelta)} min quicker`
-    const rationale = `${candidate.distanceMiles} mi · ${candidate.durationMinutes} min · curve score ${candidate.twistiness}/100 · ${timeText}.`
-
     return {
       ...reply,
       message: `Better verified candidate: ${candidate.name}. It’s ready to show on the map.`,
-      secondOpinion: { ...opinion, rationale, cautions: [] },
+      secondOpinion: opinion,
       proposedStops: [],
       proposedRide: null
     }
@@ -218,6 +247,7 @@ export function enforceAdvisorActionReply(input: AdviceRequest, reply: AdvisorRe
 
 export type AdvisorClientAction =
   | { type: "add-stop"; stop: ProposedStop }
+  | { type: "route-with-stop"; stop: ProposedStop }
   | { type: "select-route"; routeId: string }
 
 /**
@@ -234,7 +264,9 @@ export function resolveAdvisorClientAction(
 
   if (intent === "route-with-stop") {
     const stop = reply.proposedStops[0]
-    return stop ? { type: "add-stop", stop } : null
+    if (!stop) return null
+    if (!verifiedDifferentOpinion(input, reply.secondOpinion)) return null
+    return { type: "route-with-stop", stop }
   }
 
   if (intent === "reroute" && reply.secondOpinion && !reply.secondOpinion.agreesWithSwitchback) {

@@ -27,6 +27,8 @@ export interface PlannerPresentationCommands {
   readonly deck: PlannerDeckCommands
   /** Accept an advisor-proposed stop without losing its along-route evidence. */
   readonly addAdvisorStop?: (stop: ProposedStop) => void
+  /** Fulfil an explicit better-route-plus-stop command through the planner. */
+  readonly routeWithAdvisorStop?: (stop: ProposedStop) => void | Promise<void>
   /** Accept a whole advisor-proposed ride into the planner's own controls. */
   readonly planAdvisorRide?: (ride: ProposedRide) => void
 }
@@ -44,6 +46,7 @@ export interface PlannerPresentationInput {
   recoveryStatus: RecoveryStatus
   planWarnings?: string[]
   onAddAdvisorStop?(stop: ProposedStop): void
+  onRouteWithAdvisorStop?(stop: ProposedStop): void | Promise<void>
   onPlanAdvisorRide?(ride: ProposedRide): void
   advisorOrigin?: { lat: number; lon: number; label?: string } | null
 }
@@ -65,6 +68,7 @@ export function createPlannerPresentationBoundary({
   recoveryStatus,
   planWarnings = NO_WARNINGS,
   onAddAdvisorStop,
+  onRouteWithAdvisorStop,
   onPlanAdvisorRide,
   advisorOrigin = null
 }: PlannerPresentationInput): PlannerPresentationBoundary {
@@ -81,6 +85,7 @@ export function createPlannerPresentationBoundary({
       // Absent rather than a no-op: the surface decides what to offer from
       // whether the command exists at all.
       ...(onAddAdvisorStop ? { addAdvisorStop: onAddAdvisorStop } : {}),
+      ...(onRouteWithAdvisorStop ? { routeWithAdvisorStop: onRouteWithAdvisorStop } : {}),
       ...(onPlanAdvisorRide ? { planAdvisorRide: onPlanAdvisorRide } : {})
     }
   }

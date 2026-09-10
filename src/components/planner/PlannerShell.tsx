@@ -583,6 +583,74 @@ export function PlannerShell() {
     }
   }
 
+  /**
+   * Fulfil the advisor's compound command in the canonical planner. The
+   * grounded stop is only an input; the route request is the proof that the
+   * second requirement was satisfied. If routing fails or merely reproduces
+   * the current route, restore the committed ride and keep the old answer on
+   * screen rather than silently applying only the stop.
+   */
+  const handleRouteWithAdvisorStop = async (stop: ProposedStop) => {
+    routeRequestGate.invalidate()
+    const store = usePlannerStore.getState()
+    const beforePlan = store.plan
+    const activeRouteId = store.selectedRouteId ?? beforePlan?.routes[0]?.id
+    const beforeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
+    const stopWaypoint: Waypoint = { lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name }
+    const routedVia = store.mode === "loop" && beforeRoute && store.via.length === 0
+      ? buildLoopStopVia(beforeRoute.geometry, stopWaypoint)
+      : mergeAdvisorStopIntoVia(store.via, stop, beforeRoute?.geometry ?? [])
+
+    if (routedVia.length === store.via.length && routedVia.every((point, index) => point === store.via[index])) {
+      setNotice({ kind: "warning", message: `I found ${stop.name}, but it is already on this ride and no different route was verified. Your route is unchanged.` })
+      return
+    }
+    if (store.editRide({ via: routedVia }, "Route through advisor stop", "advisor") !== "applied") return
+
+    const planned = await handlePlan()
+    const selected = planned?.routes.find((route) => route.id === planned.selectedRouteId) ?? planned?.routes[0] ?? null
+    const geometryChanged = Boolean(beforeRoute && (
+      beforeRoute.geometry.length !== selected?.geometry.length
+      || beforeRoute.geometry.some((point, index) => point[0] !== selected?.geometry[index]?.[0] || point[1] !== selected?.geometry[index]?.[1])
+    ))
+    const metricsChanged = Boolean(beforeRoute && selected && (
+      beforeRoute.distanceMiles !== selected.distanceMiles
+      || beforeRoute.durationMinutes !== selected.durationMinutes
+      || beforeRoute.twistiness !== selected.twistiness
+      || beforeRoute.turnCount !== selected.turnCount
+    ))
+    const routeChanged = Boolean(beforeRoute && selected && (
+      beforeRoute.id !== selected.id || geometryChanged || metricsChanged
+    ))
+
+    if (!planned || !selected || !routeChanged) {
+      planning.cancel()
+      if (beforePlan) {
+        const previousRoutes = beforePlan.routes.flatMap((summary) => {
+          const route = routeEntityCache.get(summary.id)
+          return route ? [route] : []
+        })
+        if (previousRoutes.length > 0) {
+          usePlannerStore.getState().applyPlan({
+            selectedRouteId: beforePlan.selectedRouteId,
+            routes: previousRoutes,
+            warnings: beforePlan.warnings,
+            ...(beforePlan.planningId ? { planningId: beforePlan.planningId } : {})
+          })
+        }
+      }
+      setNotice({
+        kind: "warning",
+        message: planned
+          ? `I found ${stop.name}, but could not verify a different valid route through it. Your route is unchanged.`
+          : `I couldn’t route through ${stop.name}. Your route is unchanged.`
+      })
+      return
+    }
+
+    setNotice({ kind: "success", message: `${stop.name} is on a verified changed route.` })
+  }
+
   const { researchRideIdea: handleRideResearch, cancel: cancelRideResearch } = usePlannerRideResearch({
     setStatus: setResearchStatus,
     setSources: setResearchSources,
@@ -1391,6 +1459,7 @@ message: failure?.message ?? "The rough route could not be routed."
           recoveryStatus,
           planWarnings: plan?.warnings ?? [],
           onAddAdvisorStop: (stop) => void handleAddAdvisorStop(stop),
+          onRouteWithAdvisorStop: (stop) => void handleRouteWithAdvisorStop(stop),
           onPlanAdvisorRide: (ride) => void handlePlanAdvisorRide(ride),
           advisorOrigin: start ?? null,
           viewModel: buildPlannerDeckViewModel({

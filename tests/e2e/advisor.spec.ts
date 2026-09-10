@@ -93,6 +93,53 @@ const builderReply = {
   capability
 }
 
+const advisorAlternateRoute = {
+  ...route,
+  id: "advisor-e2e-better",
+  name: "Ridge alternative",
+  geometry: [
+    [-76.8867, 40.2732],
+    [-76.98, 40.21],
+    [-77.12, 40.02],
+    [-77.2311, 39.8309]
+  ],
+  distanceMiles: 61.2,
+  durationMinutes: 188,
+  twistiness: 86,
+  turnCount: 61
+}
+
+const advisorFoodStop = {
+  id: "osm-food-1",
+  name: "Pine Diner",
+  reason: "Grounded food stop near the route midpoint.",
+  kind: "food",
+  anchor: { lat: 40.16, lon: -77.11 },
+  routeProgress: 0.54,
+  citations: [{
+    title: "OpenStreetMap",
+    url: "https://www.openstreetmap.org/?mlat=40.1&mlon=-77.05",
+    source: "switchback-local"
+  }]
+}
+
+const compoundReply = {
+  status: "ok",
+  message: "Grounded stop: Pine Diner. A different verified route candidate is ready.",
+  secondOpinion: {
+    agreesWithSwitchback: false,
+    wouldPick: advisorAlternateRoute.id,
+    rationale: "More curves on the verified candidate.",
+    cautions: [],
+    confidence: "medium"
+  },
+  proposedStops: [advisorFoodStop],
+  proposedRide: null,
+  citations: advisorFoodStop.citations,
+  usage: { toolCalls: 1, groundedQueries: 1 },
+  capability
+}
+
 interface AdvisorMockOptions {
   capabilityPayload?: unknown
   reply?: unknown
@@ -188,6 +235,339 @@ test("Gravel Goblin is available before routing and becomes the route companion 
     avoidHighways: true,
     tollPolicy: "allow-with-warning"
   })
+})
+
+test("a grounded better-route-plus-stop command routes through canonical planner state", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  const routeRequests: Array<Record<string, unknown>> = []
+
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1 ? builderReply : compoundReply)
+    })
+  })
+
+  await page.route("**/api/routes", async (routeRequest) => {
+    const body = routeRequest.request().postDataJSON() as Record<string, unknown>
+    routeRequests.push(body)
+    const points = Array.isArray(body.points) ? body.points as Array<{ label?: string }> : []
+    const includesFoodStop = points.some((point) => point.label === advisorFoodStop.name)
+    const routes = includesFoodStop ? [
+      {
+        ...route,
+        id: "advisor-e2e-with-food",
+        name: "Ridge route via Pine Diner",
+        geometry: [
+          [-76.8867, 40.2732],
+          [-76.94, 40.22],
+          [-77.05, 40.1],
+          [-77.2311, 39.8309]
+        ],
+        waypoints: [
+          route.waypoints[0],
+          advisorFoodStop.anchor,
+          route.waypoints[route.waypoints.length - 1]!
+        ],
+        distanceMiles: 63.7,
+        durationMinutes: 196,
+        twistiness: 84,
+        turnCount: 58
+      }
+    ] : [route, advisorAlternateRoute]
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: routes[0]!.id,
+        warnings: [],
+        routes
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  const changedRouteRequest = page.waitForRequest((request) => {
+    if (request.url().includes("/api/routes") === false || request.method() !== "POST") return false
+    const body = request.postDataJSON() as Record<string, unknown>
+    return Array.isArray(body.points)
+      && (body.points as Array<{ label?: string }>).some((point) => point.label === advisorFoodStop.name)
+  })
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+  await composer.fill("Find me a better route with a good food stop")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await changedRouteRequest
+
+  await expect(page.getByLabel("Current route setup").getByText("Ridge route via Pine Diner")).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/Pine Diner is on a verified changed route/)).toBeVisible()
+  expect(routeRequests.some((request) => {
+    const points = request.points
+    return Array.isArray(points) && (points as Array<{ label?: string }>).some((point) => point.label === advisorFoodStop.name)
+  })).toBe(true)
+  await expect(page.locator("canvas").first()).toBeVisible()
+})
+
+test("a failed grounded-stop lookup leaves the existing route untouched", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  const routeRequests: Array<Record<string, unknown>> = []
+
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1
+        ? builderReply
+        : {
+            ...compoundReply,
+            message: "I couldn’t ground a routable stop for that request, so I left the route unchanged.",
+            proposedStops: [],
+            secondOpinion: null,
+            citations: [],
+            usage: { toolCalls: 1, groundedQueries: 1 }
+          })
+    })
+  })
+
+  await page.route("**/api/routes", async (routeRequest) => {
+    const body = routeRequest.request().postDataJSON() as Record<string, unknown>
+    routeRequests.push(body)
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: route.id,
+        warnings: [],
+        routes: [route, advisorAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  const requestsBeforeCommand = routeRequests.length
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+  await composer.fill("Find me a better route with a good food stop")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+
+  await expect(page.getByText(/couldn.t ground a routable stop|route unchanged/i)).toBeVisible()
+  await expect(page.getByLabel("Current route setup").getByText("Ridge & gravel run")).toBeVisible()
+  expect(routeRequests).toHaveLength(requestsBeforeCommand)
+  await expect(page.getByText(/Pine Diner|Imaginary|Secret Ridge/)).toHaveCount(0)
+})
+
+test("a grounded stop whose routing fails leaves the canonical route and waypoints untouched", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  const routeRequests: Array<Record<string, unknown>> = []
+
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1 ? builderReply : compoundReply)
+    })
+  })
+
+  await page.route("**/api/routes", async (routeRequest) => {
+    const body = routeRequest.request().postDataJSON() as Record<string, unknown>
+    routeRequests.push(body)
+    const points = Array.isArray(body.points) ? body.points as Array<{ label?: string }> : []
+    if (points.some((point) => point.label === advisorFoodStop.name)) {
+      await routeRequest.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "ROUTE_UNAVAILABLE", message: "Fixture router unavailable" } })
+      })
+      return
+    }
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: route.id,
+        warnings: [],
+        routes: [route, advisorAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  const requestsBeforeCommand = routeRequests.length
+  const composer = page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+  await composer.fill("Find me a better route with a good food stop")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+
+  await expect(page.getByText(/couldn.t route through Pine Diner|route unchanged/i)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByLabel("Current route setup").getByText("Ridge & gravel run")).toBeVisible()
+  expect(routeRequests.length).toBeGreaterThan(requestsBeforeCommand)
+
+  await page.getByRole("button", { name: "Edit route", exact: true }).click()
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  await expect(options).toBeVisible({ timeout: 15_000 })
+  if (await options.getAttribute("aria-expanded") !== "true") await options.click()
+  await expect(page.getByRole("button", { name: /Remove .*Pine Diner/i })).toHaveCount(0)
+})
+
+test("a pure reroute command selects a verified alternative in canonical planner and map state", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1
+        ? builderReply
+        : {
+            ...compoundReply,
+            message: "Better verified candidate: Ridge alternative.",
+            proposedStops: [],
+            secondOpinion: {
+              ...compoundReply.secondOpinion,
+              wouldPick: advisorAlternateRoute.id
+            }
+          })
+    })
+  })
+  await page.route("**/api/routes", async (routeRequest) => {
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: route.id,
+        warnings: [],
+        routes: [route, advisorAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Find me a better route")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await expect(page.getByText(/Better verified candidate: Ridge alternative/)).toBeVisible()
+  await expect(page.getByLabel("Current route setup").getByText("Ridge alternative")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Select Ridge alternative", exact: true })).toHaveAttribute("aria-pressed", "true")
+})
+
+test("a pure reroute without a verified alternative leaves the existing route unchanged", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  const routeRequests: Array<Record<string, unknown>> = []
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1
+        ? builderReply
+        : {
+            ...compoundReply,
+            message: "I found a wonderful secret route through Secret Ridge.",
+            proposedStops: [],
+            secondOpinion: null
+          })
+    })
+  })
+  await page.route("**/api/routes", async (routeRequest) => {
+    routeRequests.push(routeRequest.request().postDataJSON() as Record<string, unknown>)
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ selectedRouteId: route.id, warnings: [], routes: [route, advisorAlternateRoute] })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  const requestsBeforeCommand = routeRequests.length
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Find me a better route")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+
+  await expect(page.getByText(/don.t have a better verified route candidate/i)).toBeVisible()
+  await expect(page.getByLabel("Current route setup").getByText("Ridge & gravel run")).toBeVisible()
+  expect(routeRequests).toHaveLength(requestsBeforeCommand)
+  await expect(page.getByText(/Secret Ridge/)).toHaveCount(0)
 })
 
 test("a route-only question shows deterministic route facts, never a bare spinner", async ({ page }) => {

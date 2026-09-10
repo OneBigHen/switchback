@@ -138,6 +138,34 @@ describe("Gravel Goblin action evidence boundary", () => {
     expect(result.secondOpinion).toBeNull()
   })
 
+  it("keeps a verified route opinion attached to a compound route-and-stop action", () => {
+    const input = ask("Find me a better route with a food stop")
+    const result = enforceAdvisorActionReply(input, reply({
+      proposedStops: [foodStop],
+      secondOpinion: {
+        agreesWithSwitchback: false,
+        wouldPick: "better",
+        rationale: "More curves on the verified candidate.",
+        cautions: [],
+        confidence: "medium"
+      }
+    }))
+
+    expect(result.secondOpinion?.wouldPick).toBe("better")
+    expect(resolveAdvisorClientAction(input, result)).toEqual({
+      type: "route-with-stop",
+      stop: result.proposedStops[0]
+    })
+  })
+
+  it("does not auto-apply a compound action without a verified route opinion", () => {
+    const input = ask("Find me a better route with a food stop")
+    const result = enforceAdvisorActionReply(input, reply({ proposedStops: [foodStop] }))
+
+    expect(result.message).toMatch(/better verified route|unchanged/i)
+    expect(resolveAdvisorClientAction(input, result)).toBeNull()
+  })
+
   it("refuses to describe an imaginary reroute when no different candidate was verified", () => {
     const result = enforceAdvisorActionReply(
       ask("Find me a better route"),
@@ -216,8 +244,17 @@ describe("Gravel Goblin router integration", () => {
 describe("Gravel Goblin client action handoff", () => {
   it("auto-applies the grounded stop for an explicit route-with-stop command", () => {
     const input = ask("Find me better route with stop")
-    const guarded = enforceAdvisorActionReply(input, reply({ proposedStops: [foodStop] }))
-    expect(resolveAdvisorClientAction(input, guarded)).toEqual({ type: "add-stop", stop: guarded.proposedStops[0] })
+    const guarded = enforceAdvisorActionReply(input, reply({
+      proposedStops: [foodStop],
+      secondOpinion: {
+        agreesWithSwitchback: false,
+        wouldPick: "better",
+        rationale: "More curves.",
+        cautions: [],
+        confidence: "medium"
+      }
+    }))
+    expect(resolveAdvisorClientAction(input, guarded)).toEqual({ type: "route-with-stop", stop: guarded.proposedStops[0] })
   })
 
   it("auto-selects only a verified different candidate for a reroute command", () => {
