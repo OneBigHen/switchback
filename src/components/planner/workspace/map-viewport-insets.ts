@@ -57,16 +57,17 @@ export interface WorkspaceMapContext {
 export const MAP_VIEWPORT_GUTTER_PX = 24
 
 /**
- * The follow camera switches to its desktop layout at the compact ceiling.
- * It previously carried its own `760` literal, which duplicated the layout
- * boundary and could silently drift from the planner's own decision; it now
- * aliases the canonical workspace-mode authority (issue #115).
+ * The follow camera switches to its non-compact layout immediately after the
+ * canonical compact ceiling. Using the ceiling itself as the desktop minimum
+ * made exactly 760 px disagree with `resolveWorkspaceMode`: the workspace was
+ * compact while camera math already behaved as medium/desktop.
  *
- * Note it remains *narrower* than route fitting's own 800 px threshold below.
- * That divergence predates this contract and is preserved exactly until a later
- * phase retunes the camera against real measured sheet/panel geometry.
+ * Route fitting still carries its legacy 800 px split below. That divergence
+ * is intentionally left visible until medium topology exists; reserving a
+ * persistent side panel before one is actually rendered would create a new
+ * camera bug while trying to remove the old breakpoint drift.
  */
-const NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX = WORKSPACE_COMPACT_MAX_WIDTH_PX
+const NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX = WORKSPACE_COMPACT_MAX_WIDTH_PX + 1
 
 /*
  * Legacy-tuned occlusion constants. These reproduce today's visual camera
