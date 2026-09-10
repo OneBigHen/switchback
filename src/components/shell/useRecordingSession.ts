@@ -6,6 +6,7 @@ import {
   createRecordingState,
   isOpenRecordingSession,
   recordingSessionReducer,
+  type RecordingSessionKind,
   type RecordingSessionSnapshot,
   type RecordingSessionState
 } from "@/lib/client/recording-session"
@@ -17,6 +18,7 @@ const RECOVERY_KEY = "switchback:active-recording"
 function recoverySnapshot(state: RecordingSessionState): RecordingSessionSnapshot {
   return {
     status: state.status,
+    kind: state.kind,
     startedAt: state.startedAt,
     pausedAt: state.pausedAt,
     pausedMillis: state.pausedMillis,
@@ -110,8 +112,8 @@ export function useRecordingSession() {
 
   useEffect(() => stopWatch, [stopWatch])
 
-  const start = useCallback(() => {
-    dispatch({ type: "start", at: Date.now() })
+  const start = useCallback((kind: RecordingSessionKind = "planned") => {
+    dispatch({ type: "start", at: Date.now(), kind })
     watch()
   }, [watch])
 

@@ -10,8 +10,11 @@ export type RecordingStatus =
   | "denied"
   | "error"
 
+export type RecordingSessionKind = "planned" | "free-ride"
+
 export interface RecordingSessionState {
   status: RecordingStatus
+  kind: RecordingSessionKind
   startedAt: number | null
   pausedAt: number | null
   pausedMillis: number
@@ -24,6 +27,8 @@ export type RecordingSessionSnapshot = Pick<
   RecordingSessionState,
   "status" | "startedAt" | "pausedAt" | "pausedMillis" | "endedAt" | "points"
 > & {
+  /** Optional for snapshots written before recording mode was persisted. */
+  kind?: RecordingSessionKind
   /** Optional for snapshots written before GPS failure details were persisted. */
   error?: string | null
 }
@@ -31,7 +36,7 @@ export type RecordingSessionSnapshot = Pick<
 export type RecordingSessionAction =
   | { type: "request_permission" }
   | { type: "ready" }
-  | { type: "start"; at: number }
+  | { type: "start"; at: number; kind?: RecordingSessionKind }
   | { type: "sample"; point: RecordedRidePoint }
   | { type: "pause"; at: number }
   | { type: "resume"; at: number }
@@ -42,9 +47,14 @@ export type RecordingSessionAction =
   | { type: "error"; message: string }
   | { type: "reset" }
 
-export function createRecordingState(): RecordingSessionState {
+function normalizeRecordingKind(value: unknown): RecordingSessionKind {
+  return value === "free-ride" ? "free-ride" : "planned"
+}
+
+export function createRecordingState(kind: RecordingSessionKind = "planned"): RecordingSessionState {
   return {
     status: "idle",
+    kind,
     startedAt: null,
     pausedAt: null,
     pausedMillis: 0,
@@ -64,7 +74,7 @@ export function recordingSessionReducer(
     case "ready":
       return { ...state, status: "ready", error: null }
     case "start":
-      return { ...createRecordingState(), status: "recording", startedAt: action.at }
+      return { ...createRecordingState(normalizeRecordingKind(action.kind)), status: "recording", startedAt: action.at }
     case "sample":
       return state.status === "recording"
         ? { ...state, points: [...state.points, action.point] }
@@ -103,9 +113,11 @@ export function recordingSessionReducer(
     }
     case "recover": {
       const interrupted = action.snapshot.status === "recording"
+      const kind = normalizeRecordingKind(action.snapshot.kind)
       return {
-        ...createRecordingState(),
+        ...createRecordingState(kind),
         ...action.snapshot,
+        kind,
         status: interrupted ? "paused" : action.snapshot.status,
         pausedAt: interrupted ? Date.now() : action.snapshot.pausedAt,
         error: action.snapshot.error ?? null

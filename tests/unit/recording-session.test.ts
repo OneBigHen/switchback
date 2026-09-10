@@ -1,10 +1,72 @@
 import { describe, expect, it } from "vitest"
 import {
   createRecordingState,
-  recordingSessionReducer
+  recordingSessionReducer,
+  type RecordingSessionSnapshot
 } from "@/lib/client/recording-session"
 
 describe("standalone recording session", () => {
+  it("records Free Ride as the session kind at start", () => {
+    const started = recordingSessionReducer(createRecordingState(), {
+      type: "start",
+      at: 100,
+      kind: "free-ride"
+    })
+
+    expect(started.kind).toBe("free-ride")
+  })
+
+  it("defaults legacy recovery snapshots to an ordinary recording", () => {
+    const recovered = recordingSessionReducer(createRecordingState(), {
+      type: "recover",
+      snapshot: {
+        status: "denied",
+        startedAt: 100,
+        pausedAt: null,
+        pausedMillis: 0,
+        endedAt: null,
+        points: []
+      }
+    })
+
+    expect(recovered.kind).toBe("planned")
+  })
+
+  it("retains Free Ride kind through recovery", () => {
+    const recovered = recordingSessionReducer(createRecordingState(), {
+      type: "recover",
+      snapshot: {
+        status: "denied",
+        kind: "free-ride",
+        startedAt: 100,
+        pausedAt: null,
+        pausedMillis: 0,
+        endedAt: null,
+        points: []
+      }
+    })
+
+    expect(recovered.kind).toBe("free-ride")
+  })
+
+  it("normalizes an unrecognized persisted kind to an ordinary recording", () => {
+    const snapshot = {
+      status: "denied",
+      kind: "unknown-mode",
+      startedAt: 100,
+      pausedAt: null,
+      pausedMillis: 0,
+      endedAt: null,
+      points: []
+    } as unknown as RecordingSessionSnapshot
+    const recovered = recordingSessionReducer(createRecordingState(), {
+      type: "recover",
+      snapshot
+    })
+
+    expect(recovered.kind).toBe("planned")
+  })
+
   it("starts, pauses, resumes, and finishes without dropping collected points", () => {
     const started = recordingSessionReducer(createRecordingState(), { type: "start", at: 100 })
     const sampled = recordingSessionReducer(started, {

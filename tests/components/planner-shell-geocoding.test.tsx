@@ -3,6 +3,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { PlannerShell } from "@/components/planner/PlannerShell"
+import { RECOVERY_KEY } from "@/components/shell/useRecordingSession"
 import { searchPlacesClient } from "@/lib/client/geocoding-client"
 import { discoverPlaceIdeas } from "@/lib/client/place-ideas-client"
 import { requestRideIntent } from "@/lib/client/ride-intent-client"
@@ -61,7 +62,7 @@ vi.mock("@/lib/storage/route-library", () => ({
 vi.mock("@/lib/storage/ride-journal", () => ({
   RideJournalLibrary: class RideJournalLibrary {
     async list() { return rideJournalList() }
-    async save() { return rideJournalSave() }
+    async save(input: unknown) { return rideJournalSave(input) }
     async remove() { return undefined }
   }
 }))
@@ -276,6 +277,7 @@ describe("free-form planner place resolution", () => {
 
   afterEach(() => {
     cleanup()
+    window.localStorage.removeItem(RECOVERY_KEY)
     vi.unstubAllGlobals()
     if (originalGeolocation) {
       Object.defineProperty(window.navigator, "geolocation", originalGeolocation)
@@ -874,6 +876,43 @@ describe("free-form planner place resolution", () => {
     expect(rideJournalSave).not.toHaveBeenCalled()
     expect(usePlannerStore.getState().surface).toBe("planner")
     expect(window.localStorage.getItem("switchback:active-recording")).toBeNull()
+  })
+
+  it("recovers Free Ride identity and never saves its points as an unrelated planned route", async () => {
+    const user = userEvent.setup()
+    const recoveredPoints = [
+      { coordinate: [-75.1, 41.1] as [number, number], recordedAt: "2026-08-28T14:00:00.000Z", speedMph: 20 },
+      { coordinate: [-75.0, 41.2] as [number, number], recordedAt: "2026-08-28T14:01:00.000Z", speedMph: 22 }
+    ]
+    rideJournalSave.mockResolvedValue({ routeName: "Free Ride" })
+    usePlannerStore.getState().applyPlan(plan)
+    usePlannerStore.getState().selectRoute(route.id)
+    window.localStorage.setItem(RECOVERY_KEY, JSON.stringify({
+      status: "denied",
+      kind: "free-ride",
+      startedAt: Date.parse("2026-08-28T14:00:00.000Z"),
+      pausedAt: null,
+      pausedMillis: 0,
+      endedAt: null,
+      points: recoveredPoints,
+      error: "Location permission was denied."
+    }))
+
+    render(<PlannerShell />)
+    await waitFor(() => expect(usePlannerStore.getState().surface).toBe("free-ride"))
+    expect(screen.getByRole("heading", { name: "Free Ride" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Try GPS again" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Finish & save" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Exit" })).toBeVisible()
+
+    await user.click(screen.getByRole("button", { name: "Finish & save" }))
+
+    await waitFor(() => expect(rideJournalSave).toHaveBeenCalledOnce())
+    const input = rideJournalSave.mock.calls[0]![0] as { route: PlannedRoute; points: typeof recoveredPoints }
+    expect(input.route.id).not.toBe(route.id)
+    expect(input.route.name).toMatch(/^Free Ride · /)
+    expect(input.route.geometry).toEqual(recoveredPoints.map((point) => point.coordinate))
+    expect(input.points).toEqual(recoveredPoints)
   })
 
   it("exits idle Free Ride immediately without asking to discard", async () => {

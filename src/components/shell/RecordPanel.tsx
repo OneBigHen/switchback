@@ -74,7 +74,7 @@ export function RecordPanel({ controller }: RecordPanelProps) {
 
       <div className="record-actions">
         {state.status === "idle" || state.status === "ready" || state.status === "finished" || state.status === "error" || state.status === "denied" ? (
-          <button type="button" className="primary-commit" onClick={start}><Record weight="fill" aria-hidden="true" /> Start recording</button>
+          <button type="button" className="primary-commit" onClick={() => start()}><Record weight="fill" aria-hidden="true" /> Start recording</button>
         ) : null}
         {state.status === "recording" ? (
           <button type="button" onClick={pause}><Pause weight="fill" aria-hidden="true" /> Pause recording</button>

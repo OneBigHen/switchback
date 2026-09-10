@@ -238,4 +238,21 @@ describe("recording permission-denial recovery", () => {
     expect(screen.getByRole("button", { name: "Finish & save" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Discard" })).toBeVisible()
   })
+
+  it("persists and recovers Free Ride identity through an immediate denial", async () => {
+    deniedGeolocation()
+    const initial = renderHook(() => useRecordingSession())
+
+    act(() => initial.result.current.start("free-ride"))
+
+    expect(initial.result.current.state.kind).toBe("free-ride")
+    expect(localStorage.getItem("switchback:active-recording")).toContain('"kind":"free-ride"')
+    initial.unmount()
+
+    const recovered = renderHook(() => useRecordingSession())
+    await waitFor(() => expect(recovered.result.current.state.status).toBe("denied"))
+
+    expect(recovered.result.current.state.kind).toBe("free-ride")
+    expect(recovered.result.current.isActive).toBe(true)
+  })
 })
