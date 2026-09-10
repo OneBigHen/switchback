@@ -115,6 +115,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
             routes={comparison?.routes ?? NO_ROUTES}
             selectedRouteId={comparison?.selectedId ?? ""}
             warnings={planWarnings}
+            resultRevision={viewModel.ui.resultRevision}
             origin={advisorOrigin}
             onAddStop={onAddAdvisorStop}
             {...(onRouteWithAdvisorStop ? { onRouteWithStop: onRouteWithAdvisorStop } : {})}
