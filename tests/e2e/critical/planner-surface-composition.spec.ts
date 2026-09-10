@@ -13,6 +13,7 @@ const VIEWPORTS = [
   { name: "320x568 narrow phone", width: 320, height: 568 },
   { name: "390x844 phone", width: 390, height: 844 },
   { name: "430x932 phone", width: 430, height: 932 },
+  { name: "667x375 short landscape", width: 667, height: 375 },
   { name: "568x320 short landscape", width: 568, height: 320 }
 ] as const
 
@@ -67,6 +68,73 @@ for (const viewport of VIEWPORTS) {
     expect(startBox!.y + startBox!.height, "the Start CTA is fully on screen").toBeLessThanOrEqual(viewportHeight + 1)
   })
 }
+
+test("short landscape route selection keeps the ride card and actions reachable at 667x375", async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 375 })
+  await pinVisualClock(page)
+  await uxState.routeSelected(page)
+  await settleMapDelay(page)
+
+  const geometry = await page.evaluate(async () => {
+    const scroll = document.querySelector<HTMLElement>(".planner-scroll")
+    const sheet = document.querySelector<HTMLElement>("#planner-sheet")
+    const dock = document.querySelector<HTMLElement>(".planner-action-dock")
+    const routeChoices = document.querySelector<HTMLElement>("[aria-label='Route choices']")
+    const rideSummary = document.querySelector<HTMLElement>("[aria-label='Your ride']")
+    if (!scroll || !sheet || !dock || !routeChoices || !rideSummary) return null
+    const measureControl = (button: HTMLElement) => {
+      const box = button.getBoundingClientRect()
+      const center = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      return {
+        label: button.getAttribute("aria-label") ?? button.textContent?.trim() ?? "",
+        top: box.top,
+        bottom: box.bottom,
+        reachable: center === button || button.contains(center),
+      }
+    }
+    const initialScroll = scroll.scrollTop
+    const initialScrollBox = scroll.getBoundingClientRect()
+    const selection = routeChoices.querySelector<HTMLElement>("button[aria-label^='Select ']")
+    if (!selection) return null
+    const initialSelection = measureControl(selection)
+
+    scroll.scrollTop = scroll.scrollHeight
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    const sheetBox = sheet.getBoundingClientRect()
+    const scrollBox = scroll.getBoundingClientRect()
+    const dockBox = dock.getBoundingClientRect()
+    const summaryBox = rideSummary.getBoundingClientRect()
+    const finalControls = [
+      ...rideSummary.querySelectorAll<HTMLElement>("button"),
+      ...dock.querySelectorAll<HTMLElement>("button"),
+    ]
+      .filter((button) => getComputedStyle(button).display !== "none")
+      .map(measureControl)
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      sheet: { top: sheetBox.top, bottom: sheetBox.bottom },
+      initial: { scrollTop: initialScroll, scrollTopEdge: initialScrollBox.top, selection: initialSelection },
+      scroll: { top: scrollBox.top, bottom: scrollBox.bottom, scrollTop: scroll.scrollTop, max: scroll.scrollHeight - scroll.clientHeight },
+      dock: { top: dockBox.top, bottom: dockBox.bottom },
+      summary: { top: summaryBox.top, bottom: summaryBox.bottom },
+      finalControls,
+    }
+  })
+
+  expect(geometry, "short-landscape planner geometry exists").not.toBeNull()
+  expect(geometry!.initial.selection.top, "route selection must start inside the scroll viewport").toBeGreaterThanOrEqual(geometry!.initial.scrollTopEdge - 1)
+  expect(geometry!.initial.selection.reachable, "route selection must not be occluded").toBe(true)
+  expect(geometry!.scroll.scrollTop).toBeGreaterThan(geometry!.initial.scrollTop)
+  expect(geometry!.scroll.scrollTop).toBeGreaterThanOrEqual(geometry!.scroll.max - 1)
+  expect(geometry!.summary.bottom).toBeLessThanOrEqual(geometry!.scroll.bottom + 1)
+  expect(geometry!.dock.bottom).toBeLessThanOrEqual(geometry!.viewport.height + 1)
+  expect(geometry!.finalControls.length).toBeGreaterThan(0)
+  for (const control of geometry!.finalControls) {
+    expect(control.top, `${control.label} must be within the scroll viewport`).toBeGreaterThanOrEqual(geometry!.scroll.top - 1)
+    expect(control.bottom, `${control.label} must be within the scroll viewport`).toBeLessThanOrEqual(geometry!.scroll.bottom + 1)
+    expect(control.reachable, `${control.label} must not be occluded`).toBe(true)
+  }
+})
 
 /**
  * Map layer banners used to position themselves individually, so two at once

@@ -29,10 +29,10 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
   }, [routeKey])
 
   // Results are inserted into a scroll owner the rider has already scrolled to
-  // the bottom of while filling in the editor, so a new candidate set landed
-  // 78-298px above the fold on every phone size: the rider asked for routes,
-  // got them, and saw none of them. Bring the rack itself into view, the same
-  // way the legacy rack re-anchors its selected identity.
+  // the bottom of while filling in the editor. A new candidate set can leave
+  // the first card clipped even when the rail's top edge is technically still
+  // inside the viewport, so always anchor the new rail to the scroll owner's
+  // top rather than trusting that partial visibility.
   const surfaceRef = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -41,7 +41,6 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
       if (!surface || !scroll) return
       const surfaceBox = surface.getBoundingClientRect()
       const scrollBox = scroll.getBoundingClientRect()
-      if (surfaceBox.top >= scrollBox.top && surfaceBox.top < scrollBox.bottom) return
       scroll.scrollTo({
         top: Math.max(0, scroll.scrollTop + surfaceBox.top - scrollBox.top - 8),
         behavior: "auto"
