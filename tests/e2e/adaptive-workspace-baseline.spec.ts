@@ -10,23 +10,26 @@ import { uxState } from "./helpers/ux-state-fixtures"
  * Compact/Medium/Wide topology work, so later topology changes can be reviewed
  * against measured truth instead of impressions.
  *
- * This is an EVIDENCE harness, not a CI regression gate: it records what it
- * finds (including absent selectors and unreachable states) rather than
- * asserting a target layout. The assertion matrix lives in
- * adaptive-workspace.spec.ts per the plan.
+ * This is an EVIDENCE harness, not a CI regression gate. It is deliberately
+ * opt-in because it writes tracked screenshots/manifest data. Ordinary broad
+ * Playwright runs may discover these tests but must skip them without the
+ * explicit capture environment variable.
  *
  * Design notes:
- * - ONE TEST PER (viewport, state). A single mega-test previously consumed the
- *   whole file timeout on the first viewport, so a single slow state destroyed
- *   all other evidence. Per-capture tests isolate failure and preserve results.
- * - Each capture appends to the manifest immediately (read-modify-write), so a
- *   partial run still yields durable, honest evidence.
+ * - ONE TEST PER (viewport, state), executed serially because every case writes
+ *   the same manifest.
+ * - Captures replace their own (viewport,state) entry, making reruns
+ *   deterministic instead of appending duplicate evidence.
+ * - Missing required geometry is recorded as a gap and fails the capture; a
+ *   36/36 run therefore means the required measurements really existed.
  *
  * Run on the dedicated runner, never on the shared dev container:
+ *   SWITCHBACK_CAPTURE_ADAPTIVE_BASELINE=1 \
  *   /root/run-on-125.sh <worktree> test tests/e2e/adaptive-workspace-baseline.spec.ts \
  *     --project=desktop-chromium --reporter=line
  */
 
+const CAPTURE_ENABLED = process.env.SWITCHBACK_CAPTURE_ADAPTIVE_BASELINE === "1"
 const EVIDENCE_DIR = path.join(
   process.cwd(),
   "docs",
@@ -51,7 +54,7 @@ const VIEWPORTS: Array<{ width: number; height: number; label: string }> = [
 const STATES = ["search", "choose", "edit", "prepare"] as const
 type BaselineState = (typeof STATES)[number]
 
-/** Selectors grounded in the real component tree (verified by repo inspection). */
+/** Selectors grounded in both MapLibre and Mapbox control DOM. */
 const SELECTORS = {
   mapStage: ".map-stage",
   mapCanvas: ".map-canvas",
@@ -59,10 +62,8 @@ const SELECTORS = {
   plannerDeck: ".planner-deck",
   scrollOwner: ".planner-scroll",
   layerControl: ".map-layer-control",
-  attribution:
-    ".maplibregl-ctrl-bottom-left .maplibregl-ctrl-attrib, .mapboxgl-ctrl-bottom-left .maplibregl-ctrl-attrib",
-  navControls:
-    ".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group, .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group",
+  attribution: ".maplibregl-ctrl-attrib, .mapboxgl-ctrl-attrib",
+  navControls: ".maplibregl-ctrl-group, .mapboxgl-ctrl-group",
   notice: ".provider-health-notice, .app-notice",
   plannerScrollOwners: ".planner-deck [class*='scroll'], .planner-deck .planner-scroll",
   visibleButtons: ".planner-deck button, .planner-peek-actions button"
@@ -77,28 +78,38 @@ interface Rect {
   height: number
 }
 
-function readManifest() {
+interface BaselineManifest {
+  generatedAt: string
+  note: string
+  captures: Record<string, unknown>[]
+  gaps: string[]
+}
+
+function readManifest(): BaselineManifest {
   if (!existsSync(MANIFEST)) {
     return {
       generatedAt: new Date().toISOString(),
-      note: "Adaptive workspace baseline (Train B / B1). Evidence, not a CI gate.",
-      captures: [] as unknown[],
-      gaps: [] as string[]
+      note: "Adaptive workspace baseline (Train B / B1). Explicit opt-in evidence, not a CI gate.",
+      captures: [],
+      gaps: []
     }
   }
-  try {
-    return JSON.parse(readFileSync(MANIFEST, "utf8"))
-  } catch {
-    return { generatedAt: new Date().toISOString(), captures: [], gaps: [] }
-  }
+  return JSON.parse(readFileSync(MANIFEST, "utf8")) as BaselineManifest
+}
+
+function captureKey(entry: Record<string, unknown>): string {
+  return `${String(entry.viewport)}/${String(entry.state)}`
 }
 
 function recordCapture(entry: Record<string, unknown>, gap?: string) {
   mkdirSync(EVIDENCE_DIR, { recursive: true })
   const manifest = readManifest()
+  const key = captureKey(entry)
   manifest.generatedAt = new Date().toISOString()
+  manifest.captures = manifest.captures.filter((candidate) => captureKey(candidate) !== key)
   manifest.captures.push(entry)
-  if (gap) manifest.gaps.push(gap)
+  manifest.gaps = manifest.gaps.filter((candidate) => !candidate.startsWith(`${key}:`))
+  if (gap) manifest.gaps.push(`${key}: ${gap}`)
   writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`)
 }
 
@@ -131,9 +142,8 @@ async function measure(page: Page) {
       return w > 0 && h > 0 ? w * h : 0
     }
 
-    // Only the real interactive MapLibre groups are compared: the corner
-    // wrapper nodes span every child in that corner and would otherwise
-    // report false overlaps (same approach as short-landscape-geometry.spec.ts).
+    // Compare the real interactive controls, not whole corner wrappers whose
+    // bounding boxes can include unrelated children and create false overlap.
     const collisionNames = ["attribution", "navControls", "layerControl", "notice"] as const
     const collisions: string[] = []
     for (let i = 0; i < collisionNames.length; i += 1) {
@@ -153,8 +163,6 @@ async function measure(page: Page) {
       if (mapUnobstructedSq < 0) mapUnobstructedSq = 0
     }
     const mapArea = stage ? stage.width * stage.height : 0
-
-    // Occlusion of the map by the planner, as a share of the map stage.
     const deckOverMapSq = stage && deck ? overlap(stage, deck) : 0
 
     return {
@@ -201,9 +209,12 @@ async function driveToState(page: Page, state: BaselineState): Promise<void> {
 }
 
 test.describe("adaptive workspace baseline (Train B / B1)", () => {
+  test.describe.configure({ mode: "serial" })
+
   for (const viewport of VIEWPORTS) {
     for (const state of STATES) {
       test(`${viewport.label} ${state}`, async ({ page }, testInfo) => {
+        test.skip(!CAPTURE_ENABLED, "Set SWITCHBACK_CAPTURE_ADAPTIVE_BASELINE=1 to write baseline evidence.")
         test.skip(
           testInfo.project.name !== "desktop-chromium",
           "Baseline harness runs in a single project; it sets its own viewport per case."
@@ -225,20 +236,32 @@ test.describe("adaptive workspace baseline (Train B / B1)", () => {
           // Documented map camera settle delay from the shared fixtures, so a
           // capture never straddles an in-flight transition.
           await page.waitForTimeout(900)
-          record.measurement = await measure(page)
+          const measurement = await measure(page)
+          record.measurement = measurement
+
+          expect(
+            measurement.boxes.mapStage ?? measurement.boxes.mapWorkspace,
+            `${viewport.label}/${state}: map geometry must be measurable`
+          ).not.toBeNull()
+          expect(
+            measurement.boxes.plannerDeck,
+            `${viewport.label}/${state}: planner geometry must be measurable`
+          ).not.toBeNull()
+          expect(
+            measurement.boxes.attribution,
+            `${viewport.label}/${state}: attribution geometry must be measurable`
+          ).not.toBeNull()
+
           const shot = path.join(EVIDENCE_DIR, `${viewport.label}-${state}.png`)
           await page.screenshot({ path: shot, fullPage: false })
           record.screenshot = path.relative(process.cwd(), shot)
           recordCapture(record)
         } catch (caught) {
-          // An unreachable state at a viewport is itself a finding, not a crash.
           record.error = caught instanceof Error ? caught.message : String(caught)
-          recordCapture(record, `${viewport.label}/${state}: ${record.error}`)
-          // Surface it so the run's summary shows which captures are missing,
-          // but leave the evidence recorded above intact.
+          recordCapture(record, String(record.error))
           expect(
             record.error,
-            `${viewport.label}/${state} could not be captured`
+            `${viewport.label}/${state} could not be captured completely`
           ).toBeUndefined()
         }
       })
