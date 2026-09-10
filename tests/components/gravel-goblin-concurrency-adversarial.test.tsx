@@ -77,6 +77,7 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  advisorClient.requestAdvisorTurn.mockReset()
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     writable: true,
@@ -129,7 +130,8 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
     )
 
     const user = await openGoblin()
-    await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "Find me a better route{Enter}")
+    const input = screen.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    await user.type(input, "Find me a better route{Enter}")
     await waitFor(() => expect(advisorClient.requestAdvisorTurn).toHaveBeenCalledTimes(2))
 
     rerender(
@@ -147,9 +149,14 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
       }
     }))
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled())
+    await screen.findByText(/Route changed —/i)
     expect(screen.queryByText(/Better verified candidate/)).not.toBeInTheDocument()
     expect(onSelectRoute).not.toHaveBeenCalled()
+
+    // Readiness is not the submit button's disabled state while the draft is
+    // empty. Prove the retired request released the composer by adding a draft.
+    await user.type(input, "Any gravel?")
+    expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled()
   })
 
   it("does not accept a second command while a compound planner action is unsettled", async () => {
@@ -224,10 +231,13 @@ describe("Gravel Goblin stale result and action lifecycle", () => {
     )
 
     const user = await openGoblin()
-    await user.type(screen.getByRole("textbox", { name: "Ask Gravel Goblin" }), "Reroute me with a food stop{Enter}")
+    const input = screen.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    await user.type(input, "Reroute me with a food stop{Enter}")
 
     expect(await screen.findByText(/couldn’t apply that route change/i)).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled()
     expect(screen.queryByText(/verified changed route/i)).not.toBeInTheDocument()
+
+    await user.type(input, "Try again")
+    expect(screen.getByRole("button", { name: "Send to Gravel Goblin" })).not.toBeDisabled()
   })
 })
