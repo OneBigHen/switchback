@@ -101,6 +101,14 @@ describe("Gravel Goblin action classification", () => {
     expect(classifyAdvisorAction(ask(message))).toBe("chat")
   })
 
+  it.each([
+    "Honestly, would you reroute me with a coffee?",
+    "I don't want to reroute this route with food.",
+    "Could a better route with coffee be worth it?"
+  ])("keeps conversational or negative route-and-stop language non-mutating: %j", (message) => {
+    expect(classifyAdvisorAction(ask(message))).toBe("chat")
+  })
+
   it("keeps exploratory stop questions suggestion-only", () => {
     expect(classifyAdvisorAction(ask("Anywhere good to stop?"))).toBe("stop-scout")
     expect(classifyAdvisorAction(ask("Find coffee around halfway"))).toBe("stop-scout")

@@ -38,7 +38,7 @@ const ROUTE_ACTION = new RegExp([
 const STOP_NOUN = /\b(?:stop|stops|stopover|waypoint|brewery|breweries|brewpub|beer|pub|bar|taproom|coffee|cafe|espresso|diner|restaurant|food|eat|lunch|dinner|breakfast|brunch|snack|bite|fuel|gas|petrol|charger|charging|hotel|motel|camp|campground|campsite|lodging|viewpoint|overlook|waterfall|park)\b/i
 const APPLY_STOP = /\b(?:add|include|insert|put|via|through|with|route\s+me|stop\s+at)\b|\bon\s+the\s+way\b|\balong\s+the\s+way\b/i
 const STOP_DISCOVERY = /\b(?:find|where|anywhere|somewhere|recommend|suggest|good|near|nearby|around|halfway|midway)\b/i
-const HYPOTHETICAL_ACTION = /^(?:what\s+if\b|if\s+(?:i|we|you)\b|would\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b)/i
+const HYPOTHETICAL_ACTION = /\b(?:what\s+if\b|if\s+(?:i|we|you)\b|would\s+(?:a|it|this|that|you)\b|could\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b|do\s+not\b|don't\b|do\s+not\s+want\b)\b/i
 
 export interface AdvisorRouteEvidence {
   selected: { id: string; geometry: Coordinate[]; canonicalSegmentRefs?: { canonicalSegmentUid: string; lengthMeters: number }[] }
@@ -55,10 +55,14 @@ export function classifyAdvisorAction(
   if (!input.context) return "build-ride"
   const message = messageOf(input)
   if (!message) return "chat"
-  if (HYPOTHETICAL_ACTION.test(message)) return "chat"
-
-  const wantsRouteChange = ROUTE_ACTION.test(message)
   const mentionsStop = STOP_NOUN.test(message)
+  const wantsRouteChange = ROUTE_ACTION.test(message)
+  // Explicit verbs authorize a planner mutation. Questions, conditionals and
+  // negations do not: they ask Goblin to discuss an idea, not alter RideIntent.
+  if (message.includes("?") || HYPOTHETICAL_ACTION.test(message)) {
+    return !wantsRouteChange && mentionsStop && STOP_DISCOVERY.test(message) ? "stop-scout" : "chat"
+  }
+
 
   if (wantsRouteChange && mentionsStop) return "route-with-stop"
   if (mentionsStop && APPLY_STOP.test(message)) return "add-stop"
