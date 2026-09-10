@@ -618,8 +618,23 @@ export function PlannerShell() {
     // The planner session fences provider responses, but this callback also
     // owns the post-plan transaction. A later rider edit/replan must not be
     // cancelled or rolled back by an older advisor response.
-    if (afterPlan.getIntentIdentity() !== attemptedIdentity
-      || (actionRequestId !== undefined && !routeRequestGate.isCurrent(actionRequestId))) return
+    if (afterPlan.getIntentIdentity() !== attemptedIdentity) return
+    if (actionRequestId !== undefined && !routeRequestGate.isCurrent(actionRequestId)) {
+      // Selecting another displayed route is a rider decision, even though it
+      // does not alter RideIntent. The request gate rejects the advisor's
+      // late route response; restore only the advisor's tentative via while
+      // retaining the rider's current route selection and source.
+      if (beforeCommittedRide) {
+        afterPlan.restoreRideUpdate({
+          committedRide: beforeCommittedRide,
+          plan: beforePlan,
+          selectedRouteId: afterPlan.selectedRouteId,
+          selectionSource: afterPlan.selectionSource,
+          resultIdentity: beforeResultIdentity
+        }, attemptedIdentity)
+      }
+      return
+    }
     const selected = planned?.routes.find((route) => route.id === planned.selectedRouteId) ?? planned?.routes[0] ?? null
     const geometryChanged = Boolean(beforeRoute && (
       beforeRoute.geometry.length !== selected?.geometry.length
@@ -1704,7 +1719,13 @@ message: failure?.message ?? "The rough route could not be routed."
           comparison: routes.length > 0 ? {
               routes: routes,
               selectedId: selectedRoute?.id ?? "",
-              onSelect: (id: string) => usePlannerStore.getState().selectRoute(id),
+              onSelect: (id: string) => {
+                // A manual route pick is newer rider intent for every
+                // in-flight planner command, including a Goblin compound
+                // request that would otherwise apply its late result over it.
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().selectRoute(id)
+              },
               onSave: (route) => void handleSave(route),
               onExport: handleExport,
               recordedRide: activeRecordedRide,

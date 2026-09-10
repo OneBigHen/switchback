@@ -336,6 +336,92 @@ test("a grounded better-route-plus-stop command routes through canonical planner
   await expect(page.locator("canvas").first()).toBeVisible()
 })
 
+test("a stale compound Goblin route request cannot overwrite a newer manual route selection", async ({ page }) => {
+  await mockBase(page)
+  let advisorTurns = 0
+  let releaseRoute!: () => void
+  const heldRoute = new Promise<void>((resolve) => { releaseRoute = resolve })
+  let heldRequest = false
+  let compoundRequestSettled = false
+
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ capability }) })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1 ? builderReply : compoundReply)
+    })
+  })
+
+  await page.route("**/api/routes", async (routeRequest) => {
+    const body = routeRequest.request().postDataJSON() as Record<string, unknown>
+    const points = Array.isArray(body.points) ? body.points as Array<{ label?: string }> : []
+    const includesFoodStop = points.some((point) => point.label === advisorFoodStop.name)
+    if (includesFoodStop) {
+      heldRequest = true
+      await heldRoute
+      try {
+        await routeRequest.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            selectedRouteId: "advisor-e2e-with-food",
+            warnings: [],
+            routes: [{
+              ...route,
+              id: "advisor-e2e-with-food",
+              name: "Ridge route via Pine Diner",
+              geometry: [[-76.8867, 40.2732], [-76.94, 40.22], [-77.2311, 39.8309]],
+              distanceMiles: 63.7,
+              durationMinutes: 196,
+              twistiness: 84,
+              turnCount: 58
+            }]
+          })
+        })
+      } finally {
+        compoundRequestSettled = true
+      }
+      return
+    }
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ selectedRouteId: route.id, warnings: [], routes: [route, advisorAlternateRoute] })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" }).fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" }).fill("Find me a better route with a good food stop")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await expect.poll(() => heldRequest).toBe(true)
+
+  const manualChoice = page.getByRole("button", { name: "Select Ridge alternative", exact: true })
+  await manualChoice.click()
+  await expect(manualChoice).toHaveAttribute("aria-pressed", "true")
+
+  releaseRoute()
+  await expect.poll(() => compoundRequestSettled).toBe(true)
+
+  await expect(page.getByRole("button", { name: "Select Ridge alternative", exact: true })).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByText("Pine Diner is on a verified changed route.")).toHaveCount(0)
+  await page.getByRole("button", { name: "Edit route", exact: true }).click()
+  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  await expect(options).toBeVisible()
+  if (await options.getAttribute("aria-expanded") !== "true") await options.click()
+  await expect(page.getByRole("button", { name: /Remove .*Pine Diner/i })).toHaveCount(0)
+})
+
 test("a failed grounded-stop lookup leaves the existing route untouched", async ({ page }) => {
   await mockBase(page)
   let advisorTurns = 0
