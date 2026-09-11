@@ -74,6 +74,66 @@ describe("selectGravelAtlasCorridors", () => {
     expect(result.map((candidate) => candidate.corridor.id)).toEqual(["nearby"])
   })
 
+  it("requires an actual in-envelope gravel run rather than a single tempting source vertex", () => {
+    const result = selectGravelAtlasCorridors({
+      start,
+      finish,
+      envelope,
+      corridors: [
+        corridor({
+          id: "touch-only",
+          geometry: [
+            [-78.9, 41.8],
+            [-75.12, 40.22],
+            [-78.8, 41.9]
+          ],
+          verifiedGravelMeters: 100_000,
+          longestContinuousGravelMeters: 100_000
+        }),
+        corridor({ id: "usable" })
+      ]
+    })
+
+    expect(result.map((candidate) => candidate.corridor.id)).toEqual(["usable"])
+  })
+
+  it("scores only usable in-envelope gravel instead of rewarding statewide miles outside the plan", () => {
+    const result = selectGravelAtlasCorridors({
+      start,
+      finish,
+      envelope,
+      corridors: [
+        corridor({
+          id: "mostly-elsewhere",
+          geometry: [
+            [-75.16, 40.21],
+            [-75.15, 40.21],
+            [-78.9, 41.8]
+          ],
+          verifiedGravelMeters: 100_000,
+          longestContinuousGravelMeters: 100_000,
+          confidence: 1
+        }),
+        corridor({
+          id: "local-run",
+          geometry: [
+            [-75.17, 40.21],
+            [-75.12, 40.22],
+            [-75.06, 40.21]
+          ],
+          verifiedGravelMeters: 9_000,
+          longestContinuousGravelMeters: 9_000,
+          confidence: 0.9
+        })
+      ]
+    })
+
+    expect(result[0]?.corridor.id).toBe("local-run")
+    const partial = result.find((candidate) => candidate.corridor.id === "mostly-elsewhere")
+    expect(partial?.eligibleGravelMeters).toBeLessThan(5_000)
+    expect(partial?.eligibleGravelMeters).toBeLessThan(partial?.corridor.verifiedGravelMeters ?? 0)
+  })
+
   it("prefers one useful continuous gravel run over fragmented evidence with the same aggregate miles", () => {
     const result = selectGravelAtlasCorridors({
       start,
@@ -156,11 +216,12 @@ describe("selectGravelAtlasCorridors", () => {
     }
   })
 
-  it("fails closed for malformed confidence, distance, geometry, or selection bounds", () => {
+  it("fails closed for malformed confidence, distance, geometry, provenance, or selection bounds", () => {
     const malformed = [
       corridor({ id: "bad-confidence", confidence: Number.NaN }),
       corridor({ id: "bad-distance", verifiedGravelMeters: -1 }),
-      corridor({ id: "bad-geometry", geometry: [[-75.1, 95] as Coordinate] })
+      corridor({ id: "bad-geometry", geometry: [[-75.1, 95] as Coordinate] }),
+      corridor({ id: "missing-provenance", sourceIds: [] })
     ]
 
     expect(selectGravelAtlasCorridors({ start, finish, envelope, corridors: malformed })).toEqual([])
