@@ -183,9 +183,9 @@ function applyRoutePointEdit(state: PlannerState, points: RoutePointSnapshot, la
 /** The flat planner fields are the sole writable current intent. */
 export function getRideIntent(state: RideIntent): RideIntent {
   const { start, finish, via, mode, targetMinutes, timeShaped, profile, bikeProfile,
-    avoidHighways, tollPolicy, avoidAreas, roadLocks, segmentProfiles, sketchCorridor } = state
+    avoidHighways, tollPolicy, gravelAtlas, avoidAreas, roadLocks, segmentProfiles, sketchCorridor } = state
   return { start, finish, via, mode, targetMinutes, timeShaped, profile, bikeProfile,
-    avoidHighways, tollPolicy, avoidAreas, roadLocks, segmentProfiles, sketchCorridor }
+    avoidHighways, tollPolicy, gravelAtlas, avoidAreas, roadLocks, segmentProfiles, sketchCorridor }
 }
 
 function historyOf(state: PlannerState): RideHistory {
