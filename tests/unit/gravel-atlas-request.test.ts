@@ -31,20 +31,24 @@ describe("gravel atlas request normalization", () => {
   )
 
   it("fails closed when untrusted request JSON contains an unknown intensity", () => {
-    const unsafe = request() as RouteRequest & { gravelAtlas: unknown }
-    unsafe.gravelAtlas = { enabled: true, intensity: "send-it" }
+    const unsafe = {
+      ...request(),
+      gravelAtlas: { enabled: true, intensity: "send-it" }
+    } as unknown as RouteRequest
 
-    expect(normalizeRouteRequest(unsafe as RouteRequest).gravelAtlas).toEqual({
+    expect(normalizeRouteRequest(unsafe).gravelAtlas).toEqual({
       enabled: false,
       intensity: "balanced"
     })
   })
 
   it("fails closed when enabled is not a literal boolean true", () => {
-    const unsafe = request() as RouteRequest & { gravelAtlas: unknown }
-    unsafe.gravelAtlas = { enabled: "yes", intensity: "maximum" }
+    const unsafe = {
+      ...request(),
+      gravelAtlas: { enabled: "yes", intensity: "maximum" }
+    } as unknown as RouteRequest
 
-    expect(normalizeRouteRequest(unsafe as RouteRequest).gravelAtlas).toEqual({
+    expect(normalizeRouteRequest(unsafe).gravelAtlas).toEqual({
       enabled: false,
       intensity: "balanced"
     })
