@@ -31,6 +31,10 @@ export interface SelectedGravelAtlasCorridor {
   corridor: GravelAtlasCorridor
   /** Deterministic relative utility used only to bound candidate generation. */
   score: number
+  /** Conservative gravel evidence that is actually usable inside this plan. */
+  eligibleGravelMeters: number
+  /** Longest contiguous in-envelope source run used by this candidate. */
+  eligibleLongestContinuousMeters: number
   /** Real source coordinates only; never synthetic/swing geometry. */
   anchors: Coordinate[]
 }
@@ -109,13 +113,14 @@ function validCorridor(corridor: GravelAtlasCorridor): boolean {
     corridor.label.trim().length > 0 &&
     corridor.geometry.length >= 2 &&
     corridor.geometry.every(isCoordinate) &&
-    Number.isFinite(corridor.verifiedGravelMeters) && corridor.verifiedGravelMeters >= 0 &&
+    Number.isFinite(corridor.verifiedGravelMeters) && corridor.verifiedGravelMeters > 0 &&
     Number.isFinite(corridor.longestContinuousGravelMeters) &&
-    corridor.longestContinuousGravelMeters >= 0 &&
+    corridor.longestContinuousGravelMeters > 0 &&
     corridor.longestContinuousGravelMeters <= corridor.verifiedGravelMeters &&
     Number.isInteger(corridor.fragmentCount) && corridor.fragmentCount >= 1 &&
     Number.isFinite(corridor.confidence) && corridor.confidence >= 0 && corridor.confidence <= 1 &&
-    Array.isArray(corridor.sourceIds) && corridor.sourceIds.every((id) => id.trim().length > 0)
+    Array.isArray(corridor.sourceIds) && corridor.sourceIds.length > 0 &&
+    corridor.sourceIds.every((id) => typeof id === "string" && id.trim().length > 0)
 }
 
 function spreadAnchors(points: readonly Coordinate[]): Coordinate[] {
@@ -136,17 +141,68 @@ function cloneCorridor(corridor: GravelAtlasCorridor): GravelAtlasCorridor {
   }
 }
 
+interface EligibleRun {
+  points: Coordinate[]
+  geometryMeters: number
+}
+
+/**
+ * Build conservative contiguous source runs entirely inside the planning
+ * envelope. Segments that merely cross the envelope with both endpoints
+ * outside are intentionally ignored: missing a candidate is safer than
+ * inventing locally verified gravel from statewide metadata.
+ */
+function eligibleRuns(
+  geometry: readonly Coordinate[],
+  start: Coordinate,
+  finish: Coordinate,
+  envelope: GravelAtlasSelectionEnvelope
+): EligibleRun[] {
+  const runs: EligibleRun[] = []
+  let points: Coordinate[] = []
+
+  const close = () => {
+    if (points.length < 2) {
+      points = []
+      return
+    }
+    let geometryMeters = 0
+    for (let index = 1; index < points.length; index += 1) {
+      geometryMeters += haversine(points[index - 1]!, points[index]!)
+    }
+    if (geometryMeters > 0) {
+      runs.push({
+        points: points.map((point) => [...point] as Coordinate),
+        geometryMeters
+      })
+    }
+    points = []
+  }
+
+  for (const point of geometry) {
+    if (insideEnvelope(point, start, finish, envelope)) {
+      points.push(point)
+    } else {
+      close()
+    }
+  }
+  close()
+  return runs
+}
+
 function candidateScore(
   corridor: GravelAtlasCorridor,
+  eligibleGravelMeters: number,
+  eligibleLongestContinuousMeters: number,
   anchors: readonly Coordinate[],
   start: Coordinate,
   finish: Coordinate
 ): number {
-  const verifiedMiles = corridor.verifiedGravelMeters / METERS_PER_MILE
-  const continuousMiles = corridor.longestContinuousGravelMeters / METERS_PER_MILE
-  const continuityShare = corridor.verifiedGravelMeters === 0
+  const verifiedMiles = eligibleGravelMeters / METERS_PER_MILE
+  const continuousMiles = eligibleLongestContinuousMeters / METERS_PER_MILE
+  const continuityShare = eligibleGravelMeters === 0
     ? 0
-    : corridor.longestContinuousGravelMeters / corridor.verifiedGravelMeters
+    : eligibleLongestContinuousMeters / eligibleGravelMeters
   const directMiles = distanceMiles(start, finish)
   const minimumAnchorPath = Math.min(
     ...anchors.map((anchor) => distanceMiles(start, anchor) + distanceMiles(anchor, finish))
@@ -182,14 +238,36 @@ export function selectGravelAtlasCorridors(
 
   return input.corridors.flatMap((corridor): SelectedGravelAtlasCorridor[] => {
     if (!validCorridor(corridor) || corridor.verification !== "routable") return []
-    const eligibleGeometry = corridor.geometry.filter((point) =>
-      insideEnvelope(point, input.start, input.finish, input.envelope)
+    const runs = eligibleRuns(corridor.geometry, input.start, input.finish, input.envelope)
+    if (runs.length === 0) return []
+
+    const eligibleGeometryMeters = runs.reduce((sum, run) => sum + run.geometryMeters, 0)
+    const eligibleGravelMeters = Math.min(corridor.verifiedGravelMeters, eligibleGeometryMeters)
+    if (eligibleGravelMeters <= 0) return []
+
+    const longestRun = [...runs].sort((left, right) =>
+      right.geometryMeters - left.geometryMeters
+    )[0]!
+    const eligibleLongestContinuousMeters = Math.min(
+      corridor.longestContinuousGravelMeters,
+      longestRun.geometryMeters,
+      eligibleGravelMeters
     )
-    if (eligibleGeometry.length === 0) return []
-    const anchors = spreadAnchors(eligibleGeometry)
+    if (eligibleLongestContinuousMeters <= 0) return []
+
+    const anchors = spreadAnchors(longestRun.points)
     return [{
       corridor: cloneCorridor(corridor),
-      score: candidateScore(corridor, anchors, input.start, input.finish),
+      score: candidateScore(
+        corridor,
+        eligibleGravelMeters,
+        eligibleLongestContinuousMeters,
+        anchors,
+        input.start,
+        input.finish
+      ),
+      eligibleGravelMeters,
+      eligibleLongestContinuousMeters,
       anchors
     }]
   })
