@@ -1,6 +1,6 @@
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
-import type { AvoidArea, Coordinate, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, Coordinate, GravelAtlasPreference, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { RoadLock } from "@/lib/roads/road-locks"
 
 /** Authored inputs only. A missing destination is valid, including before routing. */
@@ -15,6 +15,7 @@ export interface RideIntent {
   bikeProfile: BikeProfile
   avoidHighways: boolean
   tollPolicy: TollPolicy
+  gravelAtlas: GravelAtlasPreference
   avoidAreas: AvoidArea[]
   roadLocks: RoadLock[]
   segmentProfiles: RouteProfileId[]
@@ -70,7 +71,8 @@ export function defaultRideIntent(): RideIntent {
   return {
     start: null, finish: null, via: [], mode: "destination", targetMinutes: 120,
     timeShaped: false, profile: "balanced", bikeProfile: { ...MOTORCYCLE_PROFILES[0]! },
-    avoidHighways: false, tollPolicy: "allow-with-warning", avoidAreas: [],
+    avoidHighways: false, tollPolicy: "allow-with-warning",
+    gravelAtlas: { enabled: false, intensity: "balanced" }, avoidAreas: [],
     roadLocks: [], segmentProfiles: [], sketchCorridor: null
   }
 }
@@ -155,6 +157,7 @@ export function redoRideIntent(state: RideHistory): RideHistory {
 }
 
 const profiles = new Set(["quick", "balanced", "twisty", "scenic", "adventure", "gravel", "avoid-highways", "neural"])
+const gravelAtlasIntensities = new Set(["balanced", "more", "maximum"])
 const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value)
 const coordinate = (value: unknown): boolean => Array.isArray(value) && value.length === 2
   && Number.isFinite(value[0]) && Math.abs(value[0]) <= 180
@@ -168,15 +171,18 @@ const point = (value: unknown): boolean => value === null || (record(value)
 export function isRideIntent(value: unknown): value is RideIntent {
   if (!record(value)) return false
   const fields = ["start", "finish", "via", "mode", "targetMinutes", "timeShaped", "profile", "bikeProfile",
-    "avoidHighways", "tollPolicy", "avoidAreas", "roadLocks", "segmentProfiles", "sketchCorridor"]
+    "avoidHighways", "tollPolicy", "gravelAtlas", "avoidAreas", "roadLocks", "segmentProfiles", "sketchCorridor"]
   if (Object.keys(value).some((key) => !fields.includes(key))) return false
   const bike = value.bikeProfile
+  const gravelAtlas = value.gravelAtlas
   return point(value.start) && point(value.finish)
     && Array.isArray(value.via) && value.via.length <= 100 && value.via.every((item) => item !== null && point(item))
     && (value.mode === "destination" || value.mode === "loop")
     && typeof value.targetMinutes === "number" && Number.isFinite(value.targetMinutes) && value.targetMinutes > 0 && value.targetMinutes <= 10080
     && typeof value.timeShaped === "boolean" && profiles.has(value.profile as string)
     && typeof value.avoidHighways === "boolean" && (value.tollPolicy === "avoid" || value.tollPolicy === "allow-with-warning")
+    && record(gravelAtlas) && typeof gravelAtlas.enabled === "boolean"
+    && typeof gravelAtlas.intensity === "string" && gravelAtlasIntensities.has(gravelAtlas.intensity)
     && record(bike) && typeof bike.name === "string"
     && ["street", "touring", "adventure", "dual-sport"].includes(bike.category as string)
     && typeof bike.fuelRangeMiles === "number" && Number.isFinite(bike.fuelRangeMiles) && bike.fuelRangeMiles > 0
