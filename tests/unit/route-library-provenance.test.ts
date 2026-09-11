@@ -43,7 +43,7 @@ afterEach(async () => {
 })
 
 describe("RouteLibrary provenance", () => {
-  it("persists catalog-copy provenance and finds the owned copy", async () => {
+  it("persists catalog-copy library provenance and finds the owned copy", async () => {
     const library = new RouteLibrary(databaseName("catalog-copy"))
 
     const saved = await library.save(plannedRoute(), "", {
@@ -51,7 +51,7 @@ describe("RouteLibrary provenance", () => {
       sourceCatalogRouteId: "atlas-42"
     })
 
-    expect(saved.provenance).toEqual({
+    expect(saved.libraryProvenance).toEqual({
       kind: "catalog-copy",
       sourceCatalogRouteId: "atlas-42"
     })
@@ -59,12 +59,33 @@ describe("RouteLibrary provenance", () => {
     await library.destroy()
   })
 
-  it("defaults new planned routes to planned provenance", async () => {
+  it("defaults new planned routes to planned library provenance", async () => {
     const library = new RouteLibrary(databaseName("planned"))
 
     const saved = await library.save(plannedRoute())
 
-    expect(saved.provenance).toEqual({ kind: "planned" })
+    expect(saved.libraryProvenance).toEqual({ kind: "planned" })
+    await library.destroy()
+  })
+
+  it("keeps routing-provider provenance independent from library provenance", async () => {
+    const library = new RouteLibrary(databaseName("routing-provenance"))
+    const routingProvenance = {
+      provider: "graphhopper" as const,
+      version: "11.0",
+      fallback: false
+    }
+
+    const saved = await library.save(plannedRoute({ provenance: routingProvenance }), "", {
+      kind: "catalog-copy",
+      sourceCatalogRouteId: "atlas-provider-proof"
+    })
+
+    expect(saved.provenance).toEqual(routingProvenance)
+    expect(saved.libraryProvenance).toEqual({
+      kind: "catalog-copy",
+      sourceCatalogRouteId: "atlas-provider-proof"
+    })
     await library.destroy()
   })
 
@@ -94,7 +115,7 @@ describe("RouteLibrary provenance", () => {
 
     expect(migrated?.id).toBe(route.id)
     expect(migrated?.geometry).toEqual(geometry)
-    expect(migrated?.provenance).toEqual({ kind: "planned" })
+    expect(migrated?.libraryProvenance).toEqual({ kind: "planned" })
     await library.destroy()
   })
 })
