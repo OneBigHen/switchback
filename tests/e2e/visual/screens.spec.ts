@@ -69,11 +69,17 @@ async function assertIdlePlanGeometry(page: Page, viewport: { width: number; hei
   const box = await panel.boundingBox()
   expect(box).not.toBeNull()
 
-  expect(box!.height).toBeLessThan(viewport!.height * 0.45)
+  expect(box!.height).toBeLessThan(viewport.height * 0.45)
   expect(box!.y).toBeGreaterThanOrEqual(0)
-  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height)
-  if (viewport!.width > 760 && viewport!.width <= 800 && viewport!.height >= 900) {
-    expect(box!.width).toBe(360)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height)
+
+  // Medium portrait now owns a bounded side-inspector width instead of the
+  // retired 360px tablet special case. Mirror the canonical CSS formula
+  // clamp(320px, 42vw, 360px) so this visual harness checks topology without
+  // creating a second fixed-width authority.
+  if (viewport.width > 760 && viewport.width <= 1180 && viewport.height > viewport.width) {
+    const expectedWidth = Math.min(360, Math.max(320, viewport.width * 0.42))
+    expect(box!.width).toBeCloseTo(expectedWidth, 1)
   }
 }
 
@@ -86,6 +92,14 @@ async function assertPlannerDeckClearsNavigation(page: Page): Promise<void> {
   const deck = await page.locator(".planner-deck").boundingBox()
   expect(navigation).not.toBeNull()
   expect(deck).not.toBeNull()
+
+  if (viewport!.width <= 1180 && viewport!.height > viewport!.width) {
+    // Medium portrait deliberately moves navigation to a bottom row. The
+    // invariant is non-overlap, not "deck sits right of a desktop side rail".
+    expect(deck!.y + deck!.height).toBeLessThanOrEqual(navigation!.y - 8)
+    return
+  }
+
   expect(deck!.x).toBeGreaterThanOrEqual(navigation!.x + navigation!.width + 8)
 }
 
