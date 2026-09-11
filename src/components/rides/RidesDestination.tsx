@@ -1,6 +1,5 @@
 "use client"
 
-import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { RoadLock, RoadLockMode } from "@/lib/roads/road-locks"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { SavedRoute } from "@/lib/storage/route-library"
@@ -20,7 +19,6 @@ export interface RidesDestinationProps {
   routes: SavedRoute[]
   recordedRides?: RecordedRide[]
   trips?: TripPlan[]
-  projectRoutes?: ProjectGpxRouteSummary[]
   onClose(): void
   onLoad(route: SavedRoute): void
   onLoadTrip?(route: TripPlan): void
@@ -28,7 +26,6 @@ export interface RidesDestinationProps {
   onMatchImported?(route: SavedRoute): void
   onLoadRecorded?(ride: RecordedRide): void
   onDeleteRecorded?(ride: RecordedRide): void
-  onLoadProject?(route: ProjectGpxRouteSummary): void
   onDelete(route: SavedRoute): void
   onOrganize?(route: SavedRoute, organization: {
     folder?: string
@@ -46,12 +43,10 @@ function importDisplayName(file: File): string {
 export function RidesDestination(props: RidesDestinationProps) {
   const recordedRides = props.recordedRides ?? []
   const trips = props.trips ?? []
-  const projectRoutes = props.projectRoutes ?? []
   const items = normalizeRideLibrary({
     savedRoutes: props.routes,
     recordedRides,
-    trips,
-    projectRoutes
+    trips
   })
 
   const savedRouteFor = (item: RideLibraryItem) => {
@@ -70,8 +65,6 @@ export function RidesDestination(props: RidesDestinationProps) {
   }
 
   const openItem = (item: RideLibraryItem) => {
-    const sourceId = item.sourceId ?? item.id
-
     if (item.kind === "saved-route") {
       const route = savedRouteFor(item)
       if (route) props.onLoad(route)
@@ -79,19 +72,13 @@ export function RidesDestination(props: RidesDestinationProps) {
     }
 
     if (item.kind === "recorded-ride") {
-      const ride = recordedRides.find((candidate) => candidate.id === sourceId)
+      const ride = recordedRideFor(item)
       if (ride) props.onLoadRecorded?.(ride)
       return
     }
 
-    if (item.kind === "trip-plan") {
-      const trip = tripFor(item)
-      if (trip) props.onLoadTrip?.(trip)
-      return
-    }
-
-    const projectRoute = projectRoutes.find((candidate) => candidate.id === sourceId)
-    if (projectRoute) props.onLoadProject?.(projectRoute)
+    const trip = tripFor(item)
+    if (trip) props.onLoadTrip?.(trip)
   }
 
   const importRoads = props.onImportAsLock
@@ -104,7 +91,7 @@ export function RidesDestination(props: RidesDestinationProps) {
     : undefined
 
   return (
-    <main className={styles.destination} aria-label="Rides destination">
+    <main className={styles.destination} aria-label="My Rides destination">
       <div className={styles.content}>
         <RidesSurface
           items={items}
@@ -130,10 +117,8 @@ export function RidesDestination(props: RidesDestinationProps) {
               if (trip) props.onDeleteTrip?.(trip)
               return
             }
-            if (item.kind === "recorded-ride") {
-              const ride = recordedRideFor(item)
-              if (ride) props.onDeleteRecorded?.(ride)
-            }
+            const ride = recordedRideFor(item)
+            if (ride) props.onDeleteRecorded?.(ride)
           }}
         />
       </div>
