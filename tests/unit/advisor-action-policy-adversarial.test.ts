@@ -76,6 +76,13 @@ describe("advisor mutation authority adversarial cases", () => {
   })
 
   it.each([
+    "Add coffee if there is time",
+    "Reroute me through a brewery if it is open"
+  ])("does not execute a conditional imperative without a condition evaluator: %j", (message) => {
+    expect(classifyAdvisorAction(ask(message))).toBe("chat")
+  })
+
+  it.each([
     ["Add a brewery to this route", "add-stop"],
     ["Include coffee on the way", "add-stop"],
     ["Route me through Pine Diner", "route-with-stop"]
