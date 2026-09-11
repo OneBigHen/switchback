@@ -3,7 +3,7 @@ import Dexie, { type EntityTable } from "dexie"
 
 export type SavedRouteSourceFormat = "gpx" | "kml" | "kmz"
 
-export type SavedRouteProvenance =
+export type SavedRouteLibraryProvenance =
   | { kind: "planned" }
   | {
       kind: "imported-file"
@@ -21,7 +21,7 @@ export interface SavedRoute extends PlannedRoute {
   folder: string
   tags: string[]
   visible: boolean
-  provenance: SavedRouteProvenance
+  libraryProvenance: SavedRouteLibraryProvenance
   createdAt: string
   updatedAt: string
 }
@@ -52,8 +52,8 @@ class SwitchbackDatabase extends Dexie {
       .stores({
         routes: "&id, name, profile, folder, *tags, visible, createdAt, updatedAt"
       })
-      .upgrade((transaction) => transaction.table("routes").toCollection().modify((route: { provenance?: SavedRouteProvenance }) => {
-        if (!route.provenance) route.provenance = { kind: "planned" }
+      .upgrade((transaction) => transaction.table("routes").toCollection().modify((route: { libraryProvenance?: SavedRouteLibraryProvenance }) => {
+        if (!route.libraryProvenance) route.libraryProvenance = { kind: "planned" }
       }))
   }
 }
@@ -75,7 +75,7 @@ export class RouteLibrary {
   async save(
     route: PlannedRoute,
     notes = "",
-    provenance?: SavedRouteProvenance
+    libraryProvenance?: SavedRouteLibraryProvenance
   ): Promise<SavedRoute> {
     if (route.previewOnly) {
       throw new Error("Preview-only geometry cannot be saved as a routed trip")
@@ -88,7 +88,7 @@ export class RouteLibrary {
       folder: existing?.folder ?? "Unfiled",
       tags: existing?.tags ?? [],
       visible: existing?.visible ?? true,
-      provenance: provenance ?? existing?.provenance ?? { kind: "planned" },
+      libraryProvenance: libraryProvenance ?? existing?.libraryProvenance ?? { kind: "planned" },
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp
     }
@@ -103,8 +103,8 @@ export class RouteLibrary {
   async findCatalogCopy(sourceCatalogRouteId: string): Promise<SavedRoute | undefined> {
     const routes = await this.database.routes.orderBy("updatedAt").reverse().toArray()
     return routes.find((route) =>
-      route.provenance.kind === "catalog-copy" &&
-      route.provenance.sourceCatalogRouteId === sourceCatalogRouteId
+      route.libraryProvenance.kind === "catalog-copy" &&
+      route.libraryProvenance.sourceCatalogRouteId === sourceCatalogRouteId
     )
   }
 
