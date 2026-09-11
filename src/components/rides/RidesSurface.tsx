@@ -14,7 +14,7 @@ import { RideListRow } from "./RideListRow"
 import styles from "./RidesSurface.module.css"
 import type { Coordinate } from "@/lib/routing/types"
 
-export type RideLibraryItemKind = "saved-route" | "recorded-ride" | "trip-plan" | "project-gpx"
+export type RideLibraryItemKind = "saved-route" | "recorded-ride" | "trip-plan"
 
 export interface RideLibraryManagement {
   canDelete?: boolean
@@ -168,11 +168,11 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
   const nearMeOffered = !located && geoStatus !== "unavailable"
 
   return (
-    <section className={styles.surface} role="region" aria-label="Rides">
+    <section className={styles.surface} role="region" aria-label="My Rides">
       <DestinationHeader
         eyebrow="Your roads"
-        title="Rides"
-        description="Plans, recordings, trips, and imported tracks — organized around the roads you actually want to ride."
+        title="My Rides"
+        description="Plans, recordings, trips, and files you saved — only the rides that belong to you."
         graphic={<RouteGraphic seed={`rides:${items.map((item) => item.id).join("|") || "empty"}`} variant="library" />}
         actions={(
           <button
@@ -235,7 +235,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
           <strong>{ranked.length}</strong> {ranked.length === 1 ? "ride" : "rides"} in view
           {located && effectiveSort === "nearest" ? " · nearest first" : ""}
         </span>
-        {ranked.length !== items.length ? <small>{items.length} total in your library</small> : <small>Ready offline on this device when saved locally.</small>}
+        {ranked.length !== items.length ? <small>{items.length} total in My Rides</small> : <small>Ready offline on this device when saved locally.</small>}
       </div>
 
       {visible.length > 0 ? (
@@ -265,8 +265,8 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
       ) : items.length === 0 ? (
         <div className={styles.empty}>
           <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
-          <strong>No rides yet.</strong>
-          <span>Import a GPX or save a planned route to start your library.</span>
+          <strong>No rides saved yet.</strong>
+          <span>Import a route file or save a planned route to start My Rides.</span>
           <button type="button" className={styles.importButton} onClick={() => setImportOpen(true)}>
             <FileArrowUp weight="bold" aria-hidden="true" />
             <span>Import your first ride</span>
