@@ -1,4 +1,4 @@
-import type { Coordinate } from "./types"
+import type { Coordinate, GravelAtlasPreference } from "./types"
 import { haversine } from "./scoring"
 import {
   selectGravelAtlasCorridors,
@@ -151,14 +151,23 @@ export interface CorridorSourceCandidates {
   /** Optional graph-backed RIG anchors; empty until canonical geometry is attached. */
   rigCorridors?: Array<{ id: string; label: string; anchors: Coordinate[]; evidenceMiles: number }>
   /**
-   * Statewide gravel-atlas evidence. Only graph-verified routable corridors
-   * can become anchor sets; unverified/unroutable source lines fail closed.
+   * Statewide gravel-atlas evidence travels with the normalized rider opt-in.
+   * This prevents a future source assembler from injecting atlas candidates
+   * merely because data happened to be available.
    */
-  gravelAtlasCorridors?: GravelAtlasCorridor[]
+  gravelAtlas?: {
+    preference: GravelAtlasPreference
+    corridors: GravelAtlasCorridor[]
+  }
 }
 
 const MAX_ANCHOR_SETS = 4
 const MAX_ANCHORS_PER_SET = 3
+const GRAVEL_ATLAS_CANDIDATE_LIMIT: Record<GravelAtlasPreference["intensity"], number> = {
+  balanced: 1,
+  more: 2,
+  maximum: 3
+}
 /** Nearby anchors are merged into one candidate within ~3 miles. */
 const ANCHOR_MERGE_MILES = 3
 /**
@@ -222,7 +231,7 @@ function forcedAnchors(
 /**
  * Rank corridor sources and merge them into at most four distinct anchor
  * sets inside the envelope. Deterministic: graph-backed RIG first, then
- * verified Gravel Atlas, curvature, GPX, and research hints.
+ * explicitly enabled verified Gravel Atlas, curvature, GPX, and research hints.
  */
 export function buildAnchorSets(
   start: Coordinate,
@@ -259,16 +268,21 @@ export function buildAnchorSets(
     })
   }
 
-  // Gravel Atlas corridors are admitted only after the selector proves they
-  // are graph-routable, bounded, and useful. Anchors are copied directly from
-  // source geometry — unlike generic corridor shaping, they are never swung.
-  const selectedGravel = selectGravelAtlasCorridors({
-    start,
-    finish,
-    envelope,
-    corridors: sources.gravelAtlasCorridors ?? [],
-    maxCorridors: Math.min(3, Math.max(0, MAX_ANCHOR_SETS - candidates.length))
-  })
+  // Atlas exploration consumes a bounded part of the existing candidate
+  // budget. Balanced/More/Maximum map to at most 1/2/3 atlas corridors.
+  const atlas = sources.gravelAtlas
+  const atlasLimit = atlas?.preference.enabled
+    ? GRAVEL_ATLAS_CANDIDATE_LIMIT[atlas.preference.intensity]
+    : 0
+  const selectedGravel = atlas && atlasLimit > 0
+    ? selectGravelAtlasCorridors({
+        start,
+        finish,
+        envelope,
+        corridors: atlas.corridors,
+        maxCorridors: Math.min(atlasLimit, Math.max(0, MAX_ANCHOR_SETS - candidates.length))
+      })
+    : []
   for (const selection of selectedGravel) {
     if (candidates.length >= MAX_ANCHOR_SETS) break
     const midpoint = selection.anchors[Math.floor(selection.anchors.length / 2)]
