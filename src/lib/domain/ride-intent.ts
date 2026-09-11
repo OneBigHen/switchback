@@ -209,3 +209,18 @@ export function isRideIntent(value: unknown): value is RideIntent {
     && Array.isArray(value.segmentProfiles) && value.segmentProfiles.length <= 101 && value.segmentProfiles.every((item) => profiles.has(item))
     && (value.sketchCorridor === null || (Array.isArray(value.sketchCorridor) && value.sketchCorridor.length <= 50000 && value.sketchCorridor.every(coordinate)))
 }
+
+/**
+ * Upgrade persisted authored intent at the storage boundary, then apply the
+ * same strict validator used for current writes. Gravel Atlas is additive and
+ * defaults off, so a pre-feature v1 draft remains the exact ride the rider
+ * authored while gaining the new field. Unknown/corrupt shapes still fail
+ * closed instead of being papered over by defaults.
+ */
+export function migrateRideIntent(value: unknown): RideIntent | null {
+  if (!record(value)) return null
+  const candidate = Object.prototype.hasOwnProperty.call(value, "gravelAtlas")
+    ? structuredClone(value)
+    : { ...structuredClone(value), gravelAtlas: { enabled: false, intensity: "balanced" } }
+  return isRideIntent(candidate) ? candidate : null
+}
