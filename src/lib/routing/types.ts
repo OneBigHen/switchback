@@ -35,6 +35,7 @@ export type RouteCandidateSource =
   | "direct"
   | "native"
   | "rig"
+  | "gravel-atlas"
   | "loop-seed"
   | "heading-sector"
   | "community"
