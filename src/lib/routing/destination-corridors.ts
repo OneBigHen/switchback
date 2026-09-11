@@ -278,7 +278,7 @@ export function buildAnchorSets(
       label: selection.corridor.label,
       anchors: selection.anchors.slice(0, MAX_ANCHORS_PER_SET),
       source: "gravel-atlas",
-      evidenceMiles: selection.corridor.verifiedGravelMeters / 1609.344
+      evidenceMiles: selection.eligibleGravelMeters / 1609.344
     })
   }
 
