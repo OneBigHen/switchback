@@ -83,6 +83,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const curvatureVisible = rideConfig.curvatureVisible
   const avoidHighways = rideConfig.avoidHighways
   const tollPolicy = rideConfig.tollPolicy
+  const gravelAtlas = rideConfig.gravelAtlas
   const savedCount = ui.savedCount
   const segmentProfiles = rideConfig.segmentProfiles
   const avoidAreaCount = rideConfig.avoidAreaCount
@@ -128,6 +129,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onCurvatureChange = rc.onCurvatureChange
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
   const onTollPolicyChange = rc.onTollPolicyChange
+  const onGravelAtlasChange = rc.onGravelAtlasChange
   const onPlanModeChange = rc.onPlanModeChange
   const onRideTimeChange = rc.onRideTimeChange
   const onSegmentProfileChange = rc.onSegmentProfileChange
@@ -391,6 +393,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 curvatureVisible={curvatureVisible}
                 avoidHighways={avoidHighways}
                 tollPolicy={tollPolicy}
+                gravelAtlas={gravelAtlas}
                 targetMinutes={targetMinutes}
                 timeShaped={timeShaped}
                 segmentProfiles={segmentProfiles}
@@ -424,6 +427,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 onCurvatureChange={onCurvatureChange}
                 onAvoidHighwaysChange={onAvoidHighwaysChange}
                 onTollPolicyChange={onTollPolicyChange}
+                onGravelAtlasChange={onGravelAtlasChange}
                 onRideTimeChange={onRideTimeChange}
                 onSegmentProfileChange={onSegmentProfileChange}
                 onOpenRoadLocks={() => setRoadLocksOpen(true)}
