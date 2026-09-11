@@ -40,7 +40,7 @@ const MAX_DURATION_RATIO: Record<GravelAtlasIntensity, number> = {
 function shouldAttract(request: NormalizedRouteRequest): boolean {
   return request.gravelAtlas.enabled === true &&
     (request.profile === "adventure" || request.profile === "gravel") &&
-    request.candidateSet === "primary" &&
+    request.candidateSet !== "alternatives" &&
     request.points.length === 2 &&
     !request.roundTrip &&
     request.loopTargetMinutes == null &&
@@ -169,12 +169,11 @@ export function createGravelAtlasAwareProvider(
     )[0]
     if (!best) return direct
 
+    const warnings = mergedWarnings(direct, best.result)
     return {
       ...best.result,
       routes: [best.route],
-      ...(mergedWarnings(direct, best.result)
-        ? { warnings: mergedWarnings(direct, best.result) }
-        : { warnings: undefined })
+      ...(warnings ? { warnings } : {})
     }
   }
 }
