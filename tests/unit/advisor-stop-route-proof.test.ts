@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { createRouteEntityCache } from "@/lib/client/route-entity-cache"
 import { normalizeRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { normalizeGraphHopperPath, type GraphHopperPath } from "@/lib/routing/graphhopper-response"
 import { routePassesNearWaypoint } from "@/lib/routing/scoring"
@@ -19,10 +20,17 @@ const request = normalizeRouteRequest({
   ]
 })
 
+function cacheRoute(path: GraphHopperPath) {
+  const route = normalizeGraphHopperPath(path, request, 0)
+  const cache = createRouteEntityCache()
+  cache.replace([route])
+  return cache.get(route.id)!
+}
+
 describe("advisor stop routing proof", () => {
   it("accepts a provider-resolved logical stop even when the raw POI anchor is more than 25 m off the road", () => {
     const providerResolvedLon = -76.7995
-    const path: GraphHopperPath = {
+    const route = cacheRoute({
       distance: 20_000,
       time: 1_200_000,
       points: { coordinates: [
@@ -40,23 +48,22 @@ describe("advisor stop routing proof", () => {
         [providerResolvedLon, 40.2],
         [-76.7, 40.21]
       ] }
-    }
+    })
 
-    const route = normalizeGraphHopperPath(path, request, 0)
     expect(route.waypoints[1]).toEqual({
       lat: 40.2,
       lon: providerResolvedLon,
       label: "Switchback Brewing"
     })
 
-    // RED on the pre-fix branch: routePassesNearWaypoint only checks the raw
-    // grounded anchor against geometry, so this returns false despite the
-    // provider proving that logical waypoint was snapped onto the route.
+    // RED on the pre-fix branch: the cache preserves the resolved logical
+    // waypoint, but routePassesNearWaypoint ignores it and tests only the raw
+    // grounded anchor against geometry.
     expect(routePassesNearWaypoint(route.geometry, groundedStop)).toBe(true)
   })
 
   it("does not turn a raw request-coordinate fallback into provider evidence", () => {
-    const path: GraphHopperPath = {
+    const route = cacheRoute({
       distance: 20_000,
       time: 1_200_000,
       points: { coordinates: [
@@ -66,15 +73,14 @@ describe("advisor stop routing proof", () => {
         [-76.7, 40.21]
       ] }
       // No snapped_waypoints: the adapter falls back to request coordinates.
-    }
+    })
 
-    const route = normalizeGraphHopperPath(path, request, 0)
     expect(route.waypoints[1]).toEqual(groundedStop)
     expect(routePassesNearWaypoint(route.geometry, groundedStop)).toBe(false)
   })
 
   it("still accepts a raw-coordinate fallback when geometry itself substantiates the requested stop", () => {
-    const path: GraphHopperPath = {
+    const route = cacheRoute({
       distance: 20_000,
       time: 1_200_000,
       points: { coordinates: [
@@ -84,9 +90,8 @@ describe("advisor stop routing proof", () => {
         [-76.8, 40.21],
         [-76.7, 40.21]
       ] }
-    }
+    })
 
-    const route = normalizeGraphHopperPath(path, request, 0)
     expect(routePassesNearWaypoint(route.geometry, groundedStop)).toBe(true)
   })
 })
