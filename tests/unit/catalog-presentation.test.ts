@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  classifyCatalogArea,
   cleanCatalogRouteName,
   knownDurationMinutes
 } from "@/lib/gpx/catalog-presentation"
@@ -20,5 +21,23 @@ describe("catalog presentation truth", () => {
     expect(knownDurationMinutes("91")).toBeNull()
     expect(knownDurationMinutes(null)).toBeNull()
     expect(knownDurationMinutes(91)).toBe(91)
+  })
+
+  it("files a Bald Eagle route using its real bbox instead of name inference", () => {
+    expect(classifyCatalogArea([-77.9, 40.75, -77.25, 41.1])).toEqual({
+      region: "North-Central PA",
+      ridingArea: "Bald Eagle / Rothrock"
+    })
+  })
+
+  it("does not misfile nearby New Jersey as Pennsylvania", () => {
+    expect(classifyCatalogArea([-74.95, 40.15, -74.55, 40.55])).toEqual({
+      region: "New Jersey",
+      ridingArea: null
+    })
+  })
+
+  it("keeps routes without a bbox explicitly unplaced", () => {
+    expect(classifyCatalogArea(null)).toEqual({ region: null, ridingArea: null })
   })
 })
