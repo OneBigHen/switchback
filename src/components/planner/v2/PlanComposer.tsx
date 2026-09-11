@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import type { RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { GravelAtlasPreference, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { PlannerError, PlannerPointId, PlanningPhase } from "@/stores/planner-store"
 import type { PlanMode, PlannerProviderHealthViewModel } from "../PlannerDeckViewModel"
 import { ProviderHealthNotice } from "../ProviderHealthNotice"
@@ -37,6 +37,7 @@ export interface PlanComposerProps {
   curvatureVisible: boolean
   avoidHighways: boolean
   tollPolicy: TollPolicy
+  gravelAtlas: GravelAtlasPreference
   targetMinutes: number
   timeShaped: boolean
   segmentProfiles: RouteProfileId[]
@@ -70,6 +71,7 @@ export interface PlanComposerProps {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTollPolicyChange(policy: TollPolicy): void
+  onGravelAtlasChange(preference: GravelAtlasPreference): void
   onRideTimeChange(minutes: number, shaped: boolean): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onOpenRoadLocks(): void
@@ -112,6 +114,7 @@ export function PlanComposer({
   curvatureVisible,
   avoidHighways,
   tollPolicy,
+  gravelAtlas,
   targetMinutes,
   timeShaped,
   segmentProfiles,
@@ -145,6 +148,7 @@ export function PlanComposer({
   onCurvatureChange,
   onAvoidHighwaysChange,
   onTollPolicyChange,
+  onGravelAtlasChange,
   onRideTimeChange,
   onSegmentProfileChange,
   onOpenRoadLocks,
@@ -293,6 +297,7 @@ export function PlanComposer({
             curvatureVisible={curvatureVisible}
             avoidHighways={avoidHighways}
             tollPolicy={tollPolicy}
+            gravelAtlas={gravelAtlas}
             targetMinutes={targetMinutes}
             timeShaped={timeShaped}
             segmentProfiles={segmentProfiles}
@@ -314,6 +319,7 @@ export function PlanComposer({
             onCurvatureChange={onCurvatureChange}
             onAvoidHighwaysChange={onAvoidHighwaysChange}
             onTollPolicyChange={onTollPolicyChange}
+            onGravelAtlasChange={onGravelAtlasChange}
             onRideTimeChange={onRideTimeChange}
             onSegmentProfileChange={onSegmentProfileChange}
             onPointChange={onPointChange}
