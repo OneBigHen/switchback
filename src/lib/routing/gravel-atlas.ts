@@ -220,6 +220,22 @@ function candidateScore(
   ).toFixed(6))
 }
 
+function deterministicCandidateKey(candidate: SelectedGravelAtlasCorridor): string {
+  return JSON.stringify({
+    sourceIds: [...candidate.corridor.sourceIds].sort(),
+    geometry: candidate.corridor.geometry,
+    label: candidate.corridor.label
+  })
+}
+
+function preferCandidate(
+  current: SelectedGravelAtlasCorridor,
+  candidate: SelectedGravelAtlasCorridor
+): SelectedGravelAtlasCorridor {
+  if (candidate.score !== current.score) return candidate.score > current.score ? candidate : current
+  return deterministicCandidateKey(candidate) < deterministicCandidateKey(current) ? candidate : current
+}
+
 /**
  * Select a tiny, deterministic set of graph-verified gravel corridors that can
  * seed normal routing. This function cannot create hard/must-use requirements:
@@ -236,7 +252,7 @@ export function selectGravelAtlasCorridors(
   if (!Number.isInteger(requestedMaximum) || requestedMaximum <= 0) return []
   const limit = Math.min(HARD_MAX_CORRIDORS, requestedMaximum)
 
-  return input.corridors.flatMap((corridor): SelectedGravelAtlasCorridor[] => {
+  const eligible = input.corridors.flatMap((corridor): SelectedGravelAtlasCorridor[] => {
     if (!validCorridor(corridor) || corridor.verification !== "routable") return []
     const runs = eligibleRuns(corridor.geometry, input.start, input.finish, input.envelope)
     if (runs.length === 0) return []
@@ -271,6 +287,17 @@ export function selectGravelAtlasCorridors(
       anchors
     }]
   })
+
+  const byStableId = new Map<string, SelectedGravelAtlasCorridor>()
+  for (const candidate of eligible) {
+    const current = byStableId.get(candidate.corridor.id)
+    byStableId.set(
+      candidate.corridor.id,
+      current ? preferCandidate(current, candidate) : candidate
+    )
+  }
+
+  return [...byStableId.values()]
     .sort((left, right) => right.score - left.score || left.corridor.id.localeCompare(right.corridor.id))
     .slice(0, limit)
 }
