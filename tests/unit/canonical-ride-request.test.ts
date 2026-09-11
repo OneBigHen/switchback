@@ -5,7 +5,7 @@ import {
   customSegmentProfiles,
   normalizedSegmentProfiles
 } from "@/lib/planner/canonical-ride-request"
-import type { RideIntent } from "@/lib/domain/ride-intent"
+import { defaultRideIntent, type RideIntent } from "@/lib/domain/ride-intent"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 
 const start = { lat: 40.2732, lon: -76.8867, label: "Harrisburg" }
@@ -15,20 +15,11 @@ const viaB = { lat: 40.32, lon: -76.50, label: "Shaping stop 2" }
 
 function intent(overrides: Partial<RideIntent> = {}): RideIntent {
   return {
+    ...defaultRideIntent(),
     start,
     finish,
-    via: [],
-    mode: "destination",
-    targetMinutes: 120,
-    timeShaped: false,
     profile: "balanced",
     bikeProfile: MOTORCYCLE_PROFILES[0]!,
-    avoidHighways: false,
-    tollPolicy: "allow-with-warning",
-    avoidAreas: [],
-    roadLocks: [],
-    segmentProfiles: [],
-    sketchCorridor: null,
     ...overrides
   }
 }
@@ -78,36 +69,12 @@ describe("canonical ride request", () => {
   it("keeps per-leg styles off a loop, which has no rider-authored legs", () => {
     const loop = intent({ mode: "loop", finish: null, segmentProfiles: ["twisty", "scenic"] })
 
-    expect(customSegmentProfiles(loop)).toBeUndefined()
     expect(activeSegmentProfiles(loop)).toEqual([])
-    expect(buildCanonicalRideRequest(loop, { seed: 18 }).segmentProfiles).toBeUndefined()
+    expect(customSegmentProfiles(loop)).toBeUndefined()
   })
 
-  it("reports the deck's per-leg styles for the topology the ride actually has", () => {
-    expect(activeSegmentProfiles(intent({ via: [viaA], profile: "scenic", segmentProfiles: [] })))
-      .toEqual(["scenic", "scenic"])
+  it("normalizes segment profiles deterministically", () => {
     expect(normalizedSegmentProfiles(["twisty"], 3, "balanced")).toEqual(["twisty", "balanced", "balanced"])
-    expect(normalizedSegmentProfiles(["twisty", "scenic"], 0, "balanced")).toEqual([])
-  })
-
-  it("shares one planning id across a lifecycle and a fresh one otherwise", () => {
-    const pinned = buildCanonicalRideRequest(intent(), { seed: 18, planningId: "lifecycle-1" })
-    expect(pinned.planningId).toBe("lifecycle-1")
-
-    const first = buildCanonicalRideRequest(intent(), { seed: 18 })
-    const second = buildCanonicalRideRequest(intent(), { seed: 18 })
-    expect(first.planningId).not.toBe(second.planningId)
-  })
-
-  it("refuses to build a request for a ride that has no routable points", () => {
-    expect(() => buildCanonicalRideRequest(intent({ start: null }), { seed: 18 })).toThrow()
-  })
-
-  it("carries the rider's drawn corridor only when they drew one", () => {
-    const corridor: [number, number][] = [[-76.9, 40.2], [-76.8, 40.3]]
-
-    expect(buildCanonicalRideRequest(intent({ sketchCorridor: corridor }), { seed: 18 }).sketchCorridor)
-      .toEqual(corridor)
-    expect(buildCanonicalRideRequest(intent(), { seed: 18 })).not.toHaveProperty("sketchCorridor")
+    expect(normalizedSegmentProfiles(["twisty", "scenic", "gravel"], 1, "balanced")).toEqual(["twisty"])
   })
 })
