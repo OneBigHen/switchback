@@ -1,4 +1,4 @@
-import type { RouteRequest } from "@/lib/routing/types"
+import type { GravelAtlasIntensity, RouteRequest } from "@/lib/routing/types"
 import type { TripPlan } from "@/lib/routing/planner"
 
 /**
@@ -65,6 +65,20 @@ function roundCoordinate(value: number, digits = 4): number {
   return Number(value.toFixed(digits))
 }
 
+const GRAVEL_ATLAS_INTENSITIES = new Set<GravelAtlasIntensity>(["balanced", "more", "maximum"])
+
+function normalizedGravelAtlas(request: RouteRequest): { enabled: boolean; intensity: GravelAtlasIntensity } {
+  const value = request.gravelAtlas
+  if (
+    (request.profile !== "adventure" && request.profile !== "gravel") ||
+    value?.enabled !== true ||
+    !GRAVEL_ATLAS_INTENSITIES.has(value.intensity)
+  ) {
+    return { enabled: false, intensity: "balanced" }
+  }
+  return { enabled: true, intensity: value.intensity }
+}
+
 /**
  * Normalized cache key. Point coordinates are rounded to ~10 m so
  * equivalent replans share a key; routing-affecting preferences are
@@ -79,6 +93,7 @@ export function routeCacheKey(request: RouteRequest): string {
     ]),
     avoidHighways: request.avoidHighways ?? false,
     tollPolicy: request.tollPolicy ?? "allow-with-warning",
+    gravelAtlas: normalizedGravelAtlas(request),
     avoidAreas: (request.avoidAreas ?? []).map((area) => area.id).sort(),
     roadLocks: (request.roadLocks ?? []).map((lock) => lock.id).sort(),
     segmentProfiles: request.segmentProfiles ?? [],
