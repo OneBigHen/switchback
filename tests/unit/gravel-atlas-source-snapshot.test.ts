@@ -100,6 +100,31 @@ describe("collectOfficialSourceSnapshot", () => {
     expect(snapshot.fingerprint).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  it("uses PASDA's advertised 1000-row service cap when the caller asks for a larger page", async () => {
+    const urls: string[] = []
+    let requestIndex = 0
+    const snapshot = await collectOfficialSourceSnapshot("pa-pasda-2012", {
+      fetchPage: async (url) => {
+        urls.push(url)
+        requestIndex += 1
+        return requestIndex === 1
+          ? {
+              type: "FeatureCollection",
+              features: Array.from({ length: 1_000 }, (_, index) => paFeature(index + 1))
+            }
+          : { type: "FeatureCollection", features: [] }
+      },
+      pageSize: 2_000,
+      maxPages: 3,
+      acceptRestrictedSource: true
+    })
+
+    expect(snapshot.observations).toHaveLength(1_000)
+    expect(urls).toHaveLength(2)
+    expect(urls.map((url) => new URL(url).searchParams.get("resultRecordCount"))).toEqual(["1000", "1000"])
+    expect(urls.map((url) => new URL(url).searchParams.get("resultOffset"))).toEqual(["0", "1000"])
+  })
+
   it("does not require the PASDA acknowledgement for the attribution-only NJGIN source", async () => {
     const snapshot = await collectOfficialSourceSnapshot("njgin-ng911", {
       fetchPage: async () => ({ type: "FeatureCollection", features: [njFeature(1)] }),
