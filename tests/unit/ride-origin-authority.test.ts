@@ -221,7 +221,10 @@ describe("ride origin authority", () => {
       }),
       start: null,
       finish: null,
-      requestLocation: vi.fn(async () => ({ waypoint: inferred, source: "region" })),
+      requestLocation: vi.fn(async (): Promise<RideStartLocation> => ({
+        waypoint: inferred,
+        source: "region"
+      })),
       search: vi.fn()
     })).resolves.toEqual({
       start: inferred,
