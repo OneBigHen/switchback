@@ -57,6 +57,45 @@
     bottom: var(--sb-mobile-sheet-bottom);
   }
 
+  .planner-shell .app-navigation {
+    top: auto;
+    right: var(--sb-mobile-edge);
+    bottom: max(var(--sb-mobile-edge), env(safe-area-inset-bottom));
+    left: var(--sb-mobile-edge);
+    width: auto;
+    height: var(--sb-mobile-nav-height);
+    flex-direction: row;
+    align-items: stretch;
+    border-radius: var(--sb-radius-sheet);
+  }
+
+  .planner-shell .app-navigation-brand {
+    display: none;
+  }
+
+  .planner-shell .app-navigation-primary {
+    min-width: 0;
+    flex: 1 1 auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sb-space-1);
+    padding: var(--sb-space-2);
+  }
+
+  .planner-shell .app-navigation-secondary {
+    flex: 0 0 auto;
+    margin-top: 0;
+    grid-auto-flow: column;
+    align-items: stretch;
+    padding: var(--sb-space-2);
+    border-top: 0;
+    border-left: 1px solid var(--sb-border);
+  }
+
+  .planner-shell .app-navigation button {
+    min-height: 48px;
+    padding: 4px 2px;
+  }
+
   /* Attribution and native map controls stay above the persistent nav row. */
   .planner-shell:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
   .planner-shell:not(.is-ride-mode) .maplibregl-ctrl-bottom-right,
