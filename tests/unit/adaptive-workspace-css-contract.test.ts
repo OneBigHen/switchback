@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-const plannerShell = readFileSync(resolve(process.cwd(), "src/app/styles/planner-shell.css"), "utf8")
-const shell = readFileSync(resolve(process.cwd(), "src/app/styles/shell-v2.css"), "utf8")
+const adaptive = readFileSync(resolve(process.cwd(), "src/app/styles/adaptive-workspace.css"), "utf8")
+const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8")
 
 /**
  * Structural guard for issue #115's first real Medium workspace topology.
@@ -13,14 +13,24 @@ const shell = readFileSync(resolve(process.cwd(), "src/app/styles/shell-v2.css")
  */
 describe("adaptive Medium workspace CSS contract", () => {
   it("gives 761–1180px its own planner topology instead of inheriting the fixed desktop card", () => {
-    expect(plannerShell).toContain("@media (min-width: 761px) and (max-width: 1180px)")
-    expect(plannerShell).toContain("--sb-medium-planner-width:")
-    expect(plannerShell).toContain("width: var(--sb-medium-planner-width);")
+    expect(adaptive).toContain("@media (min-width: 761px) and (max-width: 1180px)")
+    expect(adaptive).toContain("--sb-medium-planner-width:")
+    expect(adaptive).toContain("--sb-medium-map-safe-left:")
+    expect(adaptive).toContain("width: var(--sb-medium-planner-width);")
+    expect(adaptive).toContain("left: var(--sb-medium-map-safe-left);")
   })
 
   it("moves Medium portrait navigation out of the map/planner side-by-side budget", () => {
-    expect(shell).toContain("@media (min-width: 761px) and (max-width: 1180px) and (orientation: portrait)")
-    expect(shell).toContain("height: var(--sb-mobile-nav-height);")
-    expect(shell).toContain("flex-direction: row;")
+    expect(adaptive).toContain("@media (min-width: 761px) and (max-width: 1180px) and (orientation: portrait)")
+    expect(adaptive).toContain("height: var(--sb-mobile-nav-height);")
+    expect(adaptive).toContain("flex-direction: row;")
+    expect(adaptive).toContain("bottom: var(--sb-mobile-sheet-bottom);")
+  })
+
+  it("loads the adaptive authority after legacy planner and shell styles", () => {
+    const adaptiveIndex = layout.indexOf('import "./styles/adaptive-workspace.css"')
+    expect(adaptiveIndex).toBeGreaterThan(layout.indexOf('import "./styles/planner-shell.css"'))
+    expect(adaptiveIndex).toBeGreaterThan(layout.indexOf('import "./styles/shell-v2.css"'))
+    expect(adaptiveIndex).toBeGreaterThan(layout.indexOf('import "./styles/planner-command-surface.css"'))
   })
 })
