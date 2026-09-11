@@ -83,7 +83,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const curvatureVisible = rideConfig.curvatureVisible
   const avoidHighways = rideConfig.avoidHighways
   const tollPolicy = rideConfig.tollPolicy
-  const gravelAtlas = rideConfig.gravelAtlas
+  // Ride intent is canonical store state. Subscribe directly so this additive
+  // control does not require every older presentation fixture to grow a field.
+  const gravelAtlas = usePlannerStore((state) => state.gravelAtlas)
   const savedCount = ui.savedCount
   const segmentProfiles = rideConfig.segmentProfiles
   const avoidAreaCount = rideConfig.avoidAreaCount
@@ -129,7 +131,18 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onCurvatureChange = rc.onCurvatureChange
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
   const onTollPolicyChange = rc.onTollPolicyChange
-  const onGravelAtlasChange = rc.onGravelAtlasChange
+  const onGravelAtlasChange = rc.onGravelAtlasChange ?? ((preference: typeof gravelAtlas) => {
+    const current = usePlannerStore.getState()
+    const hadPlan = Boolean(current.plan)
+    const outcome = current.editRide(
+      { gravelAtlas: preference },
+      preference.enabled ? `Favored known gravel (${preference.intensity})` : "Stopped favoring known gravel"
+    )
+    // The normal planning session fences/aborts its predecessor before running,
+    // so an existing route can be refreshed immediately without a second state
+    // authority or a shell-only closure.
+    if (outcome === "applied" && hadPlan) commands.onPlan()
+  })
   const onPlanModeChange = rc.onPlanModeChange
   const onRideTimeChange = rc.onRideTimeChange
   const onSegmentProfileChange = rc.onSegmentProfileChange
