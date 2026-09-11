@@ -46,6 +46,25 @@ function validInput(value: RideCheckpointInput): boolean {
     && isRideIntent(value.intent)
 }
 
+function checkpointRecord(value: unknown): RideCheckpoint | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  if (record.id !== "active" || record.version !== 1) return null
+  if (typeof record.token !== "string" || record.token.length === 0) return null
+  const intent = migrateRideIntent(record.intent)
+  if (!intent) return null
+  const checkpoint: RideCheckpoint = {
+    id: "active",
+    version: 1,
+    token: record.token,
+    rideId: typeof record.rideId === "string" ? record.rideId : "",
+    identity: typeof record.identity === "string" ? record.identity : "",
+    sequence: typeof record.sequence === "number" ? record.sequence : Number.NaN,
+    intent
+  }
+  return validInput(checkpoint) ? checkpoint : null
+}
+
 /** A dedicated DB keeps checkpoint migration/rollback away from all libraries. */
 export class RideCheckpointStore {
   private readonly database: CheckpointDatabase
@@ -53,14 +72,12 @@ export class RideCheckpointStore {
 
   async load(): Promise<CheckpointLoad> {
     try {
-      const value = await this.database.checkpoints.get("active") as (RideCheckpoint & { intent: unknown }) | undefined
+      const value = await this.database.checkpoints.get("active") as unknown
       if (!value) return { status: "empty" }
-      if (value.version !== 1) return { status: "incompatible" }
-      if (typeof value.token !== "string" || !value.token) return { status: "invalid" }
-      const intent = migrateRideIntent(value.intent)
-      if (!intent) return { status: "invalid" }
-      const checkpoint: RideCheckpoint = { ...value, intent }
-      if (!validInput(checkpoint)) return { status: "invalid" }
+      if (typeof value === "object" && value !== null && !Array.isArray(value)
+        && (value as Record<string, unknown>).version !== 1) return { status: "incompatible" }
+      const checkpoint = checkpointRecord(value)
+      if (!checkpoint) return { status: "invalid" }
       return { status: "restored", checkpoint }
     } catch { return { status: "unavailable" } }
   }
@@ -79,12 +96,19 @@ export class RideCheckpointStore {
     try {
       const next: RideCheckpoint = { ...structuredClone(input), id: "active", version: 1, token: crypto.randomUUID() }
       return await this.database.transaction("rw", this.database.checkpoints, async () => {
-        const current = await this.database.checkpoints.get("active")
-        if ((current?.token ?? null) !== expectedToken) return { status: "conflict" as const }
-        // A corrupt/unknown record is preserved, never silently overwritten.
-        if (current && (current.version !== 1 || !validInput(current))) return { status: "invalid" as const }
+        const stored = await this.database.checkpoints.get("active") as unknown
+        const raw = stored && typeof stored === "object" && !Array.isArray(stored)
+          ? stored as Record<string, unknown>
+          : null
+        if ((typeof raw?.token === "string" ? raw.token : null) !== expectedToken) return { status: "conflict" as const }
+        // Parse through the same migration boundary as load(). A valid legacy
+        // v1 record is allowed to become current-format on this write; corrupt
+        // or unknown records remain untouched.
+        const current = stored ? checkpointRecord(stored) : null
+        if (stored && !current) return { status: "invalid" as const }
         // The same identity must always describe the same intent, or the
-        // identity has stopped being an identity.
+        // identity has stopped being an identity. Compare the migrated intent
+        // so an additive schema default does not fabricate a conflict.
         if (current && current.identity === input.identity
           && JSON.stringify(current.intent) !== JSON.stringify(input.intent)) return { status: "conflict" as const }
         await this.database.checkpoints.put(next)
