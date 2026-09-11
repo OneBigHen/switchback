@@ -28,8 +28,8 @@ async function openLibrary(page: import("@playwright/test").Page): Promise<void>
   if (await page.getByRole("main", { name: "Rides destination" }).isVisible().catch(() => false)) return
   await page.getByRole("button", { name: "Rides", exact: true }).tap()
   await expect(page).toHaveURL(/tab=rides/)
-  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
 }
 
 async function openSettings(page: import("@playwright/test").Page): Promise<void> {
@@ -103,7 +103,7 @@ test.describe("reload persistence", () => {
     await openLibrary(page)
     await expect(page.getByRole("button", { name: `Open ${route.name}` })).toBeVisible()
     await page.reload()
-    await expectMobileAppReady(page, { tab: "rides", heading: "Rides" })
+    await expectMobileAppReady(page, { tab: "rides", heading: "My Rides" })
     await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
     await expect(page.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Rides")
     await expect(page.getByRole("button", { name: `Open ${route.name}` })).toBeVisible()
