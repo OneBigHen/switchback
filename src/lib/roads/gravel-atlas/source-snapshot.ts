@@ -143,6 +143,7 @@ export async function collectOfficialSourceSnapshot(
     throw new Error(`ArcGIS maximum pages must be an integer between 1 and ${HARD_MAX_PAGES}`)
   }
 
+  const effectivePageSize = Math.min(pageSize, policy.maxRecordCount)
   const fetchPage = options.fetchPage ?? defaultFetchPage
   const accepted = new Map<string, GravelEvidenceObservation>()
   const stats: OfficialSourceSnapshotStats = {
@@ -154,8 +155,8 @@ export async function collectOfficialSourceSnapshot(
   }
 
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
-    const offset = pageIndex * pageSize
-    const url = buildArcGisGeoJsonPageUrl(sourceId, offset, pageSize)
+    const offset = pageIndex * effectivePageSize
+    const url = buildArcGisGeoJsonPageUrl(sourceId, offset, effectivePageSize)
     const features = parseFeatureCollection(await fetchPage(url))
     stats.pages += 1
     stats.fetchedFeatures += features.length
@@ -180,10 +181,10 @@ export async function collectOfficialSourceSnapshot(
       accepted.set(observation.sourceFeatureId, observation)
     }
 
-    // A short page proves the deterministic offset walk reached the end. An
-    // exact multiple intentionally costs one empty request, which avoids
-    // trusting service-specific transfer-limit flags that vary by ArcGIS host.
-    if (features.length < pageSize) {
+    // A short effective service page proves the deterministic offset walk
+    // reached the end. An exact multiple intentionally costs one empty request,
+    // which avoids trusting transfer-limit flags that vary by ArcGIS host.
+    if (features.length < effectivePageSize) {
       const observations = sortObservations(accepted.values())
       stats.acceptedFeatures = observations.length
       return {
