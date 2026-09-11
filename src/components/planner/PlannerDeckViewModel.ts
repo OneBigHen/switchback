@@ -54,7 +54,8 @@ export interface PlannerRideConfigViewModel {
   curvatureVisible: boolean
   avoidHighways: boolean
   tollPolicy: TollPolicy
-  gravelAtlas: GravelAtlasPreference
+  /** Additive field; optional here so older presentation fixtures remain valid. */
+  gravelAtlas?: GravelAtlasPreference
   segmentProfiles: RouteProfileId[]
   avoidAreaCount: number
 }
@@ -148,7 +149,8 @@ export interface PlannerRideConfigCommands {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTollPolicyChange(policy: TollPolicy): void
-  onGravelAtlasChange(preference: GravelAtlasPreference): void
+  /** Optional presentation hook; PlannerDeck falls back to canonical store edit + replan. */
+  onGravelAtlasChange?(preference: GravelAtlasPreference): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onRemoveAvoidArea(): void
   onAddRoadLock(lock: RoadLock): void
@@ -205,7 +207,7 @@ export function buildPlannerDeckViewModel(state: {
   curvatureVisible: boolean
   avoidHighways: boolean
   tollPolicy: TollPolicy
-  gravelAtlas: GravelAtlasPreference
+  gravelAtlas?: GravelAtlasPreference
   savedCount: number
   via: Waypoint[]
   addingVia: boolean
@@ -257,7 +259,7 @@ export function buildPlannerDeckViewModel(state: {
       curvatureVisible: state.curvatureVisible,
       avoidHighways: state.avoidHighways,
       tollPolicy: state.tollPolicy,
-      gravelAtlas: state.gravelAtlas,
+      gravelAtlas: state.gravelAtlas ?? { enabled: false, intensity: "balanced" },
       segmentProfiles: state.segmentProfiles,
       avoidAreaCount: state.avoidAreaCount
     },
