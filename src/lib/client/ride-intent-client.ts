@@ -1,4 +1,4 @@
-import type { RideIntent } from "@/lib/ai/ride-intent"
+import { parseRidePromptLocally, type RideIntent } from "@/lib/ai/ride-intent"
 
 interface RideIntentErrorPayload {
   error?: { code?: string; message?: string }
@@ -11,6 +11,27 @@ export class RideIntentClientError extends Error {
     readonly status: number
   ) {
     super(message)
+  }
+}
+
+/**
+ * Bind origin authority back to the rider's literal prompt.
+ *
+ * The remote interpreter may enrich route character, destination, duration,
+ * and other ride semantics, but it is never allowed to manufacture the
+ * geographic origin. The deterministic local parser is deliberately the
+ * authority for whether the rider actually named a start. This also turns
+ * model control language such as "unspecified" into no explicit origin rather
+ * than a geocodable place.
+ */
+export function enforceRiderOriginAuthority(
+  prompt: string,
+  interpreted: RideIntent
+): RideIntent {
+  const riderAuthored = parseRidePromptLocally(prompt)
+  return {
+    ...interpreted,
+    startQuery: riderAuthored.startQuery
   }
 }
 
@@ -51,5 +72,5 @@ export async function requestRideIntent(
       response.status
     )
   }
-  return payload as RideIntent
+  return enforceRiderOriginAuthority(prompt, payload as RideIntent)
 }
