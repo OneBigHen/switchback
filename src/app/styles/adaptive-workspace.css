@@ -1,0 +1,67 @@
+/* UX V3 adaptive workspace topology (issue #115).
+ *
+ * Compact interaction remains owned by the existing <=760px sheet rules.
+ * Wide remains the existing >=1181px desktop composition for now. This layer
+ * gives Medium (761–1180px) an explicit spatial contract so tablets no longer
+ * inherit a fixed 432px desktop card and desktop control offsets by accident.
+ *
+ * One width budget drives planner placement and map-control clearance. Keep
+ * these media boundaries aligned with workspace-mode.ts.
+ */
+
+@media (min-width: 761px) and (max-width: 1180px) {
+  .planner-shell {
+    --sb-medium-planner-width: clamp(312px, 34vw, 400px);
+    --sb-medium-planner-left: 96px;
+    --sb-medium-map-safe-left: calc(
+      var(--sb-medium-planner-left) + var(--sb-medium-planner-width) + var(--sb-space-4)
+    );
+  }
+
+  /* Medium is a persistent planner + live-map workspace, not a floating
+     desktop card scaled down. Idle and route-ready states share one horizontal
+     authority; their vertical behavior can still differ by planner state. */
+  .planner-shell .planner-deck,
+  .planner-shell .planner-deck.is-idle-plan,
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: var(--sb-medium-planner-left);
+    width: var(--sb-medium-planner-width);
+    max-width: none;
+  }
+
+  /* Keep native lower-left map affordances out from under the persistent
+     planner. Ride mode intentionally keeps its existing full-map override. */
+  .planner-shell:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left {
+    left: var(--sb-medium-map-safe-left);
+  }
+}
+
+/* Portrait tablets spend scarce horizontal space on the planner and map, not
+   on a permanent 64px navigation rail. The same destinations stay persistent
+   in a bounded bottom row while the planner remains a side inspector. */
+@media (min-width: 761px) and (max-width: 1180px) and (orientation: portrait) {
+  .planner-shell {
+    --sb-medium-planner-width: clamp(320px, 42vw, 360px);
+    --sb-medium-planner-left: var(--sb-space-4);
+  }
+
+  .planner-shell .planner-deck,
+  .planner-shell .planner-deck.is-idle-plan,
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: var(--sb-medium-planner-left);
+    width: var(--sb-medium-planner-width);
+  }
+
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    bottom: var(--sb-mobile-sheet-bottom);
+  }
+
+  /* Attribution and native map controls stay above the persistent nav row. */
+  .planner-shell:not(.is-ride-mode) .maplibregl-ctrl-bottom-left,
+  .planner-shell:not(.is-ride-mode) .maplibregl-ctrl-bottom-right,
+  .planner-shell:not(.is-ride-mode) .mapboxgl-ctrl-bottom-left,
+  .planner-shell:not(.is-ride-mode) .mapboxgl-ctrl-bottom-right {
+    bottom: var(--sb-mobile-sheet-bottom);
+  }
+}
