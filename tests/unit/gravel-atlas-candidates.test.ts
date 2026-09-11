@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { buildAnchorSets, type CorridorEnvelope } from "@/lib/routing/destination-corridors"
 import { generateCorridorCandidates } from "@/lib/routing/candidate-generator"
 import type { GravelAtlasCorridor } from "@/lib/routing/gravel-atlas"
-import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
+import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import type { Coordinate } from "@/lib/routing/types"
 
 const start: Coordinate = [-75.20, 40.20]
@@ -32,7 +32,7 @@ function atlasCorridor(overrides: Partial<GravelAtlasCorridor> = {}): GravelAtla
 }
 
 function request(): NormalizedRouteRequest {
-  return {
+  return normalizeRouteRequest({
     profile: "gravel",
     points: [
       { lat: start[1], lon: start[0], label: "Start" },
@@ -46,8 +46,9 @@ function request(): NormalizedRouteRequest {
     tollPolicy: "allow-with-warning",
     roadLocks: [],
     planningId: "atlas-plan",
-    candidateSet: "primary"
-  }
+    candidateSet: "primary",
+    gravelAtlas: { enabled: true, intensity: "balanced" }
+  })
 }
 
 describe("PA Gravel Atlas candidate integration", () => {
@@ -94,5 +95,6 @@ describe("PA Gravel Atlas candidate integration", () => {
     expect(candidate?.source).toBe("gravel-atlas")
     expect(candidate?.id).toBe("corridor-gravel-atlas-bucks-gravel-1")
     expect(candidate?.request.points.length).toBeGreaterThan(2)
+    expect(candidate?.request.gravelAtlas.enabled).toBe(true)
   })
 })
