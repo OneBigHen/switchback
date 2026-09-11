@@ -295,7 +295,7 @@ test("a saved route survives a reload and remains available in the library", asy
   await page.getByRole("button", { name: "Rides", exact: true }).click()
   const rides = page.getByRole("main", { name: "Rides destination" })
   await expect(rides).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 
   await page.reload()
@@ -309,7 +309,7 @@ test("valid GPX import appears in the route library", async ({ page }) => {
   await installPlannerServices(page)
   await page.goto("/")
   await page.getByRole("button", { name: "Rides", exact: true }).click()
-  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Import ride" }).click()
   await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({
     name: "critical-import.gpx",
