@@ -1,5 +1,6 @@
 import { handleRouteRequest } from "./handler"
 import { enrichAdventureRoutesWithPaData } from "@/lib/roads/adventure-route-enricher"
+import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 import { requestGraphHopperRoutes } from "@/lib/routing/graphhopper"
 import { createHybridRouteProvider } from "@/lib/routing/hybrid"
 import { requestValhallaRoutes, enrichWithElevations } from "@/lib/routing/valhalla"
@@ -39,10 +40,33 @@ const corridorCache = createCorridorCache(
   process.env.CORRIDOR_CACHE_PATH ?? path.join(process.cwd(), "data/route-research-cache.sqlite")
 )
 
+const MAX_GRAVEL_ATLAS_LATERAL_MILES = 40
+
+function gravelAtlasBounds(request: RouteRequest): {
+  south: number
+  west: number
+  north: number
+  east: number
+} {
+  const lons = request.points.map((point) => point.lon)
+  const lats = request.points.map((point) => point.lat)
+  const meanLatitude = lats.reduce((sum, latitude) => sum + latitude, 0) / Math.max(1, lats.length)
+  const latitudePadding = MAX_GRAVEL_ATLAS_LATERAL_MILES / 69
+  const longitudeMilesPerDegree = 69 * Math.max(0.2, Math.cos(meanLatitude * Math.PI / 180))
+  const longitudePadding = MAX_GRAVEL_ATLAS_LATERAL_MILES / longitudeMilesPerDegree
+  return {
+    south: Math.max(-90, Math.min(...lats) - latitudePadding),
+    west: Math.max(-180, Math.min(...lons) - longitudePadding),
+    north: Math.min(90, Math.max(...lats) + latitudePadding),
+    east: Math.min(180, Math.max(...lons) + longitudePadding)
+  }
+}
+
 /**
- * Phase 4 corridor sources: curvature database segments near the request and
- * known-good GPX route geometries from the server-side library. Both degrade
- * to empty sets (never fail routing) when their data is unavailable.
+ * Phase 4 corridor sources: curvature database segments near the request,
+ * known-good GPX route geometries, optional research hints, and (when the
+ * rider explicitly opts in) graph-fresh PA Gravel Atlas corridors. Every
+ * source degrades to empty evidence rather than failing normal routing.
  */
 async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCandidates> {
   const sources: CorridorSourceCandidates = { curvatureSegments: [], gpxRoutes: [], hints: [] }
@@ -76,6 +100,28 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
     }
   } catch {
     // GPX corridors are optional evidence.
+  }
+
+  // The atlas database is deliberately separate from the imported-ride Route
+  // Atlas (poster artwork). Only an explicitly enabled Adventure/Gravel
+  // request and a matching graph fingerprint may load routing evidence.
+  const graphFingerprint = process.env.GRAVEL_ATLAS_GRAPH_FINGERPRINT?.trim()
+  if (request.gravelAtlas?.enabled === true && graphFingerprint) {
+    try {
+      const atlasBounds = gravelAtlasBounds(request)
+      const atlasPath = process.env.GRAVEL_ATLAS_DB_PATH ??
+        path.join(process.cwd(), "data/gravel-atlas.sqlite")
+      sources.gravelAtlas = {
+        preference: request.gravelAtlas,
+        corridors: new GravelAtlasRepository(atlasPath).queryBounds({
+          ...atlasBounds,
+          graphFingerprint,
+          limit: 200
+        })
+      }
+    } catch {
+      // Missing/stale/malformed atlas data must never block ordinary routing.
+    }
   }
 
   // Validated adviser hints from the 7-day cache: fast local read, so the
