@@ -50,9 +50,9 @@ export function riderFeatureLayerIds(id: RiderLayerId): string[] {
 // build time, so a production bundle constant-folds `mapDebugEnabled` to
 // false, eliminates every guarded branch, and never exposes
 // `window.__switchbackMapSourcesDebug`. The seam is purely observational: it
-// reads existing source data and counts the setData calls this module already
-// performs. It never mirrors route geometry into a second state authority and
-// contains no route-specific logic.
+// reads existing source data, asks the map camera where a coordinate lands, and
+// counts the setData calls this module already performs. It never mirrors route
+// geometry into a second state authority and contains no route-specific logic.
 export interface SwitchbackMapSourcesDebug {
   /** Current GeoJSON data of an existing source, or null when it is absent. */
   getSourceData(sourceId: string): Promise<unknown | null>
@@ -62,6 +62,18 @@ export interface SwitchbackMapSourcesDebug {
   resetUpdateCounts(): void
   /** Ids of every source currently registered on the map style. */
   listSourceIds(): string[]
+  /**
+   * Canvas pixel position of a [lng, lat] coordinate, or null when the map
+   * cannot project yet. Read-only camera query so e2e tests can click real
+   * rendered geometry instead of guessing at pixels.
+   */
+  projectCoordinate(coordinate: [number, number]): { x: number; y: number } | null
+  /**
+   * Whether MapLibre has finished loading its style and sources. A style that
+   * never loads (for example when the worker bundle is missing) makes every
+   * hit-test query return nothing, so e2e reports this on a failed click.
+   */
+  loadState(): { loaded: boolean; styleLoaded: boolean; routeSourceLoaded: boolean }
 }
 
 declare global {
@@ -91,6 +103,17 @@ function registerMapSourcesDebug(map: MapLibreMap) {
     },
     listSourceIds() {
       return Object.keys(map.getStyle().sources)
+    },
+    projectCoordinate(coordinate: [number, number]) {
+      const point = map.project(coordinate)
+      return { x: point.x, y: point.y }
+    },
+    loadState() {
+      return {
+        loaded: map.loaded(),
+        styleLoaded: map.isStyleLoaded() === true,
+        routeSourceLoaded: map.isSourceLoaded("switchback-routes") === true
+      }
     }
   }
 }

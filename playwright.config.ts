@@ -111,7 +111,7 @@ export default defineConfig({
     }
   ],
   webServer: externalBaseUrl ? undefined : {
-    command: `SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
+    command: `node scripts/copy-maplibre-worker.mjs && SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
       ? `npx next start --hostname 127.0.0.1 --port ${testPort}`
       : `npx next dev --hostname 127.0.0.1 --port ${testPort}`}`,
     url: localBaseUrl,

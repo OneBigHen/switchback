@@ -1390,3 +1390,269 @@ test("manual route selection updates the same MapLibre route source without an A
     .toEqual({ routeId: "advisor-e2e", coordinates: route.geometry })
   expect(await routeSourceUpdateCount(page)).toBeGreaterThan(afterAlternate)
 })
+
+// Harness diagnostics for the N2 map-ribbon test. Clicking the real route hit
+// layer only works once MapLibre has finished loading its style and sources, so
+// the load state and any transport errors have to be observable on failure.
+const n2MapDiagnostics: { console: string[]; wire: string[] } = { console: [], wire: [] }
+
+// --- N2 (issue #117): manual map-ribbon selection during a compound action --
+//
+// This is deliberately not a route-card test. Route cards, store callbacks and
+// React state cannot prove which *surface* owned the rider's manual choice, and
+// the reported race is specifically that the rendered MapLibre ribbon selects
+// through a path that the vehicle for in-flight advisor results does not
+// observe.
+//
+// So this test clicks the real hit layer: ROUTE_HIT_LAYER over
+// "switchback-routes", which PlannerMapStage wires to the canonical
+// selectRoute command. That layer is filtered to `!selected`, so while route A
+// is committed the only ribbon any canvas click can reach is the alternative.
+
+const mapSelectionAlternateRoute = {
+  ...advisorAlternateRoute,
+  geometry: [
+    [-76.8867, 40.2732],
+    [-76.9, 39.98],
+    [-77.3, 39.94],
+    [-77.2311, 39.8309]
+  ]
+}
+
+/**
+ * Canvas pixels where MapLibre's own hit test reports route geometry.
+ *
+ * The hover handler sets a pointer cursor only when ROUTE_HIT_LAYER has
+ * rendered geometry underneath the exact pixel, and that layer is filtered to
+ * unselected routes. Scanning with real mousemove events therefore uses the
+ * renderer's hit test as the oracle instead of guessing at pixels.
+ */
+async function findRouteRibbonPixels(
+  page: import("@playwright/test").Page
+): Promise<Array<{ x: number; y: number }>> {
+  return page.evaluate(() => {
+    const canvas = document.querySelector("canvas")
+    if (!canvas) return []
+    const rect = canvas.getBoundingClientRect()
+    const hits: Array<{ x: number; y: number }> = []
+    const step = 12
+    const move = (x: number, y: number) => {
+      canvas.dispatchEvent(new MouseEvent("mousemove", {
+        clientX: rect.left + x,
+        clientY: rect.top + y,
+        bubbles: true
+      }))
+    }
+    for (let y = 4; y < rect.height && hits.length < 600; y += step) {
+      for (let x = 4; x < rect.width && hits.length < 600; x += step) {
+        move(x, y)
+        if (canvas.style.cursor === "pointer") hits.push({ x, y })
+      }
+    }
+    move(-20, -20)
+    return hits
+  })
+}
+
+/**
+ * Click the rendered route ribbon over the real map canvas and return the pixel
+ * that worked. The pixel is chosen by MapLibre's own hit test (see
+ * findRouteRibbonPixels) and the selection is confirmed in the authoritative
+ * "switchback-routes" source, so a click that never reached the hit layer
+ * cannot pass.
+ */
+async function clickRouteRibbon(
+  page: import("@playwright/test").Page,
+  routeId: string
+): Promise<{ x: number; y: number }> {
+  const consoleLogs: string[] = []
+  page.on("console", (message) => consoleLogs.push(`${message.type()}: ${message.text()}`))
+  page.on("pageerror", (error) => consoleLogs.push(`pageerror: ${error.message}`))
+
+  const snapshot = await readRouteSource(page)
+  const feature = snapshot?.features.find((entry) => entry.properties.routeId === routeId)
+  if (!feature) throw new Error(`route ${routeId} is not present in the rendered route source`)
+
+  const canvas = page.locator("canvas").first()
+  await expect(canvas).toBeVisible()
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error("map canvas has no bounding box")
+
+  const projected = await page.evaluate((coordinates) => {
+    const debug = window.__switchbackMapSourcesDebug
+    if (!debug) return []
+    return coordinates.map((coordinate) => debug.projectCoordinate(coordinate))
+  }, feature.geometry.coordinates as Array<[number, number]>)
+
+  // MapLibre's hit-test queries return nothing until the style and sources have
+  // finished loading. A missing public/maplibre worker bundle (the postinstall
+  // copy step) leaves the map permanently unloaded, which would otherwise look
+  // like "the ribbon was not where the geometry says it is".
+  const loadState = await page.evaluate(() => window.__switchbackMapSourcesDebug?.loadState() ?? null)
+  if (!loadState?.routeSourceLoaded) {
+    throw new Error(
+      `the real map source is not loaded, so route ribbons cannot be clicked: ${JSON.stringify(loadState)}. ` +
+      `Run \`node scripts/copy-maplibre-worker.mjs\` — without the worker bundle every MapLibre hit test returns nothing.`
+    )
+  }
+
+  const hits = await findRouteRibbonPixels(page)
+  if (hits.length === 0) {
+    const loadState = await page.evaluate(() => window.__switchbackMapSourcesDebug?.loadState() ?? null)
+    throw new Error(
+      `no canvas pixel reaches ROUTE_HIT_LAYER, so no click can select a route. ` +
+      `canvas=${JSON.stringify(box)} projected=${JSON.stringify(projected)} loadState=${JSON.stringify(loadState)} ` +
+      `console=${JSON.stringify(consoleLogs.slice(-25))} early=${JSON.stringify(n2MapDiagnostics.console.slice(-25))} wire=${JSON.stringify(n2MapDiagnostics.wire.slice(-25))}`
+    )
+  }
+
+  const attempts: string[] = []
+  const candidates = hits.filter((_, index) => index % 89 === 0).slice(0, 10)
+  for (const hit of candidates) {
+    const x = box.x + hit.x
+    const y = box.y + hit.y
+    await page.mouse.click(x, y)
+    await page.waitForTimeout(80)
+    const selected = selectedRouteOf(await readRouteSource(page))
+    if (selected?.routeId === routeId) return { x, y }
+    attempts.push(`(${Math.round(x)},${Math.round(y)}) -> ${selected?.routeId ?? "none"}`)
+  }
+
+  throw new Error(
+    `route-hit pixels exist (${hits.length}) but none selected ${routeId}: ` +
+    `${attempts.join(" | ")}; projected=${JSON.stringify(projected)}`
+  )
+}
+
+test("a manual map-ribbon selection during an in-flight compound Goblin action stays canonical", async ({
+  page
+}) => {
+  n2MapDiagnostics.console.length = 0
+  n2MapDiagnostics.wire.length = 0
+  page.on("console", (message) => n2MapDiagnostics.console.push(`${message.type()}: ${message.text()}`))
+  page.on("pageerror", (error) => n2MapDiagnostics.console.push(`pageerror: ${error.message}`))
+  page.on("requestfailed", (request) => n2MapDiagnostics.wire.push(`FAILED ${request.failure()?.errorText} ${request.url()}`))
+  page.on("request", (request) => {
+    if (!request.url().includes("127.0.0.1")) n2MapDiagnostics.wire.push(`REQ ${request.url()}`)
+  })
+  await mockBase(page)
+
+  let advisorTurns = 0
+  let releaseRoute!: () => void
+  const heldRoute = new Promise<void>((resolve) => { releaseRoute = resolve })
+  let heldRequest = false
+  let compoundRequestSettled = false
+
+  await page.route("**/api/advisor", async (routeRequest) => {
+    if (routeRequest.request().method() === "GET") {
+      await routeRequest.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ capability })
+      })
+      return
+    }
+    advisorTurns += 1
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(advisorTurns === 1 ? builderReply : compoundReply)
+    })
+  })
+
+  await page.route("**/api/routes", async (routeRequest) => {
+    const body = routeRequest.request().postDataJSON() as Record<string, unknown>
+    const points = Array.isArray(body.points) ? body.points as Array<{ label?: string }> : []
+    if (points.some((point) => point.label === advisorFoodStop.name)) {
+      // The compound route+stop mutation is deliberately held open so the rider
+      // can act while it is genuinely in flight.
+      heldRequest = true
+      await heldRoute
+      try {
+        await routeRequest.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            selectedRouteId: "advisor-e2e-with-food",
+            warnings: [],
+            routes: [{
+              ...route,
+              id: "advisor-e2e-with-food",
+              name: "Ridge route via Pine Diner",
+              geometry: [[-76.8867, 40.2732], [-76.94, 40.22], [-77.2311, 39.8309]],
+              distanceMiles: 63.7,
+              durationMinutes: 196,
+              twistiness: 84,
+              turnCount: 58
+            }]
+          })
+        })
+      } finally {
+        compoundRequestSettled = true
+      }
+      return
+    }
+    await routeRequest.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        selectedRouteId: route.id,
+        warnings: [],
+        routes: [route, mapSelectionAlternateRoute]
+      })
+    })
+  })
+
+  await page.goto(appUrl)
+  await goblinBuilder(page).click()
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Three hours, gravel, end around Gettysburg")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await page.getByRole("button", { name: "Plan this ride" }).click()
+  await expect(page.getByRole("heading", { name: "Your second opinion" })).toBeVisible()
+
+  await waitForMapSourceSeam(page)
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), { timeout: 30_000 })
+    .toEqual({ routeId: route.id, coordinates: route.geometry })
+
+  // Start the compound route+stop action and let it hang in flight.
+  await page.getByRole("textbox", { name: "Ask Gravel Goblin" })
+    .fill("Find me a better route with a good food stop")
+  await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
+  await expect.poll(() => heldRequest, { timeout: 30_000 }).toBe(true)
+
+  // The rider now picks the alternative by clicking its rendered map ribbon.
+  const clickedAt = await clickRouteRibbon(page, mapSelectionAlternateRoute.id)
+  await expect
+    .poll(async () => selectedRouteOf(await readRouteSource(page)), { timeout: 30_000 })
+    .toEqual({
+      routeId: mapSelectionAlternateRoute.id,
+      coordinates: mapSelectionAlternateRoute.geometry
+    })
+
+  // Release the stale compound answer and let it try to settle.
+  releaseRoute()
+  await expect.poll(() => compoundRequestSettled, { timeout: 30_000 }).toBe(true)
+  await page.waitForTimeout(1_000)
+
+  // The stale answer must not restore the old selection or its stop, and the
+  // rider's map choice must still be what the real route source renders.
+  expect(await selectedRouteOf(await readRouteSource(page))).toEqual({
+    routeId: mapSelectionAlternateRoute.id,
+    coordinates: mapSelectionAlternateRoute.geometry
+  })
+  // The click landed on the map surface itself, not on a card or a control.
+  const canvasBox = await page.locator("canvas").first().boundingBox()
+  expect(canvasBox).not.toBeNull()
+  expect(clickedAt.x).toBeGreaterThanOrEqual(canvasBox!.x)
+  expect(clickedAt.x).toBeLessThanOrEqual(canvasBox!.x + canvasBox!.width)
+  expect(clickedAt.y).toBeGreaterThanOrEqual(canvasBox!.y)
+  expect(clickedAt.y).toBeLessThanOrEqual(canvasBox!.y + canvasBox!.height)
+  await expect(page.getByText("Pine Diner is on a verified changed route.")).toHaveCount(0)
+  await page.getByRole("button", { name: "Edit route", exact: true }).click()
+  const rideOptions = page.getByRole("button", { name: "Ride options", exact: true })
+  await expect(rideOptions).toBeVisible()
+  if (await rideOptions.getAttribute("aria-expanded") !== "true") await rideOptions.click()
+  await expect(page.getByRole("button", { name: /Remove .*Pine Diner/i })).toHaveCount(0)
+})
