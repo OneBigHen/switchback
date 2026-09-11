@@ -1,7 +1,7 @@
 import type { TripPlanRequest } from "@/lib/routing/planner"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
-import type { AvoidArea, CandidateSet, Coordinate, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { AvoidArea, CandidateSet, Coordinate, GravelAtlasPreference, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 
 interface BuildRideTripRequestOptions {
   mode: "destination" | "loop"
@@ -24,6 +24,7 @@ interface BuildRideTripRequestOptions {
   avoidAreas?: AvoidArea[]
   segmentProfiles?: RouteProfileId[]
   tollPolicy?: TollPolicy
+  gravelAtlas?: GravelAtlasPreference
   planningId?: string
   candidateSet?: CandidateSet
   /**
@@ -84,6 +85,7 @@ export function buildRideTripRequest({
   avoidAreas = [],
   segmentProfiles,
   tollPolicy,
+  gravelAtlas,
   planningId,
   candidateSet,
   sketchCorridor
@@ -92,6 +94,7 @@ export function buildRideTripRequest({
   const roadLocksPayload = roadLocks.length > 0 ? { roadLocks } : {}
   const corridorPayload = sketchCorridor && sketchCorridor.length >= 2 ? { sketchCorridor } : {}
   const bikeProfilePayload = bikeProfile ? { bikeProfile } : {}
+  const gravelAtlasPayload = gravelAtlas ? { gravelAtlas } : {}
   const progressive = progressiveMetadata({ planningId, candidateSet })
   if (mode === "destination") {
     if (!finish) throw new Error("Choose a finish point first.")
@@ -108,6 +111,7 @@ export function buildRideTripRequest({
         : {}),
       ...progressive,
       ...bikeProfilePayload,
+      ...gravelAtlasPayload,
       ...roadLocksPayload,
       ...corridorPayload
     }
@@ -128,6 +132,7 @@ export function buildRideTripRequest({
       ...(tollPolicy ? { tollPolicy } : {}),
       ...progressive,
       ...bikeProfilePayload,
+      ...gravelAtlasPayload,
       ...roadLocksPayload,
       ...corridorPayload
     }
@@ -141,6 +146,7 @@ export function buildRideTripRequest({
     ...(tollPolicy ? { tollPolicy } : {}),
     ...progressive,
     ...bikeProfilePayload,
+    ...gravelAtlasPayload,
     ...roadLocksPayload,
     ...corridorPayload,
     // No `heading`: GraphHopper's round_trip + headings combination fails to
