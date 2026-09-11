@@ -1,5 +1,5 @@
 import type { Coordinate, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
-import { haversine } from "@/lib/routing/scoring"
+import { routePassesNearWaypoint } from "@/lib/routing/scoring"
 import type { ProposedRide, ProposedStop } from "./contracts"
 import { routeProgressOf } from "./toolbox"
 
@@ -53,30 +53,29 @@ export function advisorRideToPlannerHandoff(ride: ProposedRide): AdvisorPlannerH
   }
 }
 
-const SAME_STOP_METERS = 25
-
 /**
  * Add an advisor stop without erasing rider-authored shaping points.
  * Existing points keep their labels/lock state; the new stop is inserted in
- * route order when progress can be estimated. A point already within 25 m is
- * considered the same stop and is left untouched.
+ * route order when progress can be estimated. De-duplication deliberately
+ * reuses the same nearness predicate as compound-route verification so one
+ * routing tolerance, not a second magic number, defines "this stop is here".
  */
 export function mergeAdvisorStopIntoVia(
   existing: readonly Waypoint[],
   stop: ProposedStop,
   geometry: readonly Coordinate[]
 ): Waypoint[] {
-  const stopCoordinate: Coordinate = [stop.anchor.lon, stop.anchor.lat]
-  if (existing.some((point) =>
-    haversine([point.lon, point.lat], stopCoordinate) <= SAME_STOP_METERS)) {
-    return [...existing]
-  }
-
-  const incoming: Waypoint = {
+  const stopWaypoint: Waypoint = {
     lat: stop.anchor.lat,
     lon: stop.anchor.lon,
     label: stop.name
   }
+  if (existing.some((point) =>
+    routePassesNearWaypoint([[point.lon, point.lat]], stopWaypoint))) {
+    return [...existing]
+  }
+
+  const incoming: Waypoint = stopWaypoint
   if (geometry.length < 2) return [...existing, incoming]
 
   const progress = (point: Waypoint): number =>
