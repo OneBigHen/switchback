@@ -198,6 +198,19 @@ describe("selectGravelAtlasCorridors", () => {
     expect(second.map((candidate) => candidate.corridor.id)).toEqual(["alpha", "zeta"])
   })
 
+  it("deduplicates stable corridor identity and keeps the strongest duplicate deterministically", () => {
+    const weak = corridor({ id: "same-road", confidence: 0.2, sourceIds: ["older"] })
+    const strong = corridor({ id: "same-road", confidence: 0.95, sourceIds: ["newer"] })
+
+    const first = selectGravelAtlasCorridors({ start, finish, envelope, corridors: [weak, strong] })
+    const second = selectGravelAtlasCorridors({ start, finish, envelope, corridors: [strong, weak] })
+
+    expect(first).toHaveLength(1)
+    expect(second).toHaveLength(1)
+    expect(first[0]?.corridor.sourceIds).toEqual(["newer"])
+    expect(second[0]?.corridor.sourceIds).toEqual(["newer"])
+  })
+
   it("returns shaping anchors copied from verified source geometry and never mutates the atlas corridor", () => {
     const source = corridor({ id: "immutable" })
     const before = structuredClone(source)
