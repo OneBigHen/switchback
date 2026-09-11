@@ -8,6 +8,24 @@ import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 let directory = ""
 let databasePath = ""
 
+interface AtlasTestRow {
+  id: string
+  label: string
+  geometry: string
+  verified_gravel_meters: number
+  longest_continuous_gravel_meters: number
+  fragment_count: number
+  confidence: number
+  verification_status: string
+  source_ids: string
+  source_fingerprint: string
+  graph_fingerprint: string
+  west: number
+  south: number
+  east: number
+  north: number
+}
+
 beforeEach(() => {
   directory = mkdtempSync(path.join(tmpdir(), "switchback-gravel-atlas-"))
   databasePath = path.join(directory, "atlas.sqlite")
@@ -39,9 +57,9 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-function insert(overrides: Record<string, unknown> = {}) {
+function insert(overrides: Partial<AtlasTestRow> = {}) {
   const database = new DatabaseSync(databasePath)
-  const row = {
+  const row: AtlasTestRow = {
     id: "bucks-1",
     label: "Bucks gravel",
     geometry: JSON.stringify([[-75.2, 40.2], [-75.1, 40.25], [-75.0, 40.3]]),
@@ -114,7 +132,7 @@ describe("GravelAtlasRepository", () => {
   })
 
   it("drops malformed stored geometry/provenance instead of poisoning route planning", () => {
-    insert({ id: "bad-geometry", geometry: "not-json", source_ids: JSON.stringify(["pa-gpx:bad"] ) })
+    insert({ id: "bad-geometry", geometry: "not-json", source_ids: JSON.stringify(["pa-gpx:bad"]) })
     insert({ id: "bad-source", source_ids: "[]" })
 
     const result = new GravelAtlasRepository(databasePath).queryBounds({
