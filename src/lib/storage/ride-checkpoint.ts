@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie"
-import { isRideIntent, type RideIntent } from "@/lib/domain/ride-intent"
+import { isRideIntent, migrateRideIntent, type RideIntent } from "@/lib/domain/ride-intent"
 
 /**
  * Wave 1 checkpoints **authored intent only**.
@@ -53,11 +53,15 @@ export class RideCheckpointStore {
 
   async load(): Promise<CheckpointLoad> {
     try {
-      const value = await this.database.checkpoints.get("active")
+      const value = await this.database.checkpoints.get("active") as (RideCheckpoint & { intent: unknown }) | undefined
       if (!value) return { status: "empty" }
       if (value.version !== 1) return { status: "incompatible" }
-      if (typeof value.token !== "string" || !value.token || !validInput(value)) return { status: "invalid" }
-      return { status: "restored", checkpoint: value }
+      if (typeof value.token !== "string" || !value.token) return { status: "invalid" }
+      const intent = migrateRideIntent(value.intent)
+      if (!intent) return { status: "invalid" }
+      const checkpoint: RideCheckpoint = { ...value, intent }
+      if (!validInput(checkpoint)) return { status: "invalid" }
+      return { status: "restored", checkpoint }
     } catch { return { status: "unavailable" } }
   }
 
