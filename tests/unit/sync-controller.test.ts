@@ -39,6 +39,7 @@ function route(id = "route-sync-1"): SavedRoute {
     folder: "Unfiled",
     tags: [],
     visible: true,
+    libraryProvenance: { kind: "planned" },
     createdAt: "2026-08-12T10:00:00.000Z",
     updatedAt: "2026-08-12T10:00:00.000Z"
   }
