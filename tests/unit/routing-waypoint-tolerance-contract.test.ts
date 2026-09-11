@@ -18,12 +18,13 @@ describe("route waypoint tolerance authority", () => {
   it("deduplicates an advisor stop through the shared routing predicate", () => {
     const existing = [{ lat: 40.2, lon: -75.2, label: "Existing" }]
     const stop = {
-      placeId: "same-stop",
+      id: "same-stop",
       name: "Same stop",
       kind: "food" as const,
       anchor: { lat: 40.2, lon: -75.2 },
       routeProgress: 0.5,
-      reason: "grounded"
+      reason: "grounded",
+      citations: []
     }
 
     expect(mergeAdvisorStopIntoVia(existing, stop, [[-75.2, 40.2], [-75.3, 40.3]]))
