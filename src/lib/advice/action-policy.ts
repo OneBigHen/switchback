@@ -54,7 +54,7 @@ const STOP_EXCLUSION = new RegExp(
   String.raw`\b(?:without|avoid(?:ing)?(?:\s+(?:any|the))?|away\s+from(?:\s+(?:any|the))?|skip(?:\s+(?:any|the))?|no)\s+${STOP_NOUN_PATTERN}\b`,
   "i"
 )
-const HYPOTHETICAL_ACTION = /\b(?:what\s+if\b|if\s+(?:i|we|you)\b|would\s+(?:a|it|this|that|you)\b|could\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b|do\s+not\b|don't\b|do\s+not\s+want\b)\b/i
+const HYPOTHETICAL_ACTION = /\b(?:if\b|would\s+(?:a|it|this|that|you)\b|could\s+(?:a|it|this|that|you)\b|should\s+i\b|is\s+there\b|do\s+not\b|don't\b|do\s+not\s+want\b)\b/i
 
 export interface AdvisorRouteEvidence {
   selected: { id: string; geometry: Coordinate[]; canonicalSegmentRefs?: { canonicalSegmentUid: string; lengthMeters: number }[] }
