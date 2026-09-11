@@ -3,7 +3,7 @@ import { buildAnchorSets, type CorridorEnvelope } from "@/lib/routing/destinatio
 import { generateCorridorCandidates } from "@/lib/routing/candidate-generator"
 import type { GravelAtlasCorridor } from "@/lib/routing/gravel-atlas"
 import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
-import type { Coordinate } from "@/lib/routing/types"
+import type { Coordinate, GravelAtlasIntensity } from "@/lib/routing/types"
 
 const start: Coordinate = [-75.20, 40.20]
 const finish: Coordinate = [-75.00, 40.20]
@@ -28,6 +28,17 @@ function atlasCorridor(overrides: Partial<GravelAtlasCorridor> = {}): GravelAtla
     verification: "routable",
     sourceIds: ["pa-atlas:1"],
     ...overrides
+  }
+}
+
+function atlasSources(
+  corridors: GravelAtlasCorridor[],
+  intensity: GravelAtlasIntensity = "maximum",
+  enabled = true
+) {
+  return {
+    preference: { enabled, intensity },
+    corridors
   }
 }
 
@@ -58,7 +69,7 @@ describe("PA Gravel Atlas candidate integration", () => {
       curvatureSegments: [],
       gpxRoutes: [],
       hints: [],
-      gravelAtlasCorridors: [atlas]
+      gravelAtlas: atlasSources([atlas])
     })
 
     expect(sets).toHaveLength(1)
@@ -75,10 +86,55 @@ describe("PA Gravel Atlas candidate integration", () => {
       curvatureSegments: [],
       gpxRoutes: [],
       hints: [],
-      gravelAtlasCorridors: [atlasCorridor({ verification: "unverified" })]
+      gravelAtlas: atlasSources([atlasCorridor({ verification: "unverified" })])
     })
 
     expect(sets).toEqual([])
+  })
+
+  it("cannot inject atlas candidates when the rider preference is disabled", () => {
+    const sets = buildAnchorSets(start, finish, envelope, {
+      curvatureSegments: [],
+      gpxRoutes: [],
+      hints: [],
+      gravelAtlas: atlasSources([atlasCorridor()], "maximum", false)
+    })
+
+    expect(sets).toEqual([])
+  })
+
+  it.each([
+    ["balanced", 1],
+    ["more", 2],
+    ["maximum", 3]
+  ] as const)("bounds %s atlas exploration to %i corridor candidates", (intensity, expected) => {
+    const corridors = [
+      atlasCorridor({
+        id: "west",
+        geometry: [[-75.19, 40.205], [-75.18, 40.205]],
+        sourceIds: ["pa-atlas:west"]
+      }),
+      atlasCorridor({
+        id: "center",
+        geometry: [[-75.12, 40.22], [-75.11, 40.22]],
+        sourceIds: ["pa-atlas:center"]
+      }),
+      atlasCorridor({
+        id: "east",
+        geometry: [[-75.04, 40.205], [-75.03, 40.205]],
+        sourceIds: ["pa-atlas:east"]
+      })
+    ]
+
+    const sets = buildAnchorSets(start, finish, envelope, {
+      curvatureSegments: [],
+      gpxRoutes: [],
+      hints: [],
+      gravelAtlas: atlasSources(corridors, intensity)
+    })
+
+    expect(sets).toHaveLength(expected)
+    expect(sets.every((set) => set.source === "gravel-atlas")).toBe(true)
   })
 
   it("preserves gravel-atlas provenance when an anchor set becomes a routing candidate", () => {
@@ -86,7 +142,7 @@ describe("PA Gravel Atlas candidate integration", () => {
       curvatureSegments: [],
       gpxRoutes: [],
       hints: [],
-      gravelAtlasCorridors: [atlasCorridor()]
+      gravelAtlas: atlasSources([atlasCorridor()])
     })
     expect(set).toBeDefined()
 
