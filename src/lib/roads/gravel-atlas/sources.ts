@@ -94,6 +94,11 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+function arcGisFeature(value: unknown): ArcGisGeoJsonFeature | null {
+  const feature = record(value)
+  return feature ? feature as ArcGisGeoJsonFeature : null
+}
+
 function coordinate(value: unknown): Coordinate | null {
   if (!Array.isArray(value) || value.length < 2) return null
   const lon = value[0]
@@ -146,23 +151,30 @@ function isoDate(value: unknown): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
 }
 
+/**
+ * ArcGIS is an untrusted JSON boundary. Accept `unknown` here so every caller
+ * gets the same structural validation rather than having to cast service data.
+ */
 export function normalizePaPasda2012Feature(
-  feature: ArcGisGeoJsonFeature
+  value: unknown
 ): GravelEvidenceObservation | null {
-  if (feature.type !== "Feature") return null
+  const feature = arcGisFeature(value)
+  if (!feature || feature.type !== "Feature") return null
   const properties = record(feature.properties)
   const geometry = lineStringGeometry(feature.geometry)
   if (!properties || !geometry) return null
   const id = featureId(properties, feature)
   if (!id) return null
+  const roadName = stringValue(properties.NAME)
+  const county = stringValue(properties.COUNTY)
 
   return {
     sourceId: "pa-pasda-2012",
     sourceFeatureId: id,
     region: "PA",
     geometry,
-    ...(stringValue(properties.NAME) ? { roadName: stringValue(properties.NAME) } : {}),
-    ...(stringValue(properties.COUNTY) ? { county: stringValue(properties.COUNTY) } : {}),
+    ...(roadName ? { roadName } : {}),
+    ...(county ? { county } : {}),
     surfaceEvidence: "unpaved",
     accessEvidence: "unknown",
     statusEvidence: "unknown",
@@ -170,10 +182,12 @@ export function normalizePaPasda2012Feature(
   }
 }
 
+/** Validate NJGIN service JSON before applying the official U/A/N evidence gate. */
 export function normalizeNjginUnimprovedFeature(
-  feature: ArcGisGeoJsonFeature
+  value: unknown
 ): GravelEvidenceObservation | null {
-  if (feature.type !== "Feature") return null
+  const feature = arcGisFeature(value)
+  if (!feature || feature.type !== "Feature") return null
   const properties = record(feature.properties)
   const geometry = lineStringGeometry(feature.geometry)
   if (!properties || !geometry) return null
@@ -190,13 +204,15 @@ export function normalizeNjginUnimprovedFeature(
   if (!id) return null
 
   const updated = isoDate(properties.DATEUPDATE)
+  const roadName = stringValue(properties.PRIMENAME)
+  const jurisdiction = stringValue(properties.JURISDICTN)
   return {
     sourceId: "njgin-ng911",
     sourceFeatureId: id,
     region: "NJ",
     geometry,
-    ...(stringValue(properties.PRIMENAME) ? { roadName: stringValue(properties.PRIMENAME) } : {}),
-    ...(stringValue(properties.JURISDICTN) ? { jurisdiction: stringValue(properties.JURISDICTN) } : {}),
+    ...(roadName ? { roadName } : {}),
+    ...(jurisdiction ? { jurisdiction } : {}),
     surfaceEvidence: "unimproved",
     accessEvidence: "non-restricted",
     statusEvidence: "active",
