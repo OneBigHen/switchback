@@ -27,6 +27,18 @@ export type RouteProfileId =
 /** Toll exposure policy: disclose on the route by default, or hard-avoid. */
 export type TollPolicy = "allow-with-warning" | "avoid"
 
+export type GravelAtlasIntensity = "balanced" | "more" | "maximum"
+
+/**
+ * Rider opt-in for verified PA Gravel Atlas route attraction. The atlas is a
+ * source of surface/corridor evidence only; legal access stays owned by the
+ * live motorcycle routing graph.
+ */
+export interface GravelAtlasPreference {
+  enabled: boolean
+  intensity: GravelAtlasIntensity
+}
+
 /** Which progressive API call this request/response belongs to. */
 export type CandidateSet = "primary" | "alternatives"
 
@@ -95,6 +107,11 @@ export interface RouteRequest {
   targetMinutes?: number
   /** Defaults to `allow-with-warning`; `avoid` rejects toll exposure. */
   tollPolicy?: TollPolicy
+  /**
+   * Optional PA Gravel Atlas routing preference. Normalization defaults this
+   * off and only permits attraction for Adventure/Gravel profiles.
+   */
+  gravelAtlas?: GravelAtlasPreference
   /**
    * Active road locks for this plan. Locks preserve rider intent across
    * replans and graph updates: a `must` lock invalidates the route when
