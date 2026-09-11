@@ -4,6 +4,7 @@ import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 import { requestGraphHopperRoutes } from "@/lib/routing/graphhopper"
 import { createHybridRouteProvider } from "@/lib/routing/hybrid"
 import { requestValhallaRoutes, enrichWithElevations } from "@/lib/routing/valhalla"
+import { createGravelAtlasAwareProvider } from "@/lib/routing/gravel-atlas-provider"
 import { createRouteJobLimiter } from "@/lib/server/route-job-limiter"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { createRouteCache } from "@/lib/server/route-cache"
@@ -65,8 +66,8 @@ function gravelAtlasBounds(request: RouteRequest): {
 /**
  * Phase 4 corridor sources: curvature database segments near the request,
  * known-good GPX route geometries, optional research hints, and (when the
- * rider explicitly opts in) graph-fresh PA Gravel Atlas corridors. Every
- * source degrades to empty evidence rather than failing normal routing.
+ * rider explicitly opts in) graph-fresh Gravel Atlas corridors. Every source
+ * degrades to empty evidence rather than failing normal routing.
  */
 async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCandidates> {
   const sources: CorridorSourceCandidates = { curvatureSegments: [], gpxRoutes: [], hints: [] }
@@ -149,7 +150,7 @@ async function handleRoutePost(request: Request): Promise<Response> {
   const valhallaUrl = process.env.VALHALLA_URL
   const elevationUrl = process.env.VALHALLA_ELEVATION_URL
 
-  const provider = createHybridRouteProvider({
+  const baseProvider = createHybridRouteProvider({
     graphHopper: (routeRequest, providerOptions) => providerLimiter.run(
       () => requestGraphHopperRoutes(routeRequest, {
         baseUrl: routerBaseUrl,
@@ -179,6 +180,7 @@ async function handleRoutePost(request: Request): Promise<Response> {
       })
     } : {})
   })
+  const provider = createGravelAtlasAwareProvider(baseProvider, resolveCorridors)
 
   return handleRouteRequest(
     request,
