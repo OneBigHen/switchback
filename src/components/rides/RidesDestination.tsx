@@ -1,5 +1,6 @@
 "use client"
 
+import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { RoadLock, RoadLockMode } from "@/lib/roads/road-locks"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import type { SavedRoute } from "@/lib/storage/route-library"
@@ -19,6 +20,8 @@ export interface RidesDestinationProps {
   routes: SavedRoute[]
   recordedRides?: RecordedRide[]
   trips?: TripPlan[]
+  /** @deprecated Shared catalog routes no longer belong to My Rides and are ignored. */
+  projectRoutes?: ProjectGpxRouteSummary[]
   onClose(): void
   onLoad(route: SavedRoute): void
   onLoadTrip?(route: TripPlan): void
@@ -26,6 +29,8 @@ export interface RidesDestinationProps {
   onMatchImported?(route: SavedRoute): void
   onLoadRecorded?(ride: RecordedRide): void
   onDeleteRecorded?(ride: RecordedRide): void
+  /** @deprecated Shared catalog routes are opened from Route Library, never My Rides. */
+  onLoadProject?(route: ProjectGpxRouteSummary): void
   onDelete(route: SavedRoute): void
   onOrganize?(route: SavedRoute, organization: {
     folder?: string
