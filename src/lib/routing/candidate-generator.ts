@@ -43,6 +43,7 @@ function cloneWaypoint(point: Waypoint): Waypoint {
 
 function sourceForAnchorSet(source: AnchorSet["source"]): RouteCandidateSource {
   if (source === "rig") return "rig"
+  if (source === "gravel-atlas") return "gravel-atlas"
   if (source === "gpx" || source === "hint") return "community"
   return "road-character"
 }
