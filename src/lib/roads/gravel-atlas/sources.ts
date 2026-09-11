@@ -12,6 +12,8 @@ export interface GravelAtlasSourcePolicy {
   serviceUrl: string
   where: string
   outFields: readonly string[]
+  /** ArcGIS layer-advertised maximum records per query response. */
+  maxRecordCount: number
   updateCadence: "as-needed" | "monthly"
   accessAuthority: "none" | "explicit"
   redistribution: "permission-required" | "attribution-requested"
@@ -30,9 +32,10 @@ export const GRAVEL_ATLAS_SOURCE_POLICIES: Record<
   "pa-pasda-2012": {
     region: "PA",
     label: "PASDA Unpaved Roads of Pennsylvania (2012)",
-    serviceUrl: "https://maps.pasda.psu.edu/ArcGIS/rest/services/pasda/PennsylvaniaStateUniversity3/MapServer/1",
+    serviceUrl: "https://mapservices.pasda.psu.edu/server/rest/services/pasda/PennsylvaniaStateUniversity3/MapServer/1",
     where: "1=1",
     outFields: ["OBJECTID", "LENGTH", "COUNTY", "INSPECTED", "NAME"],
+    maxRecordCount: 1_000,
     updateCadence: "as-needed",
     accessAuthority: "none",
     redistribution: "permission-required",
@@ -57,6 +60,7 @@ export const GRAVEL_ATLAS_SOURCE_POLICIES: Record<
       "SURFACETYP",
       "DATEUPDATE"
     ],
+    maxRecordCount: 2_000,
     updateCadence: "monthly",
     accessAuthority: "explicit",
     redistribution: "attribution-requested",
@@ -234,7 +238,7 @@ export function buildArcGisGeoJsonPageUrl(
   if (!Number.isInteger(recordCount) || recordCount < 1) throw new Error("ArcGIS page size must be a positive integer")
 
   const policy = GRAVEL_ATLAS_SOURCE_POLICIES[sourceId]
-  const boundedCount = Math.min(recordCount, 2_000)
+  const boundedCount = Math.min(recordCount, policy.maxRecordCount)
   const url = new URL(`${policy.serviceUrl}/query`)
   url.searchParams.set("where", policy.where)
   url.searchParams.set("outFields", policy.outFields.join(","))
