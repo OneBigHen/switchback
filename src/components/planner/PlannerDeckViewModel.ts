@@ -3,7 +3,7 @@ import type { RoutePlanSummary } from "@/lib/client/route-entity-cache"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock } from "@/lib/roads/road-locks"
-import type { PlannedRoute, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { GravelAtlasPreference, PlannedRoute, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { PlannerError, PlannerPointId, PlannerStatus, PlanningPhase } from "@/stores/planner-store"
 
 export type PlanMode = "destination" | "loop"
@@ -54,6 +54,7 @@ export interface PlannerRideConfigViewModel {
   curvatureVisible: boolean
   avoidHighways: boolean
   tollPolicy: TollPolicy
+  gravelAtlas: GravelAtlasPreference
   segmentProfiles: RouteProfileId[]
   avoidAreaCount: number
 }
@@ -147,6 +148,7 @@ export interface PlannerRideConfigCommands {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTollPolicyChange(policy: TollPolicy): void
+  onGravelAtlasChange(preference: GravelAtlasPreference): void
   onSegmentProfileChange(index: number, profile: RouteProfileId): void
   onRemoveAvoidArea(): void
   onAddRoadLock(lock: RoadLock): void
@@ -203,6 +205,7 @@ export function buildPlannerDeckViewModel(state: {
   curvatureVisible: boolean
   avoidHighways: boolean
   tollPolicy: TollPolicy
+  gravelAtlas: GravelAtlasPreference
   savedCount: number
   via: Waypoint[]
   addingVia: boolean
@@ -254,6 +257,7 @@ export function buildPlannerDeckViewModel(state: {
       curvatureVisible: state.curvatureVisible,
       avoidHighways: state.avoidHighways,
       tollPolicy: state.tollPolicy,
+      gravelAtlas: state.gravelAtlas,
       segmentProfiles: state.segmentProfiles,
       avoidAreaCount: state.avoidAreaCount
     },
