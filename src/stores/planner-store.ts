@@ -236,6 +236,16 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+interface RideUpdateSnapshot {
+  committedRide: RideHistory
+  plan: RoutePlanSummary | null
+  selectedRouteId: string | null
+  selectionSource: "user" | "automatic"
+  resultIdentity: PlanningResultIdentity | null
+  /** The planning request that owns the snapshot, when it has committed. */
+  expectedRequestId?: number
+}
+
 interface PlannerState extends RideIntent {
   recoveryStatus: RecoveryStatus
   restoreRide(checkpoint: RideCheckpointInput, expectedIdentity: string): boolean
@@ -314,6 +324,8 @@ interface PlannerState extends RideIntent {
   setPlanningPhase(phase: PlanningPhase): void
   cancelPlanning(): void
   cancelRideUpdate(): void
+  /** Restore an abandoned update only while its original intent/request owns the planner. */
+  restoreRideUpdate(snapshot: RideUpdateSnapshot, expectedIdentity: string): boolean
   selectRoute(id: string): void
   /** Automatic selection (planner defaults, late alternatives, learned
    *  re-ranking). Never overrides an explicit user selection. */
@@ -674,6 +686,41 @@ export const usePlannerStore = create<PlannerState>()(
           committedRide: committed
         }
       }),
+      restoreRideUpdate: (snapshot, expectedIdentity) => {
+        let restored = false
+        set((state) => {
+          if (state.rideHistory.identity !== expectedIdentity) return {}
+          if (snapshot.expectedRequestId !== undefined) {
+            const currentRequestId = state.pendingResultIdentity?.requestId ?? state.resultIdentity?.requestId
+            if (currentRequestId !== snapshot.expectedRequestId) return {}
+          }
+          const projected = applyIntentEdit(state, snapshot.committedRide.intent, "Cancelled ride change")
+          if (Object.keys(projected).length === 0 || !projected.rideHistory) return {}
+          restored = true
+          const projectedHistory = projected.rideHistory
+          const lastChange = projectedHistory.lastChange
+            ? { ...projectedHistory.lastChange, resultingIdentity: snapshot.committedRide.identity }
+            : null
+          return {
+            ...projected,
+            rideHistory: {
+              ...projectedHistory,
+              identity: snapshot.committedRide.identity,
+              lastChange
+            },
+            committedRide: snapshot.committedRide,
+            plan: snapshot.plan,
+            selectedRouteId: snapshot.selectedRouteId,
+            selectionSource: snapshot.selectionSource,
+            resultIdentity: snapshot.resultIdentity,
+            pendingResultIdentity: null,
+            status: snapshot.plan ? "ready" as const : "idle" as const,
+            error: null,
+            isRecalculating: false
+          }
+        })
+        return restored
+      },
       selectRoute: (selectedRouteId) => set({ selectedRouteId, selectionSource: "user" as const }),
       // Automatic selection must never replace an explicit user pick (SB-005);
       // enforced here so every call site is safe by construction.

@@ -1,4 +1,5 @@
-import type { Coordinate } from "./types"
+import { providerResolvedWaypointFor } from "./route-waypoint-evidence"
+import type { Coordinate, Waypoint } from "./types"
 
 export interface GeometryAnalysis {
   twistiness: number
@@ -244,6 +245,40 @@ export function pointToSegmentDistanceMeters(
   const cx = ax + t * dx
   const cy = ay + t * dy
   return haversine([cx / cosLat, cy], point)
+}
+
+/**
+ * Maximum distance between routed geometry and the route-visit evidence point.
+ * This is deliberately independent from advisor stop de-duplication: input
+ * editing and provider route proof are separate trust decisions.
+ */
+const ROUTE_WAYPOINT_TOLERANCE_METERS = 25
+
+/**
+ * Whether routed geometry demonstrably passes a grounded logical waypoint.
+ * Provider-resolved waypoint coordinates are accepted only when the route
+ * cache associated them with this exact geometry and the geometry itself also
+ * passes that resolved point. When provider evidence is absent or merely the
+ * request-coordinate fallback, proof remains anchored to the raw waypoint.
+ */
+export function routePassesNearWaypoint(
+  geometry: readonly Coordinate[],
+  waypoint: Waypoint
+): boolean {
+  if (!Number.isFinite(waypoint.lat) || !Number.isFinite(waypoint.lon)) return false
+  const evidence = providerResolvedWaypointFor(geometry, waypoint) ?? waypoint
+  const point: Coordinate = [evidence.lon, evidence.lat]
+  if (geometry.length === 1) {
+    const only = geometry[0]!
+    return Number.isFinite(only[0]) && Number.isFinite(only[1]) &&
+      haversine(point, only) <= ROUTE_WAYPOINT_TOLERANCE_METERS
+  }
+  for (let index = 1; index < geometry.length; index += 1) {
+    if (pointToSegmentDistanceMeters(point, geometry[index - 1]!, geometry[index]!) <= ROUTE_WAYPOINT_TOLERANCE_METERS) {
+      return true
+    }
+  }
+  return false
 }
 
 /**

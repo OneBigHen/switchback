@@ -153,6 +153,27 @@ export function usePlanningOrchestrator({ onWarning }: PlanningOrchestratorOptio
   }, [clearPendingReplan, plan])
 
   /**
+   * Selecting a displayed route is newer rider intent even though it does not
+   * change the RideIntent identity. Every manual selection surface — route
+   * cards, map ribbons, advisor choices, and future selectors — writes through
+   * the same canonical store command, so fence provider ownership here instead
+   * of requiring each surface to remember a private request gate.
+   *
+   * Zustand listeners run synchronously with the store update. Invalidating at
+   * this authority boundary therefore aborts/fences an older provider answer
+   * before that answer can commit over the route the rider just chose.
+   */
+  useEffect(() => usePlannerStore.subscribe((state, previous) => {
+    if (state.selectionSource !== "user") return
+    if (
+      previous.selectionSource !== "user"
+      || state.selectedRouteId !== previous.selectedRouteId
+    ) {
+      gate.invalidate()
+    }
+  }), [gate])
+
+  /**
    * A recovered ride is authored intent, not a stored answer: the checkpoint
    * deliberately keeps no route geometry. So once recovery lands, ask for the
    * route again — otherwise "refresh restores your ride" would hand the rider

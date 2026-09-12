@@ -41,6 +41,100 @@ export function riderFeatureLayerIds(id: RiderLayerId): string[] {
   return [`switchback-${id}-fill`, `switchback-${id}-lines`, `switchback-${id}-points`]
 }
 
+// E2E-only diagnostic seam: read-only observation of the MapLibre sources this
+// module maintains. Route regressions must be proven against the real
+// rendering authority (for example the "switchback-routes" GeoJSON source),
+// not just route-card text or selected IDs.
+//
+// Inert in normal production runs: Next.js inlines process.env.NODE_ENV at
+// build time, so a production bundle constant-folds `mapDebugEnabled` to
+// false, eliminates every guarded branch, and never exposes
+// `window.__switchbackMapSourcesDebug`. The seam is purely observational: it
+// reads existing source data, asks the map camera where a coordinate lands, and
+// counts the setData calls this module already performs. It never mirrors route
+// geometry into a second state authority and contains no route-specific logic.
+export interface SwitchbackMapSourcesDebug {
+  /** Current GeoJSON data of an existing source, or null when it is absent. */
+  getSourceData(sourceId: string): Promise<unknown | null>
+  /** Number of setData updates recorded for a source since its map registered. */
+  getUpdateCount(sourceId: string): number
+  /** Clear recorded update counters (never touches source data). */
+  resetUpdateCounts(): void
+  /** Ids of every source currently registered on the map style. */
+  listSourceIds(): string[]
+  /**
+   * Canvas pixel position of a [lng, lat] coordinate, or null when the map
+   * cannot project yet. Read-only camera query so e2e tests can click real
+   * rendered geometry instead of guessing at pixels.
+   */
+  projectCoordinate(coordinate: [number, number]): { x: number; y: number } | null
+  /**
+   * Whether MapLibre has finished loading its style and sources. A style that
+   * never loads (for example when the worker bundle is missing) makes every
+   * hit-test query return nothing, so e2e reports this on a failed click.
+   */
+  loadState(): { loaded: boolean; styleLoaded: boolean; routeSourceLoaded: boolean }
+}
+
+declare global {
+  interface Window {
+    __switchbackMapSourcesDebug?: SwitchbackMapSourcesDebug
+  }
+}
+
+const mapDebugEnabled = process.env.NODE_ENV !== "production"
+const mapUpdateCounts = new WeakMap<MapLibreMap, Map<string, number>>()
+const debugRegisteredMaps = new WeakSet<MapLibreMap>()
+
+function registerMapSourcesDebug(map: MapLibreMap) {
+  if (!mapDebugEnabled || typeof window === "undefined" || debugRegisteredMaps.has(map)) return
+  debugRegisteredMaps.add(map)
+  window.__switchbackMapSourcesDebug = {
+    getSourceData(sourceId: string) {
+      const source = map.getSource(sourceId)
+      if (!source || source.type !== "geojson") return Promise.resolve(null)
+      return (source as GeoJSONSource).getData()
+    },
+    getUpdateCount(sourceId: string) {
+      return mapUpdateCounts.get(map)?.get(sourceId) ?? 0
+    },
+    resetUpdateCounts() {
+      mapUpdateCounts.get(map)?.clear()
+    },
+    listSourceIds() {
+      return Object.keys(map.getStyle().sources)
+    },
+    projectCoordinate(coordinate: [number, number]) {
+      const point = map.project(coordinate)
+      return { x: point.x, y: point.y }
+    },
+    loadState() {
+      return {
+        loaded: map.loaded(),
+        styleLoaded: map.isStyleLoaded() === true,
+        routeSourceLoaded: map.isSourceLoaded("switchback-routes") === true
+      }
+    }
+  }
+}
+
+function setGeoJsonSourceData(
+  map: MapLibreMap,
+  sourceId: string,
+  data: Parameters<GeoJSONSource["setData"]>[0]
+) {
+  const source = geoJsonSource(map, sourceId)
+  if (!source) return
+  source.setData(data)
+  if (!mapDebugEnabled) return
+  let counts = mapUpdateCounts.get(map)
+  if (!counts) {
+    counts = new Map()
+    mapUpdateCounts.set(map, counts)
+  }
+  counts.set(sourceId, (counts.get(sourceId) ?? 0) + 1)
+}
+
 
 function riderLayerColor(id: RiderLayerId): string {
   switch (id) {
@@ -113,13 +207,14 @@ export function updateRiderMapLayerPresentation(
 }
 
 export function updatePlannerSources(map: MapLibreMap, props: PlannerMapSourceProps) {
+  if (mapDebugEnabled) registerMapSourcesDebug(map)
   const visibleRoutes = props.rideMode ? props.routes.filter((route) => route.id === props.selectedRouteId) : props.routes
   const progressPercent = props.rideMode && props.navigationFrame ? props.navigationFrame.routePercent : undefined
   const previewRouteId = props.rideMode ? null : props.previewRouteId ?? null
-  geoJsonSource(map, "switchback-routes")?.setData(buildRouteFeatures(visibleRoutes, props.selectedRouteId, progressPercent, previewRouteId))
-  geoJsonSource(map, "switchback-route-labels")?.setData(buildRouteLabelFeatures(props.rideMode ? visibleRoutes : props.routes, props.selectedRouteId))
-  geoJsonSource(map, "switchback-waypoints")?.setData(buildWaypointFeatures(props.start, props.finish, props.via))
-  geoJsonSource(map, "switchback-avoid-areas")?.setData({
+  setGeoJsonSourceData(map, "switchback-routes", buildRouteFeatures(visibleRoutes, props.selectedRouteId, progressPercent, previewRouteId))
+  setGeoJsonSourceData(map, "switchback-route-labels", buildRouteLabelFeatures(props.rideMode ? visibleRoutes : props.routes, props.selectedRouteId))
+  setGeoJsonSourceData(map, "switchback-waypoints", buildWaypointFeatures(props.start, props.finish, props.via))
+  setGeoJsonSourceData(map, "switchback-avoid-areas", {
     type: "FeatureCollection",
     features: props.avoidAreas.map((area) => ({
       type: "Feature" as const,
@@ -127,7 +222,7 @@ export function updatePlannerSources(map: MapLibreMap, props: PlannerMapSourcePr
       geometry: { type: "Polygon" as const, coordinates: [[...area.polygon, area.polygon[0]!]] }
     }))
   })
-  geoJsonSource(map, "switchback-navigation")?.setData(props.navigationFrame ? buildNavigationMapFeatures(props.navigationFrame) : emptyFeatureCollection())
+  setGeoJsonSourceData(map, "switchback-navigation", props.navigationFrame ? buildNavigationMapFeatures(props.navigationFrame) : emptyFeatureCollection())
 }
 
 export function updateReferenceMapSource(
