@@ -6,11 +6,10 @@
  * Camera fitting and follow mode consume these insets instead of querying
  * the DOM or scattering per-breakpoint magic numbers.
  *
- * Parity contract: the calculator reproduces, exactly, the padding tables
- * previously hard-coded in `map-stage-navigation.ts` (`routeFitPadding`)
- * and `navigation-map.ts` (`navigationCameraOptions`). The golden values in
- * `map-viewport-insets.test.ts` pin that equality; later CINCO phases may
- * retune constants here without touching camera code.
+ * The compact and wide tables retain the legacy camera tuning. Medium is
+ * intentionally topology-aware: route fitting mirrors the adaptive planner
+ * footprint from `adaptive-workspace.css` so the camera cannot reserve a
+ * stale desktop-sized panel on tablets.
  */
 
 import {
@@ -20,7 +19,8 @@ import {
 import {
   WORKSPACE_COMPACT_MAX_WIDTH_PX,
   isCompactWorkspaceWidth,
-  readWorkspaceViewportWidth
+  readWorkspaceViewportWidth,
+  resolveWorkspaceMode
 } from "./workspace-mode"
 
 export interface MapViewportInsets {
@@ -54,8 +54,8 @@ export interface WorkspaceMapContext {
    */
   sheetDetent?: ContextSheetDetent
   /**
-   * Persistent left planning panel width (medium/wide workspace).
-   * Legacy fit padding reserved 500 px for this panel plus gutter.
+   * Explicit persistent planning-panel width override. Callers that can
+   * measure the panel may provide it; one camera gutter is added here.
    */
   workspacePanelWidthPx?: number
 }
@@ -72,9 +72,8 @@ export const MAP_VIEWPORT_GUTTER_PX = 24
 const NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX = WORKSPACE_COMPACT_MAX_WIDTH_PX + 1
 
 /*
- * Legacy-tuned occlusion constants. These reproduce today's visual camera
- * behavior exactly; Phase 2+ may retune them against the real sheet/panel
- * measurements once the CINCO layout lands.
+ * Legacy-tuned occlusion constants. Compact and wide keep these values while
+ * Medium derives its left occlusion from the rendered adaptive planner below.
  */
 const PLANNING_PANEL_LEFT_INSET_PX = 500
 const PLANNING_PHONE_SHEET_BOTTOM_INSET_PX = 450
@@ -89,6 +88,29 @@ const PLANNING_PHONE_SHEET_ANCHOR_PX = 84
  *  sheet math would otherwise consume the whole viewport. */
 const PLANNING_PHONE_FULL_MIN_MAP_PX = 60
 
+/*
+ * Medium planner geometry mirrors `adaptive-workspace.css` exactly:
+ *
+ * landscape: left 96px, width clamp(312px, 34vw, 400px)
+ * portrait:  left 16px, width clamp(320px, 42vw, 360px)
+ *
+ * Keep these values next to the camera calculator so a CSS topology change
+ * has one obvious regression surface: the golden tests in
+ * map-viewport-insets.test.ts and workspace-camera-boundary-adversarial.test.ts.
+ */
+const MEDIUM_LANDSCAPE_PLANNER_LEFT_PX = 96
+const MEDIUM_LANDSCAPE_PLANNER_MIN_WIDTH_PX = 312
+const MEDIUM_LANDSCAPE_PLANNER_MAX_WIDTH_PX = 400
+const MEDIUM_LANDSCAPE_PLANNER_WIDTH_FRACTION = 0.34
+const MEDIUM_PORTRAIT_PLANNER_LEFT_PX = 16
+const MEDIUM_PORTRAIT_PLANNER_MIN_WIDTH_PX = 320
+const MEDIUM_PORTRAIT_PLANNER_MAX_WIDTH_PX = 360
+const MEDIUM_PORTRAIT_PLANNER_WIDTH_FRACTION = 0.42
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
 function isShortLandscape(ctx: WorkspaceMapContext): boolean {
   return ctx.viewportHeightPx <= 520 && ctx.viewportWidthPx > ctx.viewportHeightPx
 }
@@ -101,9 +123,44 @@ function hasPersistentSideWorkspace(ctx: WorkspaceMapContext): boolean {
   return !isCompactWorkspaceWidth(workspaceWidth(ctx))
 }
 
+function mediumPlanningPanelLeftInset(ctx: WorkspaceMapContext): number {
+  const width = workspaceWidth(ctx)
+  const portrait = width < ctx.viewportHeightPx
+  if (portrait) {
+    const panelWidth = clamp(
+      width * MEDIUM_PORTRAIT_PLANNER_WIDTH_FRACTION,
+      MEDIUM_PORTRAIT_PLANNER_MIN_WIDTH_PX,
+      MEDIUM_PORTRAIT_PLANNER_MAX_WIDTH_PX
+    )
+    return Math.round(
+      MEDIUM_PORTRAIT_PLANNER_LEFT_PX + panelWidth + MAP_VIEWPORT_GUTTER_PX
+    )
+  }
+
+  const panelWidth = clamp(
+    width * MEDIUM_LANDSCAPE_PLANNER_WIDTH_FRACTION,
+    MEDIUM_LANDSCAPE_PLANNER_MIN_WIDTH_PX,
+    MEDIUM_LANDSCAPE_PLANNER_MAX_WIDTH_PX
+  )
+  return Math.round(
+    MEDIUM_LANDSCAPE_PLANNER_LEFT_PX + panelWidth + MAP_VIEWPORT_GUTTER_PX
+  )
+}
+
+function planningPanelLeftInset(ctx: WorkspaceMapContext): number {
+  if (ctx.workspacePanelWidthPx != null) {
+    return ctx.workspacePanelWidthPx + MAP_VIEWPORT_GUTTER_PX
+  }
+  if (resolveWorkspaceMode(workspaceWidth(ctx)) === "medium") {
+    return mediumPlanningPanelLeftInset(ctx)
+  }
+  return PLANNING_PANEL_LEFT_INSET_PX
+}
+
 /**
  * Insets for fitting a selected route into the unobscured map area.
- * Golden-parity replacement for `routeFitPadding`.
+ * Compact/wide retain the legacy tuning; Medium tracks adaptive planner
+ * geometry rather than inheriting the old fixed desktop reservation.
  */
 export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewportInsets {
   const persistentSideWorkspace = hasPersistentSideWorkspace(ctx)
@@ -111,22 +168,15 @@ export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewpor
     if (persistentSideWorkspace) {
       return ctx.mode === "ride"
         ? { top: 80, right: 40, bottom: 150, left: 40 }
-        : { top: 40, right: 40, bottom: 40, left: PLANNING_PANEL_LEFT_INSET_PX }
+        : { top: 40, right: 40, bottom: 40, left: planningPanelLeftInset(ctx) }
     }
     return ctx.mode === "ride"
       ? { top: 72, right: 24, bottom: 150, left: 24 }
       : { top: 24, right: 24, bottom: PLANNING_SHORT_LANDSCAPE_BOTTOM_INSET_PX, left: 24 }
   }
   if (persistentSideWorkspace) {
-    // Medium/wide planning reserves the persistent left workspace panel.
     if (ctx.mode === "planning") {
-      const leftInset = ctx.workspacePanelWidthPx != null
-        // Measured panel plus one gutter of breathing room.
-        ? ctx.workspacePanelWidthPx + MAP_VIEWPORT_GUTTER_PX
-        // Legacy tuning: the deck panel reservation already includes its
-        // own gutter; keep it verbatim when no measurement exists.
-        : PLANNING_PANEL_LEFT_INSET_PX
-      return { top: 80, right: 70, bottom: 80, left: leftInset }
+      return { top: 80, right: 70, bottom: 80, left: planningPanelLeftInset(ctx) }
     }
     return { top: 80, right: 70, bottom: 80, left: 70 }
   }
