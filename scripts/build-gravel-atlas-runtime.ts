@@ -31,11 +31,10 @@ function parseInput(value: unknown): { graphFingerprint: string; corridors: Veri
 }
 
 async function main() {
-  const inputPath = argument("input")
-  if (!inputPath) throw new Error("Use --input=<verified-corridors.json>")
+  const inputPath = path.resolve(argument("input") ?? "data/gravel-atlas-verified.json")
   const stagingDatabasePath = path.resolve(argument("staging") ?? "data/gravel-atlas-sources.sqlite")
   const databasePath = path.resolve(argument("database") ?? "data/gravel-atlas.sqlite")
-  const input = parseInput(JSON.parse(await readFile(path.resolve(inputPath), "utf8")) as unknown)
+  const input = parseInput(JSON.parse(await readFile(inputPath, "utf8")) as unknown)
 
   const result = buildGravelAtlasRuntimeDatabase({
     stagingDatabasePath,
