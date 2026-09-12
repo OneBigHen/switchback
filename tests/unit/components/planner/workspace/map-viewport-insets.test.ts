@@ -26,9 +26,11 @@ const TABLET_LANDSCAPE = { viewportWidthPx: 1024, viewportHeightPx: 768 }
 const TABLET_PORTRAIT = { viewportWidthPx: 768, viewportHeightPx: 1024 }
 
 describe("calculateMapViewportInsets — route-fit goldens", () => {
-  it("matches short-landscape medium fit padding", () => {
+  it("reserves the rendered medium planner in short landscape", () => {
+    // adaptive-workspace.css at 844px: 96px left + clamped 312px planner
+    // + one 24px camera gutter = 432px.
     expect(calculateMapViewportInsets({ ...PHONE_LANDSCAPE, mode: "planning" }))
-      .toEqual({ top: 40, right: 40, bottom: 40, left: 500 })
+      .toEqual({ top: 40, right: 40, bottom: 40, left: 432 })
     expect(calculateMapViewportInsets({ ...PHONE_LANDSCAPE, mode: "ride" }))
       .toEqual({ top: 80, right: 40, bottom: 150, left: 40 })
   })
@@ -147,8 +149,9 @@ describe("camera breakpoint parity", () => {
     const viewport = { viewportWidthPx: 780, viewportHeightPx: 900 }
     expect(calculateNavigationFollowInsets(viewport))
       .toEqual({ top: 150, right: 88, bottom: 100, left: 430 })
+    // Medium portrait at 780px: 16px left + 42vw (328px rounded) + 24px gutter.
     expect(calculateMapViewportInsets({ ...viewport, mode: "planning" }))
-      .toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
+      .toEqual({ top: 80, right: 70, bottom: 80, left: 368 })
   })
 })
 
