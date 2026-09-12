@@ -41,9 +41,9 @@ export function riderFeatureLayerIds(id: RiderLayerId): string[] {
   return [`switchback-${id}-fill`, `switchback-${id}-lines`, `switchback-${id}-points`]
 }
 
-
 function riderLayerColor(id: RiderLayerId): string {
   switch (id) {
+    case "gravel-atlas": return "#B88955"
     case "public-land":
     case "mvum":
     case "camping": return "#3D8B55"
@@ -60,6 +60,30 @@ function riderLayerColor(id: RiderLayerId): string {
   }
 }
 
+/**
+ * Keep road-surface evidence visually distinct from generic contextual layers.
+ * The dash treatment matches the Gravel Atlas legend and prevents an official
+ * surface-evidence line from looking like a route or a legal-access boundary.
+ */
+export function riderLayerLinePaint(id: RiderLayerId) {
+  const paint: {
+    "line-color": string
+    "line-width": number
+    "line-opacity": number
+    "line-dasharray"?: number[]
+  } = {
+    "line-color": riderLayerColor(id),
+    "line-width": 2.5,
+    "line-opacity": 0.8
+  }
+  if (id === "gravel-atlas") {
+    paint["line-width"] = 3
+    paint["line-opacity"] = 0.9
+    paint["line-dasharray"] = [2, 1.5]
+  }
+  return paint
+}
+
 export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer) {
   map.addSource(RIDER_FEATURE_SOURCE, { type: "geojson", data: emptyFeatureCollection() })
   for (const id of featureMapLayerIds) {
@@ -73,7 +97,7 @@ export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer
     renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[1], type: "line", source: RIDER_FEATURE_SOURCE, filter,
       layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": color, "line-width": 2.5, "line-opacity": 0.8 }
+      paint: riderLayerLinePaint(id)
     }, { slot: "middle", beforeId: "switchback-route-shadow" })
     renderer.addLayer(map, {
       id: riderFeatureLayerIds(id)[2], type: "circle", source: RIDER_FEATURE_SOURCE, filter,
