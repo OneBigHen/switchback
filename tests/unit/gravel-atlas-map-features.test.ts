@@ -6,6 +6,13 @@ import {
 
 const bounds = { west: -75.4, south: 40.0, east: -74.7, north: 40.7 }
 
+const buildMetadata = {
+  schemaVersion: 1,
+  sourceFingerprint: "a".repeat(64),
+  graphFingerprint: "graph-2026-09-11",
+  corridorCount: 43
+}
+
 const corridor = {
   id: "corridor-1",
   label: "Ridge gravel",
@@ -32,7 +39,7 @@ describe("Gravel Atlas viewport features", () => {
       bounds,
       layers: ["gravel-atlas"]
     }, {
-      repository: { queryBounds },
+      repository: { queryBounds, readBuildMetadata: () => buildMetadata },
       graphFingerprint: "graph-2026-09-11",
       sourceFingerprint: "a".repeat(64),
       limit: 500
@@ -66,7 +73,7 @@ describe("Gravel Atlas viewport features", () => {
   it("does not query the Atlas when the map layer was not requested", async () => {
     const queryBounds = vi.fn(() => [corridor])
     const result = await getGravelAtlasMapFeatures({ bounds, layers: ["fuel"] }, {
-      repository: { queryBounds },
+      repository: { queryBounds, readBuildMetadata: () => buildMetadata },
       graphFingerprint: "graph-2026-09-11"
     })
 
@@ -119,6 +126,64 @@ describe("Gravel Atlas viewport features", () => {
   it("reports an unconfigured Atlas layer as unavailable instead of a confirmed empty area", async () => {
     const result = await getCombinedRiderMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
       baseProvider: vi.fn()
+    })
+
+    expect(result.features).toEqual([])
+    expect(result.unavailable).toEqual(["gravel-atlas"])
+  })
+
+  it("fails closed when the runtime build does not match the configured graph fingerprint", async () => {
+    const queryBounds = vi.fn(() => [])
+
+    await expect(getGravelAtlasMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
+      repository: {
+        queryBounds,
+        readBuildMetadata: () => ({ ...buildMetadata, graphFingerprint: "graph-older" })
+      },
+      graphFingerprint: "graph-2026-09-11",
+      sourceFingerprint: "a".repeat(64)
+    })).rejects.toThrow(/does not match the configured graph fingerprint/)
+
+    expect(queryBounds).not.toHaveBeenCalled()
+  })
+
+  it("fails closed when only the source snapshot fingerprint drifted", async () => {
+    const queryBounds = vi.fn(() => [])
+
+    await expect(getGravelAtlasMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
+      repository: {
+        queryBounds,
+        readBuildMetadata: () => ({ ...buildMetadata, sourceFingerprint: "b".repeat(64) })
+      },
+      graphFingerprint: "graph-2026-09-11",
+      sourceFingerprint: "a".repeat(64)
+    })).rejects.toThrow(/does not match the configured source fingerprint/)
+
+    expect(queryBounds).not.toHaveBeenCalled()
+  })
+
+  it("still reports a genuinely empty viewport as empty rather than unavailable", async () => {
+    const result = await getGravelAtlasMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
+      repository: { queryBounds: () => [], readBuildMetadata: () => buildMetadata },
+      graphFingerprint: "graph-2026-09-11",
+      sourceFingerprint: "a".repeat(64)
+    })
+
+    expect(result).toEqual({ type: "FeatureCollection", features: [] })
+  })
+
+  it("marks a mismatched runtime build unavailable instead of a confirmed empty area", async () => {
+    const result = await getCombinedRiderMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
+      baseProvider: vi.fn(),
+      atlasProvider: (request) => getGravelAtlasMapFeatures(request, {
+        repository: {
+          queryBounds: () => [],
+          readBuildMetadata: () => ({ ...buildMetadata, sourceFingerprint: "c".repeat(64) })
+        },
+        graphFingerprint: "graph-2026-09-11",
+        sourceFingerprint: "a".repeat(64),
+        limit: 200
+      })
     })
 
     expect(result.features).toEqual([])

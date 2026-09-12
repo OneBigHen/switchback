@@ -9,7 +9,7 @@ import type {
 export type RiderMapFeatureProvider = (request: MapFeatureRequest) => Promise<RiderFeatureCollection>
 
 export interface GravelAtlasMapFeatureOptions {
-  repository: Pick<GravelAtlasRepository, "queryBounds">
+  repository: Pick<GravelAtlasRepository, "queryBounds" | "readBuildMetadata">
   graphFingerprint: string
   sourceFingerprint?: string
   limit?: number
@@ -55,6 +55,17 @@ export async function getGravelAtlasMapFeatures(
   }
   const requestedLimit = Number.isFinite(options.limit) ? Math.floor(options.limit ?? MAX_VIEWPORT_CORRIDORS) : MAX_VIEWPORT_CORRIDORS
   const limit = Math.max(1, Math.min(MAX_VIEWPORT_CORRIDORS, requestedLimit))
+  // A configured fingerprint that does not describe the deployed runtime build
+  // is a build mismatch, not an area without gravel. Filtering rows would
+  // silently paint a confirmed-empty overlay, so fail closed and report the
+  // layer as unavailable instead.
+  const build = options.repository.readBuildMetadata()
+  if (build.graphFingerprint.trim() !== graphFingerprint) {
+    throw new Error("Gravel Atlas runtime build does not match the configured graph fingerprint")
+  }
+  if (sourceFingerprint !== undefined && build.sourceFingerprint.trim() !== sourceFingerprint) {
+    throw new Error("Gravel Atlas runtime build does not match the configured source fingerprint")
+  }
   const corridors = options.repository.queryBounds({
     ...request.bounds,
     graphFingerprint,

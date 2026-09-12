@@ -33,6 +33,13 @@ interface GravelAtlasRow {
 
 const HARD_MAX_QUERY_RESULTS = 200
 
+export interface GravelAtlasBuildMetadata {
+  schemaVersion: number
+  sourceFingerprint: string
+  graphFingerprint: string
+  corridorCount: number
+}
+
 function isCoordinate(value: unknown): value is Coordinate {
   return Array.isArray(value) &&
     value.length === 2 &&
@@ -81,6 +88,42 @@ function parseRow(row: GravelAtlasRow): GravelAtlasCorridor | null {
  */
 export class GravelAtlasRepository {
   constructor(readonly databasePath: string) {}
+
+  /**
+   * Build identity of the runtime database. Read before serving the layer so a
+   * deployment whose fingerprints do not describe this build fails closed
+   * instead of rendering a confirmed-empty viewport.
+   */
+  readBuildMetadata(): GravelAtlasBuildMetadata {
+    const database = new DatabaseSync(this.databasePath, { readOnly: true })
+    try {
+      const row = database.prepare(`
+        select schema_version, source_fingerprint, graph_fingerprint, corridor_count
+        from gravel_atlas_metadata
+      `).get() as {
+        schema_version?: unknown
+        source_fingerprint?: unknown
+        graph_fingerprint?: unknown
+        corridor_count?: unknown
+      } | undefined
+
+      if (!row) throw new Error("Gravel Atlas runtime database has no build metadata")
+      if (row.schema_version !== 1) throw new Error("Unsupported Gravel Atlas runtime schema version")
+      const sourceFingerprint = typeof row.source_fingerprint === "string" ? row.source_fingerprint.trim() : ""
+      const graphFingerprint = typeof row.graph_fingerprint === "string" ? row.graph_fingerprint.trim() : ""
+      const corridorCount = typeof row.corridor_count === "number" ? row.corridor_count : Number.NaN
+      if (
+        sourceFingerprint.length === 0 || graphFingerprint.length === 0 ||
+        !Number.isInteger(corridorCount) || corridorCount < 0
+      ) {
+        throw new Error("Gravel Atlas runtime database has invalid build metadata")
+      }
+
+      return { schemaVersion: 1, sourceFingerprint, graphFingerprint, corridorCount }
+    } finally {
+      database.close()
+    }
+  }
 
   queryBounds(query: GravelAtlasBoundsQuery): GravelAtlasCorridor[] {
     if (
