@@ -48,8 +48,9 @@
     "gravel-atlas:sources": "tsx scripts/build-gravel-atlas-sources.ts",
     "gravel-atlas:graph": "tsx scripts/build-gravel-atlas-graph.ts",
     "gravel-atlas:reconcile": "tsx scripts/reconcile-gravel-atlas.ts",
+    "gravel-atlas:verify-routability": "tsx scripts/verify-gravel-atlas-routability.ts",
     "gravel-atlas:runtime": "tsx scripts/build-gravel-atlas-runtime.ts",
-    "gravel-atlas:refresh:nj": "npm run gravel-atlas:sources -- --sources=njgin-ng911 && npm run gravel-atlas:graph && npm run gravel-atlas:reconcile && npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified.json",
+    "gravel-atlas:refresh:nj": "npm run gravel-atlas:sources -- --sources=njgin-ng911 && npm run gravel-atlas:graph && npm run gravel-atlas:reconcile && npm run gravel-atlas:verify-routability && npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified-traversable.json",
     "doctor": "react-doctor --no-telemetry"
   },
   "dependencies": {

@@ -91,7 +91,9 @@ NJGIN does not require the PASDA acknowledgement gate. The supported one-command
 npm run gravel-atlas:refresh:nj
 ```
 
-That command performs source snapshot/staging, bounded canonical graph export, conservative reconciliation, and runtime SQLite construction. Capture its output, including accepted source rows, source fingerprint, graph fingerprint, retained canonical segment count, reconciled corridor count, and quarantine count.
+That command performs source snapshot/staging, bounded canonical graph export, conservative reconciliation, end-to-end traversability verification against the running router, and runtime SQLite construction. Capture its output, including accepted source rows, source fingerprint, graph fingerprint, retained canonical segment count, reconciled corridor count, traversability quarantine count, and total quarantine count.
+
+Reconciliation proves corridor membership per OSM segment. `gravel-atlas:verify-routability` then asks the running GraphHopper service to ride each retained corridor end to end and measures how much of the corridor that route actually follows. Corridors the built graph cannot carry are quarantined with their measured reason and stay out of the runtime database, so "routable" in the runtime atlas means the active graph can actually traverse the corridor. This step requires the GraphHopper service to be running and reachable (`GRAPHHOPPER_URL`, default `http://127.0.0.1:8989`); if the service is unavailable the refresh fails closed instead of publishing unverified corridors.
 
 ### PA + NJ activation
 
@@ -103,12 +105,13 @@ npm run gravel-atlas:sources -- \
   --accept-pasda-terms
 npm run gravel-atlas:graph
 npm run gravel-atlas:reconcile
-npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified.json
+npm run gravel-atlas:verify-routability
+npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified-traversable.json
 ```
 
 Do not treat `--accept-pasda-terms` as permission. If authorization is uncertain, activate NJ only and report PA as intentionally unavailable.
 
-Generated SQLite, PBF, graph-cache, `data/gravel-atlas-graph.json`, and `data/gravel-atlas-verified.json` artifacts are runtime/build products and must not be committed.
+Generated SQLite, PBF, graph-cache, `data/gravel-atlas-graph.json`, `data/gravel-atlas-verified.json`, `data/gravel-atlas-verified-traversable.json`, and `data/gravel-atlas-traversability.json` artifacts are runtime/build products and must not be committed.
 
 ## 6. Configure the application runtime
 
