@@ -62,4 +62,13 @@ describe("workspace camera boundary authority", () => {
       })).toEqual(expected)
     }
   })
+
+  it("uses application width for topology even when the drawable map canvas is narrower", () => {
+    expect(calculateMapViewportInsets({
+      viewportWidthPx: 420,
+      viewportHeightPx: 1024,
+      workspaceWidthPx: 768,
+      mode: "planning"
+    })).toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
+  })
 })
