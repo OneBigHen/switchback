@@ -34,6 +34,20 @@ describe("Gravel Atlas operator scripts", () => {
     )
   })
 
+  it("uses traversability-filtered evidence by default for standalone runtime builds", () => {
+    const script = readFileSync(
+      path.join(process.cwd(), "scripts/build-gravel-atlas-runtime.ts"),
+      "utf8"
+    )
+
+    expect(script).toContain(
+      'argument("input") ?? "data/gravel-atlas-verified-traversable.json"'
+    )
+    expect(script).not.toContain(
+      'argument("input") ?? "data/gravel-atlas-verified.json"'
+    )
+  })
+
   it("exposes the traversability verification as its own operator command", () => {
     expect(manifest().scripts?.["gravel-atlas:verify-routability"]).toBe(
       "tsx scripts/verify-gravel-atlas-routability.ts"
