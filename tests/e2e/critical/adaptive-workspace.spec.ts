@@ -67,6 +67,12 @@ async function measure(page: Page) {
   })
 }
 
+async function attributionCorner(page: Page): Promise<string> {
+  const attribution = page.locator(".maplibregl-ctrl-attrib, .mapboxgl-ctrl-attrib").first()
+  await expect(attribution).toBeVisible()
+  return attribution.evaluate((node) => node.parentElement?.className ?? "")
+}
+
 test.describe("Medium adaptive planner workspace", () => {
   for (const viewport of VIEWPORTS) {
     for (const state of STATES) {
@@ -93,4 +99,16 @@ test.describe("Medium adaptive planner workspace", () => {
       })
     }
   }
+
+  test("attribution follows the live compact/medium boundary after resize", async ({ page }) => {
+    test.setTimeout(150_000)
+    await page.setViewportSize({ width: 760, height: 844 })
+    await uxState.home(page)
+    await settleMapDelay(page)
+    expect(await attributionCorner(page)).toMatch(/(?:maplibregl|mapboxgl)-ctrl-bottom-left/)
+
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await settleMapDelay(page)
+    expect(await attributionCorner(page)).toMatch(/(?:maplibregl|mapboxgl)-ctrl-bottom-right/)
+  })
 })
