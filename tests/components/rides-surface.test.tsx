@@ -54,6 +54,39 @@ describe("RidesSurface", () => {
     expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument()
   })
 
+  it("points riders to the shared Route Library without mixing its routes into My Rides", () => {
+    render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    expect(screen.getByRole("link", { name: "Browse Route Library" })).toHaveAttribute("href", "/gpx-library")
+  })
+
+  it("offers the Route Library from the empty personal state", () => {
+    render(<RidesSurface items={[]} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    expect(screen.getByText("No rides saved yet.")).toBeInTheDocument()
+    expect(screen.getByText(/save one from the Route Library/i)).toBeInTheDocument()
+  })
+
+  it("never shows an unknown saved-route duration as 0 min or labels rows as a project library", () => {
+    const unknownDuration: RideLibraryItem = {
+      id: "catalog-copy--atlas-42",
+      kind: "saved-route",
+      name: "Bald Eagle Loop",
+      sourceLabel: "Saved route",
+      distanceMiles: 104.7,
+      durationMinutes: 0,
+      durationSource: "planned",
+      updatedAt: null,
+      tags: []
+    }
+    render(<RidesSurface items={[unknownDuration]} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    const row = screen.getByText("Bald Eagle Loop").closest("li") ?? document.body
+    expect(row).toHaveTextContent("104.7 mi")
+    expect(row).not.toHaveTextContent(/\b0 min\b/)
+    expect(screen.queryByText("Project library")).toBeNull()
+  })
+
   it("filters only rider-owned normalized sources without changing storage identity", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 

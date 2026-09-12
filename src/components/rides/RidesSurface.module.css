@@ -25,9 +25,32 @@
   box-shadow: 0 8px 18px color-mix(in srgb, var(--sb-ember-strong) 18%, transparent);
 }
 
-.importButton svg {
+.importButton svg,
+.libraryLink svg {
   width: 18px;
   height: 18px;
+}
+
+/* Secondary to Import: a quiet way out to the shared Route Library. */
+.libraryLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control, 10px);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.libraryLink:hover {
+  border-color: var(--sb-ember-strong);
 }
 
 .filters {
@@ -131,6 +154,7 @@
 }
 
 .importButton:focus-visible,
+.libraryLink:focus-visible,
 .tabs button:focus-visible,
 .row button:focus-visible,
 .management input:focus-visible {
@@ -472,7 +496,8 @@
 }
 
 @media (max-width: 560px) {
-  .importButton {
+  .importButton,
+  .libraryLink {
     padding: 0 11px;
   }
 

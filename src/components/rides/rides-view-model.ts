@@ -56,8 +56,8 @@ export interface NormalizeRidesInput {
 
 /**
  * Presentation-only adapter for rider-owned My Rides data. Shared catalog
- * routes are intentionally not part of this input contract; extra legacy
- * `projectRoutes` data is ignored by normal JavaScript object semantics.
+ * routes are intentionally not part of this input contract: they live in the
+ * Route Library and only enter My Rides as explicit `catalog-copy` saves.
  */
 export function normalizeRideLibrary({
   savedRoutes = [],

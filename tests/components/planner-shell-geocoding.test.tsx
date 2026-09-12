@@ -338,6 +338,17 @@ describe("free-form planner place resolution", () => {
     expect(usePlannerStore.getState().finish).toMatchObject({ label: wellsboro.label })
   })
 
+  it("does not download the shared Route Library catalog into the planner or My Rides", async () => {
+    render(<PlannerShell />)
+
+    await waitFor(() => expect(screen.getByTestId("shell-stage")).toBeInTheDocument())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const catalogListingCalls = vi.mocked(fetch).mock.calls
+      .map(([input]) => String(input))
+      .filter((url) => url.includes("/api/gpx-library") && !url.includes("id="))
+    expect(catalogListingCalls).toEqual([])
+  })
+
   it("keeps the automatic Best ride selected when alternatives merge", () => {
     const alternatives: PlannedRoute[] = [
       route,

@@ -76,13 +76,16 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
               trip is understood to be an estimate, so labelling those would be
               noise rather than honesty.
             */}
-            <span>
-              {Math.round(item.durationMinutes)} min
-              {item.kind === "recorded-ride" && item.durationSource === "planned" ? " planned" : ""}
-            </span>
+            {/* Imported tracks often carry no timing; unknown is not "0 min". */}
+            {Number.isFinite(item.durationMinutes) && item.durationMinutes > 0 ? (
+              <span>
+                {Math.round(item.durationMinutes)} min
+                {item.kind === "recorded-ride" && item.durationSource === "planned" ? " planned" : ""}
+              </span>
+            ) : null}
             {typeof distanceAwayMiles === "number" ? (
               <small className={styles.away}>{formatAway(distanceAwayMiles)}</small>
-            ) : updated ? <small>{updated}</small> : <small>Project library</small>}
+            ) : updated ? <small>{updated}</small> : null}
           </span>
           <ArrowRight weight="bold" aria-hidden="true" />
         </button>

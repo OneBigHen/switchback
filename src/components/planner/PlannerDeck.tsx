@@ -181,7 +181,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     ? formatDistanceMiles(selectedRoute.distanceMiles, units)
     : null
   const selectedRouteMeta = selectedRoute && selectedRouteDistance
-    ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
+    ? `${selectedRoute.durationMinutes > 0 ? `${Math.round(selectedRoute.durationMinutes)} min · ` : ""}${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
     : null
   const timeboxMismatch = getLoopTimeboxMismatch(selectedRoute)
   // Acceptance belongs to the exact result the rider was shown, not to a route

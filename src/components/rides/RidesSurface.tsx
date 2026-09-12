@@ -1,6 +1,7 @@
 "use client"
 
-import { Crosshair, FileArrowUp } from "@phosphor-icons/react"
+import { Crosshair, FileArrowUp, MapTrifold } from "@phosphor-icons/react"
+import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RoadLockMode } from "@/lib/roads/road-locks"
 import { haversineMiles } from "@/lib/client/geo"
@@ -175,15 +176,22 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         description="Plans, recordings, trips, and files you saved — only the rides that belong to you."
         graphic={<RouteGraphic seed={`rides:${items.map((item) => item.id).join("|") || "empty"}`} variant="library" />}
         actions={(
-          <button
-            type="button"
-            className={styles.importButton}
-            aria-expanded={importOpen}
-            onClick={() => setImportOpen((open) => !open)}
-          >
-            <FileArrowUp weight="bold" aria-hidden="true" />
-            <span>Import ride</span>
-          </button>
+          <>
+            <button
+              type="button"
+              className={styles.importButton}
+              aria-expanded={importOpen}
+              onClick={() => setImportOpen((open) => !open)}
+            >
+              <FileArrowUp weight="bold" aria-hidden="true" />
+              <span>Import ride</span>
+            </button>
+            {/* Shared routes live in the Route Library and only arrive here as explicit saves. */}
+            <Link href="/gpx-library" className={styles.libraryLink}>
+              <MapTrifold weight="bold" aria-hidden="true" />
+              <span>Browse Route Library</span>
+            </Link>
+          </>
         )}
       />
 
@@ -266,7 +274,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         <div className={styles.empty}>
           <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
           <strong>No rides saved yet.</strong>
-          <span>Import a route file or save a planned route to start My Rides.</span>
+          <span>Import a route file, save a planned route, or save one from the Route Library to start My Rides.</span>
           <button type="button" className={styles.importButton} onClick={() => setImportOpen(true)}>
             <FileArrowUp weight="bold" aria-hidden="true" />
             <span>Import your first ride</span>
