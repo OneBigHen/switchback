@@ -35,14 +35,16 @@ function SummaryIcon({ state }: { state: RouteTrafficSummaryView["state"] }) {
 }
 
 export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
+  const routeId = route?.id ?? null
+  const geometry = route?.geometry ?? null
   const points = useMemo(
-    () => route ? sampleTrafficRoutePoints(route.geometry) : [],
-    [route?.geometry]
+    () => geometry ? sampleTrafficRoutePoints(geometry) : [],
+    [geometry]
   )
   const [state, setState] = useState<TrafficUiState>({ kind: "idle" })
 
   useEffect(() => {
-    if (!route || points.length < 2) {
+    if (!routeId || points.length < 2) {
       setState({ kind: "idle" })
       return
     }
@@ -65,9 +67,9 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
       current = false
       controller.abort()
     }
-  }, [route?.id, points])
+  }, [routeId, points])
 
-  if (!route || state.kind === "idle") return null
+  if (!routeId || state.kind === "idle") return null
 
   if (state.kind === "loading") {
     return (
