@@ -36,13 +36,13 @@ describe("adaptive Medium workspace CSS contract", () => {
     expect(adaptive).toContain("left: var(--sb-medium-map-safe-left);")
   })
 
-  it("keeps Medium map notices and point-placement affordance inside the live-map budget", () => {
-    const statusRule = readRule(adaptive, ".map-layer-status-stack")
+  it("keeps Medium planning notices and point-placement affordance inside the live-map budget", () => {
+    const statusRule = readRule(adaptive, ".planner-shell:has(.planner-deck) .map-layer-status-stack")
     expect(statusRule).toContain("left: var(--sb-medium-map-safe-left);")
     expect(statusRule).toContain("right: 0;")
     expect(statusRule).toContain("transform: none;")
 
-    const crosshairRule = readRule(adaptive, ".map-crosshair")
+    const crosshairRule = readRule(adaptive, ".planner-shell:has(.planner-deck) .map-crosshair")
     expect(crosshairRule).toContain("left: var(--sb-medium-map-safe-left);")
     expect(crosshairRule).toContain("right: 0;")
     expect(crosshairRule).toContain("transform: translateY(-50%);")
