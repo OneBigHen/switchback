@@ -48,6 +48,23 @@ describe("Gravel Atlas operator scripts", () => {
     )
   })
 
+  it("requires an explicit runtime database path before route attraction can activate", () => {
+    const route = readFileSync(
+      path.join(process.cwd(), "src/app/api/routes/route.ts"),
+      "utf8"
+    )
+
+    expect(route).toContain(
+      "const atlasPath = process.env.GRAVEL_ATLAS_DB_PATH?.trim()"
+    )
+    expect(route).toContain(
+      "request.gravelAtlas?.enabled === true && atlasPath && graphFingerprint && sourceFingerprint"
+    )
+    expect(route).not.toContain(
+      'process.env.GRAVEL_ATLAS_DB_PATH ??\n        path.join(process.cwd(), "data/gravel-atlas.sqlite")'
+    )
+  })
+
   it("exposes the traversability verification as its own operator command", () => {
     expect(manifest().scripts?.["gravel-atlas:verify-routability"]).toBe(
       "tsx scripts/verify-gravel-atlas-routability.ts"
