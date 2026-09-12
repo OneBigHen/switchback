@@ -9,6 +9,7 @@ import { DatabaseSync } from "node:sqlite"
 import type { CanonicalSegment, CanonicalSegmentDirection } from "../src/lib/roads/canonical-segments"
 import type { Coordinate } from "../src/lib/routing/types"
 import {
+  childProcessCompletion,
   graphFingerprintFromFiles,
   motorcycleWayDirections,
   motorcycleWayIsRoutable,
@@ -295,31 +296,28 @@ async function main() {
     const osmium = spawn("osmium", ["tags-filter", osmPath, "w/highway", "-f", "opl"], {
       stdio: ["ignore", "pipe", "inherit"]
     })
-    const osmiumFailure = new Promise<never>((_, reject) => osmium.once("error", reject))
+    const completion = childProcessCompletion(osmium)
     const lines = createInterface({ input: osmium.stdout, crlfDelay: Infinity })
-    const consume = (async () => {
-      for await (const line of lines) {
-        if (line.startsWith("n")) {
-          const id = /^n(\d+)/.exec(line)?.[1]
-          const lon = /(?:^| )x(-?\d+(?:\.\d+)?)/.exec(line)?.[1]
-          const lat = /(?:^| )y(-?\d+(?:\.\d+)?)/.exec(line)?.[1]
-          if (id && lon && lat) {
-            nodeBatch.push([id, Number(lon), Number(lat)])
-            if (nodeBatch.length >= 10_000) flushNodes()
-          }
-        } else if (line.startsWith("w")) {
-          if (sourcePhase === "nodes") {
-            flushNodes()
-            sourcePhase = "ways"
-          }
-          processWay(line)
+    for await (const line of lines) {
+      if (line.startsWith("n")) {
+        const id = /^n(\d+)/.exec(line)?.[1]
+        const lon = /(?:^| )x(-?\d+(?:\.\d+)?)/.exec(line)?.[1]
+        const lat = /(?:^| )y(-?\d+(?:\.\d+)?)/.exec(line)?.[1]
+        if (id && lon && lat) {
+          nodeBatch.push([id, Number(lon), Number(lat)])
+          if (nodeBatch.length >= 10_000) flushNodes()
         }
+      } else if (line.startsWith("w")) {
+        if (sourcePhase === "nodes") {
+          flushNodes()
+          sourcePhase = "ways"
+        }
+        processWay(line)
       }
-      flushNodes()
-      const exitCode = await new Promise<number | null>((resolve) => osmium.once("close", resolve))
-      if (exitCode !== 0) throw new Error(`osmium exited with status ${String(exitCode)}`)
-    })()
-    await Promise.race([consume, osmiumFailure])
+    }
+    flushNodes()
+    const exitCode = await completion
+    if (exitCode !== 0) throw new Error(`osmium exited with status ${String(exitCode)}`)
 
     segments.sort((left, right) => left.segmentUid.localeCompare(right.segmentUid))
     if (segments.length === 0) throw new Error("No canonical motorcycle segments intersect staged Gravel Atlas source geometry")
