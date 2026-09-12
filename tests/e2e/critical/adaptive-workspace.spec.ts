@@ -1,11 +1,29 @@
 import { expect, test, type Page } from "@playwright/test"
 import { settleMapDelay, uxState } from "../helpers/ux-state-fixtures"
+import {
+  ensureFixtureStart,
+  expectRouteOutcome,
+  fillFixtureFinish,
+  installPlannerServices,
+  installRouteApi,
+  makeRoute,
+  openPlannerEditor,
+  tripPlan
+} from "../helpers/planner-fixtures"
 
 const VIEWPORTS = [
   { width: 768, height: 1024, label: "768x1024 portrait" },
   { width: 820, height: 1180, label: "820x1180 portrait" },
   { width: 1024, height: 768, label: "1024x768 landscape" },
   { width: 1180, height: 820, label: "1180x820 landscape" }
+] as const
+
+const REGRESSION_VIEWPORTS = [
+  { width: 390, height: 844, label: "390x844 phone portrait", mode: "compact" },
+  { width: 667, height: 375, label: "667x375 short landscape", mode: "compact" },
+  { width: 700, height: 900, label: "700x900 split-width fallback", mode: "compact" },
+  { width: 1366, height: 1024, label: "1366x1024 constrained wide", mode: "wide" },
+  { width: 1440, height: 900, label: "1440x900 desktop", mode: "wide" }
 ] as const
 
 const STATES = ["search", "choose", "edit", "prepare"] as const
@@ -73,6 +91,10 @@ async function attributionCorner(page: Page): Promise<string> {
   return attribution.evaluate((node) => node.parentElement?.className ?? "")
 }
 
+async function expectWorkspaceMode(page: Page, mode: "compact" | "medium" | "wide") {
+  await expect(page.locator("[data-workspace-mode]").first()).toHaveAttribute("data-workspace-mode", mode)
+}
+
 test.describe("Medium adaptive planner workspace", () => {
   for (const viewport of VIEWPORTS) {
     for (const state of STATES) {
@@ -81,6 +103,7 @@ test.describe("Medium adaptive planner workspace", () => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height })
         await drive(page, state)
         await settleMapDelay(page)
+        await expectWorkspaceMode(page, "medium")
 
         const geometry = await measure(page)
         expect(geometry.map, "map must remain rendered").not.toBeNull()
@@ -100,11 +123,129 @@ test.describe("Medium adaptive planner workspace", () => {
     }
   }
 
+  test("three-route comparison previews without committing, preserves details identity, and keeps Start Ride reachable", async ({ page }) => {
+    test.setTimeout(150_000)
+    await page.setViewportSize({ width: 820, height: 1180 })
+    await installPlannerServices(page)
+    const capture = await installRouteApi(page, tripPlan([
+      makeRoute("balanced", {
+        id: "medium-balanced",
+        name: "Balanced medium route",
+        routeScoreTotal: 70
+      }),
+      makeRoute("twisty", {
+        id: "medium-twisty",
+        name: "Twisty medium route",
+        geometry: [[-76.8867, 40.2732], [-76.91, 40.3], [-76.84, 40.28]],
+        distanceMiles: 9.7,
+        durationMinutes: 20,
+        twistiness: 94,
+        routeScoreTotal: 92
+      }),
+      makeRoute("scenic", {
+        id: "medium-scenic",
+        name: "Scenic medium route",
+        geometry: [[-76.8867, 40.2732], [-76.87, 40.32], [-76.84, 40.28]],
+        distanceMiles: 10.4,
+        durationMinutes: 23,
+        twistiness: 76,
+        routeScoreTotal: 84
+      })
+    ]))
+
+    await page.goto("/")
+    await openPlannerEditor(page)
+    await ensureFixtureStart(page)
+    await fillFixtureFinish(page)
+    await page.getByRole("button", { name: "Plan route" }).click()
+    await expectRouteOutcome(page, capture)
+    await settleMapDelay(page)
+    await expectWorkspaceMode(page, "medium")
+
+    const choices = page.getByRole("region", { name: "Route choices" })
+    const routeButtons = choices.getByRole("button", { name: /^Select / })
+    await expect(routeButtons).toHaveCount(3)
+
+    const selectedBefore = choices.locator('button[aria-label^="Select "][aria-pressed="true"]').first()
+    const alternate = choices.locator('button[aria-label^="Select "][aria-pressed="false"]').first()
+    await expect(selectedBefore).toBeVisible()
+    await expect(alternate).toBeVisible()
+    const selectedBeforeLabel = await selectedBefore.getAttribute("aria-label")
+    const alternateLabel = await alternate.getAttribute("aria-label")
+    expect(selectedBeforeLabel).toBeTruthy()
+    expect(alternateLabel).toBeTruthy()
+
+    // Pointer/focus are preview-only contracts. They may change the map ribbon,
+    // but canonical selection must remain untouched until the rider clicks.
+    await alternate.hover()
+    await expect(selectedBefore).toHaveAttribute("aria-pressed", "true")
+    await expect(alternate).toHaveAttribute("aria-pressed", "false")
+    await alternate.focus()
+    await expect(selectedBefore).toHaveAttribute("aria-pressed", "true")
+    await expect(alternate).toHaveAttribute("aria-pressed", "false")
+
+    await alternate.click()
+    await expect(alternate).toHaveAttribute("aria-pressed", "true")
+    const selectedRouteName = (alternateLabel ?? "").replace(/^Select /, "")
+    expect(selectedRouteName).not.toBe("")
+    await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
+
+    await page.getByRole("button", { name: `Details for ${selectedRouteName}`, exact: true }).click()
+    await expect(page.getByRole("button", { name: "Back to route choices" })).toBeVisible()
+    await expect(page.getByText("Selected route")).toBeVisible()
+    await page.getByRole("button", { name: "Back to route choices" }).click()
+
+    const restoredSelection = page.getByRole("button", { name: `Select ${selectedRouteName}`, exact: true })
+    await expect(restoredSelection).toHaveAttribute("aria-pressed", "true")
+    await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
+  })
+
+  test("timed loop reaches a route without leaving the Medium workspace", async ({ page }) => {
+    test.setTimeout(150_000)
+    await page.setViewportSize({ width: 1180, height: 820 })
+    await installPlannerServices(page)
+    const capture = await installRouteApi(page, tripPlan([
+      makeRoute("twisty", {
+        id: "medium-two-hour-loop",
+        name: "Medium two-hour loop",
+        geometry: [
+          [-76.8867, 40.2732],
+          [-76.84, 40.31],
+          [-76.8, 40.27],
+          [-76.8867, 40.2732]
+        ],
+        distanceMiles: 42.1,
+        durationMinutes: 120
+      })
+    ]))
+
+    await page.goto("/")
+    await openPlannerEditor(page)
+    await ensureFixtureStart(page)
+    await page.getByRole("button", { name: "Loop" }).click()
+    await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
+    await expectRouteOutcome(page, capture)
+    await settleMapDelay(page)
+    await expectWorkspaceMode(page, "medium")
+
+    expect(capture.requests[0]).toMatchObject({
+      roundTrip: { targetMinutes: 120 },
+      points: [{ lat: 40.2732, lon: -76.8867 }]
+    })
+    const geometry = await measure(page)
+    expect(geometry.horizontalOverflow).toBe(false)
+    expect(geometry.map).not.toBeNull()
+    expect(geometry.deck).not.toBeNull()
+    expect(geometry.mapUnobstructedShare).toBeGreaterThanOrEqual(0.5)
+    await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
+  })
+
   test("resize across compact/medium preserves the selected route and live map while moving attribution", async ({ page }) => {
     test.setTimeout(150_000)
     await page.setViewportSize({ width: 760, height: 844 })
     await uxState.routeSelected(page)
     await settleMapDelay(page)
+    await expectWorkspaceMode(page, "compact")
 
     const selectedRoute = page.getByRole("button", { name: /^Select / }).first()
     const startRide = page.getByRole("button", { name: /^Start .* route$/i }).first()
@@ -118,10 +259,35 @@ test.describe("Medium adaptive planner workspace", () => {
 
     await page.setViewportSize({ width: 768, height: 1024 })
     await settleMapDelay(page)
+    await expectWorkspaceMode(page, "medium")
 
     expect(await attributionCorner(page)).toMatch(/(?:maplibregl|mapboxgl)-ctrl-bottom-right/)
     await expect(page.locator('[data-resize-sentinel="same-map-canvas"]')).toBeAttached()
     await expect(page.getByRole("button", { name: /^Select / }).first()).toHaveAttribute("aria-pressed", "true")
     await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
   })
+})
+
+test.describe("Adaptive workspace boundary regressions", () => {
+  for (const viewport of REGRESSION_VIEWPORTS) {
+    test(`${viewport.label} preserves the canonical ${viewport.mode} topology with a selected route`, async ({ page }) => {
+      test.setTimeout(150_000)
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await uxState.routeSelected(page)
+      await settleMapDelay(page)
+      await expectWorkspaceMode(page, viewport.mode)
+
+      const geometry = await measure(page)
+      expect(geometry.map, `${viewport.label}: map must remain rendered`).not.toBeNull()
+      expect(geometry.deck, `${viewport.label}: planner must remain rendered`).not.toBeNull()
+      expect(geometry.horizontalOverflow, `${viewport.label}: no horizontal document overflow`).toBe(false)
+      expect(geometry.mapUnobstructedShare, `${viewport.label}: some live map must remain materially visible`).toBeGreaterThan(0.15)
+      await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
+
+      const deck = geometry.deck!
+      expect(deck.left).toBeGreaterThanOrEqual(-1)
+      expect(deck.right).toBeLessThanOrEqual(viewport.width + 1)
+      expect(deck.bottom).toBeLessThanOrEqual(viewport.height + 1)
+    })
+  }
 })
