@@ -44,7 +44,10 @@ function parseInput(value: unknown): {
 }
 
 async function main() {
-  const inputPath = path.resolve(argument("input") ?? "data/gravel-atlas-verified.json")
+  // Runtime publication must consume the live-router verification artifact.
+  // The reconciliation-only payload deliberately lacks a policy version and is
+  // therefore rejected even when an operator invokes this script directly.
+  const inputPath = path.resolve(argument("input") ?? "data/gravel-atlas-verified-traversable.json")
   const stagingDatabasePath = path.resolve(argument("staging") ?? "data/gravel-atlas-sources.sqlite")
   const databasePath = path.resolve(argument("database") ?? "data/gravel-atlas.sqlite")
   const input = parseInput(JSON.parse(await readFile(inputPath, "utf8")) as unknown)
