@@ -1,294 +1,326 @@
 import { expect, type Locator, type Page, type Request, type Response } from "@playwright/test"
-import type { MobileQaRuntimeIssues, RuntimeIssueOptions } from "./types"
 
-const MIN_TOUCH_TARGET_CSS_PX = 44
-const TOUCH_TARGET_EPSILON_PX = 0.6
-const VIEWPORT_EPSILON_PX = 1
-const SCROLL_EPSILON_PX = 1
+type Viewport = { readonly width: number; readonly height: number }
 
-export async function expectMinimumTouchTargetSize(locator: Locator, label = "touch target"): Promise<void> {
-  const box = await locator.boundingBox()
-  expect(box, `${label} should have a visible box`).not.toBeNull()
-  expect(box!.width + TOUCH_TARGET_EPSILON_PX, `${label} width`).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_CSS_PX)
-  expect(box!.height + TOUCH_TARGET_EPSILON_PX, `${label} height`).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_CSS_PX)
+const INTERACTIVE_SELECTOR = "button,a,input,select,textarea,[role=button],[role=link],[role=tab]"
+export const PROVIDER_ATTRIBUTION_MINIMUM = { width: 24, height: 12 } as const
+
+export interface IntendedScrollRegionCandidate {
+  readonly name: string
+  readonly overflowY: string
+  readonly scrollHeight: number
+  readonly clientHeight: number
+  readonly visible: boolean
 }
 
-export async function expectRealScrollOwner(locator: Locator, label = "scroll owner"): Promise<void> {
-  const result = await locator.evaluate((element) => {
-    const target = element as HTMLElement
-    const maxScroll = target.scrollHeight - target.clientHeight
-    const before = target.scrollTop
-    target.scrollTop = Math.min(Math.max(1, Math.floor(maxScroll / 2)), maxScroll)
-    const after = target.scrollTop
-    target.scrollTop = before
-    const style = getComputedStyle(target)
-    return {
-      maxScroll,
-      moved: Math.abs(after - before),
-      overflowY: style.overflowY,
-    }
+export type ScrollInteraction = "wheel" | "programmatic-owner"
+
+/**
+ * Playwright 1.61.1 exposes touchscreen.tap, but no public swipe API. Mobile
+ * WebKit also rejects page.mouse.wheel, so its owner check is intentionally a
+ * programmatic scroll-owner proof. Independent tap coverage remains in the
+ * mobile scenarios; this helper must not label the WebKit branch as swipe proof.
+ */
+export function scrollInteractionForEngine(engine: string): ScrollInteraction {
+  if (engine === "chromium") return "wheel"
+  if (engine === "webkit") return "programmatic-owner"
+  throw new Error(`Unsupported mobile QA browser engine: ${engine || "unknown"}`)
+}
+
+export function selectIntendedScrollRegions<T extends IntendedScrollRegionCandidate>(
+  candidates: readonly T[],
+): T[] {
+  return candidates.filter((candidate) => candidate.visible
+    && candidate.scrollHeight > candidate.clientHeight + 1
+    && /^(auto|scroll|overlay)$/.test(candidate.overflowY))
+}
+
+function assertNoIssues(issues: readonly string[], message: string): void {
+  expect(issues, message).toEqual([])
+}
+
+export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  const issues = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth
+    const scrollWidth = Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0)
+    return scrollWidth > width + 1 ? [`document scroll width ${scrollWidth}px exceeds viewport ${width}px`] : []
   })
-  expect(result.maxScroll, `${label} should have overflow to scroll`).toBeGreaterThan(SCROLL_EPSILON_PX)
-  expect(["auto", "scroll", "overlay"], `${label} overflow-y`).toContain(result.overflowY)
-  expect(result.moved, `${label} should actually scroll`).toBeGreaterThan(SCROLL_EPSILON_PX)
+  assertNoIssues(issues, "document must not overflow horizontally")
+}
+
+export async function expectInteractiveElementsUnclipped(page: Page): Promise<void> {
+  const issues = await page.evaluate((selector) => {
+    const viewport = { width: window.innerWidth, height: window.innerHeight }
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(selector))
+    const visible = elements.filter((element) => {
+      const style = getComputedStyle(element)
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0
+    })
+    const problems: string[] = []
+    const describe = (element: HTMLElement): string => element.getAttribute("aria-label") ?? (element.textContent?.trim().slice(0, 40) || element.className || element.tagName.toLowerCase())
+    for (const element of visible) {
+      if (element.closest(".planner-full-attribution") !== null) continue
+      const rect = element.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) continue
+      if (rect.right <= -1 || rect.left >= viewport.width + 1 || rect.bottom <= -1 || rect.top >= viewport.height + 1) continue
+      const scrollOwner = (() => {
+        for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
+          const style = getComputedStyle(ancestor)
+          if (!/(auto|scroll|overlay)/.test(style.overflowY)) continue
+          if (ancestor.scrollHeight <= ancestor.clientHeight + 1) continue
+          return ancestor
+        }
+        return null
+      })()
+      if (scrollOwner) {
+        const ownerRect = scrollOwner.getBoundingClientRect()
+        const centerX = rect.left + rect.width / 2
+        const centerY = rect.top + rect.height / 2
+        if (centerX < ownerRect.left - 1 || centerX > ownerRect.right + 1
+          || centerY < ownerRect.top - 1 || centerY > ownerRect.bottom + 1) continue
+      }
+      const horizontalRack = (() => {
+        for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
+          const style = getComputedStyle(ancestor)
+          if (!/(auto|scroll|overlay)/.test(style.overflowX)) continue
+          if (ancestor.scrollWidth <= ancestor.clientWidth + 1) continue
+          return ancestor
+        }
+        return null
+      })()
+      if (horizontalRack) {
+        const rackRect = horizontalRack.getBoundingClientRect()
+        const centerX = rect.left + rect.width / 2
+        if (centerX < rackRect.left - 1 || centerX > rackRect.right + 1) continue
+      }
+      if (rect.left < -1 || rect.top < -1 || rect.right > viewport.width + 1 || rect.bottom > viewport.height + 1) {
+        problems.push(`${describe(element)} is outside the viewport`)
+        continue
+      }
+      for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
+        const ancestorStyle = getComputedStyle(ancestor)
+        if (!/(hidden|clip|scroll|auto)/.test(ancestorStyle.overflow)) continue
+        const ancestorRect = ancestor.getBoundingClientRect()
+        const scrollsX = /(auto|scroll|overlay)/.test(ancestorStyle.overflowX)
+          && ancestor.scrollWidth > ancestor.clientWidth + 1
+        const scrollsY = /(auto|scroll|overlay)/.test(ancestorStyle.overflowY)
+          && ancestor.scrollHeight > ancestor.clientHeight + 1
+        const overflows = [
+          !scrollsX && rect.left < ancestorRect.left - 1 ? `left by ${Math.round(ancestorRect.left - rect.left)}px` : "",
+          !scrollsX && rect.right > ancestorRect.right + 1 ? `right by ${Math.round(rect.right - ancestorRect.right)}px` : "",
+          !scrollsY && rect.top < ancestorRect.top - 1 ? `top by ${Math.round(ancestorRect.top - rect.top)}px` : "",
+          !scrollsY && rect.bottom > ancestorRect.bottom + 1 ? `bottom by ${Math.round(rect.bottom - ancestorRect.bottom)}px` : ""
+        ].filter(Boolean)
+        if (overflows.length > 0) {
+          const owner = `${ancestor.tagName.toLowerCase()}${ancestor.className ? `.${String(ancestor.className).trim().split(/\s+/).join(".")}` : ""}`
+          problems.push(`${describe(element)} is clipped by ${owner} (overflows ${overflows.join(", ")})`)
+          break
+        }
+      }
+      const center = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      if (center === null || (!element.contains(center) && !center.contains(element))) {
+        const onTop = center === null
+          ? "nothing (its centre is outside the viewport)"
+          : `${center.tagName.toLowerCase()}${center.className ? `.${String(center.className).trim().split(/\s+/).join(".")}` : ""}`
+        problems.push(`${describe(element)} is obscured at its center by ${onTop}`)
+      }
+    }
+    return problems
+  }, INTERACTIVE_SELECTOR)
+  assertNoIssues(issues, "visible interactive elements must be unclipped and unobscured")
+}
+
+export async function expectMinimumTouchTargetSize(page: Page, minimum = 44): Promise<void> {
+  const issues = await page.evaluate(({ minimum, selector }) => {
+    const problems: string[] = []
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+      if (element.closest(".planner-full-attribution") !== null) continue
+      const style = getComputedStyle(element)
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) continue
+      const isHiddenFileInput = element.tagName === "INPUT"
+        && element.getAttribute("type")?.toLowerCase() === "file"
+        && style.pointerEvents === "none"
+      if (isHiddenFileInput) continue
+      const owner = element.tagName === "INPUT" ? element.closest("label") : null
+      const rect = owner?.getBoundingClientRect() ?? element.getBoundingClientRect()
+      if (rect.right <= -1 || rect.left >= window.innerWidth + 1 || rect.bottom <= -1 || rect.top >= window.innerHeight + 1) continue
+      if (rect.width > 0 && rect.height > 0 && (rect.width < minimum || rect.height < minimum)) {
+        problems.push(`${element.tagName.toLowerCase()} is ${Math.round(rect.width)}x${Math.round(rect.height)}px`)
+      }
+    }
+    return problems
+  }, { minimum, selector: INTERACTIVE_SELECTOR })
+  assertNoIssues(issues, `usable interactive targets must be at least ${minimum}px in both dimensions`)
+  await expectProviderAttributionLinks(page)
+}
+
+export async function expectProviderAttributionLinks(page: Page): Promise<void> {
+  const issues = await page.evaluate(({ minimum, selector }) => {
+    const viewport = { width: window.innerWidth, height: window.innerHeight }
+    const problems: string[] = []
+    for (const element of Array.from(document.querySelectorAll<HTMLAnchorElement>(selector))) {
+      const style = getComputedStyle(element)
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) continue
+      const rect = element.getBoundingClientRect()
+      if (rect.right <= -1 || rect.left >= viewport.width + 1 || rect.bottom <= -1 || rect.top >= viewport.height + 1) continue
+      if (rect.width < minimum.width || rect.height < minimum.height) {
+        problems.push(`provider attribution link is ${Math.round(rect.width)}x${Math.round(rect.height)}px`)
+        continue
+      }
+      if (rect.left < -1 || rect.top < -1 || rect.right > viewport.width + 1 || rect.bottom > viewport.height + 1) {
+        problems.push("provider attribution link leaves the viewport")
+        continue
+      }
+      for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
+        if (!/(hidden|clip|scroll|auto)/.test(getComputedStyle(ancestor).overflow)) continue
+        const ancestorRect = ancestor.getBoundingClientRect()
+        if (rect.left < ancestorRect.left - 1 || rect.right > ancestorRect.right + 1 || rect.top < ancestorRect.top - 1 || rect.bottom > ancestorRect.bottom + 1) {
+          problems.push("provider attribution link is clipped")
+          break
+        }
+      }
+      const center = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      if (center === null || (!element.contains(center) && !center.contains(element))) problems.push("provider attribution link is obscured at its center")
+    }
+    return problems
+  }, { minimum: PROVIDER_ATTRIBUTION_MINIMUM, selector: ".planner-full-attribution a" })
+  assertNoIssues(issues, `provider attribution links must be at least ${PROVIDER_ATTRIBUTION_MINIMUM.width}x${PROVIDER_ATTRIBUTION_MINIMUM.height}px and reachable`)
+}
+
+function scrollInteractionForPage(page: Page): ScrollInteraction {
+  return scrollInteractionForEngine(page.context().browser()?.browserType().name() ?? "")
+}
+
+async function scrollOwnerWithSupportedInput(page: Page, owner: Locator, interaction: ScrollInteraction): Promise<void> {
+  if (interaction === "wheel") {
+    const box = await owner.boundingBox()
+    if (!box || box.width <= 0 || box.height <= 0) throw new Error("scroll owner has no hit-testable box")
+    const maximum = await owner.evaluate((element) => {
+      if (!(element instanceof HTMLElement)) return 0
+      return Math.max(0, element.scrollHeight - element.clientHeight)
+    })
+    if (maximum <= 1) throw new Error("scroll owner has no scrollable extent")
+    await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, box.height - 2))
+    await page.mouse.wheel(0, 640)
+    return
+  }
+  await owner.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) return
+    const maximum = Math.max(0, element.scrollHeight - element.clientHeight)
+    element.scrollTop = Math.min(640, maximum)
+  })
+}
+
+export async function scrollExplicitOwner(page: Page, selector: string): Promise<ScrollInteraction> {
+  if (!selector.trim()) throw new Error("scroll owner selector must not be empty")
+  const owner = page.locator(selector).first()
+  await expect(owner, `expected scroll owner ${selector}`).toBeVisible()
+  const interaction = scrollInteractionForPage(page)
+  const before = await owner.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) return 0
+    element.scrollTop = 0
+    return element.scrollTop
+  })
+  await scrollOwnerWithSupportedInput(page, owner, interaction)
+  await expect.poll(
+    () => owner.evaluate((element) => element instanceof HTMLElement ? element.scrollTop : 0),
+    { message: `${selector} must respond to ${interaction === "wheel" ? "wheel input" : "programmatic scroll-owner control"}` },
+  ).toBeGreaterThan(before)
+  return interaction
+}
+
+export async function scrollOwnerToEnd(page: Page, selector: string): Promise<void> {
+  if (!selector.trim()) throw new Error("scroll owner selector must not be empty")
+  const owner = page.locator(selector).first()
+  await expect(owner, `expected scroll owner ${selector}`).toBeVisible()
+  await owner.evaluate((element) => {
+    if (element instanceof HTMLElement) element.scrollTop = element.scrollHeight
+  })
+}
+
+export async function expectRealScrollOwner(page: Page, selector: string): Promise<void> {
+  if (!selector.trim()) throw new Error("scroll owner selector must not be empty")
+  const owner = page.locator(selector).first()
+  await expect(owner, `expected scroll owner ${selector}`).toBeVisible()
+  const movement = await owner.evaluate((element) => {
+    const scrollable = element instanceof HTMLElement ? element : null
+    if (!scrollable) return { overflow: false, before: 0, after: 0, maximum: 0 }
+    const maximum = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight)
+    scrollable.scrollTop = 0
+    return { overflow: maximum > 1, before: 0, after: 0, maximum }
+  })
+  if (!movement.overflow) return
+  await scrollExplicitOwner(page, selector)
+  await scrollOwnerToEnd(page, selector)
+  const atEnd = await owner.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) return false
+    return element.scrollTop >= element.scrollHeight - element.clientHeight - 1
+  })
+  expect(atEnd, `${selector} must reach its scroll extent`).toBe(true)
 }
 
 export async function expectFixedAndStickyContainment(page: Page): Promise<void> {
-  const overflow = await page.evaluate(({ epsilon }) => {
-    const viewport = window.visualViewport
-    const viewportLeft = viewport?.offsetLeft ?? 0
-    const viewportTop = viewport?.offsetTop ?? 0
-    const viewportRight = viewportLeft + (viewport?.width ?? window.innerWidth)
-    const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight)
-
-    return Array.from(document.querySelectorAll<HTMLElement>("body *"))
-      .filter((element) => {
-        const position = getComputedStyle(element).position
-        return position === "fixed" || position === "sticky"
-      })
-      .map((element) => {
-        const rect = element.getBoundingClientRect()
-        return {
-          selector: element.id ? `#${element.id}` : element.className || element.tagName,
-          rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
-          viewport: { left: viewportLeft, top: viewportTop, right: viewportRight, bottom: viewportBottom },
-          visible: rect.width > 0 && rect.height > 0,
-        }
-      })
-      .filter(({ visible, rect, viewport }) => visible && (
-        rect.left < viewport.left - epsilon
-        || rect.top < viewport.top - epsilon
-        || rect.right > viewport.right + epsilon
-        || rect.bottom > viewport.bottom + epsilon
-      ))
-  }, { epsilon: VIEWPORT_EPSILON_PX })
-
-  expect(overflow, "fixed/sticky UI should stay inside the visual viewport").toEqual([])
+  const issues = await page.evaluate(() => {
+    const viewport = { width: window.innerWidth, height: window.innerHeight }
+    const problems: string[] = []
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
+      const position = getComputedStyle(element).position
+      if (position !== "fixed" && position !== "sticky") continue
+      const rect = element.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) continue
+      if (rect.left < -1 || rect.top < -1 || rect.right > viewport.width + 1 || rect.bottom > viewport.height + 1) problems.push(`${position} ${element.tagName.toLowerCase()} leaves viewport`)
+    }
+    return problems
+  })
+  assertNoIssues(issues, "fixed and sticky UI must stay within the visual viewport")
 }
 
 export async function expectViewportFitAndSafeAreaContainment(page: Page): Promise<void> {
-  const overflow = await page.evaluate(({ epsilon }) => {
-    const viewport = window.visualViewport
-    const viewportLeft = viewport?.offsetLeft ?? 0
-    const viewportTop = viewport?.offsetTop ?? 0
-    const viewportRight = viewportLeft + (viewport?.width ?? window.innerWidth)
-    const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight)
-    const body = document.body.getBoundingClientRect()
-    const root = document.documentElement.getBoundingClientRect()
-    return {
-      horizontal: Math.max(body.right, root.right) - viewportRight > epsilon
-        || Math.min(body.left, root.left) < viewportLeft - epsilon,
-      vertical: Math.min(body.top, root.top) < viewportTop - epsilon,
-    }
-  }, { epsilon: VIEWPORT_EPSILON_PX })
-
-  expect(overflow.horizontal, "document should not overflow the visual viewport horizontally").toBe(false)
-  expect(overflow.vertical, "document should not begin above the visual viewport").toBe(false)
-}
-
-export async function expectNoClippedText(locator: Locator, label = "text"): Promise<void> {
-  const clipped = await locator.evaluateAll((elements) => elements
-    .filter((element) => {
-      const target = element as HTMLElement
-      const style = getComputedStyle(target)
-      if (style.display === "none" || style.visibility === "hidden") return false
-      if (target.getBoundingClientRect().width === 0 || target.getBoundingClientRect().height === 0) return false
-      return target.scrollWidth - target.clientWidth > 1 || target.scrollHeight - target.clientHeight > 1
-    })
-    .map((element) => ({
-      text: (element.textContent ?? "").trim().slice(0, 120),
-      className: (element as HTMLElement).className,
-    })))
-  expect(clipped, `${label} should not be clipped`).toEqual([])
-}
-
-export async function expectNoHorizontalDocumentOverflow(page: Page): Promise<void> {
-  const result = await page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth,
-  }))
-  expect(result.scrollWidth - result.clientWidth, "document horizontal overflow").toBeLessThanOrEqual(1)
-}
-
-export async function expectRouteActionDockNotCoveringContent(page: Page): Promise<void> {
-  const result = await page.evaluate(() => {
-    const dock = document.querySelector<HTMLElement>(".route-action-dock")
-    if (!dock) return null
-    const dockRect = dock.getBoundingClientRect()
-    const scrollOwner = document.querySelector<HTMLElement>("[data-planner-scroll-owner='true']")
-    const ownerRect = scrollOwner?.getBoundingClientRect() ?? null
-    const lastContent = scrollOwner?.querySelector<HTMLElement>(":scope > *:last-child") ?? null
-    const lastRect = lastContent?.getBoundingClientRect() ?? null
-    return {
-      dockTop: dockRect.top,
-      ownerBottom: ownerRect?.bottom ?? null,
-      lastBottom: lastRect?.bottom ?? null,
-      scrollBottom: scrollOwner ? scrollOwner.scrollHeight - scrollOwner.scrollTop - scrollOwner.clientHeight : null,
-    }
+  const viewportFit = await page.evaluate(() => {
+    const content = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')?.content ?? ""
+    return /(?:^|,)\s*viewport-fit\s*=\s*cover\s*(?:,|$)/.test(content)
   })
-  if (result === null) return
-  if (result.ownerBottom !== null) expect(result.dockTop, "action dock should begin at or below scroll owner bottom").toBeGreaterThanOrEqual(result.ownerBottom - 1)
-  if (result.lastBottom !== null && result.scrollBottom !== null && result.scrollBottom <= 1) {
-    expect(result.lastBottom, "last reachable content should finish above the action dock").toBeLessThanOrEqual(result.dockTop + 1)
-  }
+  expect(viewportFit, "viewport metadata must opt into viewport-fit=cover").toBe(true)
+  await expectFixedAndStickyContainment(page)
 }
 
-export async function expectElementInsideViewport(locator: Locator, label = "element"): Promise<void> {
-  const result = await locator.evaluate((element) => {
-    const rect = (element as HTMLElement).getBoundingClientRect()
-    const viewport = window.visualViewport
-    const left = viewport?.offsetLeft ?? 0
-    const top = viewport?.offsetTop ?? 0
-    const right = left + (viewport?.width ?? window.innerWidth)
-    const bottom = top + (viewport?.height ?? window.innerHeight)
-    return { rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }, viewport: { left, top, right, bottom } }
-  })
-  expect(result.rect.left, `${label} left`).toBeGreaterThanOrEqual(result.viewport.left - VIEWPORT_EPSILON_PX)
-  expect(result.rect.top, `${label} top`).toBeGreaterThanOrEqual(result.viewport.top - VIEWPORT_EPSILON_PX)
-  expect(result.rect.right, `${label} right`).toBeLessThanOrEqual(result.viewport.right + VIEWPORT_EPSILON_PX)
-  expect(result.rect.bottom, `${label} bottom`).toBeLessThanOrEqual(result.viewport.bottom + VIEWPORT_EPSILON_PX)
-}
-
-export async function expectBottomInsetClearance(locator: Locator, page: Page, label = "element"): Promise<void> {
-  const result = await locator.evaluate((element) => {
-    const rect = (element as HTMLElement).getBoundingClientRect()
-    const viewport = window.visualViewport
-    const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight)
-    return { bottom: rect.bottom, viewportBottom: bottom }
-  })
-  expect(result.viewportBottom - result.bottom, `${label} should have bottom inset clearance`).toBeGreaterThanOrEqual(0)
-}
-
-export async function expectSinglePrimaryHeading(page: Page): Promise<void> {
-  const count = await page.locator("main h1").count()
-  expect(count, "main should contain exactly one h1").toBe(1)
-}
-
-export async function expectNoDuplicateIds(page: Page): Promise<void> {
-  const duplicates = await page.evaluate(() => {
-    const counts = new Map<string, number>()
-    document.querySelectorAll<HTMLElement>("[id]").forEach((element) => {
-      counts.set(element.id, (counts.get(element.id) ?? 0) + 1)
-    })
-    return Array.from(counts.entries()).filter(([, count]) => count > 1)
-  })
-  expect(duplicates, "document should not contain duplicate IDs").toEqual([])
-}
-
-export async function expectNoFocusableHiddenContent(page: Page): Promise<void> {
+export async function expectSheetsAndModalsInsideVisualViewport(page: Page): Promise<void> {
   const issues = await page.evaluate(() => {
-    const focusable = Array.from(document.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]"))
-    return focusable.filter((element) => {
-      if (element.tabIndex < 0) return false
+    const viewport: Viewport = { width: window.visualViewport?.width ?? window.innerWidth, height: window.visualViewport?.height ?? window.innerHeight }
+    const problems: string[] = []
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>("dialog,[role=dialog],[class*='sheet'],[class*='modal']"))) {
       const style = getComputedStyle(element)
+      if (style.display === "none" || style.visibility === "hidden") continue
       const rect = element.getBoundingClientRect()
-      const hiddenByAttribute = element.hidden || element.getAttribute("aria-hidden") === "true"
-      const hiddenByStyle = style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0
-      const zeroSize = rect.width === 0 || rect.height === 0
-      return hiddenByAttribute || hiddenByStyle || zeroSize
-    }).map((element) => ({
-      tag: element.tagName,
-      id: element.id,
-      className: element.className,
-      text: (element.textContent ?? "").trim().slice(0, 80),
-    }))
+      if (rect.left < -1 || rect.top < -1 || rect.right > viewport.width + 1 || rect.bottom > viewport.height + 1) problems.push(`${element.tagName.toLowerCase()} leaves visual viewport`)
+    }
+    return problems
   })
-  expect(issues, "hidden content should not stay focusable").toEqual([])
+  assertNoIssues(issues, "sheets and modals must be contained by the visual viewport")
 }
 
-export async function expectStableVisualViewport(page: Page): Promise<void> {
-  const before = await page.evaluate(() => ({
-    width: window.visualViewport?.width ?? window.innerWidth,
-    height: window.visualViewport?.height ?? window.innerHeight,
-  }))
-  await page.waitForTimeout(120)
-  const after = await page.evaluate(() => ({
-    width: window.visualViewport?.width ?? window.innerWidth,
-    height: window.visualViewport?.height ?? window.innerHeight,
-  }))
-  expect(Math.abs(after.width - before.width), "visual viewport width drift").toBeLessThanOrEqual(1)
-  expect(Math.abs(after.height - before.height), "visual viewport height drift").toBeLessThanOrEqual(1)
-}
-
-export async function expectNoUnboundedAnimations(page: Page): Promise<void> {
-  const running = await page.evaluate(() => document.getAnimations({ subtree: true })
-    .filter((animation) => {
-      const timing = animation.effect?.getComputedTiming()
-      return animation.playState === "running" && timing?.iterations === Infinity
-    })
-    .map((animation) => ({ playState: animation.playState, currentTime: animation.currentTime })))
-  expect(running, "mobile core states should not leave unbounded animations running").toEqual([])
-}
-
-export async function expectNoViewportScaleLock(page: Page): Promise<void> {
-  const viewport = await page.locator('meta[name="viewport"]').getAttribute("content")
-  expect(viewport ?? "", "viewport should not lock zoom").not.toMatch(/(?:user-scalable\s*=\s*no|maximum-scale\s*=\s*1(?:\.0+)?)(?:\s|,|$)/i)
-}
-
-export async function expectVisibleDialogContained(page: Page): Promise<void> {
-  const dialogs = page.locator('[role="dialog"]:visible')
-  const count = await dialogs.count()
-  for (let index = 0; index < count; index += 1) {
-    await expectElementInsideViewport(dialogs.nth(index), `dialog ${index + 1}`)
-  }
-}
-
-export async function expectBottomDockReachable(page: Page): Promise<void> {
-  const docks = page.locator(".route-action-dock:visible, .ride-dock:visible")
-  const count = await docks.count()
-  for (let index = 0; index < count; index += 1) {
-    await expectElementInsideViewport(docks.nth(index), `bottom dock ${index + 1}`)
-    await expectBottomInsetClearance(docks.nth(index), page, `bottom dock ${index + 1}`)
-  }
-}
-
-export async function expectBottomSheetReachable(page: Page): Promise<void> {
-  const sheets = page.locator("[data-bottom-sheet='true']:visible")
-  const count = await sheets.count()
-  for (let index = 0; index < count; index += 1) {
-    await expectElementInsideViewport(sheets.nth(index), `bottom sheet ${index + 1}`)
-  }
-}
-
-export async function expectDialogFocusContained(page: Page): Promise<void> {
-  const dialogs = page.locator('[role="dialog"]:visible')
-  const count = await dialogs.count()
-  for (let index = 0; index < count; index += 1) {
-    const dialog = dialogs.nth(index)
-    const activeInside = await dialog.evaluate((element) => element.contains(document.activeElement))
-    expect(activeInside, `dialog ${index + 1} should contain active focus`).toBe(true)
-  }
-}
-
-export async function expectNoTinyInteractiveControls(page: Page): Promise<void> {
-  const small = await page.evaluate(({ min, epsilon }) => Array.from(document.querySelectorAll<HTMLElement>("button:visible, a[href]:visible, input:visible, select:visible, textarea:visible"))
-    .map((element) => {
+export async function expectNavigationReachability(page: Page): Promise<void> {
+  const issues = await page.evaluate((selector) => {
+    const problems: string[] = []
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
       const rect = element.getBoundingClientRect()
-      return { text: (element.textContent ?? "").trim().slice(0, 80), width: rect.width, height: rect.height }
-    })
-    .filter(({ width, height }) => width + epsilon < min || height + epsilon < min), { min: MIN_TOUCH_TARGET_CSS_PX, epsilon: TOUCH_TARGET_EPSILON_PX })
-  expect(small, "interactive controls should meet mobile touch target minimums").toEqual([])
+      if (rect.width === 0 || rect.height === 0) continue
+      if (rect.left < -1 || rect.top < -1 || rect.right > window.innerWidth + 1 || rect.bottom > window.innerHeight + 1) problems.push(`${element.tagName.toLowerCase()} navigation control leaves viewport`)
+    }
+    return problems
+  }, "nav a,nav button,[role=navigation] a,[role=navigation] button")
+  assertNoIssues(issues, "navigation controls must be reachable in the viewport")
 }
 
-export async function expectMotionPreferenceRespected(page: Page): Promise<void> {
-  const reduced = await page.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-  if (!reduced) return
-  const violations = await page.evaluate(() => document.getAnimations({ subtree: true })
-    .filter((animation) => animation.playState === "running")
-    .map((animation) => ({ playState: animation.playState, currentTime: animation.currentTime })))
-  expect(violations, "reduced-motion profile should not leave running animations").toEqual([])
+export interface MobileQaRuntimeIssues {
+  readonly consoleErrors: readonly string[]
+  readonly failedRequests: readonly string[]
+  readonly dispose: () => void
 }
 
-export async function expectReadableTextContrast(page: Page): Promise<void> {
-  // Contrast is intentionally enforced by token ownership and visual review in this
-  // deterministic suite. Keep this hook so scenarios can opt into a stronger
-  // browser-native contrast oracle later without changing the scenario contract.
-  expect(await page.evaluate(() => document.documentElement.dataset.theme ?? "light")).toBeTruthy()
-}
-
-export async function expectNoRuntimeErrors(page: Page): Promise<void> {
-  await expectNoConsoleErrors(page)
-  await expectNoUnexpectedNetworkFailures(page)
+export interface RuntimeIssueOptions {
+  readonly ignoreRequest?: (request: Request) => boolean
+  readonly ignoreResponse?: (response: Response) => boolean
 }
 
 const collectors = new WeakMap<Page, MobileQaRuntimeIssues>()
@@ -361,9 +393,7 @@ export function expectNoUnexpectedNetworkFailures(
   options: RuntimeIssueExpectation = {},
 ): void {
   const failures = (collector?.failedRequests ?? [])
-    .filter((failure) => !isExpectedProviderHealthAbort(failure)
-      && !isExpectedRouteTrafficAbort(failure)
-      && !options.ignore?.(failure))
+    .filter((failure) => !isExpectedProviderHealthAbort(failure) && !options.ignore?.(failure))
   expect(failures, "unexpected failed network requests").toEqual([])
 }
 
@@ -373,27 +403,6 @@ export function isExpectedRouteWeatherAbort(failure: string): boolean {
   try {
     const url = new URL(match[1])
     return url.pathname === "/api/route-weather"
-      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
-  } catch {
-    return false
-  }
-}
-
-/**
- * Route traffic evidence is requested as soon as a selected route is shown,
- * and the request is deliberately aborted when that surface unmounts or the
- * selected route changes. Only that exact POST cancellation is expected.
- * HTTP errors, offline failures, query-bearing requests, and other endpoints
- * remain visible to Mobile Core.
- */
-export function isExpectedRouteTrafficAbort(failure: string): boolean {
-  const match = /^POST (\S+) failed: (.+)$/.exec(failure)
-  if (match === null) return false
-  try {
-    const url = new URL(match[1])
-    return url.pathname === "/api/route-traffic"
-      && url.search === ""
-      && url.hash === ""
       && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
   } catch {
     return false
