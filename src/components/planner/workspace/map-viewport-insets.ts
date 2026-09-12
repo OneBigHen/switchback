@@ -47,7 +47,7 @@ export interface WorkspaceMapContext {
    */
   sheetDetent?: ContextSheetDetent
   /**
-   * Persistent left planning panel width (desktop/tablet landscape).
+   * Persistent left planning panel width (medium/wide workspace).
    * Legacy fit padding reserved 500 px for this panel plus gutter.
    */
   workspacePanelWidthPx?: number
@@ -57,15 +57,10 @@ export interface WorkspaceMapContext {
 export const MAP_VIEWPORT_GUTTER_PX = 24
 
 /**
- * The follow camera switches to its non-compact layout immediately after the
- * canonical compact ceiling. Using the ceiling itself as the desktop minimum
- * made exactly 760 px disagree with `resolveWorkspaceMode`: the workspace was
- * compact while camera math already behaved as medium/desktop.
- *
- * Route fitting still carries its legacy 800 px split below. That divergence
- * is intentionally left visible until medium topology exists; reserving a
- * persistent side panel before one is actually rendered would create a new
- * camera bug while trying to remove the old breakpoint drift.
+ * Follow-camera geometry changes immediately after the canonical compact
+ * ceiling. Route fitting uses that same compact/non-compact authority below so
+ * React topology, camera fitting, orientation changes and split-window resize
+ * cannot disagree about whether the persistent planning panel exists.
  */
 const NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX = WORKSPACE_COMPACT_MAX_WIDTH_PX + 1
 
@@ -91,8 +86,8 @@ function isShortLandscape(ctx: WorkspaceMapContext): boolean {
   return ctx.viewportHeightPx <= 520 && ctx.viewportWidthPx > ctx.viewportHeightPx
 }
 
-function isWide(ctx: WorkspaceMapContext): boolean {
-  return ctx.viewportWidthPx >= 800
+function hasPersistentSideWorkspace(ctx: WorkspaceMapContext): boolean {
+  return !isCompactWorkspaceWidth(ctx.viewportWidthPx)
 }
 
 /**
@@ -100,9 +95,9 @@ function isWide(ctx: WorkspaceMapContext): boolean {
  * Golden-parity replacement for `routeFitPadding`.
  */
 export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewportInsets {
-  const wide = isWide(ctx)
+  const persistentSideWorkspace = hasPersistentSideWorkspace(ctx)
   if (isShortLandscape(ctx)) {
-    if (wide) {
+    if (persistentSideWorkspace) {
       return ctx.mode === "ride"
         ? { top: 80, right: 40, bottom: 150, left: 40 }
         : { top: 40, right: 40, bottom: 40, left: PLANNING_PANEL_LEFT_INSET_PX }
@@ -111,8 +106,8 @@ export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewpor
       ? { top: 72, right: 24, bottom: 150, left: 24 }
       : { top: 24, right: 24, bottom: PLANNING_SHORT_LANDSCAPE_BOTTOM_INSET_PX, left: 24 }
   }
-  if (wide) {
-    // Desktop/tablet landscape planning reserves the left workspace panel.
+  if (persistentSideWorkspace) {
+    // Medium/wide planning reserves the persistent left workspace panel.
     if (ctx.mode === "planning") {
       const leftInset = ctx.workspacePanelWidthPx != null
         // Measured panel plus one gutter of breathing room.
@@ -124,7 +119,7 @@ export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewpor
     }
     return { top: 80, right: 70, bottom: 80, left: 70 }
   }
-  // Phone portrait: bottom inset follows the context sheet.
+  // Compact portrait: bottom inset follows the context sheet.
   if (ctx.mode === "planning") {
     return {
       top: 90,
