@@ -26,18 +26,35 @@ describe("catalog presentation truth", () => {
   it("files a Bald Eagle route using its real bbox instead of name inference", () => {
     expect(classifyCatalogArea([-77.9, 40.75, -77.25, 41.1])).toEqual({
       region: "North-Central PA",
-      ridingArea: "Bald Eagle / Rothrock"
+      ridingAreas: ["PA Wilds", "Bald Eagle / Rothrock"]
     })
+  })
+
+  it("files riding areas by the route centre, never by a far-reaching bbox edge", () => {
+    // Centre (-78.1, 41.575) sits in PA Wilds; the bbox merely clips Pine Creek
+    // and the Allegheny National Forest, which the route is not filed under.
+    const area = classifyCatalogArea([-79.05, 41.2, -77.15, 41.95])
+    expect(area.region).toBe("North-Central PA")
+    expect(area.ridingAreas).toEqual(["PA Wilds"])
   })
 
   it("does not misfile nearby New Jersey as Pennsylvania", () => {
     expect(classifyCatalogArea([-74.95, 40.15, -74.55, 40.55])).toEqual({
       region: "New Jersey",
-      ridingArea: null
+      ridingAreas: []
+    })
+  })
+
+  it("keeps recognizable non-PA regions and an honest farther-afield bucket", () => {
+    expect(classifyCatalogArea([-81.2, 40.0, -80.8, 40.4]).region).toBe("Ohio")
+    expect(classifyCatalogArea([-122.5, 37.6, -122.3, 37.9])).toEqual({
+      region: "Farther afield",
+      ridingAreas: []
     })
   })
 
   it("keeps routes without a bbox explicitly unplaced", () => {
-    expect(classifyCatalogArea(null)).toEqual({ region: null, ridingArea: null })
+    expect(classifyCatalogArea(null)).toEqual({ region: null, ridingAreas: [] })
+    expect(classifyCatalogArea(undefined)).toEqual({ region: null, ridingAreas: [] })
   })
 })

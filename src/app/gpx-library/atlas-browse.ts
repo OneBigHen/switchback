@@ -1,8 +1,9 @@
 /**
- * Client-safe helpers for the route atlas browser: the row shape the server
- * hands the client, the geo maths behind "rides near me", a coarse offline
- * area classifier, and the pure filter/sort the UI drives. No `node:` imports
- * here — this module is bundled for the browser.
+ * Client-safe helpers for the Route Library browser: the row shape the server
+ * hands the client, the geo maths behind "rides near me", and the pure
+ * filter/sort the UI drives. Area filing comes from the single catalog
+ * geography authority (`classifyCatalogArea`) on the server. No `node:`
+ * imports here — this module is bundled for the browser.
  */
 
 import type { CurvatureBand } from "@/lib/gpx/atlas"
@@ -24,16 +25,18 @@ export interface AtlasBrowseRoute {
   readonly tone: string
   readonly band: CurvatureBand
   readonly distanceMiles: number
-  /** Moving time in minutes; `0` when the import carried none. */
-  readonly durationMinutes: number
+  /** Imported moving time in minutes, or `null` when the import carried none. */
+  readonly durationMinutes: number | null
   readonly turnCount: number
   readonly twistiness: number
   /** Share (0..1) of route distance on unpaved surface, when the mix is known. */
   readonly unpavedShare: number | null
   /** `[west, south, east, north]` in degrees, or null when geometry was not retained. */
   readonly bbox: readonly [number, number, number, number] | null
-  /** Coarse offline area label from the route centroid, or null when unplaceable. */
+  /** Broad browse bucket such as "North-Central PA", or null when unplaceable. */
   readonly region: string | null
+  /** Recognizable riding areas holding the route centre; may be empty. */
+  readonly ridingAreas: readonly string[]
   /** Mercator width/height ratio of the route, for framing the minimap. */
   readonly aspect: number
   /** Poster path pieces in a 0 0 100 125 viewBox. */
@@ -50,6 +53,7 @@ export interface AtlasFilterState {
   readonly lengths: readonly AtlasLengthBucket[]
   readonly bands: readonly CurvatureBand[]
   readonly region: string | null
+  readonly area: string | null
   readonly query: string
 }
 
@@ -59,6 +63,7 @@ export const DEFAULT_FILTERS: AtlasFilterState = {
   lengths: [],
   bands: [],
   region: null,
+  area: null,
   query: ""
 }
 
@@ -73,34 +78,6 @@ export function distanceFromAnchorMiles(
   bbox: readonly [number, number, number, number]
 ): number {
   return haversineMiles([anchor.lon, anchor.lat], centerOfBbox(bbox))
-}
-
-/**
- * Coarse, offline area label from a route centroid. This is a filing aid for
- * the browser's region chips, not a geocoder: a route that straddles a border
- * is filed by its centre, and anything outside the boxes below reads as
- * "Farther afield". No network, no new data source (AGENTS.md integration gate).
- */
-const REGION_BOXES: ReadonlyArray<{ label: string; west: number; south: number; east: number; north: number }> = [
-  { label: "Western Pennsylvania", west: -80.6, south: 39.7, east: -78.3, north: 42.3 },
-  { label: "Central Pennsylvania", west: -78.3, south: 39.7, east: -76.7, north: 42.3 },
-  { label: "Eastern Pennsylvania", west: -76.7, south: 39.7, east: -74.7, north: 42.3 },
-  { label: "New Jersey", west: -75.6, south: 38.9, east: -73.9, north: 41.4 },
-  { label: "New York", west: -79.8, south: 40.5, east: -71.8, north: 45.1 },
-  { label: "West Virginia & Maryland", west: -82.7, south: 37.2, east: -75.0, north: 39.7 },
-  { label: "Virginia", west: -83.7, south: 36.5, east: -75.2, north: 39.5 },
-  { label: "Ohio", west: -84.9, south: 38.4, east: -80.5, north: 42.3 },
-  { label: "New England", west: -73.8, south: 41.0, east: -66.8, north: 47.5 },
-  { label: "Europe", west: -11.0, south: 35.0, east: 32.0, north: 60.0 }
-]
-
-export function classifyRegion(bbox: readonly [number, number, number, number] | null): string | null {
-  if (!bbox) return null
-  const [lon, lat] = centerOfBbox(bbox)
-  for (const box of REGION_BOXES) {
-    if (lon >= box.west && lon <= box.east && lat >= box.south && lat <= box.north) return box.label
-  }
-  return "Farther afield"
 }
 
 export const LENGTH_BUCKETS: ReadonlyArray<{ id: AtlasLengthBucket; label: string; test: (mi: number) => boolean }> = [
@@ -123,7 +100,8 @@ export function formatMiles(value: number): string {
   return WHOLE_NUMBER.format(Math.max(0, Math.round(value)))
 }
 
-export function formatDuration(minutes: number): string | null {
+export function formatDuration(minutes: number | null): string | null {
+  if (minutes === null) return null
   const total = Math.round(minutes)
   if (!Number.isFinite(total) || total <= 0) return null
   const hours = Math.floor(total / 60)
@@ -147,7 +125,7 @@ export interface AtlasBrowseResult {
 
 /**
  * The single pure transform the browser UI runs: apply the text, length,
- * corner, region and radius filters, then order what survives. Kept here so it
+ * corner, region, riding-area and radius filters, then order what survives. Kept here so it
  * can be reasoned about and tested without a DOM.
  */
 export function browseAtlas(
@@ -161,10 +139,12 @@ export function browseAtlas(
 
   const ranked: RankedAtlasRoute[] = []
   for (const route of routes) {
-    if (query && !`${route.title} ${route.name}`.toLowerCase().includes(query)) continue
+    const searchable = `${route.title} ${route.name} ${route.region ?? ""} ${route.ridingAreas.join(" ")}`.toLowerCase()
+    if (query && !searchable.includes(query)) continue
     if (filters.lengths.length > 0 && !filters.lengths.includes(lengthBucket(route.distanceMiles))) continue
     if (filters.bands.length > 0 && !filters.bands.includes(route.band)) continue
     if (filters.region && route.region !== filters.region) continue
+    if (filters.area && !route.ridingAreas.includes(filters.area)) continue
 
     const awayMiles = anchor && route.bbox ? distanceFromAnchorMiles(anchor, route.bbox) : null
     if (radiusMiles !== null && anchor) {
