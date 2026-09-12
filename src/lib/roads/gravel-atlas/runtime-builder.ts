@@ -45,7 +45,8 @@ interface StagingManifestRow {
   source_fingerprint: string
 }
 
-const RUNTIME_SCHEMA_VERSION = 1
+/** Runtime schema v2 adds explicit traversability-policy identity. */
+export const GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION = 2
 const SHA256_HEX = /^[0-9a-f]{64}$/
 
 function isCoordinate(value: unknown): value is Coordinate {
@@ -248,7 +249,7 @@ export function buildGravelAtlasRuntimeDatabase(
         traversability_policy_version, corridor_count
       ) values (?, ?, ?, ?, ?)
     `).run(
-      RUNTIME_SCHEMA_VERSION,
+      GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION,
       manifest.source_fingerprint,
       graphFingerprint,
       GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
