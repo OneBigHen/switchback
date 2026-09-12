@@ -20,10 +20,10 @@ type TrafficResult =
   | { routeId: string; kind: "ready"; evidence: RouteTrafficEvidence }
   | { routeId: string; kind: "unavailable" }
 
-const unavailableSummary: RouteTrafficSummaryView = {
+const malformedRouteSummary: RouteTrafficSummaryView = {
   state: "unavailable",
-  title: "Live traffic unavailable",
-  detail: "Traffic is not being used to judge this route."
+  title: "Traffic check unavailable",
+  detail: "This route does not have enough geometry for a live traffic check."
 }
 
 function subscribeOnlineState(listener: () => void): () => void {
@@ -91,8 +91,8 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
       <div className="route-traffic-summary is-unavailable" role="status" aria-live="polite">
         <TrafficCone weight="fill" aria-hidden="true" />
         <span>
-          <strong>{unavailableSummary.title}</strong>
-          <small>{unavailableSummary.detail}</small>
+          <strong>{malformedRouteSummary.title}</strong>
+          <small>{malformedRouteSummary.detail}</small>
         </span>
       </div>
     )
@@ -118,15 +118,18 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
         <span className="route-traffic-summary__spinner" aria-hidden="true" />
         <span>
           <strong>Checking live traffic…</strong>
-          <small>Current conditions are advisory and do not change your route yet.</small>
+          <small>Advisory only — this does not change the selected route.</small>
         </span>
       </div>
     )
   }
 
-  const summary = result.kind === "ready"
-    ? summarizeRouteTrafficEvidence(result.evidence)
-    : unavailableSummary
+  // Route choice should contain useful evidence, not a permanent provider
+  // availability card. Explicit map-layer requests still expose provider
+  // failure state through Rider Map Studio.
+  if (result.kind === "unavailable" || result.evidence.status === "unknown") return null
+
+  const summary = summarizeRouteTrafficEvidence(result.evidence)
 
   return (
     <div className={`route-traffic-summary is-${summary.state}`} role="status" aria-live="polite">
