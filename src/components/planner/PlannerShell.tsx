@@ -753,7 +753,16 @@ export function PlannerShell() {
     onNotice: setNotice,
     onLoad: handleLoad,
     openedCatalogRouteIds,
-    requestGate: routeRequestGate
+    beginCatalogOpen: () => {
+      // Recorded ride history only grows when someone authors a change; draft
+      // recovery and passive location seeding never add to it.
+      const authoredChanges = () => {
+        const { past, future } = usePlannerStore.getState().rideHistory
+        return past.length + future.length
+      }
+      const before = authoredChanges()
+      return () => authoredChanges() > before
+    }
   })
 
   // Deep links from the Route Library, one-shot on mount like the portable

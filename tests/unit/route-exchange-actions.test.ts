@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest"
-import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { SavedRoute } from "@/lib/storage/route-library"
@@ -138,16 +137,16 @@ describe("route exchange actions", () => {
     })
   })
 
-  it("drops a late Route Library load once newer planner work has superseded it", async () => {
+  it("drops a late Route Library load once the rider has authored planner changes", async () => {
     const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
     let release: (response: Response) => void = () => undefined
     const fetcher = vi.fn(() => new Promise<Response>((resolve) => { release = resolve }))
-    const gate = createLatestRequestGate()
-    const subject = actions({ fetcher, requestGate: gate })
+    let riderEdited = false
+    const subject = actions({ fetcher, beginCatalogOpen: () => () => riderEdited })
 
     const opening = subject.actions.openCatalogRoute("atlas-42")
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalled())
-    gate.invalidate() // the rider edited the planner meanwhile
+    riderEdited = true
     release(new Response(JSON.stringify(catalogRoute)))
     await opening
 

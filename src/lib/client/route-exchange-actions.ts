@@ -1,4 +1,3 @@
-import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { catalogCopyId, fetchCatalogRoute } from "@/lib/gpx/catalog-client"
 import { recordedRideToGpx, routeToGpx, type GpxExportVariant } from "@/lib/routing/gpx"
 import { MAX_GPX_IMPORT_BYTES } from "@/lib/routing/gpx-import"
@@ -52,10 +51,13 @@ interface RouteExchangeActionsOptions {
    */
   openedCatalogRouteIds?: Set<string>
   /**
-   * Planner request gate. A Route Library load that resolves after newer
-   * planner work (an edit, a selection, another load) is dropped.
+   * Called when a Route Library load starts; the returned check reports
+   * whether the rider has authored planner changes since, in which case the
+   * late load is dropped instead of replacing their work. It must not count
+   * non-rider boot work (draft recovery, a location fix): a general request
+   * gate advances for those and would drop the rider's explicit Open in Planner.
    */
-  requestGate?: LatestRequestGate
+  beginCatalogOpen?: () => () => boolean
 }
 
 function downloadName(route: PlannedRoute, variant: GpxExportVariant): string {
@@ -105,7 +107,7 @@ export function createRouteExchangeActions({
   defaultLockSourceGraphVersion = "gpx-import",
   buildImportedLockAccessSnapshot = defaultImportedLockAccessSnapshot,
   openedCatalogRouteIds = new Set<string>(),
-  requestGate
+  beginCatalogOpen = () => () => false
 }: RouteExchangeActionsOptions) {
   return {
     async saveRoute(route: PlannedRoute) {
@@ -179,8 +181,7 @@ export function createRouteExchangeActions({
 
     /** Route Library → Open in Planner. Loads the shared entry; never saves it. */
     async openCatalogRoute(catalogRouteId: string) {
-      const requestId = requestGate?.begin()
-      const superseded = () => requestId !== undefined && requestGate !== undefined && !requestGate.isCurrent(requestId)
+      const superseded = beginCatalogOpen()
       try {
         const catalogRoute = await fetchCatalogRoute(catalogRouteId, fetcher)
         if (superseded()) return
