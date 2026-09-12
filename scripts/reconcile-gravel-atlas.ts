@@ -8,11 +8,16 @@ function argument(name: string): string | undefined {
   return process.argv.slice(2).find((value) => value.startsWith(prefix))?.slice(prefix.length)
 }
 
-function canonicalSegments(value: unknown): CanonicalSegment[] {
-  if (Array.isArray(value)) return value as CanonicalSegment[]
+function canonicalGraph(value: unknown): { graphFingerprint?: string; segments: CanonicalSegment[] } {
+  if (Array.isArray(value)) return { segments: value as CanonicalSegment[] }
   if (value && typeof value === "object" && !Array.isArray(value)) {
-    const segments = (value as { segments?: unknown }).segments
-    if (Array.isArray(segments)) return segments as CanonicalSegment[]
+    const payload = value as { graphFingerprint?: unknown; segments?: unknown }
+    if (Array.isArray(payload.segments)) {
+      return {
+        ...(typeof payload.graphFingerprint === "string" ? { graphFingerprint: payload.graphFingerprint.trim() } : {}),
+        segments: payload.segments as CanonicalSegment[]
+      }
+    }
   }
   throw new Error("Canonical graph JSON must be an array or an object with a segments array")
 }
@@ -34,18 +39,21 @@ async function atomicJsonWrite(destination: string, value: unknown): Promise<voi
 }
 
 async function main() {
-  const graphPath = argument("graph")
-  const graphFingerprint = argument("graph-fingerprint")?.trim()
-  if (!graphPath) throw new Error("Use --graph=<canonical-routable-segments.json>")
-  if (!graphFingerprint) throw new Error("Use --graph-fingerprint=<active-routing-graph-fingerprint>")
-
+  const graphPath = argument("graph") ?? "data/gravel-atlas-graph.json"
   const stagingDatabasePath = path.resolve(argument("staging") ?? "data/gravel-atlas-sources.sqlite")
   const outputPath = path.resolve(argument("output") ?? "data/gravel-atlas-verified.json")
-  const graphPayload = JSON.parse(await readFile(path.resolve(graphPath), "utf8")) as unknown
+  const graph = canonicalGraph(JSON.parse(await readFile(path.resolve(graphPath), "utf8")) as unknown)
+  const requestedFingerprint = argument("graph-fingerprint")?.trim()
+  if (requestedFingerprint && graph.graphFingerprint && requestedFingerprint !== graph.graphFingerprint) {
+    throw new Error("Requested graph fingerprint does not match the canonical graph export")
+  }
+  const graphFingerprint = requestedFingerprint || graph.graphFingerprint
+  if (!graphFingerprint) throw new Error("Canonical graph export does not contain graphFingerprint")
+
   const result = await reconcileGravelAtlasSources({
     stagingDatabasePath,
     graphFingerprint,
-    routableSegments: canonicalSegments(graphPayload)
+    routableSegments: graph.segments
   })
 
   await atomicJsonWrite(outputPath, result)
