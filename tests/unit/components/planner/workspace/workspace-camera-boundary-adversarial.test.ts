@@ -32,19 +32,22 @@ describe("workspace camera boundary authority", () => {
         expected: { top: 90, right: 34, bottom: 450, left: 34 }
       },
       {
+        // 761x900 is portrait Medium: 16 + clamped 320 + 24 gutter.
         width: WORKSPACE_COMPACT_MAX_WIDTH_PX + 1,
         mode: "medium",
-        expected: { top: 80, right: 70, bottom: 80, left: 500 }
+        expected: { top: 80, right: 70, bottom: 80, left: 360 }
       },
       {
+        // 768x900 is portrait Medium: 16 + round(42vw) + 24 gutter.
         width: 768,
         mode: "medium",
-        expected: { top: 80, right: 70, bottom: 80, left: 500 }
+        expected: { top: 80, right: 70, bottom: 80, left: 363 }
       },
       {
+        // 1180x900 is landscape Medium: 96 + clamped 400 + 24 gutter.
         width: WORKSPACE_MEDIUM_MAX_WIDTH_PX,
         mode: "medium",
-        expected: { top: 80, right: 70, bottom: 80, left: 500 }
+        expected: { top: 80, right: 70, bottom: 80, left: 520 }
       },
       {
         width: WORKSPACE_MEDIUM_MAX_WIDTH_PX + 1,
@@ -69,6 +72,6 @@ describe("workspace camera boundary authority", () => {
       viewportHeightPx: 1024,
       workspaceWidthPx: 768,
       mode: "planning"
-    })).toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
+    })).toEqual({ top: 80, right: 70, bottom: 80, left: 363 })
   })
 })
