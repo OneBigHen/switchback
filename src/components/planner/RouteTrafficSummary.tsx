@@ -1,7 +1,7 @@
 "use client"
 
 import { WarningCircle, TrafficCone, CheckCircle } from "@phosphor-icons/react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import "@/app/styles/route-traffic.css"
 import {
   fetchRouteTrafficEvidence,
@@ -26,6 +26,23 @@ const unavailableSummary: RouteTrafficSummaryView = {
   detail: "Traffic is not being used to judge this route."
 }
 
+function subscribeOnlineState(listener: () => void): () => void {
+  window.addEventListener("online", listener)
+  window.addEventListener("offline", listener)
+  return () => {
+    window.removeEventListener("online", listener)
+    window.removeEventListener("offline", listener)
+  }
+}
+
+function getOnlineSnapshot(): boolean {
+  return navigator.onLine
+}
+
+function getServerOnlineSnapshot(): boolean {
+  return true
+}
+
 function SummaryIcon({ state }: { state: RouteTrafficSummaryView["state"] }) {
   if (state === "clear") return <CheckCircle weight="fill" aria-hidden="true" />
   if (state === "danger") return <WarningCircle weight="fill" aria-hidden="true" />
@@ -39,10 +56,15 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
     () => geometry ? sampleTrafficRoutePoints(geometry) : [],
     [geometry]
   )
+  const isOnline = useSyncExternalStore(
+    subscribeOnlineState,
+    getOnlineSnapshot,
+    getServerOnlineSnapshot
+  )
   const [result, setResult] = useState<TrafficResult | null>(null)
 
   useEffect(() => {
-    if (!routeId || points.length < 2) return
+    if (!routeId || points.length < 2 || !isOnline) return
 
     const controller = new AbortController()
     let current = true
@@ -61,7 +83,7 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
       current = false
       controller.abort()
     }
-  }, [routeId, points])
+  }, [routeId, points, isOnline])
 
   if (!routeId) return null
   if (points.length < 2) {
@@ -71,6 +93,18 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
         <span>
           <strong>{unavailableSummary.title}</strong>
           <small>{unavailableSummary.detail}</small>
+        </span>
+      </div>
+    )
+  }
+
+  if (!isOnline) {
+    return (
+      <div className="route-traffic-summary is-paused" role="status" aria-live="polite">
+        <TrafficCone weight="fill" aria-hidden="true" />
+        <span>
+          <strong>Traffic check paused</strong>
+          <small>Reconnect to refresh live conditions.</small>
         </span>
       </div>
     )
