@@ -48,7 +48,7 @@ describe("Rider settings V2 migration", () => {
     expect(migrated.uiPreferences).toEqual(defaultRiderUiPreferences())
   })
 
-  it("deduplicates and bounds curated UI preferences while removing unknown ids", () => {
+  it("deduplicates, migrates, and bounds curated UI preferences while removing unknown ids", () => {
     const validated = validateRiderUiPreferences({
       planQuickActions: ["record", "record", "free-ride", "home-loop", "saved-place", "unknown"],
       quickLayers: ["curvature", "curvature", "unpaved", "weather", "fuel", "bogus"],
@@ -59,7 +59,7 @@ describe("Rider settings V2 migration", () => {
     })
 
     expect(validated.planQuickActions).toEqual(["record", "free-ride", "home-loop", "saved-place"])
-    expect(validated.quickLayers).toEqual(["curvature", "unpaved", "weather", "fuel"])
+    expect(validated.quickLayers).toEqual(["curvature", "gravel-atlas", "weather", "fuel"])
     expect(validated.rideMetrics).toEqual(["speed", "eta", "remaining-distance"])
     expect(validated.recordingMetrics).toEqual(["elapsed", "distance", "speed"])
     expect(validated.routeDetailOrder.slice(0, 3)).toEqual(["weather", "overview", "actions"])
