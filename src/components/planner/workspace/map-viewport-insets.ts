@@ -34,9 +34,16 @@ export interface MapViewportInsets {
 export type WorkspaceMapMode = "planning" | "ride"
 
 export interface WorkspaceMapContext {
-  /** Live map viewport size in CSS pixels (container, not window). */
+  /** Live drawable map size in CSS pixels (container, not window). */
   viewportWidthPx: number
   viewportHeightPx: number
+  /**
+   * Application width that owns Compact/Medium/Wide topology. It may differ
+   * from the drawable map width when a future workspace uses a true split
+   * pane instead of overlaying the planner. Defaults to the map width for pure
+   * calculations and lightweight map doubles.
+   */
+  workspaceWidthPx?: number
   /** Defaults to "planning"; follow-camera insets ignore it. */
   mode?: WorkspaceMapMode
   /**
@@ -86,8 +93,12 @@ function isShortLandscape(ctx: WorkspaceMapContext): boolean {
   return ctx.viewportHeightPx <= 520 && ctx.viewportWidthPx > ctx.viewportHeightPx
 }
 
+function workspaceWidth(ctx: WorkspaceMapContext): number {
+  return ctx.workspaceWidthPx ?? ctx.viewportWidthPx
+}
+
 function hasPersistentSideWorkspace(ctx: WorkspaceMapContext): boolean {
-  return !isCompactWorkspaceWidth(ctx.viewportWidthPx)
+  return !isCompactWorkspaceWidth(workspaceWidth(ctx))
 }
 
 /**
@@ -171,7 +182,7 @@ export function calculateNavigationFollowInsets(ctx: WorkspaceMapContext): MapVi
   if (isShortLandscape(ctx)) {
     return { top: 112, right: 24, bottom: 52, left: 24 }
   }
-  if (ctx.viewportWidthPx < NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX) {
+  if (workspaceWidth(ctx) < NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX) {
     return { top: 220, right: 28, bottom: 92, left: 28 }
   }
   return { top: 150, right: 88, bottom: 100, left: 430 }
@@ -203,7 +214,7 @@ export function calculateRideFollowInsets(ctx: WorkspaceMapContext): MapViewport
   const height = ctx.viewportHeightPx
   const base = isShortLandscape(ctx)
     ? { right: 24, bottom: 96, left: 24 }
-    : ctx.viewportWidthPx < NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX
+    : workspaceWidth(ctx) < NAVIGATION_FOLLOW_DESKTOP_MIN_WIDTH_PX
       ? { right: 28, bottom: 260, left: 28 }
       : { right: 88, bottom: 220, left: 88 }
 
@@ -263,20 +274,29 @@ export function resolveWorkspaceMapInsets(
   map: MapViewportMeasurable | null | undefined,
   options: WorkspaceMapInsetOptions = {}
 ): MapViewportInsets {
-  // Resolve through the canonical authority so the camera and the planner
-  // cannot disagree about how much of the map the workspace occupies.
+  const measured = measureMapViewport(map)
+  // Topology belongs to the app width, while short-landscape and fitBounds
+  // validation belong to the actual drawable map canvas. Keep those two
+  // measurements explicit rather than letting a future split pane change mode.
   const viewportWidth = readWorkspaceViewportWidth()
-  const phoneViewport = viewportWidth !== null && isCompactWorkspaceWidth(viewportWidth)
+  const resolvedWorkspaceWidth = viewportWidth ?? measured.viewportWidthPx
+  const phoneViewport = isCompactWorkspaceWidth(resolvedWorkspaceWidth)
   return calculateMapViewportInsets({
-    ...measureMapViewport(map),
+    ...measured,
+    workspaceWidthPx: resolvedWorkspaceWidth,
     mode: options.mode ?? "planning",
     sheetDetent: options.sheetDetentOverride ?? (phoneViewport ? "peek" : "half")
   })
 }
 
-/** The follow camera reads the same canvas every other fit reads. */
+/** The follow camera reads the same canvas and canonical app width as every other fit. */
 export function resolveRideFollowInsets(
   map: MapViewportMeasurable | null | undefined
 ): MapViewportInsets {
-  return calculateRideFollowInsets({ ...measureMapViewport(map), mode: "ride" })
+  const measured = measureMapViewport(map)
+  return calculateRideFollowInsets({
+    ...measured,
+    workspaceWidthPx: readWorkspaceViewportWidth() ?? measured.viewportWidthPx,
+    mode: "ride"
+  })
 }
