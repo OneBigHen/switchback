@@ -1,0 +1,75 @@
+.route-traffic-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  margin: 0.55rem 0 0.75rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--surface-raised, #171b18) 92%, transparent);
+  font-size: 0.86rem;
+}
+
+.route-traffic-summary > svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.route-traffic-summary > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.route-traffic-summary strong,
+.route-traffic-summary small {
+  display: block;
+}
+
+.route-traffic-summary strong {
+  line-height: 1.2;
+}
+
+.route-traffic-summary small {
+  opacity: 0.72;
+  line-height: 1.35;
+}
+
+.route-traffic-summary.is-clear > svg {
+  color: var(--success, #65a879);
+}
+
+.route-traffic-summary.is-warning > svg,
+.route-traffic-summary.is-loading > svg {
+  color: var(--warning, #d99a3a);
+}
+
+.route-traffic-summary.is-danger {
+  border-color: color-mix(in srgb, var(--danger, #d85a4d) 45%, transparent);
+}
+
+.route-traffic-summary.is-danger > svg {
+  color: var(--danger, #d85a4d);
+}
+
+.route-traffic-summary.is-unavailable {
+  opacity: 0.78;
+}
+
+.route-traffic-summary__spinner {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: route-traffic-spin 0.8s linear infinite;
+}
+
+@keyframes route-traffic-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-traffic-summary__spinner { animation: none; }
+}
