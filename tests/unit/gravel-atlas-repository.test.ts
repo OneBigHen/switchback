@@ -4,6 +4,8 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
+import { GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION } from "@/lib/roads/gravel-atlas/runtime-builder"
+import { GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION } from "@/lib/roads/gravel-atlas/traversability"
 
 let directory = ""
 let databasePath = ""
@@ -31,6 +33,13 @@ beforeEach(() => {
   databasePath = path.join(directory, "atlas.sqlite")
   const database = new DatabaseSync(databasePath)
   database.exec(`
+    create table gravel_atlas_metadata (
+      schema_version integer not null,
+      source_fingerprint text not null,
+      graph_fingerprint text not null,
+      traversability_policy_version integer not null,
+      corridor_count integer not null
+    );
     create table gravel_atlas_corridors (
       id text primary key,
       label text not null,
@@ -50,6 +59,18 @@ beforeEach(() => {
     );
     create index idx_gravel_atlas_bounds on gravel_atlas_corridors(west, east, south, north);
   `)
+  database.prepare(`
+    insert into gravel_atlas_metadata (
+      schema_version, source_fingerprint, graph_fingerprint,
+      traversability_policy_version, corridor_count
+    ) values (?, ?, ?, ?, ?)
+  `).run(
+    GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION,
+    "source-v1",
+    "graph-v1",
+    GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
+    1
+  )
   database.close()
 })
 
@@ -93,6 +114,26 @@ function insert(overrides: Partial<AtlasTestRow> = {}) {
   database.close()
 }
 
+function updateMetadata(overrides: {
+  schemaVersion?: number
+  sourceFingerprint?: string
+  graphFingerprint?: string
+  traversabilityPolicyVersion?: number
+}): void {
+  const database = new DatabaseSync(databasePath)
+  database.prepare(`
+    update gravel_atlas_metadata set
+      schema_version = ?, source_fingerprint = ?, graph_fingerprint = ?,
+      traversability_policy_version = ?
+  `).run(
+    overrides.schemaVersion ?? GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION,
+    overrides.sourceFingerprint ?? "source-v1",
+    overrides.graphFingerprint ?? "graph-v1",
+    overrides.traversabilityPolicyVersion ?? GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION
+  )
+  database.close()
+}
+
 const bounds = { south: 40.0, west: -75.4, north: 40.5, east: -74.8 }
 
 describe("GravelAtlasRepository", () => {
@@ -104,6 +145,7 @@ describe("GravelAtlasRepository", () => {
     const result = new GravelAtlasRepository(databasePath).queryBounds({
       ...bounds,
       graphFingerprint: "graph-v1",
+      sourceFingerprint: "source-v1",
       limit: 10
     })
 
@@ -125,6 +167,7 @@ describe("GravelAtlasRepository", () => {
     const result = new GravelAtlasRepository(databasePath).queryBounds({
       ...bounds,
       graphFingerprint: "graph-v1",
+      sourceFingerprint: "source-v1",
       limit: 10
     })
 
@@ -138,6 +181,7 @@ describe("GravelAtlasRepository", () => {
     const result = new GravelAtlasRepository(databasePath).queryBounds({
       ...bounds,
       graphFingerprint: "graph-v1",
+      sourceFingerprint: "source-v1",
       limit: 10
     })
 
@@ -156,10 +200,35 @@ describe("GravelAtlasRepository", () => {
     const result = new GravelAtlasRepository(databasePath).queryBounds({
       ...bounds,
       graphFingerprint: "graph-v1",
+      sourceFingerprint: "source-v1",
       limit: 5
     })
 
     expect(result).toHaveLength(5)
     expect(result[0]?.id).toBe("road-0")
+  })
+
+  it("rejects matching corridor rows when runtime metadata names a different graph", () => {
+    insert()
+    updateMetadata({ graphFingerprint: "graph-old" })
+
+    expect(() => new GravelAtlasRepository(databasePath).queryBounds({
+      ...bounds,
+      graphFingerprint: "graph-v1",
+      sourceFingerprint: "source-v1",
+      limit: 10
+    })).toThrow(/graph fingerprint/i)
+  })
+
+  it("rejects matching corridor rows when runtime metadata uses a stale verifier policy", () => {
+    insert()
+    updateMetadata({ traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION - 1 })
+
+    expect(() => new GravelAtlasRepository(databasePath).queryBounds({
+      ...bounds,
+      graphFingerprint: "graph-v1",
+      sourceFingerprint: "source-v1",
+      limit: 10
+    })).toThrow(/traversability policy/i)
   })
 })
