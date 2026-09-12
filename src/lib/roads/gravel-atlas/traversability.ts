@@ -38,6 +38,16 @@ export interface TraversabilityThresholds {
   maxDetourRatio: number
 }
 
+/**
+ * Evidence-contract identity for the live end-to-end verification gate.
+ * Increment whenever any acceptance semantic changes so previously generated
+ * Atlas artifacts cannot silently pass under newer routing assumptions.
+ *
+ * v1 was the original permissive proximity/coverage gate. v2 is the hardened
+ * 20 m / 80% gate with continuity, direction and detour requirements.
+ */
+export const GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION = 2
+
 export const DEFAULT_TRAVERSABILITY_THRESHOLDS: TraversabilityThresholds = {
   matchRadiusMeters: 20,
   maxEndpointSnapMeters: 60,
