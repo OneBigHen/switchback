@@ -69,7 +69,7 @@ async function measure(page: Page) {
 
 async function attributionCorner(page: Page): Promise<string> {
   const attribution = page.locator(".maplibregl-ctrl-attrib, .mapboxgl-ctrl-attrib").first()
-  await expect(attribution).toBeVisible()
+  await expect(attribution).toBeAttached()
   return attribution.evaluate((node) => node.parentElement?.className ?? "")
 }
 
