@@ -16,11 +16,9 @@ interface RouteTrafficSummaryProps {
   route: PlannedRoute | null
 }
 
-type TrafficUiState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "ready"; evidence: RouteTrafficEvidence }
-  | { kind: "unavailable" }
+type TrafficResult =
+  | { routeId: string; kind: "ready"; evidence: RouteTrafficEvidence }
+  | { routeId: string; kind: "unavailable" }
 
 const unavailableSummary: RouteTrafficSummaryView = {
   state: "unavailable",
@@ -41,26 +39,22 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
     () => geometry ? sampleTrafficRoutePoints(geometry) : [],
     [geometry]
   )
-  const [state, setState] = useState<TrafficUiState>({ kind: "idle" })
+  const [result, setResult] = useState<TrafficResult | null>(null)
 
   useEffect(() => {
-    if (!routeId || points.length < 2) {
-      setState({ kind: "idle" })
-      return
-    }
+    if (!routeId || points.length < 2) return
 
     const controller = new AbortController()
     let current = true
-    setState({ kind: "loading" })
 
     void fetchRouteTrafficEvidence(points, { signal: controller.signal })
       .then((evidence) => {
-        if (current) setState({ kind: "ready", evidence })
+        if (current) setResult({ routeId, kind: "ready", evidence })
       })
       .catch((caught: unknown) => {
         if (!current || controller.signal.aborted) return
         if (caught instanceof DOMException && caught.name === "AbortError") return
-        setState({ kind: "unavailable" })
+        setResult({ routeId, kind: "unavailable" })
       })
 
     return () => {
@@ -69,9 +63,22 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
     }
   }, [routeId, points])
 
-  if (!routeId || state.kind === "idle") return null
+  if (!routeId) return null
+  if (points.length < 2) {
+    return (
+      <div className="route-traffic-summary is-unavailable" role="status" aria-live="polite">
+        <TrafficCone weight="fill" aria-hidden="true" />
+        <span>
+          <strong>{unavailableSummary.title}</strong>
+          <small>{unavailableSummary.detail}</small>
+        </span>
+      </div>
+    )
+  }
 
-  if (state.kind === "loading") {
+  // A completed result belongs to one route identity. Until this route's own
+  // request resolves, an older route's evidence must never flash as current.
+  if (!result || result.routeId !== routeId) {
     return (
       <div className="route-traffic-summary is-loading" role="status" aria-live="polite">
         <span className="route-traffic-summary__spinner" aria-hidden="true" />
@@ -83,8 +90,8 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
     )
   }
 
-  const summary = state.kind === "ready"
-    ? summarizeRouteTrafficEvidence(state.evidence)
+  const summary = result.kind === "ready"
+    ? summarizeRouteTrafficEvidence(result.evidence)
     : unavailableSummary
 
   return (
