@@ -31,11 +31,23 @@ export interface TrafficCorridorBox {
   maxLat: number
 }
 
-interface TomTomTrafficOptions {
+export interface TomTomTrafficBounds {
+  west: number
+  south: number
+  east: number
+  north: number
+}
+
+export interface TomTomTrafficOptions {
   apiKey?: string
   fetcher?: typeof fetch
   now?: () => Date
   baseUrl?: string
+}
+
+export interface TomTomMapTrafficResult {
+  status: "available" | "unknown"
+  incidents: TrafficIncidentEvidence[]
 }
 
 interface TomTomIncidentProperties {
@@ -269,6 +281,38 @@ async function fetchBoxIncidents(
   return (body as { incidents: unknown[] }).incidents
     .map(normalizeIncident)
     .filter((incident): incident is TrafficIncidentEvidence => incident !== null)
+}
+
+function mapBoundsBox(bounds: TomTomTrafficBounds): TrafficCorridorBox | null {
+  const { west, south, east, north } = bounds
+  if (![west, south, east, north].every(Number.isFinite)) return null
+  if (west < -180 || east > 180 || south < -90 || north > 90) return null
+  if (west >= east || south >= north || east - west > 180) return null
+  const box = { minLon: west, minLat: south, maxLon: east, maxLat: north }
+  return boxAreaKm2(box) <= MAX_BOX_AREA_KM2 ? box : null
+}
+
+export async function getTomTomTrafficForBounds(
+  bounds: TomTomTrafficBounds,
+  options: TomTomTrafficOptions = {}
+): Promise<TomTomMapTrafficResult> {
+  const apiKey = options.apiKey?.trim()
+  if (!apiKey) return { status: "unknown", incidents: [] }
+
+  const box = mapBoundsBox(bounds)
+  if (!box) return { status: "unknown", incidents: [] }
+
+  try {
+    const incidents = await fetchBoxIncidents(
+      box,
+      apiKey,
+      options.fetcher ?? fetch,
+      options.baseUrl ?? TOMTOM_INCIDENTS_URL
+    )
+    return { status: "available", incidents }
+  } catch {
+    return { status: "unknown", incidents: [] }
+  }
 }
 
 export async function getTomTomRouteTraffic(
