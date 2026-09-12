@@ -75,7 +75,8 @@
 - Consumes: exact green head from Task 3.
 - Produces: APPROVE+MERGE or a concrete defect list with screenshots/reproduction steps.
 
-- [ ] **Step 1:** Test the exact PR head on real tablet-class and phone-class surfaces or the closest available browser/device emulation.
+- [ ] **Step 1:** Test the exact PR head on a **physical** tablet-class device and the required phone-class device. Browser or device emulation (Playwright, Chrome device mode, Xcode Simulator) is interim review evidence only and never completes this gate.
+  - 2026-09-12: the owner chose to merge the foundation before this gate and to run the full device session after the integration train lands; the gate is recorded as waived, not passed (#128).
 - [ ] **Step 2:** Judge clarity, hierarchy, touch ergonomics, map visibility, route comparison, edit/prepare flow, and orientation behavior rather than only checking element presence.
 - [ ] **Step 3:** If any material UX defect appears, do not merge; file/fix it and rerun exact-head CI.
 - [ ] **Step 4:** If the UX/device pass is clean and current release-control policy permits it, mark PR ready and merge with expected-head protection.

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
+import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { uxState } from "./helpers/ux-state-fixtures"
@@ -38,6 +39,12 @@ const EVIDENCE_DIR = path.join(
   "2026-09-10-adaptive-workspace-baseline"
 )
 const MANIFEST = path.join(EVIDENCE_DIR, "baseline-manifest.json")
+/**
+ * The committed inventory documents captures from qualified main at this
+ * revision. Capture mode refuses to write over that evidence from any other
+ * checkout; capture a new revision into a new session directory instead.
+ */
+const QUALIFIED_BASELINE_SHA = "c649214e4729c76649b38300422d1c8a4758ba4c"
 
 const VIEWPORTS: Array<{ width: number; height: number; label: string }> = [
   { width: 390, height: 844, label: "390x844" },
@@ -80,6 +87,7 @@ interface Rect {
 
 interface BaselineManifest {
   generatedAt: string
+  sourceSha?: string
   note: string
   captures: Record<string, unknown>[]
   gaps: string[]
@@ -101,9 +109,25 @@ function captureKey(entry: Record<string, unknown>): string {
   return `${String(entry.viewport)}/${String(entry.state)}`
 }
 
+function currentHeadSha(): string {
+  return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()
+}
+
+/** Throws before any screenshot or manifest write when HEAD is not the qualified revision. */
+function assertQualifiedCaptureRevision(): void {
+  const head = currentHeadSha()
+  if (head !== QUALIFIED_BASELINE_SHA) {
+    throw new Error(
+      `Adaptive baseline evidence belongs to ${QUALIFIED_BASELINE_SHA}; refusing to overwrite it from ${head}. ` +
+      "Capture another revision into a new session directory."
+    )
+  }
+}
+
 function recordCapture(entry: Record<string, unknown>, gap?: string) {
   mkdirSync(EVIDENCE_DIR, { recursive: true })
   const manifest = readManifest()
+  manifest.sourceSha = QUALIFIED_BASELINE_SHA
   const key = captureKey(entry)
   manifest.generatedAt = new Date().toISOString()
   manifest.captures = manifest.captures.filter((candidate) => captureKey(candidate) !== key)
@@ -220,6 +244,8 @@ test.describe("adaptive workspace baseline (Train B / B1)", () => {
           "Baseline harness runs in a single project; it sets its own viewport per case."
         )
         test.setTimeout(150_000)
+        // Before any screenshot or manifest write.
+        assertQualifiedCaptureRevision()
 
         await page.setViewportSize({ width: viewport.width, height: viewport.height })
 

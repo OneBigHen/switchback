@@ -85,6 +85,44 @@ async function measure(page: Page) {
   })
 }
 
+const MEDIUM_ROUTE_IDS: Readonly<Record<string, string>> = {
+  "Balanced medium route": "medium-balanced",
+  "Twisty medium route": "medium-twisty",
+  "Scenic medium route": "medium-scenic"
+}
+
+/** Route ids the real MapLibre route source currently renders as selected. */
+async function selectedMapRouteIds(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    const data = await window.__switchbackMapSourcesDebug?.getSourceData("switchback-routes") as
+      | { features?: Array<{ properties?: { routeId?: string; selected?: boolean } }> }
+      | null
+      | undefined
+    const ids = (data?.features ?? [])
+      .filter((feature) => feature.properties?.selected === true)
+      .map((feature) => String(feature.properties?.routeId))
+    return [...new Set(ids)].sort()
+  })
+}
+
+type OverlayRect = { left: number; top: number; right: number; bottom: number }
+
+async function overlayOverlap(page: Page, first: string, second: string): Promise<{ first: OverlayRect | null; second: OverlayRect | null; area: number }> {
+  return page.evaluate(([a, b]) => {
+    const rect = (selector: string) => {
+      const node = document.querySelector<HTMLElement>(selector)
+      if (!node) return null
+      const box = node.getBoundingClientRect()
+      return box.width > 0 && box.height > 0 ? { left: box.left, top: box.top, right: box.right, bottom: box.bottom } : null
+    }
+    const one = rect(a)
+    const two = rect(b)
+    const width = one && two ? Math.min(one.right, two.right) - Math.max(one.left, two.left) : 0
+    const height = one && two ? Math.min(one.bottom, two.bottom) - Math.max(one.top, two.top) : 0
+    return { first: one, second: two, area: width > 0 && height > 0 ? width * height : 0 }
+  }, [first, second] as const)
+}
+
 async function attributionCorner(page: Page): Promise<string> {
   const attribution = page.locator(".maplibregl-ctrl-attrib, .mapboxgl-ctrl-attrib").first()
   await expect(attribution).toBeAttached()
@@ -199,7 +237,15 @@ test.describe("Medium adaptive planner workspace", () => {
     await expect(selectedBeforeStable).toHaveAttribute("aria-pressed", "false")
     const selectedRouteName = (alternateLabel ?? "").replace(/^Select /, "")
     expect(selectedRouteName).not.toBe("")
+    // The rail is not the rendering authority: prove the live MapLibre route
+    // source now marks exactly the clicked route as selected.
+    const selectedRouteId = MEDIUM_ROUTE_IDS[selectedRouteName]
+    expect(selectedRouteId, `fixture route id for ${selectedRouteName}`).toBeTruthy()
+    await expect.poll(() => selectedMapRouteIds(page), { timeout: 10_000 }).toEqual([selectedRouteId])
+    // Start Ride is scoped to the committed route, not a generic button.
     await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
+    await expect(page.getByRole("region", { name: "Route choices" })
+      .getByRole("button", { name: `Select ${selectedRouteName}`, exact: true })).toHaveAttribute("aria-pressed", "true")
 
     await page.getByRole("button", { name: `Details for ${selectedRouteName}`, exact: true }).click()
     await expect(page.getByRole("button", { name: "Back to route choices" })).toBeVisible()
@@ -210,6 +256,56 @@ test.describe("Medium adaptive planner workspace", () => {
     await expect(restoredSelection).toHaveAttribute("aria-pressed", "true")
     await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
   })
+
+  for (const viewport of [
+    { width: 768, height: 1024, label: "768x1024 portrait" },
+    { width: 1024, height: 768, label: "1024x768 landscape" }
+  ] as const) {
+    test(`${viewport.label} keeps the Curve status and long planner notices clear of every Medium surface`, async ({ page }) => {
+      test.setTimeout(150_000)
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await installPlannerServices(page)
+      // Hold curvature so the loading status stays on screen while it is measured.
+      await page.route("**/api/curvature**", () => new Promise<void>(() => undefined))
+      // A missing Open-saved-copy deep link raises a real planner notice.
+      await page.goto("/?savedRoute=medium-missing-ride")
+      await expectWorkspaceMode(page, "medium")
+
+      const curve = page.locator(".map-layer-status", { hasText: "Loading curve overlay" })
+      const notice = page.locator(".app-notice", { hasText: "no longer in My Rides" })
+      await expect(page.locator(".map-layer-control").first()).toBeVisible()
+      await expect(curve).toBeVisible({ timeout: 20_000 })
+      await expect(notice).toBeVisible()
+      await settleMapDelay(page)
+
+      const curveOverlap = await overlayOverlap(page, ".map-layer-control", ".map-layer-status")
+      expect(curveOverlap.first, "Layers control must render").not.toBeNull()
+      expect(curveOverlap.second, "Curve status must render").not.toBeNull()
+      expect(curveOverlap.area, "Curve status must not cover the Layers control").toBe(0)
+
+      // Warnings vary in length (import and provider errors run long); stress the
+      // live notice with long copy instead of relying on today's short message.
+      await notice.locator("span").first().evaluate((node) => {
+        node.textContent = "This route file could not be imported because its track segments were empty or malformed; export it again from the source app and retry."
+      })
+      for (const surface of [
+        ".planner-deck",
+        ".app-navigation",
+        ".map-layer-control",
+        ".map-layer-status",
+        ".maplibregl-ctrl-group, .mapboxgl-ctrl-group",
+        ".maplibregl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-left"
+      ]) {
+        const overlap = await overlayOverlap(page, surface, ".app-notice")
+        expect(overlap.second, "planner notice must render").not.toBeNull()
+        expect(overlap.area, `long planner notice must not cover ${surface}`).toBe(0)
+      }
+      const box = (await page.locator(".app-notice").first().boundingBox())!
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
+    })
+  }
 
   test("768x1024 offline pack stays viewport-contained with its Save action reachable", async ({ page }) => {
     test.setTimeout(150_000)

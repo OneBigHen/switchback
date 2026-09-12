@@ -16,6 +16,10 @@
     --sb-medium-map-safe-left: calc(
       var(--sb-medium-planner-left) + var(--sb-medium-planner-width) + var(--sb-space-4)
     );
+    /* Right edge budget for the native zoom/locate column. */
+    --sb-medium-map-safe-right: calc(var(--sb-touch-target) + (2 * var(--sb-space-4)));
+    /* Planner notices sit above the lower-left scale/attribution band. */
+    --sb-medium-notice-bottom: 72px;
   }
 
   /* Medium is a persistent planner + live-map workspace, not a floating
@@ -49,6 +53,19 @@
     right: 0;
     transform: none;
     max-width: none;
+  }
+
+  /* Planner notices are toasts over the live map. Centred on the viewport they
+     covered the planner's search field, and in the top lane long warnings
+     grow into the Layers toolbar and the Curve status. Keep them inside the
+     unoccluded map region, above the scale/attribution band and clear of the
+     native zoom column; long copy wraps upward into empty map instead. */
+  .planner-shell:has(.planner-deck) .app-notice {
+    top: auto;
+    bottom: var(--sb-medium-notice-bottom);
+    left: calc((var(--sb-medium-map-safe-left) + 100% - var(--sb-medium-map-safe-right)) / 2);
+    width: max-content;
+    max-width: calc(100% - var(--sb-medium-map-safe-left) - var(--sb-medium-map-safe-right));
   }
 
   .planner-shell:has(.planner-deck) .map-crosshair {
@@ -93,6 +110,7 @@
   .planner-shell {
     --sb-medium-planner-width: clamp(320px, 42vw, 360px);
     --sb-medium-planner-left: var(--sb-space-4);
+    --sb-medium-notice-bottom: calc(var(--sb-mobile-sheet-bottom) + 56px);
   }
 
   .planner-shell .planner-deck,
