@@ -17,11 +17,13 @@ const requestLimiter = createRateLimiter({ windowMs: 60_000, max: 20, label: "ma
 function atlasProvider(): RiderMapFeatureProvider | undefined {
   const databasePath = process.env.GRAVEL_ATLAS_DB_PATH?.trim()
   const graphFingerprint = process.env.GRAVEL_ATLAS_GRAPH_FINGERPRINT?.trim()
-  if (!databasePath || !graphFingerprint) return undefined
+  const sourceFingerprint = process.env.GRAVEL_ATLAS_SOURCE_FINGERPRINT?.trim()
+  if (!databasePath || !graphFingerprint || !sourceFingerprint) return undefined
   const repository = new GravelAtlasRepository(databasePath)
   return (request) => getGravelAtlasMapFeatures(request, {
     repository,
     graphFingerprint,
+    sourceFingerprint,
     limit: 200
   })
 }
