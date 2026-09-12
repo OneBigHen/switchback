@@ -51,6 +51,18 @@ describe("RouteTrafficSummary", () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it("waits for route selection to settle before spending a traffic request", async () => {
+    const fetcher = vi.fn(() => new Promise<Response>(() => undefined))
+    vi.stubGlobal("fetch", fetcher)
+
+    render(<RouteTrafficSummary route={route("settling")} />)
+
+    expect(fetcher).not.toHaveBeenCalled()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(fetcher).not.toHaveBeenCalled()
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+  })
+
   it("shows a calm loading state then a confirmed clear result", async () => {
     let resolveResponse: ((response: Response) => void) | undefined
     const fetcher = vi.fn(() => new Promise<Response>((resolve) => { resolveResponse = resolve }))
@@ -59,6 +71,7 @@ describe("RouteTrafficSummary", () => {
     render(<RouteTrafficSummary route={route("a")} />)
 
     expect(screen.getByText("Checking live traffic…")).toBeInTheDocument()
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
     resolveResponse!(Response.json(clearEvidence))
 
     expect(await screen.findByText("No reported incidents on this route")).toBeInTheDocument()
