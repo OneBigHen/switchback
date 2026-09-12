@@ -100,15 +100,28 @@ test.describe("Medium adaptive planner workspace", () => {
     }
   }
 
-  test("attribution follows the live compact/medium boundary after resize", async ({ page }) => {
+  test("resize across compact/medium preserves the selected route and live map while moving attribution", async ({ page }) => {
     test.setTimeout(150_000)
     await page.setViewportSize({ width: 760, height: 844 })
-    await uxState.home(page)
+    await uxState.routeSelected(page)
     await settleMapDelay(page)
+
+    const selectedRoute = page.getByRole("button", { name: /^Select / }).first()
+    const startRide = page.getByRole("button", { name: /^Start .* route$/i }).first()
+    await expect(selectedRoute).toHaveAttribute("aria-pressed", "true")
+    await expect(startRide).toBeVisible()
     expect(await attributionCorner(page)).toMatch(/(?:maplibregl|mapboxgl)-ctrl-bottom-left/)
+
+    const mapCanvas = page.locator(".maplibregl-canvas, .mapboxgl-canvas").first()
+    await expect(mapCanvas).toBeAttached()
+    await mapCanvas.evaluate((node) => node.setAttribute("data-resize-sentinel", "same-map-canvas"))
 
     await page.setViewportSize({ width: 768, height: 1024 })
     await settleMapDelay(page)
+
     expect(await attributionCorner(page)).toMatch(/(?:maplibregl|mapboxgl)-ctrl-bottom-right/)
+    await expect(page.locator('[data-resize-sentinel="same-map-canvas"]')).toBeAttached()
+    await expect(page.getByRole("button", { name: /^Select / }).first()).toHaveAttribute("aria-pressed", "true")
+    await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
   })
 })
