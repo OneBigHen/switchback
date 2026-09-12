@@ -61,10 +61,17 @@
      absolute scrim was constrained by .planner-deck's overflow clipping,
      cutting off both the explanation and Save action on tablet portrait.
      Promote only the open-modal state above the workspace and anchor the scrim
-     to the viewport; compact keeps its existing bottom-sheet treatment. */
+     to the viewport; compact keeps its existing bottom-sheet treatment.
+
+     The deck's design-system backdrop-filter also establishes a containing
+     block for fixed descendants. Disable that visual effect only while the
+     modal is open so position: fixed resolves against the viewport instead of
+     the planner's 16px-inset box. The modal scrim supplies the obscuring layer
+     during this state, so the deck blur is not visible or useful underneath. */
   .planner-shell .planner-deck:has(.offline-pack-modal-scrim) {
     z-index: 40;
     overflow: visible;
+    backdrop-filter: none;
   }
 
   .planner-shell .offline-pack-modal-scrim {
