@@ -1,178 +1,184 @@
-# PA Gravel Atlas — adversarial architecture review
+# PA/NJ Gravel Atlas — adversarial architecture review
 
-Date: 2026-09-11
-Branch: `feat/pa-gravel-atlas-routing`
+Date: 2026-09-11  
+Branch: `feat/pa-gravel-atlas-routing`  
 Draft PR: #123
 
 ## Decision
 
-Use the statewide GPX as a **routing-intelligence dataset**, not as a route and not as a replacement routing graph.
+Use official road-surface datasets as **routing evidence**, not as routes and not as a replacement routing graph.
 
-The best architecture is:
+The implemented architecture is:
 
 ```text
-statewide gravel GPX
-  -> dedicated catalogue ingest
-  -> normalize / simplify / dedupe
-  -> graph-match with motorcycle profile
-  -> retain source + disagreement provenance
-  -> attach canonical OSM-directed segment identity where possible
-  -> aggregate adjacent verified gravel into coherent corridors
-  -> write graph-fingerprinted gravel-atlas SQLite
-  -> bounded spatial query for the current plan
+PA PASDA / NJGIN official linework
+  -> bounded deterministic source snapshot
+  -> normalize + dedupe + preserve provenance
+  -> source-fingerprinted staging SQLite
+  -> exact motorcycle-routing build fingerprint
+  -> bounded canonical OSM segment export near source evidence
+  -> conservative geometry/direction reconciliation
+  -> quarantine ambiguous / unmatched evidence
+  -> graph + source-fingerprinted runtime SQLite
+  -> bounded planning/viewport query
   -> select 1 / 2 / 3 corridors for Balanced / More / Maximum
-  -> existing Switchback candidate routing
-  -> live router remains authoritative for access/connectivity
-  -> measure actual atlas overlap + continuity on returned routes
-  -> rank/diversify normally
+  -> ordinary SwitchBack candidate routing
+  -> live router remains authoritative for connectivity/access
+  -> measure actual Atlas overlap + continuity on returned routes
+  -> replace baseline only when improvement and detour guards pass
 ```
 
-Do **not** modify the GraphHopper/Valhalla base graph until evidence proves bounded shaping is insufficient.
+Do **not** turn official source geometry into must-use roads or inject statewide source geometry into GraphHopper requests.
 
-## Existing Switchback assets worth leveraging
+## Source semantics
 
-### Strong reuse
+### Pennsylvania PASDA 2012
 
-- Adventure and Gravel product profiles.
-- GraphHopper motorcycle routing and custom-model support.
-- GPX map-matching seam.
-- Stable canonical OSM-directed segment identity and migration/quarantine logic.
-- Destination corridor candidate generator.
-- Existing bounded provider concurrency and candidate budgets.
-- Route score inputs for gravel, continuity, fragmentation, detour, backtracking, overlap, confidence, and eligibility.
-- PA DEP/PASDA historic unpaved-road evidence as an independent corroborating source.
-- Node 24 built-in SQLite already used server-side.
+PASDA contributes historic unpaved-surface evidence. It does not establish present legal motorcycle access and excludes State/National Forest roads. Its redistribution terms are restrictive, so code requires explicit operator acknowledgement before fetching it. That acknowledgement is not permission or a license. Production PA activation remains conditional on independent authorization.
 
-### Do not reuse as storage
+### New Jersey NJGIN
 
-`data/gpx-library/atlas.json` / `atlas:build` is the existing **visual Route Atlas**: poster-art metadata for imported rides. It is not a spatial routing index. Coupling gravel routing to it would mix UI artwork lifecycle with safety/routing evidence.
+NJGIN road centerlines are admitted only when they are `Unimproved`, `Active`, and `Non-Restricted`. This is stronger access/status evidence than the PASDA layer but still does not promise current field conditions or passability.
 
-Reuse its ideas (source fingerprinting, dedupe, bounding boxes), not its file or schema.
+## Adversarial findings and current disposition
 
-## Adversarial findings
+### 1. Post-route enrichment cannot discover gravel — resolved
 
-### 1. Post-route PA enrichment cannot discover gravel
+A route cannot earn gravel overlap if the provider never investigates that corridor.
 
-The current PA DEP/PASDA enrichment runs after provider routing. It can prove overlap but cannot make the provider investigate a good gravel corridor it never proposed.
+**Implementation:** verified Atlas corridors participate in bounded candidate generation before final ranking. Ordinary A-to-B and Free Ride/round-trip flows are supported.
 
-**Resolution:** Atlas influences bounded candidate generation before final ranking.
+### 2. Generic ride GPX import is the wrong boundary — resolved
 
-### 2. Normal GPX import is intentionally hostile to this dataset
+Road catalogues are evidence sets, not rides.
 
-The ride importer rejects large disconnected road catalogues because they are not rides.
+**Implementation:** Gravel Atlas has a dedicated official-source snapshot/staging/reconciliation/runtime pipeline independent from the imported ride library and visual Route Atlas.
 
-**Resolution:** dedicated Gravel Atlas ingest pipeline.
+### 3. Official geometry is not routing/access truth — fenced
 
-### 3. GPX geometry is not legal-access truth
+Surface linework may be stale, private, gated, seasonally unavailable, disconnected, or offset from current OSM topology.
 
-The file may contain private, gated, stale, seasonally closed, disconnected, or no-longer-existing roads.
+**Implementation:** source observations are reconciled conservatively to canonical motorcycle-routable OSM-directed segments. Ambiguous/unmatched observations are quarantined. Final candidate routing still goes through the normal provider, and returned-route overlap must be measured before the candidate may win.
 
-**Resolution:** only graph-verified `routable` corridors may attract routing; every final candidate still routes through the live motorcycle graph.
+### 4. Graph verification can go stale — resolved fail-closed
 
-### 4. Graph verification can go stale
+The active GraphHopper cache is stamped with a content fingerprint derived from the exact prepared PA+NJ motorcycle PBF, GraphHopper binary, canonical config, and sorted custom models. Atlas runtime rows carry the graph fingerprint. A mismatch yields zero Atlas evidence instead of silently reusing stale corridors.
 
-A corridor verified against an old PBF/profile/config must not remain trusted forever.
+### 5. Source evidence can go stale independently — resolved fail-closed
 
-**Resolution implemented:** runtime SQLite queries require exact `GRAVEL_ATLAS_GRAPH_FINGERPRINT`. A graph rebuild without an atlas rebuild returns zero atlas corridors.
+Official-source snapshots have a deterministic source fingerprint. Runtime rows and metadata carry it, and route/map reads require the configured source fingerprint to match. Updating source observations without rebuilding the runtime Atlas therefore disables stale evidence rather than mixing builds.
 
-The eventual ingest command should fingerprint at least:
+### 6. Provider edge IDs are not durable identity — resolved
 
-- source GPX bytes/version
-- routing PBF bytes/version
-- GraphHopper profile/config inputs that affect motorcycle routability
-- Atlas schema/build version
+GraphHopper edge IDs are transient only. Persisted graph proof uses stable SwitchBack canonical OSM way/from-node/to-node/direction identities.
 
-### 5. Provider edge IDs are not durable identity
+### 7. Statewide geometry at request time is unsafe — resolved
 
-GraphHopper edge IDs can move after a graph rebuild.
+ArcGIS source services are build-time only. Runtime SQLite queries are spatially bounded; map requests are viewport bounded; routing uses at most 1 / 2 / 3 selected Atlas corridors by intensity. No statewide source payload is sent to the browser or provider.
 
-**Resolution:** never persist them as canonical identity. Use Switchback canonical OSM-directed segment IDs where possible; keep provider IDs as transient map-match evidence only.
+### 8. Total source miles can lie about local usefulness — resolved
 
-### 6. Raw statewide geometry must never enter one route request
+Runtime/candidate logic evaluates usable local evidence, then the returned route is independently measured for Atlas overlap. A huge source feature does not win merely because its statewide length is large.
 
-Sending thousands of line/polygon areas in a custom model would be expensive, fragile, and hard to reason about.
+### 9. Fragment soup can beat a coherent ride under naive scoring — resolved
 
-**Resolution implemented:** runtime database query is bounded; selector hard-caps Atlas shaping to 3 corridors and total corridor generation remains bounded by the existing planner budget.
+Continuous verified gravel receives explicit value and fragmented evidence is penalized. Candidate replacement also requires a real evidence gain over baseline.
 
-### 7. Total statewide miles can lie about local usefulness
+### 10. Synthetic lateral shaping corrupts trusted source geometry — resolved
 
-A 100-mile corridor that touches the plan envelope at one vertex must not outrank a useful 8-mile local gravel run.
+Gravel Atlas anchors come from the verified corridor itself; they are not synthetically swung away from the road supplying the evidence.
 
-**Resolution implemented:** selector calculates only contiguous source geometry actually inside the current planning envelope and scores only those eligible meters.
+### 11. Data availability is not rider consent — resolved
 
-### 8. Fragment soup is not a good gravel ride
+Atlas defaults OFF and only compatible Adventure/Gravel requests may activate it. Map-layer visibility is deliberately separate from routing preference.
 
-Many tiny gravel snippets can inflate naive gravel counts.
+### 12. Route caching can erase feature semantics — resolved
 
-**Resolution implemented:** continuous gravel distance gets a strong reward; fragmentation gets a penalty.
+Atlas OFF, Balanced, More, and Maximum occupy distinct normalized/cache semantics.
 
-### 9. Existing synthetic corridor swing is wrong for trusted Atlas geometry
+### 13. Duplicate evidence can consume bounded candidate budget — resolved
 
-Switchback can move generic corridor anchors laterally to force time. Doing that to verified gravel would move the anchor off the road that supplied the evidence.
+Stable identities are deduplicated deterministically before the result cap.
 
-**Resolution implemented:** Gravel Atlas anchors are copied from source geometry and never synthetically swung.
+### 14. ArcGIS service pagination can silently truncate source snapshots — resolved
 
-### 10. Feature availability is not rider consent
+PASDA advertises a 1,000-row maximum. The collector uses the effective source-policy page size for offsets and EOF detection rather than the caller's larger requested page size. Incomplete max-page walks fail instead of producing partial snapshots.
 
-A future refactor could accidentally inject Atlas candidates merely because the database was loaded.
+### 15. One provider failure can erase unrelated map layers — resolved
 
-**Resolution implemented:** request normalization defaults Atlas OFF; only Adventure/Gravel may enable it; candidate assembly independently requires `preference.enabled`.
+The map-feature path separates local Gravel Atlas from public OSM/weather providers and reports provider unavailability independently, preserving successful features from the other side.
 
-### 11. Route caching can erase the feature
+### 16. Legacy layer persistence can create duplicate/invalid state — resolved
 
-Atlas ON/OFF or intensity changes alter routing semantics. If absent from the cache key, an Atlas route could reuse a non-Atlas result and vice versa.
+The old `unpaved` layer identity migrates to `gravel-atlas`, including sparse persisted settings/map packs, while preserving the existing storage implementation.
 
-**Resolution implemented:** route cache keys normalize and include Atlas enabled/intensity state.
+### 17. Generic feature styling makes gravel evidence unreadable — resolved
 
-### 12. Duplicate source records can waste candidate budget
+Gravel Atlas has a dedicated tan dashed line treatment matching its legend instead of inheriting a generic feature-layer style.
 
-Ingest/map-match bugs or source overlap may emit the same stable corridor more than once.
+### 18. Graph-export process can hang after a fast child exit — resolved with regression coverage
 
-**Resolution implemented:** stable corridor IDs are deduplicated; the strongest deterministic candidate wins before the hard result cap.
+The `osmium` exporter originally registered its `close` listener only after draining stdout, allowing a fast process to close before the listener existed.
 
-### 13. Spatial query radius must match the planning model
+**Implementation:** completion/error listeners are registered immediately after `spawn()`, stdout is then drained, and the already-captured completion promise is awaited afterward.
 
-The existing curvature resolver uses only about ±0.1° around endpoints while destination timeboxing permits much wider lateral exploration.
+### 19. One-command NJ refresh could fail at the final runtime step — resolved with regression coverage
 
-**Resolution implemented for Atlas:** server query uses the planner's hard maximum 40-mile lateral reach as a conservative first-stage bbox; the selector then applies the much tighter actual route envelope.
+The runtime builder requires `--input=data/gravel-atlas-verified.json`; the first orchestration string omitted it.
 
-## Current implementation scope
+**Implementation:** `gravel-atlas:refresh:nj` now passes the reconciliation output explicitly, with a unit contract preventing regression.
 
-The safe corridor contract, request opt-in, repository, cache semantics, spatial query, and destination-candidate integration are now on the draft branch.
+## Remaining adversarial risk: build-compatible versus internal-edge proof
 
-The current corridor resolver is consumed by **destination timeboxing**. Therefore the Atlas is not yet product-complete for:
+The canonical exporter reads the **exact prepared PBF** used by GraphHopper and mirrors hard motorcycle access/one-way eligibility while requiring the active graph-cache fingerprint to match those inputs. This is strong build provenance, but it does not inspect every internal GraphHopper edge after parser/subnetwork processing.
 
-- ordinary A→B requests with no ride-time target
-- round-trip / Free Ride corridor-seeking
-- map overlay
-- UI control
-- actual route-overlap telemetry
+This is deliberately fenced rather than hidden:
 
-Those must not be implied as finished.
+- the live activation runbook requires sampling retained corridors against the running GraphHopper service;
+- every route candidate still must route successfully through GraphHopper;
+- candidate replacement requires measured returned-route overlap;
+- stale graph/source fingerprints disable Atlas evidence;
+- meaningful exporter-vs-router discrepancies discovered during live validation are a release blocker and should strengthen reconciliation rather than weaken the gate.
 
-## Recommended next implementation order
+## Product implementation status
 
-1. **Inspect the real GPX before writing ingest assumptions.** Record file size, track/route count, disconnected pieces, names/extensions, point count, duplicate rate, coordinate ordering, licensing/provenance.
-2. Build `scripts/build-gravel-atlas.*` to emit the SQLite schema already expected by runtime.
-3. Map-match and attach canonical OSM segment references; quarantine ambiguous/unmatched roads rather than guessing.
-4. Produce a source + graph fingerprint and set `GRAVEL_ATLAS_GRAPH_FINGERPRINT` from the same build artifact.
-5. Run shadow evaluation on a PA golden corpus before exposing UI.
-6. Add actual returned-route Atlas overlap/longest-run metrics; never award full candidate-source miles merely because a shaping anchor was requested.
-7. Extend ordinary A→B routing with a measured detour policy rather than silently changing ETA behavior.
-8. Extend Free Ride/loops by selecting reachable gravel clusters, not by random waypoint soup.
-9. Add the rider UI only after the shadow corpus proves the algorithm materially improves gravel usage.
+The branch now includes:
 
-## Golden-corpus acceptance criteria
+- official PASDA and NJGIN adapters;
+- deterministic source snapshot/staging database and source fingerprint;
+- GraphHopper input fingerprinting and graph-cache stamping;
+- bounded canonical OSM segment export;
+- conservative source reconciliation and quarantine;
+- source+graph-fingerprinted runtime SQLite;
+- bounded runtime route/map queries;
+- A-to-B and Free Ride/round-trip Atlas attraction;
+- actual returned-route overlap/continuity evidence;
+- detour/duration/evidence-improvement guards;
+- `Favor known gravel` + Balanced/More/Maximum UI;
+- independent `Known gravel roads` quick map layer;
+- legacy layer/map-pack migration;
+- dedicated gravel rendering and provider-specific load state;
+- operator commands and activation/rollback runbook.
 
-For Atlas ON vs OFF, record:
+The remaining work is **not missing feature code**. It is real-data/live-environment activation and validation, which CI cannot honestly substitute for.
 
-- verified Atlas gravel miles/share
-- longest continuous verified gravel run
-- added minutes/miles vs baseline
-- access/bike-profile rejections
-- self-overlap/backtracking
-- router call count
-- candidate source selected
-- stale/unverified Atlas exclusion
+## Release acceptance criteria
 
-Success means: when useful graph-routable gravel exists inside a reasonable ride envelope, Atlas ON produces materially more **continuous verified gravel** without absurd detours, access-rule bypass, candidate explosion, or regression when the feature is OFF.
+Before PR #123 leaves draft status, record real evidence for:
+
+- activated source scope (`NJ-only` or independently authorized `PA+NJ`);
+- source and graph fingerprints;
+- official observations accepted/rejected;
+- canonical segments retained;
+- corridors reconciled and observations quarantined;
+- at least one useful A-to-B Atlas improvement;
+- at least one Free Ride Atlas case;
+- at least one correct no-change case;
+- actual verified overlap and longest continuous run;
+- distance/duration delta against Atlas OFF;
+- stale source/graph fingerprint fail-closed behavior;
+- representative retained-corridor checks against the active GraphHopper service;
+- mobile/desktop UI and independent map-layer/routing-toggle behavior;
+- complete exact-head protected CI checks.
+
+Full operational steps and rollback requirements are in `docs/operations/GRAVEL_ATLAS_ACTIVATION.md`.
