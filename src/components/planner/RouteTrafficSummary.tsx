@@ -20,6 +20,12 @@ type TrafficResult =
   | { routeId: string; kind: "ready"; evidence: RouteTrafficEvidence }
   | { routeId: string; kind: "unavailable" }
 
+// Route selection can churn while alternatives settle or a saved route briefly
+// passes through the preparation surface. Delay provider work long enough for
+// those transient selections to disappear, while keeping a stable selection
+// responsive to the rider.
+const ROUTE_TRAFFIC_SELECTION_SETTLE_MS = 300
+
 const malformedRouteSummary: RouteTrafficSummaryView = {
   state: "unavailable",
   title: "Traffic check unavailable",
@@ -66,22 +72,27 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
   useEffect(() => {
     if (!routeId || points.length < 2 || !isOnline) return
 
-    const controller = new AbortController()
     let current = true
+    let controller: AbortController | null = null
+    const settleTimer = window.setTimeout(() => {
+      if (!current) return
+      controller = new AbortController()
 
-    void fetchRouteTrafficEvidence(points, { signal: controller.signal })
-      .then((evidence) => {
-        if (current) setResult({ routeId, kind: "ready", evidence })
-      })
-      .catch((caught: unknown) => {
-        if (!current || controller.signal.aborted) return
-        if (caught instanceof DOMException && caught.name === "AbortError") return
-        setResult({ routeId, kind: "unavailable" })
-      })
+      void fetchRouteTrafficEvidence(points, { signal: controller.signal })
+        .then((evidence) => {
+          if (current) setResult({ routeId, kind: "ready", evidence })
+        })
+        .catch((caught: unknown) => {
+          if (!current || controller?.signal.aborted) return
+          if (caught instanceof DOMException && caught.name === "AbortError") return
+          setResult({ routeId, kind: "unavailable" })
+        })
+    }, ROUTE_TRAFFIC_SELECTION_SETTLE_MS)
 
     return () => {
       current = false
-      controller.abort()
+      window.clearTimeout(settleTimer)
+      controller?.abort()
     }
   }, [routeId, points, isOnline])
 
