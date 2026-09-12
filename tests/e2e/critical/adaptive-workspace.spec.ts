@@ -91,6 +91,13 @@ const MEDIUM_ROUTE_IDS: Readonly<Record<string, string>> = {
   "Scenic medium route": "medium-scenic"
 }
 
+/** Each fixture route has its own profile, and Start Ride is labeled by the selected route's profile. */
+const MEDIUM_ROUTE_START_LABELS: Readonly<Record<string, string>> = {
+  "Balanced medium route": "Start Balanced route",
+  "Twisty medium route": "Start Twisty route",
+  "Scenic medium route": "Start Scenic route"
+}
+
 /** Route ids the real MapLibre route source currently renders as selected. */
 async function selectedMapRouteIds(page: Page): Promise<string[]> {
   return page.evaluate(async () => {
@@ -242,8 +249,10 @@ test.describe("Medium adaptive planner workspace", () => {
     const selectedRouteId = MEDIUM_ROUTE_IDS[selectedRouteName]
     expect(selectedRouteId, `fixture route id for ${selectedRouteName}`).toBeTruthy()
     await expect.poll(() => selectedMapRouteIds(page), { timeout: 10_000 }).toEqual([selectedRouteId])
-    // Start Ride is scoped to the committed route, not a generic button.
-    await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
+    // Start Ride must launch the clicked route, not whichever was selected before.
+    await expect(page.getByRole("button", { name: MEDIUM_ROUTE_START_LABELS[selectedRouteName], exact: true })).toBeVisible()
+    const previousRouteName = (selectedBeforeLabel ?? "").replace(/^Select /, "")
+    await expect(page.getByRole("button", { name: MEDIUM_ROUTE_START_LABELS[previousRouteName], exact: true })).toHaveCount(0)
     await expect(page.getByRole("region", { name: "Route choices" })
       .getByRole("button", { name: `Select ${selectedRouteName}`, exact: true })).toHaveAttribute("aria-pressed", "true")
 
