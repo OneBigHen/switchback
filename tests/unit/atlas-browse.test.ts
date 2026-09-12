@@ -32,7 +32,8 @@ function route(over: Partial<AtlasBrowseRoute>): AtlasBrowseRoute {
     aspect: 1,
     paths: over.paths ?? ["M0 0 L10 10"],
     start: null,
-    end: null
+    end: null,
+    canUseGeometry: true
   }
 }
 

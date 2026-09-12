@@ -9,8 +9,8 @@ vi.mock("@/lib/client/near-me", async (importOriginal) => ({
 }))
 
 vi.mock("@/components/route-library/RouteLibraryActions", () => ({
-  RouteLibraryActions: ({ catalogRouteId }: { catalogRouteId: string }) => (
-    <a href={`/?ride=${catalogRouteId}`}>Open in Planner</a>
+  RouteLibraryActions: ({ catalogRouteId, canUseGeometry }: { catalogRouteId: string; canUseGeometry: boolean }) => (
+    canUseGeometry ? <a href={`/?ride=${catalogRouteId}`}>Open in Planner</a> : <span>Geometry not retained</span>
   )
 }))
 
@@ -32,6 +32,7 @@ function route(over: Partial<AtlasBrowseRoute> & { id: string }): AtlasBrowseRou
     paths: ["M8 110 L35 60 L76 82 L92 12"],
     start: [8, 110],
     end: [92, 12],
+    canUseGeometry: true,
     ...over
   }
 }
@@ -137,6 +138,23 @@ describe("Route Library browser", () => {
     expect(within(rail).getByRole("link", { name: "Open in Planner" })).toHaveAttribute("href", "/?ride=gap")
     expect(screen.getByRole("button", { name: /Delaware Water Gap/ })).toHaveAttribute("aria-pressed", "true")
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it("does not offer rail actions for poster art without retained geometry", () => {
+    setWide(true)
+    render(
+      <AtlasBrowser
+        routes={[route({ id: "preview", name: "Preview", title: "Preview", canUseGeometry: false })]}
+        regions={[]}
+        ridingAreas={[]}
+        routeCount={1}
+        totalMiles={10}
+        updatedLabel={null}
+      />
+    )
+    const rail = screen.getByRole("complementary", { name: "Selected ride" })
+    expect(within(rail).queryByRole("link", { name: "Open in Planner" })).toBeNull()
+    expect(within(rail).getByText("Geometry not retained")).toBeInTheDocument()
   })
 
   it("keeps phone drill-in navigation with no rail", () => {

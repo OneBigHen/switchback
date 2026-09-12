@@ -425,7 +425,7 @@ function RideRail({ entry }: { entry: RankedAtlasRoute }) {
           key={route.id}
           catalogRouteId={route.id}
           routeName={route.title}
-          canUseGeometry={route.paths.length > 0}
+          canUseGeometry={route.canUseGeometry}
           className="atlas-launch atlas-rail-actions"
         />
         <Link href={`/gpx-library/${route.id}`} className="atlas-launch-secondary">Route details</Link>

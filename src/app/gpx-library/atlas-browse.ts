@@ -43,6 +43,8 @@ export interface AtlasBrowseRoute {
   readonly paths: readonly string[]
   readonly start: readonly [number, number] | null
   readonly end: readonly [number, number] | null
+  /** False for preview-only imports: poster art exists but no real route to open or save. */
+  readonly canUseGeometry: boolean
 }
 
 export type AtlasAnchor = NearMeAnchor

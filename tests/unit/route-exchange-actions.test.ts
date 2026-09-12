@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { createLatestRequestGate } from "@/lib/client/latest-request"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { SavedRoute } from "@/lib/storage/route-library"
@@ -96,7 +97,12 @@ describe("route exchange actions", () => {
     await subject.actions.importRoute(file)
 
     expect(parseFile).toHaveBeenCalledWith(file)
-    expect(subject.library.save).toHaveBeenCalledWith(route)
+    expect(subject.library.save).toHaveBeenCalledWith(route, "", {
+      kind: "imported-file",
+      sourceFormat: "gpx",
+      sourceFileName: "river.gpx",
+      importedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+    })
     expect(subject.refresh).toHaveBeenCalledOnce()
     expect(subject.onNotice).toHaveBeenCalledWith({
       kind: "success",
@@ -130,6 +136,23 @@ describe("route exchange actions", () => {
       kind: "success",
       message: "Bald Eagle Loop opened from the Route Library. It is not in My Rides until you save it."
     })
+  })
+
+  it("drops a late Route Library load once newer planner work has superseded it", async () => {
+    const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
+    let release: (response: Response) => void = () => undefined
+    const fetcher = vi.fn(() => new Promise<Response>((resolve) => { release = resolve }))
+    const gate = createLatestRequestGate()
+    const subject = actions({ fetcher, requestGate: gate })
+
+    const opening = subject.actions.openCatalogRoute("atlas-42")
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalled())
+    gate.invalidate() // the rider edited the planner meanwhile
+    release(new Response(JSON.stringify(catalogRoute)))
+    await opening
+
+    expect(subject.onLoad).not.toHaveBeenCalled()
+    expect(subject.onNotice).not.toHaveBeenCalled()
   })
 
   it("refuses to open a Route Library entry without real geometry", async () => {

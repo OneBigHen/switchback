@@ -111,12 +111,17 @@ describe("saveCatalogRouteToMyRides", () => {
     expect(await rides.list()).toHaveLength(1)
   })
 
-  it("stays duplicate-safe when two saves race", async () => {
+  it("stays duplicate-safe when two saves race: one fetch, one creation", async () => {
     const rides = library()
-    await Promise.all([
-      saveCatalogRouteToMyRides(rides, "atlas-42", fetcherFor(detail())),
-      saveCatalogRouteToMyRides(rides, "atlas-42", fetcherFor(detail()))
+    const firstFetcher = fetcherFor(detail())
+    const secondFetcher = fetcherFor(detail())
+    const results = await Promise.all([
+      saveCatalogRouteToMyRides(rides, "atlas-42", firstFetcher),
+      saveCatalogRouteToMyRides(rides, "atlas-42", secondFetcher)
     ])
+    expect(results.filter((result) => result.created)).toHaveLength(1)
+    expect(results[0]!.route.id).toBe(results[1]!.route.id)
+    expect(firstFetcher.mock.calls.length + secondFetcher.mock.calls.length).toBe(1)
     expect(await rides.list()).toHaveLength(1)
   })
 

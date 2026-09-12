@@ -11,6 +11,7 @@ describe("catalog presentation truth", () => {
       .toBe("Armstrong County Loops")
     expect(cleanCatalogRouteName("  Pine   Creek connector.gpx  ")).toBe("Pine Creek connector")
     expect(cleanCatalogRouteName("Bald Eagle Dual Sport")).toBe("Bald Eagle Dual Sport")
+    expect(cleanCatalogRouteName("Example.gpx - created by Rider")).toBe("Example")
   })
 
   it("keeps unknown or invalid imported durations unknown instead of turning them into zero minutes", () => {

@@ -66,6 +66,29 @@ describe("buildAtlasBrowseRoutes", () => {
     expect(rows.map((row) => row.id)).toEqual(["long"])
   })
 
+  it("keeps disambiguated titles unique when rounded distances collide", () => {
+    const rows = buildAtlasBrowseRoutes(
+      [
+        listing({ id: "a", name: "Connector", distanceMiles: 12.2 }),
+        listing({ id: "b", name: "Connector", distanceMiles: 12.4 }),
+        listing({ id: "c", name: "Connector", distanceMiles: 12.4 })
+      ],
+      { a: art(), b: art(), c: art() }
+    )
+    const titles = rows.map((row) => row.title)
+    expect(new Set(titles).size).toBe(3)
+    expect(titles[0]).toBe("Connector · 12.2 mi")
+  })
+
+  it("derives geometry capability from the catalog row, not from poster art", () => {
+    const [previewOnly, retained] = buildAtlasBrowseRoutes(
+      [listing({ id: "p", name: "Preview", previewOnly: true }), listing({ id: "r", name: "Retained" })],
+      { p: art(), r: art() }
+    )
+    expect(previewOnly).toMatchObject({ id: "p", canUseGeometry: false })
+    expect(retained).toMatchObject({ id: "r", canUseGeometry: true })
+  })
+
   it("omits routes with no drawable art and disambiguates repeated titles by distance", () => {
     const rows = buildAtlasBrowseRoutes(
       [

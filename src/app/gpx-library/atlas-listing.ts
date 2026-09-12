@@ -15,6 +15,8 @@ export interface AtlasListingRoute {
   profile?: string
   duplicateFamilyId?: string
   duplicateFamilyRole?: "canonical" | "near-duplicate"
+  /** Set by imports that kept only a preview line, not the real route. */
+  previewOnly?: boolean
 }
 
 /** Fold one manifest row + its poster art into the shape the browser UI wants. */
@@ -42,7 +44,9 @@ function toBrowseRoute(route: AtlasListingRoute, art: AtlasRouteArt | undefined)
     aspect: typeof art?.aspect === "number" && art.aspect > 0 ? art.aspect : 1,
     paths: art ? art.paths.map((piece) => piece.d) : [],
     start: art?.start ?? null,
-    end: art?.end ?? null
+    end: art?.end ?? null,
+    // Poster art proves a drawable shape, not a retained real route.
+    canUseGeometry: route.previewOnly !== true
   }
 }
 
@@ -78,12 +82,28 @@ export function buildAtlasBrowseRoutes(
 
   // Bulk imports name several genuinely different rides identically ("… Loops",
   // "Huntington Motor Inn Connector"). When a title repeats, tag each with its
-  // distance so the cards stay tellable apart.
-  const titleTally = new Map<string, number>()
-  for (const route of browseRoutes) titleTally.set(route.title, (titleTally.get(route.title) ?? 0) + 1)
-  return browseRoutes.map((route) =>
-    (titleTally.get(route.title) ?? 0) > 1
-      ? { ...route, title: `${route.title} · ${Math.round(route.distanceMiles)} mi` }
-      : route
+  // distance so the cards stay tellable apart: whole miles first, a decimal
+  // where whole miles still collide, then an ordinal for identical distances.
+  const repeated = (titles: readonly string[]) => {
+    const tally = new Map<string, number>()
+    for (const title of titles) tally.set(title, (tally.get(title) ?? 0) + 1)
+    return (title: string) => (tally.get(title) ?? 0) > 1
+  }
+  const baseRepeats = repeated(browseRoutes.map((route) => route.title))
+  const wholeMiles = browseRoutes.map((route) =>
+    baseRepeats(route.title) ? `${route.title} · ${Math.round(route.distanceMiles)} mi` : route.title
   )
+  const wholeRepeats = repeated(wholeMiles)
+  const tenths = browseRoutes.map((route, index) =>
+    wholeRepeats(wholeMiles[index]!) ? `${route.title} · ${route.distanceMiles.toFixed(1)} mi` : wholeMiles[index]!
+  )
+  const tenthsRepeats = repeated(tenths)
+  const seen = new Map<string, number>()
+  return browseRoutes.map((route, index) => {
+    const title = tenths[index]!
+    if (!tenthsRepeats(title)) return title === route.title ? route : { ...route, title }
+    const ordinal = (seen.get(title) ?? 0) + 1
+    seen.set(title, ordinal)
+    return { ...route, title: ordinal === 1 ? title : `${title} (${ordinal})` }
+  })
 }

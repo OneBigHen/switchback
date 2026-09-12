@@ -38,6 +38,7 @@ function isAtlasListingRoute(value: unknown): value is AtlasListingRoute {
   ) return false
   if (value.profile !== undefined && typeof value.profile !== "string") return false
   if (value.duplicateFamilyId !== undefined && typeof value.duplicateFamilyId !== "string") return false
+  if (value.previewOnly !== undefined && typeof value.previewOnly !== "boolean") return false
   return value.duplicateFamilyRole === undefined
     || value.duplicateFamilyRole === "canonical"
     || value.duplicateFamilyRole === "near-duplicate"

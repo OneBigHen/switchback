@@ -26,8 +26,9 @@ export interface CatalogArea {
 export function cleanCatalogRouteName(name: string): string {
   return name
     .trim()
-    .replace(/\.(?:gpx|kml|kmz)$/i, "")
+    // Byline first: "Example.gpx - created by Rider" must still lose ".gpx".
     .replace(/\s*[-–—]?\s*created by\b.*$/i, "")
+    .replace(/\.(?:gpx|kml|kmz)$/i, "")
     .replace(/^\d{2,}[\s._-]+(?=\D)/, "")
     .replace(/\s+/g, " ")
     .trim()

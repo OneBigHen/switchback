@@ -752,7 +752,8 @@ export function PlannerShell() {
     refresh: refreshLibrary,
     onNotice: setNotice,
     onLoad: handleLoad,
-    openedCatalogRouteIds
+    openedCatalogRouteIds,
+    requestGate: routeRequestGate
   })
 
   // Deep links from the Route Library, one-shot on mount like the portable

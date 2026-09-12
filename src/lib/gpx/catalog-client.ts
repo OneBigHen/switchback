@@ -116,11 +116,38 @@ export interface CatalogSaveResult {
   created: boolean
 }
 
-/** Explicit, duplicate-safe Save to My Rides for one shared catalog route. */
+const savesInFlight = new WeakMap<CatalogCopyLibrary, Map<string, Promise<CatalogSaveResult>>>()
+
+/**
+ * Explicit, duplicate-safe Save to My Rides for one shared catalog route.
+ *
+ * Concurrent saves in this page share one fetch and one write; a joiner sees
+ * the copy as already saved. Across tabs the deterministic copy id still
+ * converges on a single row.
+ */
 export async function saveCatalogRouteToMyRides(
   library: CatalogCopyLibrary,
   sourceCatalogRouteId: string,
   fetcher: typeof fetch = fetch
+): Promise<CatalogSaveResult> {
+  const saves = savesInFlight.get(library) ?? new Map<string, Promise<CatalogSaveResult>>()
+  savesInFlight.set(library, saves)
+  const pending = saves.get(sourceCatalogRouteId)
+  if (pending) return pending.then(({ route }) => ({ route, created: false }))
+
+  const saving = saveOnce(library, sourceCatalogRouteId, fetcher)
+  saves.set(sourceCatalogRouteId, saving)
+  try {
+    return await saving
+  } finally {
+    saves.delete(sourceCatalogRouteId)
+  }
+}
+
+async function saveOnce(
+  library: CatalogCopyLibrary,
+  sourceCatalogRouteId: string,
+  fetcher: typeof fetch
 ): Promise<CatalogSaveResult> {
   const existing = await library.findCatalogCopy(sourceCatalogRouteId)
   if (existing) return { route: existing, created: false }

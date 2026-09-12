@@ -1,9 +1,10 @@
+import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { catalogCopyId, fetchCatalogRoute } from "@/lib/gpx/catalog-client"
 import { recordedRideToGpx, routeToGpx, type GpxExportVariant } from "@/lib/routing/gpx"
 import { MAX_GPX_IMPORT_BYTES } from "@/lib/routing/gpx-import"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { parseRouteFileInWorker } from "@/lib/client/route-import-client"
-import type { SavedRoute, SavedRouteLibraryProvenance } from "@/lib/storage/route-library"
+import type { SavedRoute, SavedRouteLibraryProvenance, SavedRouteSourceFormat } from "@/lib/storage/route-library"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
 import {
   createGpxRoadLock,
@@ -50,11 +51,23 @@ interface RouteExchangeActionsOptions {
    * duplicate-safe catalog copy, never a row under the shared catalog id.
    */
   openedCatalogRouteIds?: Set<string>
+  /**
+   * Planner request gate. A Route Library load that resolves after newer
+   * planner work (an edit, a selection, another load) is dropped.
+   */
+  requestGate?: LatestRequestGate
 }
 
 function downloadName(route: PlannedRoute, variant: GpxExportVariant): string {
   const base = route.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "switchback-route"
   return `${base}${variant === "track" ? "" : `-${variant}`}.gpx`
+}
+
+/** Explicit ownership record for a route the rider imported from a file. */
+function importedFileProvenance(file: File): SavedRouteLibraryProvenance {
+  const extension = /\.(gpx|kml|kmz)$/i.exec(file.name)?.[1]?.toLowerCase()
+  const sourceFormat: SavedRouteSourceFormat = extension === "kml" || extension === "kmz" ? extension : "gpx"
+  return { kind: "imported-file", sourceFormat, sourceFileName: file.name, importedAt: new Date().toISOString() }
 }
 
 /** Permissive snapshot for GPX-imported road locks until a rematch fills it in. */
@@ -91,7 +104,8 @@ export function createRouteExchangeActions({
   defaultLockSourceRegionId = "gpx-import",
   defaultLockSourceGraphVersion = "gpx-import",
   buildImportedLockAccessSnapshot = defaultImportedLockAccessSnapshot,
-  openedCatalogRouteIds = new Set<string>()
+  openedCatalogRouteIds = new Set<string>(),
+  requestGate
 }: RouteExchangeActionsOptions) {
   return {
     async saveRoute(route: PlannedRoute) {
@@ -165,8 +179,11 @@ export function createRouteExchangeActions({
 
     /** Route Library → Open in Planner. Loads the shared entry; never saves it. */
     async openCatalogRoute(catalogRouteId: string) {
+      const requestId = requestGate?.begin()
+      const superseded = () => requestId !== undefined && requestGate !== undefined && !requestGate.isCurrent(requestId)
       try {
         const catalogRoute = await fetchCatalogRoute(catalogRouteId, fetcher)
+        if (superseded()) return
         openedCatalogRouteIds.add(catalogRoute.id)
         onLoad(catalogRoute)
         onNotice({
@@ -174,6 +191,7 @@ export function createRouteExchangeActions({
           message: `${catalogRoute.name} opened from the Route Library. It is not in My Rides until you save it.`
         })
       } catch (caught) {
+        if (superseded()) return
         onNotice({
           kind: "warning",
           message: caught instanceof Error ? caught.message : "That Route Library entry could not be opened."
@@ -202,7 +220,7 @@ export function createRouteExchangeActions({
       }
       try {
         const imported = await parseFile(file)
-        await library.save(imported)
+        await library.save(imported, "", importedFileProvenance(file))
         await refresh()
         onNotice({ kind: "success", message: `${imported.name} imported to your library. Imported tracks stay intact until you choose to re-route them.` })
       } catch (caught) {
