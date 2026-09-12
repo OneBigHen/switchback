@@ -120,13 +120,13 @@ The renderer is O(n), so high-density lists should receive intentionally simplif
 
 ### Rider-character evidence
 
-`RideCharacterBars` is a display contract for normalized Switchback-owned values. Learned values, evidence counts, confidence, and axis availability remain the responsibility of deterministic route-memory/domain code.
+`RideCharacterBars` is a display contract for normalized OpenGravel-owned values. Learned values, evidence counts, confidence, and axis availability remain the responsibility of deterministic route-memory/domain code.
 
 Downstream callers should provide finite evidence counts and use `null` for axes that are not supported yet. Do not turn missing learned values into zero.
 
 ### Preference edits
 
-Before/after rider-character values visualize deterministic preference state. They must not display raw, unverified LLM output. Gravel Goblin/model output should first resolve through Switchback-owned structured intent/preferences and validation.
+Before/after rider-character values visualize deterministic preference state. They must not display raw, unverified LLM output. Gravel Goblin/model output should first resolve through OpenGravel-owned structured intent/preferences and validation.
 
 ### Elevation
 

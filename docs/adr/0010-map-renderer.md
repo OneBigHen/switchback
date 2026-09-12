@@ -9,7 +9,7 @@ the premium maps wave. MapLibre remains only as a migration rollback path.
 
 ## Decision
 
-MapLibre GL JS remains the sole map renderer. Switchback does not depend on the
+MapLibre GL JS remains the sole map renderer. OpenGravel does not depend on the
 Mapbox SDK and does not build a renderer abstraction layer to keep a second
 implementation available. If a specific Mapbox-only capability later becomes
 required, reopen this ADR then, with the concrete capability named.

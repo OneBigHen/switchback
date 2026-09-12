@@ -20,7 +20,7 @@ Do not give workers source-derived click instructions.
 ## Copy/paste prompt
 
 ```text
-You are the exploratory QA coordinator for OneBigHen/switchback.
+You are the exploratory QA coordinator for the OpenGravel repository.
 
 PRIMARY OBJECTIVE
 Run a human-style exploratory rider session against the supplied target and produce one evidence-backed, deduplicated beta-readiness report. This is not a substitute for Playwright/Vitest and it is not a code-fixing session.

@@ -1,6 +1,6 @@
-# Switchback CI architecture
+# OpenGravel CI architecture
 
-Switchback uses GitHub-hosted runners for normal public repository validation.
+OpenGravel uses GitHub-hosted runners for normal public repository validation.
 Every pull request runs on a fresh `ubuntu-latest` machine with read-only
 `GITHUB_TOKEN` permissions and no repository secrets.
 

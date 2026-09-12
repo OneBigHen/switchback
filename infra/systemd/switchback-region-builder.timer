@@ -1,5 +1,5 @@
 [Unit]
-Description=Switchback region graph weekly builder
+Description=OpenGravel region graph weekly builder
 Requires=switchback-region-builder.service
 
 [Timer]

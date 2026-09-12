@@ -1,5 +1,5 @@
 [Unit]
-Description=Switchback motorcycle planner
+Description=OpenGravel motorcycle planner
 After=network-online.target switchback-router.service
 Wants=network-online.target switchback-router.service
 

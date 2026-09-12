@@ -1,4 +1,4 @@
-# Switchback full refactor specification
+# OpenGravel full refactor specification
 
 Date: 2026-09-05. Reviewed source: `63de8ef583e93a6f323662cfe390febcb8480f60`.
 Scope: product definition and staged refactor proposal. No application implementation is authorized by this document alone.
@@ -7,7 +7,7 @@ Scope: product definition and staged refactor proposal. No application implement
 
 Build **one editable, recoverable ride**, expressed through a map. Search, drawing, route dragging, preferences, imported tracks, and AI are ways of expressing or changing that ride. They must share its constraints, history, routing lifecycle, and recovery behavior.
 
-Switchback today has a credible motorcycle routing foundation and an accumulated interaction layer. It can calculate real routes and distinguish useful alternatives. It does not yet give a rider a reliable mental model for choosing, changing, preserving, and riding one. A further set of cosmetic fixes would leave the central problem intact.
+OpenGravel today has a credible motorcycle routing foundation and an accumulated interaction layer. It can calculate real routes and distinguish useful alternatives. It does not yet give a rider a reliable mental model for choosing, changing, preserving, and riding one. A further set of cosmetic fixes would leave the central problem intact.
 
 The recommended refactor preserves the routing engine, GIS primitives, local libraries, provider boundaries, and useful navigation machinery. It rebuilds intent ownership, mutation semantics, gesture coordination, task composition, and the boundary between planning and an active ride. This is a staged replacement inside the existing application, not a greenfield rewrite.
 
@@ -51,7 +51,7 @@ These are supported at different evidence levels; see the audit. A missing field
 
 ## Highest-leverage product changes
 
-Make the first screen answer three things: where the ride begins, whether Switchback can route there, and how to get a good ride without filling a form. Offer a destination, a timeboxed ride, or drawing; Free Ride begins a continuous activity without a destination.
+Make the first screen answer three things: where the ride begins, whether OpenGravel can route there, and how to get a good ride without filling a form. Offer a destination, a timeboxed ride, or drawing; Free Ride begins a continuous activity without a destination.
 
 Make route choice self-explanatory: **Best ride**, **Faster**, and one genuinely distinct option such as **More dirt**. Show added time against the fastest eligible route before selection. Explain differences with measured evidence and distinguish unknown surface from paved road. Do not make a rider interpret a 100-point curve score to decide whether an extra six minutes is worthwhile.
 
@@ -84,6 +84,6 @@ Wave details and safe parallelization opportunities are in the backlog. Each wav
 
 ## What finished should feel like
 
-A rider opens Switchback and immediately understands the starting point. They ask for ninety minutes of backroads, sketch a ridge they want to follow, or simply start riding. The map responds visibly. Alternatives explain what the extra time buys. Changing one section preserves everything else. Bad data and poor connectivity are clear, recoverable states. On the bike, the interface becomes quiet and legible. At the end, the ride is already saved with its source and changes intact.
+A rider opens OpenGravel and immediately understands the starting point. They ask for ninety minutes of backroads, sketch a ridge they want to follow, or simply start riding. The map responds visibly. Alternatives explain what the extra time buys. Changing one section preserves everything else. Bad data and poor connectivity are clear, recoverable states. On the bike, the interface becomes quiet and legible. At the end, the ride is already saved with its source and changes intact.
 
 The ambition is first-party mapping quality in interaction and trust, with motorcycle-specific judgment in route selection. The product should feel easy because its internal state is coherent—not because important limitations are hidden.

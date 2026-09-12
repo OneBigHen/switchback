@@ -1,5 +1,5 @@
 [Unit]
-Description=Switchback region graph builder
+Description=OpenGravel region graph builder
 After=network-online.target
 Wants=network-online.target
 

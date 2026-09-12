@@ -1,4 +1,4 @@
-# Switchback quality system
+# OpenGravel quality system
 
 This is the owner-facing entry point for the release quality workflow. The
 agent owns branch setup, test execution, failure classification, repairs, and

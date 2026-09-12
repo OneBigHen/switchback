@@ -1,4 +1,4 @@
-# Switchback delivery waves
+# OpenGravel delivery waves
 
 Post-remediation sequencing, locked 2026-08-28. Each wave is one or a few small
 PRs with `npm run verify` green and a review before the next wave starts. This
@@ -17,7 +17,7 @@ commercial API keys; the hosted instance is enriched by optional providers.
 | 4 | Route Intelligence v1 (ADR 0004, 0013): curves / elevation / traffic / signals / surface into an explainable Best-Ride comparison card | The core differentiator |
 | 5 | Public sharing hardening (ADR 0012): snapshots, revoke, cheap/expensive rate-limit split, anonymous views | Make sharing safe on the public internet |
 | 6 | Long Trip mode: fuel gaps, weather exposure, daylight/sunset ETA, lodging/camping, repair-service gaps | Multi-day trip preparation |
-| 7 | TomTom routing bake-off (ADR 0001): benchmark thrilling / traffic-aware routing vs Switchback, A/B only — **absorbed into the premium wave below, phase 5** | Test rather than assume; no rewrite |
+| 7 | TomTom routing bake-off (ADR 0001): benchmark thrilling / traffic-aware routing vs OpenGravel, A/B only — **absorbed into the premium wave below, phase 5** | Test rather than assume; no rewrite |
 
 ## Premium maps + routing wave — opened 2026-08-29
 

@@ -120,7 +120,7 @@ Do not merge a broad "graphics everywhere" follow-up. The integration work shoul
 
 **Foundation component:** `RideCharacterBars`
 
-**Inputs:** final Switchback-owned normalized preference vector, not raw model output.
+**Inputs:** final OpenGravel-owned normalized preference vector, not raw model output.
 
 **Integration behavior:**
 
@@ -152,7 +152,7 @@ Do not merge a broad "graphics everywhere" follow-up. The integration work shoul
 - Place `Your Ride Style` immediately under `Learn from my rides` or in a linked detail section.
 - Show supporting ride counts.
 - Keep unsupported axes as `Still learning`.
-- Add `See rides that taught Switchback this` only after a deterministic supporting-ride query exists.
+- Add `See rides that taught OpenGravel this` only after a deterministic supporting-ride query exists.
 - Keep reset/export controls in existing advanced data settings.
 
 **Acceptance:** Personalization is inspectable and reversible rather than mysterious.
@@ -212,7 +212,7 @@ Do not merge a broad "graphics everywhere" follow-up. The integration work shoul
 **Integration behavior:**
 
 - Replace the current one-off inline mark only after checking contrast at all nav sizes.
-- Keep `Switchback` and `Motorcycle routing` as live text.
+- Keep `OpenGravel` and `Motorcycle routing` as live text.
 - For inline theming, either convert the compact mark into a React SVG component or provide a monochrome variant; do not rely on CSS filters against the colored static file.
 
 **Acceptance:** Brand identity improves without reducing nav readability or increasing layout width.
