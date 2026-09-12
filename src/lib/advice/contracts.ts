@@ -133,6 +133,8 @@ export interface AdvisorRouteContext {
     | "roadMix"
     | "surfaceMix"
   > & {
+    /** Bounded route evidence used to reject same-geometry ids server-side. */
+    geometry?: Array<[longitude: number, latitude: number]>
     corridorOption?: string
     ascentMeters?: number | null
     descentMeters?: number | null

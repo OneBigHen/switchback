@@ -47,6 +47,7 @@ import { restorePortableShare } from "@/lib/share/route-share"
 import { routeIntentFromSketch } from "@/lib/planner/route-sketch"
 import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
+import { routePassesNearWaypoint } from "@/lib/routing/scoring"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { advisorRideToPlannerHandoff, mergeAdvisorStopIntoVia } from "@/lib/advice/planner-handoff"
@@ -581,6 +582,115 @@ export function PlannerShell() {
         message: caught instanceof Error ? caught.message : "That advisor stop could not be added to the route."
       })
     }
+  }
+
+  /**
+   * Fulfil the advisor's compound command in the canonical planner. The
+   * grounded stop is only an input; the route request is the proof that the
+   * second requirement was satisfied. Compound success requires BOTH a
+   * materially changed valid route AND routed geometry that demonstrably
+   * passes the grounded stop — a route that merely changed is not evidence
+   * that the stop is on it. If routing fails, merely reproduces the current
+   * route, or returns a change that bypasses the stop, restore the committed
+   * ride and keep the old answer on screen rather than silently applying only
+   * the stop.
+   */
+  const handleRouteWithAdvisorStop = async (stop: ProposedStop) => {
+    routeRequestGate.invalidate()
+    const store = usePlannerStore.getState()
+    const beforePlan = store.plan
+    const beforeCommittedRide = store.committedRide
+    const beforeResultIdentity = store.resultIdentity
+    const beforeSelectionSource = store.selectionSource
+    const activeRouteId = store.selectedRouteId ?? beforePlan?.routes[0]?.id
+    const beforeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
+    const stopWaypoint: Waypoint = { lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name }
+    const routedVia = store.mode === "loop" && beforeRoute && store.via.length === 0
+      ? buildLoopStopVia(beforeRoute.geometry, stopWaypoint)
+      : mergeAdvisorStopIntoVia(store.via, stop, beforeRoute?.geometry ?? [])
+
+    if (routedVia.length === store.via.length && routedVia.every((point, index) => point === store.via[index])) {
+      setNotice({ kind: "warning", message: `I found ${stop.name}, but it is already on this ride and no different route was verified. Your route is unchanged.` })
+      return
+    }
+    if (store.editRide({ via: routedVia }, "Route through advisor stop", "advisor") !== "applied") return
+    const attemptedIdentity = usePlannerStore.getState().getIntentIdentity()
+
+    const planningRun = handlePlan()
+    const actionRequestId = usePlannerStore.getState().pendingResultIdentity?.requestId
+    const planned = await planningRun
+    const afterPlan = usePlannerStore.getState()
+    // The planner session fences provider responses, but this callback also
+    // owns the post-plan transaction. A later rider edit/replan must not be
+    // cancelled or rolled back by an older advisor response.
+    if (afterPlan.getIntentIdentity() !== attemptedIdentity) return
+    if (actionRequestId !== undefined && !routeRequestGate.isCurrent(actionRequestId)) {
+      // Selecting another displayed route is a rider decision, even though it
+      // does not alter RideIntent. The request gate rejects the advisor's
+      // late route response; restore only the advisor's tentative via while
+      // retaining the rider's current route selection and source.
+      if (beforeCommittedRide) {
+        afterPlan.restoreRideUpdate({
+          committedRide: beforeCommittedRide,
+          plan: beforePlan,
+          selectedRouteId: afterPlan.selectedRouteId,
+          selectionSource: afterPlan.selectionSource,
+          resultIdentity: beforeResultIdentity
+        }, attemptedIdentity)
+      }
+      return
+    }
+    const selected = planned?.routes.find((route) => route.id === planned.selectedRouteId) ?? planned?.routes[0] ?? null
+    const geometryChanged = Boolean(beforeRoute && (
+      beforeRoute.geometry.length !== selected?.geometry.length
+      || beforeRoute.geometry.some((point, index) => point[0] !== selected?.geometry[index]?.[0] || point[1] !== selected?.geometry[index]?.[1])
+    ))
+    const metricsChanged = Boolean(beforeRoute && selected && (
+      beforeRoute.distanceMiles !== selected.distanceMiles
+      || beforeRoute.durationMinutes !== selected.durationMinutes
+      || beforeRoute.twistiness !== selected.twistiness
+      || beforeRoute.turnCount !== selected.turnCount
+    ))
+    const routeChanged = Boolean(beforeRoute && selected && (
+      geometryChanged || metricsChanged
+    ))
+    // routeChanged evidence is necessary but insufficient: the returned
+    // geometry must actually pass the grounded stop, otherwise a changed
+    // route that bypasses the stop would be presented as a routed stop.
+    const stopOnRoute = Boolean(selected && routePassesNearWaypoint(selected.geometry, stopWaypoint))
+
+    if (!planned || !selected || !routeChanged || !stopOnRoute) {
+      if (!planned) {
+        // A failed primary never replaced committedRide, so the existing
+        // planner cancellation contract restores the attempted intent and
+        // settles the failed lifecycle.
+        planning.cancel()
+      } else if (beforeCommittedRide) {
+        const restored = usePlannerStore.getState().restoreRideUpdate({
+          committedRide: beforeCommittedRide,
+          plan: beforePlan,
+          selectedRouteId: store.selectedRouteId,
+          selectionSource: beforeSelectionSource,
+          resultIdentity: beforeResultIdentity,
+          expectedRequestId: actionRequestId
+        }, attemptedIdentity)
+        if (!restored) return
+        // Restore first, then settle the lifecycle. This keeps the ordinary
+        // controller cancellation from rolling back a newer request.
+        planning.cancel()
+      }
+      setNotice({
+        kind: "warning",
+        message: !planned
+          ? `I couldn’t route through ${stop.name}. Your route is unchanged.`
+          : routeChanged
+            ? `I found ${stop.name}, but could not verify a changed route that passes through it. Your route is unchanged.`
+            : `I found ${stop.name}, but could not verify a different valid route through it. Your route is unchanged.`
+      })
+      return
+    }
+
+    setNotice({ kind: "success", message: `${stop.name} is on a verified changed route.` })
   }
 
   const { researchRideIdea: handleRideResearch, cancel: cancelRideResearch } = usePlannerRideResearch({
@@ -1391,6 +1501,7 @@ message: failure?.message ?? "The rough route could not be routed."
           recoveryStatus,
           planWarnings: plan?.warnings ?? [],
           onAddAdvisorStop: (stop) => void handleAddAdvisorStop(stop),
+          onRouteWithAdvisorStop: (stop) => void handleRouteWithAdvisorStop(stop),
           onPlanAdvisorRide: (ride) => void handlePlanAdvisorRide(ride),
           advisorOrigin: start ?? null,
           viewModel: buildPlannerDeckViewModel({
@@ -1619,7 +1730,13 @@ message: failure?.message ?? "The rough route could not be routed."
           comparison: routes.length > 0 ? {
               routes: routes,
               selectedId: selectedRoute?.id ?? "",
-              onSelect: (id: string) => usePlannerStore.getState().selectRoute(id),
+              onSelect: (id: string) => {
+                // A manual route pick is newer rider intent for every
+                // in-flight planner command, including a Goblin compound
+                // request that would otherwise apply its late result over it.
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().selectRoute(id)
+              },
               onSave: (route) => void handleSave(route),
               onExport: handleExport,
               recordedRide: activeRecordedRide,

@@ -63,4 +63,78 @@ describe("planner cancel identity", () => {
     expect(settled.committedRide?.identity).toBe(identity)
     expect(settled.plan).not.toBeNull()
   })
+
+  it("restores an applied but unverified route update through the canonical store seam", () => {
+    usePlannerStore.getState().setProfile("twisty")
+    usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const snapshot = {
+      committedRide: before.committedRide!,
+      plan: before.plan,
+      selectedRouteId: before.selectedRouteId,
+      selectionSource: before.selectionSource,
+      resultIdentity: before.resultIdentity
+    }
+
+    usePlannerStore.getState().setProfile("adventure")
+    const attemptedIdentity = usePlannerStore.getState().getIntentIdentity()
+    // A successful planner response can replace committedRide before an
+    // advisor-level route-difference check rejects it.
+    usePlannerStore.getState().applyPlan(plan)
+    expect(usePlannerStore.getState().profile).toBe("adventure")
+
+    expect(usePlannerStore.getState().restoreRideUpdate(snapshot, attemptedIdentity)).toBe(true)
+    const restored = usePlannerStore.getState()
+    expect(restored.profile).toBe("twisty")
+    expect(restored.plan).toBe(snapshot.plan)
+    expect(restored.selectedRouteId).toBe(snapshot.selectedRouteId)
+    expect(restored.committedRide?.identity).toBe(restored.rideHistory.identity)
+  })
+
+  it("does not restore an older advisor update over a newer rider intent", () => {
+    usePlannerStore.getState().setProfile("twisty")
+    usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const snapshot = {
+      committedRide: before.committedRide!,
+      plan: before.plan,
+      selectedRouteId: before.selectedRouteId,
+      selectionSource: before.selectionSource,
+      resultIdentity: before.resultIdentity
+    }
+
+    usePlannerStore.getState().setProfile("adventure")
+    const advisorIdentity = usePlannerStore.getState().getIntentIdentity()
+    usePlannerStore.getState().setProfile("gravel")
+
+    expect(usePlannerStore.getState().restoreRideUpdate(snapshot, advisorIdentity)).toBe(false)
+    expect(usePlannerStore.getState().profile).toBe("gravel")
+  })
+
+  it("does not restore over a newer planning request for the same intent", () => {
+    usePlannerStore.getState().setProfile("twisty")
+    usePlannerStore.getState().applyPlan(plan)
+    const before = usePlannerStore.getState()
+    const snapshot = {
+      committedRide: before.committedRide!,
+      plan: before.plan,
+      selectedRouteId: before.selectedRouteId,
+      selectionSource: before.selectionSource,
+      resultIdentity: before.resultIdentity,
+      expectedRequestId: 11
+    }
+
+    usePlannerStore.getState().setProfile("adventure")
+    const advisorIdentity = usePlannerStore.getState().getIntentIdentity()
+    const firstRequest = { intentIdentity: advisorIdentity, requestId: 11 }
+    usePlannerStore.getState().beginRouting(firstRequest)
+    usePlannerStore.getState().applyPlan(plan, firstRequest)
+    const newerRequest = { intentIdentity: advisorIdentity, requestId: 12 }
+    usePlannerStore.getState().beginRouting(newerRequest)
+    usePlannerStore.getState().applyPlan(plan, newerRequest)
+
+    expect(usePlannerStore.getState().restoreRideUpdate(snapshot, advisorIdentity)).toBe(false)
+    expect(usePlannerStore.getState().profile).toBe("adventure")
+    expect(usePlannerStore.getState().resultIdentity?.requestId).toBe(12)
+  })
 })
