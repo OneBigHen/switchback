@@ -11,6 +11,7 @@ export type RiderMapFeatureProvider = (request: MapFeatureRequest) => Promise<Ri
 export interface GravelAtlasMapFeatureOptions {
   repository: Pick<GravelAtlasRepository, "queryBounds">
   graphFingerprint: string
+  sourceFingerprint?: string
   limit?: number
 }
 
@@ -39,7 +40,7 @@ function uniqueUnavailable(values: readonly RiderFeatureUnavailableSource[]): Ri
 /**
  * Render only the graph-reconciled runtime corridors. Raw official source
  * geometry never crosses this route-time boundary, and the exact viewport plus
- * active routing-graph fingerprint are mandatory parts of the lookup.
+ * active build fingerprints are mandatory parts of configured production reads.
  */
 export async function getGravelAtlasMapFeatures(
   request: MapFeatureRequest,
@@ -48,11 +49,16 @@ export async function getGravelAtlasMapFeatures(
   if (!request.layers.includes("gravel-atlas")) return emptyCollection()
   const graphFingerprint = options.graphFingerprint.trim()
   if (!graphFingerprint) throw new Error("A routing graph fingerprint is required for Gravel Atlas map features")
+  const sourceFingerprint = options.sourceFingerprint?.trim()
+  if (options.sourceFingerprint !== undefined && !sourceFingerprint) {
+    throw new Error("A source snapshot fingerprint is required when configured for Gravel Atlas map features")
+  }
   const requestedLimit = Number.isFinite(options.limit) ? Math.floor(options.limit ?? MAX_VIEWPORT_CORRIDORS) : MAX_VIEWPORT_CORRIDORS
   const limit = Math.max(1, Math.min(MAX_VIEWPORT_CORRIDORS, requestedLimit))
   const corridors = options.repository.queryBounds({
     ...request.bounds,
     graphFingerprint,
+    ...(sourceFingerprint ? { sourceFingerprint } : {}),
     limit
   })
   return {
