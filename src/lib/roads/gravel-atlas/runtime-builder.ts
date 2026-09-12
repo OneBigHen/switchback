@@ -3,6 +3,7 @@ import path from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import type { Coordinate } from "@/lib/routing/types"
 import type { GravelAtlasOfficialSourceId } from "./sources"
+import { GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION } from "./traversability"
 
 export interface GravelAtlasSourceFeatureRef {
   sourceId: GravelAtlasOfficialSourceId
@@ -27,6 +28,7 @@ export interface BuildGravelAtlasRuntimeDatabaseOptions {
   stagingDatabasePath: string
   databasePath: string
   graphFingerprint: string
+  traversabilityPolicyVersion: number
   corridors: readonly VerifiedGravelAtlasCorridorInput[]
 }
 
@@ -34,6 +36,7 @@ export interface GravelAtlasRuntimeBuildResult {
   databasePath: string
   graphFingerprint: string
   sourceFingerprint: string
+  traversabilityPolicyVersion: number
   corridorCount: number
 }
 
@@ -129,16 +132,22 @@ function verifySourceReferences(
 
 /**
  * Build the route-time Gravel Atlas only from data that has already passed the
- * graph reconciliation boundary. The builder verifies every source reference,
- * requires stable canonical segment identities, stamps both source and graph
- * fingerprints, and replaces the prior runtime file only after a successful
- * transaction.
+ * graph reconciliation and live traversability boundaries. The builder verifies
+ * every source reference, requires stable canonical segment identities, stamps
+ * source/graph/policy identity, and replaces the prior runtime file only after
+ * a successful transaction.
  */
 export function buildGravelAtlasRuntimeDatabase(
   options: BuildGravelAtlasRuntimeDatabaseOptions
 ): GravelAtlasRuntimeBuildResult {
   const graphFingerprint = options.graphFingerprint.trim()
   if (!graphFingerprint) throw new Error("A routing graph fingerprint is required")
+  if (options.traversabilityPolicyVersion !== GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION) {
+    throw new Error(
+      `Unsupported Gravel Atlas traversability policy ${String(options.traversabilityPolicyVersion)}; ` +
+      `expected ${GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION}`
+    )
+  }
   const ids = new Set<string>()
   for (const corridor of options.corridors) {
     validateCorridor(corridor)
@@ -176,6 +185,7 @@ export function buildGravelAtlasRuntimeDatabase(
         schema_version integer not null,
         source_fingerprint text not null,
         graph_fingerprint text not null,
+        traversability_policy_version integer not null,
         corridor_count integer not null
       );
       create table gravel_atlas_corridors (
@@ -234,9 +244,16 @@ export function buildGravelAtlasRuntimeDatabase(
     }
     database.prepare(`
       insert into gravel_atlas_metadata (
-        schema_version, source_fingerprint, graph_fingerprint, corridor_count
-      ) values (?, ?, ?, ?)
-    `).run(RUNTIME_SCHEMA_VERSION, manifest.source_fingerprint, graphFingerprint, options.corridors.length)
+        schema_version, source_fingerprint, graph_fingerprint,
+        traversability_policy_version, corridor_count
+      ) values (?, ?, ?, ?, ?)
+    `).run(
+      RUNTIME_SCHEMA_VERSION,
+      manifest.source_fingerprint,
+      graphFingerprint,
+      GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
+      options.corridors.length
+    )
     database.exec("commit")
     database.close()
     renameSync(temporaryPath, databasePath)
@@ -244,6 +261,7 @@ export function buildGravelAtlasRuntimeDatabase(
       databasePath,
       graphFingerprint,
       sourceFingerprint: manifest.source_fingerprint,
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
       corridorCount: options.corridors.length
     }
   } catch (error) {
