@@ -318,7 +318,7 @@ export async function expectSheetsAndModalsInsideVisualViewport(page: Page): Pro
 export async function expectNavigationReachability(page: Page): Promise<void> {
   const issues = await page.evaluate((selector) => {
     const problems: string[] = []
-    for (const element of Array.from(document.querySelectorAll<HTMLElement>("nav a,nav button,[role=navigation] a,[role=navigation] button"))) {
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
       const rect = element.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
       if (rect.left < -1 || rect.top < -1 || rect.right > window.innerWidth + 1 || rect.bottom > window.innerHeight + 1) problems.push(`${element.tagName.toLowerCase()} navigation control leaves viewport`)
