@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "routes": {
+    "fixture-bald-eagle": {
+      "aspect": 1.1,
+      "bbox": [
+        -77.9,
+        40.75,
+        -77.25,
+        41.1
+      ],
+      "paths": [
+        {
+          "band": "twisty",
+          "heat": 0.62,
+          "d": "M12 108 L30 80 L48 92 L66 50 L88 18"
+        }
+      ],
+      "start": [
+        12,
+        108
+      ],
+      "end": [
+        88,
+        18
+      ]
+    },
+    "fixture-bald-eagle-reimport": {
+      "aspect": 1.1,
+      "bbox": [
+        -77.9,
+        40.75,
+        -77.25,
+        41.1
+      ],
+      "paths": [
+        {
+          "band": "twisty",
+          "heat": 0.62,
+          "d": "M12 108 L30 80 L48 92 L66 50 L88 18"
+        }
+      ],
+      "start": [
+        12,
+        108
+      ],
+      "end": [
+        88,
+        18
+      ],
+      "duplicateOf": "fixture-bald-eagle"
+    },
+    "fixture-water-gap": {
+      "aspect": 1.1,
+      "bbox": [
+        -75.15,
+        40.9,
+        -74.95,
+        41.1
+      ],
+      "paths": [
+        {
+          "band": "twisty",
+          "heat": 0.62,
+          "d": "M12 108 L30 80 L48 92 L66 50 L88 18"
+        }
+      ],
+      "start": [
+        12,
+        108
+      ],
+      "end": [
+        88,
+        18
+      ]
+    }
+  }
+}
