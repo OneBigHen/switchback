@@ -152,3 +152,29 @@ test("Route Library stays shared while My Rides holds only explicit, duplicate-s
   await page.goto(`/gpx-library/${CATALOG_ID}`)
   await expect(page.getByRole("button", { name: "Save to My Rides" })).toBeEnabled()
 })
+
+test("Route Library scrolls as a document with the filters and preview rail kept in view", async ({ page, isMobile }) => {
+  test.skip(isMobile, "wheel scrolling and the preview rail are wide-layout behaviours")
+  // Short enough that even the two-ride fixture catalog overflows.
+  await page.setViewportSize({ width: 1280, height: 560 })
+  await page.goto("/gpx-library")
+  const rail = page.getByRole("complementary", { name: "Selected ride" })
+  await expect(rail).toBeVisible()
+
+  await page.mouse.move(640, 420)
+  await page.mouse.wheel(0, 700)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+
+  // The sticky filter bar pins to the top, and the rail's sticky offset is the
+  // bar's measured height so a stuck rail sits below it rather than under it.
+  const controls = page.getByRole("group", { name: "Sort and filter the Route Library" })
+  await expect.poll(async () => Math.round((await controls.boundingBox())?.y ?? -1)).toBe(0)
+  const controlsHeight = await controls.evaluate((element) => (element as HTMLElement).offsetHeight)
+  const railTop = await rail.evaluate((element) => getComputedStyle(element).top)
+  expect(Number.parseFloat(railTop)).toBeGreaterThanOrEqual(controlsHeight)
+
+  await page.goto(`/gpx-library/${CATALOG_ID}`)
+  await page.mouse.move(640, 420)
+  await page.mouse.wheel(0, 700)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+})

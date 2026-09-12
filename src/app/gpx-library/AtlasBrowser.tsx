@@ -78,6 +78,22 @@ export function AtlasBrowser({ routes, regions, ridingAreas, routeCount, totalMi
   const railLayout = useRailLayout()
   const { anchor, status: geoStatus, located, requestLocation } = useNearMe()
   const autoSortDone = useRef(false)
+  const browserRef = useRef<HTMLDivElement>(null)
+  const controlsRef = useRef<HTMLDivElement>(null)
+
+  // The filter bar is sticky and wraps to a different height per width and
+  // filter state; publish its height so the preview rail sticks below it
+  // instead of sliding underneath.
+  useEffect(() => {
+    const browser = browserRef.current
+    const controls = controlsRef.current
+    if (!browser || !controls || typeof ResizeObserver !== "function") return
+    const publish = () => browser.style.setProperty("--atlas-sticky-offset", `${controls.offsetHeight}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(controls)
+    return () => observer.disconnect()
+  }, [])
 
   // First fix while the rider hasn't touched the sort: flip the default
   // "Longest" order to "Nearest to me". Deferred so it is not a synchronous
@@ -136,7 +152,7 @@ export function AtlasBrowser({ routes, regions, ridingAreas, routeCount, totalMi
     : null
 
   return (
-    <div className="atlas-browser">
+    <div className="atlas-browser" ref={browserRef}>
       <div className="atlas-locator" data-status={geoStatus}>
         <div className="atlas-locator-line">
           <LocatorGlyph status={geoStatus} />
@@ -169,7 +185,7 @@ export function AtlasBrowser({ routes, regions, ridingAreas, routeCount, totalMi
         </label>
       </div>
 
-      <div className="atlas-controls" role="group" aria-label="Sort and filter the Route Library">
+      <div className="atlas-controls" role="group" aria-label="Sort and filter the Route Library" ref={controlsRef}>
         <label className="atlas-field">
           <span className="atlas-field-label">Sort</span>
           <select

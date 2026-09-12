@@ -38,6 +38,14 @@ describe("catalog presentation truth", () => {
     expect(area.ridingAreas).toEqual(["PA Wilds"])
   })
 
+  it("does not stretch PA Wilds south into Armstrong County", () => {
+    // Real catalog route "Armstrong County Loops": centre about (-79.47, 40.81).
+    expect(classifyCatalogArea([-79.8, 40.6, -79.15, 41.02])).toEqual({
+      region: "Southwest PA",
+      ridingAreas: []
+    })
+  })
+
   it("does not misfile nearby New Jersey as Pennsylvania", () => {
     expect(classifyCatalogArea([-74.95, 40.15, -74.55, 40.55])).toEqual({
       region: "New Jersey",

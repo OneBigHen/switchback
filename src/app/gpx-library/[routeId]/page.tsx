@@ -170,11 +170,15 @@ function climbCharacter(ascentMeters: number | null | undefined, distanceMiles: 
   return "Mountainous — sustained, serious climbs"
 }
 
+/**
+ * Turn density describes the mapped line only; it does not know pace, road
+ * width, sightlines, or how demanding the ride feels.
+ */
 function turnCharacter(turnsPerTenMiles: number): string {
-  if (turnsPerTenMiles < 10) return "Open road — long straights, few decisions"
-  if (turnsPerTenMiles < 30) return "A flowing mix of bends and straights"
-  if (turnsPerTenMiles < 70) return "Corner after corner — steady rhythm"
-  return "Relentless — technical, tight, full attention"
+  if (turnsPerTenMiles < 10) return "Few mapped turns for the distance"
+  if (turnsPerTenMiles < 30) return "Moderate mapped turn density"
+  if (turnsPerTenMiles < 70) return "High mapped turn density"
+  return "Very high mapped turn density"
 }
 
 /** Prefer the measured GPX evidence, fall back to the coarse stored mix. */

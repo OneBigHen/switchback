@@ -77,7 +77,9 @@ const PENNSYLVANIA_OUTLINE: ReadonlyArray<readonly [number, number]> = [
  * claimed to ride through it.
  */
 const PA_RIDING_AREAS: readonly BrowseBox[] = [
-  { label: "PA Wilds", bbox: [-79.65, 40.65, -76.65, 42.33] },
+  // The PA Wilds counties begin around 40.9°N; farther south is Pittsburgh-area
+  // country (e.g. Armstrong County), not the Wilds.
+  { label: "PA Wilds", bbox: [-79.65, 40.9, -76.65, 42.33] },
   { label: "Allegheny National Forest", bbox: [-79.35, 41.2, -78.5, 42.15] },
   { label: "Bald Eagle / Rothrock", bbox: [-78.35, 40.35, -76.65, 41.3] },
   { label: "Pine Creek", bbox: [-78.05, 41.0, -76.55, 42.2] },

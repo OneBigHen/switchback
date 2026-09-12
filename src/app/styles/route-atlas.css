@@ -33,12 +33,8 @@
   margin: 0 auto;
 }
 
-/* globals.css locks `html, body { overflow: hidden }` for the fixed planner
-   shell. The atlas is a tall document page, so it opts back into normal page
-   scrolling — the same override the community pages use. */
-body:has(.atlas-page) {
-  overflow: auto;
-}
+/* Document scrolling for this page is restored in base.css, next to the
+   global planner lock it overrides. */
 
 :root[data-theme="dark"] .atlas-page {
   --band-calm: #7fa6c6;
@@ -582,20 +578,22 @@ button.atlas-ride-card {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
 }
 
+/* Sticks just below the sticky filter bar, whose height AtlasBrowser measures. */
 .atlas-rail {
   position: sticky;
-  top: var(--sb-space-4);
+  top: calc(var(--atlas-sticky-offset, 0px) + var(--sb-space-4));
   display: grid;
-  max-height: calc(100vh - 2 * var(--sb-space-4));
+  align-content: start;
+  max-height: calc(100vh - var(--atlas-sticky-offset, 0px) - 2 * var(--sb-space-4));
   overflow-y: auto;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-card);
   background: var(--sb-surface);
 }
 .atlas-rail-preview {
+  width: 100%;
+  height: clamp(170px, 30vh, 260px);
   min-height: 0;
-  aspect-ratio: 4 / 5;
-  max-height: 300px;
   border-right: 0;
   border-bottom: 1px solid var(--sb-border);
 }
