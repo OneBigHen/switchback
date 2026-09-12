@@ -96,6 +96,15 @@ function shouldPropagateCancellation(error: unknown, signal?: AbortSignal): bool
     (error as { code?: unknown }).code === "ROUTE_CANCELLED"
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  if (signal.reason !== undefined) throw signal.reason
+  const error = new Error("Route planning was cancelled.") as Error & { code?: string }
+  error.name = "AbortError"
+  error.code = "ROUTE_CANCELLED"
+  throw error
+}
+
 function withAtlasEvidence(route: PlannedRoute, corridors: readonly GravelAtlasCorridor[]): PlannedRoute {
   return {
     ...route,
@@ -213,6 +222,7 @@ export function createGravelAtlasAwareProvider(
       if (shouldPropagateCancellation(error, options.signal)) throw error
       return direct
     }
+    throwIfAborted(options.signal)
     const corridors = sources.gravelAtlas?.corridors ?? []
     if (corridors.length === 0) return direct
 
@@ -250,7 +260,7 @@ export function createGravelAtlasAwareProvider(
       })
       const routed: RoutedAtlasCandidate[] = []
       for (const candidate of generated) {
-        if (options.signal?.aborted) break
+        throwIfAborted(options.signal)
         try {
           const result = withResultEvidence(
             await baseProvider(candidate.request, options),
@@ -300,7 +310,7 @@ export function createGravelAtlasAwareProvider(
 
     const routed: RoutedAtlasCandidate[] = []
     for (const candidate of generated) {
-      if (options.signal?.aborted) break
+      throwIfAborted(options.signal)
       try {
         const result = withResultEvidence(
           await baseProvider(candidate.request, options),
