@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import type { EventEmitter } from "node:events"
 import { createReadStream } from "node:fs"
 import { readdir } from "node:fs/promises"
 import path from "node:path"
@@ -60,6 +61,18 @@ export async function sha256File(filePath: string): Promise<string> {
     stream.on("error", reject)
   })
   return hash.digest("hex")
+}
+
+/**
+ * Register child-process completion before any asynchronous stdout consumption.
+ * Awaiting the returned promise later is safe even when `close` fired while the
+ * caller was still draining output.
+ */
+export function childProcessCompletion(child: Pick<EventEmitter, "once">): Promise<number | null> {
+  return new Promise<number | null>((resolve, reject) => {
+    child.once("error", reject)
+    child.once("close", (code: number | null) => resolve(code))
+  })
 }
 
 /**
