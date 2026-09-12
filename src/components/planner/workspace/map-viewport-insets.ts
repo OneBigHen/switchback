@@ -125,7 +125,8 @@ function hasPersistentSideWorkspace(ctx: WorkspaceMapContext): boolean {
 
 function mediumPlanningPanelLeftInset(ctx: WorkspaceMapContext): number {
   const width = workspaceWidth(ctx)
-  const portrait = width < ctx.viewportHeightPx
+  // CSS `orientation: portrait` includes square viewports (height >= width).
+  const portrait = width <= ctx.viewportHeightPx
   if (portrait) {
     const panelWidth = clamp(
       width * MEDIUM_PORTRAIT_PLANNER_WIDTH_FRACTION,
@@ -163,25 +164,26 @@ function planningPanelLeftInset(ctx: WorkspaceMapContext): number {
  * geometry rather than inheriting the old fixed desktop reservation.
  */
 export function calculateMapViewportInsets(ctx: WorkspaceMapContext): MapViewportInsets {
+  const mode = ctx.mode ?? "planning"
   const persistentSideWorkspace = hasPersistentSideWorkspace(ctx)
   if (isShortLandscape(ctx)) {
     if (persistentSideWorkspace) {
-      return ctx.mode === "ride"
+      return mode === "ride"
         ? { top: 80, right: 40, bottom: 150, left: 40 }
         : { top: 40, right: 40, bottom: 40, left: planningPanelLeftInset(ctx) }
     }
-    return ctx.mode === "ride"
+    return mode === "ride"
       ? { top: 72, right: 24, bottom: 150, left: 24 }
       : { top: 24, right: 24, bottom: PLANNING_SHORT_LANDSCAPE_BOTTOM_INSET_PX, left: 24 }
   }
   if (persistentSideWorkspace) {
-    if (ctx.mode === "planning") {
+    if (mode === "planning") {
       return { top: 80, right: 70, bottom: 80, left: planningPanelLeftInset(ctx) }
     }
     return { top: 80, right: 70, bottom: 80, left: 70 }
   }
   // Compact portrait: bottom inset follows the context sheet.
-  if (ctx.mode === "planning") {
+  if (mode === "planning") {
     return {
       top: 90,
       right: 34,
