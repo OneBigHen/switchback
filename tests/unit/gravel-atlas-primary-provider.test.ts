@@ -163,6 +163,23 @@ describe("ordinary Gravel Atlas route attraction", () => {
     expect(base).toHaveBeenCalledTimes(2)
   })
 
+  it("propagates cancellation that arrives after Atlas evidence resolves and before shaping starts", async () => {
+    const controller = new AbortController()
+    const cancellation = new Error("cancelled after Atlas lookup")
+    const base = vi.fn(async () => ({
+      engine: "graphhopper" as const,
+      engineVersion: "test",
+      routes: [route("direct", 16, 28)]
+    }))
+    const provider = createGravelAtlasAwareProvider(base, async () => {
+      controller.abort(cancellation)
+      return sources([corridor("a", 40.01)])
+    })
+
+    await expect(provider(request, { signal: controller.signal })).rejects.toBe(cancellation)
+    expect(base).toHaveBeenCalledTimes(1)
+  })
+
   it("does not double-attract destination timeboxes or sketch-driven requests", async () => {
     const base = vi.fn(async () => ({
       engine: "graphhopper" as const,
