@@ -1,4 +1,6 @@
 import type { RiderLayerId } from "@/lib/client/map-layers"
+import { getTomTomTrafficForBounds } from "@/lib/traffic/tomtom"
+import type { TrafficIncidentEvidence } from "@/lib/traffic/types"
 
 export interface MapFeatureBounds {
   west: number
@@ -15,10 +17,10 @@ export interface MapFeatureRequest {
 export interface RiderFeatureCollection {
   type: "FeatureCollection"
   features: RiderFeature[]
-  /** Present only when at least one requested provider (OSM/Overpass or NWS
-   *  alerts) failed. Absent when every requested provider succeeded, so an
-   *  empty `features` array still means "confirmed no matches" by default. */
-  unavailable?: Array<"osm" | "weather">
+  /** Present only when at least one requested provider (OSM/Overpass, NWS,
+   *  or TomTom traffic) failed. Absent when every requested provider succeeded,
+   *  so an empty `features` array still means "confirmed no matches" by default. */
+  unavailable?: Array<"osm" | "weather" | "traffic">
 }
 
 interface RiderFeature {
@@ -57,6 +59,7 @@ interface NwsResponse {
 export interface RiderMapFeatureOptions {
   overpassUrl: string
   nwsUserAgent: string
+  tomtomApiKey?: string
   fetcher?: typeof fetch
 }
 
@@ -213,13 +216,44 @@ async function getNwsAlertFeatures(
   }] : [])
 }
 
+function trafficFeature(incident: TrafficIncidentEvidence): RiderFeature | null {
+  if (!incident.geometry) return null
+  return {
+    type: "Feature",
+    properties: {
+      layerId: "live-traffic",
+      name: incident.description ?? incident.from ?? incident.to ?? "Live traffic incident",
+      sourceId: incident.id,
+      kind: incident.kind,
+      providerCategory: incident.providerCategory,
+      ...(incident.delaySeconds !== null ? { delaySeconds: String(incident.delaySeconds) } : {}),
+      ...(incident.roadNumbers.length > 0 ? { roadNumbers: incident.roadNumbers.join(", ") } : {})
+    },
+    geometry: incident.geometry
+  }
+}
+
+async function getTomTomTrafficFeatures(
+  bounds: MapFeatureBounds,
+  options: RiderMapFeatureOptions
+): Promise<RiderFeature[]> {
+  const result = await getTomTomTrafficForBounds(bounds, {
+    apiKey: options.tomtomApiKey,
+    fetcher: options.fetcher
+  })
+  if (result.status !== "available") throw new Error("Traffic provider unavailable")
+  return result.incidents
+    .map(trafficFeature)
+    .filter((feature): feature is RiderFeature => feature !== null)
+}
+
 export async function getRiderMapFeatures(
   request: MapFeatureRequest,
   options: RiderMapFeatureOptions
 ): Promise<RiderFeatureCollection> {
   const fetcher = options.fetcher ?? fetch
   const query = createOverpassQuery(request)
-  const work: Array<{ source: "osm" | "weather"; promise: Promise<RiderFeature[]> }> = []
+  const work: Array<{ source: "osm" | "weather" | "traffic"; promise: Promise<RiderFeature[]> }> = []
   if (query) {
     work.push({
       source: "osm",
@@ -242,17 +276,28 @@ export async function getRiderMapFeatures(
   if (request.layers.includes("weather")) {
     work.push({ source: "weather", promise: getNwsAlertFeatures(request.bounds, options) })
   }
-  if (work.length === 0) return emptyCollection()
-  const collections = await Promise.allSettled(work.map((item) => item.promise))
-  if (!collections.some((result) => result.status === "fulfilled")) {
-    throw new Error("No map-data provider could serve the selected layers")
+  if (request.layers.includes("live-traffic")) {
+    work.push({ source: "traffic", promise: getTomTomTrafficFeatures(request.bounds, options) })
   }
-  // A layer that failed alongside others that succeeded must not read as a
-  // confirmed "no results here" — name it so the map can tell an outage
-  // apart from an empty area.
+  if (work.length === 0) return emptyCollection()
+
+  const collections = await Promise.allSettled(work.map((item) => item.promise))
+  const fulfilled = collections.some((result) => result.status === "fulfilled")
   const unavailable = work
     .filter((_, index) => collections[index].status === "rejected")
     .map((item) => item.source)
+
+  if (!fulfilled) {
+    // An unavailable optional traffic layer is still useful information for the
+    // map UI: return explicit provider state so it cannot look like a confirmed
+    // empty viewport. Preserve the older hard-failure behavior for OSM/NWS-only
+    // requests where no data source answered at all.
+    if (work.every((item) => item.source === "traffic")) {
+      return { type: "FeatureCollection", features: [], unavailable: ["traffic"] }
+    }
+    throw new Error("No map-data provider could serve the selected layers")
+  }
+
   return {
     type: "FeatureCollection",
     features: collections.flatMap((result) => result.status === "fulfilled" ? result.value : []),
