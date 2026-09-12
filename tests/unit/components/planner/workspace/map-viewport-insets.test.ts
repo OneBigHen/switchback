@@ -40,13 +40,21 @@ describe("calculateMapViewportInsets — route-fit goldens", () => {
       .toEqual({ top: 72, right: 24, bottom: 150, left: 24 })
   })
 
-  it("reserves the persistent panel on medium landscape and wide desktop", () => {
-    for (const viewport of [DESKTOP, TABLET_LANDSCAPE]) {
-      expect(calculateMapViewportInsets({ ...viewport, mode: "planning" }))
-        .toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
-      expect(calculateMapViewportInsets({ ...viewport, mode: "ride" }))
-        .toEqual({ top: 80, right: 70, bottom: 80, left: 70 })
-    }
+  it("reserves the rendered medium landscape footprint rather than the legacy desktop inset", () => {
+    // adaptive-workspace.css at 1024px: 96px left + 34vw (348px rounded)
+    // planner + one 24px camera gutter = 468px. Reserving the old fixed 500px
+    // needlessly squeezes the route farther right than the visible pane requires.
+    expect(calculateMapViewportInsets({ ...TABLET_LANDSCAPE, mode: "planning" }))
+      .toEqual({ top: 80, right: 70, bottom: 80, left: 468 })
+    expect(calculateMapViewportInsets({ ...TABLET_LANDSCAPE, mode: "ride" }))
+      .toEqual({ top: 80, right: 70, bottom: 80, left: 70 })
+  })
+
+  it("keeps the tuned wide-desktop panel reservation", () => {
+    expect(calculateMapViewportInsets({ ...DESKTOP, mode: "planning" }))
+      .toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
+    expect(calculateMapViewportInsets({ ...DESKTOP, mode: "ride" }))
+      .toEqual({ top: 80, right: 70, bottom: 80, left: 70 })
   })
 
   it("keeps compact portrait on the context-sheet fit", () => {
@@ -56,9 +64,12 @@ describe("calculateMapViewportInsets — route-fit goldens", () => {
       .toEqual({ top: 90, right: 34, bottom: 250, left: 34 })
   })
 
-  it("treats tablet portrait as medium and reserves its persistent planner", () => {
+  it("reserves the rendered medium portrait footprint instead of a fixed 500px", () => {
+    // adaptive-workspace.css at 768px portrait: 16px left + 42vw (323px rounded)
+    // planner + one 24px camera gutter = 363px. This keeps the selected route
+    // centered in the actually visible map region rather than a narrow far-right strip.
     expect(calculateMapViewportInsets({ ...TABLET_PORTRAIT, mode: "planning" }))
-      .toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
+      .toEqual({ top: 80, right: 70, bottom: 80, left: 363 })
     expect(calculateMapViewportInsets({ ...TABLET_PORTRAIT, mode: "ride" }))
       .toEqual({ top: 80, right: 70, bottom: 80, left: 70 })
   })
@@ -110,7 +121,7 @@ describe("calculateMapViewportInsets — route-fit goldens", () => {
     expect(insets.left).toBe(420 + MAP_VIEWPORT_GUTTER_PX)
   })
 
-  it("keeps the tuned panel inset when no panel width is provided", () => {
+  it("keeps the tuned panel inset when no panel width is provided on wide desktop", () => {
     const insets = calculateMapViewportInsets({ ...DESKTOP, mode: "planning" })
     expect(insets.left).toBe(500)
   })
