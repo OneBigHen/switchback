@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto"
+import { createReadStream } from "node:fs"
+import { readdir } from "node:fs/promises"
+import path from "node:path"
 import type { CanonicalSegmentDirection } from "@/lib/roads/canonical-segments"
 
 export interface GravelAtlasGraphFingerprintParts {
@@ -6,6 +9,17 @@ export interface GravelAtlasGraphFingerprintParts {
   graphHopperSha256: string
   configSha256: string
   customModelSha256s: Readonly<Record<string, string>>
+}
+
+export interface GravelAtlasGraphFingerprintFiles {
+  osmPath: string
+  graphHopperPath: string
+  configPath: string
+  customModelsDirectory: string
+}
+
+export interface GravelAtlasGraphFingerprintResult extends GravelAtlasGraphFingerprintParts {
+  fingerprint: string
 }
 
 export type MotorcycleWayTags = Readonly<Record<string, string | undefined>>
@@ -37,6 +51,17 @@ function requireSha256(value: string, label: string): string {
   return normalized
 }
 
+export async function sha256File(filePath: string): Promise<string> {
+  const hash = createHash("sha256")
+  await new Promise<void>((resolve, reject) => {
+    const stream = createReadStream(filePath)
+    stream.on("data", (chunk) => hash.update(chunk))
+    stream.on("end", resolve)
+    stream.on("error", reject)
+  })
+  return hash.digest("hex")
+}
+
 /**
  * Content-address the exact inputs that decide the GraphHopper motorcycle
  * topology/weights. Sorting model names keeps the fingerprint stable across
@@ -53,6 +78,26 @@ export function graphFingerprintFromParts(parts: GravelAtlasGraphFingerprintPart
     configSha256: requireSha256(parts.configSha256, "GraphHopper config"),
     customModels: models
   })).digest("hex")
+}
+
+export async function graphFingerprintFromFiles(
+  files: GravelAtlasGraphFingerprintFiles
+): Promise<GravelAtlasGraphFingerprintResult> {
+  const modelNames = (await readdir(files.customModelsDirectory))
+    .filter((name) => name.endsWith(".json"))
+    .sort((left, right) => left.localeCompare(right))
+  if (modelNames.length === 0) throw new Error("No GraphHopper custom models were found")
+  const customModelSha256s: Record<string, string> = {}
+  for (const name of modelNames) {
+    customModelSha256s[name] = await sha256File(path.join(files.customModelsDirectory, name))
+  }
+  const parts: GravelAtlasGraphFingerprintParts = {
+    osmSha256: await sha256File(files.osmPath),
+    graphHopperSha256: await sha256File(files.graphHopperPath),
+    configSha256: await sha256File(files.configPath),
+    customModelSha256s
+  }
+  return { ...parts, fingerprint: graphFingerprintFromParts(parts) }
 }
 
 /**
