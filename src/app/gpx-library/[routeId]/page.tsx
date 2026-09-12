@@ -10,6 +10,9 @@ import { buildRouteStory } from "@/lib/gpx/route-story"
 import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import { isGpxIntelligenceReport, type GpxIntelligenceReport } from "@/lib/gpx/intelligence"
 import { GpxIntelligencePanel } from "@/components/planner/GpxIntelligencePanel"
+import { RouteLibraryActions } from "@/components/route-library/RouteLibraryActions"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
+import { classifyCatalogArea, cleanCatalogRouteName, knownDurationMinutes } from "@/lib/gpx/catalog-presentation"
 import type { Coordinate } from "@/lib/routing/types"
 
 export const dynamic = "force-dynamic"
@@ -44,6 +47,7 @@ interface AtlasDetailRoute {
 interface DetailLoad {
   route: AtlasDetailRoute | null
   artPaths: readonly AtlasMiniPath[]
+  bbox?: readonly [number, number, number, number]
   start?: readonly [number, number]
   end?: readonly [number, number]
 }
@@ -117,6 +121,7 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
     return {
       route: parsedRoute,
       artPaths: art?.paths ?? [],
+      bbox: art?.bbox,
       start: art?.start,
       end: art?.end
     }
@@ -128,10 +133,11 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
 export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }): Promise<Metadata> {
   const { routeId } = await params
   const { route } = await loadRouteDetail(routeId)
-  if (!route) return { title: "Route not found — Switchback" }
+  if (!route) return { title: `Route not found — ${PRODUCT_BRAND.name}` }
+  const story = buildRouteStory({ ...route, durationMinutes: knownDurationMinutes(route.durationMinutes) })
   return {
-    title: `${route.story?.title ?? route.name} — Switchback route atlas`,
-    description: route.story?.summary ?? undefined
+    title: `${story.title} — ${PRODUCT_BRAND.name} Route Library`,
+    description: story.summary
   }
 }
 
@@ -143,7 +149,8 @@ function formatMiles(value: number): string {
   return WHOLE_NUMBER.format(Math.round(value))
 }
 
-function formatDuration(minutes: number): string | null {
+function formatDuration(minutes: number | null): string | null {
+  if (minutes === null) return null
   const total = Math.max(0, Math.round(minutes))
   if (total <= 0) return null
   const h = Math.floor(total / 60)
@@ -209,17 +216,17 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
   if (await isAtlasPageOverBudget()) {
     return (
       <main className="atlas-page atlas-poster-page">
-        <nav className="atlas-context" aria-label="Library context">
-          <Link href="/gpx-library">Back to the atlas</Link>
+        <nav className="atlas-context" aria-label="Route Library context">
+          <Link href="/gpx-library">Back to Route Library</Link>
         </nav>
         <p className="atlas-empty">
-          <strong>Too many atlas requests from this address.</strong>
+          <strong>Too many Route Library requests from this address.</strong>
           <span>Give it a minute and reload.</span>
         </p>
       </main>
     )
   }
-  const { route, artPaths, start, end } = await loadRouteDetail(routeId)
+  const { route, artPaths, bbox, start, end } = await loadRouteDetail(routeId)
   if (!route) notFound()
 
   // Server-side poster build straight from geometry; atlas.json paths are the
@@ -228,20 +235,25 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
     ? buildPosterSpec(route.geometry, { width: 600, height: 750, padding: 44 })
     : null
 
+  const durationMinutes = knownDurationMinutes(route.durationMinutes)
   const story = buildRouteStory({
     id: route.id,
     name: route.name,
     distanceMiles: route.distanceMiles,
-    durationMinutes: route.durationMinutes,
+    durationMinutes,
     twistiness: route.twistiness,
     turnCount: route.turnCount,
     ascentMeters: route.ascentMeters
   })
+  const routeName = cleanCatalogRouteName(route.name) || route.name
+  const area = classifyCatalogArea(bbox)
+  const areaLabel = [area.region, ...area.ridingAreas].filter(Boolean).join(" · ")
   const band = curvatureBand(route.twistiness)
   const hasDrawableGeometry = spec !== null || artPaths.length > 0
-  const canOpenInPlanner = Array.isArray(route.geometry) && route.geometry.length > 1
+  // Preview-only imports cannot be opened or saved as the real line.
+  const canUseGeometry = Array.isArray(route.geometry) && route.geometry.length > 1 && route.previewOnly !== true
 
-  const timeLabel = formatDuration(route.durationMinutes)
+  const timeLabel = formatDuration(durationMinutes)
   const turnsPerTenMiles = route.distanceMiles > 0 ? (route.turnCount / route.distanceMiles) * 10 : 0
   const ascent = typeof route.ascentMeters === "number" && route.ascentMeters > 0 ? route.ascentMeters : null
   const descent = typeof route.descentMeters === "number" && route.descentMeters > 0 ? route.descentMeters : null
@@ -252,14 +264,14 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
     <main className="atlas-page atlas-poster-page">
       <nav className="atlas-back" aria-label="Breadcrumb">
         <Link href="/">Back to planner</Link>
-        <Link href="/gpx-library">Route atlas</Link>
+        <Link href="/gpx-library">Route Library</Link>
       </nav>
       <div className="atlas-poster-layout">
         <figure
           className={`atlas-poster atlas-poster--large tone-${story.tone.toLowerCase().replace(/[^a-z]+/g, "-")}`}
         >
           {spec ? (
-            <svg viewBox="0 0 600 750" role="img" aria-label={`Poster map of ${route.name || "imported ride"}`}>
+            <svg viewBox="0 0 600 750" role="img" aria-label={`Poster map of ${routeName || "shared ride"}`}>
               <rect x="0.5" y="0.5" width="599" height="749" rx="14" className="atlas-frame" />
               {spec.segments.map((segment, index) => (
                 <path key={index} d={segment.path} style={{ color: segment.color }} />
@@ -272,7 +284,7 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
               ) : null}
             </svg>
           ) : artPaths.length > 0 ? (
-            <svg viewBox="0 0 100 125" role="img" aria-label={`Poster map of ${route.name || "imported ride"}`}>
+            <svg viewBox="0 0 100 125" role="img" aria-label={`Poster map of ${routeName || "shared ride"}`}>
               {artPaths.map((piece, index) => (
                 <path key={index} d={piece.d} style={{ color: atlasPathColor(piece) }} />
               ))}
@@ -283,7 +295,7 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
             <p className="atlas-poster-missing" role="status">No drawable geometry was imported for this route.</p>
           )}
           <figcaption className="atlas-poster-caption--large">
-            {hasDrawableGeometry ? `${route.name || "Imported ride"} · drawn from its own GPX geometry` : "No drawable GPX geometry was retained for this import."}
+            {hasDrawableGeometry ? `${routeName || "Shared ride"} · drawn from its own GPX geometry` : "No drawable GPX geometry was retained for this import."}
           </figcaption>
         </figure>
 
@@ -293,19 +305,12 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
           <p className="atlas-lede">{story.summary}</p>
           <p>{story.body}</p>
 
-          <div className="atlas-launch">
-            {canOpenInPlanner ? (
-              <Link href={`/?ride=${encodeURIComponent(route.id)}`} className="atlas-launch-primary">
-                Open in the planner
-              </Link>
-            ) : (
-              <span className="atlas-launch-primary is-disabled" aria-disabled="true">Geometry not retained</span>
-            )}
-            <Link href="/gpx-library" className="atlas-launch-secondary">Back to the atlas</Link>
-          </div>
+          {areaLabel ? <p className="atlas-rail-area">{areaLabel}</p> : null}
+
+          <RouteLibraryActions catalogRouteId={route.id} routeName={story.title} canUseGeometry={canUseGeometry} />
           <p className="atlas-note">
-            Opening it drops the imported line into the planner as a track — edit it, add an approach from where
-            you are, or start the ride from there.
+            Open in Planner loads this shared line as a track without saving it. Save to My Rides keeps your own
+            copy on this device; the Route Library entry stays as it is.
           </p>
 
           <dl className="atlas-facts">
@@ -321,6 +326,7 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
               </div>
             ) : null}
             {route.profile ? <div><dt>Profile</dt><dd>{route.profile}</dd></div> : null}
+            {area.region ? <div><dt>Region</dt><dd>{area.region}</dd></div> : null}
             {route.sourceProject ? <div><dt>Imported from</dt><dd>{route.sourceProject}</dd></div> : null}
           </dl>
 

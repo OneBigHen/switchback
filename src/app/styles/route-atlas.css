@@ -1,6 +1,6 @@
-/* Route atlas — a field guide to every imported GPX ride.
-   The list page (`.atlas-browser`) is a browse-and-filter deck; the detail
-   page keeps its full-fidelity poster. Layout only here; colour comes from the
+/* Route Library — the shared collection of rides, drawn from their own GPS
+   lines. The list page (`.atlas-browser`) is a browse-and-filter deck with a
+   preview rail on wide screens; the detail page keeps its full-fidelity poster. Layout only here; colour comes from the
    V2 token layer plus the curvature-band anchors defined on `.atlas-page`. */
 
 .atlas-page {
@@ -440,6 +440,18 @@ body:has(.atlas-page) {
   outline: 2px solid var(--sb-focus-ring);
   outline-offset: 2px;
 }
+/* Wide layouts render cards as rail-selection buttons. */
+button.atlas-ride-card {
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.atlas-ride-card[aria-pressed="true"] {
+  border-color: var(--sb-action);
+  box-shadow: inset 0 0 0 1px var(--sb-action);
+}
 
 .atlas-minimap {
   position: relative;
@@ -558,6 +570,71 @@ body:has(.atlas-page) {
   letter-spacing: 0.02em;
 }
 
+/* --- Browser: preview rail (wide) and secondary catalog facts ---------- */
+
+.atlas-results.has-rail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: clamp(14px, 2vw, 24px);
+  align-items: start;
+}
+.atlas-results.has-rail .atlas-deck {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+}
+
+.atlas-rail {
+  position: sticky;
+  top: var(--sb-space-4);
+  display: grid;
+  max-height: calc(100vh - 2 * var(--sb-space-4));
+  overflow-y: auto;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-card);
+  background: var(--sb-surface);
+}
+.atlas-rail-preview {
+  min-height: 0;
+  aspect-ratio: 4 / 5;
+  max-height: 300px;
+  border-right: 0;
+  border-bottom: 1px solid var(--sb-border);
+}
+.atlas-rail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--sb-space-4);
+  min-width: 0;
+}
+.atlas-rail-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.atlas-rail-area {
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.atlas-rail-actions {
+  margin: var(--sb-space-3) 0 0;
+}
+.atlas-rail-actions .atlas-launch-primary,
+.atlas-rail-actions .atlas-launch-save {
+  flex: 1 1 100%;
+}
+
+.atlas-catalog-meta {
+  margin: var(--sb-space-2) 0 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 @keyframes atlas-card-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -610,11 +687,12 @@ body:has(.atlas-page) {
   border-radius: 8px;
   pointer-events: none;
 }
-.tone-expedition { background-color: var(--poster-expedition); }
-.tone-epic-haul { background-color: var(--poster-epic-haul); }
-.tone-half-day-run { background-color: var(--poster-half-day-run); }
-.tone-day-loop { background-color: var(--poster-day-loop); }
-.tone-quick-blast { background-color: var(--poster-quick-blast); }
+/* Distance-band papers; class names follow `buildRouteStory` tone labels. */
+.tone-expedition-distance { background-color: var(--poster-expedition); }
+.tone-long-distance { background-color: var(--poster-epic-haul); }
+.tone-big-ride { background-color: var(--poster-half-day-run); }
+.tone-mid-distance { background-color: var(--poster-day-loop); }
+.tone-short-ride { background-color: var(--poster-quick-blast); }
 .tone-short-hop { background-color: var(--poster-short-hop); }
 
 .atlas-poster svg {
@@ -787,6 +865,53 @@ span.band-calm { color: var(--band-calm); }
   background: var(--sb-surface-raised);
   color: var(--sb-text-muted);
   cursor: not-allowed;
+}
+
+.atlas-launch-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--sb-touch-target);
+  padding: 0 var(--sb-space-5);
+  border: 1px solid var(--sb-action);
+  border-radius: var(--sb-radius-control);
+  background: transparent;
+  color: var(--sb-text);
+  font: inherit;
+  font-weight: 650;
+  font-size: 14px;
+  cursor: pointer;
+}
+.atlas-launch-save:hover:not(:disabled) { background: color-mix(in srgb, var(--sb-action) 12%, transparent); }
+.atlas-launch-save:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+.atlas-launch-save:disabled {
+  border-color: var(--sb-border);
+  color: var(--sb-text-muted);
+  cursor: not-allowed;
+}
+.atlas-launch-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sb-touch-target);
+  margin: 0;
+  color: var(--sb-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.atlas-launch-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: color-mix(in srgb, var(--sb-warning) 70%, var(--sb-text));
+  font-size: 13px;
+  line-height: 1.45;
+}
+.atlas-launch-primary:is(a):focus-visible,
+.atlas-launch-secondary:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
 }
 
 .atlas-launch-secondary {
