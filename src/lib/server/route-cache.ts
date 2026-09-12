@@ -66,6 +66,12 @@ function roundCoordinate(value: number, digits = 4): number {
 }
 
 const GRAVEL_ATLAS_INTENSITIES = new Set<GravelAtlasIntensity>(["balanced", "more", "maximum"])
+const GRAVEL_ATLAS_CACHE_POLICY_VERSION = 2
+
+export interface RouteCacheNamespace {
+  gravelAtlasGraphFingerprint?: string | null
+  gravelAtlasSourceFingerprint?: string | null
+}
 
 function normalizedGravelAtlas(request: RouteRequest): { enabled: boolean; intensity: GravelAtlasIntensity } {
   const value = request.gravelAtlas
@@ -79,12 +85,27 @@ function normalizedGravelAtlas(request: RouteRequest): { enabled: boolean; inten
   return { enabled: true, intensity: value.intensity }
 }
 
+function atlasCacheNamespace(namespace?: RouteCacheNamespace): RouteCacheNamespace {
+  if (namespace) return namespace
+  return {
+    gravelAtlasGraphFingerprint: process.env.GRAVEL_ATLAS_GRAPH_FINGERPRINT?.trim() || null,
+    gravelAtlasSourceFingerprint: process.env.GRAVEL_ATLAS_SOURCE_FINGERPRINT?.trim() || null
+  }
+}
+
 /**
  * Normalized cache key. Point coordinates are rounded to ~10 m so
  * equivalent replans share a key; routing-affecting preferences are
  * included verbatim; identity and free-text fields are excluded.
+ *
+ * Atlas-enabled entries are additionally namespaced by the exact graph and
+ * official-source fingerprints. A graph/source swap therefore cannot reuse a
+ * route planned against an older verified Atlas, even when the process and its
+ * in-memory cache stay alive across the swap.
  */
-export function routeCacheKey(request: RouteRequest): string {
+export function routeCacheKey(request: RouteRequest, namespace?: RouteCacheNamespace): string {
+  const gravelAtlas = normalizedGravelAtlas(request)
+  const atlasNamespace = atlasCacheNamespace(namespace)
   const normalized = {
     profile: request.profile,
     points: request.points.map((point) => [
@@ -93,7 +114,14 @@ export function routeCacheKey(request: RouteRequest): string {
     ]),
     avoidHighways: request.avoidHighways ?? false,
     tollPolicy: request.tollPolicy ?? "allow-with-warning",
-    gravelAtlas: normalizedGravelAtlas(request),
+    gravelAtlas,
+    gravelAtlasBuild: gravelAtlas.enabled
+      ? {
+          policyVersion: GRAVEL_ATLAS_CACHE_POLICY_VERSION,
+          graphFingerprint: atlasNamespace.gravelAtlasGraphFingerprint?.trim() || null,
+          sourceFingerprint: atlasNamespace.gravelAtlasSourceFingerprint?.trim() || null
+        }
+      : null,
     avoidAreas: (request.avoidAreas ?? []).map((area) => area.id).sort(),
     roadLocks: (request.roadLocks ?? []).map((lock) => lock.id).sort(),
     segmentProfiles: request.segmentProfiles ?? [],

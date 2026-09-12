@@ -2,7 +2,7 @@ import type { GravelAtlasCorridor } from "@/lib/routing/gravel-atlas"
 import type { Coordinate } from "@/lib/routing/types"
 
 const EARTH_RADIUS_METERS = 6_371_000
-const MATCH_RADIUS_METERS = 40
+const MATCH_RADIUS_METERS = 20
 const MINIMUM_CONTIGUOUS_METERS = 80
 const SAMPLE_SPACING_METERS = 40
 const MAX_DIRECTION_DIFFERENCE_DEGREES = 35
@@ -33,9 +33,9 @@ interface SegmentIndex {
 /**
  * Measure what the returned route actually follows. Candidate provenance alone
  * is insufficient because a router may accept a shaping point and immediately
- * leave the gravel corridor. The same conservative geometry model used by the
- * historic PA unpaved evidence is applied here: 40 m samples, direction
- * agreement, and a minimum contiguous run before distance is credited.
+ * leave the gravel corridor. Evidence uses a tight 20 m proximity tolerance,
+ * local direction agreement, and a minimum contiguous run before distance is
+ * credited, preventing a nearby parallel road from inheriting Atlas evidence.
  */
 export function calculateGravelAtlasRouteEvidence(
   route: readonly Coordinate[],

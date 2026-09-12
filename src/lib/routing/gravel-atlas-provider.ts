@@ -90,6 +90,12 @@ function atlasOnlySources(
   }
 }
 
+function shouldPropagateCancellation(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return true
+  return error !== null && typeof error === "object" &&
+    (error as { code?: unknown }).code === "ROUTE_CANCELLED"
+}
+
 function withAtlasEvidence(route: PlannedRoute, corridors: readonly GravelAtlasCorridor[]): PlannedRoute {
   return {
     ...route,
@@ -203,7 +209,8 @@ export function createGravelAtlasAwareProvider(
     let sources: CorridorSourceCandidates
     try {
       sources = await sourcesFor(request)
-    } catch {
+    } catch (error) {
+      if (shouldPropagateCancellation(error, options.signal)) throw error
       return direct
     }
     const corridors = sources.gravelAtlas?.corridors ?? []
@@ -260,7 +267,8 @@ export function createGravelAtlasAwareProvider(
             route: { ...selected, candidateSource: "gravel-atlas" },
             reward: candidate.reward
           })
-        } catch {
+        } catch (error) {
+          if (shouldPropagateCancellation(error, options.signal)) throw error
           // A shaped loop that the graph rejects is simply not a candidate.
         }
       }
@@ -309,7 +317,8 @@ export function createGravelAtlasAwareProvider(
           route: { ...selected, candidateSource: "gravel-atlas" },
           reward: candidate.reward
         })
-      } catch {
+      } catch (error) {
+        if (shouldPropagateCancellation(error, options.signal)) throw error
         // One unroutable Atlas corridor does not invalidate the direct route or
         // other verified candidates.
       }

@@ -5,8 +5,9 @@
  * The canonical exporter proves corridor membership per OSM segment. This step
  * asks the running router the question that per-segment proof cannot answer:
  * "route me from this corridor's start to its end" and then measures, with an
- * implementation independent of the app's evidence code, how much of the
- * corridor that route actually follows.
+ * implementation independent of the app's evidence code, whether the returned
+ * route remains close, directionally aligned and substantially contiguous with
+ * the corridor without taking an implausible detour.
  *
  * Usage:
  *   npm run gravel-atlas:verify-routability -- [--input=data/gravel-atlas-verified.json]
@@ -45,6 +46,12 @@ interface VerifiedAtlas {
   quarantined: Array<Record<string, unknown>>
 }
 
+interface CoverageMetrics {
+  coveredFraction: number
+  longestContinuousCoveredFraction: number
+  directionAgreementFraction: number
+}
+
 function argument(name: string, fallback: string): string {
   const hit = process.argv.slice(2).find((value) => value.startsWith(`--${name}=`))
   return hit ? hit.slice(name.length + 3) : fallback
@@ -58,6 +65,7 @@ const PROFILE = argument("profile", "motorcycle_adventure")
 
 const EARTH_RADIUS = 6371008.8
 const SAMPLE_METERS = 25
+const MAX_DIRECTION_DIFFERENCE_DEGREES = 35
 const radians = (degrees: number) => (degrees * Math.PI) / 180
 
 function haversine(a: Coordinate, b: Coordinate): number {
@@ -81,35 +89,87 @@ function pointToSegmentMeters(point: Coordinate, start: Coordinate, end: Coordin
 
 function sampleLine(coordinates: Coordinate[], stepMeters: number): Coordinate[] {
   const samples: Coordinate[] = [coordinates[0]]
-  let carried = 0
+  let distanceToNext = stepMeters
   for (let i = 0; i < coordinates.length - 1; i += 1) {
     const start = coordinates[i], end = coordinates[i + 1]
     const span = haversine(start, end)
     if (span <= 0) continue
-    let travelled = carried
-    while (travelled + stepMeters <= span) {
-      travelled += stepMeters
+    let travelled = distanceToNext
+    while (travelled <= span) {
       const t = travelled / span
       samples.push([start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t] as unknown as Coordinate)
+      travelled += stepMeters
     }
-    carried = travelled - span
+    distanceToNext = travelled - span
   }
-  samples.push(coordinates[coordinates.length - 1])
+  const last = coordinates[coordinates.length - 1]
+  const sampledLast = samples[samples.length - 1]
+  if (haversine(sampledLast, last) > 0.5) samples.push(last)
   return samples
 }
 
-/** Fraction of `samples` lying within the match radius of any segment of `line`. */
-function coveredFraction(samples: Coordinate[], line: Coordinate[], radiusMeters: number): number {
-  if (samples.length === 0) return 0
-  let covered = 0
-  for (const sample of samples) {
-    let hit = false
-    for (let i = 0; i < line.length - 1 && !hit; i += 1) {
-      if (pointToSegmentMeters(sample, line[i], line[i + 1]) <= radiusMeters) hit = true
-    }
-    if (hit) covered += 1
+function directionsAlign(
+  firstStart: Coordinate,
+  firstEnd: Coordinate,
+  secondStart: Coordinate,
+  secondEnd: Coordinate
+): boolean {
+  const referenceLatitude = (firstStart[1] + firstEnd[1] + secondStart[1] + secondEnd[1]) / 4
+  const lonScale = Math.cos(radians(referenceLatitude))
+  const firstX = (firstEnd[0] - firstStart[0]) * lonScale
+  const firstY = firstEnd[1] - firstStart[1]
+  const secondX = (secondEnd[0] - secondStart[0]) * lonScale
+  const secondY = secondEnd[1] - secondStart[1]
+  const denominator = Math.hypot(firstX, firstY) * Math.hypot(secondX, secondY)
+  if (denominator === 0) return false
+  const cosine = Math.min(1, Math.abs((firstX * secondX + firstY * secondY) / denominator))
+  return Math.acos(cosine) * 180 / Math.PI <= MAX_DIRECTION_DIFFERENCE_DEGREES
+}
+
+function localSampleDirection(samples: Coordinate[], index: number): readonly [Coordinate, Coordinate] | null {
+  if (samples.length < 2) return null
+  if (index === 0) return [samples[0], samples[1]]
+  if (index === samples.length - 1) return [samples[index - 1], samples[index]]
+  return [samples[index - 1], samples[index + 1]]
+}
+
+function coverageMetrics(samples: Coordinate[], line: Coordinate[], radiusMeters: number): CoverageMetrics {
+  if (samples.length === 0 || line.length < 2) {
+    return { coveredFraction: 0, longestContinuousCoveredFraction: 0, directionAgreementFraction: 0 }
   }
-  return covered / samples.length
+  let proximityHits = 0
+  let alignedHits = 0
+  let currentRun = 0
+  let longestRun = 0
+
+  samples.forEach((sample, sampleIndex) => {
+    const direction = localSampleDirection(samples, sampleIndex)
+    let near = false
+    let aligned = false
+    for (let i = 0; i < line.length - 1; i += 1) {
+      const routeStart = line[i], routeEnd = line[i + 1]
+      if (pointToSegmentMeters(sample, routeStart, routeEnd) > radiusMeters) continue
+      near = true
+      if (direction && directionsAlign(direction[0], direction[1], routeStart, routeEnd)) {
+        aligned = true
+        break
+      }
+    }
+    if (near) proximityHits += 1
+    if (near && aligned) {
+      alignedHits += 1
+      currentRun += 1
+      longestRun = Math.max(longestRun, currentRun)
+    } else {
+      currentRun = 0
+    }
+  })
+
+  return {
+    coveredFraction: alignedHits / samples.length,
+    longestContinuousCoveredFraction: longestRun / samples.length,
+    directionAgreementFraction: proximityHits === 0 ? 0 : alignedHits / proximityHits
+  }
 }
 
 async function snapDistance(point: Coordinate): Promise<number | null> {
@@ -151,9 +211,15 @@ async function probeCorridor(geometry: Coordinate[]): Promise<CorridorTraversalP
   const [snapStart, snapEnd] = await Promise.all([snapDistance(start), snapDistance(end)])
   const route = await routeAlong([start, end])
   if (!route) {
-    return { endpointSnapMeters: [snapStart, snapEnd], routeMeters: null, corridorCoveredByRoute: null }
+    return {
+      endpointSnapMeters: [snapStart, snapEnd],
+      routeMeters: null,
+      corridorCoveredByRoute: null,
+      longestContinuousCoveredFraction: null,
+      directionAgreementFraction: null
+    }
   }
-  const covered = coveredFraction(
+  const coverage = coverageMetrics(
     sampleLine(geometry, SAMPLE_METERS),
     route.coordinates,
     DEFAULT_TRAVERSABILITY_THRESHOLDS.matchRadiusMeters
@@ -161,7 +227,9 @@ async function probeCorridor(geometry: Coordinate[]): Promise<CorridorTraversalP
   return {
     endpointSnapMeters: [snapStart, snapEnd],
     routeMeters: route.meters,
-    corridorCoveredByRoute: covered
+    corridorCoveredByRoute: coverage.coveredFraction,
+    longestContinuousCoveredFraction: coverage.longestContinuousCoveredFraction,
+    directionAgreementFraction: coverage.directionAgreementFraction
   }
 }
 
