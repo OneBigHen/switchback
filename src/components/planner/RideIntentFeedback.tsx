@@ -74,7 +74,9 @@ export function RideIntentFeedback({
     <section className={styles.summary} aria-label="Your ride">
       <div className={styles.heading}>
         <span>Your ride</span>
-        {recovery === "restored" ? <span className={styles.restored}>Ride restored</span> : null}
+        {recovery === "restored" ? (
+          <span className={styles.restored}>{!plan && failed ? "Ride settings restored" : "Ride restored"}</span>
+        ) : null}
       </div>
       <p className={styles.description}>
         {mode === "loop" || shaped ? `${minutes} min` : "Destination ride"}

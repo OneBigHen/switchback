@@ -141,3 +141,41 @@ test("saved route remains available from IndexedDB after an offline reload", asy
   })
   expect(storedRoute).toBe("Offline saved route")
 })
+
+test("offline recovery distinguishes restored ride settings from an unavailable route", async ({ page }) => {
+  await installPlannerServices(page)
+  const routeCapture = await installRouteApi(page, tripPlan([makeRoute("twisty", { name: "Recovery route" })]))
+  await establishServiceWorker(page)
+  await planAndSaveRoute(page, routeCapture)
+  expect(routeCapture.requests.length).toBeGreaterThan(0)
+
+  await expect.poll(() => page.evaluate(async () => {
+    const opened = await new Promise<IDBDatabase | null>((resolve) => {
+      const request = indexedDB.open("switchback-ride-intent")
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => resolve(null)
+    })
+    if (!opened || !opened.objectStoreNames.contains("checkpoints")) return false
+    const saved = await new Promise<boolean>((resolve) => {
+      const request = opened.transaction("checkpoints", "readonly").objectStore("checkpoints").get("active")
+      request.onsuccess = () => resolve(Boolean(request.result))
+      request.onerror = () => resolve(false)
+    })
+    opened.close()
+    return saved
+  }), { timeout: 15_000 }).toBe(true)
+
+  // API responses are intentionally not cached by the service worker. Remove
+  // the route fixture so the recovery replan exercises the real offline
+  // failure path on the next load.
+  await page.unroute("**/api/routes")
+  await page.context().setOffline(true)
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await expectPlannerReady(page)
+
+  const summary = page.getByRole("region", { name: "Your ride" })
+  await expect(summary).toContainText("Destination ride")
+  await expect(summary.getByText("Ride settings restored", { exact: true })).toBeVisible()
+  await expect(summary.getByText("Ride restored", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("Route unavailable", { exact: true })).toBeVisible()
+})
