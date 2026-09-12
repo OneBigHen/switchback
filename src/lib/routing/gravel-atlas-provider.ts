@@ -39,22 +39,38 @@ const MAX_DURATION_RATIO: Record<GravelAtlasIntensity, number> = {
   maximum: 1.9
 }
 
+const LOOP_DURATION_TOLERANCE: Record<GravelAtlasIntensity, number> = {
+  balanced: 0.15,
+  more: 0.2,
+  maximum: 0.25
+}
+
 const MINIMUM_EVIDENCE_GAIN_METERS: Record<GravelAtlasIntensity, number> = {
   balanced: 800,
   more: 400,
   maximum: 160
 }
 
-function shouldAttract(request: NormalizedRouteRequest): boolean {
+function atlasEnabled(request: NormalizedRouteRequest): boolean {
   return request.gravelAtlas.enabled === true &&
     (request.profile === "adventure" || request.profile === "gravel") &&
     request.candidateSet !== "alternatives" &&
+    !request.segmentProfiles?.length &&
+    !request.sketchCorridor?.length
+}
+
+function shouldAttractDestination(request: NormalizedRouteRequest): boolean {
+  return atlasEnabled(request) &&
     request.points.length === 2 &&
     !request.roundTrip &&
     request.loopTargetMinutes == null &&
-    request.targetMinutes == null &&
-    !request.segmentProfiles?.length &&
-    !request.sketchCorridor?.length
+    request.targetMinutes == null
+}
+
+function shouldAttractRoundTrip(request: NormalizedRouteRequest): boolean {
+  return atlasEnabled(request) &&
+    request.points.length === 1 &&
+    Boolean(request.roundTrip)
 }
 
 function atlasOnlySources(
@@ -100,6 +116,16 @@ function reasonableDetour(
     durationRatio <= MAX_DURATION_RATIO[intensity]
 }
 
+function reasonableLoopDuration(
+  candidate: PlannedRoute,
+  targetMinutes: number,
+  intensity: GravelAtlasIntensity
+): boolean {
+  if (candidate.routeScore?.accepted === false) return false
+  return Math.abs(candidate.durationMinutes - targetMinutes) / Math.max(1, targetMinutes) <=
+    LOOP_DURATION_TOLERANCE[intensity]
+}
+
 function improvesEvidence(
   candidate: PlannedRoute,
   baseline: PlannedRoute,
@@ -136,30 +162,47 @@ function mergedWarnings(direct: RoutingResult, candidate: RoutingResult): string
   return warnings.length > 0 ? warnings : undefined
 }
 
+function bestAtlasCandidate(candidates: RoutedAtlasCandidate[]): RoutedAtlasCandidate | undefined {
+  return candidates.sort((left, right) =>
+    candidateUtility(right) - candidateUtility(left) ||
+    left.route.id.localeCompare(right.route.id)
+  )[0]
+}
+
 /**
- * Add bounded Gravel Atlas attraction to ordinary two-point planning without
- * changing the base provider contract. A normal route is always obtained first
- * and remains the fallback. Atlas data can only contribute soft shaping anchors;
- * the provider still owns legal access, bike compatibility, and connectivity.
+ * Add bounded Gravel Atlas attraction without replacing the routing graph.
+ * Ordinary A-to-B rides and the first Free Ride loop attempt may use verified
+ * source anchors, but every candidate is routed by the normal provider and must
+ * prove real returned-route overlap before it may replace the fallback.
  *
- * Destination timeboxes and free-draw requests already have dedicated corridor
- * planners, so this wrapper deliberately leaves them alone rather than creating
- * recursive or competing shaping passes.
+ * One wrapper instance is created per HTTP route request. Free Ride's internal
+ * seed retries therefore share one source lookup and at most one Atlas shaping
+ * pass instead of multiplying external router work on every retry.
  */
 export function createGravelAtlasAwareProvider(
   baseProvider: RouteProvider,
   resolveCorridors: GravelAtlasCorridorResolver
 ): RouteProvider {
+  let sourcePromise: Promise<CorridorSourceCandidates> | null = null
+  let roundTripAttractionAttempted = false
+
+  const sourcesFor = async (request: NormalizedRouteRequest): Promise<CorridorSourceCandidates> => {
+    sourcePromise ??= resolveCorridors(request)
+    return atlasOnlySources(request, await sourcePromise)
+  }
+
   return async (
     request: NormalizedRouteRequest,
     options: PlanningOptions = {}
   ): Promise<RoutingResult> => {
     const direct = await baseProvider(request, options)
-    if (!shouldAttract(request)) return direct
+    const destinationAttraction = shouldAttractDestination(request)
+    const roundTripAttraction = shouldAttractRoundTrip(request)
+    if (!destinationAttraction && !roundTripAttraction) return direct
 
     let sources: CorridorSourceCandidates
     try {
-      sources = atlasOnlySources(request, await resolveCorridors(request))
+      sources = await sourcesFor(request)
     } catch {
       return direct
     }
@@ -172,9 +215,66 @@ export function createGravelAtlasAwareProvider(
       return directWithEvidence
     }
 
-    const start = request.points[0]!
-    const finish = request.points[1]!
     const intensity = request.gravelAtlas.intensity
+    const start = request.points[0]!
+
+    if (roundTripAttraction) {
+      if (roundTripAttractionAttempted) return directWithEvidence
+      roundTripAttractionAttempted = true
+      const targetMinutes = request.roundTrip!.targetMinutes
+      const envelope = corridorEnvelope(
+        Math.max(baseline.distanceMiles, 1) * ENVELOPE_DISTANCE_FACTOR[intensity]
+      )
+      const anchorSets = buildAnchorSets(
+        [start.lon, start.lat],
+        [start.lon, start.lat],
+        envelope,
+        sources
+      ).filter((set) => set.source === "gravel-atlas")
+      const { roundTrip: _roundTrip, ...withoutRoundTrip } = request
+      void _roundTrip
+      const shapedBase: NormalizedRouteRequest = {
+        ...withoutRoundTrip,
+        points: [start, { ...start }],
+        shape: "loop"
+      }
+      const generated = generateCorridorCandidates(shapedBase, anchorSets, {
+        maxCandidates: CANDIDATE_LIMIT[intensity]
+      })
+      const routed: RoutedAtlasCandidate[] = []
+      for (const candidate of generated) {
+        if (options.signal?.aborted) break
+        try {
+          const result = withResultEvidence(
+            await baseProvider(candidate.request, options),
+            corridors
+          )
+          const selected = chooseSelectedCandidate(result.routes)
+          if (
+            !selected ||
+            !reasonableLoopDuration(selected, targetMinutes, intensity) ||
+            !improvesEvidence(selected, baseline, intensity)
+          ) continue
+          routed.push({
+            result,
+            route: { ...selected, candidateSource: "gravel-atlas" },
+            reward: candidate.reward
+          })
+        } catch {
+          // A shaped loop that the graph rejects is simply not a candidate.
+        }
+      }
+      const best = bestAtlasCandidate(routed)
+      if (!best) return directWithEvidence
+      const warnings = mergedWarnings(directWithEvidence, best.result)
+      return {
+        ...best.result,
+        routes: [best.route],
+        ...(warnings ? { warnings } : {})
+      }
+    }
+
+    const finish = request.points[1]!
     const envelope = corridorEnvelope(
       Math.max(baseline.distanceMiles, 1) * ENVELOPE_DISTANCE_FACTOR[intensity]
     )
@@ -215,10 +315,7 @@ export function createGravelAtlasAwareProvider(
       }
     }
 
-    const best = routed.sort((left, right) =>
-      candidateUtility(right) - candidateUtility(left) ||
-      left.route.id.localeCompare(right.route.id)
-    )[0]
+    const best = bestAtlasCandidate(routed)
     if (!best) return directWithEvidence
 
     const warnings = mergedWarnings(directWithEvidence, best.result)
