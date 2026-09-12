@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "Route atlas",
-  description: "Every ride imported into Switchback, drawn from its own GPS line — browse the collection by what is closest to you, how far it goes and how hard it corners."
+  description: "Every ride imported into OpenGravel, drawn from its own GPS line — browse the collection by what is closest to you, how far it goes and how hard it corners."
 }
 
 interface AtlasListingRoute {
@@ -184,7 +184,7 @@ export default async function GpxLibraryAtlasPage() {
       <header className="atlas-head">
         <h1>Route atlas</h1>
         <p className="atlas-lede">
-          Every ride imported into Switchback, drawn from its own GPS line. Start with the roads closest to
+          Every ride imported into OpenGravel, drawn from its own GPS line. Start with the roads closest to
           you, then narrow by how far you want to go and how hard you want to work.
         </p>
       </header>

@@ -146,7 +146,7 @@ function cueXml(route: GpxRoute): string {
 
 function gpxDocument(route: GpxRoute, metadataDescription: string, body: string, waypoints = ""): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Switchback" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="OpenGravel" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
     <name>${escapeXml(route.name)}</name>
     <desc>${escapeXml(metadataDescription.slice(0, 4_000))}</desc>
@@ -168,7 +168,7 @@ export function routeToGpx(route: GpxRoute, options: GpxExportOptions = {}): str
   const geometry = options.simplifyToleranceMeters == null
     ? route.geometry
     : simplifyGpxGeometry(route, options.simplifyToleranceMeters)
-  const description = `${variant === "original" ? "Original GPX artifact" : "Switchback route"} · ${route.distanceMiles.toFixed(1)} mi | ${Math.round(route.durationMinutes)} min | ${route.profile}${route.creatorNotes ? ` · ${route.creatorNotes.slice(0, 500)}` : ""}`
+  const description = `${variant === "original" ? "Original GPX artifact" : "OpenGravel route"} · ${route.distanceMiles.toFixed(1)} mi | ${Math.round(route.durationMinutes)} min | ${route.profile}${route.creatorNotes ? ` · ${route.creatorNotes.slice(0, 500)}` : ""}`
   const trackBody = `  <trk>\n    <name>${escapeXml(route.name)}</name>\n    <type>motorcycle</type>\n    <trkseg>\n${trackXml(geometry)}\n    </trkseg>\n  </trk>`
   const routeBody = `  <rte>\n    <name>${escapeXml(route.name)}${variant === "cues" ? " cues" : ""}</name>\n${variant === "cues" ? cueXml(route) : routePoints(route).map((point) =>
     `      <rtept lat="${point.lat}" lon="${point.lon}"><name>${escapeXml(point.label ?? "Route point")}</name></rtept>`).join("\n")}\n  </rte>`

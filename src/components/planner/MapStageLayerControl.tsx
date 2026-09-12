@@ -77,7 +77,7 @@ const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "unpaved", "closures", "ro
 
 /**
  * Satellite is a premium-renderer capability. Offering it on the fallback
- * renderer would name a view Switchback cannot actually draw there.
+ * renderer would name a view OpenGravel cannot actually draw there.
  */
 function mapPresetChoices(premium: boolean): { id: MapPresetId; label: string }[] {
   return availableMapPresets({ premiumRenderer: premium })

@@ -62,7 +62,7 @@ export interface RideAdvisorProps {
   onRouteWithStop?(stop: ProposedStop): void | Promise<void>
   /** Confirm a whole proposed ride and hand it to the ordinary planner. */
   onPlanRide?(ride: ProposedRide): void
-  /** Preview/select an existing Switchback candidate the Goblin prefers. */
+  /** Preview/select an existing OpenGravel candidate the Goblin prefers. */
   onSelectRoute?(routeId: string): void
 }
 
@@ -265,7 +265,7 @@ export function RideAdvisor({
     const requestScope = currentScope
     pending.current = controller
     setBusy(true)
-    // A route-only turn is answered from facts Switchback already computed, so
+    // A route-only turn is answered from facts OpenGravel already computed, so
     // say which comparison is being made rather than showing a bare spinner.
     // Local deterministic data only — never a preview of the model's answer.
     setWorking(
@@ -320,7 +320,7 @@ export function RideAdvisor({
                 ? "I couldn’t read that ride request. Shorten it or refresh the ride, then try again."
               : reply.status === "malformed"
                 ? "I couldn’t validate that answer. Your ride hasn’t changed. Try again."
-              : "I can’t reach my outside sources right now. Your Switchback planner still works normally."
+              : "I can’t reach my outside sources right now. Your OpenGravel planner still works normally."
         )
         return
       }

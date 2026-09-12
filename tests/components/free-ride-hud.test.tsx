@@ -125,7 +125,7 @@ describe("Free Ride HUD", () => {
         ...controller.state,
         status: "denied" as const,
         startedAt: Date.parse("2026-08-04T14:00:00.000Z"),
-        error: "Location permission was denied. Enable precise location for Switchback and try again."
+        error: "Location permission was denied. Enable precise location for OpenGravel and try again."
       }
     } as unknown as RecordingSessionController
 

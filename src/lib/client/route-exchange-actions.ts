@@ -45,7 +45,7 @@ interface RouteExchangeActionsOptions {
 }
 
 function downloadName(route: PlannedRoute, variant: GpxExportVariant): string {
-  const base = route.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "switchback-route"
+  const base = route.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "opengravel-route"
   return `${base}${variant === "track" ? "" : `-${variant}`}.gpx`
 }
 

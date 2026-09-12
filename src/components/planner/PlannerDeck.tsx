@@ -291,7 +291,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
               <span>
                 <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
-                <strong>{selectedRoute?.name ?? "Switchback"}</strong>
+                <strong>{selectedRoute?.name ?? "OpenGravel"}</strong>
                 <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
                   {planningStage}
                 </span>
@@ -616,7 +616,7 @@ function OfflinePackModal({ route, value, onChange, onCancel, onSave }: OfflineP
             Saving this route as an offline pack lets you resume guidance and turn-by-turn cues when you lose signal. Browser-stored data is not guaranteed permanent — saved-route packs remain recoverable from the server.
           </p>
           <p className="offline-pack-modal-alternative">
-            Prefer a file for your Garmin or another GPS device? Use <strong>Export GPX</strong> in the route actions instead — an offline pack stays in Switchback, a GPX goes to your device.
+            Prefer a file for your Garmin or another GPS device? Use <strong>Export GPX</strong> in the route actions instead — an offline pack stays in OpenGravel, a GPX goes to your device.
           </p>
           <DownloadModePicker value={value} onChange={onChange} id="offline-pack-download-mode" />
           <footer>

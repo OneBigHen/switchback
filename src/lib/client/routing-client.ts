@@ -52,7 +52,7 @@ export async function requestTripPlan(
       )
     }
     throw new RoutingClientError(
-      "Switchback could not reach the routing service.",
+      "OpenGravel could not reach the routing service.",
       "ROUTER_UNREACHABLE",
       503
     )

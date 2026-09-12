@@ -47,7 +47,7 @@ describe("map layer settings", () => {
   it("ships functional map layers with provenance and safely normalizes saved settings", () => {
     const unpaved = layerCatalog.find((layer) => layer.id === "unpaved")
     expect(layerCatalog).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "curvature", source: expect.stringMatching(/Switchback/i) }),
+      expect.objectContaining({ id: "curvature", source: expect.stringMatching(/OpenGravel/i) }),
       expect.objectContaining({ id: "weather", freshness: expect.any(String) }),
       expect.objectContaining({ id: "fuel", coverage: expect.any(String) }),
       expect.objectContaining({ id: "mvum", status: "live" })

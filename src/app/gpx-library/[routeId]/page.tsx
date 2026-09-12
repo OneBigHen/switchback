@@ -128,9 +128,9 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
 export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }): Promise<Metadata> {
   const { routeId } = await params
   const { route } = await loadRouteDetail(routeId)
-  if (!route) return { title: "Route not found — Switchback" }
+  if (!route) return { title: "Route not found — OpenGravel" }
   return {
-    title: `${route.story?.title ?? route.name} — Switchback route atlas`,
+    title: `${route.story?.title ?? route.name} — OpenGravel route atlas`,
     description: route.story?.summary ?? undefined
   }
 }

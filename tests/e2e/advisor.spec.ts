@@ -965,7 +965,7 @@ test("a route-only question shows deterministic route facts, never a bare spinne
   await composer.fill("Worth the extra 25 minutes?")
   await page.getByRole("button", { name: "Send to Gravel Goblin" }).click()
 
-  // While the turn is in flight the rider sees the arithmetic Switchback
+  // While the turn is in flight the rider sees the arithmetic OpenGravel
   // already did — a real fact, not "Sniffing out the good roads…" and not a preview of
   // the model's verdict.
   const working = page.getByText(/Weighing .*(min|unpaved|curve)/)

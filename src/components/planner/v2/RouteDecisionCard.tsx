@@ -84,7 +84,7 @@ function comparisonLabel(
 }
 
 /**
- * Whether Switchback's own scoring policy ranked this candidate first.
+ * Whether OpenGravel's own scoring policy ranked this candidate first.
  *
  * "Best Ride" is the recommendation chip (ADR 0013), so it has to follow the
  * deterministic ranking rather than the route's coarse profile. Profile only

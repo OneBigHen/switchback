@@ -36,7 +36,7 @@ describe("V2 presentation primitives", () => {
       <DestinationHeader
         eyebrow="Rider setup"
         title="Settings"
-        description="Your motorcycle, route defaults, and Switchback preferences."
+        description="Your motorcycle, route defaults, and OpenGravel preferences."
         graphic={<RouteGraphic seed="settings" variant="bike" />}
         actions={<button type="button">Add bike</button>}
       />

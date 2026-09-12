@@ -54,7 +54,7 @@ export async function handleCommunityRouteDelete(
     return jsonWithRequestId({ unpublished: true }, requestId, { status: 200 })
   } catch (caught) {
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required to unpublish a route.", 401, requestId)
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required to unpublish a route.", 401, requestId)
     return apiErrorResponse("INVALID_COMMUNITY_ROUTE", "That community route could not be unpublished.", 404, requestId)
   }
 }

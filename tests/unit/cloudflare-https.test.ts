@@ -4,7 +4,7 @@ import { shouldUpgradeCloudflareHttp } from "@/lib/http/cloudflare-https"
 import { proxy } from "@/proxy"
 
 describe("Cloudflare HTTPS enforcement", () => {
-  it("upgrades plain HTTP visitors for the public Switchback hostname", () => {
+  it("upgrades plain HTTP visitors for the public OpenGravel hostname", () => {
     expect(shouldUpgradeCloudflareHttp(
       new Headers({ "cf-visitor": '{"scheme":"http"}' }),
       "ride.henning.rodeo"

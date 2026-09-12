@@ -23,7 +23,7 @@ export function RouteRating({ route, onRate }: RouteRatingProps) {
   const [fit, setFit] = useState<ReturnType<typeof explainRouteFit> | null>(null)
   if (!onRate) return null
   return (
-    <section className="route-rating" aria-label="Teach Switchback your road taste">
+    <section className="route-rating" aria-label="Teach OpenGravel your road taste">
       <div>
         <strong>Rate this route for this bike</strong>
       </div>

@@ -268,7 +268,7 @@
 @media (max-width: 390px) {
 }
 
-/* Switchback 0.2 — a calm map-first workspace for planning. Ride mode keeps
+/* OpenGravel 0.2 — a calm map-first workspace for planning. Ride mode keeps
    the original high-contrast cockpit palette for outdoor legibility. */
 /* TASK-2.4 justified exception: the standard visually-hidden utility
    pattern (matches Bootstrap/Tailwind's .sr-only) must reliably override

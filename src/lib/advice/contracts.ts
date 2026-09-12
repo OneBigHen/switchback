@@ -44,7 +44,7 @@ export interface ProposedStop {
   name: string
   reason: string
   kind: ProposedStopKind
-  /** Resolved by Switchback-owned place/road data — never model coordinates. */
+  /** Resolved by OpenGravel-owned place/road data — never model coordinates. */
   anchor: { lat: number; lon: number }
   /** Distance-based position along the chosen route; null without route geometry. */
   routeProgress: number | null
@@ -74,7 +74,7 @@ export interface ProposedRidePoint {
 
 export interface RouteSecondOpinion {
   agreesWithSwitchback: boolean
-  /** An id from the candidate set Switchback already produced. */
+  /** An id from the candidate set OpenGravel already produced. */
   wouldPick: string
   rationale: string
   cautions: string[]
@@ -209,7 +209,7 @@ export interface AdvisorToolDefinition {
   parameters: Record<string, unknown>
 }
 
-/** Switchback-owned function tools. Built-in Maps grounding lives in the transport. */
+/** OpenGravel-owned function tools. Built-in Maps grounding lives in the transport. */
 export interface AdvisorToolbox {
   definitions(input: AdviceRequest): AdvisorToolDefinition[]
   call(

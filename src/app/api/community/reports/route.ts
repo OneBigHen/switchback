@@ -18,7 +18,7 @@ export async function handleCommunityReportsGet(request: Request, store = getCom
     })
   } catch (caught) {
     if (caught instanceof Error && caught.message === "OPERATOR_REQUIRED") return apiErrorResponse("OPERATOR_REQUIRED", "Operator access is required for community reports.", 403, requestId)
-    return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required for community reports.", 401, requestId)
+    return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required for community reports.", 401, requestId)
   }
 }
 
@@ -29,7 +29,7 @@ export async function handleCommunityReportPost(request: Request, store = getCom
     identityId = requireMutationIdentity(request)
   } catch (caught) {
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required to report content.", 401, requestId)
+    return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required to report content.", 401, requestId)
   }
   try {
     const body = await readBoundedJsonBody(request, 8 * 1024)

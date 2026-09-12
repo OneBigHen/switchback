@@ -69,7 +69,7 @@ export function useRecordingSession() {
       (error) => dispatch({
         type: error.code === error.PERMISSION_DENIED ? "permission_denied" : "error",
         message: error.code === error.PERMISSION_DENIED
-          ? "Location permission was denied. Enable precise location for Switchback and try again."
+          ? "Location permission was denied. Enable precise location for OpenGravel and try again."
           : `GPS is not ready: ${error.message}`
       }),
       { enableHighAccuracy: true, maximumAge: 1_000, timeout: 12_000 }

@@ -48,7 +48,7 @@ export async function requestRideIntent(
     })
   } catch {
     throw new RideIntentClientError(
-      "Switchback could not reach the ride interpreter.",
+      "OpenGravel could not reach the ride interpreter.",
       "RIDE_INTENT_UNREACHABLE",
       503
     )

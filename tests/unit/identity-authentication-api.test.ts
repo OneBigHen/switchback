@@ -38,7 +38,7 @@ function runtime(newCounter = 8, verifierError: Error | null = null): { context:
     context: {
       store: repository,
       challenges: new PasskeyChallengeStore(5 * 60_000, 10),
-      config: { rpID: "localhost", expectedOrigin: "http://localhost:3000", rpName: "Switchback Test" },
+      config: { rpID: "localhost", expectedOrigin: "http://localhost:3000", rpName: "OpenGravel Test" },
       verifier: {
         generateRegistrationOptions: vi.fn(async (input) => ({ challenge: input.challenge, rp: { id: input.rpID, name: input.rpName }, user: { id: "u", name: input.userName, displayName: "Rider" }, pubKeyCredParams: [{ alg: -7, type: "public-key" as const }], attestation: "none" as const })),
         generateAuthenticationOptions: vi.fn(async (input) => ({ challenge: input.challenge, rpId: input.rpID, userVerification: input.userVerification })),
@@ -143,7 +143,7 @@ describe("WebAuthn authentication API", () => {
     expect(await response.json()).toMatchObject({
       error: {
         code: "IDENTITY_CONFIGURATION_MISSING",
-        message: "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET."
+        message: "OpenGravel ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET."
       }
     })
     expect(response.headers.get("set-cookie")).toBeNull()

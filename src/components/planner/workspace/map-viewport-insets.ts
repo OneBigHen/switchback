@@ -69,7 +69,7 @@ const RIDE_PHONE_SHEET_BOTTOM_INSET_PX = 250
 const PLANNING_SHORT_LANDSCAPE_BOTTOM_INSET_PX = 170
 /**
  * The phone sheet floats above the persistent bottom navigation rail
- * (`bottom: calc(84px + safe-area)` in switchback-v1.css).
+ * (`bottom: calc(84px + safe-area)` in the retired switchback-v1.css).
  */
 const PLANNING_PHONE_SHEET_ANCHOR_PX = 84
 /** Keep at least a slim map strip (top inset + one gutter) when the full

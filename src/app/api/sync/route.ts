@@ -44,7 +44,7 @@ export async function handleSyncGet(request: Request, store = syncRepository()):
       cursor: params.get("cursor")
     }), requestId)
   } catch (caught) {
-    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required for sync.", 401, requestId)
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required for sync.", 401, requestId)
     if (caught instanceof Error && /cursor|namespace|limit|invalid/i.test(caught.message)) return apiErrorResponse("INVALID_SYNC_REQUEST", "The sync page request is invalid.", 400, requestId)
     return apiErrorResponse("SYNC_UNAVAILABLE", "Encrypted sync is temporarily unavailable.", 503, requestId)
   }
@@ -60,7 +60,7 @@ export async function handleSyncPost(request: Request, store = syncRepository())
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That sync object is too large.", 413, requestId)
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required for sync.", 401, requestId)
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required for sync.", 401, requestId)
     return apiErrorResponse("INVALID_SYNC_ENVELOPE", "The encrypted sync envelope is invalid.", 400, requestId)
   }
 }

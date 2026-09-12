@@ -8,7 +8,7 @@ export default function CommunityRoutesPage() {
   return (
     <main className="community-page">
       <header className="community-page-header">
-        <Link href="/" className="community-back-link">← Switchback planner</Link>
+        <Link href="/" className="community-back-link">← OpenGravel planner</Link>
         <p className="community-eyebrow">Community routes</p>
         <h1>Find a better road.</h1>
         <p>Browse rider-published previews. Every line here is the exact sanitized artifact the owner chose to share.</p>

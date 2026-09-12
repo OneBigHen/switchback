@@ -99,4 +99,4 @@ link_first_existing "$ROOT/data/segments.db" \
     echo "Curvature database is optional and was not found."
   }
 
-echo "Switchback data and motorcycle access extract are ready."
+echo "OpenGravel data and motorcycle access extract are ready."

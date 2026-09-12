@@ -43,7 +43,7 @@ describe("Standard slot placement", () => {
     addRiderMapLayers(map, maplibreRenderer)
     for (const [spec, beforeId] of addLayer.mock.calls) {
       expect(spec.slot).toBeUndefined()
-      // The only ordering reference is another Switchback layer.
+      // The only ordering reference is another OpenGravel layer.
       expect(beforeId).toBe("switchback-route-shadow")
     }
   })

@@ -14,7 +14,7 @@ import type {
  *
  * The model produces a JSON document. Nothing in it is trusted:
  *
- * - A route id it names must be one Switchback produced, and its agreement flag
+ * - A route id it names must be one OpenGravel produced, and its agreement flag
  *   must agree with the route id it named.
  * - A place it references must be a `placeId` a tool returned *this turn*, and
  *   the coordinates come from that tool result. The model never supplies a
@@ -46,7 +46,7 @@ export const FINAL_ANSWER_SCHEMA = {
     },
     secondOpinion: {
       type: "object",
-      description: "Your read on the route Switchback picked. Omit when there is no route yet.",
+      description: "Your read on the route OpenGravel picked. Omit when there is no route yet.",
       required: ["agreesWithSwitchback", "wouldPick", "rationale", "confidence"],
       properties: {
         agreesWithSwitchback: { type: "boolean" },
@@ -127,7 +127,7 @@ function textOf(value: unknown, max: number): string | null {
 }
 
 /**
- * Accept a second opinion only when it points at a route Switchback actually
+ * Accept a second opinion only when it points at a route OpenGravel actually
  * produced. When the selected id is supplied, the model's boolean must also be
  * internally consistent: agreeing means naming the selected route, disagreeing
  * means naming a different existing route.

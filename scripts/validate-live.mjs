@@ -216,4 +216,4 @@ for (const profile of profiles) {
 console.table(results)
 console.table(restrictedChecks)
 console.log(`Free-form destination: ${freeformDestination.label}; ${freeformRoutes.length} routes from ${[...new Set(freeformRoutes.map((route) => route.provider))].join(" + ")}`)
-console.log(`Switchback live validation passed at ${baseUrl}`)
+console.log(`OpenGravel live validation passed at ${baseUrl}`)

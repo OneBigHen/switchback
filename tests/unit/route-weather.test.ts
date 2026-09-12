@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { getRouteWeather } from "@/lib/weather/nws"
 
 const baseUrl = "https://api.weather.test"
-const userAgent = "Switchback tests (weather@example.test)"
+const userAgent = "OpenGravel tests (weather@example.test)"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return Response.json(body, { status })

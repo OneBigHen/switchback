@@ -3,7 +3,7 @@ import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * Switchback UX V2 — design contract (DESIGN-CONTRACT.md v2.0).
+ * OpenGravel UX V2 — design contract (DESIGN-CONTRACT.md v2.0).
  * The token layer in src/app/styles/tokens.css is the single canonical
  * source for brand color, semantic theme, typography, geometry, and focus
  * values. This test freezes that truth before any surface migrates.
@@ -16,7 +16,7 @@ const v2SurfaceCss = [
   "src/components/rides/RidesSurface.module.css"
 ].map((path) => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n")
 
-describe("Switchback V2 design tokens", () => {
+describe("OpenGravel V2 design tokens", () => {
   it("declares the canonical brand palette", () => {
     expect(tokensCss).toContain("--sb-ink: #161D1C")
     expect(tokensCss).toContain("--sb-spruce: #243A35")

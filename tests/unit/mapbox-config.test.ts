@@ -24,7 +24,7 @@ describe("premium Mapbox rollout gate", () => {
 })
 
 describe("Standard slot contract", () => {
-  it("maps every Switchback slot to a real Mapbox slot except the critical one", () => {
+  it("maps every OpenGravel slot to a real Mapbox slot except the critical one", () => {
     expect(mapboxSlotFor("bottom")).toBe("bottom")
     expect(mapboxSlotFor("middle")).toBe("middle")
     expect(mapboxSlotFor("top")).toBe("top")

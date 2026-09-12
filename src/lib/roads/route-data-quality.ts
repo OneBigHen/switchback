@@ -1,7 +1,7 @@
 import type { PlannedRoute } from "@/lib/routing/types"
 
 /**
- * Route-level data quality confidence. Switchback turns a weakness in
+ * Route-level data quality confidence. OpenGravel turns a weakness in
  * source data into a useful feature: instead of asserting "West
  * Virginia data is poor", we compute confidence for each actual route
  * so the rider sees the segments they should verify.

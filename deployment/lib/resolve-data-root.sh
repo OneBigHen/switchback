@@ -3,16 +3,16 @@
 validate_switchback_data_root() {
   local root="${1:-}"
   if [[ -z "$root" || "$root" != /* || "$root" == "/" ]]; then
-    printf 'Refusing unsafe Switchback data root: %s\n' "${root:-<empty>}" >&2
+    printf 'Refusing unsafe OpenGravel data root: %s\n' "${root:-<empty>}" >&2
     return 1
   fi
   if [[ -L "$root" || ( -e "$root" && ! -d "$root" ) ]]; then
-    printf 'Refusing inconsistent Switchback data root: %s\n' "$root" >&2
+    printf 'Refusing inconsistent OpenGravel data root: %s\n' "$root" >&2
     return 1
   fi
   for expected_dir in app artifacts; do
     if [[ -e "$root/$expected_dir" && ! -d "$root/$expected_dir" ]]; then
-      printf 'Refusing inconsistent Switchback data root: %s/%s is not a directory\n' "$root" "$expected_dir" >&2
+      printf 'Refusing inconsistent OpenGravel data root: %s/%s is not a directory\n' "$root" "$expected_dir" >&2
       return 1
     fi
   done
@@ -63,7 +63,7 @@ resolve_switchback_data_root() {
     return 0
   fi
   if ((${#data_sources[@]} > 1)); then
-    printf 'Unable to resolve Switchback data root: ambiguous Docker /data mount sources\n' >&2
+    printf 'Unable to resolve OpenGravel data root: ambiguous Docker /data mount sources\n' >&2
     return 1
   fi
 
@@ -76,6 +76,6 @@ resolve_switchback_data_root() {
     return 0
   fi
 
-  printf 'Unable to resolve Switchback data root: set SWITCHBACK_DATA_ROOT or expose the production web /data mount\n' >&2
+  printf 'Unable to resolve OpenGravel data root: set SWITCHBACK_DATA_ROOT or expose the production web /data mount\n' >&2
   return 1
 }

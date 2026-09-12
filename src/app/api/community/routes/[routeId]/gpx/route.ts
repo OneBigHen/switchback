@@ -18,7 +18,7 @@ export async function handleCommunityRouteGpxGet(
   if (!/^route-[A-Za-z0-9-]{20,120}$/.test(routeId)) return apiErrorResponse("INVALID_COMMUNITY_ROUTE", "That community route is not available.", 404, requestId)
   const route = store.getRoute(routeId)
   if (!route) return apiErrorResponse("INVALID_COMMUNITY_ROUTE", "That community route is not available.", 404, requestId)
-  const filename = `${route.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64) || "switchback-route"}.gpx`
+  const filename = `${route.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64) || "opengravel-route"}.gpx`
   const response = new Response(communityPreviewToGpx(route), {
     headers: {
       "content-type": "application/gpx+xml; charset=utf-8",

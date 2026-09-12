@@ -54,7 +54,7 @@ describe("rider map feature HTTP contract", () => {
       layers: ["closures"]
     }, {
       overpassUrl: "https://overpass.test/api/interpreter",
-      nwsUserAgent: "Switchback test",
+      nwsUserAgent: "OpenGravel test",
       fetcher
     })
 
@@ -76,7 +76,7 @@ describe("rider map feature HTTP contract", () => {
       layers: ["fuel", "weather"]
     }, {
       overpassUrl: "https://overpass.test/api/interpreter",
-      nwsUserAgent: "Switchback test",
+      nwsUserAgent: "OpenGravel test",
       fetcher
     })
 
@@ -97,7 +97,7 @@ describe("rider map feature HTTP contract", () => {
       layers: ["fuel", "weather"]
     }, {
       overpassUrl: "https://overpass.test/api/interpreter",
-      nwsUserAgent: "Switchback test",
+      nwsUserAgent: "OpenGravel test",
       fetcher
     })
 

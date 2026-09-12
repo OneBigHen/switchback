@@ -229,7 +229,7 @@ function nearestPointOnLine(point: Coordinate, line: readonly Coordinate[]): Coo
 }
 
 /**
- * Stripped-down Phase-1 snap helper for a corridor tap. Today Switchback
+ * Stripped-down Phase-1 snap helper for a corridor tap. Today OpenGravel
  * does not expose a graph-edge index from the browser, so a manual tap is
  * recorded as the snapped coordinate (snap distance = 0). The lock records
  * the coordinate as an ordered anchor; the engine rematch happens later

@@ -129,13 +129,13 @@ describe("advisor route context", () => {
     expect(sampled.at(-1)).toEqual(dense.at(-1))
   })
 
-  it("briefs the model with route ids, added minutes, unpaved share, and Switchback's warnings", () => {
+  it("briefs the model with route ids, added minutes, unpaved share, and OpenGravel's warnings", () => {
     const briefing = briefingText(context)
     expect(briefing).toContain("id=best-ride")
-    expect(briefing).toContain("[SWITCHBACK RECOMMENDS THIS]")
+    expect(briefing).toContain("[OPENGRAVEL RECOMMENDS THIS]")
     expect(briefing).toContain("+28 min vs fastest")
     // Gravel is a selling point for this rider, so it is in the briefing — but
-    // stated as *mapped* surface, which is all Switchback actually knows.
+    // stated as *mapped* surface, which is all OpenGravel actually knows.
     expect(briefing).toContain("22% mapped unpaved")
     expect(briefing).toContain("Live traffic is unavailable")
   })
@@ -169,7 +169,7 @@ describe("advisor route context", () => {
 })
 
 describe("advisor safety boundaries", () => {
-  it("drops a second opinion that names a route Switchback never produced", () => {
+  it("drops a second opinion that names a route OpenGravel never produced", () => {
     const invented = {
       agreesWithSwitchback: false,
       wouldPick: "a-better-route-i-made-up",
@@ -634,7 +634,7 @@ describe("gemini adviser", () => {
 
   it("shows grounded prose only when the grounding pass produced a citable source", async () => {
     // With Maps grounding on, the prose may contain Maps-derived claims. Showing
-    // it uncited would present a grounded claim as if Switchback had verified it.
+    // it uncited would present a grounded claim as if OpenGravel had verified it.
     const uncited = stubGemini([
       { candidates: [{ content: { parts: [{ text: "The brewery there is excellent." }] } }] },
       { candidates: [{ content: { parts: [{ text: "still not json" }] } }] }
@@ -829,7 +829,7 @@ describe("advisor evidence uncertainty", () => {
  * Every one of these covers a way the co-pilot used to answer a gravel
  * question with a confident nothing: a curvature dataset that carries no
  * surface tags at all, and an official unpaved survey the briefing never
- * carried even after Switchback paid to look it up.
+ * carried even after OpenGravel paid to look it up.
  */
 describe("gravel evidence", () => {
   const unsurfaced: CurvatureSegment[] = [
@@ -940,7 +940,7 @@ describe("gravel evidence", () => {
     })
   })
 
-  it("carries the official PA unpaved share into the briefing once Switchback has it", () => {
+  it("carries the official PA unpaved share into the briefing once OpenGravel has it", () => {
     const briefing = briefingText({
       ...context,
       candidates: [{ ...context.candidates[0]!, officialUnpavedSharePercent: 31.4 }]
