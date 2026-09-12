@@ -1,5 +1,7 @@
+import { EventEmitter } from "node:events"
 import { describe, expect, it } from "vitest"
 import {
+  childProcessCompletion,
   graphFingerprintFromParts,
   motorcycleWayDirections,
   motorcycleWayIsRoutable
@@ -49,5 +51,15 @@ describe("Gravel Atlas graph build semantics", () => {
     expect(motorcycleWayDirections({ highway: "track", oneway: "yes" })).toEqual(["forward"])
     expect(motorcycleWayDirections({ highway: "track", oneway: "-1" })).toEqual(["reverse"])
     expect(motorcycleWayDirections({ highway: "residential", junction: "roundabout" })).toEqual(["forward"])
+  })
+
+  it("captures a child close event even when the caller awaits completion later", async () => {
+    const child = new EventEmitter()
+    const completion = childProcessCompletion(child)
+
+    child.emit("close", 0)
+    await Promise.resolve()
+
+    await expect(completion).resolves.toBe(0)
   })
 })
