@@ -79,6 +79,10 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
         if (centerX < ownerRect.left - 1 || centerX > ownerRect.right + 1
           || centerY < ownerRect.top - 1 || centerY > ownerRect.bottom + 1) continue
       }
+      // A horizontal scroller — the route-rack carousel — keeps its off-fold
+      // cards reachable by swiping, exactly as the vertical scroll owner above
+      // does past its own fold. A control whose centre sits beyond the
+      // carousel's horizontal edge is parked, not clipped.
       const horizontalRack = (() => {
         for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.body; ancestor = ancestor.parentElement) {
           const style = getComputedStyle(ancestor)
@@ -101,10 +105,18 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
         const ancestorStyle = getComputedStyle(ancestor)
         if (!/(hidden|clip|scroll|auto)/.test(ancestorStyle.overflow)) continue
         const ancestorRect = ancestor.getBoundingClientRect()
+        // A scrollable ancestor does not clip along an axis it can actually
+        // scroll — content past the fold is reachable, and
+        // expectNoNestedScrollTrap separately proves those regions reach their
+        // extent. Only real hidden/clip containment counts as clipping, so a
+        // control that merely sits below the sheet's fold is not a defect.
         const scrollsX = /(auto|scroll|overlay)/.test(ancestorStyle.overflowX)
           && ancestor.scrollWidth > ancestor.clientWidth + 1
         const scrollsY = /(auto|scroll|overlay)/.test(ancestorStyle.overflowY)
           && ancestor.scrollHeight > ancestor.clientHeight + 1
+        // Name the offending edge and the overflow in px. Without it the
+        // failure only says "clipped by div", which is not enough to tell a
+        // horizontal overflow from an element sitting past a scroll fold.
         const overflows = [
           !scrollsX && rect.left < ancestorRect.left - 1 ? `left by ${Math.round(ancestorRect.left - rect.left)}px` : "",
           !scrollsX && rect.right > ancestorRect.right + 1 ? `right by ${Math.round(rect.right - ancestorRect.right)}px` : "",
@@ -119,6 +131,8 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
       }
       const center = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
       if (center === null || (!element.contains(center) && !center.contains(element))) {
+        // Name what is on top; "obscured" alone does not say whether the
+        // control is behind a panel or simply off-screen (null).
         const onTop = center === null
           ? "nothing (its centre is outside the viewport)"
           : `${center.tagName.toLowerCase()}${center.className ? `.${String(center.className).trim().split(/\s+/).join(".")}` : ""}`
@@ -207,6 +221,8 @@ async function scrollOwnerWithSupportedInput(page: Page, owner: Locator, interac
   await owner.evaluate((element) => {
     if (!(element instanceof HTMLElement)) return
     const maximum = Math.max(0, element.scrollHeight - element.clientHeight)
+    // This is explicitly the WebKit programmatic-owner contract. Playwright's
+    // public touchscreen API has tap only, and mobile WebKit has no wheel API.
     element.scrollTop = Math.min(640, maximum)
   })
 }
@@ -302,7 +318,7 @@ export async function expectSheetsAndModalsInsideVisualViewport(page: Page): Pro
 export async function expectNavigationReachability(page: Page): Promise<void> {
   const issues = await page.evaluate((selector) => {
     const problems: string[] = []
-    for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>("nav a,nav button,[role=navigation] a,[role=navigation] button"))) {
       const rect = element.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
       if (rect.left < -1 || rect.top < -1 || rect.right > window.innerWidth + 1 || rect.bottom > window.innerHeight + 1) problems.push(`${element.tagName.toLowerCase()} navigation control leaves viewport`)
