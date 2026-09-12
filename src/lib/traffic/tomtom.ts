@@ -251,6 +251,7 @@ async function fetchBoxIncidents(
     method: "GET",
     headers: {
       "TomTom-Api-Key": apiKey,
+      "TomTom-Api-Version": "2",
       "Accept-Language": "en-US",
       "Attributes": INCIDENT_ATTRIBUTES
     },
