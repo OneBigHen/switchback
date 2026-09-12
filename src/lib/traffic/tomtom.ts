@@ -12,6 +12,13 @@ const MAX_BOX_AREA_KM2 = 9_000
 const MAX_POINTS_PER_BOX = 40
 const MAX_CORRIDOR_BOXES = 8
 const REQUEST_TIMEOUT_MS = 5_000
+// BBox is retrieval only. Route evidence must be materially closer than the
+// 2.5 km candidate corridor or a jam on a parallel arterial could be reported
+// as delay on the rider's route. TomTom incident geometry and router geometry
+// are both road-aligned, so 150 m leaves room for divided roads/interchanges
+// without treating nearby streets as the same route.
+const ROUTE_MATCH_TOLERANCE_METERS = 150
+const METERS_PER_LAT_DEGREE = 111_320
 
 const INCIDENT_ATTRIBUTES = [
   "incidents(",
@@ -66,6 +73,9 @@ interface TomTomIncident {
   properties?: TomTomIncidentProperties
   geometry?: unknown
 }
+
+type LonLat = [number, number]
+type XY = [number, number]
 
 function emptyEvidence(status: "unknown" | "degraded", now: () => Date): RouteTrafficEvidence {
   return {
@@ -248,6 +258,95 @@ function normalizeIncident(value: unknown): TrafficIncidentEvidence | null {
   }
 }
 
+function project(point: LonLat, referenceLatitude: number): XY {
+  const cosLatitude = Math.max(0.01, Math.cos(referenceLatitude * Math.PI / 180))
+  return [
+    point[0] * METERS_PER_LAT_DEGREE * cosLatitude,
+    point[1] * METERS_PER_LAT_DEGREE
+  ]
+}
+
+function pointToSegmentDistance(point: XY, start: XY, end: XY): number {
+  const dx = end[0] - start[0]
+  const dy = end[1] - start[1]
+  if (dx === 0 && dy === 0) return Math.hypot(point[0] - start[0], point[1] - start[1])
+  const t = clamp(
+    ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx * dx + dy * dy),
+    0,
+    1
+  )
+  return Math.hypot(point[0] - (start[0] + t * dx), point[1] - (start[1] + t * dy))
+}
+
+function orientation(a: XY, b: XY, c: XY): number {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+}
+
+function segmentsIntersect(a: XY, b: XY, c: XY, d: XY): boolean {
+  const abC = orientation(a, b, c)
+  const abD = orientation(a, b, d)
+  const cdA = orientation(c, d, a)
+  const cdB = orientation(c, d, b)
+  return ((abC <= 0 && abD >= 0) || (abC >= 0 && abD <= 0))
+    && ((cdA <= 0 && cdB >= 0) || (cdA >= 0 && cdB <= 0))
+}
+
+function segmentDistanceMeters(a: LonLat, b: LonLat, c: LonLat, d: LonLat): number {
+  const referenceLatitude = (a[1] + b[1] + c[1] + d[1]) / 4
+  const pa = project(a, referenceLatitude)
+  const pb = project(b, referenceLatitude)
+  const pc = project(c, referenceLatitude)
+  const pd = project(d, referenceLatitude)
+  if (segmentsIntersect(pa, pb, pc, pd)) return 0
+  return Math.min(
+    pointToSegmentDistance(pa, pc, pd),
+    pointToSegmentDistance(pb, pc, pd),
+    pointToSegmentDistance(pc, pa, pb),
+    pointToSegmentDistance(pd, pa, pb)
+  )
+}
+
+function pointNearRoute(point: LonLat, routePoints: TrafficRoutePoint[]): boolean {
+  for (let index = 0; index < routePoints.length - 1; index += 1) {
+    const start = routePoints[index]!
+    const end = routePoints[index + 1]!
+    const routeStart: LonLat = [start.lon, start.lat]
+    const routeEnd: LonLat = [end.lon, end.lat]
+    const referenceLatitude = (point[1] + start.lat + end.lat) / 3
+    const projectedPoint = project(point, referenceLatitude)
+    const distance = pointToSegmentDistance(
+      projectedPoint,
+      project(routeStart, referenceLatitude),
+      project(routeEnd, referenceLatitude)
+    )
+    if (distance <= ROUTE_MATCH_TOLERANCE_METERS) return true
+  }
+  return false
+}
+
+function incidentMatchesRoute(incident: TrafficIncidentEvidence, routePoints: TrafficRoutePoint[]): boolean {
+  const geometry = incident.geometry
+  if (!geometry || routePoints.length < 2) return false
+  if (geometry.type === "Point") return pointNearRoute(geometry.coordinates, routePoints)
+
+  if (geometry.coordinates.length === 1) return pointNearRoute(geometry.coordinates[0]!, routePoints)
+  for (let incidentIndex = 0; incidentIndex < geometry.coordinates.length - 1; incidentIndex += 1) {
+    const incidentStart = geometry.coordinates[incidentIndex]!
+    const incidentEnd = geometry.coordinates[incidentIndex + 1]!
+    for (let routeIndex = 0; routeIndex < routePoints.length - 1; routeIndex += 1) {
+      const routeStart = routePoints[routeIndex]!
+      const routeEnd = routePoints[routeIndex + 1]!
+      if (segmentDistanceMeters(
+        incidentStart,
+        incidentEnd,
+        [routeStart.lon, routeStart.lat],
+        [routeEnd.lon, routeEnd.lat]
+      ) <= ROUTE_MATCH_TOLERANCE_METERS) return true
+    }
+  }
+  return false
+}
+
 async function fetchBoxIncidents(
   box: TrafficCorridorBox,
   apiKey: string,
@@ -339,7 +438,9 @@ export async function getTomTomRouteTraffic(
 
   const incidentsById = new Map<string, TrafficIncidentEvidence>()
   for (const result of successful) {
-    for (const incident of result.value) incidentsById.set(incident.id, incident)
+    for (const incident of result.value) {
+      if (incidentMatchesRoute(incident, points)) incidentsById.set(incident.id, incident)
+    }
   }
 
   const incidents = [...incidentsById.values()]
