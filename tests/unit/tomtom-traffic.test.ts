@@ -11,6 +11,23 @@ const route: TrafficRoutePoint[] = [
   { lat: 40.2415, lon: -75.2838 }
 ]
 
+function denseRoute(): TrafficRoutePoint[] {
+  const points: TrafficRoutePoint[] = []
+  for (let segment = 0; segment < route.length - 1; segment += 1) {
+    const start = route[segment]!
+    const end = route[segment + 1]!
+    for (let index = 0; index < 40; index += 1) {
+      if (segment > 0 && index === 0) continue
+      const t = index / 39
+      points.push({
+        lat: start.lat + (end.lat - start.lat) * t,
+        lon: start.lon + (end.lon - start.lon) * t
+      })
+    }
+  }
+  return points
+}
+
 function tomTomResponse(incidents: unknown[]): Response {
   return new Response(JSON.stringify({ incidents }), {
     status: 200,
@@ -33,7 +50,7 @@ const closureIncident = {
   },
   geometry: {
     type: "LineString",
-    coordinates: [[-75.1, 40.18], [-75.11, 40.19]]
+    coordinates: [[-75.1977, 40.215475], [-75.2264, 40.22415]]
   }
 }
 
@@ -52,7 +69,20 @@ const jamIncident = {
   },
   geometry: {
     type: "Point",
-    coordinates: [-75.13, 40.2]
+    coordinates: [-75.1379, 40.1907]
+  }
+}
+
+const nearbyParallelRoadClosure = {
+  ...closureIncident,
+  properties: {
+    ...closureIncident.properties,
+    id: "parallel-road-closure",
+    events: [{ description: "Parallel road closed", iconCategory: "roadClosed" }]
+  },
+  geometry: {
+    type: "LineString",
+    coordinates: [[-75.134, 40.205], [-75.146, 40.211]]
   }
 }
 
@@ -88,6 +118,7 @@ describe("getTomTomRouteTraffic", () => {
 
       const headers = new Headers(init?.headers)
       expect(headers.get("TomTom-Api-Key")).toBe("secret-key")
+      expect(headers.get("TomTom-Api-Version")).toBe("2")
       expect(headers.get("Accept-Language")).toBe("en-US")
       expect(headers.get("Attributes")).toContain("delayInSeconds")
       return tomTomResponse([jamIncident, closureIncident])
@@ -110,11 +141,24 @@ describe("getTomTomRouteTraffic", () => {
     ]))
   })
 
+  it("filters bbox candidates against route geometry before claiming route traffic", async () => {
+    const fetcher = vi.fn(async () => tomTomResponse([
+      jamIncident,
+      nearbyParallelRoadClosure
+    ]))
+
+    const evidence = await getTomTomRouteTraffic(route, {
+      apiKey: "secret-key",
+      fetcher: fetcher as typeof fetch
+    })
+
+    expect(evidence.incidents.map((incident) => incident.id)).toEqual(["incident-jam"])
+    expect(evidence.hasClosure).toBe(false)
+    expect(evidence.totalDelaySeconds).toBe(480)
+  })
+
   it("deduplicates incidents returned from adjacent corridor boxes", async () => {
-    const longerRoute = Array.from({ length: 80 }, (_, index) => ({
-      lat: 39.8 + index * 0.01,
-      lon: -75.5 + index * 0.01
-    }))
+    const longerRoute = denseRoute()
     const fetcher = vi.fn(async () => tomTomResponse([jamIncident]))
 
     const evidence = await getTomTomRouteTraffic(longerRoute, {
@@ -145,10 +189,7 @@ describe("getTomTomRouteTraffic", () => {
   })
 
   it("marks partial provider coverage degraded and refuses to invent aggregate delay", async () => {
-    const longerRoute = Array.from({ length: 80 }, (_, index) => ({
-      lat: 39.8 + index * 0.01,
-      lon: -75.5 + index * 0.01
-    }))
+    const longerRoute = denseRoute()
     let call = 0
     const fetcher = vi.fn(async () => {
       call += 1
