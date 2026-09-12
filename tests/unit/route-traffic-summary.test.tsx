@@ -91,25 +91,27 @@ describe("RouteTrafficSummary", () => {
     expect(screen.getByText("1 reported incident")).toBeInTheDocument()
   })
 
-  it("does not call unknown traffic clear", async () => {
+  it("keeps unknown traffic out of route choice instead of calling it clear", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({
       ...clearEvidence,
       status: "unknown",
       totalDelaySeconds: null
     } satisfies RouteTrafficEvidence)))
 
-    render(<RouteTrafficSummary route={route("unknown")} />)
+    const { container } = render(<RouteTrafficSummary route={route("unknown")} />)
 
-    expect(await screen.findByText("Live traffic unavailable")).toBeInTheDocument()
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
     expect(screen.queryByText("No reported incidents on this route")).not.toBeInTheDocument()
+    expect(screen.queryByText("Live traffic unavailable")).not.toBeInTheDocument()
   })
 
-  it("treats request failures as unavailable rather than clear", async () => {
+  it("keeps request failures out of route choice rather than reserving dead space", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("down", { status: 503 })))
 
-    render(<RouteTrafficSummary route={route("failure")} />)
+    const { container } = render(<RouteTrafficSummary route={route("failure")} />)
 
-    expect(await screen.findByText("Live traffic unavailable")).toBeInTheDocument()
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(screen.queryByText("Live traffic unavailable")).not.toBeInTheDocument()
   })
 
   it("does not start a traffic request while the browser is offline", async () => {
