@@ -25,7 +25,7 @@ const baseFeature = {
 }
 
 describe("Gravel Atlas viewport features", () => {
-  it("queries only the requested viewport against the active graph fingerprint", async () => {
+  it("queries only the requested viewport against the active graph and source fingerprints", async () => {
     const queryBounds = vi.fn(() => [corridor])
 
     const result = await getGravelAtlasMapFeatures({
@@ -34,12 +34,14 @@ describe("Gravel Atlas viewport features", () => {
     }, {
       repository: { queryBounds },
       graphFingerprint: "graph-2026-09-11",
+      sourceFingerprint: "a".repeat(64),
       limit: 500
     })
 
     expect(queryBounds).toHaveBeenCalledWith({
       ...bounds,
       graphFingerprint: "graph-2026-09-11",
+      sourceFingerprint: "a".repeat(64),
       limit: 200
     })
     expect(result).toEqual({
