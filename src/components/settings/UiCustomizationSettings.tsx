@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, CaretDown, DotsSixVertical } from "@phosphor-icons/react"
 import { useState } from "react"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import { layerCatalog } from "@/lib/client/map-layers"
 import {
   defaultRiderUiPreferences,
@@ -104,7 +105,7 @@ export function UiCustomizationSettings({ value, onChange }: UiCustomizationSett
   )
 
   return (
-    <section className={styles.customize} aria-label="Customize Switchback">
+    <section className={styles.customize} aria-label={`Customize ${PRODUCT_BRAND.name}`}>
       <header className={styles.heading}>
         <div>
           <span>Curated controls</span>
@@ -127,7 +128,7 @@ export function UiCustomizationSettings({ value, onChange }: UiCustomizationSett
         <div id="ui-customization-controls" className={styles.controls}>
           <div className={styles.resetRow}>
             <button className={styles.resetButton} type="button" onClick={() => onChange(defaultRiderUiPreferences())}>
-              Reset to Switchback defaults
+              Reset to {PRODUCT_BRAND.name} defaults
             </button>
           </div>
 

@@ -1,7 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Switchback">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OpenGravel">
   <rect width="512" height="512" rx="112" fill="#0B0E0D"/>
   <rect x="22" y="22" width="468" height="468" rx="94" fill="none" stroke="#343B37" stroke-width="10"/>
-  <path d="M128 373c0-61 38-93 112-93h36c44 0 68-17 68-50 0-34-24-51-72-51H152" fill="none" stroke="#F3EFE6" stroke-width="42" stroke-linecap="round"/>
-  <path d="m156 132-49 47 49 47" fill="none" stroke="#F36A2D" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="128" cy="373" r="24" fill="#F36A2D"/>
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#68716B" stroke-width="14"/>
+  <path d="M119 287 190 202l47 45 52-68 106 111" fill="none" stroke="#F3EFE6" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M125 323 205 254l45 37 57-56 81 87" fill="none" stroke="#A6ADA6" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M219 421c2-50 111-57 101-104-7-34-58-27-49-65 5-23 23-40 53-56" fill="none" stroke="#F3EFE6" stroke-width="30" stroke-linecap="round"/>
+  <path d="m359 116 35 62-72 3Z" fill="#F36A2D"/>
 </svg>
