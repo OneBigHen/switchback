@@ -20,6 +20,9 @@ data/*.sqlite-shm
 data/*.db-wal
 data/*.db-shm
 data/*.pbf
+# Generated Gravel Atlas reconciliation payloads contain source-derived geometry.
+data/gravel-atlas-graph.json
+data/gravel-atlas-verified.json
 *.sqlite-wal
 *.sqlite-shm
 data/graph-cache
