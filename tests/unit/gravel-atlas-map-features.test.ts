@@ -6,13 +6,6 @@ import {
 
 const bounds = { west: -75.4, south: 40.0, east: -74.7, north: 40.7 }
 
-const buildMetadata = {
-  schemaVersion: 1,
-  sourceFingerprint: "a".repeat(64),
-  graphFingerprint: "graph-2026-09-11",
-  corridorCount: 43
-}
-
 const corridor = {
   id: "corridor-1",
   label: "Ridge gravel",
@@ -39,7 +32,7 @@ describe("Gravel Atlas viewport features", () => {
       bounds,
       layers: ["gravel-atlas"]
     }, {
-      repository: { queryBounds, readBuildMetadata: () => buildMetadata },
+      repository: { queryBounds },
       graphFingerprint: "graph-2026-09-11",
       sourceFingerprint: "a".repeat(64),
       limit: 500
@@ -73,7 +66,7 @@ describe("Gravel Atlas viewport features", () => {
   it("does not query the Atlas when the map layer was not requested", async () => {
     const queryBounds = vi.fn(() => [corridor])
     const result = await getGravelAtlasMapFeatures({ bounds, layers: ["fuel"] }, {
-      repository: { queryBounds, readBuildMetadata: () => buildMetadata },
+      repository: { queryBounds },
       graphFingerprint: "graph-2026-09-11"
     })
 
@@ -132,39 +125,37 @@ describe("Gravel Atlas viewport features", () => {
     expect(result.unavailable).toEqual(["gravel-atlas"])
   })
 
-  it("fails closed when the runtime build does not match the configured graph fingerprint", async () => {
-    const queryBounds = vi.fn(() => [])
+  it("propagates repository graph-build mismatches so Atlas is not misreported as empty", async () => {
+    const queryBounds = vi.fn(() => {
+      throw new Error("Gravel Atlas runtime database does not match the configured graph fingerprint")
+    })
 
     await expect(getGravelAtlasMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
-      repository: {
-        queryBounds,
-        readBuildMetadata: () => ({ ...buildMetadata, graphFingerprint: "graph-older" })
-      },
+      repository: { queryBounds },
       graphFingerprint: "graph-2026-09-11",
       sourceFingerprint: "a".repeat(64)
     })).rejects.toThrow(/does not match the configured graph fingerprint/)
 
-    expect(queryBounds).not.toHaveBeenCalled()
+    expect(queryBounds).toHaveBeenCalledOnce()
   })
 
-  it("fails closed when only the source snapshot fingerprint drifted", async () => {
-    const queryBounds = vi.fn(() => [])
+  it("propagates repository source-build mismatches so Atlas is not misreported as empty", async () => {
+    const queryBounds = vi.fn(() => {
+      throw new Error("Gravel Atlas runtime database does not match the configured source fingerprint")
+    })
 
     await expect(getGravelAtlasMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
-      repository: {
-        queryBounds,
-        readBuildMetadata: () => ({ ...buildMetadata, sourceFingerprint: "b".repeat(64) })
-      },
+      repository: { queryBounds },
       graphFingerprint: "graph-2026-09-11",
       sourceFingerprint: "a".repeat(64)
     })).rejects.toThrow(/does not match the configured source fingerprint/)
 
-    expect(queryBounds).not.toHaveBeenCalled()
+    expect(queryBounds).toHaveBeenCalledOnce()
   })
 
   it("still reports a genuinely empty viewport as empty rather than unavailable", async () => {
     const result = await getGravelAtlasMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
-      repository: { queryBounds: () => [], readBuildMetadata: () => buildMetadata },
+      repository: { queryBounds: () => [] },
       graphFingerprint: "graph-2026-09-11",
       sourceFingerprint: "a".repeat(64)
     })
@@ -177,8 +168,9 @@ describe("Gravel Atlas viewport features", () => {
       baseProvider: vi.fn(),
       atlasProvider: (request) => getGravelAtlasMapFeatures(request, {
         repository: {
-          queryBounds: () => [],
-          readBuildMetadata: () => ({ ...buildMetadata, sourceFingerprint: "c".repeat(64) })
+          queryBounds: () => {
+            throw new Error("Gravel Atlas runtime database does not match the configured source fingerprint")
+          }
         },
         graphFingerprint: "graph-2026-09-11",
         sourceFingerprint: "a".repeat(64),
