@@ -14,6 +14,13 @@ const adaptive = readFileSync(resolve(process.cwd(), "src/app/styles/adaptive-wo
 const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8")
 const tokens = readFileSync(resolve(process.cwd(), "src/app/styles/tokens.css"), "utf8")
 
+function readRule(css: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const match = css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`))
+  if (!match) throw new Error(`${selector} must have an adaptive workspace rule`)
+  return match[1]
+}
+
 /**
  * Structural guard for issue #115's first real Medium workspace topology.
  * Behavioral geometry still belongs in tests/e2e/adaptive-workspace.spec.ts;
@@ -27,6 +34,18 @@ describe("adaptive Medium workspace CSS contract", () => {
     expect(adaptive).toContain("--sb-medium-map-safe-left:")
     expect(adaptive).toContain("width: var(--sb-medium-planner-width);")
     expect(adaptive).toContain("left: var(--sb-medium-map-safe-left);")
+  })
+
+  it("keeps Medium map notices and point-placement affordance inside the live-map budget", () => {
+    const statusRule = readRule(adaptive, ".map-layer-status-stack")
+    expect(statusRule).toContain("left: var(--sb-medium-map-safe-left);")
+    expect(statusRule).toContain("right: 0;")
+    expect(statusRule).toContain("transform: none;")
+
+    const crosshairRule = readRule(adaptive, ".map-crosshair")
+    expect(crosshairRule).toContain("left: var(--sb-medium-map-safe-left);")
+    expect(crosshairRule).toContain("right: 0;")
+    expect(crosshairRule).toContain("transform: translateY(-50%);")
   })
 
   it("moves Medium portrait navigation out of the map/planner side-by-side budget", () => {
