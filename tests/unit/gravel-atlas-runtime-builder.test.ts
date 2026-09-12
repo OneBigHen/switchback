@@ -130,4 +130,20 @@ describe("Gravel Atlas runtime database builder", () => {
     })).toThrow(/source feature/i)
     expect(readFileSync(databasePath)).toEqual(before)
   })
+
+  it("rejects a runtime build produced under a stale traversability policy", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "switchback-gravel-runtime-"))
+    directories.push(directory)
+    const staged = stage(directory)
+    const databasePath = path.join(directory, "gravel-atlas.sqlite")
+    const staleOptions = {
+      stagingDatabasePath: staged.databasePath,
+      databasePath,
+      graphFingerprint: "graph-v1",
+      corridors: [corridor()],
+      traversabilityPolicyVersion: 1
+    } as Parameters<typeof buildGravelAtlasRuntimeDatabase>[0] & { traversabilityPolicyVersion: number }
+
+    expect(() => buildGravelAtlasRuntimeDatabase(staleOptions)).toThrow(/traversability policy/i)
+  })
 })
