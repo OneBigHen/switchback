@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  calculateMapViewportInsets,
   calculateNavigationFollowInsets
 } from "@/components/planner/workspace/map-viewport-insets"
 import {
@@ -20,5 +21,16 @@ describe("workspace camera boundary authority", () => {
     expect(resolveWorkspaceMode(width)).toBe("medium")
     expect(calculateNavigationFollowInsets({ viewportWidthPx: width, viewportHeightPx: 900 }))
       .toEqual({ top: 150, right: 88, bottom: 100, left: 430 })
+  })
+
+  it("reserves the persistent medium planning panel immediately above the compact ceiling", () => {
+    for (const width of [WORKSPACE_COMPACT_MAX_WIDTH_PX + 1, 799]) {
+      expect(resolveWorkspaceMode(width)).toBe("medium")
+      expect(calculateMapViewportInsets({
+        viewportWidthPx: width,
+        viewportHeightPx: 900,
+        mode: "planning"
+      })).toEqual({ top: 80, right: 70, bottom: 80, left: 500 })
+    }
   })
 })
