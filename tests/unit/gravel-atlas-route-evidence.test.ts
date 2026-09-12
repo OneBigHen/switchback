@@ -37,6 +37,16 @@ describe("Gravel Atlas returned-route evidence", () => {
     expect(evidence.matchedCorridorCount).toBe(0)
   })
 
+  it("does not count a same-direction road roughly 30 m beside the verified corridor", () => {
+    const route: [number, number][] = [[-75.4, 40], [-75.2, 40]]
+    const parallel: [number, number][] = [[-75.4, 40.00027], [-75.2, 40.00027]]
+    const evidence = calculateGravelAtlasRouteEvidence(route, [corridor("near-parallel", parallel)])
+
+    expect(evidence.matchedMeters).toBe(0)
+    expect(evidence.sharePercent).toBe(0)
+    expect(evidence.matchedCorridorCount).toBe(0)
+  })
+
   it("reports partial and longest-contiguous overlap rather than treating any hit as all-gravel", () => {
     const route: [number, number][] = [[-75.4, 40], [-75.3, 40], [-75.2, 40], [-75.1, 40]]
     const gravel: [number, number][] = [[-75.4, 40], [-75.3, 40], [-75.2, 40]]

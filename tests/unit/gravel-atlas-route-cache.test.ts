@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest"
 import { routeCacheKey } from "@/lib/server/route-cache"
 import type { RouteRequest } from "@/lib/routing/types"
 
+interface AtlasCacheNamespace {
+  gravelAtlasGraphFingerprint?: string | null
+  gravelAtlasSourceFingerprint?: string | null
+}
+
+const namespacedRouteCacheKey = routeCacheKey as unknown as (
+  request: RouteRequest,
+  namespace?: AtlasCacheNamespace
+) => string
+
 function request(gravelAtlas?: RouteRequest["gravelAtlas"]): RouteRequest {
   return {
     profile: "gravel",
@@ -34,5 +44,43 @@ describe("routeCacheKey gravel atlas semantics", () => {
     expect(routeCacheKey(request())).toBe(
       routeCacheKey(request({ enabled: false, intensity: "maximum" }))
     )
+  })
+
+  it("changes an Atlas-enabled key when the active graph build changes", () => {
+    const enabled = request({ enabled: true, intensity: "balanced" })
+    const source = "source-a"
+
+    expect(namespacedRouteCacheKey(enabled, {
+      gravelAtlasGraphFingerprint: "graph-a",
+      gravelAtlasSourceFingerprint: source
+    })).not.toBe(namespacedRouteCacheKey(enabled, {
+      gravelAtlasGraphFingerprint: "graph-b",
+      gravelAtlasSourceFingerprint: source
+    }))
+  })
+
+  it("changes an Atlas-enabled key when the official-source snapshot changes", () => {
+    const enabled = request({ enabled: true, intensity: "balanced" })
+    const graph = "graph-a"
+
+    expect(namespacedRouteCacheKey(enabled, {
+      gravelAtlasGraphFingerprint: graph,
+      gravelAtlasSourceFingerprint: "source-a"
+    })).not.toBe(namespacedRouteCacheKey(enabled, {
+      gravelAtlasGraphFingerprint: graph,
+      gravelAtlasSourceFingerprint: "source-b"
+    }))
+  })
+
+  it("does not churn Atlas-disabled cache entries when Atlas builds change", () => {
+    const disabled = request()
+
+    expect(namespacedRouteCacheKey(disabled, {
+      gravelAtlasGraphFingerprint: "graph-a",
+      gravelAtlasSourceFingerprint: "source-a"
+    })).toBe(namespacedRouteCacheKey(disabled, {
+      gravelAtlasGraphFingerprint: "graph-b",
+      gravelAtlasSourceFingerprint: "source-b"
+    }))
   })
 })

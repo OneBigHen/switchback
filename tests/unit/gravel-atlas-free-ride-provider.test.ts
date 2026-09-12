@@ -102,4 +102,26 @@ describe("Free Ride Gravel Atlas attraction", () => {
     expect(result.routes[0]?.id).toBe("seed-loop")
     expect(result.routes[0]?.gravelAtlasEvidence?.matchedMeters).toBe(0)
   })
+
+  it("propagates cancellation raised while routing a shaped Free Ride candidate", async () => {
+    const controller = new AbortController()
+    const cancellation = new Error("cancelled in base provider")
+    let calls = 0
+    const base = vi.fn(async () => {
+      calls += 1
+      if (calls === 1) {
+        return {
+          engine: "graphhopper" as const,
+          engineVersion: "test",
+          routes: [route("seed-loop", 60, directLoop)]
+        }
+      }
+      controller.abort()
+      throw cancellation
+    })
+    const provider = createGravelAtlasAwareProvider(base, async () => sources())
+
+    await expect(provider(request, { signal: controller.signal })).rejects.toBe(cancellation)
+    expect(base).toHaveBeenCalledTimes(2)
+  })
 })
