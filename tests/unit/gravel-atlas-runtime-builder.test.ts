@@ -49,6 +49,7 @@ function corridor() {
     fragmentCount: 1,
     confidence: 0.94,
     verification: "routable" as const,
+    canonicalSegmentIds: ["segment-uid-1"],
     sourceFeatureRefs: [{ sourceId: "njgin-ng911" as const, sourceFeatureId: "nj-1" }]
   }
 }
