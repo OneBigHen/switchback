@@ -41,14 +41,14 @@ export function riderFeatureLayerIds(id: RiderLayerId): string[] {
   return [`switchback-${id}-fill`, `switchback-${id}-lines`, `switchback-${id}-points`]
 }
 
-
 function riderLayerColor(id: RiderLayerId): string {
   switch (id) {
     case "public-land":
     case "mvum":
     case "camping": return "#3D8B55"
     case "private-land":
-    case "closures": return "#C84432"
+    case "closures":
+    case "live-traffic": return "#C84432"
     case "road-controls":
     case "fuel":
     case "food": return "#E39D2D"
