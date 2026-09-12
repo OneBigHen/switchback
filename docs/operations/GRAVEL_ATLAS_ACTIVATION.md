@@ -1,18 +1,43 @@
 # Gravel Atlas activation, validation, and rollback
 
-This runbook activates SwitchBack's Gravel Atlas against real PA/NJ data after the code has passed CI. It is intentionally stricter than a normal application deploy because the runtime database is derived from external surface evidence and must match the exact active motorcycle routing graph.
+This runbook activates SwitchBack's Gravel Atlas against real PA/NJ data after code and
+release checks pass. The Atlas is derived from external surface evidence and must match
+the exact routing graph **and** the exact traversability policy used to verify it.
 
 ## Safety model
 
-The live GraphHopper motorcycle graph remains authoritative for route connectivity and access. Gravel Atlas contributes source-backed surface evidence and bounded shaping candidates only. A candidate must still route successfully through the normal provider and prove actual returned-route overlap before it may replace the baseline route.
+The live GraphHopper motorcycle graph remains authoritative for route connectivity and
+access. Gravel Atlas contributes source-backed surface evidence and bounded shaping
+candidates only. A candidate must still route through the normal provider and prove
+returned-route overlap before it may replace the baseline.
 
-Runtime Atlas reads fail closed unless both the source fingerprint and active graph fingerprint match the runtime database. Missing, malformed, stale, or unavailable Atlas data must not break ordinary routing.
+The current release contract is **traversability policy v2** and **runtime schema v2**.
+Runtime reads fail closed unless the database metadata identifies the current schema,
+policy, source fingerprint, and routing-graph fingerprint. Matching corridor rows alone
+are not sufficient. Missing, malformed, stale, partially configured, or unavailable
+Atlas data must leave ordinary routing functional.
 
-PASDA's 2012 Pennsylvania unpaved-road source has reproduction/redistribution restrictions. The `--accept-pasda-terms` flag is an explicit operator acknowledgement gate; it is **not** a license grant. Do not ingest or deploy the PASDA source unless the operator has independently confirmed that the intended use is authorized. NJGIN can be activated independently.
+Policy v2 publishes a reconciled corridor only when the running GraphHopper service
+returns a non-degenerate endpoint-to-endpoint route satisfying all of these constraints:
+
+- endpoint snap <= **60 m**;
+- corridor/route match radius **20 m**;
+- aligned corridor coverage >= **80%**;
+- one continuous matching run >= **60%** of the corridor;
+- direction agreement >= **85%** of proximity hits; and
+- route/corridor detour ratio <= **1.5x**.
+
+Do not reuse a pre-policy-v2 `gravel-atlas.sqlite` or an old
+`gravel-atlas-verified-traversable.json`. A verifier-policy change requires regeneration.
+
+PASDA's 2012 Pennsylvania unpaved-road source has reproduction/redistribution
+restrictions. `--accept-pasda-terms` is an operator acknowledgement gate, **not a license
+grant**. Do not ingest or deploy that source until production use has been independently
+authorized. NJGIN can be activated independently.
 
 ## 1. Reconcile the repository first
 
-Do not operate from a pasted SHA or handoff summary.
+Never operate from a pasted SHA or handoff summary without reconciling GitHub first.
 
 ```bash
 cd /root/Vibe/switchback
@@ -20,10 +45,11 @@ git status --short
 git fetch origin --prune
 git rev-parse origin/main
 git rev-parse origin/feat/pa-gravel-atlas-routing
-git log --oneline --decorate -12 origin/feat/pa-gravel-atlas-routing
+git log --oneline --decorate -15 origin/feat/pa-gravel-atlas-routing
 ```
 
-Confirm PR #123 still points at the expected branch and that GitHub required checks are green for the exact head you intend to deploy. Do not continue with an uncommitted working tree or a superseded branch head.
+Confirm PR #123 still points to that branch, the worktree is clean, and you are not about
+to operate on a superseded head.
 
 ## 2. Verify the code baseline
 
@@ -32,20 +58,24 @@ npm ci
 npm run verify
 ```
 
-Also require the repository's browser/release checks for the exact PR head, including `critical-e2e`, `pwa`, `road-lock`, `real-router`, `visual`, and Mobile Core. Do not substitute an older green SHA.
+Also require the repository's browser/release checks on the exact final head, including
+critical rider journeys, PWA, road-lock, real-router, visual, and Mobile Core. Never
+substitute an older green SHA.
 
-## 3. Ensure the active GraphHopper cache is fingerprinted and current
+## 3. Prove the active GraphHopper build
 
-Bootstrap the exact PA+NJ routing inputs first:
+Bootstrap the exact routing inputs and verify the active cache stamp:
 
 ```bash
 npm run data:bootstrap
 npm run routing:fingerprint
 ```
 
-If `routing:fingerprint` succeeds, the active cache stamp matches the current prepared `data/pa-nj-motorcycle.osm.pbf`, GraphHopper binary, canonical config, and sorted custom models.
+The fingerprint must describe the current prepared OSM PBF, GraphHopper binary, canonical
+config, and sorted custom models.
 
-If it reports an unstamped or stale graph, build and validate a side-by-side candidate rather than replacing the active cache in place:
+If the graph is unstamped or stale, build and validate a side-by-side candidate rather
+than replacing the active cache in place:
 
 ```bash
 NAME="gravel-atlas-$(date +%Y%m%d-%H%M%S)"
@@ -53,23 +83,17 @@ scripts/graphhopper.sh import-candidate "$NAME"
 scripts/graphhopper.sh validate-candidate "$NAME"
 ```
 
-Stop the production GraphHopper service with the host's normal service mechanism, then:
+Stop the production GraphHopper service with the host's normal service mechanism, swap
+the validated cache, restart, verify health and all motorcycle profiles, then rerun:
 
 ```bash
 scripts/graphhopper.sh swap "$NAME"
-```
-
-Restart GraphHopper, verify its health and all four motorcycle profiles, then prove the active cache stamp again:
-
-```bash
 npm run routing:fingerprint
 ```
 
-Keep `data/graph-cache-rollback-$NAME` until the entire application release has passed post-deploy checks.
+Keep `data/graph-cache-rollback-$NAME` until post-deploy validation is complete.
 
 ## 4. Back up the current Atlas runtime database
-
-Before replacing a live Atlas database, preserve the previous file outside the active pathname. For example:
 
 ```bash
 mkdir -p data/gravel-atlas-backups
@@ -79,25 +103,44 @@ if [ -f data/gravel-atlas.sqlite ]; then
 fi
 ```
 
-The builders use temporary files and atomic renames, but this backup is still required for operational rollback.
+Builders use temporary files and atomic renames, but the explicit backup is still required
+for operational rollback.
 
-## 5. Build official source evidence
+## 5. Regenerate official evidence with the current verifier
 
 ### NJ-only activation
-
-NJGIN does not require the PASDA acknowledgement gate. The supported one-command path is:
 
 ```bash
 npm run gravel-atlas:refresh:nj
 ```
 
-That command performs source snapshot/staging, bounded canonical graph export, conservative reconciliation, end-to-end traversability verification against the running router, and runtime SQLite construction. Capture its output, including accepted source rows, source fingerprint, graph fingerprint, retained canonical segment count, reconciled corridor count, traversability quarantine count, and total quarantine count.
+This is the supported path. It performs source snapshot/staging, canonical graph export,
+conservative reconciliation, policy-v2 live-router traversability verification, and then
+runtime SQLite construction from `data/gravel-atlas-verified-traversable.json`.
 
-Reconciliation proves corridor membership per OSM segment. `gravel-atlas:verify-routability` then asks the running GraphHopper service to ride each retained corridor end to end and measures how much of the corridor that route actually follows. Corridors the built graph cannot carry are quarantined with their measured reason and stay out of the runtime database, so "routable" in the runtime atlas means the active graph can actually traverse the corridor. This step requires the GraphHopper service to be running and reachable (`GRAPHHOPPER_URL`, default `http://127.0.0.1:8989`); if the service is unavailable the refresh fails closed instead of publishing unverified corridors.
+A current release report must capture the fresh results rather than reusing the historical
+September 11 diagnostic counts. Record:
+
+- traversability policy version (**2**) and runtime schema version (**2**);
+- source and source-snapshot fingerprints;
+- active graph fingerprint;
+- source fetched / accepted / rejected / duplicate counts;
+- canonical segment count and reconciled corridor count;
+- policy-v2 published and refused counts;
+- quarantine totals grouped by reason;
+- accepted aligned coverage: minimum, p5, median, mean;
+- minimum accepted continuous coverage;
+- minimum accepted direction agreement;
+- maximum accepted detour ratio; and
+- worst accepted endpoint snap.
+
+If GraphHopper is unreachable, verification must fail closed and no new runtime database
+may be published. If materially more corridors are refused under policy v2, investigate
+the evidence; do not weaken the gate just to reproduce the historical 38-corridor result.
 
 ### PA + NJ activation
 
-Only use this path after authorization for the PASDA source has been established outside this script:
+Use only after PASDA authorization has independently been established:
 
 ```bash
 npm run gravel-atlas:sources -- \
@@ -109,84 +152,110 @@ npm run gravel-atlas:verify-routability
 npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified-traversable.json
 ```
 
-Do not treat `--accept-pasda-terms` as permission. If authorization is uncertain, activate NJ only and report PA as intentionally unavailable.
+Do not treat `--accept-pasda-terms` as permission. If authorization is uncertain, keep PA
+unavailable.
 
-Generated SQLite, PBF, graph-cache, `data/gravel-atlas-graph.json`, `data/gravel-atlas-verified.json`, `data/gravel-atlas-verified-traversable.json`, and `data/gravel-atlas-traversability.json` artifacts are runtime/build products and must not be committed.
+Generated SQLite, PBF, graph-cache, reconciliation JSON, traversability JSON, and report
+artifacts are runtime/build products and must not be committed.
 
-## 6. Configure the application runtime
+## 6. Verify runtime database identity before activation
 
-`gravel-atlas:runtime` prints the exact values required by the application. Configure all three together:
+Inspect the generated SQLite metadata and prove it reports:
+
+- runtime schema version 2;
+- traversability policy version 2;
+- the fresh source fingerprint;
+- the active graph fingerprint; and
+- the freshly generated corridor count.
+
+Any older schema/policy database is stale even if its row fingerprints happen to match.
+
+## 7. Configure the application runtime atomically
+
+Configure **all three** variables together using values printed by the runtime builder:
 
 ```text
 GRAVEL_ATLAS_DB_PATH=<absolute path to data/gravel-atlas.sqlite>
-GRAVEL_ATLAS_GRAPH_FINGERPRINT=<builder output>
-GRAVEL_ATLAS_SOURCE_FINGERPRINT=<builder output>
+GRAVEL_ATLAS_GRAPH_FINGERPRINT=<fresh builder output>
+GRAVEL_ATLAS_SOURCE_FINGERPRINT=<fresh builder output>
 ```
 
-Restart/redeploy SwitchBack so the route API and map-feature API receive the same database path and fingerprints. Never update only one fingerprint.
+The Atlas is considered configured only when the complete triad is present. There must be
+no implicit fallback to a default database path when the path variable is absent. An
+incomplete triad must disable Atlas influence while ordinary routing remains healthy.
 
-## 7. Validate the real runtime data
+Restart/redeploy SwitchBack so route and map-feature APIs receive the same configuration.
+Never rotate one fingerprint independently.
 
-Select validation cases from the runtime Atlas itself rather than inventing arbitrary test roads. Query several high-confidence corridors in each activated state/region, then build rides whose start/finish envelopes genuinely intersect those corridors.
+## 8. Validate real runtime behavior
 
-For each representative ride, compare Atlas OFF against Balanced, More, and Maximum using Adventure or Gravel. Record:
+Choose cases from corridors actually present in the freshly generated policy-v2 database.
+For each representative ride compare Atlas OFF, Balanced, More, and Maximum using
+Adventure or Gravel. Record route distance/duration, actual returned-route matched Atlas
+distance, longest continuous run, candidate provenance, detour ratio, and whether rejected
+candidates were rejected for the expected reason.
 
-- baseline and selected route distance/duration;
-- actual returned-route Atlas matched distance;
-- longest continuous Atlas run;
-- candidate source/provenance;
-- detour ratio versus baseline;
-- whether a candidate was correctly rejected when it did not improve real overlap.
+At minimum prove:
 
-At minimum prove all of the following:
+1. An A-to-B route where Atlas produces a useful bounded improvement.
+2. A Free Ride/round-trip where Atlas can attract toward a verified corridor without
+   violating the duration tolerance.
+3. A route where Atlas correctly makes no change.
+4. Incompatible profiles ignore Atlas.
+5. Hiding `Known gravel roads` changes only map visibility; it does not disable an enabled
+   `Favor known gravel` routing preference.
+6. Enabling `Favor known gravel` can affect candidate generation even with the layer hidden.
+7. Map requests remain viewport-bounded.
+8. A deliberately wrong source fingerprint makes Atlas unavailable/inert while ordinary
+   routing succeeds.
+9. A deliberately wrong graph fingerprint does the same.
+10. A missing `GRAVEL_ATLAS_DB_PATH` with the two fingerprints present does **not** activate
+    route attraction.
+11. Stale schema/policy metadata cannot be bypassed by matching corridor-row fingerprints.
+12. Private/no-access or otherwise unroutable evidence cannot force a route.
+13. Cancellation/request fencing still terminates Atlas shaping rather than returning a
+    stale baseline result after an aborted request.
 
-1. An A-to-B route where Atlas produces a useful, bounded gravel improvement.
-2. A Free Ride/round-trip case where Atlas can attract toward a verified corridor without violating duration tolerance.
-3. A case where Atlas correctly makes no change because useful evidence is absent or the detour is unreasonable.
-4. Atlas is unavailable/fail-closed for incompatible routing profiles.
-5. `Known gravel roads` layer visibility changes only the map; hiding it does not disable an enabled routing preference.
-6. Enabling `Favor known gravel` can change candidate generation even when the layer is hidden.
-7. Map requests are viewport bounded and do not ship statewide source geometry to the browser.
-8. A deliberately wrong source fingerprint returns no Atlas evidence while ordinary routing still succeeds.
-9. A deliberately wrong graph fingerprint returns no Atlas evidence while ordinary routing still succeeds.
-10. Private/no-access or otherwise unroutable graph evidence cannot force a route.
-
-The canonical exporter derives stable OSM-directed segments from the exact prepared PBF and the hard motorcycle routing rules used for the GraphHopper build. It does not introspect every internal GraphHopper edge after import. Therefore, sample representative retained corridors against the running GraphHopper service. If meaningful discrepancies appear because of parser/subnetwork/import behavior, strengthen reconciliation before release rather than weakening the fingerprint gate.
-
-## 8. Application and UI smoke test
+## 9. Application and UI smoke test
 
 On desktop and a real phone-sized viewport verify:
 
-- `Favor known gravel` appears only where appropriate and offers Balanced / More / Maximum;
-- the quick `Known gravel roads` layer can be toggled independently;
+- `Favor known gravel` appears only for compatible ride profiles and offers Balanced /
+  More / Maximum;
+- `Known gravel roads` can be toggled independently;
 - tan dashed rendering is legible without obscuring the selected route;
-- layer loading/empty/error states are understandable;
-- legacy saved map settings/map packs migrate without breaking the planner;
-- planning remains normal with Atlas disabled or runtime data absent.
+- loading / empty / unavailable states are distinct and understandable;
+- legacy saved settings/map packs still migrate; and
+- ordinary planning remains healthy with Atlas disabled, absent, stale, or incompletely
+  configured.
 
-Run the repository release gates again against the exact final code head after any activation-related code change.
-
-## 9. Rollback
+## 10. Rollback
 
 If Atlas behavior is bad but the base app/router is healthy:
 
-1. restore the previous `gravel-atlas.sqlite` backup or remove the Atlas runtime environment variables;
+1. restore the previous `gravel-atlas.sqlite` backup or remove the Atlas runtime triad;
 2. restart SwitchBack;
-3. verify ordinary routing and map features are healthy.
+3. verify ordinary routing and map features.
 
-If the new GraphHopper build is the problem, stop GraphHopper and restore the preserved `data/graph-cache-rollback-<name>` cache using the host's normal graph-cache rollback procedure, then restart and re-run health/profile checks plus `npm run routing:fingerprint` against the restored routing inputs.
+If the GraphHopper build is the problem, restore the preserved
+`data/graph-cache-rollback-<name>` using the host's graph-cache rollback procedure, then
+restart and rerun health/profile checks and `npm run routing:fingerprint`.
 
-Do not delete rollback assets until post-merge production validation is complete.
+Keep rollback assets until post-release validation is complete.
 
-## 10. Merge gate
+## 11. PR and merge gate
 
-PR #123 may leave draft status only after real-data activation has been validated and documented. Before merge:
+PR #123 must remain draft until current policy-v2 real-data activation has been regenerated,
+validated, and documented. Before it may leave draft status:
 
-- reconcile `origin/main`, PR head, and local checkout again;
-- ensure generated data, secrets, and environment files are absent from the diff;
-- require every protected check to be green for the exact current PR head;
-- add the activated source scope (`NJ-only` or authorized `PA+NJ`), fingerprints, corridor/quarantine counts, and real-route validation evidence to the PR;
-- review the complete PR diff for unrelated changes;
-- merge with the repository's normal policy using the expected head SHA so a moving branch cannot be merged accidentally.
+- reconcile `origin/main`, PR head, and the host checkout again;
+- prove generated data, secrets, and environment files are absent from the diff;
+- replace historical pre-v2 counts in the PR's active-status section with the **fresh**
+  policy-v2 fingerprints/counts/distributions;
+- record representative current OFF/Balanced/More/Maximum and Free Ride evidence;
+- require every protected check and Mobile Core to be green on the exact current head; and
+- request independent code review / CodeRabbit and resolve Critical and Important findings.
 
-After merge, fetch `origin/main`, prove it contains PR #123, deploy through the normal SwitchBack release path, and repeat the production smoke/Atlas OFF-vs-ON checks. Roll back rather than patching production blindly if the post-merge validation fails.
+Do **not merge PR #123 without explicit owner authorization**, even after all gates are green.
+If merge is later authorized, use the expected PR head SHA so a moving branch cannot be
+merged accidentally, then repeat post-deploy production validation.
