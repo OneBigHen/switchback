@@ -205,7 +205,7 @@
 .maplibregl-map,
 .mapboxgl-map,
 /* Mapbox GL JS v3 does not stamp a class on the map container, so the map
-   font is anchored to Switchback's own container element as well. */
+   font is anchored to OpenGravel's own container element as well. */
 .map-canvas {
   font-family: var(--font-body);
 }

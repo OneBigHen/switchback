@@ -96,7 +96,7 @@ fi
     rmSync(legacyRoot, { recursive: true, force: true })
   })
 
-  it("accepts the legacy root only when Switchback state exists", () => {
+  it("accepts the legacy root only when OpenGravel state exists", () => {
     const legacyRoot = mkdtempSync(join(tmpdir(), "switchback-legacy-"))
     mkdirSync(join(legacyRoot, "app"))
     writeFileSync(join(legacyRoot, "app", "community.sqlite"), "sqlite")
@@ -112,7 +112,7 @@ fi
     const result = runResolver({ legacyRoot, docker: "exit 1" })
 
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain("Unable to resolve Switchback data root")
+    expect(result.stderr).toContain("Unable to resolve OpenGravel data root")
     rmSync(legacyRoot, { recursive: true, force: true })
   })
 
@@ -144,7 +144,7 @@ fi
     })
 
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain("Refusing unsafe Switchback data root")
+    expect(result.stderr).toContain("Refusing unsafe OpenGravel data root")
     expect(result.stdout).not.toContain("Restore target:")
     rmSync(backup, { recursive: true, force: true })
   })

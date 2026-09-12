@@ -78,7 +78,7 @@ function readMapMetrics(): Pick<RuntimeDiagnostics, "mapSourceCount" | "mapLayer
   }
 }
 
-/** Read values owned by Switchback; browser APIs are added by the async collector. */
+/** Read values owned by OpenGravel; browser APIs are added by the async collector. */
 export function readTrackedRuntimeDiagnostics(): RuntimeDiagnostics {
   const map = readMapMetrics()
   return {

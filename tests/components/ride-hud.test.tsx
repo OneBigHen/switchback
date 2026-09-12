@@ -262,7 +262,7 @@ describe("ride HUD GPS safety", () => {
     Object.defineProperty(window, "isSecureContext", { configurable: true, value: false })
     render(<RideHud route={route} onExit={vi.fn()} />)
 
-    expect(await screen.findByText("Open Switchback over HTTPS to use live guidance."))
+    expect(await screen.findByText("Open OpenGravel over HTTPS to use live guidance."))
       .toBeInTheDocument()
     expect(startRideSession).not.toHaveBeenCalled()
     expect(screen.getByText("Route preview")).toBeInTheDocument()

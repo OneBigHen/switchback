@@ -348,7 +348,7 @@ export function createSyncController(options: SyncControllerOptions = {}) {
 
   async function sync(): Promise<SyncRunResult> {
     const state = await ensureState()
-    if (!state.linked) throw new Error("Link this device with your Switchback ID before syncing.")
+    if (!state.linked) throw new Error("Link this device with your OpenGravel ID before syncing.")
     await captureLocalChanges(state)
     let pushed = await pushOutbox()
     const pulled = await pullRemote(state)

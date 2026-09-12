@@ -171,7 +171,7 @@ export function riderLayerConfidence(definition: RiderLayerDefinition): string {
 export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
     id: "curvature", name: "Great roads", category: "roads", status: "live",
-    source: "Switchback road-shape analysis",
+    source: "OpenGravel road-shape analysis",
     provenance: "Computed heuristically from OpenStreetMap road geometry using bend-density scoring. Approximate — not ground-truthed.",
     dataCategory: "road-geometry",
     freshness: "Computed from local road geometry", coverage: "Current routing region",

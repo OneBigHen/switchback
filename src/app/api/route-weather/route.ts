@@ -5,7 +5,7 @@ import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-const DEFAULT_USER_AGENT = "Switchback/0.1 (self-hosted motorcycle route planner)"
+const DEFAULT_USER_AGENT = "OpenGravel/0.1 (self-hosted motorcycle route planner)"
 
 // Each request fans out to up to nine NWS calls; the limiter protects the
 // server's NWS standing and bandwidth on a public instance.

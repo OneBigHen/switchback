@@ -32,6 +32,7 @@ export function SettingsSurface({ settings, onChangeBike, onEditBike, children }
       <DestinationHeader
         eyebrow="Rider setup"
         title="Settings"
+<<<<<<< HEAD
         description={`Tune the motorcycle, route defaults, and controls ${PRODUCT_BRAND.name} uses every time you plan or ride.`}
         graphic={<RouteGraphic seed={activeBike.id} variant="bike" />}
       />

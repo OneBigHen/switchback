@@ -30,7 +30,7 @@ export function ImportFlow({ onImportRoute, onImportRoads }: ImportFlowProps) {
         <div className={styles.choices}>
           <header>
             <strong>{file.name}</strong>
-            <small>What should Switchback do with it?</small>
+            <small>What should OpenGravel do with it?</small>
           </header>
           <button type="button" onClick={() => onImportRoute(file)}>
             <Path weight="bold" aria-hidden="true" />
@@ -40,7 +40,7 @@ export function ImportFlow({ onImportRoute, onImportRoads }: ImportFlowProps) {
             <>
               <button type="button" onClick={() => void onImportRoads(file, "prefer")}>
                 <LockKeyOpen aria-hidden="true" />
-                <span><b>Prefer these roads</b><small>Favor this corridor when Switchback plans.</small></span>
+                <span><b>Prefer these roads</b><small>Favor this corridor when OpenGravel plans.</small></span>
               </button>
               <button type="button" onClick={() => void onImportRoads(file, "must")}>
                 <LockKeyOpen weight="fill" aria-hidden="true" />

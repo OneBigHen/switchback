@@ -1,13 +1,13 @@
 /**
- * Mapbox Standard slots. Switchback places every custom layer by slot so the
+ * Mapbox Standard slots. OpenGravel places every custom layer by slot so the
  * premium basemap can keep evolving without breaking route visibility
- * (ADR 0015). `critical` is Switchback's own name for "above everything,
+ * (ADR 0015). `critical` is OpenGravel's own name for "above everything,
  * including labels" — Mapbox has no such slot, so it is expressed as an
  * unslotted layer added last.
  */
 export type SwitchbackMapSlot = "bottom" | "middle" | "top" | "critical"
 
-/** The Mapbox slot id for a Switchback slot, or null when none applies. */
+/** The Mapbox slot id for an OpenGravel slot, or null when none applies. */
 export function mapboxSlotFor(slot: SwitchbackMapSlot): "bottom" | "middle" | "top" | null {
   return slot === "critical" ? null : slot
 }

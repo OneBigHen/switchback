@@ -77,7 +77,7 @@
  * properties do not accept CSS vars); the JS reads these tokens via
  * `getComputedStyle(document.documentElement)` and falls back to the
  * brand tokens (`--success` / `--signal` / `--danger`) so a default
- * Switchback install already shows them correctly.
+ * An OpenGravel install already shows them correctly.
  */
 :root {
   --road-lock-exact: var(--success);

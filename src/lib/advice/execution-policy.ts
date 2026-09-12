@@ -9,7 +9,7 @@ import { classifyAdvisorAction } from "./action-policy"
  * by the model: the same model answers a route question in one request and a
  * stop search in four. Most rider questions ("worth the extra 25 minutes?",
  * "which one would you take?", "how much gravel is this?") are already fully
- * answerable from the route facts Switchback computed and put in the briefing,
+ * answerable from the route facts OpenGravel computed and put in the briefing,
  * so exposing tools for them buys nothing and costs a round trip the rider
  * waits through.
  *
@@ -90,7 +90,7 @@ export function classifyTurn(input: AdviceRequest): AdvisorExecutionMode {
 
   const message = input.riderMessage?.trim()
   // The opening read on an existing route is a pure explanation of the
-  // briefing: Switchback already computed everything it is about.
+  // briefing: OpenGravel already computed everything it is about.
   if (!message) return "route-only"
 
   const text = normalise(message)

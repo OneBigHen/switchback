@@ -265,7 +265,7 @@ export async function getRiderMapFeatures(
         headers: {
           accept: "application/json",
           "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "user-agent": "Switchback route planner/0.1 (map data)"
+          "user-agent": "OpenGravel route planner/0.1 (map data)"
         },
         body: new URLSearchParams({ data: query }),
         signal: AbortSignal.timeout(18_000)

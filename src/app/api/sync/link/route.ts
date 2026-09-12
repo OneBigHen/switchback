@@ -25,7 +25,7 @@ export async function handleSyncLink(request: Request, store: SyncRepository = s
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That sync link request is too large.", 413, requestId)
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required to link sync.", 401, requestId)
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required to link sync.", 401, requestId)
     if (caught instanceof Error && /namespace|invalid/i.test(caught.message)) return apiErrorResponse("INVALID_SYNC_REQUEST", "The sync namespace is invalid.", 400, requestId)
     return apiErrorResponse("SYNC_UNAVAILABLE", "Encrypted sync is temporarily unavailable.", 503, requestId)
   }

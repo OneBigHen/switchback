@@ -18,7 +18,7 @@ import {
  * The advisor over an OpenAI-shaped chat-completions API (OpenRouter).
  *
  * Deliberately the same shape as the Gemini adapter and nothing more: same
- * system prompt, same Switchback toolbox, same response schema, same resolvers,
+ * system prompt, same OpenGravel toolbox, same response schema, same resolvers,
  * same turn deadline. Only the transport differs.
  *
  * This API *can* carry tools and a JSON schema in one request, which Gemini's
@@ -99,7 +99,7 @@ interface ChatResponse {
   error?: { message?: string; code?: number }
 }
 
-/** The Switchback toolbox rendered as OpenAI-style function tools. */
+/** The OpenGravel toolbox rendered as OpenAI-style function tools. */
 function asChatTools(definitions: readonly AdvisorToolDefinition[]) {
   return definitions.map((definition) => ({
     type: "function" as const,
@@ -163,7 +163,7 @@ export function createOpenRouterProvider(options: OpenRouterAdviserOptions): Adv
               "content-type": "application/json",
               authorization: `Bearer ${options.apiKey}`,
               "HTTP-Referer": "https://switchback.app",
-              "X-Title": "Switchback route advisor"
+              "X-Title": "OpenGravel route advisor"
             },
             body: JSON.stringify({
               model,

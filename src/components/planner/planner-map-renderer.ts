@@ -68,7 +68,7 @@ function maplibreStyleUrl(presentation: MapPresentation): string {
 export interface StageLayerPlacement {
   slot: SwitchbackMapSlot
   /**
-   * Ordering relative to another *Switchback* layer, used by the renderer
+   * Ordering relative to another *OpenGravel* layer, used by the renderer
    * that has no slots. Never a basemap-internal layer id.
    */
   beforeId?: string
@@ -114,7 +114,7 @@ export interface PlannerMapRenderer {
   create(module: PlannerMapModule, options: CreatePlannerMapOptions): PlannerMap
   addLayer(map: PlannerMap, spec: LayerSpecification, placement: StageLayerPlacement): void
   /**
-   * Reorders one Switchback layer. `beforeId` is only honoured by renderers
+   * Reorders one OpenGravel layer. `beforeId` is only honoured by renderers
    * without slots; a slotted renderer moves the layer to the top of its slot,
    * because a cross-slot `beforeId` is rejected.
    */

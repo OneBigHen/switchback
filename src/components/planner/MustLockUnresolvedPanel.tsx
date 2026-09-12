@@ -87,7 +87,7 @@ export function MustLockUnresolvedPanel({
         {reason ? <p id="must-lock-unresolved-reason">{reason}</p> : null}
       </header>
       <p className="must-lock-previous-route">
-        Keeping <strong>{previousName}</strong> visible. Switchback did not overwrite it.
+        Keeping <strong>{previousName}</strong> visible. OpenGravel did not overwrite it.
       </p>
       <ul className="must-lock-options">
         {MUST_LOCK_UNRESOLVED_OPTIONS.map((option) => {

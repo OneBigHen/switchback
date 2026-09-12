@@ -31,7 +31,7 @@ const fastest = route({
 describe("deterministic advisor working state", () => {
   it("names the actual trade being weighed, from local data only", () => {
     const line = workingStateLine({ routes: [best, fastest], selectedRouteId: "best-ride" })
-    // Every number here was computed by Switchback before the model was asked.
+    // Every number here was computed by OpenGravel before the model was asked.
     expect(line).toBe("Weighing +25 min, +31% unpaved and +57 curve score…")
   })
 

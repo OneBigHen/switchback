@@ -49,7 +49,7 @@ describe("map layer settings", () => {
   it("ships one canonical Gravel Atlas surface layer with provenance and safely normalizes saved settings", () => {
     const gravelAtlas = layerCatalog.find((layer) => layer.id === "gravel-atlas")
     expect(layerCatalog).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "curvature", source: expect.stringMatching(/Switchback/i) }),
+      expect.objectContaining({ id: "curvature", source: expect.stringMatching(/OpenGravel/i) }),
       expect.objectContaining({ id: "weather", freshness: expect.any(String) }),
       expect.objectContaining({ id: "fuel", coverage: expect.any(String) }),
       expect.objectContaining({ id: "mvum", status: "live" })

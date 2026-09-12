@@ -36,7 +36,7 @@ export async function handleCommunityRoutesPost(request: Request, store = getCom
     identityId = requireMutationIdentity(request)
   } catch (caught) {
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required to publish a route.", 401, requestId)
+    return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required to publish a route.", 401, requestId)
   }
   try {
     const body = await readBoundedJsonBody(request, 512 * 1024)

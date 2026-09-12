@@ -48,7 +48,7 @@ export async function handleCommunityReportPatch(
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That moderation action is too large.", 413, requestId)
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required for moderation.", 401, requestId)
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required for moderation.", 401, requestId)
     if (caught instanceof Error && caught.message === "OPERATOR_REQUIRED") return apiErrorResponse("OPERATOR_REQUIRED", "Operator access is required for moderation.", 403, requestId)
     return apiErrorResponse("INVALID_COMMUNITY_REPORT", "That moderation action is invalid.", 400, requestId)
   }

@@ -25,11 +25,11 @@ import type {
 } from "./contracts"
 
 /**
- * Everything the advisor can look up that Switchback owns.
+ * Everything the advisor can look up that OpenGravel owns.
  *
  * Google Maps grounding can describe a place, but these tools are what turn a
- * name into something Switchback can actually route to. Coordinates always
- * come from Switchback-owned resolution; road character comes from the local
+ * name into something OpenGravel can actually route to. Coordinates always
+ * come from OpenGravel-owned resolution; road character comes from the local
  * curvature dataset when configured.
  */
 
@@ -159,7 +159,7 @@ function surfaceNote(input: {
     ? ` ${withoutSurfaceData} of the ${scoredNearby} curve-scored roads nearby carry no surface tag, so that dataset can neither confirm nor rule out gravel on them.`
     : ""
   const curveEvidence = returned > 0
-    ? ` ${returned} curve-scored road${returned === 1 ? " is" : "s are"} mapped as unpaved in Switchback's road data.`
+    ? ` ${returned} curve-scored road${returned === 1 ? " is" : "s are"} mapped as unpaved in OpenGravel's road data.`
     : ""
   const accessBoundary = ` ${PA_UNPAVED_ROADS_SURFACE_BOUNDARY}.`
 
@@ -566,7 +566,7 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
         {
           name: "lookup_place",
           description:
-            "Turn a place name, town, or address into real coordinates Switchback can ride to. " +
+            "Turn a place name, town, or address into real coordinates OpenGravel can ride to. " +
             "Use this to pin a start or destination the rider named, and to pin any place a " +
             "grounding source told you about before it can enter a proposed ride.",
           parameters: {
@@ -585,7 +585,7 @@ export function createAdvisorToolbox(options: AdvisorToolboxOptions = {}): Advis
         definitions.push({
           name: "find_good_roads",
           description:
-            "Find roads Switchback has actually scored as good riding near a point — curvature " +
+            "Find roads OpenGravel has actually scored as good riding near a point — curvature " +
             "score and mapped surface. Set surface to 'unpaved' to find gravel and dirt: that also " +
             `returns ${PA_UNPAVED_ROADS_PROVENANCE} survey features as additional historic surveyed/mapped unpaved surface evidence only. ` +
             "Neither source proves legal access, public access, current openness, passability, maintenance, closures, or other current conditions. One call per area is enough. " + where,

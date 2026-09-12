@@ -3,7 +3,7 @@
  * Home of the primary navigation: four persistent destinations (Plan, Rides,
  * Discover, Settings) plus the secondary Record activity. Consumes the
  * canonical --sb-* tokens only. This layer replaces the retired nav blocks in
- * switchback-v1.css and design-system.css; it is not an override layer.
+ * the retired switchback-v1.css and design-system.css; it is not an override layer.
  */
 
 /* Desktop rail — 64px instrument rail (spec 56–64px). */

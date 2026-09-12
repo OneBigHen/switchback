@@ -42,7 +42,7 @@ function suppressionLabel(reason: FreeRideHudProps["suppressionReason"]): string
     case "no-safe-candidate":
       return "No experimental road suggestion is ready in the next few miles."
     default:
-      return "Keep riding; Switchback will look for an experimental road idea ahead."
+      return "Keep riding; OpenGravel will look for an experimental road idea ahead."
   }
 }
 

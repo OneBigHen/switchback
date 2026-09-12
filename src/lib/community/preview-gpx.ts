@@ -16,7 +16,7 @@ export function communityPreviewToGpx(route: CommunityRouteView): string {
     .join("\n")}\n    </trkseg>`).join("\n")
   const description = `${route.preview.distanceMiles.toFixed(1)} mi · ${Math.round(route.preview.durationMinutes)} min · sanitized public preview`
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Switchback" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="OpenGravel" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
     <name>${escapeXml(route.title)}</name>
     <desc>${escapeXml(description)}</desc>

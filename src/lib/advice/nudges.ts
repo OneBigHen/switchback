@@ -4,7 +4,7 @@ import type { PlannedRoute } from "@/lib/routing/types"
  * Proactive nudges — the surface most likely to feel like Clippy, so it is the
  * one built with the least freedom.
  *
- * A nudge is **deterministic**. It is derived from the plan Switchback already
+ * A nudge is **deterministic**. It is derived from the plan OpenGravel already
  * computed, it costs nothing, it takes no time, and it cannot be wrong about a
  * fact because every number in it came off the route contract. No model is
  * consulted to decide whether to speak or what to say. What the advisor is for

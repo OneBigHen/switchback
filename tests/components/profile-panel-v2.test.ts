@@ -6,6 +6,7 @@ const source = readFileSync("src/components/shell/ProfilePanel.tsx", "utf8")
 describe("ProfilePanel V2 authority", () => {
   it("is an advanced account and data surface rather than a second rider-settings editor", () => {
     expect(source).toContain("Account, sync & rider data")
+    expect(source).toContain("import { PRODUCT_BRAND } from \"@/lib/brand/product-brand\"")
     expect(source).toContain("{PRODUCT_BRAND.name} ID")
     expect(source).toContain("Encrypted sync")
     expect(source).toContain("Offline regions")

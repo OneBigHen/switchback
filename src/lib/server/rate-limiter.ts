@@ -7,7 +7,7 @@
  * past a sane bound so a long-lived public instance never leaks memory.
  *
  * Single-process only — fine for the self-hosted Next origin behind one
- * reverse proxy. If Switchback is ever scaled horizontally, swap this for a
+ * reverse proxy. If OpenGravel is ever scaled horizontally, swap this for a
  * shared store (Redis/Cloudflare rate limiting).
  */
 

@@ -50,7 +50,7 @@ try {
 
   writeFileSync(
     changesPath,
-    `<?xml version="1.0" encoding="UTF-8"?>\n<osmChange version="0.6" generator="Switchback motorcycle normalizer">\n  <modify>\n${objects.join("\n")}\n  </modify>\n</osmChange>\n`
+    `<?xml version="1.0" encoding="UTF-8"?>\n<osmChange version="0.6" generator="OpenGravel motorcycle normalizer">\n  <modify>\n${objects.join("\n")}\n  </modify>\n</osmChange>\n`
   )
 
   execFileSync(
@@ -58,7 +58,7 @@ try {
     [
       "apply-changes",
       "--generator",
-      "Switchback motorcycle normalizer",
+      "OpenGravel motorcycle normalizer",
       "-o",
       pendingOutputPath,
       sourcePath,

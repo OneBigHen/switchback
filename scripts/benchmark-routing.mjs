@@ -104,7 +104,7 @@ async function run() {
   const startedAt = new Date().toISOString()
   const raw = []
 
-  console.log(`Switchback baseline benchmark — ${startedAt}`)
+  console.log(`OpenGravel baseline benchmark — ${startedAt}`)
   console.log(`base-url: ${baseUrl}  runs: ${runs}  tag: ${tag}`)
 
   const local = await localGoldenParse()
