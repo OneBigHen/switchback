@@ -1,6 +1,8 @@
 import { DatabaseSync } from "node:sqlite"
 import type { GravelAtlasCorridor } from "@/lib/routing/gravel-atlas"
 import type { Coordinate } from "@/lib/routing/types"
+import { GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION } from "./runtime-builder"
+import { GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION } from "./traversability"
 
 export interface GravelAtlasBoundsQuery {
   south: number
@@ -31,12 +33,21 @@ interface GravelAtlasRow {
   source_ids: string
 }
 
+interface GravelAtlasMetadataRow {
+  schema_version?: unknown
+  source_fingerprint?: unknown
+  graph_fingerprint?: unknown
+  traversability_policy_version?: unknown
+  corridor_count?: unknown
+}
+
 const HARD_MAX_QUERY_RESULTS = 200
 
 export interface GravelAtlasBuildMetadata {
   schemaVersion: number
   sourceFingerprint: string
   graphFingerprint: string
+  traversabilityPolicyVersion: number
   corridorCount: number
 }
 
@@ -81,45 +92,58 @@ function parseRow(row: GravelAtlasRow): GravelAtlasCorridor | null {
   }
 }
 
+function readBuildMetadataFromDatabase(database: DatabaseSync): GravelAtlasBuildMetadata {
+  let row: GravelAtlasMetadataRow | undefined
+  try {
+    row = database.prepare(`
+      select schema_version, source_fingerprint, graph_fingerprint,
+             traversability_policy_version, corridor_count
+      from gravel_atlas_metadata
+      limit 1
+    `).get() as GravelAtlasMetadataRow | undefined
+  } catch (error) {
+    throw new Error("Unsupported Gravel Atlas runtime schema version", { cause: error })
+  }
+
+  if (!row) throw new Error("Gravel Atlas runtime database has no build metadata")
+  if (row.schema_version !== GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION) {
+    throw new Error("Unsupported Gravel Atlas runtime schema version")
+  }
+  if (row.traversability_policy_version !== GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION) {
+    throw new Error("Gravel Atlas runtime database has a stale traversability policy")
+  }
+  const sourceFingerprint = typeof row.source_fingerprint === "string" ? row.source_fingerprint.trim() : ""
+  const graphFingerprint = typeof row.graph_fingerprint === "string" ? row.graph_fingerprint.trim() : ""
+  const corridorCount = typeof row.corridor_count === "number" ? row.corridor_count : Number.NaN
+  if (
+    sourceFingerprint.length === 0 || graphFingerprint.length === 0 ||
+    !Number.isInteger(corridorCount) || corridorCount < 0
+  ) {
+    throw new Error("Gravel Atlas runtime database has invalid build metadata")
+  }
+
+  return {
+    schemaVersion: GRAVEL_ATLAS_RUNTIME_SCHEMA_VERSION,
+    sourceFingerprint,
+    graphFingerprint,
+    traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
+    corridorCount
+  }
+}
+
 /**
  * Read-only runtime view of the prebuilt gravel atlas. Ingestion owns schema
  * creation and verification; route planning only performs bounded spatial
- * reads and fails closed when the database/build fingerprint is unavailable.
+ * reads and fails closed when database metadata, build fingerprints, or the
+ * traversability policy do not describe the active runtime.
  */
 export class GravelAtlasRepository {
   constructor(readonly databasePath: string) {}
 
-  /**
-   * Build identity of the runtime database. Read before serving the layer so a
-   * deployment whose fingerprints do not describe this build fails closed
-   * instead of rendering a confirmed-empty viewport.
-   */
   readBuildMetadata(): GravelAtlasBuildMetadata {
     const database = new DatabaseSync(this.databasePath, { readOnly: true })
     try {
-      const row = database.prepare(`
-        select schema_version, source_fingerprint, graph_fingerprint, corridor_count
-        from gravel_atlas_metadata
-      `).get() as {
-        schema_version?: unknown
-        source_fingerprint?: unknown
-        graph_fingerprint?: unknown
-        corridor_count?: unknown
-      } | undefined
-
-      if (!row) throw new Error("Gravel Atlas runtime database has no build metadata")
-      if (row.schema_version !== 1) throw new Error("Unsupported Gravel Atlas runtime schema version")
-      const sourceFingerprint = typeof row.source_fingerprint === "string" ? row.source_fingerprint.trim() : ""
-      const graphFingerprint = typeof row.graph_fingerprint === "string" ? row.graph_fingerprint.trim() : ""
-      const corridorCount = typeof row.corridor_count === "number" ? row.corridor_count : Number.NaN
-      if (
-        sourceFingerprint.length === 0 || graphFingerprint.length === 0 ||
-        !Number.isInteger(corridorCount) || corridorCount < 0
-      ) {
-        throw new Error("Gravel Atlas runtime database has invalid build metadata")
-      }
-
-      return { schemaVersion: 1, sourceFingerprint, graphFingerprint, corridorCount }
+      return readBuildMetadataFromDatabase(database)
     } finally {
       database.close()
     }
@@ -142,11 +166,20 @@ export class GravelAtlasRepository {
     if (!Number.isFinite(query.limit) || query.limit < 1) {
       throw new Error("A positive gravel atlas result limit is required")
     }
-    const limit = Math.min(HARD_MAX_QUERY_RESULTS, Math.floor(query.limit))
+    const graphFingerprint = query.graphFingerprint.trim()
     const sourceFingerprint = query.sourceFingerprint?.trim() ?? null
+    const limit = Math.min(HARD_MAX_QUERY_RESULTS, Math.floor(query.limit))
 
     const database = new DatabaseSync(this.databasePath, { readOnly: true })
     try {
+      const metadata = readBuildMetadataFromDatabase(database)
+      if (metadata.graphFingerprint !== graphFingerprint) {
+        throw new Error("Gravel Atlas runtime database does not match the configured graph fingerprint")
+      }
+      if (sourceFingerprint !== null && metadata.sourceFingerprint !== sourceFingerprint) {
+        throw new Error("Gravel Atlas runtime database does not match the configured source fingerprint")
+      }
+
       const rows = database.prepare(`
         select
           id, label, geometry, verified_gravel_meters,
@@ -163,7 +196,7 @@ export class GravelAtlasRepository {
         order by confidence desc, longest_continuous_gravel_meters desc, id asc
         limit ?
       `).all(
-        query.graphFingerprint.trim(),
+        graphFingerprint,
         sourceFingerprint,
         sourceFingerprint,
         query.west,
