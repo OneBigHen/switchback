@@ -99,7 +99,7 @@ describe("Gravel Atlas runtime database builder", () => {
       corridors: [corridor()]
     })
 
-    expect(new GravelAtlasRepository(databasePath).queryBounds({
+    expect(() => new GravelAtlasRepository(databasePath).queryBounds({
       south: 39.9,
       west: -75,
       north: 40.4,
@@ -107,7 +107,7 @@ describe("Gravel Atlas runtime database builder", () => {
       graphFingerprint: "graph-v1",
       sourceFingerprint: "f".repeat(64),
       limit: 10
-    })).toEqual([])
+    })).toThrow(/source fingerprint/i)
   })
 
   it("rejects unknown source references without replacing the last good runtime database", () => {
