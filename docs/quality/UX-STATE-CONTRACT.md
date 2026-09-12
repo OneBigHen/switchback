@@ -1,4 +1,4 @@
-# Switchback UX state contract
+# OpenGravel UX state contract
 
 **Current authority** for how every planner/ride screen state is constructed
 deterministically in tests. Presentation changes with each wave; the

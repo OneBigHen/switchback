@@ -251,7 +251,7 @@ Installed iOS PWA behavior: PASS/FAIL/NOT RUN
 evidence were reviewed. `FAIL` means a required assertion or evidence review
 failed. `NOT RUN` means the boundary was not exercised (including missing
 real-device credentials or hardware); it is not a pass and must remain
-visible. With no real iPhone run, Switchback makes no real-iPhone claim.
+visible. With no real iPhone run, OpenGravel makes no real-iPhone claim.
 
 ## Final release loop
 

@@ -17,7 +17,7 @@ not with the Orbis map. So the exact production endpoints are chosen by a
 recorded capability bakeoff (motorcycle travel mode, `departAt`, traffic-aware
 duration, thrilling, hilliness/windingness, guidance geometry, PA/NJ coverage),
 not by assumption. Using one TomTom product for Thrilling candidates and another
-for traffic evidence is acceptable because Switchback normalizes both.
+for traffic evidence is acceptable because OpenGravel normalizes both.
 
 `TOMTOM_API_KEY` stays server-only: never in props, browser code, diagnostics,
 or fixtures. Any live traffic tiles go through a narrow same-origin proxy.

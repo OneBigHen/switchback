@@ -16,7 +16,7 @@ model for custom layers.
 
 This is a rendering decision only. Routing stays GraphHopper-primary under
 ADR 0001; Mapbox Directions is not adopted. Custom layers are placed by slot,
-never by referencing an internal Standard layer id. Switchback does not build a
+never by referencing an internal Standard layer id. OpenGravel does not build a
 generic multi-renderer framework: MapLibre survives only as a migration rollback
 path behind a rollout flag and is removed once Mapbox passes acceptance.
 
@@ -28,6 +28,6 @@ gains a hosted dependency with a 50k map-loads/month free tier — comfortable f
 this deployment only if style and mode changes reuse the same `Map` instance
 rather than recreating it. Standard's cartography updates continuously, so
 whole-screen pixel snapshots are the wrong visual contract (ADR 0011-era visual
-QA asserts Switchback overlays instead). WebGL cost and battery must be
+QA asserts OpenGravel overlays instead). WebGL cost and battery must be
 validated on a real iPhone, not on desktop screenshots. Deployments without a
 token fall back to the basic renderer rather than an empty map.

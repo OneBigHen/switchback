@@ -2,8 +2,8 @@
 
 ## Decision
 
-Switchback is a motorcycle trip decision engine, not a multi-layer map. Google
-Maps answers "what is the practical route?"; Switchback answers "which route
+OpenGravel is a motorcycle trip decision engine, not a multi-layer map. Google
+Maps answers "what is the practical route?"; OpenGravel answers "which route
 will I actually want to ride, and what should I know before committing to it?"
 Every feature must help a rider choose a route, understand a route, prepare for
 a trip, or ride more safely. A new provider or data adapter is admissible only

@@ -10,11 +10,11 @@ packages that the janitorial pass removed. This ADR is where they live now.
 
 ## Decision
 
-Four rules govern what may become evidence about a road, and what Switchback is
+Four rules govern what may become evidence about a road, and what OpenGravel is
 allowed to claim as a result.
 
 **A generated route is never evidence for itself.** Observations sourced from a
-Switchback-generated route carry weight `0`
+OpenGravel-generated route carry weight `0`
 (`RIG_SOURCE_WEIGHTS["switchback-generated-route"]` in
 `src/lib/roads/rig-evidence.ts`). A ranker that scored its own output would
 manufacture confidence out of repetition and drift further from the road with

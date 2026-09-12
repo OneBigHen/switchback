@@ -13,7 +13,7 @@ surface says so and offers Satellite instead.
 
 ## Consequences
 
-Switchback gains a high-wow preview without becoming two planners. The browser
+OpenGravel gains a high-wow preview without becoming two planners. The browser
 needs a referrer-restricted Google Maps key, delivered through the capabilities
 payload; Immersive Maps' 5,000 free loads/month is ample because initialization
 requires an explicit tap. Raw Photorealistic 3D Tiles and Cesium are not used.

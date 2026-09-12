@@ -1,4 +1,4 @@
-# Deploying Switchback
+# Deploying OpenGravel
 
 Self-hosting guide: local prerequisites, first run, LAN HTTPS, public exposure,
 and routing coverage. [`README.md`](../README.md) is the product and
@@ -125,7 +125,7 @@ Create a local DNS record, for example:
 switchback.home.arpa -> <your-LAN-IP>
 ```
 
-`.home.arpa` is reserved for home networks. Every phone that will use Switchback must resolve that name to the Caddy host.
+`.home.arpa` is reserved for home networks. Every phone that will use OpenGravel must resolve that name to the Caddy host.
 
 ### 3. Install Caddy and the HTTPS site
 

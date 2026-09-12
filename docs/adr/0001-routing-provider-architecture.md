@@ -4,7 +4,7 @@
 
 Keep GraphHopper as the primary self-hosted router and preserve Valhalla as an
 optional alternative/fallback and map-matching-capable provider. Provider
-responses must be normalized into Switchback route contracts before reaching
+responses must be normalized into OpenGravel route contracts before reaching
 the UI.
 
 ## Consequences

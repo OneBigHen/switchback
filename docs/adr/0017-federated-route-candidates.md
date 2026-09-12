@@ -1,4 +1,4 @@
-# ADR 0017: Federated route candidates, Switchback keeps ranking authority
+# ADR 0017: Federated route candidates, OpenGravel keeps ranking authority
 
 ## Status
 
@@ -6,7 +6,7 @@ Extends [ADR 0001](0001-routing-provider-architecture.md).
 
 ## Decision
 
-Route candidates may come from GraphHopper, Valhalla, TomTom, or Switchback's
+Route candidates may come from GraphHopper, Valhalla, TomTom, or OpenGravel's
 own corridor-shaped paths, but no provider's recommendation reaches the rider
 unchanged. A bounded coordinator requests a capped candidate pool under one
 deadline, and every candidate then passes the same pipeline: normalize, hard

@@ -8,7 +8,7 @@ Workers test black-box first. They are not trying to achieve coverage percentage
 
 ### Situation
 
-You ride motorcycles but have never used Switchback. You have about 30 minutes before leaving.
+You ride motorcycles but have never used OpenGravel. You have about 30 minutes before leaving.
 
 ### Goal
 
@@ -61,7 +61,7 @@ You ride an ADV/dual-sport bike and care about interesting roads and mixed surfa
 
 ### Goal
 
-Plan a mixed-surface ride, inspect what Switchback actually knows about surface/access, keep a road/segment you like, avoid an area/section you dislike, and reshape the ride until it looks worth riding.
+Plan a mixed-surface ride, inspect what OpenGravel actually knows about surface/access, keep a road/segment you like, avoid an area/section you dislike, and reshape the ride until it looks worth riding.
 
 ### Behavior
 

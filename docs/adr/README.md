@@ -21,7 +21,7 @@ Supersede an ADR with a new one rather than rewriting history.
 | [0014](0014-tomtom-traffic-adapter.md) | TomTom is the hosted traffic/incident adapter; OSS core works with no key |
 | [0015](0015-mapbox-primary-renderer.md) | Mapbox Standard is the primary online renderer; slots, not internal layer ids *(supersedes 0010)* |
 | [0016](0016-google-3d-cinematic.md) | Google 3D is a lazy-loaded cinematic preview, never the navigation renderer |
-| [0017](0017-federated-route-candidates.md) | Providers supply candidates; Switchback keeps eligibility and ranking authority |
+| [0017](0017-federated-route-candidates.md) | Providers supply candidates; OpenGravel keeps eligibility and ranking authority |
 | [0018](0018-tomtom-premium-adapters.md) | TomTom traffic and Thrilling routing as optional adapters, chosen by a recorded bakeoff |
 | [0019](0019-protect-the-ride.md) | Protect the Ride: bounded traffic cost in the scorer; closures still hard-fail |
 | [0020](0020-free-ride-discovery-live.md) | Free Ride splits into Discovery loops and workload-aware Live suggestions |

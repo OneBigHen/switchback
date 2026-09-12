@@ -27,7 +27,7 @@ access control. Do not expose it publicly until the edge policy is active.
 ## Backup and restore data root
 
 Set `SWITCHBACK_DATA_ROOT` to the absolute host path that contains the
-Switchback `app/` and `artifacts/` directories before running the maintenance
+OpenGravel `app/` and `artifacts/` directories before running the maintenance
 scripts. This explicit root is preferred; `/data` inside the web container is
 not a host path.
 
@@ -41,9 +41,9 @@ When the variable is empty, the resolver may inspect only the Compose project
 declared by `deployment/docker-compose.production.yml`. It accepts exactly one
 unique `/data` mount source. It never searches for an arbitrary container named
 `web`; missing or ambiguous discovery fails closed. A legacy root is accepted
-only when it contains recognizable Switchback state.
+only when it contains recognizable OpenGravel state.
 
 `restore.sh` validates the resolved root before it prints `Restore target:` or
 touches the backup. `/`, symlinks, files, and ambiguous or foreign roots are
 rejected. Checksums are verified before the database/artifact copy; no restore
-should proceed without a validated Switchback root.
+should proceed without a validated OpenGravel root.

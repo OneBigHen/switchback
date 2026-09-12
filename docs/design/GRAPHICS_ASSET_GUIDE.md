@@ -1,8 +1,8 @@
-# Switchback Graphics Asset Guide
+# OpenGravel Graphics Asset Guide
 
 ## Goal
 
-Keep Switchback visually distinctive without turning graphics into a parallel UI system. Data-driven visuals should explain real route/rider evidence; editorial art should add personality only where comprehension or brand memory benefits.
+Keep OpenGravel visually distinctive without turning graphics into a parallel UI system. Data-driven visuals should explain real route/rider evidence; editorial art should add personality only where comprehension or brand memory benefits.
 
 ## Directory taxonomy
 
@@ -37,7 +37,7 @@ Reasons: themeable, crisp, tiny, accessible, data-driven, no additional request.
 
 Use for:
 
-- Switchback marks
+- OpenGravel marks
 - simple onboarding diagrams
 - simple editorial feature illustrations that do not depend on runtime values
 
@@ -91,7 +91,7 @@ Use these meanings consistently in integration work:
 
 | State | Meaning | Required non-color cue |
 | --- | --- | --- |
-| Measured / verified | evidence Switchback actually measured/received | numeric value, solid shape, or `Measured`/`Verified` text |
+| Measured / verified | evidence OpenGravel actually measured/received | numeric value, solid shape, or `Measured`/`Verified` text |
 | Proposed / preference | rider or advisor intent that still needs routing | preference label, before→after cue, or proposal wording |
 | Neutral | navigation/context | ordinary icon/label |
 | Warning / failure | hard incompatibility or failure | warning icon + text |

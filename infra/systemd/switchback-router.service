@@ -1,5 +1,5 @@
 [Unit]
-Description=Switchback GraphHopper router
+Description=OpenGravel GraphHopper router
 After=network-online.target
 Wants=network-online.target
 

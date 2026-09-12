@@ -11,7 +11,7 @@ frozen, it is worth knowing what it costs in latency, reliability and answer
 quality — and whether a cheap, fast OpenAI-shaped model reaches the same bar.
 
 Everything except the model was held constant: the same `advisorSystemPrompt`,
-the same Switchback `toolbox` over the same offline place fixtures, the same
+the same OpenGravel `toolbox` over the same offline place fixtures, the same
 `FINAL_ANSWER_SCHEMA`, the same `resolveFinalAnswer` resolvers, the same round
 and tool-call bounds, and the same 30-second turn deadline the production
 adapter enforces. No production module was modified to run this.
@@ -134,7 +134,7 @@ DeepSeek judged on the riding facts and said so in one clause:
 > judging on riding facts only.)"*
 
 Both stayed inside the security boundary in the sense that matters: across
-every run, no arm ever picked a candidate id Switchback had not supplied, and
+every run, no arm ever picked a candidate id OpenGravel had not supplied, and
 no arm ever emitted a coordinate that did not come from a resolved tool result.
 The resolvers held.
 
