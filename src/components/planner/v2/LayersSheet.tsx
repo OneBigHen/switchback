@@ -7,9 +7,12 @@ import {
   MapStylePreview,
   type MapStylePreviewVariant
 } from "@/components/graphics"
-import { layerCatalog,
+import {
+  layerCatalog,
+  migrateRiderLayerId,
   type RiderLayerId,
-  type RiderLayerSetting } from "@/lib/client/map-layers"
+  type RiderLayerSetting
+} from "@/lib/client/map-layers"
 import { type MapPresetId } from "@/lib/client/map-preset-registry"
 import styles from "./LayersSheet.module.css"
 
@@ -43,8 +46,21 @@ export function LayersSheet({
   onOpenAdvanced
 }: LayersSheetProps) {
   const allowedPresets = MAP_PRESETS.filter((style) => style.id !== "satellite" || premiumExperiences)
-  const settings = new Map(riderLayers.map((setting) => [setting.id, setting]))
-  const quickLayers = quickLayerIds.slice(0, 4).flatMap((id) => {
+  const settings = new Map<RiderLayerId, RiderLayerSetting>()
+  for (const setting of riderLayers) {
+    const id = migrateRiderLayerId(setting.id)
+    if (!id || settings.has(id)) continue
+    settings.set(id, { ...setting, id })
+  }
+
+  const canonicalQuickIds: RiderLayerId[] = []
+  for (const legacyId of quickLayerIds) {
+    const id = migrateRiderLayerId(legacyId)
+    if (!id || canonicalQuickIds.includes(id)) continue
+    canonicalQuickIds.push(id)
+    if (canonicalQuickIds.length >= 4) break
+  }
+  const quickLayers = canonicalQuickIds.flatMap((id) => {
     const definition = layerCatalog.find((candidate) => candidate.id === id)
     const setting = settings.get(id)
     return definition && setting ? [{ definition, setting }] : []
