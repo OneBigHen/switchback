@@ -1,0 +1,62 @@
+{
+  "id": "fixture-bald-eagle",
+  "name": "000 Bald Eagle Dual Sport - created by fixture on ADVHub.net",
+  "profile": "scenic",
+  "geometry": [
+    [
+      -77.9,
+      40.75
+    ],
+    [
+      -77.77,
+      40.84
+    ],
+    [
+      -77.64,
+      40.89
+    ],
+    [
+      -77.51,
+      40.98
+    ],
+    [
+      -77.38,
+      41.03
+    ],
+    [
+      -77.25,
+      41.12
+    ]
+  ],
+  "waypoints": [
+    {
+      "lat": 40.75,
+      "lon": -77.9
+    },
+    {
+      "lat": 41.12,
+      "lon": -77.25
+    }
+  ],
+  "instructions": [],
+  "distanceMiles": 104.7,
+  "durationMinutes": 0,
+  "ascentMeters": 640,
+  "descentMeters": 640,
+  "twistiness": 62,
+  "turnCount": 118,
+  "roadMix": {},
+  "surfaceMix": {},
+  "routingSource": "imported",
+  "navigationMode": "track-only",
+  "previewOnly": false,
+  "segmentStarts": [
+    0
+  ],
+  "sourceFiles": [
+    "fixture/fixture-bald-eagle.gpx"
+  ],
+  "duplicateFamilyId": "fixture-bald-eagle-family",
+  "duplicateFamilySize": 2,
+  "duplicateFamilyRole": "canonical"
+}

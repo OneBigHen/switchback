@@ -45,7 +45,6 @@ import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
 import { routeIntentFromSketch } from "@/lib/planner/route-sketch"
-import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
 import { routePassesNearWaypoint } from "@/lib/routing/scoring"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
@@ -167,7 +166,6 @@ export function PlannerShell() {
     : null))
   const rideIdentity = usePlannerStore((state) => state.rideHistory.identity)
   useRideCheckpoint()
-  const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
   const [savedTrips, setSavedTrips] = useState<SavedTripPlan[]>([])
   const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
   const [replayComparison, setReplayComparison] = useState<ReplayComparisonResult | null>(null)
@@ -389,16 +387,6 @@ export function PlannerShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording.state.status])
   const perLegStyles = activeSegmentProfiles({ mode: planMode, via, profile, segmentProfiles })
-
-  useEffect(() => {
-    void fetch("/api/gpx-library", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Project GPX library unavailable")
-        return response.json() as Promise<ProjectGpxCatalog>
-      })
-      .then((catalog) => setProjectRoutes(catalog.routes))
-      .catch(() => setProjectRoutes([]))
-  }, [])
 
   useEffect(() => {
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
@@ -749,45 +737,57 @@ export function PlannerShell() {
     return lock
   }
 
+  // Stable for the shell's lifetime so re-created actions share one session set.
+  const [openedCatalogRouteIds] = useState(() => new Set<string>())
   const {
     saveRoute: handleSave,
     exportRoute: handleExport,
     exportRecordedRide: handleExportRecordedRide,
     deleteRoute: handleDelete,
-    loadProject: handleLoadProject,
+    openCatalogRoute: handleOpenCatalogRoute,
+    openSavedRoute: handleOpenSavedRoute,
     importRoute: handleImport
   } = createRouteExchangeActions({
     library: routeLibrary,
     refresh: refreshLibrary,
     onNotice: setNotice,
-    onLoad: handleLoad
+    onLoad: handleLoad,
+    openedCatalogRouteIds,
+    beginCatalogOpen: () => {
+      // Recorded ride history only grows when someone authors a change; draft
+      // recovery and passive location seeding never add to it.
+      const authoredChanges = () => {
+        const { past, future } = usePlannerStore.getState().rideHistory
+        return past.length + future.length
+      }
+      const before = authoredChanges()
+      return () => authoredChanges() > before
+    }
   })
 
-  // Deep link from the route atlas: `/?ride=<libraryRouteId>` loads that
-  // imported route straight into the planner, then strips the param so a
-  // reload does not re-trigger it. One-shot on mount, like the portable
-  // share loader above.
+  // Deep links from the Route Library, one-shot on mount like the portable
+  // share loader above: `/?ride=<catalogRouteId>` is Open in Planner (loads the
+  // shared entry, never saves it) and `/?savedRoute=<id>` is Open saved copy
+  // (loads the rider-owned My Rides row). Both params are stripped so a reload
+  // does not re-trigger them.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const rideId = params.get("ride")
-    if (!rideId) return
+    const catalogRouteId = params.get("ride")
+    const savedRouteId = params.get("savedRoute")
+    if (!catalogRouteId && !savedRouteId) return
     params.delete("ride")
+    params.delete("savedRoute")
     const rest = params.toString()
     window.history.replaceState(
       null,
       "",
       `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`
     )
-    if (!/^[A-Za-z0-9._-]{1,200}$/.test(rideId)) return
-    void handleLoadProject({
-      id: rideId,
-      name: "",
-      distanceMiles: 0,
-      durationMinutes: 0,
-      twistiness: 0,
-      turnCount: 0,
-      sourceProject: ""
-    })
+    if (savedRouteId) {
+      if (/^[A-Za-z0-9._-]{1,200}$/.test(savedRouteId)) void handleOpenSavedRoute(savedRouteId)
+      return
+    }
+    if (catalogRouteId) void handleOpenCatalogRoute(catalogRouteId)
     // Mount-only: the loader closure captured here stays valid for a one-shot load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1519,7 +1519,7 @@ message: failure?.message ?? "The rough route could not be routed."
             curvatureVisible,
             avoidHighways,
             tollPolicy,
-            savedCount: savedRoutes.length + projectRoutes.length,
+            savedCount: savedRoutes.length,
             via,
             addingVia,
             segmentProfiles: perLegStyles,
@@ -1793,7 +1793,6 @@ message: failure?.message ?? "The rough route could not be routed."
           routes={savedRoutes}
           recordedRides={recordedRides}
           trips={savedTrips}
-          projectRoutes={projectRoutes}
           onClose={() => applyDestination("plan", "replace")}
           onLoad={handleLoad}
           onLoadTrip={(trip) => handleLoad(trip.route, trip)}
@@ -1812,7 +1811,6 @@ message: failure?.message ?? "The rough route could not be routed."
             }).catch(() => setNotice({ kind: "warning", message: "That recording could not be removed." }))
           }}
           onMatchImported={(route) => void handleMatchImported(route)}
-          onLoadProject={(route) => void handleLoadProject(route)}
           onDelete={(route) => void handleDelete(route)}
           onOrganize={(route, organization) => {
             void routeLibrary.organize(route.id, organization)

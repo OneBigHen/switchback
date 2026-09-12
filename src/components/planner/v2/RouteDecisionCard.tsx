@@ -160,7 +160,8 @@ export function buildRouteDecisionPresentation(
     subtitle: route.corridorOption
       ? CORRIDOR_OPTION_PRESENTATION[route.corridorOption].description
       : route.name,
-    timeLabel: `${Math.round(route.durationMinutes)} min`,
+    // Imported tracks often carry no timing; unknown is not "0 min".
+    timeLabel: route.durationMinutes > 0 ? `${Math.round(route.durationMinutes)} min` : "Time unknown",
     distanceLabel: `${route.distanceMiles.toFixed(1)} mi`,
     deltaLabel: comparisonLabel(route, selectedRoute, routes),
     character: corridorCharacter,

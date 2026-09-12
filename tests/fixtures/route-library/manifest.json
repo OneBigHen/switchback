@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-12T12:00:00.000Z",
+  "scannedFiles": 3,
+  "duplicateFiles": 0,
+  "uniqueFiles": 3,
+  "importedRoutes": 3,
+  "rejectedFiles": 0,
+  "duplicateFamilies": 1,
+  "nearDuplicateFamilies": 1,
+  "nearDuplicateRoutes": 1,
+  "routes": [
+    {
+      "id": "fixture-bald-eagle",
+      "name": "000 Bald Eagle Dual Sport - created by fixture on ADVHub.net",
+      "distanceMiles": 104.7,
+      "durationMinutes": 0,
+      "twistiness": 62,
+      "turnCount": 118,
+      "sourceProject": "fixture",
+      "duplicateFamilyId": "fixture-bald-eagle-family",
+      "duplicateFamilySize": 2,
+      "duplicateFamilyRole": "canonical"
+    },
+    {
+      "id": "fixture-bald-eagle-reimport",
+      "name": "Bald Eagle Dual Sport",
+      "distanceMiles": 103.9,
+      "durationMinutes": 0,
+      "twistiness": 62,
+      "turnCount": 117,
+      "sourceProject": "fixture",
+      "duplicateFamilyId": "fixture-bald-eagle-family",
+      "duplicateFamilySize": 2,
+      "duplicateFamilyRole": "near-duplicate"
+    },
+    {
+      "id": "fixture-water-gap",
+      "name": "Delaware Water Gap Run.gpx",
+      "distanceMiles": 48.2,
+      "durationMinutes": 95,
+      "twistiness": 41,
+      "turnCount": 64,
+      "sourceProject": "fixture"
+    }
+  ]
+}
