@@ -7,6 +7,7 @@ import { writeOfficialSourceSnapshots } from "@/lib/roads/gravel-atlas/source-st
 import { buildGravelAtlasRuntimeDatabase } from "@/lib/roads/gravel-atlas/runtime-builder"
 import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 import type { GravelEvidenceObservation } from "@/lib/roads/gravel-atlas/sources"
+import { GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION } from "@/lib/roads/gravel-atlas/traversability"
 
 const directories: string[] = []
 
@@ -55,7 +56,7 @@ function corridor() {
 }
 
 describe("Gravel Atlas runtime database builder", () => {
-  it("writes graph-verified corridors tied to the staged source fingerprint", () => {
+  it("writes graph-verified corridors tied to the staged source fingerprint and policy", () => {
     const directory = mkdtempSync(path.join(tmpdir(), "switchback-gravel-runtime-"))
     directories.push(directory)
     const staged = stage(directory)
@@ -65,11 +66,13 @@ describe("Gravel Atlas runtime database builder", () => {
       stagingDatabasePath: staged.databasePath,
       databasePath,
       graphFingerprint: "graph-v1",
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
       corridors: [corridor()]
     })
 
     expect(built.sourceFingerprint).toBe(staged.sourceFingerprint)
     expect(built.graphFingerprint).toBe("graph-v1")
+    expect(built.traversabilityPolicyVersion).toBe(GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION)
     expect(built.corridorCount).toBe(1)
     const rows = new GravelAtlasRepository(databasePath).queryBounds({
       south: 39.9,
@@ -92,6 +95,7 @@ describe("Gravel Atlas runtime database builder", () => {
       stagingDatabasePath: staged.databasePath,
       databasePath,
       graphFingerprint: "graph-v1",
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
       corridors: [corridor()]
     })
 
@@ -115,6 +119,7 @@ describe("Gravel Atlas runtime database builder", () => {
       stagingDatabasePath: staged.databasePath,
       databasePath,
       graphFingerprint: "graph-v1",
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
       corridors: [corridor()]
     })
     const before = readFileSync(databasePath)
@@ -123,6 +128,7 @@ describe("Gravel Atlas runtime database builder", () => {
       stagingDatabasePath: staged.databasePath,
       databasePath,
       graphFingerprint: "graph-v2",
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
       corridors: [{
         ...corridor(),
         sourceFeatureRefs: [{ sourceId: "njgin-ng911", sourceFeatureId: "missing" }]
@@ -136,14 +142,13 @@ describe("Gravel Atlas runtime database builder", () => {
     directories.push(directory)
     const staged = stage(directory)
     const databasePath = path.join(directory, "gravel-atlas.sqlite")
-    const staleOptions = {
+
+    expect(() => buildGravelAtlasRuntimeDatabase({
       stagingDatabasePath: staged.databasePath,
       databasePath,
       graphFingerprint: "graph-v1",
-      corridors: [corridor()],
-      traversabilityPolicyVersion: 1
-    } as Parameters<typeof buildGravelAtlasRuntimeDatabase>[0] & { traversabilityPolicyVersion: number }
-
-    expect(() => buildGravelAtlasRuntimeDatabase(staleOptions)).toThrow(/traversability policy/i)
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION - 1,
+      corridors: [corridor()]
+    })).toThrow(/traversability policy/i)
   })
 })
