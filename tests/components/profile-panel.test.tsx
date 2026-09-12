@@ -86,8 +86,8 @@ describe("ProfilePanel advanced account and data tools", () => {
   it("offers optional passkey identity without reintroducing rider settings controls", async () => {
     render(<ProfilePanel onOpenDownloads={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Switchback ID" }))
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Switchback ID ready/i))
+    fireEvent.click(screen.getByRole("button", { name: "Create OpenGravel ID" }))
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/OpenGravel ID ready/i))
     expect(passkey.registerPasskey).toHaveBeenCalledOnce()
 
     fireEvent.click(screen.getByRole("button", { name: "Use existing passkey" }))
@@ -99,7 +99,7 @@ describe("ProfilePanel advanced account and data tools", () => {
     render(<ProfilePanel onOpenDownloads={vi.fn()} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Export recovery kit" }))
-    await waitFor(() => expect(screen.getByTitle("Switchback encrypted sync recovery QR code")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTitle("OpenGravel encrypted sync recovery QR code")).toBeInTheDocument())
     expect(screen.getByText(/SB1\.ns-profile-test-1/)).toBeVisible()
     expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled()
 

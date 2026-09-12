@@ -2,6 +2,7 @@
 
 import { ArrowRight, SlidersHorizontal } from "@phosphor-icons/react"
 import { useRef, useState } from "react"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import type { ThemePreference } from "@/lib/client/app-navigation"
 import {
   getActiveBike,
@@ -87,7 +88,7 @@ export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettin
           </header>
 
           <div className={styles.rows}>
-            <SettingRow title="Rider name" description="Shown on this device and used for your Switchback identity.">
+            <SettingRow title="Rider name" description={`Shown on this device and used for your ${PRODUCT_BRAND.name} identity.`}>
               <input
                 aria-label="Rider name"
                 value={settings.riderName}
@@ -122,7 +123,7 @@ export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettin
               />
             </SettingRow>
 
-            <SettingRow title="Bike category" description="Controls how aggressively Switchback can use gravel and rough tracks.">
+            <SettingRow title="Bike category" description={`Controls how aggressively ${PRODUCT_BRAND.name} can use gravel and rough tracks.`}>
               <select
                 aria-label="Bike category"
                 value={activeBike.category}
@@ -206,7 +207,7 @@ export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettin
               </label>
             </SettingRow>
 
-            <SettingRow title="Theme" description="Use the system appearance or lock Switchback to light or dark.">
+            <SettingRow title="Theme" description={`Use the system appearance or lock ${PRODUCT_BRAND.name} to light or dark.`}>
               <select
                 aria-label="Theme"
                 value={settings.theme ?? theme}
@@ -234,7 +235,7 @@ export function SettingsDestination({ theme, onThemeChange, onOpenAdvancedSettin
           <div>
             <span>Private tools</span>
             <h2 id="settings-advanced-entry-title">Account, sync & data</h2>
-            <p>Switchback ID, encrypted recovery, offline regions, learning export/reset, and diagnostics stay behind one advanced entry point.</p>
+            <p>{PRODUCT_BRAND.name} ID, encrypted recovery, offline regions, learning export/reset, and diagnostics stay behind one advanced entry point.</p>
           </div>
           <button type="button" onClick={onOpenAdvancedSettings}>
             <span>Account, sync & data</span>

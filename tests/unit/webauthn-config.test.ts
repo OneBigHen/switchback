@@ -11,16 +11,16 @@ describe("WebAuthn configuration", () => {
     vi.stubEnv("NODE_ENV", "test")
     vi.stubEnv("SWITCHBACK_WEBAUTHN_RP_ID", "rides.example.test")
     vi.stubEnv("SWITCHBACK_WEBAUTHN_ORIGIN", "https://rides.example.test")
-    vi.stubEnv("SWITCHBACK_WEBAUTHN_RP_NAME", "Switchback Test")
+    vi.stubEnv("SWITCHBACK_WEBAUTHN_RP_NAME", "OpenGravel Test")
 
     expect(getWebAuthnConfig()).toEqual({
       rpID: "rides.example.test",
       expectedOrigin: "https://rides.example.test",
-      rpName: "Switchback Test"
+      rpName: "OpenGravel Test"
     })
   })
 
-  it("uses localhost defaults outside production", () => {
+  it("uses OpenGravel as the display name while preserving localhost trust defaults", () => {
     vi.stubEnv("NODE_ENV", "test")
     vi.stubEnv("SWITCHBACK_WEBAUTHN_RP_ID", undefined)
     vi.stubEnv("SWITCHBACK_WEBAUTHN_ORIGIN", undefined)
@@ -29,7 +29,20 @@ describe("WebAuthn configuration", () => {
     expect(getWebAuthnConfig()).toEqual({
       rpID: "localhost",
       expectedOrigin: "http://localhost:3000",
-      rpName: "Switchback"
+      rpName: "OpenGravel"
+    })
+  })
+
+  it("keeps the deployed relying-party identity independent from the display brand", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("SWITCHBACK_WEBAUTHN_RP_ID", "rides.example.com")
+    vi.stubEnv("SWITCHBACK_WEBAUTHN_ORIGIN", "https://rides.example.com")
+    vi.stubEnv("SWITCHBACK_WEBAUTHN_RP_NAME", undefined)
+
+    expect(getWebAuthnConfig()).toEqual({
+      rpID: "rides.example.com",
+      expectedOrigin: "https://rides.example.com",
+      rpName: "OpenGravel"
     })
   })
 
@@ -54,7 +67,7 @@ describe("WebAuthn configuration", () => {
     const verifier = getWebAuthnVerifier()
 
     await expect(verifier.generateRegistrationOptions({
-      rpName: "Switchback",
+      rpName: "OpenGravel",
       rpID: "localhost",
       userName: "rider-test",
       challenge

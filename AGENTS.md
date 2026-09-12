@@ -8,11 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Switchback — product guardrails for agents
+# OpenGravel — product guardrails for agents
 
-**Product target — do not drift from this.** Switchback is a *motorcycle trip
+**Product target — do not drift from this.** OpenGravel is a *motorcycle trip
 decision engine*, not a map with many layers. Google Maps answers "what is the
-practical route?" Switchback answers "which route will I actually want to ride,
+practical route?" OpenGravel answers "which route will I actually want to ride,
 and what should I know before committing to it?"
 
 **Integration gate.** A new data source, provider, or adapter is only justified
@@ -29,7 +29,7 @@ behind a clean interface — no generic provider framework, no microservices.
   migration rollback path — no permanent dual-renderer framework. Google 3D is
   a lazy-loaded cinematic preview only, never the navigation renderer (0016).
 - Routing: GraphHopper is the self-hosted baseline that must answer alone;
-  Valhalla and TomTom add candidates. Providers propose, Switchback decides —
+  Valhalla and TomTom add candidates. Providers propose, OpenGravel decides —
   every candidate passes eligibility, enrichment, traffic evidence, scoring,
   dedupe, and role assignment (ADR 0001, 0017). No engine rewrite; Mapbox
   Directions is not a routing source.
@@ -86,7 +86,7 @@ into the same premium wave. Follow Astra backlog dependencies and release
 gates; do not run competing refactor roadmaps. Record exact implementation
 evidence and the next task in `ASTRA-STATE.md`.
 
-**Human exploratory QA.** When asked to test Switchback like a rider, run the
+**Human exploratory QA.** When asked to test OpenGravel like a rider, run the
 protocol in `docs/quality/LUNA-HUMAN-QA.md`; one high-budget coordinator can use
 `docs/quality/LUNA-QA-COORDINATOR.md` to delegate the missions in
 `docs/quality/HUMAN-QA-MISSIONS.md`. Exploratory evidence discovers unknown

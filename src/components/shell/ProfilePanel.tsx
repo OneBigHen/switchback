@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react"
 import { QRCodeSVG } from "qrcode.react"
 import { useEffect, useMemo, useState } from "react"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import { loadRiderSettings } from "@/lib/settings/rider-settings"
 import { collectDiagnostics } from "@/lib/client/diagnostics"
 import { RegionDownloadClient } from "@/lib/storage/region-download-client"
@@ -78,11 +79,11 @@ export function ProfilePanel({
       try {
         setSyncState(await syncController.linkCurrentSession())
         setNotice(kind === "register"
-          ? "Switchback ID ready and this device is linked for encrypted sync."
+          ? `${PRODUCT_BRAND.name} ID ready and this device is linked for encrypted sync.`
           : "Signed in and this device is linked for encrypted sync.")
       } catch {
         setNotice(kind === "register"
-          ? "Switchback ID ready. Link this device below to enable encrypted sync."
+          ? `${PRODUCT_BRAND.name} ID ready. Link this device below to enable encrypted sync.`
           : "Signed in. Link this device below to enable encrypted sync.")
       }
     } catch (caught) {
@@ -102,7 +103,7 @@ export function ProfilePanel({
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
       anchor.href = url
-      anchor.download = "switchback-sync-recovery.json"
+      anchor.download = "opengravel-sync-recovery.json"
       anchor.click()
       URL.revokeObjectURL(url)
       setNotice("Recovery kit exported. Keep the QR code and seed offline.")
@@ -158,7 +159,7 @@ export function ProfilePanel({
         const url = URL.createObjectURL(blob)
         const anchor = document.createElement("a")
         anchor.href = url
-        anchor.download = "switchback-learning-profile.json"
+        anchor.download = "opengravel-learning-profile.json"
         anchor.click()
         URL.revokeObjectURL(url)
         setNotice("Learning profile exported.")
@@ -192,17 +193,17 @@ export function ProfilePanel({
         </header>
 
         <div className={styles.body}>
-          <section className={styles.section} aria-labelledby="switchback-id-title">
+          <section className={styles.section} aria-labelledby="open-gravel-id-title">
             <div className={styles.sectionHeader}>
               <span className={styles.sectionIcon} aria-hidden="true"><Key weight="bold" /></span>
               <div>
-                <h3 id="switchback-id-title">Switchback ID</h3>
+                <h3 id="open-gravel-id-title">{PRODUCT_BRAND.name} ID</h3>
                 <p>Passkey identity for publishing and linking encrypted data across your devices.</p>
               </div>
             </div>
             <div className={styles.actions}>
               <button type="button" className={styles.primaryButton} disabled={identityBusy !== null} onClick={() => void runIdentity("register")}>
-                {identityBusy === "register" ? "Creating…" : "Create Switchback ID"}
+                {identityBusy === "register" ? "Creating…" : `Create ${PRODUCT_BRAND.name} ID`}
               </button>
               <button type="button" disabled={identityBusy !== null} onClick={() => void runIdentity("authenticate")}>
                 {identityBusy === "authenticate" ? "Checking…" : "Use existing passkey"}
@@ -246,7 +247,7 @@ export function ProfilePanel({
             </div>
             {recoveryKit ? (
               <div className={styles.recoveryKit} aria-label="Recovery kit">
-                <QRCodeSVG value={recoveryKit.qrPayload} size={192} level="M" marginSize={2} title="Switchback encrypted sync recovery QR code" />
+                <QRCodeSVG value={recoveryKit.qrPayload} size={192} level="M" marginSize={2} title={`${PRODUCT_BRAND.name} encrypted sync recovery QR code`} />
                 <code>{recoveryKit.seed}</code>
               </div>
             ) : null}

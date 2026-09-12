@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand";
 // Both renderer stylesheets ship while the premium migration runs (ADR 0015).
 // Their class prefixes differ, so neither can override the other.
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -52,10 +53,9 @@ import "./styles/rider-glanceability.css";
 import "./styles/planner-command-surface.css";
 
 export const metadata: Metadata = {
-	title: "Switchback — Ride the better road",
-	description:
-		"A local-first motorcycle route planner built for twisty, scenic, and mixed-surface roads.",
-	applicationName: "Switchback",
+	title: `${PRODUCT_BRAND.name} — Find routes worth riding`,
+	description: PRODUCT_BRAND.applicationDescription,
+	applicationName: PRODUCT_BRAND.name,
 	manifest: "/manifest.webmanifest",
 	icons: [{ rel: "icon", url: "/icon.svg", type: "image/svg+xml" }],
 };

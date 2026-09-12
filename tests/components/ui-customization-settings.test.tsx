@@ -19,7 +19,7 @@ describe("UiCustomizationSettings", () => {
     expect(screen.getByRole("heading", { name: "Customize" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Customize controls" })).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByRole("group", { name: "Plan quick actions" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Reset to Switchback defaults" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reset to OpenGravel defaults" })).not.toBeInTheDocument()
 
     openCustomization()
 
@@ -28,7 +28,7 @@ describe("UiCustomizationSettings", () => {
     expect(screen.getByRole("group", { name: "Ride HUD metrics" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Recording metrics" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Route details" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Reset to Switchback defaults" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Reset to OpenGravel defaults" })).toBeInTheDocument()
     expect(screen.queryByText(/position x|position y|grid/i)).not.toBeInTheDocument()
   })
 
