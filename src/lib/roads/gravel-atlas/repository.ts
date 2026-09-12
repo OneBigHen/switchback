@@ -13,6 +13,9 @@ export interface GravelAtlasBoundsQuery {
    * verification stops contributing candidates until the atlas is rebuilt.
    */
   graphFingerprint: string
+  /** Optional expected official-source snapshot build. When supplied, rows
+   * from any older/newer snapshot fail closed instead of mixing evidence. */
+  sourceFingerprint?: string
   limit: number
 }
 
@@ -90,10 +93,14 @@ export class GravelAtlasRepository {
     if (typeof query.graphFingerprint !== "string" || query.graphFingerprint.trim().length === 0) {
       throw new Error("A routing graph fingerprint is required")
     }
+    if (query.sourceFingerprint !== undefined && query.sourceFingerprint.trim().length === 0) {
+      throw new Error("A non-empty Gravel Atlas source fingerprint is required when supplied")
+    }
     if (!Number.isFinite(query.limit) || query.limit < 1) {
       throw new Error("A positive gravel atlas result limit is required")
     }
     const limit = Math.min(HARD_MAX_QUERY_RESULTS, Math.floor(query.limit))
+    const sourceFingerprint = query.sourceFingerprint?.trim() ?? null
 
     const database = new DatabaseSync(this.databasePath, { readOnly: true })
     try {
@@ -105,6 +112,7 @@ export class GravelAtlasRepository {
         from gravel_atlas_corridors
         where verification_status = 'routable'
           and graph_fingerprint = ?
+          and (? is null or source_fingerprint = ?)
           and east >= ?
           and west <= ?
           and north >= ?
@@ -113,6 +121,8 @@ export class GravelAtlasRepository {
         limit ?
       `).all(
         query.graphFingerprint.trim(),
+        sourceFingerprint,
+        sourceFingerprint,
         query.west,
         query.east,
         query.south,
