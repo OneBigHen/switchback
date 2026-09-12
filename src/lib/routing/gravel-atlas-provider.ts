@@ -1,10 +1,12 @@
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
+import { calculateGravelAtlasRouteEvidence } from "@/lib/roads/gravel-atlas/route-evidence"
 import {
   buildAnchorSets,
   corridorEnvelope,
   type CorridorSourceCandidates
 } from "./destination-corridors"
 import { generateCorridorCandidates } from "./candidate-generator"
+import type { GravelAtlasCorridor } from "./gravel-atlas"
 import { chooseSelectedCandidate, selectedCandidateScore } from "./planner-shared"
 import type { PlanningOptions, RouteProvider, RoutingResult } from "./planner-contract"
 import type { GravelAtlasIntensity, PlannedRoute, RouteRequest } from "./types"
@@ -37,6 +39,12 @@ const MAX_DURATION_RATIO: Record<GravelAtlasIntensity, number> = {
   maximum: 1.9
 }
 
+const MINIMUM_EVIDENCE_GAIN_METERS: Record<GravelAtlasIntensity, number> = {
+  balanced: 800,
+  more: 400,
+  maximum: 160
+}
+
 function shouldAttract(request: NormalizedRouteRequest): boolean {
   return request.gravelAtlas.enabled === true &&
     (request.profile === "adventure" || request.profile === "gravel") &&
@@ -66,6 +74,20 @@ function atlasOnlySources(
   }
 }
 
+function withAtlasEvidence(route: PlannedRoute, corridors: readonly GravelAtlasCorridor[]): PlannedRoute {
+  return {
+    ...route,
+    gravelAtlasEvidence: calculateGravelAtlasRouteEvidence(route.geometry, corridors)
+  }
+}
+
+function withResultEvidence(result: RoutingResult, corridors: readonly GravelAtlasCorridor[]): RoutingResult {
+  return {
+    ...result,
+    routes: result.routes.map((route) => withAtlasEvidence(route, corridors))
+  }
+}
+
 function reasonableDetour(
   candidate: PlannedRoute,
   baseline: PlannedRoute,
@@ -78,6 +100,18 @@ function reasonableDetour(
     durationRatio <= MAX_DURATION_RATIO[intensity]
 }
 
+function improvesEvidence(
+  candidate: PlannedRoute,
+  baseline: PlannedRoute,
+  intensity: GravelAtlasIntensity
+): boolean {
+  const candidateEvidence = candidate.gravelAtlasEvidence
+  const baselineEvidence = baseline.gravelAtlasEvidence
+  if (!candidateEvidence || !baselineEvidence) return false
+  return candidateEvidence.matchedMeters >=
+    baselineEvidence.matchedMeters + MINIMUM_EVIDENCE_GAIN_METERS[intensity]
+}
+
 interface RoutedAtlasCandidate {
   result: RoutingResult
   route: PlannedRoute
@@ -85,9 +119,16 @@ interface RoutedAtlasCandidate {
 }
 
 function candidateUtility(candidate: RoutedAtlasCandidate): number {
-  // Verified corridor mileage is the attraction signal; provider-neutral route
-  // utility breaks ties so a larger Atlas corridor cannot excuse a poor route.
-  return candidate.reward * 100 + selectedCandidateScore(candidate.route)
+  const evidence = candidate.route.gravelAtlasEvidence
+  const verifiedMiles = (evidence?.matchedMeters ?? 0) / 1609.344
+  const continuousMiles = (evidence?.longestContinuousMeters ?? 0) / 1609.344
+  // Actual returned-route overlap dominates source-anchor reward. Provider-
+  // neutral route utility is only a tie-breaker among routes that really use
+  // the graph-verified gravel evidence.
+  return verifiedMiles * 500 +
+    continuousMiles * 250 +
+    candidate.reward * 10 +
+    selectedCandidateScore(candidate.route)
 }
 
 function mergedWarnings(direct: RoutingResult, candidate: RoutingResult): string[] | undefined {
@@ -116,16 +157,20 @@ export function createGravelAtlasAwareProvider(
     const direct = await baseProvider(request, options)
     if (!shouldAttract(request)) return direct
 
-    const baseline = chooseSelectedCandidate(direct.routes)
-    if (!baseline || baseline.distanceMiles <= 0 || baseline.durationMinutes <= 0) return direct
-
     let sources: CorridorSourceCandidates
     try {
       sources = atlasOnlySources(request, await resolveCorridors(request))
     } catch {
       return direct
     }
-    if (!sources.gravelAtlas || sources.gravelAtlas.corridors.length === 0) return direct
+    const corridors = sources.gravelAtlas?.corridors ?? []
+    if (corridors.length === 0) return direct
+
+    const directWithEvidence = withResultEvidence(direct, corridors)
+    const baseline = chooseSelectedCandidate(directWithEvidence.routes)
+    if (!baseline || baseline.distanceMiles <= 0 || baseline.durationMinutes <= 0) {
+      return directWithEvidence
+    }
 
     const start = request.points[0]!
     const finish = request.points[1]!
@@ -143,15 +188,22 @@ export function createGravelAtlasAwareProvider(
     const generated = generateCorridorCandidates(request, anchorSets, {
       maxCandidates: CANDIDATE_LIMIT[intensity]
     })
-    if (generated.length === 0) return direct
+    if (generated.length === 0) return directWithEvidence
 
     const routed: RoutedAtlasCandidate[] = []
     for (const candidate of generated) {
       if (options.signal?.aborted) break
       try {
-        const result = await baseProvider(candidate.request, options)
+        const result = withResultEvidence(
+          await baseProvider(candidate.request, options),
+          corridors
+        )
         const selected = chooseSelectedCandidate(result.routes)
-        if (!selected || !reasonableDetour(selected, baseline, intensity)) continue
+        if (
+          !selected ||
+          !reasonableDetour(selected, baseline, intensity) ||
+          !improvesEvidence(selected, baseline, intensity)
+        ) continue
         routed.push({
           result,
           route: { ...selected, candidateSource: "gravel-atlas" },
@@ -167,9 +219,9 @@ export function createGravelAtlasAwareProvider(
       candidateUtility(right) - candidateUtility(left) ||
       left.route.id.localeCompare(right.route.id)
     )[0]
-    if (!best) return direct
+    if (!best) return directWithEvidence
 
-    const warnings = mergedWarnings(direct, best.result)
+    const warnings = mergedWarnings(directWithEvidence, best.result)
     return {
       ...best.result,
       routes: [best.route],
