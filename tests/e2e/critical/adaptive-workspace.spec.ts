@@ -92,7 +92,10 @@ async function attributionCorner(page: Page): Promise<string> {
 }
 
 async function expectWorkspaceMode(page: Page, mode: "compact" | "medium" | "wide") {
-  await expect(page.locator("[data-workspace-mode]").first()).toHaveAttribute("data-workspace-mode", mode)
+  // PlannerComposition owns the canonical Compact/Medium/Wide topology. The
+  // map workspace also has a data-workspace-mode attribute, but its vocabulary
+  // is planning/ride and is a separate camera/presentation concern.
+  await expect(page.locator(`div[data-workspace-mode="${mode}"]`).first()).toBeAttached()
 }
 
 test.describe("Medium adaptive planner workspace", () => {
