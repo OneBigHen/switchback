@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { RouteTrafficSummary } from "@/components/planner/RouteTrafficSummary"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { RouteTrafficEvidence } from "@/lib/traffic/types"
@@ -40,6 +40,7 @@ const clearEvidence: RouteTrafficEvidence = {
 }
 
 afterEach(() => {
+  cleanup()
   vi.unstubAllGlobals()
 })
 
