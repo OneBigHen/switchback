@@ -40,8 +40,11 @@
   /* Legacy desktop CSS centres these against a fixed 500px left workspace.
      Medium owns a variable-width planner, so stretch each overlay across the
      actual live-map region and let its existing grid centring do the rest.
-     Scope this to planning surfaces: ride/Free Ride do not reserve the planner. */
+     Scope this to planning surfaces: ride/Free Ride do not reserve the planner.
+     Keep the status lane below the 46px Layers toolbar as well: at tablet
+     widths the two surfaces otherwise occupy the same top band. */
   .planner-shell:has(.planner-deck) .map-layer-status-stack {
+    top: max(76px, calc(env(safe-area-inset-top) + 72px));
     left: var(--sb-medium-map-safe-left);
     right: 0;
     transform: none;
@@ -52,6 +55,27 @@
     left: var(--sb-medium-map-safe-left);
     right: 0;
     transform: translateY(-50%);
+  }
+
+  /* Offline Pack is a modal confirmation, not planner content. The legacy
+     absolute scrim was constrained by .planner-deck's overflow clipping,
+     cutting off both the explanation and Save action on tablet portrait.
+     Promote only the open-modal state above the workspace and anchor the scrim
+     to the viewport; compact keeps its existing bottom-sheet treatment. */
+  .planner-shell .planner-deck:has(.offline-pack-modal-scrim) {
+    z-index: 40;
+    overflow: visible;
+  }
+
+  .planner-shell .offline-pack-modal-scrim {
+    position: fixed;
+    inset: 0;
+  }
+
+  .planner-shell .offline-pack-modal {
+    max-height: calc(100dvh - (2 * var(--sb-space-4)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

@@ -178,17 +178,25 @@ test.describe("Medium adaptive planner workspace", () => {
     expect(selectedBeforeLabel).toBeTruthy()
     expect(alternateLabel).toBeTruthy()
 
+    // State-filtered Playwright locators are live. Capture stable accessible-name
+    // locators before selection changes aria-pressed so the post-click assertion
+    // follows the route the rider actually clicked instead of re-resolving to the
+    // next unselected route.
+    const selectedBeforeStable = choices.getByRole("button", { name: selectedBeforeLabel!, exact: true })
+    const alternateStable = choices.getByRole("button", { name: alternateLabel!, exact: true })
+
     // Pointer/focus are preview-only contracts. They may change the map ribbon,
     // but canonical selection must remain untouched until the rider clicks.
-    await alternate.hover()
-    await expect(selectedBefore).toHaveAttribute("aria-pressed", "true")
-    await expect(alternate).toHaveAttribute("aria-pressed", "false")
-    await alternate.focus()
-    await expect(selectedBefore).toHaveAttribute("aria-pressed", "true")
-    await expect(alternate).toHaveAttribute("aria-pressed", "false")
+    await alternateStable.hover()
+    await expect(selectedBeforeStable).toHaveAttribute("aria-pressed", "true")
+    await expect(alternateStable).toHaveAttribute("aria-pressed", "false")
+    await alternateStable.focus()
+    await expect(selectedBeforeStable).toHaveAttribute("aria-pressed", "true")
+    await expect(alternateStable).toHaveAttribute("aria-pressed", "false")
 
-    await alternate.click()
-    await expect(alternate).toHaveAttribute("aria-pressed", "true")
+    await alternateStable.click()
+    await expect(alternateStable).toHaveAttribute("aria-pressed", "true")
+    await expect(selectedBeforeStable).toHaveAttribute("aria-pressed", "false")
     const selectedRouteName = (alternateLabel ?? "").replace(/^Select /, "")
     expect(selectedRouteName).not.toBe("")
     await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
@@ -201,6 +209,38 @@ test.describe("Medium adaptive planner workspace", () => {
     const restoredSelection = page.getByRole("button", { name: `Select ${selectedRouteName}`, exact: true })
     await expect(restoredSelection).toHaveAttribute("aria-pressed", "true")
     await expect(page.getByRole("button", { name: /^Start .* route$/i }).first()).toBeVisible()
+  })
+
+  test("768x1024 offline pack stays viewport-contained with its Save action reachable", async ({ page }) => {
+    test.setTimeout(150_000)
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await uxState.routeSelected(page)
+    await page.getByRole("button", { name: "Edit route", exact: true }).click()
+    await expect(page.getByRole("button", { name: "Offline pack", exact: true })).toBeVisible()
+    await page.getByRole("button", { name: "Offline pack", exact: true }).click()
+
+    const dialog = page.getByRole("dialog", { name: /^Offline pack for / })
+    const scrim = page.locator(".offline-pack-modal-scrim")
+    const save = page.getByRole("button", { name: "Save offline pack", exact: true })
+    await expect(dialog).toBeVisible()
+    await expect(save).toBeVisible()
+
+    const scrimBox = await scrim.boundingBox()
+    const dialogBox = await dialog.boundingBox()
+    const saveBox = await save.boundingBox()
+    expect(scrimBox, "offline confirmation scrim must render").not.toBeNull()
+    expect(dialogBox, "offline confirmation must render").not.toBeNull()
+    expect(saveBox, "offline Save action must render").not.toBeNull()
+
+    expect(scrimBox!.x).toBeLessThanOrEqual(1)
+    expect(scrimBox!.y).toBeLessThanOrEqual(1)
+    expect(scrimBox!.width).toBeGreaterThanOrEqual(766)
+    expect(scrimBox!.height).toBeGreaterThanOrEqual(1022)
+    expect(dialogBox!.x).toBeGreaterThanOrEqual(0)
+    expect(dialogBox!.y).toBeGreaterThanOrEqual(0)
+    expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(768)
+    expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(1024)
+    expect(saveBox!.y + saveBox!.height).toBeLessThanOrEqual(1024)
   })
 
   test("timed loop reaches a route without leaving the Medium workspace", async ({ page }) => {

@@ -38,6 +38,7 @@ describe("adaptive Medium workspace CSS contract", () => {
 
   it("keeps Medium planning notices and point-placement affordance inside the live-map budget", () => {
     const statusRule = readRule(adaptive, ".planner-shell:has(.planner-deck) .map-layer-status-stack")
+    expect(statusRule).toContain("top: max(76px, calc(env(safe-area-inset-top) + 72px));")
     expect(statusRule).toContain("left: var(--sb-medium-map-safe-left);")
     expect(statusRule).toContain("right: 0;")
     expect(statusRule).toContain("transform: none;")
@@ -46,6 +47,20 @@ describe("adaptive Medium workspace CSS contract", () => {
     expect(crosshairRule).toContain("left: var(--sb-medium-map-safe-left);")
     expect(crosshairRule).toContain("right: 0;")
     expect(crosshairRule).toContain("transform: translateY(-50%);")
+  })
+
+  it("promotes the Medium offline-pack confirmation out of planner clipping", () => {
+    const deckRule = readRule(adaptive, ".planner-shell .planner-deck:has(.offline-pack-modal-scrim)")
+    expect(deckRule).toContain("overflow: visible;")
+
+    const scrimRule = readRule(adaptive, ".planner-shell .offline-pack-modal-scrim")
+    expect(scrimRule).toContain("position: fixed;")
+    expect(scrimRule).toContain("inset: 0;")
+
+    const modalRule = readRule(adaptive, ".planner-shell .offline-pack-modal")
+    expect(modalRule).toContain("max-height: calc(100dvh - (2 * var(--sb-space-4)));")
+    expect(modalRule).toContain("overflow-y: auto;")
+    expect(modalRule).toContain("overscroll-behavior: contain;")
   })
 
   it("moves Medium portrait navigation out of the map/planner side-by-side budget", () => {
