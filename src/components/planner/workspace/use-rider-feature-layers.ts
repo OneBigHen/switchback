@@ -5,6 +5,7 @@ import type { RefObject } from "react"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import { useEffect, useRef, useState } from "react"
 import { emptyFeatureCollection } from "@/lib/client/map-data"
+import { riderFeatureUnavailableLayerIds, type RiderFeatureProvider } from "@/lib/client/rider-feature-availability"
 import {
   featureMapLayerIds,
   paUnpavedRoadsQuery,
@@ -301,7 +302,7 @@ export function useRiderFeatureLayers(
           setRiderFeaturesStatus("error")
           return
         }
-        const collection = await response.json() as FeatureCollection
+        const collection = await response.json() as FeatureCollection & { unavailable?: RiderFeatureProvider[] }
         if (!isCurrent(version)) return
         geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(collection)
         // Tally per-layer counts so the Layers panel can answer "did this
@@ -313,18 +314,26 @@ export function useRiderFeatureLayers(
           const lid = (feature.properties as Record<string, unknown> | null)?.layerId
           if (typeof lid === "string") counts[lid] = (counts[lid] ?? 0) + 1
         }
+        const unavailableLayers = new Set<RiderLayerId>(
+          riderFeatureUnavailableLayerIds(collection.unavailable, selectedLayers)
+        )
         setRiderLayerCounts(counts)
         setRiderLayerStates((prev) => {
           const next: Record<string, FeatureLayerState> = { ...prev }
           for (const id of visibleFeatureLayers) {
             if (selectedSet.has(id)) {
-              next[id] = (counts[id] ?? 0) > 0 ? "ready" : "empty"
+              next[id] = unavailableLayers.has(id)
+                ? "error"
+                : (counts[id] ?? 0) > 0 ? "ready" : "empty"
             } else {
               next[id] = "zoom"
             }
           }
           return next
         })
+        // Partial provider loss belongs to the affected layer badge. Keep the
+        // aggregate status ready when the federated endpoint answered so OSM
+        // or weather data that did succeed remains usable and visible.
         setRiderFeaturesStatus("ready")
       } catch (caught) {
         if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
