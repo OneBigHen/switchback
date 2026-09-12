@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync } from "node:fs"
 import {
   DEFAULT_TRAVERSABILITY_THRESHOLDS,
+  GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
   evaluateCorridorTraversability,
   type CorridorTraversalProbe
 } from "../src/lib/roads/gravel-atlas/traversability"
@@ -42,6 +43,7 @@ interface VerifiedCorridor {
 interface VerifiedAtlas {
   graphFingerprint: string
   sourceFingerprint: string
+  traversabilityPolicyVersion?: number
   corridors: VerifiedCorridor[]
   quarantined: Array<Record<string, unknown>>
 }
@@ -267,6 +269,7 @@ async function main(): Promise<void> {
   const output: VerifiedAtlas = {
     graphFingerprint: atlas.graphFingerprint,
     sourceFingerprint: atlas.sourceFingerprint,
+    traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
     corridors: kept,
     quarantined
   }
@@ -274,6 +277,7 @@ async function main(): Promise<void> {
   writeFileSync(REPORT, JSON.stringify({
     profile: PROFILE,
     graphhopper: GRAPHHOPPER,
+    traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
     thresholds: DEFAULT_TRAVERSABILITY_THRESHOLDS,
     graphFingerprint: atlas.graphFingerprint,
     sourceFingerprint: atlas.sourceFingerprint,
@@ -284,7 +288,7 @@ async function main(): Promise<void> {
   }, null, 2))
 
   const failures = report.filter((entry) => entry.traversable === false)
-  console.log(`Traversability: ${kept.length}/${atlas.corridors.length} corridors rideable end to end`)
+  console.log(`Traversability policy v${GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION}: ${kept.length}/${atlas.corridors.length} corridors rideable end to end`)
   for (const failure of failures) {
     console.log(`  refused ${String(failure.label)} :: ${String(failure.reason)} :: ${String(failure.message)}`)
   }
