@@ -41,6 +41,7 @@ const clearEvidence: RouteTrafficEvidence = {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -109,6 +110,19 @@ describe("RouteTrafficSummary", () => {
     render(<RouteTrafficSummary route={route("failure")} />)
 
     expect(await screen.findByText("Live traffic unavailable")).toBeInTheDocument()
+  })
+
+  it("does not start a traffic request while the browser is offline", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false)
+    const fetcher = vi.fn()
+    vi.stubGlobal("fetch", fetcher)
+
+    render(<RouteTrafficSummary route={route("offline")} />)
+
+    expect(screen.getByText("Traffic check paused")).toBeInTheDocument()
+    expect(screen.getByText("Reconnect to refresh live conditions.")).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(fetcher).not.toHaveBeenCalled()
   })
 
   it("aborts the old traffic request when route identity changes", async () => {
