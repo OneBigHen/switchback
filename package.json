@@ -45,6 +45,7 @@
     "atlas:verify": "node scripts/verify-route-atlas.mjs",
     "atlas:refresh": "npm run atlas:build && npm run atlas:verify",
     "gravel-atlas:sources": "tsx scripts/build-gravel-atlas-sources.ts",
+    "gravel-atlas:reconcile": "tsx scripts/reconcile-gravel-atlas.ts",
     "gravel-atlas:runtime": "tsx scripts/build-gravel-atlas-runtime.ts",
     "doctor": "react-doctor --no-telemetry"
   },
