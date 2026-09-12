@@ -1,90 +1,127 @@
-import Dexie, { type EntityTable } from "dexie"
+import { openDB, type DBSchema, type IDBPDatabase } from "idb"
+import type {
+  LegacyMapStyleId,
+  RiderLayerSetting,
+  RiderMapPack } from "@/lib/client/map-layers"
+import { normalizePersistedRiderLayerSettings } from "@/lib/client/persisted-rider-layers"
 import {
-  normalizeRiderLayerSettings,
-  type RiderLayerSettingInput,
-  type RiderMapPack
-} from "@/lib/client/map-layers"
-import {
-  legacyMapExperienceFor,
-  legacyMapStyleFor,
+  isMapLightPreference,
+  legacyExperienceForPreset,
+  legacyMapStyleForPreset,
+  type LegacyMapExperienceId,
   type MapLightPreference
 } from "@/lib/client/map-experience"
-import type { MapPresetId } from "@/lib/client/map-preset-registry"
+import { isMapPresetId, type MapPresetId } from "@/lib/client/map-preset-registry"
 
-export interface MapPackInput {
-  preset: MapPresetId
+interface MapPackDb extends DBSchema {
+  packs: {
+    key: string
+    value: RiderMapPack
+    indexes: { "by-updated": string }
+  }
+}
+
+type CanonicalMapPackInput = {
   name: string
-  lightPreference: MapLightPreference
+  preset: MapPresetId
+  experience?: never
+  lightPreference?: MapLightPreference
   routeVisibility: RiderMapPack["routeVisibility"]
-  layers: RiderLayerSettingInput[]
+  layers: RiderLayerSetting[]
 }
 
-class MapPackDatabase extends Dexie {
-  packs!: EntityTable<RiderMapPack, "id">
-
-  constructor(name: string) {
-    super(name)
-    this.version(1).stores({
-      packs: "&id, name, updatedAt, createdAt"
-    })
-  }
+type LegacyMapPackInput = {
+  name: string
+  preset?: never
+  experience: LegacyMapExperienceId
+  lightPreference?: MapLightPreference
+  routeVisibility: RiderMapPack["routeVisibility"]
+  layers: RiderLayerSetting[]
 }
 
+export type MapPackInput = CanonicalMapPackInput | LegacyMapPackInput
+
+function presetForInput(input: MapPackInput): MapPresetId {
+  if (isMapPresetId(input.preset)) return input.preset
+  if (input.experience === "terrain") return "terrain"
+  if (input.experience === "satellite") return "satellite"
+  return "road"
+}
+
+function boundedName(name: string): string {
+  const normalized = name.trim().replace(/\s+/g, " ").slice(0, 80)
+  if (!normalized) throw new Error("Map pack name is required")
+  return normalized
+}
+
+/**
+ * Offline-first local library for reusable rider map setups. It stores only
+ * bounded preference state; tile data and source datasets remain outside the
+ * pack so a saved setup cannot turn into an opaque offline cache.
+ */
 export class MapPackLibrary {
-  private readonly database: MapPackDatabase
-  private lastTimestamp = 0
+  private database: Promise<IDBPDatabase<MapPackDb>>
 
-  constructor(readonly name = "switchback-map-packs") {
-    this.database = new MapPackDatabase(name)
-  }
-
-  private now(): string {
-    const timestamp = Math.max(Date.now(), this.lastTimestamp + 1)
-    this.lastTimestamp = timestamp
-    return new Date(timestamp).toISOString()
-  }
-
-  async save(input: MapPackInput, id = crypto.randomUUID()): Promise<RiderMapPack> {
-    const name = input.name.trim().replace(/\s+/g, " ")
-    if (!name) throw new Error("Map pack needs a name.")
-    if (name.length > 80) throw new Error("Map pack names must be 80 characters or fewer.")
-    const existing = await this.database.packs.get(id)
-    const timestamp = this.now()
-    const preset = input.preset
-    const pack: RiderMapPack = {
-      id,
-      name,
-      preset,
-      // Rollback-only serialisation. A pack this build writes stays readable
-      // by the premium-wave and pre-premium builds; nothing here reads them
-      // back while `preset` is present. Removable once no installed build
-      // predates the canonical field.
-      experience: legacyMapExperienceFor(preset),
-      mapStyle: legacyMapStyleFor(preset, input.lightPreference),
-      lightPreference: input.lightPreference,
-      routeVisibility: input.routeVisibility,
-      layers: normalizeRiderLayerSettings(input.layers),
-      createdAt: existing?.createdAt ?? timestamp,
-      updatedAt: timestamp
-    }
-    await this.database.packs.put(pack)
-    return pack
-  }
-
-  async get(id: string): Promise<RiderMapPack | undefined> {
-    return this.database.packs.get(id)
+  constructor(private readonly databaseName = "switchback-map-packs") {
+    this.database = openDB<MapPackDb>(databaseName, 1, {
+      upgrade(database) {
+        const store = database.createObjectStore("packs", { keyPath: "id" })
+        store.createIndex("by-updated", "updatedAt")
+      }
+    })
   }
 
   async list(): Promise<RiderMapPack[]> {
-    return this.database.packs.orderBy("updatedAt").reverse().toArray()
+    const db = await this.database
+    const packs = await db.getAllFromIndex("packs", "by-updated")
+    return packs.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+  }
+
+  async get(id: string): Promise<RiderMapPack | null> {
+    const db = await this.database
+    return (await db.get("packs", id)) ?? null
+  }
+
+  async save(input: MapPackInput): Promise<RiderMapPack> {
+    const db = await this.database
+    const now = new Date().toISOString()
+    const id = crypto.randomUUID()
+    const preset = presetForInput(input)
+    const lightPreference = isMapLightPreference(input.lightPreference)
+      ? input.lightPreference
+      : "auto"
+    const pack: RiderMapPack = {
+      id,
+      name: boundedName(input.name),
+      createdAt: now,
+      updatedAt: now,
+      preset,
+      // Rollback fields stay bounded and deterministic. Older premium builds
+      // can recover the closest experience, and pre-premium builds still have
+      // one of their three original style ids.
+      experience: legacyExperienceForPreset(preset),
+      mapStyle: legacyMapStyleForPreset(preset, lightPreference) as LegacyMapStyleId,
+      lightPreference,
+      routeVisibility: input.routeVisibility,
+      layers: normalizePersistedRiderLayerSettings(input.layers)
+    }
+    await db.put("packs", pack)
+    return pack
   }
 
   async remove(id: string): Promise<void> {
-    await this.database.packs.delete(id)
+    const db = await this.database
+    await db.delete("packs", id)
   }
 
   async destroy(): Promise<void> {
-    this.database.close()
-    await Dexie.delete(this.name)
+    const db = await this.database
+    db.close()
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(this.databaseName)
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+      request.onblocked = () => resolve()
+    })
   }
 }
