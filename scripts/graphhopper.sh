@@ -8,6 +8,7 @@ CONFIG="$ROOT/infra/graphhopper/config.yml"
 "$ROOT/scripts/bootstrap-data.sh"
 
 ACTIVE_CACHE="$ROOT/data/graph-cache"
+GRAPH_FINGERPRINT_FILE="switchback-graph-fingerprint"
 
 # Phase 3: build and validate a NEW graph beside the active cache without
 # touching it. The production swap is owned by Phase 7; `swap` exists so the
@@ -15,6 +16,27 @@ ACTIVE_CACHE="$ROOT/data/graph-cache"
 
 candidate_cache() {
   echo "$ROOT/data/graph-cache-$1"
+}
+
+fingerprint_tool() {
+  local tsx="$ROOT/node_modules/.bin/tsx"
+  if [[ ! -x "$tsx" ]]; then
+    echo "tsx is required to fingerprint the GraphHopper build. Run npm ci first." >&2
+    return 1
+  fi
+  "$tsx" "$ROOT/scripts/compute-gravel-atlas-graph-fingerprint.ts" "$@"
+}
+
+stamp_graph_fingerprint() {
+  local graph_cache="$1"
+  if [[ ! -d "$graph_cache" ]]; then
+    echo "Cannot fingerprint missing graph cache: $graph_cache" >&2
+    return 1
+  fi
+  local output="$graph_cache/$GRAPH_FINGERPRINT_FILE"
+  local fingerprint
+  fingerprint="$(fingerprint_tool --write="$output" | tail -n 1)"
+  echo "Stamped GraphHopper fingerprint: $fingerprint"
 }
 
 # Generate a throwaway config pointing at the candidate cache and, for
@@ -38,7 +60,8 @@ case "${1:-start}" in
   import)
     rm -rf "$ACTIVE_CACHE"
     cd "$ROOT"
-    exec java -Xms1g -Xmx5g -XX:+UseParallelGC -jar "$JAR" import "$CONFIG"
+    java -Xms1g -Xmx5g -XX:+UseParallelGC -jar "$JAR" import "$CONFIG"
+    stamp_graph_fingerprint "$ACTIVE_CACHE"
     ;;
   import-candidate)
     # Side-by-side import: build data/graph-cache-<name> beside the active
@@ -53,7 +76,8 @@ case "${1:-start}" in
     mkdir -p "$target"
     cfg="$(candidate_config "$name")"
     cd "$ROOT"
-    exec java -Xms1g -Xmx5g -XX:+UseParallelGC -jar "$JAR" import "$cfg"
+    java -Xms1g -Xmx5g -XX:+UseParallelGC -jar "$JAR" import "$cfg"
+    stamp_graph_fingerprint "$target"
     ;;
   validate-candidate)
     # Start the candidate cache on port 8988 (admin 8991), probe health and
@@ -109,6 +133,21 @@ case "${1:-start}" in
     echo "Swapped. Previous cache preserved for rollback:"
     echo "  rollback: mv $rollback $ACTIVE_CACHE"
     ;;
+  fingerprint)
+    expected="$(fingerprint_tool | tail -n 1)"
+    echo "expected: $expected"
+    if [[ -f "$ACTIVE_CACHE/$GRAPH_FINGERPRINT_FILE" ]]; then
+      stored="$(tr -d '[:space:]' < "$ACTIVE_CACHE/$GRAPH_FINGERPRINT_FILE")"
+      echo "active:   $stored"
+      if [[ "$stored" != "$expected" ]]; then
+        echo "Active graph fingerprint is stale; rebuild/swap the GraphHopper graph before building Gravel Atlas." >&2
+        exit 1
+      fi
+    else
+      echo "active:   unstamped (rebuild/swap the GraphHopper graph before building Gravel Atlas)" >&2
+      exit 1
+    fi
+    ;;
   start)
     if [[ ! -f "$ACTIVE_CACHE/properties" && ! -f "$ACTIVE_CACHE/properties.txt" ]]; then
       echo "Graph cache is missing. Run: npm run routing:import"
@@ -149,7 +188,7 @@ case "${1:-start}" in
     exec java -Xms1g -Xmx4g -jar "$JAR" server "$legacy_config"
     ;;
   *)
-    echo "Usage: scripts/graphhopper.sh [import|import-candidate <name>|validate-candidate <name>|swap <name>|start]"
+    echo "Usage: scripts/graphhopper.sh [import|import-candidate <name>|validate-candidate <name>|swap <name>|fingerprint|start]"
     exit 2
     ;;
 esac
