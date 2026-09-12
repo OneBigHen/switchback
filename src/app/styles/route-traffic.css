@@ -1,25 +1,32 @@
 .route-traffic-summary {
+  --route-traffic-accent: var(--sb-text-muted);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.7rem;
+  gap: 0.5rem;
   align-items: center;
-  margin: 0.55rem 0 0.75rem;
-  padding: 0.72rem 0.82rem;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: 0.85rem;
-  background: color-mix(in srgb, var(--surface-raised, #171b18) 92%, transparent);
-  font-size: 0.86rem;
+  min-height: 2.25rem;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.42rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--route-traffic-accent) 28%, var(--sb-border));
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--route-traffic-accent) 5%, var(--sb-surface-raised));
+  color: var(--sb-text);
+  font-size: 0.78rem;
 }
 
-.route-traffic-summary > svg {
-  width: 1.25rem;
-  height: 1.25rem;
+.route-traffic-summary > svg,
+.route-traffic-summary__spinner {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
 }
 
 .route-traffic-summary > span:last-child {
   min-width: 0;
-  display: grid;
-  gap: 0.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.08rem 0.4rem;
 }
 
 .route-traffic-summary strong,
@@ -28,46 +35,66 @@
 }
 
 .route-traffic-summary strong {
+  color: var(--sb-text);
+  font-size: 0.78rem;
+  font-weight: 720;
   line-height: 1.2;
 }
 
 .route-traffic-summary small {
-  opacity: 0.72;
-  line-height: 1.35;
+  color: var(--sb-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
-.route-traffic-summary.is-clear > svg {
-  color: var(--success, #65a879);
+.route-traffic-summary.is-clear {
+  --route-traffic-accent: #4f9668;
 }
 
-.route-traffic-summary.is-warning > svg,
-.route-traffic-summary.is-loading > svg {
-  color: var(--warning, #d99a3a);
+.route-traffic-summary.is-warning,
+.route-traffic-summary.is-loading {
+  --route-traffic-accent: #b77716;
 }
 
 .route-traffic-summary.is-danger {
-  border-color: color-mix(in srgb, var(--danger, #d85a4d) 45%, transparent);
+  --route-traffic-accent: #c44f42;
+  border-color: color-mix(in srgb, var(--route-traffic-accent) 42%, var(--sb-border));
+  background: color-mix(in srgb, var(--route-traffic-accent) 7%, var(--sb-surface-raised));
 }
 
-.route-traffic-summary.is-danger > svg {
-  color: var(--danger, #d85a4d);
+.route-traffic-summary.is-unavailable,
+.route-traffic-summary.is-paused {
+  --route-traffic-accent: var(--sb-text-muted);
 }
 
-.route-traffic-summary.is-unavailable {
-  opacity: 0.78;
+.route-traffic-summary.is-paused {
+  border-style: dashed;
+}
+
+.route-traffic-summary > svg {
+  color: var(--route-traffic-accent);
 }
 
 .route-traffic-summary__spinner {
-  width: 1.15rem;
-  height: 1.15rem;
-  border: 2px solid color-mix(in srgb, currentColor 20%, transparent);
-  border-top-color: currentColor;
+  border: 2px solid color-mix(in srgb, var(--route-traffic-accent) 24%, transparent);
+  border-top-color: var(--route-traffic-accent);
   border-radius: 50%;
   animation: route-traffic-spin 0.8s linear infinite;
 }
 
 @keyframes route-traffic-spin {
   to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .route-traffic-summary {
+    margin-block: 0.3rem 0.4rem;
+    padding: 0.38rem 0.52rem;
+  }
+
+  .route-traffic-summary small {
+    font-size: 0.66rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
