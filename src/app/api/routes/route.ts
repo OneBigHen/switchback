@@ -105,16 +105,15 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
 
   // The atlas database is deliberately separate from the imported-ride Route
   // Atlas (poster artwork). Only an explicitly enabled Adventure/Gravel
-  // request and matching graph + official-source fingerprints may load routing
-  // evidence. Missing either fingerprint disables the Atlas rather than mixing
-  // stale verification with a newer graph or source snapshot.
+  // request and a complete runtime tuple (database path + graph fingerprint +
+  // official-source fingerprint) may load routing evidence. Missing any member
+  // disables the Atlas rather than guessing a local database or mixing builds.
+  const atlasPath = process.env.GRAVEL_ATLAS_DB_PATH?.trim()
   const graphFingerprint = process.env.GRAVEL_ATLAS_GRAPH_FINGERPRINT?.trim()
   const sourceFingerprint = process.env.GRAVEL_ATLAS_SOURCE_FINGERPRINT?.trim()
-  if (request.gravelAtlas?.enabled === true && graphFingerprint && sourceFingerprint) {
+  if (request.gravelAtlas?.enabled === true && atlasPath && graphFingerprint && sourceFingerprint) {
     try {
       const atlasBounds = gravelAtlasBounds(request)
-      const atlasPath = process.env.GRAVEL_ATLAS_DB_PATH ??
-        path.join(process.cwd(), "data/gravel-atlas.sqlite")
       sources.gravelAtlas = {
         preference: request.gravelAtlas,
         corridors: new GravelAtlasRepository(atlasPath).queryBounds({
