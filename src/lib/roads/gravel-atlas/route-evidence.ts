@@ -10,7 +10,7 @@ const INDEX_CELL_METERS = 160
 const MAX_INDEX_CELLS_PER_SEGMENT = 256
 
 export interface GravelAtlasRouteEvidence {
-  source: "Switchback Gravel Atlas"
+  source: "OpenGravel Gravel Atlas"
   matchedMeters: number
   sharePercent: number
   longestContinuousMeters: number
@@ -42,7 +42,7 @@ export function calculateGravelAtlasRouteEvidence(
   corridors: readonly GravelAtlasCorridor[]
 ): GravelAtlasRouteEvidence {
   const empty: GravelAtlasRouteEvidence = {
-    source: "Switchback Gravel Atlas",
+    source: "OpenGravel Gravel Atlas",
     matchedMeters: 0,
     sharePercent: 0,
     longestContinuousMeters: 0,

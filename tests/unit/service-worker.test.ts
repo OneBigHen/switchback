@@ -12,7 +12,7 @@ describe("service worker data boundaries (SB-019)", () => {
   it("separates shell, build, tile, and image caches with explicit bounds", () => {
     const source = readFileSync("public/sw.js", "utf8")
 
-    expect(source).toContain('const SHELL_CACHE = "switchback-shell-v3"')
+    expect(source).toContain('const SHELL_CACHE = "switchback-shell-v4"')
     expect(source).toContain('const BUILD_CACHE = "switchback-build-v3"')
     expect(source).toContain('const TILE_CACHE = "switchback-tiles-v3"')
     expect(source).toContain('const IMAGE_CACHE = "switchback-images-v3"')

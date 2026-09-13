@@ -41,11 +41,7 @@
 .open-gravel-mark {
   width: 40px;
   height: 40px;
-  color: var(--sb-text);
-}
-
-.open-gravel-mark .open-gravel-mark-accent {
-  color: var(--sb-ember);
+  flex: none;
 }
 
 .app-navigation-brand strong {

@@ -8,7 +8,7 @@
 // - Images: stale-while-revalidate, bounded.
 // - Same-origin /api/*: never cached (no fake offline success).
 
-const SHELL_CACHE = "switchback-shell-v3"
+const SHELL_CACHE = "switchback-shell-v4"
 const BUILD_CACHE = "switchback-build-v3"
 const TILE_CACHE = "switchback-tiles-v3"
 const IMAGE_CACHE = "switchback-images-v3"

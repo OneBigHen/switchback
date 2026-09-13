@@ -259,7 +259,7 @@ export function enforceAdvisorActionReply(
       ...reply,
       message: intent === "route-with-stop"
         ? opinion
-          ? `Grounded stop: ${stop.name}. A different verified route candidate is ready; Switchback will route through the planner.`
+          ? `Grounded stop: ${stop.name}. A different verified route candidate is ready; OpenGravel will route through the planner.`
           : `Grounded stop: ${stop.name}. I don’t have a better verified route candidate, so your route is unchanged.`
         : intent === "add-stop"
           ? `Grounded stop: ${stop.name}. It is ready to add to this ride.`

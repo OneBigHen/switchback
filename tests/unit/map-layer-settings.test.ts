@@ -56,7 +56,7 @@ describe("map layer settings", () => {
     ]))
     expect(layerCatalog.filter((layer) => layer.dataCategory === "road-surface")).toHaveLength(1)
     expect(gravelAtlas).toMatchObject({
-      source: "Switchback Gravel Atlas",
+      source: "OpenGravel Gravel Atlas",
       provenance: expect.stringMatching(/graph-verified.*official source snapshots/i),
       legend: expect.stringMatching(/known gravel corridor/i)
     })

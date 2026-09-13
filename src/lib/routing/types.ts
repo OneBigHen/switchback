@@ -41,7 +41,7 @@ export interface GravelAtlasPreference {
 
 /** What the returned route actually followed from graph-verified Atlas geometry. */
 export interface GravelAtlasRouteEvidence {
-  source: "Switchback Gravel Atlas"
+  source: "OpenGravel Gravel Atlas"
   matchedMeters: number
   sharePercent: number
   longestContinuousMeters: number

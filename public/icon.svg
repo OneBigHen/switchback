@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OpenGravel">
-  <rect width="512" height="512" rx="112" fill="#0B0E0D"/>
-  <rect x="22" y="22" width="468" height="468" rx="94" fill="none" stroke="#343B37" stroke-width="10"/>
-  <circle cx="256" cy="256" r="176" fill="none" stroke="#68716B" stroke-width="14"/>
-  <path d="M119 287 190 202l47 45 52-68 106 111" fill="none" stroke="#F3EFE6" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M125 323 205 254l45 37 57-56 81 87" fill="none" stroke="#A6ADA6" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M219 421c2-50 111-57 101-104-7-34-58-27-49-65 5-23 23-40 53-56" fill="none" stroke="#F3EFE6" stroke-width="30" stroke-linecap="round"/>
-  <path d="m359 116 35 62-72 3Z" fill="#F36A2D"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="120 120 1014 1014" role="img" aria-label="OpenGravel">
+  <rect x="120" y="120" width="1014" height="1014" rx="228" fill="#0F2F24"/>
+    <rect x="183" y="183" width="886" height="886" rx="174" fill="none" stroke="#F9F6EB" stroke-width="42"/>
+  <circle cx="862" cy="377" r="86" fill="#DF6A3C"/>
+  <path fill="#F9F6EB" stroke="#F9F6EB" stroke-width="8" stroke-linejoin="round" d="M244 652 421 485 496 538 653 382 826 560 863 532 1009 680 1000 690 866 595 802 644 641 462 499 593 427 541 254 664Z"/>
+  <path fill="#54795F" d="M240 698C370 688 470 735 556 800C440 780 340 790 240 848Z"/>
+  <path fill="#54795F" d="M1013 726C905 718 820 790 752 890C850 850 940 845 1013 855Z"/>
+  <path fill="#F9F6EB" stroke="#F9F6EB" stroke-width="10" stroke-linejoin="round" d="M656 606C610 614 522 636 512 666C504 700 598 718 640 740C690 766 676 792 630 812C560 846 470 872 402 914C346 952 333 1000 337 1049L665 1049C625 1020 612 984 626 944C645 896 722 862 762 830C802 798 800 758 770 734C736 704 650 692 600 676C564 664 570 650 600 637C624 626 646 619 660 614Z"/>
+  <path fill="none" stroke="#F9F6EB" stroke-width="42" d="M337 1069H918"/>
 </svg>
