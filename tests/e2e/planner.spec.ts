@@ -362,7 +362,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   // and its modal drawer are retired; primary navigation is the way in, and
   // importing is a two-step flow (open the import panel, then choose what the
   // file becomes) rather than a bare file input inside the drawer.
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
   const rides = page.getByRole("main", { name: "Rides destination" })
   await expect(rides).toBeVisible()
   if (testInfo.project.name.includes("landscape")) {
@@ -385,7 +385,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   })
 
   await expect(page.getByText("Imported Loop imported to your library.")).toBeHidden({ timeout: 10_000 })
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
   await page.getByRole("button", { name: /^Open Quick route/ }).click()
   await page.getByRole("button", { name: /Start .* route/i }).click()
   await expect(page.getByRole("region", { name: "Ride mode for Quick route" })).toBeVisible()

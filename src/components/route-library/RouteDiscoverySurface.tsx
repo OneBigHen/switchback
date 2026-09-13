@@ -14,7 +14,7 @@ import {
   type AtlasSortId
 } from "@/app/gpx-library/atlas-browse"
 import { useNearMe } from "@/lib/client/near-me"
-import type { CurvatureBand } from "@/lib/gpx/atlas"
+import type { CurvatureBand } from "@/lib/gpx/atlas-art"
 import { RouteDiscoveryCard } from "./RouteDiscoveryCard"
 import { RouteLibraryMap } from "./RouteLibraryMap"
 import {
@@ -184,7 +184,6 @@ export function RouteDiscoverySurface({
   return (
     <div className={[styles.surface, className].filter(Boolean).join(" ")} data-discovery-view={view}>
       <header className={styles.header}>
-        {contextSlot}
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{title}</h1>
           <div className={styles.viewToggle} role="group" aria-label="Presentation">
@@ -264,6 +263,7 @@ export function RouteDiscoverySurface({
               </button>
             )
           })}
+          {contextSlot}
         </div>
 
         {filtersOpen ? (
@@ -374,7 +374,7 @@ export function RouteDiscoverySurface({
           </section>
         ) : null}
 
-        <p className={styles.resultBar}>
+        <p className={styles.resultBar} data-compact={view === "map" ? "true" : "false"}>
           <span aria-live="polite">{describeDiscoveryResult(ranked.length, filters, quick, located)}</span>
           {filtersDirty ? (
             <button type="button" className={styles.reset} onClick={resetAll}>Clear</button>

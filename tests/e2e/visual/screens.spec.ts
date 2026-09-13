@@ -148,10 +148,10 @@ for (const viewport of VIEWPORTS) {
     test("Rides screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Rides", exact: true }).click()
+      await page.getByRole("button", { name: "Saved", exact: true }).click()
       const panel = page.getByRole("main", { name: "Rides destination" })
       await assertPanelVisible(panel)
-      await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+      await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
       await expect(page).toHaveScreenshot(`rides-${viewport.name}.png`, screenshotOptions(page))
     })
 

@@ -2,7 +2,7 @@ import path from "node:path"
 import { readAtlasArt } from "@/lib/gpx/atlas"
 import { readDerivedCached } from "@/lib/gpx/catalog-cache"
 import { buildAtlasBrowseRoutes, type AtlasListingRoute } from "./atlas-listing"
-import type { AtlasBrowseRoute } from "./atlas-browse"
+import type { BrowseCatalog } from "./browse-catalog"
 
 /**
  * One loader for the browse catalog, shared by the `/gpx-library` page and the
@@ -47,14 +47,7 @@ function validateAtlasListing(parsed: unknown): { routes: AtlasListingRoute[]; g
   }
 }
 
-export interface BrowseCatalog {
-  routes: AtlasBrowseRoute[]
-  regions: string[]
-  ridingAreas: string[]
-  routeCount: number
-  totalMiles: number
-  updatedLabel: string | null
-}
+export type { BrowseCatalog }
 
 function formatUpdated(value: string | undefined): string | null {
   if (!value) return null

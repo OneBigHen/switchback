@@ -15,8 +15,8 @@
 
 .header {
   display: grid;
-  gap: 10px;
-  padding: 12px var(--sb-space-4) 10px;
+  gap: 7px;
+  padding: 9px var(--sb-space-4) 6px;
   border-bottom: 1px solid var(--sb-border);
   background: var(--sb-canvas);
 }
@@ -244,6 +244,21 @@
   font-weight: 600;
 }
 
+/* Map mode keeps the count (and the way back out of a filter) reachable
+   without spending a row of header on it. */
+.resultBar[data-compact="true"] {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip-path: inset(50%);
+}
+
+.resultBar[data-compact="true"] .reset {
+  position: static;
+}
+
 .reset {
   min-height: 32px;
   padding: 0 10px;
@@ -290,6 +305,12 @@
   flex: 0 0 78%;
   max-width: 320px;
   scroll-snap-align: center;
+}
+
+/* The rail is a browsing aid above the map, not the surface itself: it takes
+   the height one card needs and no more, so the map keeps the workspace. */
+.rail {
+  flex: 0 0 auto;
 }
 
 /* --- list mode ---------------------------------------------------------- */

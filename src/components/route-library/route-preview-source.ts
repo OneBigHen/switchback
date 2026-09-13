@@ -1,5 +1,5 @@
 import type { AtlasBrowseRoute } from "@/app/gpx-library/atlas-browse"
-import type { AtlasRouteArt } from "@/lib/gpx/atlas"
+import type { AtlasRouteArt } from "@/lib/gpx/atlas-art"
 import {
   atlasGeoEndpoints,
   atlasGeometryFingerprint,

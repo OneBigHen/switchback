@@ -127,7 +127,7 @@ describe("planner command surface", () => {
   it("names the progressive disclosure Ride options", () => {
     render(<PlannerDeck viewModel={viewModel()} commands={commands()} />)
 
-    expect(screen.getByRole("button", { name: "Ride options" })).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByRole("button", { name: /Ride options/ })).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByRole("button", { name: /^Options$/ })).not.toBeInTheDocument()
   })
 
@@ -135,7 +135,7 @@ describe("planner command surface", () => {
     const user = userEvent.setup()
     render(<PlannerDeck viewModel={viewModel()} commands={commands()} />)
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
 
     expect(screen.getByRole("group", { name: "Ride character" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Shape route" })).toBeInTheDocument()
@@ -151,7 +151,7 @@ describe("planner command surface", () => {
     const user = userEvent.setup()
     render(<PlannerDeck viewModel={viewModel()} commands={commands()} />)
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
 
     expect(screen.getByRole("button", { name: "Exclude an area on map" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Prefer a road on map" })).toBeInTheDocument()

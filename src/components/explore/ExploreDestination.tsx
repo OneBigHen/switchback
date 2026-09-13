@@ -1,9 +1,10 @@
 "use client"
 
-import { SpinnerGap, WarningCircle } from "@phosphor-icons/react"
+import { ArrowRight, SpinnerGap, WarningCircle } from "@phosphor-icons/react"
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import type { AtlasBrowseRoute } from "@/app/gpx-library/atlas-browse"
-import type { BrowseCatalog } from "@/app/gpx-library/load-catalog"
+import type { BrowseCatalog } from "@/app/gpx-library/browse-catalog"
 import { RouteDiscoverySurface } from "@/components/route-library/RouteDiscoverySurface"
 import type { QuickChipId } from "@/components/route-library/route-discovery-state"
 import styles from "./ExploreDestination.module.css"
@@ -102,6 +103,12 @@ export function ExploreDestination() {
         defaultView="map"
         quickChips={EXPLORE_CHIPS}
         className={styles.surface}
+        contextSlot={(
+          <Link className={styles.atlasLink} href="/routes">
+            <span>Community Atlas</span>
+            <ArrowRight weight="bold" aria-hidden="true" />
+          </Link>
+        )}
       />
     </section>
   )

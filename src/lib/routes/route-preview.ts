@@ -16,7 +16,7 @@
  * already loads the real geometry, uses the real geometry instead.
  */
 
-import { ATLAS_PADDING, ATLAS_VIEWBOX, type AtlasRouteArt } from "@/lib/gpx/atlas"
+import { ATLAS_PADDING, ATLAS_VIEWBOX, type AtlasRouteArt } from "@/lib/gpx/atlas-art"
 import type { Coordinate } from "@/lib/routing/types"
 
 /** Web Mercator tile size the atlas builder projects with. */

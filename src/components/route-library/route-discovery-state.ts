@@ -16,7 +16,7 @@ import {
   type AtlasLengthBucket,
   type RankedAtlasRoute
 } from "@/app/gpx-library/atlas-browse"
-import type { CurvatureBand } from "@/lib/gpx/atlas"
+import type { CurvatureBand } from "@/lib/gpx/atlas-art"
 
 export type DiscoveryView = "map" | "list"
 

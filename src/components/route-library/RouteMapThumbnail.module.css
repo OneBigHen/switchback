@@ -108,3 +108,18 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* The renderer answered that it cannot draw a basemap here. The card still
+   shows the route's real line in its own projection, and says so rather than
+   letting the plate pass for a map. */
+.lineOnly {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sb-paper) 85%, transparent);
+  color: var(--sb-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+}

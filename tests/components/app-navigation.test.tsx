@@ -39,8 +39,8 @@ describe("AppNavigation", () => {
       "Plan",
       "Explore",
       "Saved",
-      "Settings",
-      "Record"
+      "Record",
+      "Settings"
     ])
   })
 

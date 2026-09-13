@@ -269,7 +269,7 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
             <dt>{duration.level === "verified" ? "Recorded time" : "Time"}</dt>
             <dd>
               {formatDuration(duration.minutes) ?? "Unknown"}
-              {duration.level !== "verified" ? <span className="route-evidence-tag">{duration.label}</span> : null}
+              {duration.level === "estimated" ? <span className="route-evidence-tag">Estimated</span> : null}
             </dd>
           </div>
           <div data-evidence={corners.level}>
@@ -281,10 +281,16 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
           <div data-evidence={surface.level}>
             <dt>Surface</dt>
             <dd>
-              {surface.unpavedShare === null
-                ? "Unknown"
-                : `${Math.round(surface.unpavedShare * 100)}% unpaved`}
-              <span className="route-evidence-tag">{surface.label}</span>
+              {surface.unpavedShare === null ? (
+                // The value *is* the evidence state here; repeating it as a
+                // tag underneath says "Unknown / UNKNOWN".
+                "Unknown"
+              ) : (
+                <>
+                  {`${Math.round(surface.unpavedShare * 100)}% unpaved`}
+                  <span className="route-evidence-tag">{surface.label}</span>
+                </>
+              )}
             </dd>
           </div>
         </dl>

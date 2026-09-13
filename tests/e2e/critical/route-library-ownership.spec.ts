@@ -55,7 +55,7 @@ async function installServicesWithRealCatalog(page: Page): Promise<void> {
 }
 
 async function openMyRides(page: Page): Promise<void> {
-  await page.getByRole("group", { name: "Primary destinations" }).getByRole("button", { name: "Rides" }).click()
+  await page.getByRole("group", { name: "Primary destinations" }).getByRole("button", { name: "Saved" }).click()
   await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
 }
 

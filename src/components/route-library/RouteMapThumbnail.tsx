@@ -29,7 +29,14 @@ export interface RouteMapThumbnailProps {
   className?: string
 }
 
-type PreviewState = "pending" | "map" | "unavailable"
+/**
+ * `map` — the rendered basemap preview.
+ * `pending` — the shared renderer has not answered yet.
+ * `line-only` — it answered that it cannot render here; the card shows the
+ *   route's real line in its own projection and says the basemap is missing.
+ * `unavailable` — the import kept no geography to place at all.
+ */
+type PreviewState = "pending" | "map" | "line-only" | "unavailable"
 
 /**
  * A geographic preview of one route.
@@ -68,11 +75,14 @@ export function RouteMapThumbnail({
   )
 
   // Rendered previews are keyed, so a card whose route changes can never paint
-  // the previous route's map for a frame.
-  const [rendered, setRendered] = useState<{ key: string; url: string } | null>(null)
+  // the previous route's map for a frame. A resolved-but-empty result is
+  // recorded too: a preview that failed must settle into an honest state
+  // rather than claiming to still be loading forever.
+  const [rendered, setRendered] = useState<{ key: string; url: string | null } | null>(null)
   const image = spec
     ? rendered?.key === spec.key ? rendered.url : cachedRoutePreview(spec.key)
     : null
+  const renderFailed = Boolean(spec && rendered?.key === spec.key && rendered.url === null)
 
   // Only previews the rider can actually see are worth rendering: scrolling a
   // long library must not queue a render for every row below the fold.
@@ -97,7 +107,7 @@ export function RouteMapThumbnail({
     let cancelled = false
     const key = spec.key
     void requestRoutePreview({ spec, geometry, start, end }).then((result) => {
-      if (!cancelled && result) setRendered({ key, url: result })
+      if (!cancelled) setRendered({ key, url: result })
     })
     return () => {
       cancelled = true
@@ -107,7 +117,11 @@ export function RouteMapThumbnail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec?.key, visible])
 
-  const state: PreviewState = !placeable ? "unavailable" : image ? "map" : "pending"
+  const state: PreviewState = !placeable
+    ? "unavailable"
+    : image
+      ? "map"
+      : renderFailed ? "line-only" : "pending"
 
   return (
     <div
@@ -120,6 +134,7 @@ export function RouteMapThumbnail({
         <>
           <MercatorPlate geometry={geometry} bbox={bbox!} start={start} end={end} label={label} />
           {areaLabel ? <span className={styles.areaLabel}>{areaLabel}</span> : null}
+          {renderFailed ? <span className={styles.lineOnly}>Basemap unavailable</span> : null}
           {/* The source is a data URL produced in-browser by the shared
               preview map, so there is nothing for an image optimizer to fetch
               or resize. `next/image` would only add a loader in front of bytes
@@ -168,15 +183,20 @@ function MercatorPlate({
     const offsetX = PLATE.padding + (boxWidth - spanX * scale) / 2
     const offsetY = PLATE.padding + (boxHeight - spanY * scale) / 2
     const topMercator = mercatorY(north)
+    // Rounded, and rounded *here*: the inverse Mercator differs in its last
+    // bits between Node and a browser engine, so an unrounded marker position
+    // renders one value on the server and another on the client and React
+    // reports a hydration mismatch. A tenth of a viewBox unit is far below one
+    // rendered pixel at any card size.
     const project = (point: Coordinate) => [
-      offsetX + (point[0] - west) * scale,
-      offsetY + (topMercator - mercatorY(point[1])) * scale
+      Number((offsetX + (point[0] - west) * scale).toFixed(1)),
+      Number((offsetY + (topMercator - mercatorY(point[1])) * scale).toFixed(1))
     ] as const
     return {
       d: geometry
         .map((point, index) => {
           const [x, y] = project(point)
-          return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`
+          return `${index === 0 ? "M" : "L"}${x} ${y}`
         })
         .join(" "),
       start: start ? project(start) : null,

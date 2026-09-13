@@ -168,24 +168,43 @@ function renderComposer(
 }
 
 describe("V2 compact Plan composer", () => {
-  it("keeps persistent trip shape separate from one-shot route actions", () => {
+  it("presents To, Loop and Free Ride as one mode family", () => {
     renderComposer()
 
     expect(screen.getByPlaceholderText("Search a place or describe a ride")).toBeInTheDocument()
     const tripShape = screen.getByRole("group", { name: "Trip shape" })
-    expect(within(tripShape).getByRole("button", { name: "Destination" })).toBeInTheDocument()
+    expect(within(tripShape).getByRole("button", { name: "To" })).toBeInTheDocument()
     expect(within(tripShape).getByRole("button", { name: "Loop" })).toBeInTheDocument()
+    expect(within(tripShape).getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
+    // Free Ride is the third shape, not a separate permanent control beside
+    // the mode family.
+    expect(screen.getAllByRole("button", { name: "Free Ride" })).toHaveLength(1)
+    // Drawing is an action on the map, not a shape of ride.
     expect(within(tripShape).queryByRole("button", { name: /Draw/i })).not.toBeInTheDocument()
-    const draw = screen.getByRole("button", { name: "Draw route" })
-    expect(draw).toHaveTextContent("Draw route")
-    expect(screen.getByRole("button", { name: "Free Ride" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Draw manually/ })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Minimize planner" })).toBeInTheDocument()
+  })
+
+  it("makes Create ride the one primary commitment", () => {
+    renderComposer()
+
+    const create = screen.getByRole("button", { name: /Create ride/ })
+    expect(create).toBeInTheDocument()
+    // Nothing else on the surface claims to be the way to make a ride.
+    expect(screen.queryByRole("button", { name: "Plan route" })).not.toBeInTheDocument()
+  })
+
+  it("reads the rider's current preferences back in the collapsed row", () => {
+    renderComposer()
+
+    const preferences = screen.getByRole("button", { name: /Ride options/ })
+    expect(preferences.textContent).toMatch(/·/)
   })
 
   it("uses one progressive disclosure instead of duplicating the route editor", () => {
     renderComposer()
 
-    expect(screen.getAllByRole("button", { name: "Ride options" })).toHaveLength(1)
+    expect(screen.getAllByRole("button", { name: /Ride options/ })).toHaveLength(1)
     expect(screen.queryByRole("button", { name: "Edit route" })).not.toBeInTheDocument()
   })
 

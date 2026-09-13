@@ -45,7 +45,7 @@ test("the idle composer keeps trip shape and free-form planning discoverable", a
   await expandPhonePlanner(page)
   await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
   const composer = page.locator(".plan-v2")
-  await expect(composer.getByRole("button", { name: "Destination" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "To", exact: true })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Loop" })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Draw route" })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Free Ride" })).toBeVisible()
@@ -292,14 +292,14 @@ test("a saved route survives a reload and remains available in the library", asy
   // Rides is a persistent V2 destination, not the retired modal LibraryDrawer.
   // Verify the saved object in the destination, then reload while that destination
   // is active so persistence and URL-state restoration are covered together.
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
   const rides = page.getByRole("main", { name: "Rides destination" })
   await expect(rides).toBeVisible()
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 
   await page.reload()
-  await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
+  await expect(page).toHaveURL(/[?&]tab=saved(?:&|$)/)
   const restoredRides = page.getByRole("main", { name: "Rides destination" })
   await expect(restoredRides).toBeVisible()
   await expect(restoredRides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
@@ -308,7 +308,7 @@ test("a saved route survives a reload and remains available in the library", asy
 test("valid GPX import appears in the route library", async ({ page }) => {
   await installPlannerServices(page)
   await page.goto("/")
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Import ride" }).click()
   await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({

@@ -10,9 +10,13 @@ export interface PrimaryNavItem {
 }
 
 /**
- * The approved mobile model, in order. Four of these are places; Record is an
- * activity, kept beside them in `RECORD_NAV_ITEM` so the bar reads as one
- * navigation model without pretending Record changes where the rider is.
+ * The approved mobile model is `Plan · Explore · Saved · Record · Settings`.
+ *
+ * Four of those are places; Record is an activity, so it keeps its own entry
+ * (`RECORD_NAV_ITEM`) and its own marking. It still has to appear *between*
+ * Saved and Settings, because that is the order riders were shown — hence the
+ * split into the items before it and the items after it, rather than one list
+ * with an activity smuggled into it.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { destination: "plan", label: "Plan", icon: MapTrifold, href: "/" },
@@ -20,6 +24,9 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { destination: "saved", label: "Saved", icon: Star, href: "/?tab=saved" },
   { destination: "settings", label: "Settings", icon: GearSix, href: "/?tab=settings" }
 ]
+
+/** How many destinations are drawn before the Record activity. */
+export const NAV_ITEMS_BEFORE_RECORD = 3
 
 export const RECORD_NAV_ITEM = {
   label: "Record",

@@ -182,7 +182,7 @@ describe("V2 progressive Ride options", () => {
   it("keeps route customization closed until Ride options is requested", () => {
     renderOptions()
 
-    const disclosure = screen.getByRole("button", { name: "Ride options" })
+    const disclosure = screen.getByRole("button", { name: /Ride options/ })
     expect(disclosure).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByRole("group", { name: "Ride character" })).not.toBeInTheDocument()
     expect(screen.queryByRole("group", { name: "Shape route" })).not.toBeInTheDocument()
@@ -196,7 +196,7 @@ describe("V2 progressive Ride options", () => {
     const onAvoidHighwaysChange = vi.fn()
     renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onAvoidHighwaysChange } })
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
 
     expect(screen.getByRole("group", { name: "Ride character" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Shape route" })).toBeInTheDocument()
@@ -223,7 +223,7 @@ describe("V2 progressive Ride options", () => {
     // Segment-level shaping controls only become available for a destination
     // with a finish and remain progressive rather than duplicating the idle
     // composer.
-    await user.click(screen.getByRole("button", { name: "Destination" }))
+    await user.click(screen.getByRole("button", { name: "To" }))
     expect(screen.getByRole("group", { name: "Advanced" })).toBeInTheDocument()
   })
 
@@ -232,7 +232,7 @@ describe("V2 progressive Ride options", () => {
     renderOptions()
 
     expect(screen.queryByRole("radiogroup", { name: /motorcycle bike profile preset/i })).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
     expect(screen.getAllByRole("radiogroup", { name: /motorcycle bike profile preset/i })).toHaveLength(1)
     expect(screen.getAllByRole("checkbox", { name: /avoid highways/i })).toHaveLength(1)
   })
@@ -243,15 +243,15 @@ describe("V2 progressive Ride options", () => {
     const onRideTimeChange = vi.fn()
     renderOptions({ rideConfig: { planMode: "loop" } }, { onPlan, rideConfig: { onRideTimeChange } })
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
     await user.click(screen.getByRole("button", { name: "90 min" }))
     // One preset tap is one ride change, not a duration edit plus a shaping edit.
     expect(onRideTimeChange).toHaveBeenCalledExactlyOnceWith(90, true)
     expect(onPlan).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
-    expect(screen.getByRole("button", { name: "Ride options" })).toHaveAttribute("aria-expanded", "false")
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
+    expect(screen.getByRole("button", { name: /Ride options/ })).toHaveAttribute("aria-expanded", "false")
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
     expect(screen.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
   })
 
@@ -261,7 +261,7 @@ describe("V2 progressive Ride options", () => {
     renderOptions({ rideConfig: { planMode: "loop" } }, { rideConfig: { onRideTimeChange } })
 
     expect(screen.queryByRole("button", { name: "Custom" })).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
     const rideCharacter = screen.getByRole("group", { name: "Ride character" })
     await user.click(within(rideCharacter).getByRole("button", { name: "Custom" }))
 
@@ -284,7 +284,7 @@ describe("V2 progressive Ride options", () => {
       { rideConfig: { onRideTimeChange } }
     )
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
     const rideCharacter = screen.getByRole("group", { name: "Ride character" })
     await user.click(within(rideCharacter).getByRole("button", { name: "Custom" }))
     const input = screen.getByRole("spinbutton", { name: "Custom loop duration in minutes" })
@@ -304,7 +304,7 @@ describe("V2 progressive Ride options", () => {
       { rideConfig: { onRideTimeChange } }
     )
 
-    await user.click(screen.getByRole("button", { name: "Ride options" }))
+    await user.click(screen.getByRole("button", { name: /Ride options/ }))
     const rideCharacter = screen.getByRole("group", { name: "Ride character" })
     expect(within(rideCharacter).getByRole("button", { name: "Fastest" })).toHaveAttribute("aria-pressed", "true")
 

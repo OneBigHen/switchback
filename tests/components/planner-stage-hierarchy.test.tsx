@@ -130,7 +130,7 @@ describe("planner stage hierarchy", () => {
     await user.click(screen.getByRole("button", { name: "Edit route" }))
 
     expect(container.querySelector(".planner-composer-shell")).not.toHaveClass("is-collapsed")
-    expect(screen.getByRole("button", { name: "Ride options" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: /Ride options/ })).toHaveAttribute("aria-expanded", "true")
     expect(container.querySelector(".planner-stage-content")).toHaveClass("is-suppressed")
     expect(screen.getByTestId("route-results")).toBeInTheDocument()
   })

@@ -66,7 +66,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(page.getByText("Route saved on this device.")).toBeVisible()
       // Saved rides live on the Rides destination; the modal drawer this used
       // to capture is retired. See mobile.layout.spec.ts.
-      await page.getByRole("button", { name: "Rides", exact: true }).tap()
+      await page.getByRole("button", { name: "Saved", exact: true }).tap()
       await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
       await captureState(page, mobileQa.projectName, scheme, "rides")
     })

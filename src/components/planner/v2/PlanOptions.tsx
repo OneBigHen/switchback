@@ -181,7 +181,7 @@ export function PlanOptions({
         className="plan-v2__options-trigger"
         aria-expanded={open}
         aria-controls="plan-v2-options-panel"
-        aria-label={`Ride preferences: ${summary}. Change them.`}
+        aria-label={`Ride options — ${summary}`}
         onClick={onToggle}
       >
         <span className="plan-v2__options-summary">{summary}</span>

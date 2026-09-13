@@ -4,7 +4,7 @@ import type { MapTrifold } from "@phosphor-icons/react"
 import { OpenGravelMark } from "@/components/brand/OpenGravelMark"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import type { PrimaryDestination } from "@/lib/client/app-navigation"
-import { PRIMARY_NAV_ITEMS, RECORD_NAV_ITEM } from "./primary-nav-items"
+import { NAV_ITEMS_BEFORE_RECORD, PRIMARY_NAV_ITEMS, RECORD_NAV_ITEM } from "./primary-nav-items"
 
 /**
  * The approved mobile model, in order: `Plan · Explore · Saved · Record ·
@@ -37,7 +37,7 @@ export function AppNavigation({
         </span>
       </div>
       <div className="app-navigation-primary" role="group" aria-label="Primary destinations">
-        {PRIMARY_NAV_ITEMS.map(({ destination, label, icon: Icon }) => (
+        {PRIMARY_NAV_ITEMS.slice(0, NAV_ITEMS_BEFORE_RECORD).map(({ destination, label, icon: Icon }) => (
           <NavItem
             key={destination}
             label={label}
@@ -53,6 +53,15 @@ export function AppNavigation({
           cluster="secondary"
           onClick={onOpenRecord}
         />
+        {PRIMARY_NAV_ITEMS.slice(NAV_ITEMS_BEFORE_RECORD).map(({ destination, label, icon: Icon }) => (
+          <NavItem
+            key={destination}
+            label={label}
+            icon={Icon}
+            active={activeDestination === destination}
+            onClick={() => onSelect(destination)}
+          />
+        ))}
       </div>
     </nav>
   )

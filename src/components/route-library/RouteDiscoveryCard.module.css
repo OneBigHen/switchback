@@ -70,12 +70,12 @@
 .rail .preview {
   position: relative;
   display: block;
-  height: 124px;
+  height: 96px;
 }
 
 .rail .info {
   min-width: 0;
-  padding: 10px 14px 8px;
+  padding: 9px 13px 6px;
 }
 
 .rail .viewRoute {
@@ -83,7 +83,7 @@
   min-height: var(--sb-touch-target);
   align-items: center;
   justify-content: space-between;
-  margin: 0 12px 12px;
+  margin: 0 11px 10px;
   padding: 0 14px;
   border-radius: 12px;
   background: var(--sb-action);

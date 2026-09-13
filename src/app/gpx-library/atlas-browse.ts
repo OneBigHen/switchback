@@ -6,7 +6,7 @@
  * imports here — this module is bundled for the browser.
  */
 
-import type { CurvatureBand } from "@/lib/gpx/atlas"
+import type { CurvatureBand } from "@/lib/gpx/atlas-art"
 import { centerOfBbox, haversineMiles, type NearMeAnchor } from "@/lib/client/geo"
 
 export { formatAway } from "@/lib/client/geo"
