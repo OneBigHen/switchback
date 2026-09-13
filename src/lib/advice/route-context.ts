@@ -53,6 +53,7 @@ function candidateSummary(route: PlannedRoute): AdvisorRouteContext["candidates"
     durationMinutes: Math.round(route.durationMinutes),
     twistiness: Math.round(route.twistiness),
     turnCount: route.turnCount,
+    geometry: sampleGeometry(route.geometry),
     roadMix: route.roadMix,
     surfaceMix: route.surfaceMix,
     ...(route.ascentMeters !== null ? { ascentMeters: Math.round(route.ascentMeters) } : {}),
@@ -76,9 +77,10 @@ export function advisorContextFromPlan(plan: TripPlan): AdvisorRouteContext | nu
     ? plan.routes
     : [selected, ...plan.routes.filter((route) => route.id !== selected.id)]
       .slice(0, MAX_CONTEXT_CANDIDATES)
-  const candidates = kept
-    .map(candidateSummary)
-    .map((candidate) => ({ ...candidate, name: candidate.name.slice(0, MAX_CANDIDATE_NAME) }))
+  const candidates = kept.map((route) => {
+    const candidate = candidateSummary(route)
+    return { ...candidate, name: candidate.name.slice(0, MAX_CANDIDATE_NAME) }
+  })
   return {
     selectedRouteId: selected.id,
     candidates,

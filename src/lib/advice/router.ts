@@ -4,6 +4,7 @@ import type {
   AdvisorToolbox,
   RouteAdviser
 } from "./contracts"
+import { advisorActionPrompt, advisorRouteEvidenceFromRequest, enforceAdvisorActionReply } from "./action-policy"
 import { advisorSystemPrompt } from "./route-context"
 import {
   classifyTurn,
@@ -118,13 +119,15 @@ export function createRoutedAdviser(options: RoutedAdviserOptions): RouteAdviser
       const mode = classifyTurn(input)
       const providers = orderProviders(options.providers, options.preference, mode)
       const attempts: AdvisorTurnRecord["attempts"] = []
+      const basePrompt = advisorSystemPrompt(input, mode)
+      const actionPrompt = advisorActionPrompt(input)
 
       const providerInput = {
         request: input,
         mode,
         tools: toolsForMode(mode, options.toolbox, input),
         toolbox: options.toolbox,
-        systemPrompt: advisorSystemPrompt(input, mode),
+        systemPrompt: actionPrompt ? `${basePrompt}\n\n${actionPrompt}` : basePrompt,
         mapsGrounding: mapsAllowedForMode(mode, options.mapsGrounding)
       }
 
@@ -168,7 +171,8 @@ export function createRoutedAdviser(options: RoutedAdviserOptions): RouteAdviser
         last = result.reply
         if (!isRetryableFailure(result.reply.status)) {
           options.onTurn?.({ mode, attempts, answeredBy: provider.id })
-          return withRouting(result.reply, mode, attempts, provider.id)
+          const guarded = enforceAdvisorActionReply(input, result.reply, advisorRouteEvidenceFromRequest(input))
+          return withRouting(guarded, mode, attempts, provider.id)
         }
         // The rider's own deadline is not a reason to try someone else; it
         // means there is no time left to try anyone.

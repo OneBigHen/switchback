@@ -1,4 +1,5 @@
 import type { TripPlan } from "@/lib/routing/planner"
+import { registerRouteWaypointEvidence } from "@/lib/routing/route-waypoint-evidence"
 import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
 
 /** Active route entities are bounded; saved-library routes live in IndexedDB. */
@@ -58,6 +59,12 @@ function summary(route: PlannedRoute): PlannedRouteSummary {
   return rest
 }
 
+function registerWaypointEvidence(routes: Iterable<PlannedRoute>): void {
+  for (const route of routes) {
+    registerRouteWaypointEvidence(route.geometry, route.waypoints)
+  }
+}
+
 export function createRouteEntityCache(): RouteEntityCache {
   let entities = new Map<string, PlannedRoute>()
   const retained = new Set<string>()
@@ -79,12 +86,14 @@ export function createRouteEntityCache(): RouteEntityCache {
       if (next.size > MAX_ACTIVE_ROUTE_ENTITIES) {
         throw new Error("Active route cache capacity would be exceeded.")
       }
+      registerWaypointEvidence(next.values())
       entities = next
       return routes.map(summary)
     },
     merge(routes) {
       validateRoutes(routes)
       checkCapacity(routes)
+      registerWaypointEvidence(routes)
       for (const route of routes) entities.set(route.id, route)
       return routes.map(summary)
     },

@@ -8,6 +8,7 @@ import {
 } from "@/lib/client/mapbox-config"
 import { mapboxBasemapConfig } from "@/lib/client/mapbox-style-capabilities"
 import type { MapPresentation } from "@/lib/client/map-experience"
+import { isCompactWorkspaceWidth } from "./workspace/workspace-mode"
 
 /**
  * Migration shim. Mapbox GL JS v3 and MapLibre GL JS 5 expose the same runtime
@@ -131,6 +132,12 @@ interface GlControls {
   ScaleControl: new (options: { maxWidth: number; unit: "imperial" }) => object
 }
 
+type AttributionControlPosition = "bottom-left" | "bottom-right"
+
+function attributionControlPosition(width: number): AttributionControlPosition {
+  return isCompactWorkspaceWidth(width) ? "bottom-left" : "bottom-right"
+}
+
 /**
  * MapLibre/Mapbox size their canvas once during construction. The planner shell
  * can change size afterwards without a window resize — checkpoint recovery,
@@ -173,15 +180,29 @@ function keepMapSizedToContainer(map: PlannerMap, container: HTMLDivElement): vo
 function addStandardControls(map: PlannerMap, gl: GlControls, options: CreatePlannerMapOptions) {
   const anyMap = map as unknown as {
     addControl(control: object, position: string): void
+    removeControl(control: object): void
     on(event: string, handler: (event: { id: string }) => void): void
     hasImage(id: string): boolean
     addImage(id: string, image: unknown, options: { sdf: boolean }): void
     setMissingStyleImageResolver?(resolver: (id: string) => void): unknown
   }
-  anyMap.addControl(
-    new gl.AttributionControl({ compact: true }),
-    window.innerWidth <= 760 ? "bottom-left" : "bottom-right"
-  )
+  const attributionControl = new gl.AttributionControl({ compact: true })
+  let attributionPosition = attributionControlPosition(window.innerWidth)
+  anyMap.addControl(attributionControl, attributionPosition)
+
+  // The planner topology is reactive at 760/761, so attribution must follow
+  // the same live boundary. Reusing the same control preserves map state and
+  // avoids creating another map merely to move one piece of map furniture.
+  const syncAttributionPosition = () => {
+    const nextPosition = attributionControlPosition(window.innerWidth)
+    if (nextPosition === attributionPosition) return
+    anyMap.removeControl(attributionControl)
+    anyMap.addControl(attributionControl, nextPosition)
+    attributionPosition = nextPosition
+  }
+  window.addEventListener("resize", syncAttributionPosition)
+  map.once("remove", () => window.removeEventListener("resize", syncAttributionPosition))
+
   // The style asks for `circle-N` icons no sprite ships; we generate them.
   // How the generated image gets back to the renderer differs, and the two
   // renderers share this function:

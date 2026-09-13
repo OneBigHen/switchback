@@ -1,7 +1,7 @@
-# Switchback
+# OpenGravel
 
-Switchback is a **motorcycle trip decision engine**. Google Maps answers "what
-is the practical route?" Switchback answers "which route will I actually want
+OpenGravel is a **motorcycle trip decision engine**. Google Maps answers "what
+is the practical route?" OpenGravel answers "which route will I actually want
 to ride, and what should I know before committing to it?"
 
 It plans real road geometry, generates genuinely different motorcycle-specific
@@ -35,7 +35,7 @@ and the added minutes always shown. Comparison rejects near-duplicates,
 preserves genuinely distinct same-profile alternatives, and explains the
 tradeoff across distance, time, turn density, overlap, road mix, and surface
 mix. Every candidate passes eligibility, enrichment, traffic evidence, scoring,
-dedupe, and role assignment — providers propose, Switchback decides.
+dedupe, and role assignment — providers propose, OpenGravel decides.
 
 **Prepare.** National Weather Service forecasts and alerts sampled along the
 route, Pennsylvania DEP unpaved-road corridor evidence, curvy-road and

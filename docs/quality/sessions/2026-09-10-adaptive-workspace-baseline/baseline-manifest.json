@@ -1,0 +1,3505 @@
+{
+  "generatedAt": "2026-09-10T18:26:29.069Z",
+  "note": "Adaptive workspace baseline (Train B / B1). Evidence, not a CI gate.",
+  "captures": [
+    {
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:23:02.697Z",
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 390,
+          "clientWidth": 390,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 844,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 526,
+            "right": 382,
+            "bottom": 760,
+            "width": 374,
+            "height": 234
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 571,
+            "right": 381,
+            "bottom": 759,
+            "width": 372,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 12,
+            "top": 72,
+            "right": 60,
+            "bottom": 118,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 334,
+            "top": 296,
+            "right": 380,
+            "bottom": 342,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 571,
+            "right": 381,
+            "bottom": 759,
+            "width": 372,
+            "height": 188
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 527,
+            "right": 381,
+            "bottom": 571,
+            "width": 372,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 329160,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 241644,
+        "mapUnobstructedShare": 0.7341232227488151,
+        "plannerOverMapShare": 0.26587677725118486
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/390x844-search.png"
+    },
+    {
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:23:06.295Z",
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 390,
+          "clientWidth": 390,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 844,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 338,
+            "right": 382,
+            "bottom": 760,
+            "width": 374,
+            "height": 422
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 383,
+            "right": 381,
+            "bottom": 609,
+            "width": 372,
+            "height": 226
+          },
+          "layerControl": {
+            "left": 12,
+            "top": 72,
+            "right": 60,
+            "bottom": 118,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 334,
+            "top": 174,
+            "right": 380,
+            "bottom": 220,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 383,
+            "right": 381,
+            "bottom": 609,
+            "width": 372,
+            "height": 226
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 339,
+            "right": 381,
+            "bottom": 383,
+            "width": 372,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 329160,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 171332,
+        "mapUnobstructedShare": 0.5205128205128206,
+        "plannerOverMapShare": 0.4794871794871795
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/390x844-choose.png"
+    },
+    {
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:23:12.874Z",
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 390,
+          "clientWidth": 390,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 844,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 17.28125,
+            "right": 382,
+            "bottom": 760,
+            "width": 374,
+            "height": 742.71875
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 62.28125,
+            "right": 381,
+            "bottom": 647.5,
+            "width": 372,
+            "height": 585.21875
+          },
+          "layerControl": null,
+          "attribution": null,
+          "navControls": null,
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 62.28125,
+            "right": 381,
+            "bottom": 647.5,
+            "width": 372,
+            "height": 585.21875
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 18.28125,
+            "right": 381,
+            "bottom": 62.28125,
+            "width": 372,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 329160,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 51383.1875,
+        "mapUnobstructedShare": 0.15610398438449385,
+        "plannerOverMapShare": 0.8438960156155061
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/390x844-edit.png"
+    },
+    {
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:23:17.845Z",
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 390,
+          "clientWidth": 390,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 844,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 390,
+            "bottom": 844,
+            "width": 390,
+            "height": 844
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 338,
+            "right": 382,
+            "bottom": 760,
+            "width": 374,
+            "height": 422
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 383,
+            "right": 381,
+            "bottom": 609,
+            "width": 372,
+            "height": 226
+          },
+          "layerControl": {
+            "left": 12,
+            "top": 72,
+            "right": 60,
+            "bottom": 118,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 334,
+            "top": 174,
+            "right": 380,
+            "bottom": 220,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 383,
+            "right": 381,
+            "bottom": 609,
+            "width": 372,
+            "height": 226
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 339,
+            "right": 381,
+            "bottom": 383,
+            "width": 372,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 329160,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 171332,
+        "mapUnobstructedShare": 0.5205128205128206,
+        "plannerOverMapShare": 0.4794871794871795
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/390x844-prepare.png"
+    },
+    {
+      "viewport": "667x375",
+      "width": 667,
+      "height": 375,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:23:24.047Z",
+      "measurement": {
+        "viewport": {
+          "width": 667,
+          "height": 375
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 667,
+          "clientWidth": 667,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 375,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "plannerDeck": {
+            "left": 80,
+            "top": 8,
+            "right": 360.125,
+            "bottom": 367,
+            "width": 280.125,
+            "height": 359
+          },
+          "scrollOwner": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 291,
+            "width": 278.125,
+            "height": 238
+          },
+          "layerControl": {
+            "left": 611,
+            "top": 8,
+            "right": 659,
+            "bottom": 54,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 603,
+            "top": 211,
+            "right": 649,
+            "bottom": 257,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 291,
+            "width": 278.125,
+            "height": 238
+          },
+          "visibleButtons": {
+            "left": 81,
+            "top": 9,
+            "right": 359.125,
+            "bottom": 53,
+            "width": 278.125,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 250125,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 149560.125,
+        "mapUnobstructedShare": 0.5979415292353824,
+        "plannerOverMapShare": 0.4020584707646177
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/667x375-search.png"
+    },
+    {
+      "viewport": "667x375",
+      "width": 667,
+      "height": 375,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:23:27.843Z",
+      "measurement": {
+        "viewport": {
+          "width": 667,
+          "height": 375
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 667,
+          "clientWidth": 667,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 375,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "plannerDeck": {
+            "left": 80,
+            "top": 8,
+            "right": 360.125,
+            "bottom": 367,
+            "width": 280.125,
+            "height": 359
+          },
+          "scrollOwner": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 251,
+            "width": 278.125,
+            "height": 198
+          },
+          "layerControl": {
+            "left": 611,
+            "top": 8,
+            "right": 659,
+            "bottom": 54,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 603,
+            "top": 211,
+            "right": 649,
+            "bottom": 257,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 251,
+            "width": 278.125,
+            "height": 198
+          },
+          "visibleButtons": {
+            "left": 81,
+            "top": 9,
+            "right": 359.125,
+            "bottom": 53,
+            "width": 278.125,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 250125,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 149560.125,
+        "mapUnobstructedShare": 0.5979415292353824,
+        "plannerOverMapShare": 0.4020584707646177
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/667x375-choose.png"
+    },
+    {
+      "viewport": "667x375",
+      "width": 667,
+      "height": 375,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:23:33.728Z",
+      "measurement": {
+        "viewport": {
+          "width": 667,
+          "height": 375
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 667,
+          "clientWidth": 667,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 375,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "plannerDeck": {
+            "left": 80,
+            "top": 8,
+            "right": 360.125,
+            "bottom": 367,
+            "width": 280.125,
+            "height": 359
+          },
+          "scrollOwner": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 259,
+            "width": 278.125,
+            "height": 206
+          },
+          "layerControl": null,
+          "attribution": null,
+          "navControls": null,
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 259,
+            "width": 278.125,
+            "height": 206
+          },
+          "visibleButtons": {
+            "left": 81,
+            "top": 9,
+            "right": 359.125,
+            "bottom": 53,
+            "width": 278.125,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 250125,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 149560.125,
+        "mapUnobstructedShare": 0.5979415292353824,
+        "plannerOverMapShare": 0.4020584707646177
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/667x375-edit.png"
+    },
+    {
+      "viewport": "667x375",
+      "width": 667,
+      "height": 375,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:23:38.803Z",
+      "measurement": {
+        "viewport": {
+          "width": 667,
+          "height": 375
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 667,
+          "clientWidth": 667,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 375,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 667,
+            "bottom": 375,
+            "width": 667,
+            "height": 375
+          },
+          "plannerDeck": {
+            "left": 80,
+            "top": 8,
+            "right": 360.125,
+            "bottom": 367,
+            "width": 280.125,
+            "height": 359
+          },
+          "scrollOwner": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 251,
+            "width": 278.125,
+            "height": 198
+          },
+          "layerControl": {
+            "left": 611,
+            "top": 8,
+            "right": 659,
+            "bottom": 54,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 603,
+            "top": 211,
+            "right": 649,
+            "bottom": 257,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 81,
+            "top": 53,
+            "right": 359.125,
+            "bottom": 251,
+            "width": 278.125,
+            "height": 198
+          },
+          "visibleButtons": {
+            "left": 81,
+            "top": 9,
+            "right": 359.125,
+            "bottom": 53,
+            "width": 278.125,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 250125,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 149560.125,
+        "mapUnobstructedShare": 0.5979415292353824,
+        "plannerOverMapShare": 0.4020584707646177
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/667x375-prepare.png"
+    },
+    {
+      "viewport": "700x900",
+      "width": 700,
+      "height": 900,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:23:45.033Z",
+      "measurement": {
+        "viewport": {
+          "width": 700,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 700,
+          "clientWidth": 700,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 582,
+            "right": 692,
+            "bottom": 816,
+            "width": 684,
+            "height": 234
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 627,
+            "right": 691,
+            "bottom": 815,
+            "width": 682,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 12,
+            "top": 72,
+            "right": 60,
+            "bottom": 118,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 644,
+            "top": 352,
+            "right": 690,
+            "bottom": 398,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 627,
+            "right": 691,
+            "bottom": 815,
+            "width": 682,
+            "height": 188
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 583,
+            "right": 691,
+            "bottom": 627,
+            "width": 682,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 630000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 469944,
+        "mapUnobstructedShare": 0.7459428571428571,
+        "plannerOverMapShare": 0.25405714285714287
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/700x900-search.png"
+    },
+    {
+      "viewport": "700x900",
+      "width": 700,
+      "height": 900,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:23:48.681Z",
+      "measurement": {
+        "viewport": {
+          "width": 700,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 700,
+          "clientWidth": 700,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 366,
+            "right": 692,
+            "bottom": 816,
+            "width": 684,
+            "height": 450
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 411,
+            "right": 691,
+            "bottom": 665,
+            "width": 682,
+            "height": 254
+          },
+          "layerControl": {
+            "left": 12,
+            "top": 72,
+            "right": 60,
+            "bottom": 118,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 644,
+            "top": 202,
+            "right": 690,
+            "bottom": 248,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 411,
+            "right": 691,
+            "bottom": 665,
+            "width": 682,
+            "height": 254
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 367,
+            "right": 691,
+            "bottom": 411,
+            "width": 682,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 630000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 322200,
+        "mapUnobstructedShare": 0.5114285714285715,
+        "plannerOverMapShare": 0.48857142857142855
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/700x900-choose.png"
+    },
+    {
+      "viewport": "700x900",
+      "width": 700,
+      "height": 900,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:23:55.305Z",
+      "measurement": {
+        "viewport": {
+          "width": 700,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 700,
+          "clientWidth": 700,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 24,
+            "right": 692,
+            "bottom": 816,
+            "width": 684,
+            "height": 792
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 69,
+            "right": 691,
+            "bottom": 703.5,
+            "width": 682,
+            "height": 634.5
+          },
+          "layerControl": null,
+          "attribution": null,
+          "navControls": null,
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 69,
+            "right": 691,
+            "bottom": 703.5,
+            "width": 682,
+            "height": 634.5
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 25,
+            "right": 691,
+            "bottom": 69,
+            "width": 682,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 630000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 88272,
+        "mapUnobstructedShare": 0.14011428571428572,
+        "plannerOverMapShare": 0.8598857142857143
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/700x900-edit.png"
+    },
+    {
+      "viewport": "700x900",
+      "width": 700,
+      "height": 900,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:24:01.065Z",
+      "measurement": {
+        "viewport": {
+          "width": 700,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 700,
+          "clientWidth": 700,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 700,
+            "bottom": 900,
+            "width": 700,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 8,
+            "top": 366,
+            "right": 692,
+            "bottom": 816,
+            "width": 684,
+            "height": 450
+          },
+          "scrollOwner": {
+            "left": 9,
+            "top": 411,
+            "right": 691,
+            "bottom": 665,
+            "width": 682,
+            "height": 254
+          },
+          "layerControl": {
+            "left": 12,
+            "top": 72,
+            "right": 60,
+            "bottom": 118,
+            "width": 48,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 644,
+            "top": 202,
+            "right": 690,
+            "bottom": 248,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 9,
+            "top": 411,
+            "right": 691,
+            "bottom": 665,
+            "width": 682,
+            "height": 254
+          },
+          "visibleButtons": {
+            "left": 9,
+            "top": 367,
+            "right": 691,
+            "bottom": 411,
+            "width": 682,
+            "height": 44
+          }
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 630000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 322200,
+        "mapUnobstructedShare": 0.5114285714285715,
+        "plannerOverMapShare": 0.48857142857142855
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/700x900-prepare.png"
+    },
+    {
+      "viewport": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:24:07.963Z",
+      "measurement": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 768,
+          "clientWidth": 768,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 456,
+            "bottom": 210,
+            "width": 360,
+            "height": 190
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 455,
+            "bottom": 209,
+            "width": 358,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 612,
+            "top": 16,
+            "right": 752,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 712,
+            "top": 868,
+            "right": 758,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 455,
+            "bottom": 209,
+            "width": 358,
+            "height": 188
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 718032,
+        "mapUnobstructedShare": 0.91302490234375,
+        "plannerOverMapShare": 0.08697509765625
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/768x1024-search.png"
+    },
+    {
+      "viewport": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:24:11.917Z",
+      "measurement": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 768,
+          "clientWidth": 768,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1004,
+            "width": 420,
+            "height": 984
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "layerControl": {
+            "left": 612,
+            "top": 16,
+            "right": 752,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 712,
+            "top": 868,
+            "right": 758,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 373152,
+        "mapUnobstructedShare": 0.4744873046875,
+        "plannerOverMapShare": 0.5255126953125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/768x1024-choose.png"
+    },
+    {
+      "viewport": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:24:18.187Z",
+      "measurement": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 768,
+          "clientWidth": 768,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1004,
+            "width": 420,
+            "height": 984
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 845,
+            "width": 418,
+            "height": 824
+          },
+          "layerControl": {
+            "left": 612,
+            "top": 16,
+            "right": 752,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 712,
+            "top": 868,
+            "right": 758,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 845,
+            "width": 418,
+            "height": 824
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 373152,
+        "mapUnobstructedShare": 0.4744873046875,
+        "plannerOverMapShare": 0.5255126953125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/768x1024-edit.png"
+    },
+    {
+      "viewport": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:24:23.574Z",
+      "measurement": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 768,
+          "clientWidth": 768,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 768,
+            "bottom": 1024,
+            "width": 768,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1004,
+            "width": 420,
+            "height": 984
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "layerControl": {
+            "left": 612,
+            "top": 16,
+            "right": 752,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 712,
+            "top": 868,
+            "right": 758,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 373152,
+        "mapUnobstructedShare": 0.4744873046875,
+        "plannerOverMapShare": 0.5255126953125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/768x1024-prepare.png"
+    },
+    {
+      "viewport": "820x1180",
+      "width": 820,
+      "height": 1180,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:24:30.542Z",
+      "measurement": {
+        "viewport": {
+          "width": 820,
+          "height": 1180
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 820,
+          "clientWidth": 820,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1180,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 456,
+            "bottom": 210,
+            "width": 360,
+            "height": 190
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 455,
+            "bottom": 209,
+            "width": 358,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 664,
+            "top": 16,
+            "right": 804,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 764,
+            "top": 1024,
+            "right": 810,
+            "bottom": 1070,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 455,
+            "bottom": 209,
+            "width": 358,
+            "height": 188
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 899200,
+        "mapUnobstructedShare": 0.9293096320793717,
+        "plannerOverMapShare": 0.07069036792062836
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/820x1180-search.png"
+    },
+    {
+      "viewport": "820x1180",
+      "width": 820,
+      "height": 1180,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:24:34.727Z",
+      "measurement": {
+        "viewport": {
+          "width": 820,
+          "height": 1180
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 820,
+          "clientWidth": 820,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1180,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1160,
+            "width": 420,
+            "height": 1140
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 1003,
+            "width": 418,
+            "height": 982
+          },
+          "layerControl": {
+            "left": 664,
+            "top": 16,
+            "right": 804,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 764,
+            "top": 1024,
+            "right": 810,
+            "bottom": 1070,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 1003,
+            "width": 418,
+            "height": 982
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 488800,
+        "mapUnobstructedShare": 0.5051674245556015,
+        "plannerOverMapShare": 0.4948325754443985
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/820x1180-choose.png"
+    },
+    {
+      "viewport": "820x1180",
+      "width": 820,
+      "height": 1180,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:24:41.137Z",
+      "measurement": {
+        "viewport": {
+          "width": 820,
+          "height": 1180
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 820,
+          "clientWidth": 820,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1180,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1160,
+            "width": 420,
+            "height": 1140
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 1001,
+            "width": 418,
+            "height": 980
+          },
+          "layerControl": {
+            "left": 664,
+            "top": 16,
+            "right": 804,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 764,
+            "top": 1024,
+            "right": 810,
+            "bottom": 1070,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 1001,
+            "width": 418,
+            "height": 980
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 488800,
+        "mapUnobstructedShare": 0.5051674245556015,
+        "plannerOverMapShare": 0.4948325754443985
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/820x1180-edit.png"
+    },
+    {
+      "viewport": "820x1180",
+      "width": 820,
+      "height": 1180,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:24:46.486Z",
+      "measurement": {
+        "viewport": {
+          "width": 820,
+          "height": 1180
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 820,
+          "clientWidth": 820,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1180,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 820,
+            "bottom": 1180,
+            "width": 820,
+            "height": 1180
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1160,
+            "width": 420,
+            "height": 1140
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 1003,
+            "width": 418,
+            "height": 982
+          },
+          "layerControl": {
+            "left": 664,
+            "top": 16,
+            "right": 804,
+            "bottom": 62,
+            "width": 140,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 764,
+            "top": 1024,
+            "right": 810,
+            "bottom": 1070,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 1003,
+            "width": 418,
+            "height": 982
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 488800,
+        "mapUnobstructedShare": 0.5051674245556015,
+        "plannerOverMapShare": 0.4948325754443985
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/820x1180-prepare.png"
+    },
+    {
+      "viewport": "1024x768",
+      "width": 1024,
+      "height": 768,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:24:53.508Z",
+      "measurement": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1024,
+          "clientWidth": 1024,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 768,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 552,
+            "bottom": 210,
+            "width": 456,
+            "height": 190
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 909,
+            "top": 16,
+            "right": 1008,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 968,
+            "top": 612,
+            "right": 1014,
+            "bottom": 658,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 699792,
+        "mapUnobstructedShare": 0.88983154296875,
+        "plannerOverMapShare": 0.11016845703125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1024x768-search.png"
+    },
+    {
+      "viewport": "1024x768",
+      "width": 1024,
+      "height": 768,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:24:57.381Z",
+      "measurement": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1024,
+          "clientWidth": 1024,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 768,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 748,
+            "width": 420,
+            "height": 728
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 591,
+            "width": 418,
+            "height": 570
+          },
+          "layerControl": {
+            "left": 909,
+            "top": 16,
+            "right": 1008,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 968,
+            "top": 612,
+            "right": 1014,
+            "bottom": 658,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 591,
+            "width": 418,
+            "height": 570
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 480672,
+        "mapUnobstructedShare": 0.6112060546875,
+        "plannerOverMapShare": 0.3887939453125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1024x768-choose.png"
+    },
+    {
+      "viewport": "1024x768",
+      "width": 1024,
+      "height": 768,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:25:03.747Z",
+      "measurement": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1024,
+          "clientWidth": 1024,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 768,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 748,
+            "width": 420,
+            "height": 728
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 589,
+            "width": 418,
+            "height": 568
+          },
+          "layerControl": {
+            "left": 909,
+            "top": 16,
+            "right": 1008,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 968,
+            "top": 612,
+            "right": 1014,
+            "bottom": 658,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 589,
+            "width": 418,
+            "height": 568
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 480672,
+        "mapUnobstructedShare": 0.6112060546875,
+        "plannerOverMapShare": 0.3887939453125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1024x768-edit.png"
+    },
+    {
+      "viewport": "1024x768",
+      "width": 1024,
+      "height": 768,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:25:09.097Z",
+      "measurement": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1024,
+          "clientWidth": 1024,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 768,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1024,
+            "bottom": 768,
+            "width": 1024,
+            "height": 768
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 748,
+            "width": 420,
+            "height": 728
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 591,
+            "width": 418,
+            "height": 570
+          },
+          "layerControl": {
+            "left": 909,
+            "top": 16,
+            "right": 1008,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 968,
+            "top": 612,
+            "right": 1014,
+            "bottom": 658,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 591,
+            "width": 418,
+            "height": 570
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 786432,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 480672,
+        "mapUnobstructedShare": 0.6112060546875,
+        "plannerOverMapShare": 0.3887939453125
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1024x768-prepare.png"
+    },
+    {
+      "viewport": "1180x820",
+      "width": 1180,
+      "height": 820,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:25:15.626Z",
+      "measurement": {
+        "viewport": {
+          "width": 1180,
+          "height": 820
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1180,
+          "clientWidth": 1180,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 820,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 552,
+            "bottom": 210,
+            "width": 456,
+            "height": 190
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 1065,
+            "top": 16,
+            "right": 1164,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1124,
+            "top": 664,
+            "right": 1170,
+            "bottom": 710,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 880960,
+        "mapUnobstructedShare": 0.9104588673005374,
+        "plannerOverMapShare": 0.0895411326994626
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1180x820-search.png"
+    },
+    {
+      "viewport": "1180x820",
+      "width": 1180,
+      "height": 820,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:25:19.483Z",
+      "measurement": {
+        "viewport": {
+          "width": 1180,
+          "height": 820
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1180,
+          "clientWidth": 1180,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 820,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 800,
+            "width": 420,
+            "height": 780
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 643,
+            "width": 418,
+            "height": 622
+          },
+          "layerControl": {
+            "left": 1065,
+            "top": 16,
+            "right": 1164,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1124,
+            "top": 664,
+            "right": 1170,
+            "bottom": 710,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 643,
+            "width": 418,
+            "height": 622
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 640000,
+        "mapUnobstructedShare": 0.6614303431169904,
+        "plannerOverMapShare": 0.3385696568830095
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1180x820-choose.png"
+    },
+    {
+      "viewport": "1180x820",
+      "width": 1180,
+      "height": 820,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:25:26.307Z",
+      "measurement": {
+        "viewport": {
+          "width": 1180,
+          "height": 820
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1180,
+          "clientWidth": 1180,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 820,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 800,
+            "width": 420,
+            "height": 780
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 641,
+            "width": 418,
+            "height": 620
+          },
+          "layerControl": {
+            "left": 1065,
+            "top": 16,
+            "right": 1164,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1124,
+            "top": 664,
+            "right": 1170,
+            "bottom": 710,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 641,
+            "width": 418,
+            "height": 620
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 640000,
+        "mapUnobstructedShare": 0.6614303431169904,
+        "plannerOverMapShare": 0.3385696568830095
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1180x820-edit.png"
+    },
+    {
+      "viewport": "1180x820",
+      "width": 1180,
+      "height": 820,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:25:31.464Z",
+      "measurement": {
+        "viewport": {
+          "width": 1180,
+          "height": 820
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1180,
+          "clientWidth": 1180,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 820,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1180,
+            "bottom": 820,
+            "width": 1180,
+            "height": 820
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 800,
+            "width": 420,
+            "height": 780
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 643,
+            "width": 418,
+            "height": 622
+          },
+          "layerControl": {
+            "left": 1065,
+            "top": 16,
+            "right": 1164,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1124,
+            "top": 664,
+            "right": 1170,
+            "bottom": 710,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 643,
+            "width": 418,
+            "height": 622
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 967600,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 640000,
+        "mapUnobstructedShare": 0.6614303431169904,
+        "plannerOverMapShare": 0.3385696568830095
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1180x820-prepare.png"
+    },
+    {
+      "viewport": "1366x1024",
+      "width": 1366,
+      "height": 1024,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:25:39.047Z",
+      "measurement": {
+        "viewport": {
+          "width": 1366,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1366,
+          "clientWidth": 1366,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 552,
+            "bottom": 210,
+            "width": 456,
+            "height": 190
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 1251,
+            "top": 16,
+            "right": 1350,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1310,
+            "top": 868,
+            "right": 1356,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1398784,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 1312144,
+        "mapUnobstructedShare": 0.9380604868228404,
+        "plannerOverMapShare": 0.06193951317715959
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1366x1024-search.png"
+    },
+    {
+      "viewport": "1366x1024",
+      "width": 1366,
+      "height": 1024,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:25:43.475Z",
+      "measurement": {
+        "viewport": {
+          "width": 1366,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1366,
+          "clientWidth": 1366,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1004,
+            "width": 420,
+            "height": 984
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "layerControl": {
+            "left": 1251,
+            "top": 16,
+            "right": 1350,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1310,
+            "top": 868,
+            "right": 1356,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1398784,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 985504,
+        "mapUnobstructedShare": 0.7045433748169839,
+        "plannerOverMapShare": 0.29545662518301613
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1366x1024-choose.png"
+    },
+    {
+      "viewport": "1366x1024",
+      "width": 1366,
+      "height": 1024,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:25:51.458Z",
+      "measurement": {
+        "viewport": {
+          "width": 1366,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1366,
+          "clientWidth": 1366,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1004,
+            "width": 420,
+            "height": 984
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 845,
+            "width": 418,
+            "height": 824
+          },
+          "layerControl": {
+            "left": 1251,
+            "top": 16,
+            "right": 1350,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1310,
+            "top": 868,
+            "right": 1356,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 845,
+            "width": 418,
+            "height": 824
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1398784,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 985504,
+        "mapUnobstructedShare": 0.7045433748169839,
+        "plannerOverMapShare": 0.29545662518301613
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1366x1024-edit.png"
+    },
+    {
+      "viewport": "1366x1024",
+      "width": 1366,
+      "height": 1024,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:25:57.391Z",
+      "measurement": {
+        "viewport": {
+          "width": 1366,
+          "height": 1024
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1366,
+          "clientWidth": 1366,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 1024,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1366,
+            "bottom": 1024,
+            "width": 1366,
+            "height": 1024
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 1004,
+            "width": 420,
+            "height": 984
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "layerControl": {
+            "left": 1251,
+            "top": 16,
+            "right": 1350,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1310,
+            "top": 868,
+            "right": 1356,
+            "bottom": 914,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 847,
+            "width": 418,
+            "height": 826
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1398784,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 985504,
+        "mapUnobstructedShare": 0.7045433748169839,
+        "plannerOverMapShare": 0.29545662518301613
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1366x1024-prepare.png"
+    },
+    {
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "state": "search",
+      "capturedAt": "2026-09-10T18:26:05.416Z",
+      "measurement": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 552,
+            "bottom": 210,
+            "width": 456,
+            "height": 190
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "layerControl": {
+            "left": 1325,
+            "top": 16,
+            "right": 1424,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1384,
+            "top": 744,
+            "right": 1430,
+            "bottom": 790,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 551,
+            "bottom": 209,
+            "width": 454,
+            "height": 188
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1296000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 1209360,
+        "mapUnobstructedShare": 0.9331481481481482,
+        "plannerOverMapShare": 0.06685185185185186
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1440x900-search.png"
+    },
+    {
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "state": "choose",
+      "capturedAt": "2026-09-10T18:26:09.475Z",
+      "measurement": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 880,
+            "width": 420,
+            "height": 860
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 723,
+            "width": 418,
+            "height": 702
+          },
+          "layerControl": {
+            "left": 1325,
+            "top": 16,
+            "right": 1424,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1384,
+            "top": 744,
+            "right": 1430,
+            "bottom": 790,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 723,
+            "width": 418,
+            "height": 702
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1296000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 934800,
+        "mapUnobstructedShare": 0.7212962962962963,
+        "plannerOverMapShare": 0.27870370370370373
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1440x900-choose.png"
+    },
+    {
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "state": "edit",
+      "capturedAt": "2026-09-10T18:26:16.054Z",
+      "measurement": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 880,
+            "width": 420,
+            "height": 860
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 721,
+            "width": 418,
+            "height": 700
+          },
+          "layerControl": {
+            "left": 1325,
+            "top": 16,
+            "right": 1424,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1384,
+            "top": 744,
+            "right": 1430,
+            "bottom": 790,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 721,
+            "width": 418,
+            "height": 700
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1296000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 934800,
+        "mapUnobstructedShare": 0.7212962962962963,
+        "plannerOverMapShare": 0.27870370370370373
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1440x900-edit.png"
+    },
+    {
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "state": "prepare",
+      "capturedAt": "2026-09-10T18:26:21.669Z",
+      "measurement": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "horizontalOverflow": {
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "overflows": false,
+          "overflowPx": 0
+        },
+        "documentScrollHeight": 900,
+        "boxes": {
+          "mapStage": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapCanvas": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "mapWorkspace": {
+            "left": 0,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "width": 1440,
+            "height": 900
+          },
+          "plannerDeck": {
+            "left": 96,
+            "top": 20,
+            "right": 516,
+            "bottom": 880,
+            "width": 420,
+            "height": 860
+          },
+          "scrollOwner": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 723,
+            "width": 418,
+            "height": 702
+          },
+          "layerControl": {
+            "left": 1325,
+            "top": 16,
+            "right": 1424,
+            "bottom": 62,
+            "width": 99,
+            "height": 46
+          },
+          "attribution": null,
+          "navControls": {
+            "left": 1384,
+            "top": 744,
+            "right": 1430,
+            "bottom": 790,
+            "width": 46,
+            "height": 46
+          },
+          "notice": null,
+          "plannerScrollOwners": {
+            "left": 97,
+            "top": 21,
+            "right": 515,
+            "bottom": 723,
+            "width": 418,
+            "height": 702
+          },
+          "visibleButtons": null
+        },
+        "collisions": [],
+        "mapVisibleAreaSq": 1296000,
+        "mapVisibleShare": 1,
+        "mapUnobstructedSq": 934800,
+        "mapUnobstructedShare": 0.7212962962962963,
+        "plannerOverMapShare": 0.27870370370370373
+      },
+      "screenshot": "docs/quality/sessions/2026-09-10-adaptive-workspace-baseline/1440x900-prepare.png"
+    }
+  ],
+  "gaps": []
+}

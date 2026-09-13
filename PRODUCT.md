@@ -8,15 +8,15 @@ web
 
 ## Users
 
-Switchback serves motorcycle riders planning, comparing, preparing, riding, and reviewing road trips. Riders may be planning deliberately at a desk, making a quick choice on a phone, or glancing at guidance while stopped or moving. Advanced riders need powerful controls without making a new rider confront provider or diagnostic complexity.
+OpenGravel serves motorcycle riders planning, comparing, preparing, riding, and reviewing road trips. Riders may be planning deliberately at a desk, making a quick choice on a phone, or glancing at guidance while stopped or moving. Advanced riders need powerful controls without making a new rider confront provider or diagnostic complexity.
 
 ## Product Purpose
 
-Switchback is a motorcycle trip decision engine. It helps a rider choose the road they will actually want to ride, understand the tradeoffs before committing, navigate safely, and retain a useful record afterward.
+OpenGravel is a motorcycle trip decision engine. It helps a rider choose the road they will actually want to ride, understand the tradeoffs before committing, navigate safely, and retain a useful record afterward.
 
 ## Positioning
 
-Ordinary map products answer which route is practical. Switchback answers which eligible route best fits the rider, bike, road character, surface, time budget, conditions, and safety constraints. Providers propose candidates; Switchback evaluates and explains them.
+Ordinary map products answer which route is practical. OpenGravel answers which eligible route best fits the rider, bike, road character, surface, time budget, conditions, and safety constraints. Providers propose candidates; OpenGravel evaluates and explains them.
 
 ## Operating Context
 
@@ -34,12 +34,14 @@ The core journey is Plan, Decide, Prepare, Ride, and Review. Plan, route editing
 
 ## Brand Commitments
 
-The name is Switchback and the approved mark and owner-supplied brand boards remain binding assets. The product voice is concise, practical, rider-literate, and honest. It must feel like a purpose-built motorcycle route instrument rather than a generic SaaS product. The detailed active visual authority is `design/DESIGN-CONTRACT.md`.
+The public product name is OpenGravel. The approved OpenGravel field mark combines mountain ridges, a winding road, and one restrained Ember navigation accent. The tagline is **“Open routes. A wilder tomorrow.”** and the functional line is **“Find routes worth riding.”** The product voice is concise, practical, rider-literate, and honest. It must feel like a purpose-built motorcycle route instrument rather than a generic SaaS product. The detailed active visual authority is `design/DESIGN-CONTRACT.md`.
+
+The current rebrand is compatibility-first: technical identifiers that would break persisted data, deployed configuration, package paths, or authentication identity remain on their established Switchback-era names until an explicit migration is designed and proven. Public UI and current product documentation use OpenGravel.
 
 ## Evidence on Hand
 
 - Owner-approved V2 planning package normalized under `/root/.hermes/runs/20260830-042301-6d0994c4/package/` with a SHA-256 manifest.
-- Brand boards in `design/reference/v2/`.
+- Brand boards in `design/reference/v2/` plus the approved OpenGravel transition spec under `docs/superpowers/specs/`.
 - Existing deterministic unit, integration, critical browser, PWA, mobile QA, and visual suites.
 - Existing live product states and committed screenshots are engineering evidence, not visual authority for the replacement world.
 - Real-iPhone riding and offline acceptance cannot be fabricated and remains a physical evidence boundary.

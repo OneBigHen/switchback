@@ -1,6 +1,6 @@
 # Security Policy
 
-Switchback is self-hosted software: you run the server, you own the data and
+OpenGravel is self-hosted software: you run the server, you own the data and
 the provider keys it uses. This policy covers the app itself and the public
 deployment at `ride.henning.rodeo`.
 
@@ -42,9 +42,11 @@ Out of scope:
   non-secret map style URL.
 - Every public endpoint is rate-limited per caller IP; the reverse proxy must
   strip and rewrite client-IP headers (see `infra/caddy/Caddyfile.example`).
-- Optional Switchback ID uses real WebAuthn verification with explicit
-  production origin/RP-ID configuration. Only credential id, public key, and
-  counter are stored; private keys stay with the authenticator. Cookie-backed
-  community and sync mutations require the matching CSRF header.
+- Optional OpenGravel ID uses real WebAuthn verification with explicit
+  production origin/RP-ID configuration. The compatibility-first rebrand does
+  not silently change existing WebAuthn relying-party identity or stored
+  credentials. Only credential id, public key, and counter are stored; private
+  keys stay with the authenticator. Cookie-backed community and sync mutations
+  require the matching CSRF header.
 - Operators should keep the Next origin and router ports firewalled behind
   their proxy and use real TLS certificates for public deployments.

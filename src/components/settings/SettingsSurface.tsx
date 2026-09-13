@@ -2,6 +2,7 @@
 
 import { ArrowRight, GasPump, Mountains, Motorcycle } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import { getActiveBike, type RiderSettings } from "@/lib/settings/rider-settings"
 import { DestinationHeader } from "@/components/v2/DestinationHeader"
 import { RouteGraphic } from "@/components/v2/RouteGraphic"
@@ -31,7 +32,7 @@ export function SettingsSurface({ settings, onChangeBike, onEditBike, children }
       <DestinationHeader
         eyebrow="Rider setup"
         title="Settings"
-        description="Tune the motorcycle, route defaults, and controls Switchback uses every time you plan or ride."
+        description={`Tune the motorcycle, route defaults, and controls ${PRODUCT_BRAND.name} uses every time you plan or ride.`}
         graphic={<RouteGraphic seed={activeBike.id} variant="bike" />}
       />
 

@@ -21,6 +21,14 @@ describe("AppNavigation", () => {
     cleanup()
   })
 
+  it("renders the approved OpenGravel shell identity", () => {
+    renderNav()
+
+    expect(screen.getByText("OpenGravel")).toBeInTheDocument()
+    expect(screen.queryByText("Switchback")).not.toBeInTheDocument()
+    expect(screen.getByText("Gravel & backroad routing")).toBeInTheDocument()
+  })
+
   it("exposes the four V2 destinations in the primary cluster", () => {
     renderNav()
 

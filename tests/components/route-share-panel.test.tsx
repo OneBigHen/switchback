@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { RouteSharePanel } from "@/components/planner/RouteSharePanel"
 
@@ -27,10 +27,16 @@ function longRoute(): PlannedRoute {
   }
 }
 
+afterEach(cleanup)
+
 describe("RouteSharePanel", () => {
   beforeEach(() => {
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn(async () => {}) },
+      configurable: true
+    })
+    Object.defineProperty(navigator, "share", {
+      value: vi.fn(async () => undefined),
       configurable: true
     })
   })
@@ -48,5 +54,19 @@ describe("RouteSharePanel", () => {
     // entire ~66mi route, so `redactRouteForShare` would throw and the panel
     // would surface an error instead of a copied link.
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Private route link copied/i))
+  })
+
+  it("uses OpenGravel in rider-facing private-share copy", async () => {
+    render(<RouteSharePanel route={longRoute()} />)
+
+    expect(screen.getByText(/OpenGravel removes the selected start\/end zones/i)).toBeVisible()
+    expect(screen.queryAllByText(/Switchback/i)).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole("button", { name: "Share" }))
+
+    await waitFor(() => expect(navigator.share).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Long ridge run",
+      text: "A private OpenGravel route copy."
+    })))
   })
 })

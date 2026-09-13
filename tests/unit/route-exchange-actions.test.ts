@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
-import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { SavedRoute } from "@/lib/storage/route-library"
 
@@ -30,6 +29,7 @@ function savedRoute(): SavedRoute {
     folder: "Unfiled",
     tags: [],
     visible: true,
+    libraryProvenance: { kind: "planned" },
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z"
   }
@@ -39,7 +39,8 @@ function actions(overrides: Partial<Parameters<typeof createRouteExchangeActions
   const library = {
     save: vi.fn().mockResolvedValue(savedRoute()),
     remove: vi.fn().mockResolvedValue(undefined),
-    get: vi.fn().mockResolvedValue(undefined)
+    get: vi.fn().mockResolvedValue(undefined),
+    findCatalogCopy: vi.fn().mockResolvedValue(undefined)
   }
   const refresh = vi.fn().mockResolvedValue(undefined)
   const onNotice = vi.fn()
@@ -95,7 +96,12 @@ describe("route exchange actions", () => {
     await subject.actions.importRoute(file)
 
     expect(parseFile).toHaveBeenCalledWith(file)
-    expect(subject.library.save).toHaveBeenCalledWith(route)
+    expect(subject.library.save).toHaveBeenCalledWith(route, "", {
+      kind: "imported-file",
+      sourceFormat: "gpx",
+      sourceFileName: "river.gpx",
+      importedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+    })
     expect(subject.refresh).toHaveBeenCalledOnce()
     expect(subject.onNotice).toHaveBeenCalledWith({
       kind: "success",
@@ -114,24 +120,122 @@ describe("route exchange actions", () => {
     expect(subject.onNotice).toHaveBeenCalledWith({ kind: "warning", message: "Route imports must be 5 MB or smaller." })
   })
 
-  it("loads an existing project route locally without fetching it again", async () => {
-    const existing = savedRoute()
-    const summary: ProjectGpxRouteSummary = {
-      id: existing.id,
-      name: existing.name,
-      sourceFile: "ride.gpx",
-      sourceProject: "Test routes",
-      sources: ["ride.gpx"],
-      distanceMiles: 12,
-      durationMinutes: 25,
-      twistiness: 30,
-      turnCount: 8
+  it("opens a Route Library entry in the planner from its full detail without saving it", async () => {
+    const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ ...catalogRoute, story: {}, catalog: {}, poster: null })))
+    const subject = actions({ fetcher })
+
+    await subject.actions.openCatalogRoute("atlas-42")
+
+    expect(fetcher).toHaveBeenCalledWith("/api/gpx-library?id=atlas-42", expect.anything())
+    expect(subject.onLoad).toHaveBeenCalledWith(expect.objectContaining({ id: "atlas-42", name: "Bald Eagle Loop" }))
+    expect(subject.library.save).not.toHaveBeenCalled()
+    expect(subject.refresh).not.toHaveBeenCalled()
+    expect(subject.onNotice).toHaveBeenCalledWith({
+      kind: "success",
+      message: "Bald Eagle Loop opened from the Route Library. It is not in My Rides until you save it."
+    })
+  })
+
+  it("drops a late Route Library load once the rider has authored planner changes", async () => {
+    const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
+    let release: (response: Response) => void = () => undefined
+    const fetcher = vi.fn(() => new Promise<Response>((resolve) => { release = resolve }))
+    let riderEdited = false
+    const subject = actions({ fetcher, beginCatalogOpen: () => () => riderEdited })
+
+    const opening = subject.actions.openCatalogRoute("atlas-42")
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalled())
+    riderEdited = true
+    release(new Response(JSON.stringify(catalogRoute)))
+    await opening
+
+    expect(subject.onLoad).not.toHaveBeenCalled()
+    expect(subject.onNotice).not.toHaveBeenCalled()
+  })
+
+  it("refuses to open a Route Library entry without real geometry", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ ...route, id: "atlas-42", geometry: [[-77, 40]] })))
+    const subject = actions({ fetcher })
+
+    await subject.actions.openCatalogRoute("atlas-42")
+
+    expect(subject.onLoad).not.toHaveBeenCalled()
+    expect(subject.onNotice).toHaveBeenCalledWith(expect.objectContaining({ kind: "warning" }))
+  })
+
+  it("saves an opened Route Library entry as a catalog copy, never under the shared catalog id", async () => {
+    const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(catalogRoute)))
+    const subject = actions({ fetcher })
+    await subject.actions.openCatalogRoute("atlas-42")
+
+    await subject.actions.saveRoute(catalogRoute)
+
+    expect(subject.library.findCatalogCopy).toHaveBeenCalledWith("atlas-42")
+    expect(subject.library.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "catalog-copy--atlas-42", name: "Bald Eagle Loop" }),
+      "",
+      { kind: "catalog-copy", sourceCatalogRouteId: "atlas-42" }
+    )
+    expect(subject.refresh).toHaveBeenCalled()
+    expect(subject.onNotice).toHaveBeenLastCalledWith({ kind: "success", message: "Bald Eagle Loop saved to My Rides." })
+  })
+
+  it("does not create a second copy when the opened Route Library entry is already in My Rides", async () => {
+    const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
+    const existingCopy: SavedRoute = {
+      ...savedRoute(),
+      id: "catalog-copy--atlas-42",
+      libraryProvenance: { kind: "catalog-copy", sourceCatalogRouteId: "atlas-42" }
     }
-    const subject = actions({ library: { save: vi.fn(), remove: vi.fn(), get: vi.fn().mockResolvedValue(existing) } })
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(catalogRoute)))
+    const subject = actions({ fetcher })
+    subject.library.findCatalogCopy.mockResolvedValue(existingCopy)
+    await subject.actions.openCatalogRoute("atlas-42")
 
-    await subject.actions.loadProject(summary)
+    await subject.actions.saveRoute(catalogRoute)
 
+    expect(subject.library.save).not.toHaveBeenCalled()
+    expect(subject.onNotice).toHaveBeenLastCalledWith({ kind: "success", message: "Bald Eagle Loop is already in My Rides." })
+  })
+
+  it("remembers opened Route Library entries across re-created actions when the caller owns the session set", async () => {
+    const catalogRoute = { ...route, id: "atlas-42", name: "Bald Eagle Loop", routingSource: "imported" as const }
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(catalogRoute)))
+    const openedCatalogRouteIds = new Set<string>()
+    const firstRender = actions({ fetcher, openedCatalogRouteIds })
+    await firstRender.actions.openCatalogRoute("atlas-42")
+
+    const nextRender = actions({ openedCatalogRouteIds })
+    await nextRender.actions.saveRoute(catalogRoute)
+
+    expect(nextRender.library.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "catalog-copy--atlas-42" }),
+      "",
+      { kind: "catalog-copy", sourceCatalogRouteId: "atlas-42" }
+    )
+  })
+
+  it("keeps ordinary planner saves as planned routes", async () => {
+    const subject = actions()
+
+    await subject.actions.saveRoute(route)
+
+    expect(subject.library.findCatalogCopy).not.toHaveBeenCalled()
+    expect(subject.library.save).toHaveBeenCalledWith(route)
+  })
+
+  it("opens a rider-owned saved copy by id and warns when it no longer exists", async () => {
+    const existing = savedRoute()
+    const subject = actions()
+    subject.library.get.mockResolvedValueOnce(existing).mockResolvedValueOnce(undefined)
+
+    await subject.actions.openSavedRoute(existing.id)
     expect(subject.onLoad).toHaveBeenCalledWith(existing)
+
+    await subject.actions.openSavedRoute("gone")
+    expect(subject.onNotice).toHaveBeenLastCalledWith({ kind: "warning", message: "That ride is no longer in My Rides on this device." })
   })
 
   it("creates a GPX download with the correct variant filename and schedules object-URL cleanup", () => {

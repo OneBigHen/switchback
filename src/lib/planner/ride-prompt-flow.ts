@@ -23,6 +23,11 @@ const LOCALITY_KINDS = new Set([
 ])
 
 export interface RidePromptWaypointOptions {
+  /**
+   * `startQuery` must already be bound to rider-authored prompt text. Browser
+   * callers obtain that guarantee from requestRideIntent(); do not route on a
+   * raw model-origin field here.
+   */
   intent: RideIntent
   start: Waypoint | null
   finish: Waypoint | null
@@ -220,10 +225,13 @@ async function resolvePlace(
 
 /**
  * Resolve the geographic part of a free-form ride request independently from
- * React and planner-store mutations. Explicit origins win, fresh browsers ask
- * for location before destination search, and every search is biased from the
- * origin that will actually be routed. Semantic place identity outranks
- * proximity; proximity only breaks ties between equivalent bare-name matches.
+ * React and planner-store mutations. Explicit rider-authored origins win,
+ * fresh browsers ask for location before destination search, and every search
+ * is biased from the origin that will actually be routed. Destination rides
+ * fail closed when current location cannot be verified; only open-ended loop
+ * planning may use an explicitly labeled inferred fallback. Semantic place
+ * identity outranks proximity; proximity only breaks ties between equivalent
+ * bare-name matches.
  */
 export async function resolveRidePromptWaypoints(
   options: RidePromptWaypointOptions
@@ -244,6 +252,9 @@ export async function resolveRidePromptWaypoints(
   }
   if (!start) {
     const resolved = await options.requestLocation()
+    if (intent.mode === "destination" && resolved.source !== "live") {
+      throw new Error("Enable location access or choose a current start point before planning a destination ride.")
+    }
     start = resolved.waypoint
     locationSource = resolved.source
   }

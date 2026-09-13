@@ -136,6 +136,6 @@ export function getWebAuthnConfig(): WebAuthnConfig {
   return {
     rpID: relyingPartyId,
     expectedOrigin: origin,
-    rpName: (process.env.SWITCHBACK_WEBAUTHN_RP_NAME?.trim() || "Switchback").slice(0, 64)
+    rpName: (process.env.SWITCHBACK_WEBAUTHN_RP_NAME?.trim() || "OpenGravel").slice(0, 64)
   }
 }

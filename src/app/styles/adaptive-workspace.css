@@ -1,0 +1,173 @@
+/* UX V3 adaptive workspace topology (issue #115).
+ *
+ * Compact interaction remains owned by the existing <=760px sheet rules.
+ * Wide remains the existing >=1181px desktop composition for now. This layer
+ * gives Medium (761–1180px) an explicit spatial contract so tablets no longer
+ * inherit a fixed 432px desktop card and desktop control offsets by accident.
+ *
+ * One width budget drives planner placement and map-control clearance. Keep
+ * these media boundaries aligned with workspace-mode.ts.
+ */
+
+@media (min-width: 761px) and (max-width: 1180px) {
+  .planner-shell {
+    --sb-medium-planner-width: clamp(312px, 34vw, 400px);
+    --sb-medium-planner-left: 96px;
+    --sb-medium-map-safe-left: calc(
+      var(--sb-medium-planner-left) + var(--sb-medium-planner-width) + var(--sb-space-4)
+    );
+    /* Right edge budget for the native zoom/locate column. */
+    --sb-medium-map-safe-right: calc(var(--sb-touch-target) + (2 * var(--sb-space-4)));
+    /* Planner notices sit above the lower-left scale/attribution band. */
+    --sb-medium-notice-bottom: 72px;
+  }
+
+  /* Medium is a persistent planner + live-map workspace, not a floating
+     desktop card scaled down. Idle and route-ready states share one horizontal
+     authority; their vertical behavior can still differ by planner state. */
+  .planner-shell .planner-deck,
+  .planner-shell .planner-deck.is-idle-plan,
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: var(--sb-medium-planner-left);
+    width: var(--sb-medium-planner-width);
+    max-width: none;
+  }
+
+  /* Keep native lower-left map affordances out from under the persistent
+     planner. The deck's presence is the planning-surface authority; ride,
+     Free Ride, settings and other destinations keep their own map placement. */
+  .planner-shell:has(.planner-deck) .maplibregl-ctrl-bottom-left,
+  .planner-shell:has(.planner-deck) .mapboxgl-ctrl-bottom-left {
+    left: var(--sb-medium-map-safe-left);
+  }
+
+  /* Legacy desktop CSS centres these against a fixed 500px left workspace.
+     Medium owns a variable-width planner, so stretch each overlay across the
+     actual live-map region and let its existing grid centring do the rest.
+     Scope this to planning surfaces: ride/Free Ride do not reserve the planner.
+     Keep the status lane below the 46px Layers toolbar as well: at tablet
+     widths the two surfaces otherwise occupy the same top band. */
+  .planner-shell:has(.planner-deck) .map-layer-status-stack {
+    top: max(76px, calc(env(safe-area-inset-top) + 72px));
+    left: var(--sb-medium-map-safe-left);
+    right: 0;
+    transform: none;
+    max-width: none;
+  }
+
+  /* Planner notices are toasts over the live map. Centred on the viewport they
+     covered the planner's search field, and in the top lane long warnings
+     grow into the Layers toolbar and the Curve status. Keep them inside the
+     unoccluded map region, above the scale/attribution band and clear of the
+     native zoom column; long copy wraps upward into empty map instead. */
+  .planner-shell:has(.planner-deck) .app-notice {
+    top: auto;
+    bottom: var(--sb-medium-notice-bottom);
+    left: calc((var(--sb-medium-map-safe-left) + 100% - var(--sb-medium-map-safe-right)) / 2);
+    width: max-content;
+    max-width: calc(100% - var(--sb-medium-map-safe-left) - var(--sb-medium-map-safe-right));
+  }
+
+  .planner-shell:has(.planner-deck) .map-crosshair {
+    left: var(--sb-medium-map-safe-left);
+    right: 0;
+    transform: translateY(-50%);
+  }
+
+  /* Offline Pack is a modal confirmation, not planner content. The legacy
+     absolute scrim was constrained by .planner-deck's overflow clipping,
+     cutting off both the explanation and Save action on tablet portrait.
+     Promote only the open-modal state above the workspace and anchor the scrim
+     to the viewport; compact keeps its existing bottom-sheet treatment.
+
+     The deck's design-system backdrop-filter also establishes a containing
+     block for fixed descendants. Disable that visual effect only while the
+     modal is open so position: fixed resolves against the viewport instead of
+     the planner's 16px-inset box. The modal scrim supplies the obscuring layer
+     during this state, so the deck blur is not visible or useful underneath. */
+  .planner-shell .planner-deck:has(.offline-pack-modal-scrim) {
+    z-index: 40;
+    overflow: visible;
+    backdrop-filter: none;
+  }
+
+  .planner-shell .offline-pack-modal-scrim {
+    position: fixed;
+    inset: 0;
+  }
+
+  .planner-shell .offline-pack-modal {
+    max-height: calc(100dvh - (2 * var(--sb-space-4)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Portrait tablets spend scarce horizontal space on the planner and map, not
+   on a permanent 64px navigation rail. The same destinations stay persistent
+   in a bounded bottom row while the planner remains a side inspector. */
+@media (min-width: 761px) and (max-width: 1180px) and (orientation: portrait) {
+  .planner-shell {
+    --sb-medium-planner-width: clamp(320px, 42vw, 360px);
+    --sb-medium-planner-left: var(--sb-space-4);
+    --sb-medium-notice-bottom: calc(var(--sb-mobile-sheet-bottom) + 56px);
+  }
+
+  .planner-shell .planner-deck,
+  .planner-shell .planner-deck.is-idle-plan,
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    left: var(--sb-medium-planner-left);
+    width: var(--sb-medium-planner-width);
+  }
+
+  .planner-shell .planner-deck:not(.is-idle-plan) {
+    bottom: var(--sb-mobile-sheet-bottom);
+  }
+
+  .planner-shell .app-navigation {
+    top: auto;
+    right: var(--sb-mobile-edge);
+    bottom: max(var(--sb-mobile-edge), env(safe-area-inset-bottom));
+    left: var(--sb-mobile-edge);
+    width: auto;
+    height: var(--sb-mobile-nav-height);
+    flex-direction: row;
+    align-items: stretch;
+    border-radius: var(--sb-radius-sheet);
+  }
+
+  .planner-shell .app-navigation-brand {
+    display: none;
+  }
+
+  .planner-shell .app-navigation-primary {
+    min-width: 0;
+    flex: 1 1 auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sb-space-1);
+    padding: var(--sb-space-2);
+  }
+
+  .planner-shell .app-navigation-secondary {
+    flex: 0 0 auto;
+    margin-top: 0;
+    grid-auto-flow: column;
+    align-items: stretch;
+    padding: var(--sb-space-2);
+    border-top: 0;
+    border-left: 1px solid var(--sb-border);
+  }
+
+  .planner-shell .app-navigation button {
+    min-height: 48px;
+    padding: 4px 2px;
+  }
+
+  /* Attribution and native map controls stay above the persistent nav row. */
+  .planner-shell:has(.planner-deck) .maplibregl-ctrl-bottom-left,
+  .planner-shell:has(.planner-deck) .maplibregl-ctrl-bottom-right,
+  .planner-shell:has(.planner-deck) .mapboxgl-ctrl-bottom-left,
+  .planner-shell:has(.planner-deck) .mapboxgl-ctrl-bottom-right {
+    bottom: var(--sb-mobile-sheet-bottom);
+  }
+}

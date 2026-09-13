@@ -45,8 +45,8 @@ import { buildLoopStopVia, buildRideTripRequest, createPlanningId } from "@/lib/
 import { routeEditState } from "@/lib/planner/route-edit-state"
 import { restorePortableShare } from "@/lib/share/route-share"
 import { routeIntentFromSketch } from "@/lib/planner/route-sketch"
-import type { ProjectGpxCatalog, ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
 import { buildGpxJoinPreview, joinGpxRoute, resolveGpxJoinCandidate, type GpxJoinChoice, type GpxJoinPreview } from "@/lib/gpx/join"
+import { routePassesNearWaypoint } from "@/lib/routing/scoring"
 import type { PlannedRoute, Waypoint } from "@/lib/routing/types"
 import type { ProposedRide, ProposedStop } from "@/lib/advice/contracts"
 import { advisorRideToPlannerHandoff, mergeAdvisorStopIntoVia } from "@/lib/advice/planner-handoff"
@@ -166,7 +166,6 @@ export function PlannerShell() {
     : null))
   const rideIdentity = usePlannerStore((state) => state.rideHistory.identity)
   useRideCheckpoint()
-  const [projectRoutes, setProjectRoutes] = useState<ProjectGpxRouteSummary[]>([])
   const [savedTrips, setSavedTrips] = useState<SavedTripPlan[]>([])
   const [restoredTrip, setRestoredTrip] = useState<SavedTripPlan | null>(null)
   const [replayComparison, setReplayComparison] = useState<ReplayComparisonResult | null>(null)
@@ -390,16 +389,6 @@ export function PlannerShell() {
   const perLegStyles = activeSegmentProfiles({ mode: planMode, via, profile, segmentProfiles })
 
   useEffect(() => {
-    void fetch("/api/gpx-library", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Project GPX library unavailable")
-        return response.json() as Promise<ProjectGpxCatalog>
-      })
-      .then((catalog) => setProjectRoutes(catalog.routes))
-      .catch(() => setProjectRoutes([]))
-  }, [])
-
-  useEffect(() => {
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
     const hour = new Date().getHours()
     const afterDark = hour < 6 || hour >= 19
@@ -583,6 +572,115 @@ export function PlannerShell() {
     }
   }
 
+  /**
+   * Fulfil the advisor's compound command in the canonical planner. The
+   * grounded stop is only an input; the route request is the proof that the
+   * second requirement was satisfied. Compound success requires BOTH a
+   * materially changed valid route AND routed geometry that demonstrably
+   * passes the grounded stop — a route that merely changed is not evidence
+   * that the stop is on it. If routing fails, merely reproduces the current
+   * route, or returns a change that bypasses the stop, restore the committed
+   * ride and keep the old answer on screen rather than silently applying only
+   * the stop.
+   */
+  const handleRouteWithAdvisorStop = async (stop: ProposedStop) => {
+    routeRequestGate.invalidate()
+    const store = usePlannerStore.getState()
+    const beforePlan = store.plan
+    const beforeCommittedRide = store.committedRide
+    const beforeResultIdentity = store.resultIdentity
+    const beforeSelectionSource = store.selectionSource
+    const activeRouteId = store.selectedRouteId ?? beforePlan?.routes[0]?.id
+    const beforeRoute = activeRouteId ? routeEntityCache.get(activeRouteId) ?? null : null
+    const stopWaypoint: Waypoint = { lat: stop.anchor.lat, lon: stop.anchor.lon, label: stop.name }
+    const routedVia = store.mode === "loop" && beforeRoute && store.via.length === 0
+      ? buildLoopStopVia(beforeRoute.geometry, stopWaypoint)
+      : mergeAdvisorStopIntoVia(store.via, stop, beforeRoute?.geometry ?? [])
+
+    if (routedVia.length === store.via.length && routedVia.every((point, index) => point === store.via[index])) {
+      setNotice({ kind: "warning", message: `I found ${stop.name}, but it is already on this ride and no different route was verified. Your route is unchanged.` })
+      return
+    }
+    if (store.editRide({ via: routedVia }, "Route through advisor stop", "advisor") !== "applied") return
+    const attemptedIdentity = usePlannerStore.getState().getIntentIdentity()
+
+    const planningRun = handlePlan()
+    const actionRequestId = usePlannerStore.getState().pendingResultIdentity?.requestId
+    const planned = await planningRun
+    const afterPlan = usePlannerStore.getState()
+    // The planner session fences provider responses, but this callback also
+    // owns the post-plan transaction. A later rider edit/replan must not be
+    // cancelled or rolled back by an older advisor response.
+    if (afterPlan.getIntentIdentity() !== attemptedIdentity) return
+    if (actionRequestId !== undefined && !routeRequestGate.isCurrent(actionRequestId)) {
+      // Selecting another displayed route is a rider decision, even though it
+      // does not alter RideIntent. The request gate rejects the advisor's
+      // late route response; restore only the advisor's tentative via while
+      // retaining the rider's current route selection and source.
+      if (beforeCommittedRide) {
+        afterPlan.restoreRideUpdate({
+          committedRide: beforeCommittedRide,
+          plan: beforePlan,
+          selectedRouteId: afterPlan.selectedRouteId,
+          selectionSource: afterPlan.selectionSource,
+          resultIdentity: beforeResultIdentity
+        }, attemptedIdentity)
+      }
+      return
+    }
+    const selected = planned?.routes.find((route) => route.id === planned.selectedRouteId) ?? planned?.routes[0] ?? null
+    const geometryChanged = Boolean(beforeRoute && (
+      beforeRoute.geometry.length !== selected?.geometry.length
+      || beforeRoute.geometry.some((point, index) => point[0] !== selected?.geometry[index]?.[0] || point[1] !== selected?.geometry[index]?.[1])
+    ))
+    const metricsChanged = Boolean(beforeRoute && selected && (
+      beforeRoute.distanceMiles !== selected.distanceMiles
+      || beforeRoute.durationMinutes !== selected.durationMinutes
+      || beforeRoute.twistiness !== selected.twistiness
+      || beforeRoute.turnCount !== selected.turnCount
+    ))
+    const routeChanged = Boolean(beforeRoute && selected && (
+      geometryChanged || metricsChanged
+    ))
+    // routeChanged evidence is necessary but insufficient: the returned
+    // geometry must actually pass the grounded stop, otherwise a changed
+    // route that bypasses the stop would be presented as a routed stop.
+    const stopOnRoute = Boolean(selected && routePassesNearWaypoint(selected.geometry, stopWaypoint))
+
+    if (!planned || !selected || !routeChanged || !stopOnRoute) {
+      if (!planned) {
+        // A failed primary never replaced committedRide, so the existing
+        // planner cancellation contract restores the attempted intent and
+        // settles the failed lifecycle.
+        planning.cancel()
+      } else if (beforeCommittedRide) {
+        const restored = usePlannerStore.getState().restoreRideUpdate({
+          committedRide: beforeCommittedRide,
+          plan: beforePlan,
+          selectedRouteId: store.selectedRouteId,
+          selectionSource: beforeSelectionSource,
+          resultIdentity: beforeResultIdentity,
+          expectedRequestId: actionRequestId
+        }, attemptedIdentity)
+        if (!restored) return
+        // Restore first, then settle the lifecycle. This keeps the ordinary
+        // controller cancellation from rolling back a newer request.
+        planning.cancel()
+      }
+      setNotice({
+        kind: "warning",
+        message: !planned
+          ? `I couldn’t route through ${stop.name}. Your route is unchanged.`
+          : routeChanged
+            ? `I found ${stop.name}, but could not verify a changed route that passes through it. Your route is unchanged.`
+            : `I found ${stop.name}, but could not verify a different valid route through it. Your route is unchanged.`
+      })
+      return
+    }
+
+    setNotice({ kind: "success", message: `${stop.name} is on a verified changed route.` })
+  }
+
   const { researchRideIdea: handleRideResearch, cancel: cancelRideResearch } = usePlannerRideResearch({
     setStatus: setResearchStatus,
     setSources: setResearchSources,
@@ -639,45 +737,57 @@ export function PlannerShell() {
     return lock
   }
 
+  // Stable for the shell's lifetime so re-created actions share one session set.
+  const [openedCatalogRouteIds] = useState(() => new Set<string>())
   const {
     saveRoute: handleSave,
     exportRoute: handleExport,
     exportRecordedRide: handleExportRecordedRide,
     deleteRoute: handleDelete,
-    loadProject: handleLoadProject,
+    openCatalogRoute: handleOpenCatalogRoute,
+    openSavedRoute: handleOpenSavedRoute,
     importRoute: handleImport
   } = createRouteExchangeActions({
     library: routeLibrary,
     refresh: refreshLibrary,
     onNotice: setNotice,
-    onLoad: handleLoad
+    onLoad: handleLoad,
+    openedCatalogRouteIds,
+    beginCatalogOpen: () => {
+      // Recorded ride history only grows when someone authors a change; draft
+      // recovery and passive location seeding never add to it.
+      const authoredChanges = () => {
+        const { past, future } = usePlannerStore.getState().rideHistory
+        return past.length + future.length
+      }
+      const before = authoredChanges()
+      return () => authoredChanges() > before
+    }
   })
 
-  // Deep link from the route atlas: `/?ride=<libraryRouteId>` loads that
-  // imported route straight into the planner, then strips the param so a
-  // reload does not re-trigger it. One-shot on mount, like the portable
-  // share loader above.
+  // Deep links from the Route Library, one-shot on mount like the portable
+  // share loader above: `/?ride=<catalogRouteId>` is Open in Planner (loads the
+  // shared entry, never saves it) and `/?savedRoute=<id>` is Open saved copy
+  // (loads the rider-owned My Rides row). Both params are stripped so a reload
+  // does not re-trigger them.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const rideId = params.get("ride")
-    if (!rideId) return
+    const catalogRouteId = params.get("ride")
+    const savedRouteId = params.get("savedRoute")
+    if (!catalogRouteId && !savedRouteId) return
     params.delete("ride")
+    params.delete("savedRoute")
     const rest = params.toString()
     window.history.replaceState(
       null,
       "",
       `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`
     )
-    if (!/^[A-Za-z0-9._-]{1,200}$/.test(rideId)) return
-    void handleLoadProject({
-      id: rideId,
-      name: "",
-      distanceMiles: 0,
-      durationMinutes: 0,
-      twistiness: 0,
-      turnCount: 0,
-      sourceProject: ""
-    })
+    if (savedRouteId) {
+      if (/^[A-Za-z0-9._-]{1,200}$/.test(savedRouteId)) void handleOpenSavedRoute(savedRouteId)
+      return
+    }
+    if (catalogRouteId) void handleOpenCatalogRoute(catalogRouteId)
     // Mount-only: the loader closure captured here stays valid for a one-shot load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1391,6 +1501,7 @@ message: failure?.message ?? "The rough route could not be routed."
           recoveryStatus,
           planWarnings: plan?.warnings ?? [],
           onAddAdvisorStop: (stop) => void handleAddAdvisorStop(stop),
+          onRouteWithAdvisorStop: (stop) => void handleRouteWithAdvisorStop(stop),
           onPlanAdvisorRide: (ride) => void handlePlanAdvisorRide(ride),
           advisorOrigin: start ?? null,
           viewModel: buildPlannerDeckViewModel({
@@ -1408,7 +1519,7 @@ message: failure?.message ?? "The rough route could not be routed."
             curvatureVisible,
             avoidHighways,
             tollPolicy,
-            savedCount: savedRoutes.length + projectRoutes.length,
+            savedCount: savedRoutes.length,
             via,
             addingVia,
             segmentProfiles: perLegStyles,
@@ -1619,7 +1730,13 @@ message: failure?.message ?? "The rough route could not be routed."
           comparison: routes.length > 0 ? {
               routes: routes,
               selectedId: selectedRoute?.id ?? "",
-              onSelect: (id: string) => usePlannerStore.getState().selectRoute(id),
+              onSelect: (id: string) => {
+                // A manual route pick is newer rider intent for every
+                // in-flight planner command, including a Goblin compound
+                // request that would otherwise apply its late result over it.
+                routeRequestGate.invalidate()
+                usePlannerStore.getState().selectRoute(id)
+              },
               onSave: (route) => void handleSave(route),
               onExport: handleExport,
               recordedRide: activeRecordedRide,
@@ -1676,7 +1793,6 @@ message: failure?.message ?? "The rough route could not be routed."
           routes={savedRoutes}
           recordedRides={recordedRides}
           trips={savedTrips}
-          projectRoutes={projectRoutes}
           onClose={() => applyDestination("plan", "replace")}
           onLoad={handleLoad}
           onLoadTrip={(trip) => handleLoad(trip.route, trip)}
@@ -1695,7 +1811,6 @@ message: failure?.message ?? "The rough route could not be routed."
             }).catch(() => setNotice({ kind: "warning", message: "That recording could not be removed." }))
           }}
           onMatchImported={(route) => void handleMatchImported(route)}
-          onLoadProject={(route) => void handleLoadProject(route)}
           onDelete={(route) => void handleDelete(route)}
           onOrganize={(route, organization) => {
             void routeLibrary.organize(route.id, organization)

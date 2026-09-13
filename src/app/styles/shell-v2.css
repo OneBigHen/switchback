@@ -1,4 +1,4 @@
-/* Switchback UX V2 shell chrome.
+/* OpenGravel UX V2 shell chrome.
  *
  * Home of the primary navigation: four persistent destinations (Plan, Rides,
  * Discover, Settings) plus the secondary Record activity. Consumes the
@@ -38,25 +38,24 @@
   display: none;
 }
 
-.switchback-mark {
-  display: grid;
+.open-gravel-mark {
   width: 40px;
   height: 40px;
-  place-items: center;
-  transform: skew(-8deg);
-  border-radius: var(--sb-radius-control);
-  background: var(--sb-ember);
-  color: var(--sb-paper);
+  color: var(--sb-text);
 }
 
-.switchback-mark svg {
-  width: 28px;
-  height: 28px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 3.25;
+.open-gravel-mark .open-gravel-mark-accent {
+  color: var(--sb-ember);
+}
+
+.app-navigation-brand strong {
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.app-navigation-brand small {
+  color: var(--sb-text-muted);
+  font-size: 11px;
 }
 
 .app-navigation-primary {
