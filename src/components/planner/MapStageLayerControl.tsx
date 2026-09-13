@@ -73,7 +73,7 @@ const PRESET_LABELS: Record<MapPresetId, string> = {
 
 // Keep the first layer decision compact; every other existing catalog layer
 // remains available in the Advanced view below.
-const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "gravel-atlas", "closures", "road-controls"]
+const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "gravel-atlas", "live-traffic", "closures", "road-controls"]
 
 /**
  * Satellite is a premium-renderer capability. Offering it on the fallback

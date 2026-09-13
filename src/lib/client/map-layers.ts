@@ -34,6 +34,7 @@ export type RiderLayerId =
   | "mvum"
   | "closures"
   | "road-controls"
+  | "live-traffic"
   | "weather"
   | "fuel"
   | "food"
@@ -142,6 +143,7 @@ export const featureMapLayerIds = [
   "mvum",
   "closures",
   "road-controls",
+  "live-traffic",
   "weather",
   "fuel",
   "food",
@@ -222,6 +224,14 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
     dataCategory: "conditions-traffic",
     freshness: "Community-maintained", coverage: "Mapped controls",
     legend: "Amber markers = mapped signals and stops; not live congestion", minZoom: 11
+  },
+  {
+    id: "live-traffic", name: "Live traffic", category: "conditions", status: "live",
+    source: "TomTom Orbis Traffic",
+    provenance: "TomTom live incident feed, requested server-side for the current map view. Reports provider incidents and closures; absence of data is not treated as proof a road is clear.",
+    dataCategory: "conditions-traffic",
+    freshness: "Live incident feed", coverage: "TomTom traffic coverage",
+    legend: "Red lines/markers = reported live traffic incidents", minZoom: 9
   },
   {
     id: "weather", name: "Active weather alerts", category: "conditions", status: "regional",

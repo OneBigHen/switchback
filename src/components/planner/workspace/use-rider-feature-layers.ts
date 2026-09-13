@@ -5,6 +5,7 @@ import type { RefObject } from "react"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import { useEffect, useRef, useState } from "react"
 import { emptyFeatureCollection } from "@/lib/client/map-data"
+import { riderFeatureUnavailableLayerIds } from "@/lib/client/rider-feature-availability"
 import {
   featureMapLayerIds,
   paUnpavedRoadsQuery,
@@ -41,12 +42,6 @@ export interface RiderFeatureLayersController {
 
 interface RiderFeatureResponse extends FeatureCollection {
   unavailable?: RiderFeatureUnavailableSource[]
-}
-
-function layerProviderUnavailable(id: RiderLayerId, unavailable: ReadonlySet<RiderFeatureUnavailableSource>): boolean {
-  if (id === "gravel-atlas") return unavailable.has("gravel-atlas")
-  if (id === "weather") return unavailable.has("weather")
-  return unavailable.has("osm")
 }
 
 /**
@@ -326,13 +321,15 @@ export function useRiderFeatureLayers(
           const lid = (feature.properties as Record<string, unknown> | null)?.layerId
           if (typeof lid === "string") counts[lid] = (counts[lid] ?? 0) + 1
         }
-        const unavailable = new Set<RiderFeatureUnavailableSource>(collection.unavailable ?? [])
+        const unavailableLayers = new Set<RiderLayerId>(
+          riderFeatureUnavailableLayerIds(collection.unavailable, selectedLayers)
+        )
         setRiderLayerCounts(counts)
         setRiderLayerStates((prev) => {
           const next: Record<string, FeatureLayerState> = { ...prev }
           for (const id of visibleFeatureLayers) {
             if (selectedSet.has(id)) {
-              next[id] = layerProviderUnavailable(id, unavailable)
+              next[id] = unavailableLayers.has(id)
                 ? "error"
                 : (counts[id] ?? 0) > 0 ? "ready" : "empty"
             } else {
@@ -341,7 +338,10 @@ export function useRiderFeatureLayers(
           }
           return next
         })
-        const availableSelected = selectedLayers.filter((id) => !layerProviderUnavailable(id, unavailable))
+        // Partial provider loss belongs to the affected layer badges: keep the
+        // aggregate status ready while any selected layer's provider answered,
+        // so successful OSM, weather, traffic or Atlas data stays visible.
+        const availableSelected = selectedLayers.filter((id) => !unavailableLayers.has(id))
         setRiderFeaturesStatus(availableSelected.length > 0 ? "ready" : "error")
       } catch (caught) {
         if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return

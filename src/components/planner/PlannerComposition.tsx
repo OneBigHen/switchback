@@ -12,6 +12,7 @@ import {
   resolveRouteDetails,
   type RouteDetailsWorkspaceState
 } from "./planner-route-details-state"
+import { RouteTrafficSummary } from "./RouteTrafficSummary"
 import { useWorkspaceMode } from "./workspace/use-workspace-mode"
 import { RouteDecisionRail } from "./v2/RouteDecisionRail"
 import { RideAdvisor } from "./v2/RideAdvisor"
@@ -56,6 +57,9 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
   // longer looking at.
   const selectedDetailsRoute = comparison
     ? resolveRouteDetails(details, comparison.routes, comparison.selectedId)
+    : null
+  const selectedRoute = comparison
+    ? comparison.routes.find((route) => route.id === comparison.selectedId) ?? null
     : null
   const showingDetails = Boolean(comparison && selectedDetailsRoute)
   // During a replan/failing edit Switchback deliberately retains the last
@@ -108,6 +112,8 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
             onOpenDetails={openDetails}
           />
         ) : null}
+
+        <RouteTrafficSummary route={selectedRoute} />
 
         {/* Route choice stays the primary task after a plan (ADR 0013), so the
             ride summary reports underneath it rather than pushing it down. */}

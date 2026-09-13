@@ -26,10 +26,13 @@ function emptyCollection(): RiderFeatureCollection {
   return { type: "FeatureCollection", features: [] }
 }
 
+/** Providers behind the base (non-Atlas) layers, for when that provider fails outright. */
 function unavailableForBaseLayers(layers: readonly RiderLayerId[]): RiderFeatureUnavailableSource[] {
   const unavailable: RiderFeatureUnavailableSource[] = []
-  if (layers.some((layer) => layer !== "weather")) unavailable.push("osm")
+  if (layers.some((layer) => layer !== "weather" && layer !== "live-traffic")) unavailable.push("osm")
   if (layers.includes("weather")) unavailable.push("weather")
+  // Missing traffic evidence must never read as "no incidents".
+  if (layers.includes("live-traffic")) unavailable.push("traffic")
   return unavailable
 }
 

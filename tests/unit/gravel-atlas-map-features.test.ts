@@ -116,6 +116,16 @@ describe("Gravel Atlas viewport features", () => {
     expect(result.unavailable).toContain("gravel-atlas")
   })
 
+  it("marks live traffic unavailable, not clear, when the base provider fails outright", async () => {
+    const result = await getCombinedRiderMapFeatures({ bounds, layers: ["fuel", "live-traffic", "gravel-atlas"] }, {
+      baseProvider: async () => { throw new Error("upstream federation failed") },
+      atlasProvider: async () => ({ type: "FeatureCollection", features: [] })
+    })
+    expect(result.unavailable).toEqual(expect.arrayContaining(["osm", "traffic"]))
+    expect(result.unavailable).not.toContain("gravel-atlas")
+    expect(result.unavailable).not.toContain("weather")
+  })
+
   it("reports an unconfigured Atlas layer as unavailable instead of a confirmed empty area", async () => {
     const result = await getCombinedRiderMapFeatures({ bounds, layers: ["gravel-atlas"] }, {
       baseProvider: vi.fn()
