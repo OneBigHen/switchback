@@ -1,0 +1,402 @@
+/* OpenGravel Recon — Labs presentation layer.
+ *
+ * Global stylesheet, every class prefixed `recon-`. Colour, type, geometry
+ * and motion come from the canonical token layer (src/app/styles/tokens.css);
+ * nothing here invents a theme. The map owns the field; UI floats only where
+ * it is needed.
+ */
+
+.recon-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--sb-canvas);
+  font-family: var(--font-body);
+  color: var(--sb-text);
+}
+
+.recon-map-canvas,
+.recon-map-loading {
+  position: absolute;
+  inset: 0;
+}
+
+.recon-map-loading {
+  background: var(--sb-canvas);
+}
+
+/* ---- Floating chrome ------------------------------------------------- */
+
+.recon-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100dvh - 200px);
+  overflow-y: auto;
+  background: var(--sb-paper);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-panel);
+  box-shadow: var(--sb-shadow);
+  padding: var(--sb-space-4);
+}
+
+.recon-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sb-space-3);
+  margin-bottom: var(--sb-space-3);
+}
+
+.recon-eyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sb-text-muted);
+}
+
+.recon-wordmark {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  color: var(--sb-text);
+}
+
+.recon-back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sb-touch-target);
+  padding: 0 var(--sb-space-2);
+  font-size: 13px;
+  color: var(--sb-text-link);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.recon-back-link:hover {
+  text-decoration: underline;
+}
+
+.recon-back-chip {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sb-touch-target);
+  padding: 0 var(--sb-space-4);
+  background: var(--sb-paper);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  box-shadow: var(--sb-shadow);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-text);
+  text-decoration: none;
+}
+
+.recon-back-chip:hover {
+  background: var(--sb-surface-raised);
+}
+
+.recon-picker-toggle {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sb-touch-target);
+  padding: 0 var(--sb-space-4);
+  background: var(--sb-paper);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  box-shadow: var(--sb-shadow);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-text);
+  cursor: pointer;
+}
+
+.recon-picker-toggle:hover {
+  background: var(--sb-surface-raised);
+}
+
+.recon-picker-toggle[aria-expanded="true"] {
+  /* The open panel carries the header; the toggle stands down. */
+  display: none;
+}
+
+/* ---- Picker ----------------------------------------------------------- */
+
+.recon-section-heading {
+  margin: var(--sb-space-4) 0 var(--sb-space-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sb-text-muted);
+}
+
+.recon-panel-header + .recon-picker .recon-section-heading:first-child {
+  margin-top: 0;
+}
+
+.recon-track-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sb-space-1);
+}
+
+.recon-track-row {
+  width: 100%;
+  min-height: var(--sb-touch-target);
+  display: grid;
+  gap: 2px;
+  padding: var(--sb-space-2) var(--sb-space-3);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--sb-radius-control);
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.recon-track-row:hover {
+  background: var(--sb-surface-raised);
+}
+
+.recon-track-row[aria-pressed="true"] {
+  border-color: var(--sb-ember);
+  background: color-mix(in srgb, var(--sb-ember) 8%, var(--sb-paper));
+}
+
+.recon-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-space-2);
+  min-width: 0;
+}
+
+.recon-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recon-row-meta {
+  font-size: 11px;
+  color: var(--sb-text-muted);
+}
+
+.recon-badge {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: var(--sb-radius-chip);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recon-badge-recorded {
+  background: color-mix(in srgb, var(--sb-ember) 14%, var(--sb-paper));
+  color: var(--sb-ember-text);
+}
+
+.recon-badge-preview {
+  background: color-mix(in srgb, var(--sb-signal) 14%, var(--sb-paper));
+  color: var(--sb-signal-strong);
+}
+
+.recon-quiet-note {
+  margin: var(--sb-space-1) 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sb-text-muted);
+}
+
+/* ---- HUD -------------------------------------------------------------- */
+
+.recon-hud {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2;
+  width: min(340px, calc(100vw - 32px));
+  padding: var(--sb-space-3) var(--sb-space-4) var(--sb-space-4);
+  background: var(--sb-ride-surface);
+  border: 1px solid var(--sb-ride-border);
+  border-radius: var(--sb-radius-panel);
+  box-shadow: var(--sb-shadow);
+  color: var(--sb-ride-text);
+}
+
+.recon-hud-eyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sb-ride-text-muted);
+}
+
+.recon-hud-name {
+  margin: 2px 0 var(--sb-space-1);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--sb-ride-text);
+  overflow-wrap: anywhere;
+}
+
+.recon-hud-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sb-ride-text-muted);
+}
+
+.recon-hud-note {
+  margin: var(--sb-space-2) 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--sb-ride-text-muted);
+}
+
+.recon-hud-error {
+  margin: var(--sb-space-2) 0 0;
+  font-size: 12px;
+  color: var(--sb-ride-danger);
+}
+
+.recon-hud-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sb-touch-target);
+  margin-top: var(--sb-space-3);
+  padding: 0 var(--sb-space-5);
+  background: var(--sb-ember);
+  border-radius: var(--sb-radius-control);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-paper);
+  text-decoration: none;
+}
+
+.recon-hud-action:hover {
+  background: var(--sb-ember-strong);
+}
+
+.recon-notice {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: var(--sb-space-2) var(--sb-space-4);
+  background: var(--sb-ride-surface);
+  border: 1px solid var(--sb-ride-border);
+  border-radius: var(--sb-radius-panel);
+  box-shadow: var(--sb-shadow);
+  font-size: 12px;
+  color: var(--sb-ride-text);
+}
+
+/* ---- Empty and not-found ---------------------------------------------- */
+
+.recon-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: var(--sb-space-4);
+}
+
+.recon-empty-card {
+  max-width: 420px;
+  padding: var(--sb-space-8);
+  background: var(--sb-paper);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-sheet);
+  box-shadow: var(--sb-shadow);
+  text-align: center;
+}
+
+.recon-empty-mark {
+  display: block;
+  width: 28px;
+  height: 6px;
+  margin: 0 auto var(--sb-space-4);
+  border-radius: 3px;
+  background: var(--sb-ember);
+}
+
+.recon-empty-copy {
+  margin: var(--sb-space-3) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sb-text);
+}
+
+.recon-empty-note {
+  margin: var(--sb-space-3) 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sb-text-muted);
+}
+
+/* ---- Focus, motion, small screens ------------------------------------- */
+
+.recon-shell a:focus-visible,
+.recon-shell button:focus-visible {
+  outline: 3px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recon-shell *,
+  .recon-shell *::before,
+  .recon-shell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .recon-panel {
+    top: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+    max-height: 46dvh;
+  }
+
+  .recon-picker-toggle,
+  .recon-back-chip {
+    top: 12px;
+    left: 12px;
+  }
+
+  .recon-hud,
+  .recon-notice {
+    left: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+}

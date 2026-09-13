@@ -151,5 +151,43 @@ for owner review. Phase 0 — Truth and adapters — opens the feature root: `sr
 flat map, empty state). RED tests first: `tests/unit/recon-data-adapter.test.ts`,
 `tests/unit/recon-replay-timeline.test.ts`. Phase 0 gates: `npm run lint`, `npm run typecheck`,
 `npx vitest run tests/unit/recon-data-adapter.test.ts tests/unit/recon-replay-timeline.test.ts`.
-Later phases (Replay/Recon playback, X-Ray, Cinematic, Ultra) follow the wave plan in
-`docs/release/ROADMAP-WAVES.md` and the ADRs 0015–0022.
+Phase 1 — Gorgeous Explorer — delivers the pitched, terrain-backed Explorer:
+`src/features/recon/map/{ReconMap.tsx,create-recon-map.ts,recon-map-style.ts,terrain.ts}`,
+`layers/{ride-history-layer.ts,selected-route-layer.ts,gravel-evidence-layer.ts}`,
+`ui/{ReconShell.tsx,ReconHud.tsx,ReconRidePicker.tsx}`, `recon.css`, and the
+`src/app/labs/recon/replay/[rideId]/page.tsx` focused-view route, with the Recon critical
+Playwright spec named in `criticalMainMatch`. Phase 1 gates add `npm run build` and the
+Recon critical e2e spec to the Phase 0 set.
+
+## 14. Renderer decisions for Recon (run authority, 2026-09-13)
+
+These two decisions govern Recon and supersede any pointer to a roadmap/ADR set as Recon's
+authority; `ROADMAP-WAVES.md` contains no Recon, Labs, deck.gl or R3F content and ADRs
+0015–0022 predate this work.
+
+1. **Primary renderer: MapLibre, now.** On `origin/main` @ `44393de8` the app's map code is
+   MapLibre-only (7 modules import `maplibre-gl`, 0 import `mapbox-gl`); the Mapbox Standard
+   rollout of ADR 0015 has not landed. Recon builds on MapLibre and keeps renderer coupling
+   shallow: map creation, style assembly and layer registration live in
+   `src/features/recon/map/` behind one factory so an eventual Mapbox swap stays contained.
+   Never introduce a second primary renderer and never render two primary canvases at once.
+
+2. **Ultra Cinematic: out of V1 scope; if ever built it follows ADR 0016.** Baseline
+   Cinematic (MapLibre terrain scene + choreographed camera) is the required deliverable and
+   must stand on its own. A raw 3D-Tiles world is explicitly not used: ADR 0016 (Accepted)
+   states "Raw Photorealistic 3D Tiles and Cesium are not used." An optional photorealistic
+   preview, if built at all, is the lazy-loaded, capability-gated Google Maps JavaScript 3D
+   (`maps3d`) element of ADR 0016, disposed on close, never co-rendering with the primary
+   renderer. Consequence: `three`, `@react-three/fiber`, `@react-three/drei`,
+   `@react-three/postprocessing` and `3d-tiles-renderer` are **not** installed for Recon
+   (removing them from the original approved dependency list is a deliberate scope
+   reduction). `deck.gl` remains approved for Replay (large geospatial animation) in a later
+   phase.
+
+## 15. Out of scope for V1
+
+Road registry; recommendation engine; social feed; achievements/leaderboards; GPX import
+rewrite; map-matching rewrite; AI narration; road-condition inference; image recognition;
+custom terrain hosting/tile server; video export; photo upload; 3D world editor; multiplayer
+replay; CarPlay; native iOS rewrite. A missing capability is documented, not worked around
+with a new dependency outside the approved set.
