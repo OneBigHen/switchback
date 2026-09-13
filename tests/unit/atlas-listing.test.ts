@@ -101,3 +101,24 @@ describe("buildAtlasBrowseRoutes", () => {
     expect(rows.map((row) => row.title)).toEqual(["Connector · 12 mi", "Connector · 32 mi"])
   })
 })
+
+describe("display-name precedence on browse rows", () => {
+  it("cleans a story title that is still the import filename", () => {
+    const [row] = buildAtlasBrowseRoutes(
+      [{
+        id: "ugly",
+        name: "Green Lane-NJ-Bucks-Creek-Crossing-TRACK-CORRECTED",
+        distanceMiles: 62,
+        durationMinutes: 0,
+        twistiness: 48,
+        turnCount: 90,
+        sourceProject: "fixture"
+      }],
+      { ugly: { bbox: [-75.5, 40.3, -75.1, 40.6], paths: [{ band: "twisty", d: "M10 110 L90 14" }] } }
+    )
+
+    expect(row!.title).toBe("Green Lane → Bucks Creek Crossing")
+    // Provenance is untouched: the import's own name is still the row's name.
+    expect(row!.name).toBe("Green Lane-NJ-Bucks-Creek-Crossing-TRACK-CORRECTED")
+  })
+})

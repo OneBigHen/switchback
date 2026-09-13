@@ -1,5 +1,5 @@
 import { curvatureBand, type AtlasRouteArt } from "@/lib/gpx/atlas"
-import { classifyCatalogArea, cleanCatalogRouteName, knownDurationMinutes } from "@/lib/gpx/catalog-presentation"
+import { catalogDisplayTitle, classifyCatalogArea, cleanCatalogRouteName, knownDurationMinutes } from "@/lib/gpx/catalog-presentation"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import type { AtlasBrowseRoute } from "./atlas-browse"
 
@@ -28,7 +28,10 @@ function toBrowseRoute(route: AtlasListingRoute, art: AtlasRouteArt | undefined)
   return {
     id: route.id,
     name: cleanCatalogRouteName(route.name) || route.name.trim(),
-    title: story.title,
+    // Display-name precedence, not just the story headline: a catalog title
+    // that still reads as the file it came from is not a title, and the
+    // imported filename stays intact above as provenance.
+    title: catalogDisplayTitle({ catalogTitle: story.title, originalName: route.name }),
     tone: story.tone,
     band: curvatureBand(route.twistiness),
     distanceMiles: route.distanceMiles,
