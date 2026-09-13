@@ -412,6 +412,8 @@ export function expectNoUnexpectedNetworkFailures(
     .filter((failure) => !isExpectedProviderHealthAbort(failure)
       && !isExpectedOptionalOverlayAbort(failure)
       && !isExpectedRouteTrafficAbort(failure)
+      && !isExpectedMapStyleAbort(failure)
+      && !isExpectedStaticFontAbort(failure)
       && !options.ignore?.(failure))
   expect(failures, "unexpected failed network requests").toEqual([])
 }
@@ -439,6 +441,53 @@ export function isExpectedRouteTrafficAbort(failure: string): boolean {
   try {
     const url = new URL(match[1])
     return url.pathname === "/api/route-traffic"
+      && url.search === ""
+      && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * MapLibre loads one of the three known OpenFreeMap styles for the map
+ * surface. When a navigation transition or page teardown removes that map
+ * before the style response arrives, WebKit reports the intentionally
+ * abandoned load as a request failure. Keep the host, path, and cancellation
+ * reason exact so a real style outage remains visible.
+ */
+const MAP_STYLE_PATHS: ReadonlySet<string> = new Set([
+  "/styles/positron",
+  "/styles/liberty",
+  "/styles/fiord",
+])
+
+export function isExpectedMapStyleAbort(failure: string): boolean {
+  const match = /^GET (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return url.hostname === "tiles.openfreemap.org"
+      && MAP_STYLE_PATHS.has(url.pathname)
+      && url.search === ""
+      && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The bundled Oswald face can be abandoned by WebKit while a reload swaps the
+ * document. Match only the exact Next static asset family observed in that
+ * lifecycle transition; missing assets and other fonts must still fail QA.
+ */
+export function isExpectedStaticFontAbort(failure: string): boolean {
+  const match = /^GET (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return /^\/_next\/static\/media\/oswald-latin-wght-normal\.[A-Za-z0-9_-]+\.woff2$/.test(url.pathname)
       && url.search === ""
       && url.hash === ""
       && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")

@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 import {
+  isExpectedMapStyleAbort,
   isExpectedOptionalOverlayAbort,
   isExpectedProviderHealthAbort,
   isExpectedRouteTrafficAbort,
   isExpectedRouteWeatherAbort,
+  isExpectedStaticFontAbort,
 } from "../../tests/e2e/mobile-qa/assertions"
 import { waitForMobileQaNetworkState } from "../../tests/e2e/mobile-qa/fixtures"
 
@@ -40,6 +42,22 @@ describe("mobile QA network classification", () => {
     expect(isExpectedRouteTrafficAbort("GET http://localhost:3112/api/route-traffic failed: Load request cancelled")).toBe(false)
     expect(isExpectedRouteTrafficAbort("POST http://localhost:3112/api/route-traffic-extra failed: net::ERR_ABORTED")).toBe(false)
     expect(isExpectedRouteTrafficAbort("POST http://localhost:3112/api/route-traffic failed: net::ERR_CONNECTION_RESET")).toBe(false)
+  })
+
+  it("accepts only known OpenFreeMap style cancellation requests", () => {
+    expect(isExpectedMapStyleAbort("GET https://tiles.openfreemap.org/styles/positron failed: Load request cancelled")).toBe(true)
+    expect(isExpectedMapStyleAbort("GET https://tiles.openfreemap.org/styles/liberty failed: net::ERR_ABORTED")).toBe(true)
+    expect(isExpectedMapStyleAbort("GET https://tiles.openfreemap.org/styles/fiord?x=1 failed: net::ERR_ABORTED")).toBe(false)
+    expect(isExpectedMapStyleAbort("GET https://tiles.openfreemap.org/styles/not-a-style failed: net::ERR_ABORTED")).toBe(false)
+    expect(isExpectedMapStyleAbort("GET https://other.example/styles/positron failed: net::ERR_ABORTED")).toBe(false)
+    expect(isExpectedMapStyleAbort("GET https://tiles.openfreemap.org/styles/positron failed: net::ERR_CONNECTION_RESET")).toBe(false)
+  })
+
+  it("accepts only the local hashed Oswald font cancellation", () => {
+    expect(isExpectedStaticFontAbort("GET http://localhost:3112/_next/static/media/oswald-latin-wght-normal.01c2-di5e_1xz.woff2 failed: Load request cancelled")).toBe(true)
+    expect(isExpectedStaticFontAbort("GET http://localhost:3112/_next/static/media/oswald-latin-wght-normal.01c2-di5e_1xz.woff2?x=1 failed: net::ERR_ABORTED")).toBe(false)
+    expect(isExpectedStaticFontAbort("GET http://localhost:3112/_next/static/media/inter-latin-wght-normal.abc123.woff2 failed: net::ERR_ABORTED")).toBe(false)
+    expect(isExpectedStaticFontAbort("GET http://localhost:3112/_next/static/media/oswald-latin-wght-normal.01c2-di5e_1xz.woff2 failed: net::ERR_CONNECTION_RESET")).toBe(false)
   })
 
   it("waits for browser network readiness instead of sleeping after a transition", async () => {

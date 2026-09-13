@@ -2,8 +2,10 @@ import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
 import {
   isExpectedProviderHealthAbort,
+  isExpectedMapStyleAbort,
   isExpectedRouteTrafficAbort,
   isExpectedRouteWeatherAbort,
+  isExpectedStaticFontAbort,
   expectNoConsoleErrors,
 } from "../assertions"
 import type { MobileQaRuntimeIssues } from "../assertions"
@@ -95,6 +97,8 @@ export function expectCleanRuntime(page: Page, runtimeIssues: MobileQaRuntimeIss
   expectNoConsoleErrors(page, runtimeIssues)
   const unexpectedFailures = runtimeIssues.failedRequests.filter((failure) => !isExpectedRouteWeatherAbort(failure)
     && !isExpectedProviderHealthAbort(failure)
-    && !isExpectedRouteTrafficAbort(failure))
+    && !isExpectedRouteTrafficAbort(failure)
+    && !isExpectedMapStyleAbort(failure)
+    && !isExpectedStaticFontAbort(failure))
   expect(unexpectedFailures, "unexpected failed network requests").toEqual([])
 }
