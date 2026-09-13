@@ -138,9 +138,14 @@ export function buildTrafficCorridorBoxes(points: TrafficRoutePoint[]): TrafficC
 
   const boxes: TrafficCorridorBox[] = []
   let start = 0
+  // Spread the route across the fan-out cap instead of a fixed point count:
+  // a 400-point client sample would otherwise need more than MAX_CORRIDOR_BOXES
+  // 40-point boxes and silently get no traffic lookup. The area check below
+  // still splits any box that grows too large.
+  const pointsPerBox = Math.max(MAX_POINTS_PER_BOX, Math.ceil((points.length - 1) / MAX_CORRIDOR_BOXES) + 1)
 
   while (start < points.length - 1) {
-    let end = Math.min(points.length - 1, start + MAX_POINTS_PER_BOX - 1)
+    let end = Math.min(points.length - 1, start + pointsPerBox - 1)
     let candidate: TrafficCorridorBox | null = null
 
     while (end > start) {

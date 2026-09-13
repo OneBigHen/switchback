@@ -97,6 +97,23 @@ describe("buildTrafficCorridorBoxes", () => {
     expect(boxes.at(-1)?.maxLat).toBeGreaterThan(route.at(-1)!.lat)
   })
 
+  it("covers a real 400-point sampled ride within the provider fan-out cap", () => {
+    // The client samples routes to at most 400 points. A ~30 mile NJ ride at that
+    // density previously needed more than 8 fixed 40-point boxes and silently
+    // produced no traffic lookup at all.
+    const points: TrafficRoutePoint[] = Array.from({ length: 400 }, (_, index) => ({
+      lat: 40.7357 - (index / 399) * 0.2495,
+      lon: -74.1724 - (index / 399) * 0.2794 + (index % 7) * 0.0004
+    }))
+    const boxes = buildTrafficCorridorBoxes(points)
+    expect(boxes.length).toBeGreaterThan(0)
+    expect(boxes.length).toBeLessThanOrEqual(8)
+    // Every sampled point is inside some box.
+    for (const point of points) {
+      expect(boxes.some((box) => point.lat >= box.minLat && point.lat <= box.maxLat && point.lon >= box.minLon && point.lon <= box.maxLon)).toBe(true)
+    }
+  })
+
   it("fails closed for a geometry that would require too many huge corridor boxes", () => {
     const points: TrafficRoutePoint[] = Array.from({ length: 20 }, (_, index) => ({
       lat: index % 2 === 0 ? 25 : 48,
