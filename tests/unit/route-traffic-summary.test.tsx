@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import { RouteTrafficSummary } from "@/components/planner/RouteTrafficSummary"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { RouteTrafficEvidence } from "@/lib/traffic/types"
@@ -138,6 +138,27 @@ describe("RouteTrafficSummary", () => {
     expect(screen.getByText("Reconnect to refresh live conditions.")).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 25))
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("does not show pre-disconnect evidence as current after reconnecting", async () => {
+    let online = true
+    vi.spyOn(window.navigator, "onLine", "get").mockImplementation(() => online)
+    const fetcher = vi.fn()
+      .mockImplementationOnce(async () => Response.json(clearEvidence))
+      .mockImplementation(() => new Promise<Response>(() => undefined))
+    vi.stubGlobal("fetch", fetcher)
+
+    render(<RouteTrafficSummary route={route("reconnect")} />)
+    expect(await screen.findByText("No reported incidents on this route")).toBeInTheDocument()
+
+    online = false
+    act(() => { window.dispatchEvent(new Event("offline")) })
+    expect(screen.getByText("Traffic check paused")).toBeInTheDocument()
+
+    online = true
+    act(() => { window.dispatchEvent(new Event("online")) })
+    expect(screen.queryByText("No reported incidents on this route")).not.toBeInTheDocument()
+    expect(screen.getByText("Checking live traffic…")).toBeInTheDocument()
   })
 
   it("aborts the old traffic request when route identity changes", async () => {

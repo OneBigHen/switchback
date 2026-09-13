@@ -174,6 +174,43 @@ describe("getTomTomRouteTraffic", () => {
     expect(evidence.totalDelaySeconds).toBe(480)
   })
 
+  it("does not match an incident further along the same straight line but beyond the route", async () => {
+    const straightRoute: TrafficRoutePoint[] = [{ lat: 40.2, lon: -75.2 }, { lat: 40.2, lon: -75.19 }]
+    const beyondOnSameLine = {
+      ...jamIncident,
+      properties: { ...jamIncident.properties, id: "beyond-route" },
+      geometry: { type: "LineString", coordinates: [[-75.17, 40.2], [-75.16, 40.2]] }
+    }
+    const evidence = await getTomTomRouteTraffic(straightRoute, {
+      apiKey: "secret-key",
+      fetcher: vi.fn(async () => tomTomResponse([beyondOnSameLine])) as typeof fetch
+    })
+    expect(evidence.incidents).toEqual([])
+  })
+
+  it("never reports clear traffic when TomTom returns incidents it cannot normalize", async () => {
+    const malformed = { type: "Feature", properties: { iconCategory: "jam" }, geometry: jamIncident.geometry }
+    const evidence = await getTomTomRouteTraffic(route, {
+      apiKey: "secret-key",
+      fetcher: vi.fn(async () => tomTomResponse([malformed])) as typeof fetch
+    })
+    expect(evidence.status).not.toBe("available")
+    expect(evidence.totalDelaySeconds).toBeNull()
+  })
+
+  it("does not sum an unknown incident delay as zero", async () => {
+    const unknownDelay = {
+      ...jamIncident,
+      properties: { ...jamIncident.properties, id: "unknown-delay", delayInSeconds: undefined }
+    }
+    const evidence = await getTomTomRouteTraffic(route, {
+      apiKey: "secret-key",
+      fetcher: vi.fn(async () => tomTomResponse([unknownDelay])) as typeof fetch
+    })
+    expect(evidence.incidents).toHaveLength(1)
+    expect(evidence.totalDelaySeconds).toBeNull()
+  })
+
   it("deduplicates incidents returned from adjacent corridor boxes", async () => {
     const longerRoute = denseRoute()
     const fetcher = vi.fn(async () => tomTomResponse([jamIncident]))

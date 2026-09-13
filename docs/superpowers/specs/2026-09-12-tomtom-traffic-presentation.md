@@ -30,7 +30,8 @@ The planner shows a compact traffic strip only after a route exists:
 - available with delay: show delay and incident count;
 - closure: lead with `Closure reported` rather than a numeric delay;
 - degraded: show known incidents with `Partial traffic coverage`;
-- unknown/unavailable: show `Live traffic unavailable` only while the rider has the selected route expanded; never claim the route is clear.
+- unknown/unavailable: collapse the strip entirely; never claim the route is clear. Key-less deployments are a supported configuration (ADR 0021), so a permanent provider-availability card would add noise to every route choice. Explicitly requested `live-traffic` map layers still surface provider failure through Rider Map Studio.
+- going offline pauses the check; evidence fetched before a disconnect is discarded, so reconnecting shows `Checking live traffic…` until a fresh answer arrives.
 
 A new route identity or geometry aborts the previous request. Late responses may not repaint a newer route.
 

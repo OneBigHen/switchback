@@ -287,13 +287,24 @@ function orientation(a: XY, b: XY, c: XY): number {
   return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 }
 
+/** For a point already collinear with segment a–b, whether it lies within the segment's extent. */
+function onSegment(a: XY, b: XY, point: XY): boolean {
+  return point[0] >= Math.min(a[0], b[0]) && point[0] <= Math.max(a[0], b[0])
+    && point[1] >= Math.min(a[1], b[1]) && point[1] <= Math.max(a[1], b[1])
+}
+
 function segmentsIntersect(a: XY, b: XY, c: XY, d: XY): boolean {
   const abC = orientation(a, b, c)
   const abD = orientation(a, b, d)
   const cdA = orientation(c, d, a)
   const cdB = orientation(c, d, b)
-  return ((abC <= 0 && abD >= 0) || (abC >= 0 && abD <= 0))
-    && ((cdA <= 0 && cdB >= 0) || (cdA >= 0 && cdB <= 0))
+  if (((abC > 0 && abD < 0) || (abC < 0 && abD > 0)) && ((cdA > 0 && cdB < 0) || (cdA < 0 && cdB > 0))) return true
+  // Collinear or touching cases intersect only when the ranges actually
+  // overlap; a jam further along the same straight road is not on the route.
+  return (abC === 0 && onSegment(a, b, c))
+    || (abD === 0 && onSegment(a, b, d))
+    || (cdA === 0 && onSegment(c, d, a))
+    || (cdB === 0 && onSegment(c, d, b))
 }
 
 function segmentDistanceMeters(a: LonLat, b: LonLat, c: LonLat, d: LonLat): number {
@@ -382,9 +393,16 @@ async function fetchBoxIncidents(
     throw new Error("TomTom traffic response was malformed")
   }
 
-  return (body as { incidents: unknown[] }).incidents
-    .map(normalizeIncident)
-    .filter((incident): incident is TrafficIncidentEvidence => incident !== null)
+  // An incident that cannot be normalized makes this corridor's evidence
+  // incomplete; dropping it could turn a real incident into a false clear.
+  // (Missing geometry is valid and simply never matches the route.)
+  const incidents: TrafficIncidentEvidence[] = []
+  for (const value of (body as { incidents: unknown[] }).incidents) {
+    const incident = normalizeIncident(value)
+    if (incident === null) throw new Error("TomTom traffic response was malformed")
+    incidents.push(incident)
+  }
+  return incidents
 }
 
 function mapBoundsBox(bounds: TomTomTrafficBounds): TrafficCorridorBox | null {
@@ -452,7 +470,9 @@ export async function getTomTomRouteTraffic(
   const hasClosure = incidents.some((incident) => incident.kind === "closure")
   const complete = successful.length === boxes.length
   const status = complete ? "available" : "degraded"
-  const totalDelaySeconds = complete && !hasClosure
+  // A total is only claimed when every incident's delay is known.
+  const hasCompleteDelay = incidents.every((incident) => incident.delaySeconds !== null)
+  const totalDelaySeconds = complete && !hasClosure && hasCompleteDelay
     ? incidents.reduce((sum, incident) => sum + (incident.delaySeconds ?? 0), 0)
     : null
 

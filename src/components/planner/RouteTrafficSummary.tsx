@@ -68,6 +68,15 @@ export function RouteTrafficSummary({ route }: RouteTrafficSummaryProps) {
     getServerOnlineSnapshot
   )
   const [result, setResult] = useState<TrafficResult | null>(null)
+  const [resultConnectivity, setResultConnectivity] = useState(isOnline)
+
+  // Evidence describes conditions at the moment it was fetched. Once the
+  // connection drops, it is no longer current: after reconnecting the rider
+  // sees a fresh check, never the pre-disconnect answer.
+  if (resultConnectivity !== isOnline) {
+    setResultConnectivity(isOnline)
+    setResult(null)
+  }
 
   useEffect(() => {
     if (!routeId || points.length < 2 || !isOnline) return
