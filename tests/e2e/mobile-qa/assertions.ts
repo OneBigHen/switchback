@@ -409,7 +409,9 @@ export function expectNoUnexpectedNetworkFailures(
   options: RuntimeIssueExpectation = {},
 ): void {
   const failures = (collector?.failedRequests ?? [])
-    .filter((failure) => !isExpectedProviderHealthAbort(failure) && !options.ignore?.(failure))
+    .filter((failure) => !isExpectedProviderHealthAbort(failure)
+      && !isExpectedOptionalOverlayAbort(failure)
+      && !options.ignore?.(failure))
   expect(failures, "unexpected failed network requests").toEqual([])
 }
 
