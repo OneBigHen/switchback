@@ -123,14 +123,55 @@ export function motorcycleWayIsRoutable(tags: MotorcycleWayTags): boolean {
   const highway = tags.highway?.trim().toLowerCase()
   if (!highway || !ROUTABLE_HIGHWAYS.has(highway)) return false
 
-  const generalAccess = tags.access?.trim().toLowerCase()
-  if (generalAccess && HARD_DENIED_ACCESS.has(generalAccess)) return false
-
-  for (const value of [tags.motorcar, tags.motor_vehicle, tags.vehicle]) {
+  // The most specific access tag present decides, mirroring GraphHopper's
+  // access parsing (motorcar > motor_vehicle > vehicle > access). The prepared
+  // PBF projects motorcycle onto motorcar; honoring motorcycle first keeps the
+  // exporter aligned with that projection for raw inputs too.
+  for (const value of [tags.motorcycle, tags.motorcar, tags.motor_vehicle, tags.vehicle, tags.access]) {
     const normalized = value?.trim().toLowerCase()
-    if (normalized && HARD_DENIED_ACCESS.has(normalized)) return false
+    if (normalized) return !HARD_DENIED_ACCESS.has(normalized)
   }
   return true
+}
+
+/**
+ * The canonical export must carry the graph fingerprint it was built from; a
+ * bare segment array (or a caller-supplied fingerprint for a different graph)
+ * would publish reconciliation under the wrong graph identity.
+ */
+export function parseCanonicalGraphExport(
+  value: unknown,
+  requestedFingerprint?: string
+): { graphFingerprint: string; segments: unknown[] } {
+  const payload = value && typeof value === "object" && !Array.isArray(value)
+    ? value as { graphFingerprint?: unknown; segments?: unknown }
+    : null
+  const embedded = typeof payload?.graphFingerprint === "string" ? payload.graphFingerprint.trim() : ""
+  if (!payload || !Array.isArray(payload.segments) || !embedded) {
+    throw new Error("Canonical graph export must be an object with segments and its embedded graphFingerprint")
+  }
+  const requested = requestedFingerprint?.trim()
+  if (requested && requested !== embedded) {
+    throw new Error("Requested graph fingerprint does not match the canonical graph export")
+  }
+  return { graphFingerprint: embedded, segments: payload.segments }
+}
+
+/**
+ * The single-pass exporter resolves way node references from nodes already
+ * seen. OSM files are not guaranteed node-first, so refuse input where a node
+ * follows a way instead of silently dropping segments.
+ */
+export function createNodeFirstOplGuard(): { observe(line: string): void } {
+  let sawWay = false
+  return {
+    observe(line) {
+      if (line.startsWith("w")) sawWay = true
+      else if (line.startsWith("n") && sawWay) {
+        throw new Error("OSM input is not sorted node-first; run `osmium sort` before exporting canonical segments")
+      }
+    }
+  }
 }
 
 export function motorcycleWayDirections(tags: MotorcycleWayTags): CanonicalSegmentDirection[] {

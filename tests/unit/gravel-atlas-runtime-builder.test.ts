@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { officialSourceSnapshotFingerprint, type OfficialSourceSnapshot } from "@/lib/roads/gravel-atlas/source-snapshot"
 import { writeOfficialSourceSnapshots } from "@/lib/roads/gravel-atlas/source-store"
-import { buildGravelAtlasRuntimeDatabase } from "@/lib/roads/gravel-atlas/runtime-builder"
+import { buildGravelAtlasRuntimeDatabase, parseVerifiedRuntimeInput } from "@/lib/roads/gravel-atlas/runtime-builder"
 import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 import type { GravelEvidenceObservation } from "@/lib/roads/gravel-atlas/sources"
 import { GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION } from "@/lib/roads/gravel-atlas/traversability"
@@ -84,6 +84,27 @@ describe("Gravel Atlas runtime database builder", () => {
       limit: 10
     })
     expect(rows.map((row) => row.id)).toEqual(["nj-test-1"])
+  })
+
+  it("refuses to publish verified corridors against a staging snapshot with a different source fingerprint", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "switchback-gravel-runtime-"))
+    directories.push(directory)
+    const staged = stage(directory)
+    expect(() => buildGravelAtlasRuntimeDatabase({
+      stagingDatabasePath: staged.databasePath,
+      databasePath: path.join(directory, "gravel-atlas.sqlite"),
+      graphFingerprint: "graph-v1",
+      expectedSourceFingerprint: "e".repeat(64),
+      traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
+      corridors: [corridor()]
+    })).toThrow(/source fingerprint/i)
+  })
+
+  it("requires the verified payload to carry the graph and source fingerprints it was verified against", () => {
+    const payload = { graphFingerprint: "g", sourceFingerprint: "s".repeat(64), traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION, corridors: [] }
+    expect(parseVerifiedRuntimeInput(payload)).toMatchObject({ graphFingerprint: "g", sourceFingerprint: "s".repeat(64) })
+    expect(() => parseVerifiedRuntimeInput({ ...payload, sourceFingerprint: undefined })).toThrow(/sourceFingerprint/)
+    expect(() => parseVerifiedRuntimeInput({ ...payload, traversabilityPolicyVersion: 1 })).toThrow(/policy/)
   })
 
   it("fails closed for a stale source fingerprint", () => {

@@ -10,6 +10,7 @@ import type { CanonicalSegment, CanonicalSegmentDirection } from "../src/lib/roa
 import type { Coordinate } from "../src/lib/routing/types"
 import {
   childProcessCompletion,
+  createNodeFirstOplGuard,
   graphFingerprintFromFiles,
   motorcycleWayDirections,
   motorcycleWayIsRoutable,
@@ -298,7 +299,9 @@ async function main() {
     })
     const completion = childProcessCompletion(osmium)
     const lines = createInterface({ input: osmium.stdout, crlfDelay: Infinity })
+    const nodeFirst = createNodeFirstOplGuard()
     for await (const line of lines) {
+      nodeFirst.observe(line)
       if (line.startsWith("n")) {
         const id = /^n(\d+)/.exec(line)?.[1]
         const lon = /(?:^| )x(-?\d+(?:\.\d+)?)/.exec(line)?.[1]

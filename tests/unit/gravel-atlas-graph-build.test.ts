@@ -4,8 +4,26 @@ import {
   childProcessCompletion,
   graphFingerprintFromParts,
   motorcycleWayDirections,
-  motorcycleWayIsRoutable
+  createNodeFirstOplGuard,
+  motorcycleWayIsRoutable,
+  parseCanonicalGraphExport
 } from "@/lib/roads/gravel-atlas/graph-build"
+
+describe("canonical graph export guards", () => {
+  it("requires the object export with its embedded graph fingerprint", () => {
+    const segments = [{ segmentUid: "s" }]
+    expect(() => parseCanonicalGraphExport(segments)).toThrow(/graphFingerprint/)
+    expect(() => parseCanonicalGraphExport({ segments })).toThrow(/graphFingerprint/)
+    expect(() => parseCanonicalGraphExport({ graphFingerprint: "a".repeat(64), segments }, "b".repeat(64))).toThrow(/does not match/)
+    expect(parseCanonicalGraphExport({ graphFingerprint: "a".repeat(64), segments }, "a".repeat(64))).toMatchObject({ graphFingerprint: "a".repeat(64) })
+  })
+
+  it("refuses OPL input whose nodes are not all before its ways", () => {
+    const guard = createNodeFirstOplGuard()
+    expect(() => { guard.observe("n1 x1 y1"); guard.observe("n2 x1 y1"); guard.observe("w1 Nn1,n2") }).not.toThrow()
+    expect(() => guard.observe("n3 x1 y1")).toThrow(/sorted/)
+  })
+})
 
 describe("Gravel Atlas graph build semantics", () => {
   it("fingerprints the exact routing inputs deterministically", () => {
@@ -41,7 +59,13 @@ describe("Gravel Atlas graph build semantics", () => {
   it("mirrors the adventure profile's hard access exclusions", () => {
     expect(motorcycleWayIsRoutable({ highway: "track", surface: "gravel" })).toBe(true)
     expect(motorcycleWayIsRoutable({ highway: "residential", access: "private" })).toBe(false)
-    expect(motorcycleWayIsRoutable({ highway: "track", motorcar: "no", motorcycle: "yes" })).toBe(false)
+    // The most specific access tag wins, as in GraphHopper's access parsing of
+    // the prepared motorcycle PBF (motorcycle is projected onto motorcar).
+    expect(motorcycleWayIsRoutable({ highway: "track", motorcar: "no", motorcycle: "yes" })).toBe(true)
+    expect(motorcycleWayIsRoutable({ highway: "track", motor_vehicle: "no", motorcycle: "yes" })).toBe(true)
+    expect(motorcycleWayIsRoutable({ highway: "residential", access: "private", motorcycle: "yes" })).toBe(true)
+    expect(motorcycleWayIsRoutable({ highway: "track", motorcycle: "no" })).toBe(false)
+    expect(motorcycleWayIsRoutable({ highway: "track", motor_vehicle: "no" })).toBe(false)
     expect(motorcycleWayIsRoutable({ highway: "path" })).toBe(false)
     expect(motorcycleWayIsRoutable({ highway: "construction" })).toBe(false)
   })

@@ -27,6 +27,8 @@ export interface OfficialSourceSnapshot {
    */
   fingerprint: string
   stats: OfficialSourceSnapshotStats
+  /** Recorded production-use authorization for a restricted source (audit only; not fingerprinted). */
+  authorizationReference?: string
 }
 
 export interface CollectOfficialSourceSnapshotOptions {
@@ -34,10 +36,12 @@ export interface CollectOfficialSourceSnapshotOptions {
   pageSize?: number
   maxPages?: number
   /**
-   * Explicit operator acknowledgement for a source whose metadata restricts
-   * reproduction/redistribution. This is not a grant of permission or license.
+   * Required for a source whose terms restrict reproduction/redistribution: a
+   * non-empty reference to the recorded production-use authorization. It is
+   * copied onto the snapshot for audit. Operator tooling never supplies one
+   * today (see `resolveOperatorSourceIds`).
    */
-  acceptRestrictedSource?: boolean
+  authorization?: { reference: string }
 }
 
 const SNAPSHOT_SCHEMA_VERSION = 1
@@ -52,7 +56,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
-function parseFeatureCollection(value: unknown): unknown[] {
+function parseFeatureCollection(value: unknown): { features: unknown[]; exceededTransferLimit: boolean } {
   const payload = record(value)
   if (!payload || payload.type !== "FeatureCollection" || !Array.isArray(payload.features)) {
     const serviceMessage = record(payload?.error)?.message
@@ -62,7 +66,12 @@ function parseFeatureCollection(value: unknown): unknown[] {
         : "ArcGIS source returned an invalid FeatureCollection payload"
     )
   }
-  return payload.features
+  const properties = record(payload.properties)
+  return {
+    features: payload.features,
+    // ArcGIS reports more rows either at the top level or under properties.
+    exceededTransferLimit: payload.exceededTransferLimit === true || properties?.exceededTransferLimit === true
+  }
 }
 
 function normalizeFeature(
@@ -102,9 +111,13 @@ export function officialSourceSnapshotFingerprint(
   return createHash("sha256").update(JSON.stringify(contract)).digest("hex")
 }
 
+const PAGE_TIMEOUT_MS = 30_000
+
 async function defaultFetchPage(url: string): Promise<unknown> {
+  // Bounds both the connection and the body read.
   const response = await fetch(url, {
-    headers: { accept: "application/geo+json, application/json" }
+    headers: { accept: "application/geo+json, application/json" },
+    signal: AbortSignal.timeout(PAGE_TIMEOUT_MS)
   })
   if (!response.ok) {
     throw new Error(`ArcGIS source request failed with HTTP ${response.status}`)
@@ -128,9 +141,10 @@ export async function collectOfficialSourceSnapshot(
   options: CollectOfficialSourceSnapshotOptions = {}
 ): Promise<OfficialSourceSnapshot> {
   const policy = GRAVEL_ATLAS_SOURCE_POLICIES[sourceId]
-  if (policy.redistribution === "permission-required" && options.acceptRestrictedSource !== true) {
+  const authorizationReference = options.authorization?.reference?.trim() ?? ""
+  if (policy.redistribution === "permission-required" && !authorizationReference) {
     throw new Error(
-      `${policy.label} has restricted reproduction/redistribution terms; explicitly acknowledge the source terms before fetching it.`
+      `${policy.label} has restricted reproduction/redistribution terms; fetching it requires a recorded production-use authorization reference.`
     )
   }
 
@@ -157,7 +171,16 @@ export async function collectOfficialSourceSnapshot(
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
     const offset = pageIndex * effectivePageSize
     const url = buildArcGisGeoJsonPageUrl(sourceId, offset, effectivePageSize)
-    const features = parseFeatureCollection(await fetchPage(url))
+    let page: { features: unknown[]; exceededTransferLimit: boolean }
+    try {
+      page = parseFeatureCollection(await fetchPage(url))
+    } catch (error) {
+      throw new Error(
+        `ArcGIS page for ${sourceId} at offset ${offset} failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
+      )
+    }
+    const features = page.features
     stats.pages += 1
     stats.fetchedFeatures += features.length
 
@@ -181,17 +204,18 @@ export async function collectOfficialSourceSnapshot(
       accepted.set(observation.sourceFeatureId, observation)
     }
 
-    // A short effective service page proves the deterministic offset walk
-    // reached the end. An exact multiple intentionally costs one empty request,
-    // which avoids trusting transfer-limit flags that vary by ArcGIS host.
-    if (features.length < effectivePageSize) {
+    // A short page ends the walk only when ArcGIS does not report more rows:
+    // hosts may return fewer rows than requested with exceededTransferLimit.
+    // An exact multiple intentionally costs one empty request.
+    if (features.length < effectivePageSize && !page.exceededTransferLimit) {
       const observations = sortObservations(accepted.values())
       stats.acceptedFeatures = observations.length
       return {
         sourceId,
         observations,
         fingerprint: officialSourceSnapshotFingerprint(sourceId, observations),
-        stats
+        stats,
+        ...(authorizationReference ? { authorizationReference } : {})
       }
     }
   }

@@ -31,9 +31,11 @@ Do not reuse a pre-policy-v2 `gravel-atlas.sqlite` or an old
 `gravel-atlas-verified-traversable.json`. A verifier-policy change requires regeneration.
 
 PASDA's 2012 Pennsylvania unpaved-road source has reproduction/redistribution
-restrictions. `--accept-pasda-terms` is an operator acknowledgement gate, **not a license
-grant**. Do not ingest or deploy that source until production use has been independently
-authorized. NJGIN can be activated independently.
+restrictions. **`npm run gravel-atlas:sources` refuses `pa-pasda-2012` outright** — there is no
+operator flag, because an acknowledgement is not a license grant. Enabling Pennsylvania
+requires independently established production-use authorization, recorded in code
+(`OPERATOR_INGESTIBLE_SOURCES` in `src/lib/roads/gravel-atlas/sources.ts`) and passed as the
+snapshot's authorization reference, through a reviewed change. NJGIN activates independently.
 
 ## 1. Reconcile the repository first
 
@@ -140,20 +142,9 @@ the evidence; do not weaken the gate just to reproduce the historical 38-corrido
 
 ### PA + NJ activation
 
-Use only after PASDA authorization has independently been established:
-
-```bash
-npm run gravel-atlas:sources -- \
-  --sources=pa-pasda-2012,njgin-ng911 \
-  --accept-pasda-terms
-npm run gravel-atlas:graph
-npm run gravel-atlas:reconcile
-npm run gravel-atlas:verify-routability
-npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified-traversable.json
-```
-
-Do not treat `--accept-pasda-terms` as permission. If authorization is uncertain, keep PA
-unavailable.
+Not available. Pennsylvania ingestion is refused by the sources command until PASDA
+production-use authorization is independently established and a reviewed change records it
+(see the source-terms note above). If authorization is uncertain, PA stays unavailable.
 
 Generated SQLite, PBF, graph-cache, reconciliation JSON, traversability JSON, and report
 artifacts are runtime/build products and must not be committed.
@@ -231,11 +222,22 @@ On desktop and a real phone-sized viewport verify:
 
 ## 10. Rollback
 
-If Atlas behavior is bad but the base app/router is healthy:
+If Atlas behavior is bad but the base app/router is healthy, choose one:
 
-1. restore the previous `gravel-atlas.sqlite` backup or remove the Atlas runtime triad;
-2. restart SwitchBack;
-3. verify ordinary routing and map features.
+**Restore the previous Atlas build (as one unit).** The runtime database is validated against
+`GRAVEL_ATLAS_GRAPH_FINGERPRINT` and `GRAVEL_ATLAS_SOURCE_FINGERPRINT`, so a restored database
+only activates with the fingerprints it was built for:
+
+1. restore the previous `gravel-atlas.sqlite` backup **and** set the graph and source
+   fingerprints recorded for that build (its `gravel_atlas_metadata` row) together;
+2. confirm that graph fingerprint still matches the active GraphHopper cache
+   (`npm run routing:fingerprint`); otherwise use the disable-only rollback;
+3. restart the app and verify Atlas-on routing, map features, and ordinary routing.
+
+**Disable-only rollback.** Remove the complete Atlas runtime triad (`GRAVEL_ATLAS_DB_PATH`,
+`GRAVEL_ATLAS_GRAPH_FINGERPRINT`, `GRAVEL_ATLAS_SOURCE_FINGERPRINT`), restart, and verify
+ordinary routing and map features. Atlas influence is then zero and the Known gravel roads layer
+reports unavailable.
 
 If the GraphHopper build is the problem, restore the preserved
 `data/graph-cache-rollback-<name>` using the host's graph-cache rollback procedure, then

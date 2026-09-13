@@ -18,6 +18,7 @@
  * quarantined with its measured reason instead of being published.
  */
 import { readFileSync, writeFileSync } from "node:fs"
+import { createGraphHopperProbe } from "../src/lib/roads/gravel-atlas/router-probe"
 import {
   DEFAULT_TRAVERSABILITY_THRESHOLDS,
   GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
@@ -174,31 +175,14 @@ function coverageMetrics(samples: Coordinate[], line: Coordinate[], radiusMeters
   }
 }
 
-async function snapDistance(point: Coordinate): Promise<number | null> {
-  const response = await fetch(`${GRAPHHOPPER}/nearest?profile=${encodeURIComponent(PROFILE)}&point=${point[1]},${point[0]}`)
-  if (!response.ok) return null
-  const body = await response.json() as { distance?: unknown }
-  return typeof body.distance === "number" ? body.distance : null
-}
-
-async function routeAlong(points: Coordinate[]): Promise<{ meters: number; coordinates: Coordinate[] } | null> {
-  const response = await fetch(`${GRAPHHOPPER}/route`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      profile: PROFILE,
-      points: points.map((point) => [point[0], point[1]]),
-      points_encoded: false,
-      instructions: false
-    })
-  })
-  if (!response.ok) return null
-  const body = await response.json() as { paths?: Array<{ distance?: unknown; points?: { coordinates?: unknown } }> }
-  const path = body.paths?.[0]
-  if (!path || typeof path.distance !== "number") return null
-  const coordinates = path.points?.coordinates
-  if (!Array.isArray(coordinates) || coordinates.length < 2) return null
-  return { meters: path.distance, coordinates: coordinates as Coordinate[] }
+// Router 429/5xx, timeouts and dropped connections throw and abort the run
+// before any output is written; only a real GraphHopper answer (including a
+// 400 "no connection") may mark a corridor non-traversable.
+const probe = createGraphHopperProbe({ baseUrl: GRAPHHOPPER, profile: PROFILE })
+const snapDistance = (point: Coordinate) => probe.snapDistance(point as unknown as [number, number])
+const routeAlong = async (points: Coordinate[]) => {
+  const route = await probe.routeAlong(points as unknown as Array<[number, number]>)
+  return route ? { meters: route.meters, coordinates: route.coordinates as unknown as Coordinate[] } : null
 }
 
 function corridorMeters(geometry: Coordinate[]): number {

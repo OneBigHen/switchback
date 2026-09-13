@@ -250,3 +250,27 @@ export function buildArcGisGeoJsonPageUrl(
   url.searchParams.set("f", "geojson")
   return url.toString()
 }
+
+/**
+ * Sources an operator may ingest today. Pennsylvania (PASDA) stays refused
+ * until production-use authorization is independently established and recorded
+ * here; an operator flag or acknowledgement is not a license grant.
+ */
+const OPERATOR_INGESTIBLE_SOURCES: ReadonlySet<GravelAtlasOfficialSourceId> = new Set(["njgin-ng911"])
+
+export function resolveOperatorSourceIds(raw: string): GravelAtlasOfficialSourceId[] {
+  const values = raw.split(",").map((value) => value.trim()).filter(Boolean)
+  if (values.length === 0) throw new Error("At least one Gravel Atlas source is required")
+  const resolved: GravelAtlasOfficialSourceId[] = []
+  for (const value of values) {
+    if (!(value in GRAVEL_ATLAS_SOURCE_POLICIES)) throw new Error(`Unknown Gravel Atlas source: ${value}`)
+    const source = value as GravelAtlasOfficialSourceId
+    if (!OPERATOR_INGESTIBLE_SOURCES.has(source)) {
+      throw new Error(
+        `${GRAVEL_ATLAS_SOURCE_POLICIES[source].label} (Pennsylvania) ingestion is disabled until production-use authorization for the PASDA source is independently established; see docs/operations/GRAVEL_ATLAS_ACTIVATION.md.`
+      )
+    }
+    if (!resolved.includes(source)) resolved.push(source)
+  }
+  return resolved
+}

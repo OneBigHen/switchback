@@ -38,6 +38,14 @@ class CheckpointDatabase extends Dexie {
   }
 }
 
+/** JSON with object keys sorted at every depth, so equal intents compare equal regardless of key order. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, nested: unknown) =>
+    nested && typeof nested === "object" && !Array.isArray(nested)
+      ? Object.fromEntries(Object.entries(nested as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)))
+      : nested)
+}
+
 function validInput(value: RideCheckpointInput): boolean {
   return Boolean(value) && typeof value === "object"
     && typeof value.rideId === "string" && value.rideId.length > 0
@@ -108,9 +116,11 @@ export class RideCheckpointStore {
         if (stored && !current) return { status: "invalid" as const }
         // The same identity must always describe the same intent, or the
         // identity has stopped being an identity. Compare the migrated intent
-        // so an additive schema default does not fabricate a conflict.
+        // so an additive schema default does not fabricate a conflict, and
+        // compare canonically: migration can append a field in a different
+        // key order than the live intent without changing its meaning.
         if (current && current.identity === input.identity
-          && JSON.stringify(current.intent) !== JSON.stringify(input.intent)) return { status: "conflict" as const }
+          && canonicalJson(current.intent) !== canonicalJson(input.intent)) return { status: "conflict" as const }
         await this.database.checkpoints.put(next)
         return { status: "saved" as const, token: next.token }
       })

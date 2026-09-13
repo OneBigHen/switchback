@@ -28,8 +28,46 @@ export interface BuildGravelAtlasRuntimeDatabaseOptions {
   stagingDatabasePath: string
   databasePath: string
   graphFingerprint: string
+  /**
+   * Source fingerprint the corridors were reconciled and verified against.
+   * The build refuses a staging snapshot with any other fingerprint, so old
+   * corridors can never be republished under a newer source identity.
+   */
+  expectedSourceFingerprint?: string
   traversabilityPolicyVersion: number
   corridors: readonly VerifiedGravelAtlasCorridorInput[]
+}
+
+/** Parse the live-router verification artifact that runtime publication consumes. */
+export function parseVerifiedRuntimeInput(value: unknown): {
+  graphFingerprint: string
+  sourceFingerprint: string
+  traversabilityPolicyVersion: number
+  corridors: VerifiedGravelAtlasCorridorInput[]
+} {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Verified Gravel Atlas build input must be a JSON object")
+  }
+  const input = value as Record<string, unknown>
+  if (typeof input.graphFingerprint !== "string" || !input.graphFingerprint.trim()) {
+    throw new Error("Verified Gravel Atlas build input needs graphFingerprint")
+  }
+  if (typeof input.sourceFingerprint !== "string" || !input.sourceFingerprint.trim()) {
+    throw new Error("Verified Gravel Atlas build input needs sourceFingerprint")
+  }
+  if (input.traversabilityPolicyVersion !== GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION) {
+    throw new Error(
+      `Verified Gravel Atlas build input uses unsupported traversability policy ` +
+      `${String(input.traversabilityPolicyVersion)}; expected ${GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION}`
+    )
+  }
+  if (!Array.isArray(input.corridors)) throw new Error("Verified Gravel Atlas build input needs a corridors array")
+  return {
+    graphFingerprint: input.graphFingerprint.trim(),
+    sourceFingerprint: input.sourceFingerprint.trim(),
+    traversabilityPolicyVersion: GRAVEL_ATLAS_TRAVERSABILITY_POLICY_VERSION,
+    corridors: input.corridors as VerifiedGravelAtlasCorridorInput[]
+  }
 }
 
 export interface GravelAtlasRuntimeBuildResult {
@@ -161,6 +199,13 @@ export function buildGravelAtlasRuntimeDatabase(
   const sourceIdsByCorridor = new Map<string, string[]>()
   try {
     manifest = stagingManifest(staging)
+    const expected = options.expectedSourceFingerprint?.trim()
+    if (expected !== undefined && expected !== manifest.source_fingerprint) {
+      throw new Error(
+        `Verified corridors were built for source fingerprint ${expected || "(empty)"}, ` +
+        `but the staging snapshot has ${manifest.source_fingerprint}; re-run reconciliation and verification`
+      )
+    }
     for (const corridor of options.corridors) {
       sourceIdsByCorridor.set(corridor.id, verifySourceReferences(staging, corridor))
     }

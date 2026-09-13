@@ -32,7 +32,13 @@ export async function handleMapFeaturesRequest(
       bounds: { west, south, east, north },
       layers: layers as RiderLayerId[]
     })
-    return Response.json(collection, { headers: { "cache-control": "public, max-age=120, s-maxage=300, stale-while-revalidate=600" } })
+    // Gravel Atlas answers depend on the active runtime build (graph + source
+    // fingerprints), which the URL does not carry: a shared cache could serve
+    // old corridors or an old unavailable state after a build swap or rollback.
+    const cacheControl = layers.includes("gravel-atlas")
+      ? "no-store"
+      : "public, max-age=120, s-maxage=300, stale-while-revalidate=600"
+    return Response.json(collection, { headers: { "cache-control": cacheControl } })
   } catch {
     return Response.json({ error: { code: "MAP_FEATURES_UNAVAILABLE", message: "The selected map layers are temporarily unavailable." } }, { status: 503, headers: { "cache-control": "no-store" } })
   }

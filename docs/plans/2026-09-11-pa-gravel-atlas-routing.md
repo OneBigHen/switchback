@@ -18,7 +18,7 @@ The feature defaults OFF. The live motorcycle router remains authoritative for c
 - Historic unpaved-surface evidence; access remains unknown.
 - State and National Forest roads are excluded from that inventory.
 - Service maximum is 1,000 records per page; the snapshot collector honors the effective service cap.
-- Reproduction/redistribution terms are restrictive. Fetching requires explicit `--accept-pasda-terms`, which is an operator acknowledgement only and **not** a license grant. PA activation must not occur until the intended use is independently authorized.
+- Reproduction/redistribution terms are restrictive. The sources command refuses PASDA outright (no operator flag); an acknowledgement is **not** a license grant. PA activation must not occur until the intended use is independently authorized.
 
 ### New Jersey — NJGIN NG911 road centerlines
 

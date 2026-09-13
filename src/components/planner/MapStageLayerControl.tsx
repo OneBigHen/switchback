@@ -242,7 +242,7 @@ export function MapStageLayerControl({
           </div>
           {errorLayerCount > 0 ? (
             <div className="layer-error-banner" role="status">
-              <span>Some layers failed to load — the OSM map-data provider may be busy or unreachable.</span>
+              <span>Some layers failed to load — their data source may be busy or unavailable right now.</span>
               <button type="button" onClick={onRetryRiderLayers}>Retry layers</button>
             </div>
           ) : null}

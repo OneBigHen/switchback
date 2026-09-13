@@ -3,6 +3,7 @@ import {
   collectOfficialSourceSnapshot,
   type ArcGisPageFetcher
 } from "@/lib/roads/gravel-atlas/source-snapshot"
+import { resolveOperatorSourceIds } from "@/lib/roads/gravel-atlas/sources"
 
 function paFeature(id: number, name = `Road ${id}`) {
   return {
@@ -47,6 +48,14 @@ function njFeature(id: number) {
   }
 }
 
+describe("operator source selection", () => {
+  it("allows New Jersey and refuses Pennsylvania until production-use authorization exists", () => {
+    expect(resolveOperatorSourceIds("njgin-ng911")).toEqual(["njgin-ng911"])
+    expect(() => resolveOperatorSourceIds("njgin-ng911,pa-pasda-2012")).toThrow(/Pennsylvania.*authorization/i)
+    expect(() => resolveOperatorSourceIds("bogus")).toThrow(/Unknown/)
+  })
+})
+
 describe("collectOfficialSourceSnapshot", () => {
   it("requires explicit acknowledgement before fetching the redistribution-restricted PASDA source", async () => {
     const fetchPage = vi.fn<ArcGisPageFetcher>()
@@ -85,7 +94,7 @@ describe("collectOfficialSourceSnapshot", () => {
       fetchPage,
       pageSize: 2,
       maxPages: 5,
-      acceptRestrictedSource: true
+      authorization: { reference: "unit-test fixture; not a production-use authorization" }
     })
 
     expect(snapshot.observations.map((row) => row.sourceFeatureId)).toEqual(["1", "2", "3"])
@@ -116,13 +125,41 @@ describe("collectOfficialSourceSnapshot", () => {
       },
       pageSize: 2_000,
       maxPages: 3,
-      acceptRestrictedSource: true
+      authorization: { reference: "unit-test fixture; not a production-use authorization" }
     })
 
     expect(snapshot.observations).toHaveLength(1_000)
     expect(urls).toHaveLength(2)
     expect(urls.map((url) => new URL(url).searchParams.get("resultRecordCount"))).toEqual(["1000", "1000"])
     expect(urls.map((url) => new URL(url).searchParams.get("resultOffset"))).toEqual(["0", "1000"])
+  })
+
+  it("does not treat a bare boolean acknowledgement as authorization to fetch PASDA", async () => {
+    const fetchPage = vi.fn<ArcGisPageFetcher>()
+    await expect(collectOfficialSourceSnapshot("pa-pasda-2012", {
+      fetchPage, pageSize: 2, maxPages: 2, acceptRestrictedSource: true
+    } as never)).rejects.toThrow(/authorization/i)
+    await expect(collectOfficialSourceSnapshot("pa-pasda-2012", {
+      fetchPage, pageSize: 2, maxPages: 2, authorization: { reference: "   " }
+    })).rejects.toThrow(/authorization/i)
+    expect(fetchPage).not.toHaveBeenCalled()
+  })
+
+  it("keeps paging while ArcGIS reports exceededTransferLimit, even after a short page", async () => {
+    const pages = [
+      { type: "FeatureCollection", features: [njFeature(1)], exceededTransferLimit: true },
+      { type: "FeatureCollection", features: [njFeature(2)] }
+    ]
+    const fetchPage = vi.fn<ArcGisPageFetcher>(async () => pages.shift()!)
+    const snapshot = await collectOfficialSourceSnapshot("njgin-ng911", { fetchPage, pageSize: 2, maxPages: 5 })
+    expect(snapshot.observations).toHaveLength(2)
+    expect(snapshot.stats.pages).toBe(2)
+  })
+
+  it("names the source and page offset when a page request fails", async () => {
+    const fetchPage = vi.fn<ArcGisPageFetcher>(async () => { throw new Error("socket hang up") })
+    await expect(collectOfficialSourceSnapshot("njgin-ng911", { fetchPage, pageSize: 2, maxPages: 2 }))
+      .rejects.toThrow(/njgin-ng911.*offset 0.*socket hang up/)
   })
 
   it("does not require the PASDA acknowledgement for the attribution-only NJGIN source", async () => {
@@ -147,7 +184,7 @@ describe("collectOfficialSourceSnapshot", () => {
       fetchPage: async () => responses.shift(),
       pageSize: 2,
       maxPages: 3,
-      acceptRestrictedSource: true
+      authorization: { reference: "unit-test fixture; not a production-use authorization" }
     })
 
     expect(snapshot.observations.map((row) => row.sourceFeatureId)).toEqual(["1", "2"])
@@ -166,7 +203,7 @@ describe("collectOfficialSourceSnapshot", () => {
       fetchPage: async () => responses.shift(),
       pageSize: 2,
       maxPages: 3,
-      acceptRestrictedSource: true
+      authorization: { reference: "unit-test fixture; not a production-use authorization" }
     })).rejects.toThrow(/duplicate|changed|conflict/i)
   })
 
