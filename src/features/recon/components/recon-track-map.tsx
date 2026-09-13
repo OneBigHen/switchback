@@ -74,7 +74,7 @@ export default function ReconTrackMap({ track }: { track: ReconTrack | null }) {
     mapRef.current = map
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right")
 
-    map.on("load", () => {
+    const onLoad = () => {
       loadedRef.current = true
       map.addSource(TRACK_SOURCE, {
         type: "geojson",
@@ -88,9 +88,11 @@ export default function ReconTrackMap({ track }: { track: ReconTrack | null }) {
       const pending = pendingTrackRef.current
       pendingTrackRef.current = null
       applyTrack(map, pending)
-    })
+    }
+    map.on("load", onLoad)
 
     return () => {
+      map.off("load", onLoad)
       map.remove()
       mapRef.current = null
       loadedRef.current = false
