@@ -61,7 +61,7 @@ function classesIn(css: string): Set<string> {
  * adding to it means a surface is shipping unstyled.
  */
 const NEVER_STYLED_HOOKS = new Set([
-	"app-navigation-settings", "app-shell", "atlas-poster-page",
+	"app-navigation-settings", "app-shell",
 	"community-publish-panel", "download-mode-corridor-option-input",
 	"gps-retry-button", "layer-confidence", "layer-legend", "map-avoid-surface",
 	"map-road-lock-experimental-note", "planner-stage-chip",

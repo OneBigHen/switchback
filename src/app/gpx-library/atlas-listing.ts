@@ -38,6 +38,7 @@ function toBrowseRoute(route: AtlasListingRoute, art: AtlasRouteArt | undefined)
     // The public listing carries no surface mix; the field stays wired for when
     // the importer starts persisting it.
     unpavedShare: null,
+    profile: route.profile ?? null,
     bbox,
     region: area.region,
     ridingAreas: area.ridingAreas,

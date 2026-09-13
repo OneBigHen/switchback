@@ -31,6 +31,8 @@ export interface AtlasBrowseRoute {
   readonly twistiness: number
   /** Share (0..1) of route distance on unpaved surface, when the mix is known. */
   readonly unpavedShare: number | null
+  /** Routing profile the import was filed under, when it carried one. */
+  readonly profile: string | null
   /** `[west, south, east, north]` in degrees, or null when geometry was not retained. */
   readonly bbox: readonly [number, number, number, number] | null
   /** Broad browse bucket such as "North-Central PA", or null when unplaceable. */

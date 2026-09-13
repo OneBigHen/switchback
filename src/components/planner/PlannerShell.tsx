@@ -96,7 +96,7 @@ import { AppNavigation } from "@/components/shell/AppNavigation"
 import { AppShell } from "@/components/shell/AppShell"
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
 import { SettingsDestination } from "@/components/settings/SettingsDestination"
-import { DiscoverDestination } from "@/components/discover/DiscoverDestination"
+import { ExploreDestination } from "@/components/explore/ExploreDestination"
 import { RecordPanel } from "@/components/shell/RecordPanel"
 import { RideRecordingHud } from "@/components/shell/RideRecordingHud"
 import { FreeRideHud } from "@/components/shell/FreeRideHud"
@@ -1845,7 +1845,7 @@ message: failure?.message ?? "The rough route could not be routed."
         />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.destination === "explore" ? (
-        <DiscoverDestination />
+        <ExploreDestination />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("record") ? (
         <RecordPanel controller={recording} />

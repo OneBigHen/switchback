@@ -9,7 +9,12 @@
   --sb-mobile-nav-gap: 16px;
   --sb-mobile-sheet-bottom: calc(var(--sb-mobile-nav-height) + var(--sb-mobile-nav-gap) + env(safe-area-inset-bottom));
   --sb-sheet-peek-height: 146px;
-  --sb-sheet-idle-height: 300px;
+  /* The default planning sheet is content-sized up to this cap. The cap is
+     what guarantees the map keeps roughly half the phone viewport while the
+     approved composition (request, mode, preferences, Create ride, Draw
+     manually, ride state, advisor row) is on screen: at 390x844 it leaves
+     about 47% of the viewport as usable map above the sheet and the nav. */
+  --sb-sheet-idle-height: min(44dvh, 360px);
   --sb-sheet-half-height: min(50dvh, 560px);
   --sb-sheet-full-height: min(88dvh, calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-2)));
   --sb-sheet-dock-height: 82px;

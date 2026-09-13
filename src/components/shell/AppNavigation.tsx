@@ -1,9 +1,10 @@
 "use client"
 
-import { Compass, GearSix, MapTrifold, Record, Star } from "@phosphor-icons/react"
+import type { MapTrifold } from "@phosphor-icons/react"
 import { OpenGravelMark } from "@/components/brand/OpenGravelMark"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import type { PrimaryDestination } from "@/lib/client/app-navigation"
+import { PRIMARY_NAV_ITEMS, RECORD_NAV_ITEM } from "./primary-nav-items"
 
 /**
  * The approved mobile model, in order: `Plan · Explore · Saved · Record ·
@@ -14,16 +15,6 @@ import type { PrimaryDestination } from "@/lib/client/app-navigation"
  * and the back stack — so Record keeps its activity marking even though it
  * sits in the same bar at the same weight.
  */
-export const PRIMARY_NAV_ITEMS: ReadonlyArray<{
-  destination: PrimaryDestination
-  label: string
-  icon: typeof MapTrifold
-}> = [
-  { destination: "plan", label: "Plan", icon: MapTrifold },
-  { destination: "explore", label: "Explore", icon: Compass },
-  { destination: "saved", label: "Saved", icon: Star },
-  { destination: "settings", label: "Settings", icon: GearSix }
-]
 
 interface AppNavigationProps {
   activeDestination: PrimaryDestination
@@ -56,8 +47,8 @@ export function AppNavigation({
           />
         ))}
         <NavItem
-          label="Record"
-          icon={Record}
+          label={RECORD_NAV_ITEM.label}
+          icon={RECORD_NAV_ITEM.icon}
           active={false}
           cluster="secondary"
           onClick={onOpenRecord}

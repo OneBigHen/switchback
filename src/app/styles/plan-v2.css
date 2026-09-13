@@ -187,9 +187,8 @@
   white-space: nowrap;
 }
 
-.plan-v2__free-ride,
 .plan-v2__options-trigger {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
 }
 
 .plan-v2__mode-selector button.is-selected {
@@ -217,33 +216,37 @@
   flex: 0 0 auto;
 }
 
-.plan-v2__free-ride {
-  gap: 5px;
-  min-width: 92px;
-  padding: 0 10px;
-  background: var(--sb-spruce);
-  color: var(--sb-paper);
-  white-space: nowrap;
+/* Free Ride is the third shape in the one mode family. It starts a mode
+   rather than settling into planner state, so it reads as a peer of To and
+   Loop without claiming a selected state it is never observed in. */
+.plan-v2__mode-free-ride {
+  color: var(--sb-spruce) !important;
 }
 
-.plan-v2__free-ride:hover:not(:disabled),
-.plan-v2__free-ride:focus-visible:not(:disabled) {
-  background: var(--sb-ink);
-}
-
-.plan-v2__free-ride svg {
-  width: 17px;
-  height: 17px;
+.plan-v2__mode-free-ride:hover:not(:disabled),
+.plan-v2__mode-free-ride:focus-visible:not(:disabled) {
+  background: color-mix(in srgb, var(--sb-spruce) 12%, var(--sb-paper)) !important;
 }
 
 .plan-v2__options-trigger {
   gap: 5px;
   min-width: 84px;
-  padding: 0 9px;
+  padding: 0 12px;
   border: 1px solid var(--sb-border);
   background: var(--sb-surface);
   color: var(--sb-text);
+  justify-content: space-between;
   white-space: nowrap;
+}
+
+/* One line of the rider's current preferences, e.g. `90 min · Scenic ·
+   No highways`. It reads as state, not as a button labelled "options". */
+.plan-v2__options-summary {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
 }
 
 .plan-v2__options-trigger:hover,
@@ -819,4 +822,124 @@
 :root[data-theme="dark"] .plan-v2__stop-ideas button,
 :root[data-theme="dark"] .plan-v2__research > button {
   background: var(--sb-surface-raised);
+}
+
+/* --- the one primary commitment ----------------------------------------- */
+
+.plan-v2__commit {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.plan-v2__create-ride {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-ember-strong);
+  color: var(--sb-paper);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--sb-ember-strong) 26%, transparent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.plan-v2__create-ride:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sb-ember-strong) 88%, #000);
+}
+
+.plan-v2__create-ride:focus-visible,
+.plan-v2__draw-action:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
+.plan-v2__create-ride:disabled {
+  background: var(--sb-surface-raised);
+  box-shadow: none;
+  color: var(--sb-text-muted);
+  cursor: not-allowed;
+}
+
+.plan-v2__create-ride svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Drawing a route by hand is a real capability and a rare one: visible, but
+   never competing with the primary commitment. */
+.plan-v2__draw-action {
+  display: inline-flex;
+  min-width: var(--sb-touch-target);
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 13px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.plan-v2__draw-action:hover:not(:disabled) {
+  border-color: var(--sb-focus-ring);
+  background: var(--sb-surface-raised);
+}
+
+.plan-v2__draw-action:disabled {
+  color: var(--sb-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.plan-v2__draw-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.plan-v2__ride-state {
+  display: grid;
+  gap: 1px;
+  margin: 2px 0 0;
+  padding: 0 2px;
+}
+
+.plan-v2__ride-state strong {
+  color: var(--sb-text);
+  font-size: 12px;
+  font-weight: 780;
+  letter-spacing: -0.01em;
+}
+
+.plan-v2__ride-state span {
+  overflow: hidden;
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .plan-v2__draw-action span {
+    display: none;
+  }
+
+  .plan-v2__draw-action {
+    padding: 0 12px;
+  }
 }

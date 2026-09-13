@@ -5,16 +5,25 @@ import type { PlanMode } from "../PlannerDeckViewModel"
 export interface PlanModeSelectorProps {
   value: PlanMode
   onChange(mode: PlanMode): void
+  /** Starts the current free-ride behaviour; omitted where it is unavailable. */
+  onStartFreeRide?(): void
   disabled?: boolean
 }
 
 /**
- * Trip shape is persistent planner state. One-shot route-making tools such as
- * Draw and Free Ride deliberately live beside this selector rather than inside
- * it, so the rider can tell "what kind of trip is this?" from "what do I want
- * to do to the map?" at a glance.
+ * One mode family: `To | Loop | Free Ride`.
+ *
+ * A rider asks "what kind of ride is this?" once, and the answer has three
+ * shapes. Splitting Free Ride out into its own permanent button beside a
+ * Destination/Loop pair made it read as a different kind of thing, and cost a
+ * second row of scarce phone space to say so.
+ *
+ * To and Loop are persistent trip shape, so they carry `aria-pressed`. Free
+ * Ride starts a mode that takes the whole surface over rather than settling
+ * into planner state, so it is an ordinary button: claiming a pressed state it
+ * can never be observed in would be a lie to a screen reader.
  */
-export function PlanModeSelector({ value, onChange, disabled = false }: PlanModeSelectorProps) {
+export function PlanModeSelector({ value, onChange, onStartFreeRide, disabled = false }: PlanModeSelectorProps) {
   return (
     <div className="plan-v2__mode-selector" role="group" aria-label="Trip shape">
       <button
@@ -24,7 +33,7 @@ export function PlanModeSelector({ value, onChange, disabled = false }: PlanMode
         disabled={disabled}
         onClick={() => onChange("destination")}
       >
-        Destination
+        To
       </button>
       <button
         type="button"
@@ -35,6 +44,16 @@ export function PlanModeSelector({ value, onChange, disabled = false }: PlanMode
       >
         Loop
       </button>
+      {onStartFreeRide ? (
+        <button
+          type="button"
+          className="plan-v2__mode-free-ride"
+          disabled={disabled}
+          onClick={onStartFreeRide}
+        >
+          Free Ride
+        </button>
+      ) : null}
     </div>
   )
 }

@@ -103,6 +103,14 @@
   --danger: var(--sb-danger);
   --success: var(--sb-success);
   --warning: var(--sb-golden-hour);
+  /* Curvature bands. These were scoped to `.atlas-page`, but route cards now
+     render on Explore and inside the app shell too, so the four anchors belong
+     to the canonical layer rather than to one page. */
+  --sb-band-calm: #5c7c99;
+  --sb-band-mellow: #3e8f7a;
+  --sb-band-twisty: #a9762c;
+  --sb-band-hairpin: #c2423f;
+
   /* Route-role colors carry over from V1 until the route phases re-decide them. */
   --scenic: #10a6a6;
   --adventure: #e99400;
@@ -128,6 +136,11 @@
   --sb-success: #72A98A;
   /* Interactive text (links, eyebrows) — validated AA on Ink and Spruce. */
   --sb-text-link: #7FB5C7;
+
+  --sb-band-calm: #7fa6c6;
+  --sb-band-mellow: #6bbfa6;
+  --sb-band-twisty: #e0b45c;
+  --sb-band-hairpin: #ef8079;
 
   /* V1 carry-over aliases (dark). */
   --oled: var(--sb-ink);

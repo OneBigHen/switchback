@@ -7,6 +7,7 @@ import { listProfiles } from "@/lib/routing/profiles"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { GravelAtlasPreference, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
+import { planPreferenceSummaryLabel } from "./plan-preference-summary"
 import { requestMapEdit } from "../map-edit-command"
 import { BikeProfilePicker } from "../BikeProfilePicker"
 import { WaypointField } from "../WaypointField"
@@ -137,6 +138,7 @@ export function PlanOptions({
   const targetIsPreset = LOOP_DURATION_PRESETS.includes(targetMinutes as (typeof LOOP_DURATION_PRESETS)[number])
   const [customTimingOpen, setCustomTimingOpen] = useState(!targetIsPreset)
   const [customMinutes, setCustomMinutes] = useState(String(targetMinutes))
+  const canReverse = planMode === "destination" ? Boolean(start && finish) : via.length > 0
 
   const choosePreset = (minutes: number) => {
     setCustomTimingOpen(false)
@@ -159,6 +161,19 @@ export function PlanOptions({
     onRideTimeChange(minutes, true)
   }
 
+  // The collapsed row *is* the rider's current preferences, read back to them
+  // in one line. It summarises the same state the panel below edits; it is not
+  // a second place those values live.
+  const summary = planPreferenceSummaryLabel({
+    planMode,
+    profile,
+    targetMinutes,
+    timeShaped,
+    avoidHighways,
+    tollPolicy,
+    gravelAtlas
+  })
+
   return (
     <>
       <button
@@ -166,9 +181,10 @@ export function PlanOptions({
         className="plan-v2__options-trigger"
         aria-expanded={open}
         aria-controls="plan-v2-options-panel"
+        aria-label={`Ride preferences: ${summary}. Change them.`}
         onClick={onToggle}
       >
-        <span>Ride options</span>
+        <span className="plan-v2__options-summary">{summary}</span>
         {open ? <CaretUp aria-hidden="true" /> : <CaretDown aria-hidden="true" />}
       </button>
 
@@ -358,11 +374,22 @@ export function PlanOptions({
                 ))}
               </div>
             ) : null}
-            <div className="plan-v2__edit-actions" aria-label="Ride change history">
-              <button type="button" aria-label="Undo ride change" disabled={!canUndoRideChange} onClick={onUndoRideChange}>Undo</button>
-              <button type="button" aria-label="Redo ride change" disabled={!canRedoRideChange} onClick={onRedoRideChange}>Redo</button>
-              <button type="button" aria-label="Reverse route" disabled={planMode === "destination" ? !start || !finish : via.length === 0} onClick={onReverseRoute}>Reverse</button>
-            </div>
+            {/* Editing history is contextual: a rider who has not changed
+                anything has nothing to undo, and a disabled pair of buttons
+                is furniture rather than an affordance. */}
+            {canUndoRideChange || canRedoRideChange || canReverse ? (
+              <div className="plan-v2__edit-actions" aria-label="Ride change history">
+                {canUndoRideChange || canRedoRideChange ? (
+                  <>
+                    <button type="button" aria-label="Undo ride change" disabled={!canUndoRideChange} onClick={onUndoRideChange}>Undo</button>
+                    <button type="button" aria-label="Redo ride change" disabled={!canRedoRideChange} onClick={onRedoRideChange}>Redo</button>
+                  </>
+                ) : null}
+                {canReverse ? (
+                  <button type="button" aria-label="Reverse route" onClick={onReverseRoute}>Reverse</button>
+                ) : null}
+              </div>
+            ) : null}
           </OptionGroup>
 
           <OptionGroup name="Avoid">

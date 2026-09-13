@@ -236,3 +236,77 @@
     height: 20px;
   }
 }
+
+/* Pages outside the app shell (the GPX Library) render the same bar as links.
+   The shell positions `.app-navigation` absolutely inside the map workspace;
+   a standalone page has no such workspace, so this variant is fixed to the
+   viewport and reserves its own space through `--sb-page-nav-height`. */
+.app-navigation--links {
+  position: fixed;
+  right: var(--sb-mobile-edge, 12px);
+  bottom: max(var(--sb-mobile-edge, 12px), env(safe-area-inset-bottom));
+  left: var(--sb-mobile-edge, 12px);
+  z-index: 18;
+  display: flex;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-sheet);
+  background: var(--sb-surface);
+  box-shadow: var(--sb-shadow);
+}
+
+.app-navigation--links .app-navigation-primary {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px var(--sb-space-2) 4px;
+}
+
+.app-navigation--links a {
+  display: grid;
+  min-width: var(--sb-touch-target);
+  min-height: var(--sb-touch-target);
+  place-items: center;
+  gap: 3px;
+  padding: 4px 2px;
+  border-radius: var(--sb-radius-control);
+  color: var(--sb-text-muted);
+  text-decoration: none;
+}
+
+.app-navigation--links a svg {
+  width: 21px;
+  height: 21px;
+}
+
+.app-navigation--links a span {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-navigation--links a.is-active {
+  background: color-mix(in srgb, var(--sb-action) 12%, var(--sb-surface));
+  color: var(--sb-ember-text);
+}
+
+.app-navigation--links a.is-active svg {
+  color: var(--sb-action);
+}
+
+.app-navigation--links a:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (min-width: 761px) {
+  .app-navigation--links {
+    right: auto;
+    bottom: 16px;
+    left: 16px;
+    width: 320px;
+  }
+}

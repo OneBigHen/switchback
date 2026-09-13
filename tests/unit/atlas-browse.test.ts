@@ -26,6 +26,7 @@ function route(over: Partial<AtlasBrowseRoute>): AtlasBrowseRoute {
     turnCount: over.turnCount ?? 100,
     twistiness: over.twistiness ?? 40,
     unpavedShare: null,
+    profile: over.profile ?? null,
     bbox: over.bbox ?? null,
     region: over.region ?? null,
     ridingAreas: over.ridingAreas ?? [],
