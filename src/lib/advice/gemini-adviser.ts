@@ -28,7 +28,7 @@ import {
  *
  * 1. **Grounded tool rounds.** Our function declarations plus Gemini's
  *    server-side `google_maps` tool. Places can be researched, but anything that
- *    becomes a route point still has to be resolved by Switchback.
+ *    becomes a route point still has to be resolved by OpenGravel.
  * 2. **A strict structured answer.** Maps grounding and a JSON response schema
  *    cannot share the same request, so the final pass drops Maps and asks for
  *    the schema. Resolvers then distrust the result again.

@@ -19,7 +19,7 @@ export async function handleIdentityRegistrationVerify(
   try {
     const sessionConfiguration = getSessionConfigurationStatus()
     if (!sessionConfiguration.ok) {
-      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
+      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "OpenGravel ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
     }
     const body = await readBoundedJsonBody(request, 64 * 1024)
     if (typeof body !== "object" || body === null || Array.isArray(body)) throw new Error("invalid body")
@@ -55,7 +55,7 @@ export async function handleIdentityRegistrationVerify(
     return withRequestId(createIdentitySessionResponse(challenge.identityId), requestId)
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That passkey response is too large.", 413, requestId)
-    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
+    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "OpenGravel ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
     if (caught instanceof Error && /^PASSKEY_/.test(caught.message)) return apiErrorResponse(caught.message, "The passkey response could not be verified.", 400, requestId)
     return apiErrorResponse("PASSKEY_VERIFICATION_FAILED", "The passkey response could not be verified.", 400, requestId)
   }

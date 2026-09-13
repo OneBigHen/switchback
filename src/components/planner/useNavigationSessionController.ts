@@ -530,7 +530,7 @@ export function useNavigationSessionController({
     if (window.isSecureContext === false) {
       const timeout = window.setTimeout(() => {
         setGpsState("error")
-        setGpsMessage("Open Switchback over HTTPS to use live guidance.")
+        setGpsMessage("Open OpenGravel over HTTPS to use live guidance.")
       }, 0)
       return () => {
         window.clearTimeout(timeout)

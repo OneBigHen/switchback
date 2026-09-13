@@ -4,7 +4,7 @@ import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
 
 /**
  * A role chip is a claim, and "Best Ride" is the strongest one the rail makes:
- * ADR 0013 makes it the route Switchback itself recommends, with Fastest and
+ * ADR 0013 makes it the route OpenGravel itself recommends, with Fastest and
  * Balanced one tap away.
  *
  * It was assigned from the route's coarse profile — `scenic`, `adventure` or

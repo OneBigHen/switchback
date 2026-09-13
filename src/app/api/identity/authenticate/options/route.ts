@@ -17,7 +17,7 @@ export async function handleIdentityAuthenticationOptions(
   try {
     const sessionConfiguration = getSessionConfigurationStatus()
     if (!sessionConfiguration.ok) {
-      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
+      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "OpenGravel ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
     }
     const challenge = runtime.challenges.issue("authentication")
     const options = await runtime.verifier.generateAuthenticationOptions({
@@ -27,7 +27,7 @@ export async function handleIdentityAuthenticationOptions(
     })
     return jsonWithRequestId({ challengeId: challenge.id, options }, requestId)
   } catch (caught) {
-    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
+    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "OpenGravel ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
     return apiErrorResponse("INVALID_PASSKEY_OPTIONS", "Passkey authentication could not start.", 400, requestId)
   }
 }

@@ -1,12 +1,12 @@
 # Luna Human QA
 
-This is Switchback's exploratory rider-testing layer for Luna/coworker agents.
+This is OpenGravel's exploratory rider-testing layer for Luna/coworker agents.
 
 It complements the deterministic suite. It does **not** replace Vitest, Playwright, visual snapshots, mobile QA, PWA, real-router, live-provider, or physical-device validation.
 
 ## The job
 
-Test Switchback like a person trying to get somewhere useful, not like a script proving selectors exist.
+Test OpenGravel like a person trying to get somewhere useful, not like a script proving selectors exist.
 
 A deterministic test asks:
 
@@ -14,7 +14,7 @@ A deterministic test asks:
 
 A Luna exploratory session asks:
 
-> Could a rider understand, trust, change, recover, and finish this task without already knowing how Switchback is built?
+> Could a rider understand, trust, change, recover, and finish this task without already knowing how OpenGravel is built?
 
 Both are required.
 
@@ -45,7 +45,7 @@ Do not deliberately sabotage the app unless your assigned mission calls for reco
 
 ## Human-centered standard
 
-Switchback should feel calm, direct, forgiving, and purpose-built.
+OpenGravel should feel calm, direct, forgiving, and purpose-built.
 
 Evaluate:
 
@@ -57,7 +57,7 @@ Evaluate:
 - **Recovery:** Can a rider safely undo, cancel, edit, retry, or escape?
 - **Restraint:** Are controls/details hidden until useful rather than competing for attention?
 - **Continuity:** Do reloads, recalculation, panel changes, and route changes preserve the rider's mental model?
-- **Trust:** Does Switchback distinguish what it knows, assumes, cannot verify, or failed to calculate?
+- **Trust:** Does OpenGravel distinguish what it knows, assumes, cannot verify, or failed to calculate?
 - **Mobile ergonomics:** Are important controls reachable, legible, safe-area aware, and map-conscious?
 - **Rider language:** Does copy speak in useful riding concepts instead of internal provider/engineering concepts?
 

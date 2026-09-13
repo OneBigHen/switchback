@@ -25,7 +25,7 @@ export async function handleIdentityRegistrationOptions(
   try {
     const sessionConfiguration = getSessionConfigurationStatus()
     if (!sessionConfiguration.ok) {
-      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
+      return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "OpenGravel ID is not configured on this server. Ask the operator to set SWITCHBACK_SESSION_SECRET.", 503, requestId)
     }
     const body = await readBoundedJsonBody(request, 8 * 1024)
     const identityId = runtime.store.createIdentity(displayName(body))
@@ -34,7 +34,7 @@ export async function handleIdentityRegistrationOptions(
       rpName: runtime.config.rpName,
       rpID: runtime.config.rpID,
       userName: identityId,
-      userDisplayName: displayName(body) ?? "Switchback rider",
+      userDisplayName: displayName(body) ?? "OpenGravel rider",
       challenge: challenge.challenge,
       attestationType: "none",
       authenticatorSelection: {
@@ -45,7 +45,7 @@ export async function handleIdentityRegistrationOptions(
     return jsonWithRequestId({ challengeId: challenge.id, options }, requestId)
   } catch (caught) {
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That passkey request is too large.", 413, requestId)
-    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "Switchback ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
+    if (caught instanceof WebAuthnConfigError) return apiErrorResponse("IDENTITY_CONFIGURATION_MISSING", "OpenGravel ID is not configured on this server. Ask the operator to set its WebAuthn and session configuration.", 503, requestId)
     return apiErrorResponse("INVALID_PASSKEY_OPTIONS", "Passkey registration could not start.", 400, requestId)
   }
 }

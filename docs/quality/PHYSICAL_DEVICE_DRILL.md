@@ -7,7 +7,7 @@ Playwright.
 
 ## Preconditions
 
-- A deployed Switchback URL reachable from the iPhone.
+- A deployed OpenGravel URL reachable from the iPhone.
 - iPhone Safari on the intended release iOS version.
 - A clean or deliberately retained installed PWA state.
 - One public route inside the configured coverage area.
@@ -16,7 +16,7 @@ Playwright.
 
 ## Drill
 
-1. Open Switchback in Safari and wait for the planner shell and map to settle.
+1. Open OpenGravel in Safari and wait for the planner shell and map to settle.
 2. Plan a destination route. Confirm the route summary, geometry, distance,
    duration, and route controls are visible.
 3. Save the route, reload once online, open Library, and load the saved route.

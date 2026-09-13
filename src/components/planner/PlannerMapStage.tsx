@@ -1331,7 +1331,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           <div className="map-sketch-instructions" aria-live="polite">
             <strong>Draw the road you mean</strong>
             <span>{sketchMessage || "Drag one line through the roads or areas you want to ride."}</span>
-            <small>Switchback will snap it to legal roads and keep the shaping stops editable.</small>
+            <small>OpenGravel will snap it to legal roads and keep the shaping stops editable.</small>
           </div>
           <div className="map-sketch-toolbar" onPointerDown={(event) => event.stopPropagation()}>
             <SketchRouteToolbar
@@ -1377,7 +1377,7 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           <div className="map-sketch-instructions" aria-live="polite">
             <strong>Draw a closed road or area</strong>
             <span>Drag a box around a closure, private road, or area you do not want to ride.</span>
-            <small>Switchback will ask the routing engine to avoid roads inside it.</small>
+            <small>OpenGravel will ask the routing engine to avoid roads inside it.</small>
           </div>
         </div>
       ) : null}

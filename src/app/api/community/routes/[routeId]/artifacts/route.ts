@@ -26,7 +26,7 @@ export async function handleCommunityArtifactPost(
     return jsonWithRequestId({ id }, requestId, { status: 201 })
   } catch (caught) {
     if (caught instanceof Error && caught.message === "CSRF_REQUIRED") return apiErrorResponse("CSRF_REQUIRED", "A CSRF token is required for browser mutations.", 403, requestId)
-    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified Switchback ID is required to attach an artifact.", 401, requestId)
+    if (caught instanceof Error && caught.message === "AUTH_REQUIRED") return apiErrorResponse("AUTH_REQUIRED", "A verified OpenGravel ID is required to attach an artifact.", 401, requestId)
     if (caught instanceof BodyTooLargeError) return apiErrorResponse("REQUEST_TOO_LARGE", "That artifact metadata is too large.", 413, requestId)
     return apiErrorResponse("INVALID_COMMUNITY_ARTIFACT", "Provide a valid artifact for a route revision.", 400, requestId)
   }

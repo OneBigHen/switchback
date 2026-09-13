@@ -214,7 +214,7 @@ export function usePlannerRideIntent({
         if (!midpointBias) {
           onNotice({
             kind: "warning",
-            message: "The ride is ready, but Switchback could not identify a route midpoint for stop ideas."
+            message: "The ride is ready, but OpenGravel could not identify a route midpoint for stop ideas."
           })
           return
         }

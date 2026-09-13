@@ -49,14 +49,14 @@ describe("map layer settings", () => {
   it("ships one canonical Gravel Atlas surface layer with provenance and safely normalizes saved settings", () => {
     const gravelAtlas = layerCatalog.find((layer) => layer.id === "gravel-atlas")
     expect(layerCatalog).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "curvature", source: expect.stringMatching(/Switchback/i) }),
+      expect.objectContaining({ id: "curvature", source: expect.stringMatching(/OpenGravel/i) }),
       expect.objectContaining({ id: "weather", freshness: expect.any(String) }),
       expect.objectContaining({ id: "fuel", coverage: expect.any(String) }),
       expect.objectContaining({ id: "mvum", status: "live" })
     ]))
     expect(layerCatalog.filter((layer) => layer.dataCategory === "road-surface")).toHaveLength(1)
     expect(gravelAtlas).toMatchObject({
-      source: "Switchback Gravel Atlas",
+      source: "OpenGravel Gravel Atlas",
       provenance: expect.stringMatching(/graph-verified.*official source snapshots/i),
       legend: expect.stringMatching(/known gravel corridor/i)
     })

@@ -31,7 +31,7 @@ function runtime(): IdentityRuntime {
     config: {
       rpID: "localhost",
       expectedOrigin: "http://localhost:3000",
-      rpName: "Switchback Test"
+      rpName: "OpenGravel Test"
     },
       verifier: {
         generateRegistrationOptions: vi.fn(async (input) => ({

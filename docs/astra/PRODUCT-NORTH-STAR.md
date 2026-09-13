@@ -4,7 +4,7 @@
 
 **Find the ride worth taking, shape it naturally, and stay confident when the plan changes.**
 
-Switchback is a motorcycle ride decision and execution workspace for backroad, ADV, and dual-sport riders. It chooses among legal, supported routes using road enjoyment, time, surface, bike suitability, and the evidence available. It explains what a rider gains and gives up. It remains useful without an account, an AI provider, or a premium map provider.
+OpenGravel is a motorcycle ride decision and execution workspace for backroad, ADV, and dual-sport riders. It chooses among legal, supported routes using road enjoyment, time, surface, bike suitability, and the evidence available. It explains what a rider gains and gives up. It remains useful without an account, an AI provider, or a premium map provider.
 
 Its central object is a ride: intention, optional destination, optional time budget, constraints, proposed routes, a chosen route, preparation, and eventually a recorded journey. A route is a computed interpretation of that intention; it is not the only surviving record of what the rider wanted.
 
@@ -48,7 +48,7 @@ These are the proposed authoritative product requirements for the next implement
 | N08 | Free Ride preserves constraints and recording across accepted suggestions and return-home | Extends ADR 0020; separate discovery/live contracts remain |
 | N09 | Unknown data stays unknown; offline readiness is specific to this ride and capability | Refines ADR 0003; generic downloaded-region readiness is insufficient |
 | N10 | Sharing is a read-only derivative with provenance and explicit privacy preview | Retains ADR 0012; proposes retiring comments/social-style scope |
-| N11 | Keep the Switchback mark/palette/fonts; simplify composition before rebranding | Existing V2 identity preserved, layout rules made enforceable |
+| N11 | Keep the OpenGravel mark/palette/fonts; simplify composition without another rebrand | Existing V2 identity preserved, layout rules made enforceable |
 | N12 | Mapbox remains the intended primary renderer; verify its actual rollout before retiring MapLibre | No third renderer, no navigation SDK, no routing rewrite |
 
 ## Principles with useful exceptions

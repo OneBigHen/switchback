@@ -36,7 +36,7 @@ Record PASS / FAIL / NOT RUN and one evidence reference for every item.
 1. **Safari first launch.** Open the URL in Safari with no retained tab. Confirm
    the planner and map settle, the primary next action is clear, and no stale
    update/error UI appears.
-2. **Install and relaunch.** Add Switchback to the Home Screen, close Safari,
+2. **Install and relaunch.** Add OpenGravel to the Home Screen, close Safari,
    launch the installed PWA, and confirm it opens as the same candidate with
    the expected planner state.
 3. **Portrait.** At the normal portrait viewport, plan a public destination

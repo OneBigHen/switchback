@@ -6,9 +6,10 @@ interface OpenGravelMarkProps {
 }
 
 /**
- * Compact OpenGravel field mark: mountain ridges, a winding road, and one
- * navigation accent. It intentionally stays simple enough to read at small
- * navigation and app-icon sizes.
+ * OpenGravel app mark: a framed tile with mountain ridges, a sun, rolling
+ * hills, and the winding road riders come for. The same drawing backs
+ * `public/icon.svg` and the generated PNG app icons, so the shell and the
+ * installed app read as one identity.
  */
 export function OpenGravelMark({ className, title }: OpenGravelMarkProps) {
   const generatedId = useId()
@@ -17,51 +18,21 @@ export function OpenGravelMark({ className, title }: OpenGravelMarkProps) {
   return (
     <svg
       className={className}
-      viewBox="0 0 48 48"
+      viewBox="120 120 1014 1014"
       role={title ? "img" : undefined}
       aria-labelledby={titleId}
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
       {title ? <title id={titleId}>{title}</title> : null}
-      <circle
-        cx="24"
-        cy="24"
-        r="21"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        opacity="0.48"
-      />
-      <path
-        d="M8.5 27.5 16.5 18l5.3 5.2 5.8-7.1 11.9 12.2"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.2"
-      />
-      <path
-        d="M9.5 31.2 18.2 23.8l4.9 4 6.1-5.8 9.3 9.2"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.6"
-        opacity="0.7"
-      />
-      <path
-        d="M19.7 42c.2-5.2 10.9-5.8 10.1-10.4-.6-3.4-5.6-2.7-4.8-6.5.4-2 2-3.6 5.1-5.4"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="2.8"
-      />
-      <path
-        className="open-gravel-mark-accent"
-        d="m34.6 10.6 3.4 6.1-7 .2Z"
-        fill="currentColor"
-      />
+      <rect x="120" y="120" width="1014" height="1014" rx="228" fill="#0F2F24" />
+      <rect x="183" y="183" width="886" height="886" rx="174" fill="none" stroke="#F9F6EB" strokeWidth="42" />
+      <circle cx="862" cy="377" r="86" fill="#DF6A3C" />
+      <path fill="#F9F6EB" stroke="#F9F6EB" strokeWidth="8" strokeLinejoin="round" d="M244 652 421 485 496 538 653 382 826 560 863 532 1009 680 1000 690 866 595 802 644 641 462 499 593 427 541 254 664Z" />
+      <path fill="#54795F" d="M240 698C370 688 470 735 556 800C440 780 340 790 240 848Z" />
+      <path fill="#54795F" d="M1013 726C905 718 820 790 752 890C850 850 940 845 1013 855Z" />
+      <path fill="#F9F6EB" stroke="#F9F6EB" strokeWidth="10" strokeLinejoin="round" d="M656 606C610 614 522 636 512 666C504 700 598 718 640 740C690 766 676 792 630 812C560 846 470 872 402 914C346 952 333 1000 337 1049L665 1049C625 1020 612 984 626 944C645 896 722 862 762 830C802 798 800 758 770 734C736 704 650 692 600 676C564 664 570 650 600 637C624 626 646 619 660 614Z" />
+      <path fill="none" stroke="#F9F6EB" strokeWidth="42" d="M337 1069H918" />
     </svg>
   )
 }

@@ -1,8 +1,8 @@
-# Switchback design direction
+# OpenGravel design direction
 
 ## Keep the identity; replace the composition
 
-Retain the approved Switchback mark, local Oswald/Inter pairing, and V2 palette in `src/app/styles/tokens.css`. The audit does not justify another rebrand. Current screens fail through hierarchy, clipping, disclosure, and contrast over map content. Fix those contracts rather than adding an override theme.
+Retain the approved OpenGravel mark, local Oswald/Inter pairing, and V2 palette in `src/app/styles/tokens.css`. The cutover does not require another visual system. Current screens fail through hierarchy, clipping, disclosure, and contrast over map content. Fix those contracts rather than adding an override theme.
 
 `design/DESIGN-CONTRACT.md` remains the brand reference. This document proposes stricter task and screen contracts for the refactor; wave 0 must reconcile them into one authority. Do not maintain competing token files.
 

@@ -123,7 +123,7 @@ export function routeIntentFromSketch(input: RouteIntentFromSketchInput): Sketch
   const trace = cleanTrace(input.trace)
   const lengthMeters = traceLengthMeters(trace)
   if (trace.length < 2 || lengthMeters < MIN_SKETCH_METERS) {
-    throw new Error("Draw a longer line so Switchback can read the road corridor.")
+    throw new Error("Draw a longer line so OpenGravel can read the road corridor.")
   }
 
   const first = trace[0]!

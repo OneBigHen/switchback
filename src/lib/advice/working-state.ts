@@ -4,14 +4,14 @@ import type { PlannedRoute } from "@/lib/routing/types"
  * What the co-pilot can honestly say it is doing, before the model has said
  * anything at all.
  *
- * A route-only turn is answered from facts Switchback has already computed and
+ * A route-only turn is answered from facts OpenGravel has already computed and
  * the rider is already looking at. So while the model is thinking, the UI does
  * not have to fall back to a content-free spinner: it can name the actual
  * comparison being made, drawn **only** from local deterministic route data.
  *
  * This is deliberately not a preview of the answer. It never predicts a verdict,
  * never guesses, and never renders model output — the model has not spoken yet.
- * It states the arithmetic Switchback already did, which is true whatever the
+ * It states the arithmetic OpenGravel already did, which is true whatever the
  * advisor eventually concludes. Unvalidated model reasoning must never appear
  * here or anywhere else in the thread.
  */

@@ -1,4 +1,4 @@
-# Switchback self-hosted CI appliance
+# OpenGravel self-hosted CI appliance
 
 This repository includes a disposable, unprivileged GitHub Actions appliance
 for trusted manual, heavy, or soak workloads. GitHub remains the control plane.

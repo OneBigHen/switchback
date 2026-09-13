@@ -12,7 +12,7 @@ export type Coordinate = [longitude: number, latitude: number]
 /**
  * Product-facing motorcycle profiles. Some profiles intentionally reuse an
  * existing GraphHopper primitive; their route-quality weights and hard
- * request rules remain distinct at the Switchback boundary.
+ * request rules remain distinct at the OpenGravel boundary.
  */
 export type RouteProfileId =
   | "quick"
@@ -41,7 +41,7 @@ export interface GravelAtlasPreference {
 
 /** What the returned route actually followed from graph-verified Atlas geometry. */
 export interface GravelAtlasRouteEvidence {
-  source: "Switchback Gravel Atlas"
+  source: "OpenGravel Gravel Atlas"
   matchedMeters: number
   sharePercent: number
   longestContinuousMeters: number

@@ -57,12 +57,12 @@ describe("RouteSharePanel", () => {
   })
 
   it("uses OpenGravel in rider-facing private-share copy", async () => {
-    render(<RouteSharePanel route={longRoute()} />)
+    const { getAllByRole, getAllByText, queryAllByText } = render(<RouteSharePanel route={longRoute()} />)
 
-    expect(screen.getByText(/OpenGravel removes the selected start\/end zones/i)).toBeVisible()
-    expect(screen.queryAllByText(/Switchback/i)).toHaveLength(0)
+    expect(getAllByText(/OpenGravel removes the selected start\/end zones/i)[0]).toBeVisible()
+    expect(queryAllByText(/Switchback/i)).toHaveLength(0)
 
-    fireEvent.click(screen.getByRole("button", { name: "Share" }))
+    fireEvent.click(getAllByRole("button", { name: "Share" })[0])
 
     await waitFor(() => expect(navigator.share).toHaveBeenCalledWith(expect.objectContaining({
       title: "Long ridge run",

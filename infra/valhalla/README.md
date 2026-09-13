@@ -1,6 +1,6 @@
 # Valhalla supplemental router
 
-This runtime is optional. GraphHopper remains Switchback's primary motorcycle
+This runtime is optional. GraphHopper remains OpenGravel's primary motorcycle
 router; Valhalla contributes independently generated A-to-B candidates,
 fallback for requests it supports, and elevation sampling.
 

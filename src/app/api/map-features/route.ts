@@ -32,7 +32,7 @@ async function handleMapFeaturesGet(request: Request): Promise<Response> {
   return handleMapFeaturesRequest(request, (featureRequest) => getCombinedRiderMapFeatures(featureRequest, {
     baseProvider: (baseRequest) => getRiderMapFeatures(baseRequest, {
       overpassUrl: process.env.OVERPASS_URL ?? "https://overpass-api.de/api/interpreter",
-      nwsUserAgent: process.env.NWS_USER_AGENT ?? "Switchback route planner (map alerts)",
+      nwsUserAgent: process.env.NWS_USER_AGENT ?? "OpenGravel route planner (map alerts)",
       tomtomApiKey: process.env.TOMTOM_API_KEY
     }),
     atlasProvider: atlasProvider()

@@ -1,4 +1,4 @@
-# Switchback release freeze and rollback
+# OpenGravel release freeze and rollback
 
 ## Freeze inputs
 

@@ -551,7 +551,7 @@ describe("supporting HTTP contracts", () => {
     })
   })
 
-  it("fails production health clearly when Switchback ID session signing is not configured", async () => {
+  it("fails production health clearly when OpenGravel ID session signing is not configured", async () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("SWITCHBACK_SESSION_SECRET", "")
     try {

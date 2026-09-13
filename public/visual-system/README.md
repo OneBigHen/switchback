@@ -1,10 +1,10 @@
-# Switchback visual system
+# OpenGravel visual system
 
 This directory holds static visual-system assets that are safe to consume independently of the planner and routing code.
 
 ## Compact mark
 
-`brand/switchback-compact-mark.svg` is the text-free compact Switchback mark. It is intended for future navigation branding, app-icon studies, share cards, and compact identity placements. Keep the surrounding wordmark as live text when used in the product.
+`brand/switchback-compact-mark.svg` is the retained legacy asset path for the text-free compact OpenGravel mark. It remains functional for old links while the current shell and app icon use the canonical OpenGravel identity. Keep the surrounding wordmark as live text when used in the product.
 
 ## Generated illustrations
 

@@ -67,10 +67,10 @@ describe("map layer controls", () => {
     // capability-gated while the premium LayersSheet contract covers it.
     expect(screen.queryByRole("radio", { name: "Satellite" })).not.toBeInTheDocument()
     expect(screen.getByRole("checkbox", { name: "Great roads" })).toBeVisible()
-    expect(screen.queryByText(/Switchback road-shape analysis/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/OpenGravel road-shape analysis/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
-    expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
+    expect(screen.getByText(/OpenGravel road-shape analysis/i)).toBeVisible()
     // Basemaps are the preset radio group above, never a second overlay
     // checkbox that would let the rider pick imagery twice.
     expect(screen.queryByRole("checkbox", { name: /Satellite imagery/i })).not.toBeInTheDocument()
@@ -218,7 +218,7 @@ describe("map layer controls", () => {
 
     await user.click(screen.getByRole("button", { name: "Open map layers" }))
     await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
-    expect(screen.getByText(/Switchback road-shape analysis/i)).toBeVisible()
+    expect(screen.getByText(/OpenGravel road-shape analysis/i)).toBeVisible()
     expect(screen.getByText(/Legend: Green fill = mapped protected or public land/i)).toBeVisible()
     expect(screen.getAllByText(/Confidence: Mapped context can be incomplete/i)).not.toHaveLength(0)
     const publicLand = screen.getByRole("checkbox", { name: /protected and public land/i })
@@ -275,7 +275,7 @@ describe("map layer controls", () => {
     expect(onSketchModeChange).toHaveBeenCalledWith(true)
     expect(screen.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
     expect(screen.getByText(/drag one line through the roads or areas/i)).toBeVisible()
-    expect(screen.getByText(/switchback will snap it to legal roads/i)).toBeVisible()
+    expect(screen.getByText(/opengravel will snap it to legal roads/i)).toBeVisible()
     expect(screen.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
 
     await user.click(screen.getByRole("button", { name: "Cancel drawing" }))

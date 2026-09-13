@@ -10,7 +10,7 @@ test("passkey options are bounded and unauthenticated mutations fail closed", as
   // controls directly, so reach them the way a rider does.
   await page.getByRole("button", { name: "Settings", exact: true }).click()
   await page.getByRole("button", { name: "Account, sync & data" }).click()
-  await expect(page.getByRole("button", { name: "Create Switchback ID" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Create OpenGravel ID" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Use existing passkey" })).toBeVisible()
 
   const options = await request.post("/api/identity/authenticate/options", { data: {} })

@@ -91,7 +91,7 @@ describe("recording permission-denial recovery", () => {
       ...createRecordingState(),
       status: "denied" as const,
       startedAt: 100,
-      error: "Location permission was denied. Enable precise location for Switchback and try again."
+      error: "Location permission was denied. Enable precise location for OpenGravel and try again."
     }
     const controller = {
       state: denied,

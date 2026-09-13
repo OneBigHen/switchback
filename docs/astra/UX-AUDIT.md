@@ -1,4 +1,4 @@
-# Switchback UX audit
+# OpenGravel UX audit
 
 > Evidence note: the production probe screenshots and JSON that this document
 > originally linked (`docs/astra/evidence/`) were removed on 2026-09-08. They
@@ -11,7 +11,7 @@ Review date: 2026-09-05. Source snapshot: `63de8ef583e93a6f323662cfe390febcb8480
 
 ## Verdict
 
-Switchback can produce real, useful motorcycle routes. The surrounding workflow is not yet consistently understandable, reversible, recoverable, or legible. It feels like several capable subsystems sharing a map rather than one intentional ride product. The strongest next investment is coherent state and interaction ownership, followed by complete-screen redesign—not more providers, overlays, or a larger chatbot.
+OpenGravel can produce real, useful motorcycle routes. The surrounding workflow is not yet consistently understandable, reversible, recoverable, or legible. It feels like several capable subsystems sharing a map rather than one intentional ride product. The strongest next investment is coherent state and interaction ownership, followed by complete-screen redesign—not more providers, overlays, or a larger chatbot.
 
 ## Evidence discipline
 

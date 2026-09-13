@@ -3,7 +3,7 @@ import type { MapPresentation } from "./map-experience"
 export type MapboxBasemapConfig = Record<string, string | boolean>
 
 /**
- * Translate a resolved Switchback presentation into only the configuration
+ * Translate a resolved OpenGravel presentation into only the configuration
  * properties the active Mapbox style family actually supports.
  *
  * Every key below is a real Mapbox Standard basemap config property. The

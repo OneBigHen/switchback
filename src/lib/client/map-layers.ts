@@ -171,7 +171,7 @@ export function riderLayerConfidence(definition: RiderLayerDefinition): string {
 export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
     id: "curvature", name: "Great roads", category: "roads", status: "live",
-    source: "Switchback road-shape analysis",
+    source: "OpenGravel road-shape analysis",
     provenance: "Computed heuristically from OpenStreetMap road geometry using bend-density scoring. Approximate — not ground-truthed.",
     dataCategory: "road-geometry",
     freshness: "Computed from local road geometry", coverage: "Current routing region",
@@ -179,7 +179,7 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
   },
   {
     id: "gravel-atlas", name: "Known gravel roads", category: "roads", status: "regional",
-    source: "Switchback Gravel Atlas",
+    source: "OpenGravel Gravel Atlas",
     provenance: "Graph-verified gravel and unimproved-road corridors reconciled from Government-published official source snapshots and the active motorcycle routing graph. Surface evidence is not a guarantee of legal access, current openness, or passability.",
     dataCategory: "road-surface",
     freshness: "Source snapshot + routing-graph fingerprint", coverage: "New Jersey only",

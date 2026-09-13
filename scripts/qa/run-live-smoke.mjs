@@ -56,7 +56,7 @@ function addCheck(name, configured, result, optional = false) {
 async function runChecks() {
   if (appBase) {
     const health = await fetchJson(`${appBase}/api/health`)
-    addCheck("Switchback app health", true, { ...health, ok: health.ok && health.body?.ok === true })
+    addCheck("OpenGravel app health", true, { ...health, ok: health.ok && health.body?.ok === true })
     const geocode = await fetchJson(`${appBase}/api/geocode?q=Harrisburg&limit=1`)
     addCheck("App geocode", true, { ...geocode, ok: geocode.ok && Array.isArray(geocode.body?.places) })
     const route = await fetchJson(`${appBase}/api/routes`, {
@@ -72,7 +72,7 @@ async function runChecks() {
         && route.body.routes[0]?.durationMinutes > 0
     })
   } else {
-    addCheck("Switchback app health", false, {})
+    addCheck("OpenGravel app health", false, {})
     addCheck("App geocode", false, {})
     addCheck("App route outcome", false, {})
   }

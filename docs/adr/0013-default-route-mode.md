@@ -2,7 +2,7 @@
 
 ## Decision
 
-Switchback defaults to the Best Ride route, not the fastest route. Fastest and
+OpenGravel defaults to the Best Ride route, not the fastest route. Fastest and
 Balanced are always offered as one-tap alternatives, and the time delta versus
 fastest is shown prominently on every non-fastest route. The route-intelligence
 score (ADR 0004) is tuned so ride quality outranks raw ETA, subject to the

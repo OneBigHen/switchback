@@ -1,4 +1,4 @@
-// Switchback service worker — bounded, separated caches (SB-019).
+// OpenGravel service worker — bounded, separated caches (SB-019).
 //
 // - Shell (navigation + app shell): network-first, small bounded cache.
 // - Build assets (/_next/static/**): cache-first, bounded (hashed URLs are
@@ -8,7 +8,7 @@
 // - Images: stale-while-revalidate, bounded.
 // - Same-origin /api/*: never cached (no fake offline success).
 
-const SHELL_CACHE = "switchback-shell-v3"
+const SHELL_CACHE = "switchback-shell-v4"
 const BUILD_CACHE = "switchback-build-v3"
 const TILE_CACHE = "switchback-tiles-v3"
 const IMAGE_CACHE = "switchback-images-v3"
@@ -70,7 +70,7 @@ self.addEventListener("fetch", (event) => {
         return response
       }).catch(() => caches.match(request)
         .then((cached) => cached || caches.match("/"))
-        .then((cached) => cached || new Response("Switchback is offline and this page is not cached yet.", {
+        .then((cached) => cached || new Response("OpenGravel is offline and this page is not cached yet.", {
           status: 503,
           headers: { "content-type": "text/plain" }
         })))

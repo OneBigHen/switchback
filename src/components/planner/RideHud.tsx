@@ -158,12 +158,12 @@ export function RideHud(input: NavigationSessionControllerInput) {
             : "Track guidance — road data unavailable. Follow the breadcrumb and direction arrow; no turn instructions are invented."
           : offRoute
             ? controller.rerouteStatus === "routing"
-              ? "Switchback is rebuilding the line from your current location."
+              ? "OpenGravel is rebuilding the line from your current location."
               : controller.rerouteStatus === "error"
                 ? "The requested rejoin route failed. Stop safely before trying again."
                 : controller.rejoinPolicy === "preserve-original"
                   ? "Your original route is preserved. Choose a rejoin point when it is safe."
-                  : "Choose a recovery option, or keep moving and Switchback will recalculate automatically."
+                  : "Choose a recovery option, or keep moving and OpenGravel will recalculate automatically."
             : deviating
           ? "GPS is outside the route corridor. Guidance will only reroute if the deviation continues."
           : matchAmbiguous
@@ -324,7 +324,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
               <WarningCircle weight="fill" aria-hidden="true" />
               <span>
                 <strong>Off-route from locked corridor</strong>
-                <small>{lockedCorridorLabel ?? "Locked corridor"} was exited unexpectedly. Switchback is rebuilding the line from your current location.</small>
+                <small>{lockedCorridorLabel ?? "Locked corridor"} was exited unexpectedly. OpenGravel is rebuilding the line from your current location.</small>
               </span>
             </div>
           ) : null}

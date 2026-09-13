@@ -305,7 +305,7 @@ export async function interpretRidePrompt(
         headers: {
           authorization: `Bearer ${options.apiKey}`,
           "content-type": "application/json",
-          "x-title": "Switchback"
+          "x-title": "OpenGravel"
         },
         body: JSON.stringify({
           model: options.model ?? "openrouter/free",

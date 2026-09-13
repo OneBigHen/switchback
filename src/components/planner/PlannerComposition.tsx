@@ -62,7 +62,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
     ? comparison.routes.find((route) => route.id === comparison.selectedId) ?? null
     : null
   const showingDetails = Boolean(comparison && selectedDetailsRoute)
-  // During a replan/failing edit Switchback deliberately retains the last
+  // During a replan/failing edit OpenGravel deliberately retains the last
   // usable route on screen. It is visual recovery evidence, not an answer to
   // the new ride intent. Gravel Goblin's prompt says supplied candidates are
   // the only routes that exist, so never feed that retained route to it while

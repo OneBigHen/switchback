@@ -166,7 +166,7 @@ jobs:
               rm -f /tmp/body.$$ /tmp/hdr.$$
             }
 
-            probe switchback       "$SWITCHBACK_LIVE_BASE_URL" "/api/health"
+            probe opengravel       "$SWITCHBACK_LIVE_BASE_URL" "/api/health"
             probe graphhopper      "$GRAPHHOPPER_URL"          "/health"
             probe graphhopper-info "$GRAPHHOPPER_URL"          "/info"
             probe photon           "$PHOTON_URL"               "?q=Harrisburg&limit=1"
