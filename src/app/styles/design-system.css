@@ -297,6 +297,15 @@ h6,
   }
 }
 
+/* The shorter 320x568 handset still needs the extra idle-sheet line so its
+   action row remains wholly visible. The taller 320x700 visual contract uses
+   the standard cap above and keeps more map exposed. */
+@media (max-width: 360px) and (orientation: portrait) and (max-height: 650px) {
+  .planner-shell {
+    --sb-sheet-idle-height: min(47dvh, 360px);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 520px) {
   .planner-shell .sb-bottom-sheet {
     top: 8px;

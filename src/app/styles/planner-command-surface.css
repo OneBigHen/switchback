@@ -411,7 +411,7 @@ so stop
     gap: 4px;
   }
 
-  .plan-v2__action-rail {
+  .planner-deck.is-idle-plan .plan-v2__action-rail {
     flex-wrap: nowrap;
   }
 
