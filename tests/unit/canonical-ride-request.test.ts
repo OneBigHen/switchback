@@ -5,7 +5,7 @@ import {
   customSegmentProfiles,
   normalizedSegmentProfiles
 } from "@/lib/planner/canonical-ride-request"
-import type { RideIntent } from "@/lib/domain/ride-intent"
+import { defaultRideIntent, type RideIntent } from "@/lib/domain/ride-intent"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
 
 const start = { lat: 40.2732, lon: -76.8867, label: "Harrisburg" }
@@ -15,20 +15,11 @@ const viaB = { lat: 40.32, lon: -76.50, label: "Shaping stop 2" }
 
 function intent(overrides: Partial<RideIntent> = {}): RideIntent {
   return {
+    ...defaultRideIntent(),
     start,
     finish,
-    via: [],
-    mode: "destination",
-    targetMinutes: 120,
-    timeShaped: false,
     profile: "balanced",
     bikeProfile: MOTORCYCLE_PROFILES[0]!,
-    avoidHighways: false,
-    tollPolicy: "allow-with-warning",
-    avoidAreas: [],
-    roadLocks: [],
-    segmentProfiles: [],
-    sketchCorridor: null,
     ...overrides
   }
 }
@@ -45,6 +36,17 @@ describe("canonical ride request", () => {
 
     expect(avoided.tollPolicy).toBe("avoid")
     expect(allowed.tollPolicy).toBe("allow-with-warning")
+  })
+
+  it("carries the rider's Gravel Atlas preference into the canonical request", () => {
+    const disabled = buildCanonicalRideRequest(intent(), { seed: 18 })
+    const maximum = buildCanonicalRideRequest(intent({
+      profile: "gravel",
+      gravelAtlas: { enabled: true, intensity: "maximum" }
+    }), { seed: 18 })
+
+    expect(disabled.gravelAtlas).toEqual({ enabled: false, intensity: "balanced" })
+    expect(maximum.gravelAtlas).toEqual({ enabled: true, intensity: "maximum" })
   })
 
   it("sends no per-leg styles for a ride the rider never varied", () => {

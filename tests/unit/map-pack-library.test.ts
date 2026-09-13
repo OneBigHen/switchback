@@ -30,15 +30,17 @@ describe("rider map-pack library", () => {
     })
 
     expect((await library.list()).map((pack) => pack.id)).toEqual([second.id, first.id])
-    expect(await library.get(first.id)).toMatchObject({
+    const savedFirst = await library.get(first.id)
+    expect(savedFirst).toMatchObject({
       name: "Gravel scouting",
       preset: "terrain",
       experience: "terrain",
       mapStyle: "explorer",
       lightPreference: "auto",
       routeVisibility: "high-contrast",
-      layers: expect.arrayContaining([expect.objectContaining({ id: "unpaved", opacity: 0.55 })])
+      layers: [expect.objectContaining({ id: "gravel-atlas", opacity: 0.55 })]
     })
+    expect(savedFirst?.layers).toHaveLength(1)
     expect(second).toMatchObject({
       preset: "road",
       experience: "standard",

@@ -73,7 +73,7 @@ const PRESET_LABELS: Record<MapPresetId, string> = {
 
 // Keep the first layer decision compact; every other existing catalog layer
 // remains available in the Advanced view below.
-const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "unpaved", "closures", "road-controls"]
+const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "gravel-atlas", "closures", "road-controls"]
 
 /**
  * Satellite is a premium-renderer capability. Offering it on the fallback
@@ -242,7 +242,7 @@ export function MapStageLayerControl({
           </div>
           {errorLayerCount > 0 ? (
             <div className="layer-error-banner" role="status">
-              <span>Some layers failed to load — the OSM map-data provider may be busy or unreachable.</span>
+              <span>Some layers failed to load — their data source may be busy or unavailable right now.</span>
               <button type="button" onClick={onRetryRiderLayers}>Retry layers</button>
             </div>
           ) : null}

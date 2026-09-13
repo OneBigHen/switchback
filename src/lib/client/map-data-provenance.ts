@@ -1,4 +1,10 @@
-import { type DataCategory, type RiderLayerDefinition, type RiderLayerId, layerCatalog } from "@/lib/client/map-layers"
+import {
+  type DataCategory,
+  type RiderLayerDefinition,
+  type RiderLayerId,
+  layerCatalog,
+  migrateRiderLayerId
+} from "@/lib/client/map-layers"
 
 export interface ProvenanceSummary {
   layers: number
@@ -76,7 +82,10 @@ export function allProvenanceRecords(): ProvenanceRecord[] {
 }
 
 export function provenanceForLayer(id: RiderLayerId): ProvenanceRecord | null {
-  const layer = layerCatalog.find((entry) => entry.id === id)
+  const canonicalId = migrateRiderLayerId(id)
+  const layer = canonicalId
+    ? layerCatalog.find((entry) => entry.id === canonicalId)
+    : undefined
   return layer ? provenanceRecord(layer) : null
 }
 
@@ -133,13 +142,15 @@ export function verifyProvenance(): ProvenanceVerification {
     }
   }
 
-  const allCatalogIds = new Set(layerCatalog.map((layer) => layer.id))
+  // `unpaved` is intentionally omitted: it is a read-time migration alias,
+  // not a canonical layer that should appear in the current catalog.
   const allDefinedIds = new Set<RiderLayerId>([
-    "curvature", "unpaved",
+    "curvature", "gravel-atlas",
     "public-land", "private-land", "mvum", "closures", "road-controls",
     "weather", "fuel", "food", "camping", "lodging", "repair",
     "cell-coverage"
   ])
+  const allCatalogIds = new Set(layerCatalog.map((layer) => layer.id))
   for (const id of allDefinedIds) {
     if (!allCatalogIds.has(id)) missing.push(id)
   }

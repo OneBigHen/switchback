@@ -12,16 +12,18 @@ export interface MapFeatureRequest {
   layers: RiderLayerId[]
 }
 
+export type RiderFeatureUnavailableSource = "osm" | "weather" | "gravel-atlas"
+
 export interface RiderFeatureCollection {
   type: "FeatureCollection"
   features: RiderFeature[]
-  /** Present only when at least one requested provider (OSM/Overpass or NWS
-   *  alerts) failed. Absent when every requested provider succeeded, so an
-   *  empty `features` array still means "confirmed no matches" by default. */
-  unavailable?: Array<"osm" | "weather">
+  /** Present only when at least one requested provider failed. Absent when
+   * every requested provider succeeded, so an empty `features` array still
+   * means "confirmed no matches" by default. */
+  unavailable?: RiderFeatureUnavailableSource[]
 }
 
-interface RiderFeature {
+export interface RiderFeature {
   type: "Feature"
   properties: Record<string, string>
   geometry: {

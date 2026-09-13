@@ -166,6 +166,17 @@ describe("atomic ride checkpoint", () => {
     expect(restored.checkpoint.intent.avoidHighways).toBe(true)
   })
 
+  it("treats the same intent with a different key order as the same intent, not a conflict", async () => {
+    const name = `checkpoint-${crypto.randomUUID()}`
+    const store = new RideCheckpointStore(name)
+    stores.add(store)
+
+    const first = await store.save(input(), null)
+    if (first.status !== "saved") throw new Error("Initial checkpoint was not saved")
+    const reordered = Object.fromEntries(Object.entries(intent()).reverse()) as RideIntent
+    expect((await store.save(input({ intent: reordered, sequence: 2 }), first.token)).status).toBe("saved")
+  })
+
   it("stores authored intent only, never a derived route result", async () => {
     const name = `checkpoint-${crypto.randomUUID()}`
     const store = new RideCheckpointStore(name)

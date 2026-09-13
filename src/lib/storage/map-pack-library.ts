@@ -1,9 +1,9 @@
 import Dexie, { type EntityTable } from "dexie"
 import {
-  normalizeRiderLayerSettings,
   type RiderLayerSettingInput,
   type RiderMapPack
 } from "@/lib/client/map-layers"
+import { normalizePersistedRiderLayerSettings } from "@/lib/client/persisted-rider-layers"
 import {
   legacyMapExperienceFor,
   legacyMapStyleFor,
@@ -63,7 +63,7 @@ export class MapPackLibrary {
       mapStyle: legacyMapStyleFor(preset, input.lightPreference),
       lightPreference: input.lightPreference,
       routeVisibility: input.routeVisibility,
-      layers: normalizeRiderLayerSettings(input.layers),
+      layers: normalizePersistedRiderLayerSettings(input.layers),
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp
     }

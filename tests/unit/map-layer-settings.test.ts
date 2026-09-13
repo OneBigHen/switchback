@@ -6,6 +6,7 @@ import {
   layerCatalog,
   mapStyleUrl,
   mapLayerRuntime,
+  migrateRiderLayerId,
   normalizeRiderLayerSettings,
   paUnpavedRoadsQuery,
   shouldShowBaseMapFailure
@@ -19,7 +20,7 @@ describe("map layer settings", () => {
     expect(mapStyleUrl("night")).toMatch(/fiord$/)
   })
 
-  it("builds a bounded PA unpaved-road viewport query only at useful zoom", () => {
+  it("builds a bounded legacy PA unpaved-road viewport query only at useful zoom", () => {
     expect(paUnpavedRoadsQuery({ west: -77.2, south: 40.1, east: -76.6, north: 40.6 }, 6)).toBeNull()
     expect(paUnpavedRoadsQuery({ west: -77.2, south: 40.1, east: -76.6, north: 40.6 }, 9))
       .toBe("bbox=-77.2%2C40.1%2C-76.6%2C40.6&zoom=9&limit=500")
@@ -28,14 +29,15 @@ describe("map layer settings", () => {
     expect(paUnpavedRoadsQuery({ west: -80, south: 38, east: -72, north: 43 }, 10)).toBeNull()
   })
 
-  it("does not request zoom levels the API refuses to serve", () => {
+  it("keeps the retired PASDA API bounded without re-exposing it as a current layer", () => {
     const bounds = { west: -77.2, south: 40.1, east: -76.6, north: 40.6 }
     for (const zoom of [7, 8]) {
       expect(paUnpavedRoadsQuery(bounds, zoom)).toBeNull()
     }
     expect(paUnpavedRoadsQuery(bounds, PA_UNPAVED_ROADS_MIN_ZOOM)).not.toBeNull()
-    expect(layerCatalog.find((layer) => layer.id === "unpaved")?.minZoom)
-      .toBe(PA_UNPAVED_ROADS_MIN_ZOOM)
+    expect(layerCatalog.some((layer) => layer.id === "unpaved")).toBe(false)
+    expect(migrateRiderLayerId("unpaved")).toBe("gravel-atlas")
+    expect(layerCatalog.find((layer) => layer.id === "gravel-atlas")?.minZoom).toBe(8)
   })
 
   it("ignores recoverable tile errors after the initial style has rendered", () => {
@@ -44,21 +46,21 @@ describe("map layer settings", () => {
     expect(shouldShowBaseMapFailure(true, true)).toBe(false)
   })
 
-  it("ships functional map layers with provenance and safely normalizes saved settings", () => {
-    const unpaved = layerCatalog.find((layer) => layer.id === "unpaved")
+  it("ships one canonical Gravel Atlas surface layer with provenance and safely normalizes saved settings", () => {
+    const gravelAtlas = layerCatalog.find((layer) => layer.id === "gravel-atlas")
     expect(layerCatalog).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "curvature", source: expect.stringMatching(/Switchback/i) }),
       expect.objectContaining({ id: "weather", freshness: expect.any(String) }),
       expect.objectContaining({ id: "fuel", coverage: expect.any(String) }),
       expect.objectContaining({ id: "mvum", status: "live" })
     ]))
-    expect(unpaved).toMatchObject({
-      source: "Pennsylvania Spatial Data Access (PASDA)",
-      provenance: expect.stringContaining("PA DEP/PASDA — Unpaved Roads 2009_07"),
-      legend: expect.stringContaining("mapped unpaved-road survey")
+    expect(layerCatalog.filter((layer) => layer.dataCategory === "road-surface")).toHaveLength(1)
+    expect(gravelAtlas).toMatchObject({
+      source: "Switchback Gravel Atlas",
+      provenance: expect.stringMatching(/graph-verified.*official source snapshots/i),
+      legend: expect.stringMatching(/known gravel corridor/i)
     })
-    expect(unpaved?.provenance).not.toMatch(/official unpaved road dataset/i)
-    expect(unpaved?.legend).not.toMatch(/official unpaved road/i)
+    expect(gravelAtlas?.provenance).toMatch(/not a guarantee of legal access/i)
     expect(layerCatalog.every((layer) => layer.status !== "planned")).toBe(true)
     expect(layerCatalog.every((layer) => mapLayerRuntime(layer.id) !== null)).toBe(true)
 

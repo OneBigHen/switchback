@@ -14,6 +14,7 @@ import {
   type RiderLayerId,
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
+import type { RiderFeatureUnavailableSource } from "@/lib/map-features/osm"
 import { geoJsonSource, RIDER_FEATURE_SOURCE } from "../map-stage-sources"
 
 /**
@@ -38,9 +39,19 @@ export interface RiderFeatureLayersController {
   retryRiderFeatures(): void
 }
 
+interface RiderFeatureResponse extends FeatureCollection {
+  unavailable?: RiderFeatureUnavailableSource[]
+}
+
+function layerProviderUnavailable(id: RiderLayerId, unavailable: ReadonlySet<RiderFeatureUnavailableSource>): boolean {
+  if (id === "gravel-atlas") return unavailable.has("gravel-atlas")
+  if (id === "weather") return unavailable.has("weather")
+  return unavailable.has("osm")
+}
+
 /**
  * Owns fetching and status reporting for the three data-driven rider layers:
- * high-curvature roads, official PA unpaved roads, and OSM rider feature
+ * high-curvature roads, official PA unpaved roads, and OSM/local rider feature
  * layers. Verbatim extraction of the MapStage effect cluster so the map
  * component composes concerns instead of containing them.
  */
@@ -301,31 +312,37 @@ export function useRiderFeatureLayers(
           setRiderFeaturesStatus("error")
           return
         }
-        const collection = await response.json() as FeatureCollection
+        const collection = await response.json() as RiderFeatureResponse
         if (!isCurrent(version)) return
-        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(collection)
+        // Provider health is API metadata, not GeoJSON map data. Keep it out of
+        // MapLibre while preserving all successfully returned features.
+        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData({ type: "FeatureCollection", features: collection.features })
         // Tally per-layer counts so the Layers panel can answer "did this
         // layer load but find nothing in view?" — a very common case for
-        // sparse OSM data that previously looked indistinguishable from a
+        // sparse OSM/local data that previously looked indistinguishable from a
         // failed fetch.
         const counts: Record<string, number> = {}
         for (const feature of collection.features) {
           const lid = (feature.properties as Record<string, unknown> | null)?.layerId
           if (typeof lid === "string") counts[lid] = (counts[lid] ?? 0) + 1
         }
+        const unavailable = new Set<RiderFeatureUnavailableSource>(collection.unavailable ?? [])
         setRiderLayerCounts(counts)
         setRiderLayerStates((prev) => {
           const next: Record<string, FeatureLayerState> = { ...prev }
           for (const id of visibleFeatureLayers) {
             if (selectedSet.has(id)) {
-              next[id] = (counts[id] ?? 0) > 0 ? "ready" : "empty"
+              next[id] = layerProviderUnavailable(id, unavailable)
+                ? "error"
+                : (counts[id] ?? 0) > 0 ? "ready" : "empty"
             } else {
               next[id] = "zoom"
             }
           }
           return next
         })
-        setRiderFeaturesStatus("ready")
+        const availableSelected = selectedLayers.filter((id) => !layerProviderUnavailable(id, unavailable))
+        setRiderFeaturesStatus(availableSelected.length > 0 ? "ready" : "error")
       } catch (caught) {
         if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
         geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())

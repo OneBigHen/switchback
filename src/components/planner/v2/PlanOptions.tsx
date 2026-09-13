@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react"
 import { featureFlags } from "@/lib/domain/feature-flags"
 import { listProfiles } from "@/lib/routing/profiles"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
-import type { RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
+import type { GravelAtlasPreference, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
 import type { PlannerPointId } from "@/stores/planner-store"
 import { requestMapEdit } from "../map-edit-command"
 import { BikeProfilePicker } from "../BikeProfilePicker"
@@ -20,6 +20,7 @@ export interface PlanOptionsProps {
   curvatureVisible: boolean
   avoidHighways: boolean
   tollPolicy: TollPolicy
+  gravelAtlas: GravelAtlasPreference
   targetMinutes: number
   timeShaped: boolean
   segmentProfiles: RouteProfileId[]
@@ -41,6 +42,7 @@ export interface PlanOptionsProps {
   onCurvatureChange(visible: boolean): void
   onAvoidHighwaysChange(avoid: boolean): void
   onTollPolicyChange(policy: TollPolicy): void
+  onGravelAtlasChange(preference: GravelAtlasPreference): void
   /** Duration and time-shaping as one ride change, so choosing "90 min" is a
    *  single revision and a single replan rather than two of each. */
   onRideTimeChange(minutes: number, shaped: boolean): void
@@ -85,6 +87,7 @@ export function PlanOptions({
   curvatureVisible,
   avoidHighways,
   tollPolicy,
+  gravelAtlas,
   targetMinutes,
   timeShaped,
   segmentProfiles,
@@ -106,6 +109,7 @@ export function PlanOptions({
   onCurvatureChange,
   onAvoidHighwaysChange,
   onTollPolicyChange,
+  onGravelAtlasChange,
   onRideTimeChange,
   onSegmentProfileChange,
   onPointChange,
@@ -127,6 +131,7 @@ export function PlanOptions({
   onClearHome
 }: PlanOptionsProps) {
   const profiles = listProfiles()
+  const gravelAtlasAvailable = profile === "adventure" || profile === "gravel"
   // Loop rides always time-shape; destination rides only when the rider opts in.
   const timeActive = planMode === "loop" || timeShaped
   const targetIsPreset = LOOP_DURATION_PRESETS.includes(targetMinutes as (typeof LOOP_DURATION_PRESETS)[number])
@@ -189,6 +194,38 @@ export function PlanOptions({
               </div>
               <p>{profiles.find((item) => item.id === profile)?.description}</p>
             </div>
+            {gravelAtlasAvailable ? (
+              <div className="plan-v2__profile-control" role="group" aria-label="Known gravel routing">
+                <label className="plan-v2__check-row">
+                  <input
+                    type="checkbox"
+                    checked={gravelAtlas.enabled}
+                    onChange={(event) => onGravelAtlasChange({ ...gravelAtlas, enabled: event.target.checked })}
+                  />
+                  <span>Favor known gravel</span>
+                </label>
+                <p>Use graph-verified known gravel as routing evidence. This changes the route; the map-layer switch is separate.</p>
+                {gravelAtlas.enabled ? (
+                  <div className="plan-v2__profile-list" role="group" aria-label="Known gravel intensity">
+                    {([
+                      ["balanced", "Balanced gravel"],
+                      ["more", "More gravel"],
+                      ["maximum", "Maximum gravel"]
+                    ] as const).map(([intensity, label]) => (
+                      <button
+                        type="button"
+                        key={intensity}
+                        aria-pressed={gravelAtlas.intensity === intensity}
+                        className={gravelAtlas.intensity === intensity ? "is-selected" : undefined}
+                        onClick={() => onGravelAtlasChange({ enabled: true, intensity })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="plan-v2__time-budget" aria-label={planMode === "loop" ? "Loop duration" : "Target ride time"}>
               <span><Clock aria-hidden="true" /> {planMode === "loop" ? "Loop duration" : "Ride time"}</span>
               {planMode === "destination" ? (

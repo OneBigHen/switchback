@@ -27,6 +27,29 @@ export type RouteProfileId =
 /** Toll exposure policy: disclose on the route by default, or hard-avoid. */
 export type TollPolicy = "allow-with-warning" | "avoid"
 
+export type GravelAtlasIntensity = "balanced" | "more" | "maximum"
+
+/**
+ * Rider opt-in for verified Gravel Atlas route attraction. The atlas is a
+ * source of surface/corridor evidence only; legal access stays owned by the
+ * live motorcycle routing graph.
+ */
+export interface GravelAtlasPreference {
+  enabled: boolean
+  intensity: GravelAtlasIntensity
+}
+
+/** What the returned route actually followed from graph-verified Atlas geometry. */
+export interface GravelAtlasRouteEvidence {
+  source: "Switchback Gravel Atlas"
+  matchedMeters: number
+  sharePercent: number
+  longestContinuousMeters: number
+  matchedCorridorCount: number
+  matchRadiusMeters: number
+  minimumContiguousMeters: number
+}
+
 /** Which progressive API call this request/response belongs to. */
 export type CandidateSet = "primary" | "alternatives"
 
@@ -35,6 +58,7 @@ export type RouteCandidateSource =
   | "direct"
   | "native"
   | "rig"
+  | "gravel-atlas"
   | "loop-seed"
   | "heading-sector"
   | "community"
@@ -94,6 +118,11 @@ export interface RouteRequest {
   targetMinutes?: number
   /** Defaults to `allow-with-warning`; `avoid` rejects toll exposure. */
   tollPolicy?: TollPolicy
+  /**
+   * Optional Gravel Atlas routing preference. Normalization defaults this off
+   * and only permits attraction for Adventure/Gravel profiles.
+   */
+  gravelAtlas?: GravelAtlasPreference
   /**
    * Active road locks for this plan. Locks preserve rider intent across
    * replans and graph updates: a `must` lock invalidates the route when
@@ -193,6 +222,8 @@ export interface PlannedRoute {
   avoidAreas?: AvoidArea[]
   segmentProfiles?: RouteProfileId[]
   officialUnpavedEvidence?: PaUnpavedRoadEvidence
+  /** Measured overlap with graph-verified Gravel Atlas geometry. */
+  gravelAtlasEvidence?: GravelAtlasRouteEvidence
   /** Provenance for normalized intrinsic road features; unknown stays explicit. */
   featureProvenance?: IntrinsicFeatureProvenanceMap
   /** Bounded analysis attached to imported GPX geometry; no geometry is duplicated. */

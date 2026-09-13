@@ -82,6 +82,7 @@ export function buildCanonicalRideRequest(
     avoidAreas: intent.avoidAreas,
     segmentProfiles: customSegmentProfiles(intent),
     tollPolicy: intent.tollPolicy,
+    gravelAtlas: intent.gravelAtlas,
     planningId,
     ...(intent.sketchCorridor ? { sketchCorridor: intent.sketchCorridor } : {})
   })

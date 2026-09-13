@@ -1,8 +1,10 @@
 import { handleRouteRequest } from "./handler"
 import { enrichAdventureRoutesWithPaData } from "@/lib/roads/adventure-route-enricher"
+import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 import { requestGraphHopperRoutes } from "@/lib/routing/graphhopper"
 import { createHybridRouteProvider } from "@/lib/routing/hybrid"
 import { requestValhallaRoutes, enrichWithElevations } from "@/lib/routing/valhalla"
+import { createGravelAtlasAwareProvider } from "@/lib/routing/gravel-atlas-provider"
 import { createRouteJobLimiter } from "@/lib/server/route-job-limiter"
 import { createRateLimiter, withRateLimit } from "@/lib/server/rate-limiter"
 import { createRouteCache } from "@/lib/server/route-cache"
@@ -39,10 +41,33 @@ const corridorCache = createCorridorCache(
   process.env.CORRIDOR_CACHE_PATH ?? path.join(process.cwd(), "data/route-research-cache.sqlite")
 )
 
+const MAX_GRAVEL_ATLAS_LATERAL_MILES = 40
+
+function gravelAtlasBounds(request: RouteRequest): {
+  south: number
+  west: number
+  north: number
+  east: number
+} {
+  const lons = request.points.map((point) => point.lon)
+  const lats = request.points.map((point) => point.lat)
+  const meanLatitude = lats.reduce((sum, latitude) => sum + latitude, 0) / Math.max(1, lats.length)
+  const latitudePadding = MAX_GRAVEL_ATLAS_LATERAL_MILES / 69
+  const longitudeMilesPerDegree = 69 * Math.max(0.2, Math.cos(meanLatitude * Math.PI / 180))
+  const longitudePadding = MAX_GRAVEL_ATLAS_LATERAL_MILES / longitudeMilesPerDegree
+  return {
+    south: Math.max(-90, Math.min(...lats) - latitudePadding),
+    west: Math.max(-180, Math.min(...lons) - longitudePadding),
+    north: Math.min(90, Math.max(...lats) + latitudePadding),
+    east: Math.min(180, Math.max(...lons) + longitudePadding)
+  }
+}
+
 /**
- * Phase 4 corridor sources: curvature database segments near the request and
- * known-good GPX route geometries from the server-side library. Both degrade
- * to empty sets (never fail routing) when their data is unavailable.
+ * Phase 4 corridor sources: curvature database segments near the request,
+ * known-good GPX route geometries, optional research hints, and (when the
+ * rider explicitly opts in) graph-fresh Gravel Atlas corridors. Every source
+ * degrades to empty evidence rather than failing normal routing.
  */
 async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCandidates> {
   const sources: CorridorSourceCandidates = { curvatureSegments: [], gpxRoutes: [], hints: [] }
@@ -78,6 +103,31 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
     // GPX corridors are optional evidence.
   }
 
+  // The atlas database is deliberately separate from the imported-ride Route
+  // Atlas (poster artwork). Only an explicitly enabled Adventure/Gravel
+  // request and a complete runtime tuple (database path + graph fingerprint +
+  // official-source fingerprint) may load routing evidence. Missing any member
+  // disables the Atlas rather than guessing a local database or mixing builds.
+  const atlasPath = process.env.GRAVEL_ATLAS_DB_PATH?.trim()
+  const graphFingerprint = process.env.GRAVEL_ATLAS_GRAPH_FINGERPRINT?.trim()
+  const sourceFingerprint = process.env.GRAVEL_ATLAS_SOURCE_FINGERPRINT?.trim()
+  if (request.gravelAtlas?.enabled === true && atlasPath && graphFingerprint && sourceFingerprint) {
+    try {
+      const atlasBounds = gravelAtlasBounds(request)
+      sources.gravelAtlas = {
+        preference: request.gravelAtlas,
+        corridors: new GravelAtlasRepository(atlasPath).queryBounds({
+          ...atlasBounds,
+          graphFingerprint,
+          sourceFingerprint,
+          limit: 200
+        })
+      }
+    } catch {
+      // Missing/stale/malformed atlas data must never block ordinary routing.
+    }
+  }
+
   // Validated adviser hints from the 7-day cache: fast local read, so the
   // background refresh (fired from the alternatives flow) warms the next plan
   // without ever delaying this one.
@@ -103,7 +153,7 @@ async function handleRoutePost(request: Request): Promise<Response> {
   const valhallaUrl = process.env.VALHALLA_URL
   const elevationUrl = process.env.VALHALLA_ELEVATION_URL
 
-  const provider = createHybridRouteProvider({
+  const baseProvider = createHybridRouteProvider({
     graphHopper: (routeRequest, providerOptions) => providerLimiter.run(
       () => requestGraphHopperRoutes(routeRequest, {
         baseUrl: routerBaseUrl,
@@ -133,6 +183,7 @@ async function handleRoutePost(request: Request): Promise<Response> {
       })
     } : {})
   })
+  const provider = createGravelAtlasAwareProvider(baseProvider, resolveCorridors)
 
   return handleRouteRequest(
     request,
