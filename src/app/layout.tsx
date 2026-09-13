@@ -51,6 +51,9 @@ import "./styles/rider-glanceability.css";
 // Final, bounded V2 planner polish: collapses idle chrome and tightens the
 // command surface without changing planner/routing state authority.
 import "./styles/planner-command-surface.css";
+// UX V3 responsive topology. Loads after the legacy binary phone/desktop
+// rules so Medium can own tablet composition without specificity escalation.
+import "./styles/adaptive-workspace.css";
 
 export const metadata: Metadata = {
 	title: `${PRODUCT_BRAND.name} — Find routes worth riding`,

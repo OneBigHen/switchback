@@ -1,9 +1,20 @@
 /* Standard responsive breakpoints used across Switchback's styles.
    Keep new breakpoint rules aligned to these; don't invent new widths.
 
+   The planner's three workspace modes are owned by one canonical authority,
+   `src/components/planner/workspace/workspace-mode.ts`, which exports these
+   boundaries and resolves them from available application width. React
+   topology, map insets and the route renderer must all resolve through it;
+   only pure styling may use media queries here, and they must match:
+
+   compact  <= 760px  map + contextual bottom sheet (peek / half / full)
+   medium   <= 1180px first-class tablet / constrained desktop split
+   wide     >= 1181px bounded planner + live map + optional inspector
+
    390px   -- phone portrait floor (small-phone layout squeeze)
-   760px   -- tablet-portrait / phone-landscape ceiling (primary mobile breakpoint)
-   761px+  -- desktop / tablet-landscape (default layout, min-width query when needed)
+   760px   -- compact ceiling (tablet-portrait / phone-landscape)
+   1180px  -- medium ceiling (tablet landscape / constrained desktop)
+   1181px+ -- wide layout (default desktop, min-width query when needed)
    landscape, max-height: 520px -- short-landscape phones (map-first layouts collapse chrome) */
 
 /* TASK-2.4 justified exception: a reduced-motion reset must win over any

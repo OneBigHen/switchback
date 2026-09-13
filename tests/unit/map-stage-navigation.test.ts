@@ -24,6 +24,12 @@ const route: PlannedRoute = {
 
 describe("selected-route map fitting", () => {
   it("derives padding from the actual short-landscape map canvas", () => {
+    // This is a compact application viewport with a shorter drawable map.
+    // Set app width explicitly so this test cannot accidentally inherit the
+    // jsdom desktop default and contradict the separate topology-width tests.
+    window.innerWidth = 568
+    window.innerHeight = 320
+
     const fitBounds = vi.fn()
     const map = {
       getContainer: () => ({ clientWidth: 568, clientHeight: 320 }),

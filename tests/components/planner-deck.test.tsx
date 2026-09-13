@@ -39,19 +39,19 @@ const plannedRoute: PlannedRoute = {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  // stubPhoneViewport narrows the viewport; restore it so a phone case cannot
+  // leak into later tests.
+  window.innerWidth = 1024
   // The sheet detent override now lives in the shared planner store; a test
   // that minimizes the deck must not leak "peek" into later tests.
   usePlannerStore.setState({ sheetDetentOverride: null })
 })
 
 function stubPhoneViewport() {
-  vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: query === "(max-width: 760px)",
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
-  }))
+  // The compact decision resolves through the canonical workspace-mode
+  // authority, which reads the measured viewport width — so a phone is
+  // simulated by narrowing the viewport, not by mocking a media query.
+  window.innerWidth = 390
 }
 
 function defaultViewModel(): PlannerDeckViewModel {

@@ -28,6 +28,10 @@ import { usePlannerStore } from "@/stores/planner-store"
 import { DownloadModePicker, DOWNLOAD_MODE_PICKER_DEFAULT, type DownloadModePickerValue } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
 import { ContextSheet } from "./workspace/ContextSheet"
+import {
+  isCompactWorkspaceWidth,
+  readWorkspaceViewportWidth
+} from "./workspace/workspace-mode"
 import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { isActivePlanningPhase } from "./PlannerDeckViewModel"
@@ -52,9 +56,14 @@ interface VoiceRecognition {
 type VoiceRecognitionConstructor = new () => VoiceRecognition
 
 function isPhoneViewport(): boolean {
-  return typeof window !== "undefined"
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(max-width: 760px)").matches
+  // Resolve through the canonical workspace-mode authority (issue #115) rather
+  // than a component-local media query, so the sheet detent, the map insets and
+  // the route renderer all agree on what "compact" means.
+  //
+  // A missing viewport (server render, unmeasured node) is deliberately NOT
+  // treated as compact: the previous implementation returned false there too.
+  const width = readWorkspaceViewportWidth()
+  return width !== null && isCompactWorkspaceWidth(width)
 }
 
 interface PlannerDeckProps {
