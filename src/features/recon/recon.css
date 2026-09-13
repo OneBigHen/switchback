@@ -29,7 +29,9 @@
 
 .recon-panel {
   position: absolute;
-  top: 16px;
+  /* Seated below the always-visible picker toggle (16px + 44px + 8px) so
+     the collapse affordance never hides behind the panel it controls. */
+  top: 68px;
   left: 16px;
   z-index: 2;
   width: min(320px, calc(100vw - 32px));
@@ -132,8 +134,9 @@
 }
 
 .recon-picker-toggle[aria-expanded="true"] {
-  /* The open panel carries the header; the toggle stands down. */
-  display: none;
+  /* Stays visible when the panel is open: the toggle is the only collapse
+     affordance and must remain reachable, showing its expanded state. */
+  background: var(--sb-surface-raised);
 }
 
 /* ---- Picker ----------------------------------------------------------- */
@@ -381,7 +384,7 @@
 
 @media (max-width: 720px) {
   .recon-panel {
-    top: 12px;
+    top: 64px;
     left: 12px;
     width: calc(100vw - 24px);
     max-height: 46dvh;
