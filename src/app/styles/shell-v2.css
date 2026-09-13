@@ -27,6 +27,16 @@
   pointer-events: none;
 }
 
+/* Destination surfaces own the foreground interaction model. Keep the
+   persistent planner map mounted for its shared lifecycle, but make its
+   controls non-visible and non-interactive while Explore is covering it;
+   otherwise hidden-under-the-surface map controls remain in the accessibility
+   and hit-test tree. Explore renders its own discovery map. */
+.planner-shell[data-app-destination="explore"] .map-stage {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .app-navigation-brand {
   display: grid;
   min-height: 72px;

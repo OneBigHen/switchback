@@ -59,7 +59,7 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
     const problems: string[] = []
     const describe = (element: HTMLElement): string => element.getAttribute("aria-label") ?? (element.textContent?.trim().slice(0, 40) || element.className || element.tagName.toLowerCase())
     for (const element of visible) {
-      if (element.closest(".planner-full-attribution") !== null) continue
+      if (element.closest(".planner-full-attribution,[data-provider-attribution=\"true\"]") !== null) continue
       const rect = element.getBoundingClientRect()
       if (rect.width <= 0 || rect.height <= 0) continue
       if (rect.right <= -1 || rect.left >= viewport.width + 1 || rect.bottom <= -1 || rect.top >= viewport.height + 1) continue
@@ -148,7 +148,7 @@ export async function expectMinimumTouchTargetSize(page: Page, minimum = 44): Pr
   const issues = await page.evaluate(({ minimum, selector }) => {
     const problems: string[] = []
     for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
-      if (element.closest(".planner-full-attribution") !== null) continue
+      if (element.closest(".planner-full-attribution,[data-provider-attribution=\"true\"]") !== null) continue
       const style = getComputedStyle(element)
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) continue
       const isHiddenFileInput = element.tagName === "INPUT"
@@ -197,7 +197,7 @@ export async function expectProviderAttributionLinks(page: Page): Promise<void> 
       if (center === null || (!element.contains(center) && !center.contains(element))) problems.push("provider attribution link is obscured at its center")
     }
     return problems
-  }, { minimum: PROVIDER_ATTRIBUTION_MINIMUM, selector: ".planner-full-attribution a" })
+  }, { minimum: PROVIDER_ATTRIBUTION_MINIMUM, selector: ".planner-full-attribution a,[data-provider-attribution=\"true\"] a" })
   assertNoIssues(issues, `provider attribution links must be at least ${PROVIDER_ATTRIBUTION_MINIMUM.width}x${PROVIDER_ATTRIBUTION_MINIMUM.height}px and reachable`)
 }
 
@@ -443,6 +443,29 @@ export function isExpectedProviderHealthAbort(failure: string): boolean {
   try {
     const url = new URL(match[1])
     return CANCELLABLE_PROBE_PATHS.has(url.pathname) && url.search === "" && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Optional map overlays are fetched while rider surfaces mount, then are
+ * cancelled when the surface is replaced or the test tears it down. Keep
+ * those deliberate cancellations distinct from capability probes so a real
+ * overlay error (HTTP failure or connection reset) remains visible.
+ */
+const OPTIONAL_OVERLAY_PATHS: ReadonlySet<string> = new Set([
+  "/api/curvature",
+  "/api/pa-unpaved-roads",
+])
+
+export function isExpectedOptionalOverlayAbort(failure: string): boolean {
+  const match = /^GET (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return OPTIONAL_OVERLAY_PATHS.has(url.pathname)
       && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
   } catch {
     return false

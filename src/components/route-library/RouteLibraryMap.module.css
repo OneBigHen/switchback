@@ -72,6 +72,9 @@
 }
 
 .attribution a {
+  display: inline-flex;
+  min-height: 12px;
+  align-items: center;
   color: inherit;
 }
 

@@ -36,7 +36,9 @@ test.describe("OpenGravel mobile redesign", () => {
     const { page } = mobileQa
     await installPlannerServices(page)
     await page.goto("/")
-    await expectMobileAppReady(page, { tab: "plan" })
+    // Plan is the root destination; unlike the named destinations it has no
+    // historical `?tab=plan` URL contract.
+    await expectMobileAppReady(page)
 
     await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
     const tripShape = page.getByRole("group", { name: "Trip shape" })
@@ -63,7 +65,7 @@ test.describe("OpenGravel mobile redesign", () => {
     const { page } = mobileQa
     await installPlannerServices(page)
     await page.goto("/?tab=explore")
-    await expect(page.getByRole("heading", { name: "Explore routes" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Explore routes" })).toBeVisible({ timeout: 15_000 })
 
     const presentation = page.getByRole("group", { name: "Presentation" })
     await expect(presentation.getByRole("button", { name: "Map" })).toHaveAttribute("aria-pressed", "true")

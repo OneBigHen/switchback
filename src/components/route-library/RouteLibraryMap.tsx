@@ -243,7 +243,7 @@ export function RouteLibraryMap({
         </button>
       </div>
 
-      <p className={styles.attribution}>
+      <p className={styles.attribution} data-provider-attribution="true">
         <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>
         {" · "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>

@@ -374,7 +374,7 @@ export function RouteDiscoverySurface({
           </section>
         ) : null}
 
-        <p className={styles.resultBar} data-compact={view === "map" ? "true" : "false"}>
+        <p className={styles.resultBar} data-compact={view === "map" && !filtersDirty ? "true" : "false"}>
           <span aria-live="polite">{describeDiscoveryResult(ranked.length, filters, quick, located)}</span>
           {filtersDirty ? (
             <button type="button" className={styles.reset} onClick={resetAll}>Clear</button>
