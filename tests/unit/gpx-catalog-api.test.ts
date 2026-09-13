@@ -40,7 +40,7 @@ describe("atlas-extended GPX catalog API", () => {
     expect(listing.status).toBe(200)
     const body = await listing.json()
     const route = body.routes[0]
-    expect(route.story.tone).toBe("Day loop")
+    expect(route.story.tone).toBe("Mid-distance")
     expect(route.story.body).toContain("42 miles")
     expect(route.art).toBe(false)
     expect(JSON.stringify(body)).not.toContain("/root/Vibe")

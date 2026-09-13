@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Switchback Motorcycle Routes",
-    short_name: "Switchback",
-    description: "Find the road worth riding.",
+    name: `${PRODUCT_BRAND.name} Motorcycle Routes`,
+    short_name: PRODUCT_BRAND.shortName,
+    description: PRODUCT_BRAND.functionalTagline,
     start_url: "/",
     display: "standalone",
     background_color: "#0B0E0D",

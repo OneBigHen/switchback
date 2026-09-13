@@ -1,6 +1,13 @@
 import path from "node:path"
 import { readJsonCached } from "@/lib/gpx/catalog-cache"
 import { readAtlasArt } from "@/lib/gpx/atlas"
+import type { AtlasRouteArt } from "@/lib/gpx/atlas"
+import {
+  classifyCatalogArea,
+  cleanCatalogRouteName,
+  knownDurationMinutes,
+  type CatalogArea
+} from "@/lib/gpx/catalog-presentation"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import type { RouteStoryInput } from "@/lib/gpx/route-story"
 import { isGpxIntelligenceReport } from "@/lib/gpx/intelligence"
@@ -14,15 +21,24 @@ function json(body: unknown, status = 200): Response {
 
 export interface PublicAtlasRoute {
   id: string
+  /** Cleaned rider-facing name (import ordering and site bylines removed). */
   name: string
   distanceMiles: number
-  durationMinutes: number
+  /** Imported moving time, or `null` when the import carried none. Never `0`. */
+  durationMinutes: number | null
   twistiness: number
   turnCount: number
   sourceProject: string
   profile?: string
   story: ReturnType<typeof buildRouteStory>
   art: boolean
+  /** Coarse bbox-derived filing; `{ region: null, ridingAreas: [] }` when unplaceable. */
+  area: CatalogArea
+  duplicateFamilyId?: string
+  duplicateFamilySize?: number
+  duplicateFamilyRole?: "canonical" | "near-duplicate"
+  /** Set when atlas art marks this route as a geometry-identical re-import. */
+  duplicateOf?: string
   /**
    * Real-world extent as `[west, south, east, north]` in degrees, present when
    * poster art was generated for this route. Lets a client sort the library by
@@ -31,29 +47,43 @@ export interface PublicAtlasRoute {
   bbox?: readonly [number, number, number, number]
 }
 
-/** Story + art metadata for a listed route; never host paths or geometry. */
+/**
+ * Story + filing metadata for a listed route; never host paths, geometry,
+ * waypoints, instructions, or preview path data. Full geometry is served only
+ * by the `?id=` detail request that Open in Planner / Save to My Rides use.
+ */
 type AtlasListingInput = RouteStoryInput & {
   sourceProject: string
   profile?: string
+  duplicateFamilyId?: string
+  duplicateFamilySize?: number
+  duplicateFamilyRole?: "canonical" | "near-duplicate"
 }
 
-function publicAtlasRoute(
-  route: AtlasListingInput,
-  hasArt: boolean,
-  bbox: readonly [number, number, number, number] | undefined
-): PublicAtlasRoute {
+function displayName(name: unknown): string {
+  const raw = typeof name === "string" ? name : ""
+  return cleanCatalogRouteName(raw) || raw.trim()
+}
+
+function publicAtlasRoute(route: AtlasListingInput, art: AtlasRouteArt | undefined): PublicAtlasRoute {
+  const durationMinutes = knownDurationMinutes(route.durationMinutes)
   return {
     id: route.id,
-    name: route.name,
+    name: displayName(route.name),
     distanceMiles: route.distanceMiles,
-    durationMinutes: route.durationMinutes,
+    durationMinutes,
     twistiness: route.twistiness,
     turnCount: route.turnCount,
     sourceProject: route.sourceProject,
     ...(route.profile ? { profile: route.profile } : {}),
-    story: buildRouteStory(route),
-    art: hasArt,
-    ...(bbox ? { bbox } : {})
+    story: buildRouteStory({ ...route, durationMinutes }),
+    art: Boolean(art),
+    area: classifyCatalogArea(art?.bbox),
+    ...(route.duplicateFamilyId ? { duplicateFamilyId: route.duplicateFamilyId } : {}),
+    ...(typeof route.duplicateFamilySize === "number" ? { duplicateFamilySize: route.duplicateFamilySize } : {}),
+    ...(route.duplicateFamilyRole ? { duplicateFamilyRole: route.duplicateFamilyRole } : {}),
+    ...(art?.duplicateOf ? { duplicateOf: art.duplicateOf } : {}),
+    ...(art?.bbox ? { bbox: art.bbox } : {})
   }
 }
 
@@ -98,14 +128,15 @@ function pickPublicDetailFields(route: Record<string, unknown>): Record<string, 
 }
 
 /**
- * Existing project GPX catalog, extended with atlas stories + poster metadata.
- * The original listing/detail contract is unchanged; new fields are additive.
+ * Shared Route Library catalog. The listing is lightweight summary + filing
+ * metadata; the `?id=` detail is the allow-listed full route record plus story,
+ * poster, and truthful catalog presentation.
  */
 export async function handleGpxCatalogRequest(request: Request, catalogRoot: string): Promise<Response> {
   try {
     const manifest = await readJsonCached(
       path.join(catalogRoot, "manifest.json")
-    ) as import("@/lib/gpx/catalog").ProjectGpxCatalog & { routes: Array<Parameters<typeof buildRouteStory>[0] & { profile?: string }> }
+    ) as import("@/lib/gpx/catalog").ProjectGpxCatalog & { routes: AtlasListingInput[] }
     const atlasArt = await readAtlasArt(catalogRoot)
     const requestedId = new URL(request.url).searchParams.get("id")
 
@@ -120,7 +151,7 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
         duplicateFamilies: manifest.duplicateFamilies ?? 0,
         nearDuplicateFamilies: manifest.nearDuplicateFamilies ?? 0,
         nearDuplicateRoutes: manifest.nearDuplicateRoutes ?? 0,
-        routes: manifest.routes.map((route) => publicAtlasRoute(route, Boolean(atlasArt[route.id]), atlasArt[route.id]?.bbox))
+        routes: manifest.routes.map((route) => publicAtlasRoute(route, atlasArt[route.id]))
       })
     }
 
@@ -143,6 +174,7 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
       turnCount?: number
       sourceProject?: string
       profile?: string | null
+      ascentMeters?: unknown
       geometry?: unknown
     }
 
@@ -151,18 +183,26 @@ export async function handleGpxCatalogRequest(request: Request, catalogRoot: str
     }
 
     // Detail payload: the allow-listed public record plus atlas story and art.
+    // `durationMinutes` stays the stored number so the record remains a valid
+    // PlannedRoute; `catalog.durationMinutes` is the truthful nullable value
+    // every rider-facing surface must use.
     const art = atlasArt[route.id ?? ""]
+    const durationMinutes = knownDurationMinutes(route.durationMinutes)
     const summaryInput = {
       id: String(route.id ?? requestedId),
       name: String(route.name ?? ""),
       distanceMiles: Number(route.distanceMiles ?? 0),
-      durationMinutes: Number(route.durationMinutes ?? 0),
+      durationMinutes,
       twistiness: Number(route.twistiness ?? 0),
-      turnCount: Number(route.turnCount ?? 0)
+      turnCount: Number(route.turnCount ?? 0),
+      ascentMeters: typeof route.ascentMeters === "number" ? route.ascentMeters : null
     }
+    const publicRoute = pickPublicDetailFields(route)
     const detail = {
-      ...pickPublicDetailFields(route),
+      ...publicRoute,
+      ...("name" in publicRoute ? { name: displayName(route.name) } : {}),
       story: buildRouteStory(summaryInput),
+      catalog: { durationMinutes, area: classifyCatalogArea(art?.bbox) },
       poster: art ? { aspect: art.aspect, start: art.start, end: art.end } : null
     }
     return json(detail)

@@ -20,6 +20,12 @@ data/*.sqlite-shm
 data/*.db-wal
 data/*.db-shm
 data/*.pbf
+# Generated Gravel Atlas reconciliation payloads and rollback databases.
+data/gravel-atlas-graph.json
+data/gravel-atlas-verified.json
+data/gravel-atlas-verified-traversable.json
+data/gravel-atlas-traversability.json
+data/gravel-atlas-backups/
 *.sqlite-wal
 *.sqlite-shm
 data/graph-cache

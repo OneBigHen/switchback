@@ -1,5 +1,9 @@
-import type { Coordinate } from "./types"
+import type { Coordinate, GravelAtlasPreference } from "./types"
 import { haversine } from "./scoring"
+import {
+  selectGravelAtlasCorridors,
+  type GravelAtlasCorridor
+} from "./gravel-atlas"
 import type { CurvatureSegment } from "@/lib/curvature/repository"
 
 /**
@@ -116,8 +120,8 @@ export interface AnchorSet {
   label: string
   /** Shaping anchors between start and finish (endpoints excluded). */
   anchors: Coordinate[]
-  /** Where the corridor came from: curvature DB, known-good GPX, research hint. */
-  source: "curvature" | "gpx" | "hint" | "rig"
+  /** Where the corridor came from. */
+  source: "curvature" | "gpx" | "hint" | "rig" | "gravel-atlas"
   /** Evidence strength used by scoring (validated corridor miles). */
   evidenceMiles: number
 }
@@ -146,18 +150,30 @@ export interface CorridorSourceCandidates {
   hints: Array<{ id: string; label: string; anchor: Coordinate }>
   /** Optional graph-backed RIG anchors; empty until canonical geometry is attached. */
   rigCorridors?: Array<{ id: string; label: string; anchors: Coordinate[]; evidenceMiles: number }>
+  /**
+   * Statewide gravel-atlas evidence travels with the normalized rider opt-in.
+   * This prevents a future source assembler from injecting atlas candidates
+   * merely because data happened to be available.
+   */
+  gravelAtlas?: {
+    preference: GravelAtlasPreference
+    corridors: GravelAtlasCorridor[]
+  }
 }
 
 const MAX_ANCHOR_SETS = 4
 const MAX_ANCHORS_PER_SET = 3
+const GRAVEL_ATLAS_CANDIDATE_LIMIT: Record<GravelAtlasPreference["intensity"], number> = {
+  balanced: 1,
+  more: 2,
+  maximum: 3
+}
 /** Nearby anchors are merged into one candidate within ~3 miles. */
 const ANCHOR_MERGE_MILES = 3
 /**
- * Distance-forcing swing applied to each candidate's anchors (fraction of
- * the envelope's lateral cap, alternating sides): candidate 0 keeps the raw
- * corridor, later candidates swing progressively wider so at least one
- * shaped route approaches the requested duration instead of hugging the
- * direct baseline.
+ * Distance-forcing swing applied to generic corridor anchors (fraction of
+ * the envelope's lateral cap, alternating sides). Verified Gravel Atlas
+ * anchors never use this because moving trusted geometry destroys evidence.
  */
 const CORRIDOR_SWINGS = [0, 0.55, 0.85, 1.0]
 
@@ -214,8 +230,8 @@ function forcedAnchors(
 
 /**
  * Rank corridor sources and merge them into at most four distinct anchor
- * sets inside the envelope. Deterministic: curvature first (by score), then
- * GPX, then hints; nearby anchors collapse into one candidate.
+ * sets inside the envelope. Deterministic: graph-backed RIG first, then
+ * explicitly enabled verified Gravel Atlas, curvature, GPX, and research hints.
  */
 export function buildAnchorSets(
   start: Coordinate,
@@ -249,6 +265,34 @@ export function buildAnchorSets(
       anchors,
       source: "rig",
       evidenceMiles: Math.max(0, corridor.evidenceMiles)
+    })
+  }
+
+  // Atlas exploration consumes a bounded part of the existing candidate
+  // budget. Balanced/More/Maximum map to at most 1/2/3 atlas corridors.
+  const atlas = sources.gravelAtlas
+  const atlasLimit = atlas?.preference.enabled
+    ? GRAVEL_ATLAS_CANDIDATE_LIMIT[atlas.preference.intensity]
+    : 0
+  const selectedGravel = atlas && atlasLimit > 0
+    ? selectGravelAtlasCorridors({
+        start,
+        finish,
+        envelope,
+        corridors: atlas.corridors,
+        maxCorridors: Math.min(atlasLimit, Math.max(0, MAX_ANCHOR_SETS - candidates.length))
+      })
+    : []
+  for (const selection of selectedGravel) {
+    if (candidates.length >= MAX_ANCHOR_SETS) break
+    const midpoint = selection.anchors[Math.floor(selection.anchors.length / 2)]
+    if (!midpoint || !distinct(midpoint)) continue
+    candidates.push({
+      id: `gravel-atlas-${selection.corridor.id}`,
+      label: selection.corridor.label,
+      anchors: selection.anchors.slice(0, MAX_ANCHORS_PER_SET),
+      source: "gravel-atlas",
+      evidenceMiles: selection.eligibleGravelMeters / 1609.344
     })
   }
 

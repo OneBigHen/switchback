@@ -55,6 +55,7 @@ function route(): SavedRoute {
     folder: "Unfiled",
     tags: [],
     visible: true,
+    libraryProvenance: { kind: "catalog-copy", sourceCatalogRouteId: "atlas-restore-1" },
     createdAt: "2026-08-12T10:00:00.000Z",
     updatedAt: "2026-08-12T10:00:00.000Z"
   }
@@ -90,6 +91,8 @@ describe("two-device recovery drill", () => {
 
     const restored = await secondRoutes.get("route-restore-1")
     expect(restored?.name).toBe("Restore route")
+    // Duplicate-detection identity for Save to My Rides must survive sync.
+    expect(restored?.libraryProvenance).toEqual({ kind: "catalog-copy", sourceCatalogRouteId: "atlas-restore-1" })
     expect((await secondStore.getState())?.namespaceId).toBe(firstState.namespaceId)
     expect((await secondStore.getState())?.linked).toBe(true)
   })

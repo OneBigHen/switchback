@@ -7,7 +7,7 @@ import {
 } from "@/lib/client/geo"
 import {
   browseAtlas,
-  classifyRegion,
+  formatDuration,
   lengthBucket,
   distanceFromAnchorMiles,
   DEFAULT_FILTERS,
@@ -22,16 +22,18 @@ function route(over: Partial<AtlasBrowseRoute>): AtlasBrowseRoute {
     tone: "Day loop",
     band: over.band ?? "mellow",
     distanceMiles: over.distanceMiles ?? 100,
-    durationMinutes: 0,
+    durationMinutes: over.durationMinutes ?? null,
     turnCount: over.turnCount ?? 100,
     twistiness: over.twistiness ?? 40,
     unpavedShare: null,
     bbox: over.bbox ?? null,
     region: over.region ?? null,
+    ridingAreas: over.ridingAreas ?? [],
     aspect: 1,
     paths: over.paths ?? ["M0 0 L10 10"],
     start: null,
-    end: null
+    end: null,
+    canUseGeometry: true
   }
 }
 
@@ -62,11 +64,12 @@ describe("geo maths", () => {
   })
 })
 
-describe("classifyRegion", () => {
-  it("files a centroid into its box, else Farther afield, else null", () => {
-    expect(classifyRegion([-80, 40.2, -79, 40.6])).toBe("Western Pennsylvania")
-    expect(classifyRegion([-120, 45, -119, 46])).toBe("Farther afield")
-    expect(classifyRegion(null)).toBeNull()
+describe("formatDuration", () => {
+  it("renders only a known duration", () => {
+    expect(formatDuration(null)).toBeNull()
+    expect(formatDuration(0)).toBeNull()
+    expect(formatDuration(45)).toBe("45 min")
+    expect(formatDuration(130)).toBe("2 hr 10 min")
   })
 })
 
@@ -102,6 +105,15 @@ describe("browseAtlas", () => {
     expect(browseAtlas([near, far], { ...DEFAULT_FILTERS, query: "haul" }, null).ranked.map((r) => r.route.id)).toEqual(["far"])
     expect(browseAtlas([near, far], { ...DEFAULT_FILTERS, lengths: ["big"] }, null).ranked.map((r) => r.route.id)).toEqual(["far"])
     expect(browseAtlas([near, far], { ...DEFAULT_FILTERS, bands: ["twisty"] }, null).ranked.map((r) => r.route.id)).toEqual(["near"])
+  })
+
+  it("filters by region and riding area, and search reaches both", () => {
+    const wilds = route({ id: "wilds", title: "Kettle Creek", region: "North-Central PA", ridingAreas: ["PA Wilds", "Pine Creek"] })
+    const jersey = route({ id: "jersey", title: "Delaware Water Gap", region: "New Jersey" })
+    expect(browseAtlas([wilds, jersey], { ...DEFAULT_FILTERS, region: "New Jersey" }, null).ranked.map((r) => r.route.id)).toEqual(["jersey"])
+    expect(browseAtlas([wilds, jersey], { ...DEFAULT_FILTERS, area: "Pine Creek" }, null).ranked.map((r) => r.route.id)).toEqual(["wilds"])
+    expect(browseAtlas([wilds, jersey], { ...DEFAULT_FILTERS, query: "pa wilds" }, null).ranked.map((r) => r.route.id)).toEqual(["wilds"])
+    expect(browseAtlas([wilds, jersey], { ...DEFAULT_FILTERS, query: "north-central" }, null).ranked.map((r) => r.route.id)).toEqual(["wilds"])
   })
 
   it("distanceFromAnchorMiles measures to the bbox centre", () => {

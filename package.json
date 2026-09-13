@@ -32,6 +32,7 @@
     "qa:pr": "npm run lint && npm run typecheck && npm test && npm run test:e2e:critical && npm run build",
     "quality:summary": "node scripts/qa/summarize-results.mjs",
     "routing:import": "scripts/graphhopper.sh import",
+    "routing:fingerprint": "scripts/graphhopper.sh fingerprint",
     "routing:start": "scripts/graphhopper.sh start",
     "data:bootstrap": "scripts/bootstrap-data.sh",
     "offline:build:pa": "node --max-old-space-size=2048 scripts/build-offline-v2.mjs data/pennsylvania-motorcycle.osm.pbf data/offline-regions pennsylvania Pennsylvania",
@@ -44,6 +45,12 @@
     "atlas:build": "node scripts/build-route-atlas.mjs",
     "atlas:verify": "node scripts/verify-route-atlas.mjs",
     "atlas:refresh": "npm run atlas:build && npm run atlas:verify",
+    "gravel-atlas:sources": "tsx scripts/build-gravel-atlas-sources.ts",
+    "gravel-atlas:graph": "tsx scripts/build-gravel-atlas-graph.ts",
+    "gravel-atlas:reconcile": "tsx scripts/reconcile-gravel-atlas.ts",
+    "gravel-atlas:verify-routability": "tsx scripts/verify-gravel-atlas-routability.ts",
+    "gravel-atlas:runtime": "tsx scripts/build-gravel-atlas-runtime.ts",
+    "gravel-atlas:refresh:nj": "npm run gravel-atlas:sources -- --sources=njgin-ng911 && npm run gravel-atlas:graph && npm run gravel-atlas:reconcile && npm run gravel-atlas:verify-routability && npm run gravel-atlas:runtime -- --input=data/gravel-atlas-verified-traversable.json",
     "doctor": "react-doctor --no-telemetry"
   },
   "dependencies": {

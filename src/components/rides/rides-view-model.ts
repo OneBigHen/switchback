@@ -1,5 +1,4 @@
-import type { ProjectGpxRouteSummary } from "@/lib/gpx/catalog"
-import { centerOfBbox, centerOfPath } from "@/lib/client/geo"
+import { centerOfPath } from "@/lib/client/geo"
 import { simplifyGeometry } from "@/lib/routing/scoring"
 import type { Coordinate } from "@/lib/routing/types"
 import type { RecordedRide } from "@/lib/storage/ride-journal"
@@ -53,42 +52,51 @@ export interface NormalizeRidesInput {
   savedRoutes?: SavedRoute[]
   recordedRides?: RecordedRide[]
   trips?: TripPlan[]
-  projectRoutes?: ProjectGpxRouteSummary[]
 }
 
 /**
- * Presentation-only adapter for the V2 Rides destination. Storage objects keep
- * their original ids and schemas; callers use `sourceId` + `kind` to dispatch
- * back to the existing load/delete/replay/import commands.
+ * Presentation-only adapter for rider-owned My Rides data. Shared catalog
+ * routes are intentionally not part of this input contract: they live in the
+ * Route Library and only enter My Rides as explicit `catalog-copy` saves.
  */
 export function normalizeRideLibrary({
   savedRoutes = [],
   recordedRides = [],
-  trips = [],
-  projectRoutes = []
+  trips = []
 }: NormalizeRidesInput): RideLibraryItem[] {
   const items: RideLibraryItem[] = [
-    ...savedRoutes.map((route): RideLibraryItem => ({
-      id: `saved:${route.id}`,
-      sourceId: route.id,
-      kind: "saved-route",
-      name: route.name,
-      sourceLabel: route.folder && route.folder !== "Unfiled" ? `Saved route · ${route.folder}` : "Saved route",
-      distanceMiles: route.distanceMiles,
-      durationMinutes: route.durationMinutes,
-      durationSource: "planned",
-      updatedAt: route.updatedAt,
-      center: centerOf(route.geometry),
-      geometry: previewGeometry(route.geometry),
-      tags: route.tags ?? [],
-      management: {
-        canDelete: true,
-        canMatchRoads: route.routingSource === "imported",
-        imported: route.routingSource === "imported",
-        folder: route.folder,
-        visible: route.visible
+    ...savedRoutes.map((route): RideLibraryItem => {
+      // Explicit ownership provenance is authoritative for new imports. Keep
+      // the routingSource fallback while legacy rows migrate from the old model.
+      const imported = route.libraryProvenance?.kind === "imported-file" || route.routingSource === "imported"
+      return {
+        id: `saved:${route.id}`,
+        sourceId: route.id,
+        kind: "saved-route",
+        name: route.name,
+        sourceLabel: imported
+          ? `Imported ${route.libraryProvenance?.kind === "imported-file" && route.libraryProvenance.sourceFormat
+              ? route.libraryProvenance.sourceFormat.toUpperCase()
+              : "route"}`
+          : route.folder && route.folder !== "Unfiled"
+            ? `Saved route · ${route.folder}`
+            : "Saved route",
+        distanceMiles: route.distanceMiles,
+        durationMinutes: route.durationMinutes,
+        durationSource: "planned",
+        updatedAt: route.updatedAt,
+        center: centerOf(route.geometry),
+        geometry: previewGeometry(route.geometry),
+        tags: route.tags ?? [],
+        management: {
+          canDelete: true,
+          canMatchRoads: imported,
+          imported,
+          folder: route.folder,
+          visible: route.visible
+        }
       }
-    })),
+    }),
     ...recordedRides.map((ride): RideLibraryItem => {
       const duration = recordedDuration(ride)
       return {
@@ -121,20 +129,6 @@ export function normalizeRideLibrary({
       geometry: previewGeometry(trip.route.geometry),
       tags: [],
       management: { canDelete: true }
-    })),
-    ...projectRoutes.map((route): RideLibraryItem => ({
-      id: `project:${route.id}`,
-      sourceId: route.id,
-      kind: "project-gpx",
-      name: route.name,
-      sourceLabel: `Project GPX · ${route.sourceProject}`,
-      distanceMiles: route.distanceMiles,
-      durationMinutes: route.durationMinutes,
-      durationSource: "planned",
-      updatedAt: null,
-      center: route.bbox ? centerOfBbox(route.bbox) : null,
-      tags: route.dataConfidenceLevel ? [`${route.dataConfidenceLevel} confidence`] : [],
-      management: { imported: true }
     }))
   ]
 

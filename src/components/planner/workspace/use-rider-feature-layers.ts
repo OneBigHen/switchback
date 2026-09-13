@@ -5,7 +5,7 @@ import type { RefObject } from "react"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import { useEffect, useRef, useState } from "react"
 import { emptyFeatureCollection } from "@/lib/client/map-data"
-import { riderFeatureUnavailableLayerIds, type RiderFeatureProvider } from "@/lib/client/rider-feature-availability"
+import { riderFeatureUnavailableLayerIds } from "@/lib/client/rider-feature-availability"
 import {
   featureMapLayerIds,
   paUnpavedRoadsQuery,
@@ -15,6 +15,7 @@ import {
   type RiderLayerId,
   type RiderLayerSetting
 } from "@/lib/client/map-layers"
+import type { RiderFeatureUnavailableSource } from "@/lib/map-features/osm"
 import { geoJsonSource, RIDER_FEATURE_SOURCE } from "../map-stage-sources"
 
 /**
@@ -39,9 +40,13 @@ export interface RiderFeatureLayersController {
   retryRiderFeatures(): void
 }
 
+interface RiderFeatureResponse extends FeatureCollection {
+  unavailable?: RiderFeatureUnavailableSource[]
+}
+
 /**
  * Owns fetching and status reporting for the three data-driven rider layers:
- * high-curvature roads, official PA unpaved roads, and OSM rider feature
+ * high-curvature roads, official PA unpaved roads, and OSM/local rider feature
  * layers. Verbatim extraction of the MapStage effect cluster so the map
  * component composes concerns instead of containing them.
  */
@@ -302,12 +307,14 @@ export function useRiderFeatureLayers(
           setRiderFeaturesStatus("error")
           return
         }
-        const collection = await response.json() as FeatureCollection & { unavailable?: RiderFeatureProvider[] }
+        const collection = await response.json() as RiderFeatureResponse
         if (!isCurrent(version)) return
-        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(collection)
+        // Provider health is API metadata, not GeoJSON map data. Keep it out of
+        // MapLibre while preserving all successfully returned features.
+        geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData({ type: "FeatureCollection", features: collection.features })
         // Tally per-layer counts so the Layers panel can answer "did this
         // layer load but find nothing in view?" — a very common case for
-        // sparse OSM data that previously looked indistinguishable from a
+        // sparse OSM/local data that previously looked indistinguishable from a
         // failed fetch.
         const counts: Record<string, number> = {}
         for (const feature of collection.features) {
@@ -331,10 +338,11 @@ export function useRiderFeatureLayers(
           }
           return next
         })
-        // Partial provider loss belongs to the affected layer badge. Keep the
-        // aggregate status ready when the federated endpoint answered so OSM
-        // or weather data that did succeed remains usable and visible.
-        setRiderFeaturesStatus("ready")
+        // Partial provider loss belongs to the affected layer badges: keep the
+        // aggregate status ready while any selected layer's provider answered,
+        // so successful OSM, weather, traffic or Atlas data stays visible.
+        const availableSelected = selectedLayers.filter((id) => !unavailableLayers.has(id))
+        setRiderFeaturesStatus(availableSelected.length > 0 ? "ready" : "error")
       } catch (caught) {
         if (!isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return
         geoJsonSource(map, RIDER_FEATURE_SOURCE)?.setData(emptyFeatureCollection())

@@ -7,13 +7,13 @@ const items: RideLibraryItem[] = [
   { id: "saved:1", sourceId: "1", kind: "saved-route", name: "Ridge Run", sourceLabel: "Saved route", distanceMiles: 82.4, durationMinutes: 128, durationSource: "planned", updatedAt: "2026-08-30T12:00:00Z", tags: ["weekend"] },
   { id: "recorded:2", sourceId: "2", kind: "recorded-ride", name: "Pine Barrens", sourceLabel: "Recorded ride", distanceMiles: 61.2, durationMinutes: 104, durationSource: "planned", updatedAt: "2026-08-29T12:00:00Z", tags: [] },
   { id: "trip:3", sourceId: "3", kind: "trip-plan", name: "Allegheny Weekend", sourceLabel: "Trip plan · 2 days", distanceMiles: 301, durationMinutes: 470, durationSource: "planned", updatedAt: "2026-08-28T12:00:00Z", tags: [] },
-  { id: "project:4", sourceId: "4", kind: "project-gpx", name: "Bald Eagle Track", sourceLabel: "Project GPX · ADV", distanceMiles: 48, durationMinutes: 92, durationSource: "planned", updatedAt: null, tags: ["high confidence"] }
+  { id: "saved:4", sourceId: "4", kind: "saved-route", name: "Bald Eagle Track", sourceLabel: "Imported GPX", distanceMiles: 48, durationMinutes: 92, durationSource: "planned", updatedAt: "2026-08-27T12:00:00Z", tags: ["high confidence"], management: { imported: true, canMatchRoads: true } }
 ]
 
 afterEach(cleanup)
 
 describe("Rides V2 presentation", () => {
-  it("shows source counts in accessible filter controls and one route identity graphic per row", () => {
+  it("shows personal source counts in accessible filter controls and one route identity graphic per row", () => {
     const { container } = render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 
     expect(screen.getByRole("button", { name: /All 4/i })).toHaveAttribute("aria-pressed", "true")
@@ -43,7 +43,7 @@ describe("Rides V2 presentation", () => {
       sourceId: "gpx",
       kind: "saved-route",
       name: "Luna PA NJ Synthetic Test",
-      sourceLabel: "Saved route",
+      sourceLabel: "Imported GPX",
       distanceMiles: 35.9,
       durationMinutes: 0,
       durationSource: "planned",
@@ -61,11 +61,11 @@ describe("Rides V2 presentation", () => {
     expect(within(row).queryByText("Planned")).not.toBeInTheDocument()
   })
 
-  it("keeps project GPX and imported-management identities aligned across cards, filters, and counts", () => {
+  it("keeps rider-owned import identity aligned across cards, filters, and counts", () => {
     const importedItems: RideLibraryItem[] = [
-      { ...items[3], id: "project:identity", name: "Project identity" },
-      { ...items[0], id: "saved:identity", name: "Management identity", management: { imported: true } },
-      { ...items[3], id: "project:both", name: "Both identity", management: { imported: true } },
+      { ...items[0], id: "saved:import-1", name: "GPX identity", management: { imported: true } },
+      { ...items[0], id: "saved:import-2", name: "KML identity", management: { imported: true } },
+      { ...items[0], id: "saved:import-3", name: "KMZ identity", management: { imported: true } },
       { ...items[0], id: "saved:planned", name: "Planned identity" },
       { ...items[0], id: "saved:explicit-false", name: "Explicit false identity", management: { imported: false } }
     ]
@@ -76,7 +76,7 @@ describe("Rides V2 presentation", () => {
     expect(screen.getByRole("button", { name: "Imported 3" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Planned 2" })).toBeInTheDocument()
 
-    for (const name of ["Project identity", "Management identity", "Both identity"]) {
+    for (const name of ["GPX identity", "KML identity", "KMZ identity"]) {
       const row = screen.getByRole("button", { name: `Open ${name}` })
       expect(within(row).getByText("Imported", { exact: true })).toBeInTheDocument()
     }
@@ -86,17 +86,17 @@ describe("Rides V2 presentation", () => {
     }
 
     fireEvent.click(screen.getByRole("button", { name: "Imported 3" }))
-    expect(screen.getByRole("button", { name: "Open Project identity" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open Management identity" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open Both identity" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open GPX identity" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open KML identity" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open KMZ identity" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Open Planned identity" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Open Explicit false identity" })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Planned 2" }))
     expect(screen.getByRole("button", { name: "Open Planned identity" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open Explicit false identity" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Open Project identity" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Open Management identity" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Open Both identity" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open GPX identity" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open KML identity" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open KMZ identity" })).not.toBeInTheDocument()
   })
 })

@@ -1,4 +1,4 @@
-# Switchback Design Contract V2.0
+# OpenGravel Design Contract V2.0
 
 Status: **replacement visual and interaction source of truth**  
 Baseline: `main@2774091a1dbb5205145c018689da1083ff34b90f`  
@@ -9,7 +9,7 @@ This contract supersedes `design/archive/DESIGN-CONTRACT-v1.1.0.md`. Do not main
 
 ## 1. Visual thesis
 
-Switchback should look like a purpose-built route instrument that happens to be beautifully branded.
+OpenGravel should look like a purpose-built route instrument that happens to be beautifully branded.
 
 It should evoke:
 - topographic maps,
@@ -35,7 +35,7 @@ These values are extracted from the owner's approved brand boards and are canoni
 
 | Brand token | Hex | Purpose |
 |---|---:|---|
-| Switchback Ink | `#161D1C` | deepest chrome, dark canvas, primary text |
+| OpenGravel Ink | `#161D1C` | deepest chrome, dark canvas, primary text |
 | Deep Spruce | `#243A35` | dark raised surfaces, secondary dark chrome |
 | Trail Moss | `#65745D` | muted semantic accent, valid normal text on Paper |
 | Topo Sage | `#9DA98F` | quiet fills, map/topo accents, decorative rules |
@@ -58,6 +58,8 @@ Brand colors may not be altered casually. These derived functional colors exist 
 - `--sb-success: #3E6B55` light / `#72A98A` dark.
 - `--sb-border-dark: #3B4945`.
 - `--sb-dark-raised: #1C2825`.
+
+The `--sb-*` token prefix is a compatibility-stable technical identifier during the OpenGravel transition; it is not rider-facing branding and must not be renamed casually.
 
 Ember is not body text on Paper. Topo Sage is not body text on Paper. Golden Hour is not body text on Paper.
 
@@ -179,7 +181,7 @@ Not allowed:
 
 ## 8. Logo use
 
-Use the approved Switchback mark. Do not create a new symbol during the redesign.
+Use the approved OpenGravel field mark: mountain ridges, a winding road, and one restrained Ember navigation accent. Keep the symbol simple enough to read in the desktop rail and PWA icon, and do not add ornamental mascot detail to the core navigation mark.
 
 Display it:
 - desktop rail header,
@@ -189,18 +191,18 @@ Display it:
 
 Do not repeat the full wordmark and tagline inside the Plan bottom sheet.
 
-The tagline **“Find the roads worth riding.”** is reserved for:
+The brand tagline **“Open routes. A wilder tomorrow.”** is reserved for:
 - external/public brand surfaces,
 - Discover empty/first-use moments,
 - launch/about.
 
-It is not planner filler.
+The functional line **“Find routes worth riding.”** may be used where a concise explanation of the product is useful. Neither line is planner filler.
 
 ## 9. Icons
 
 - Continue using Phosphor for generic controls.
 - Use consistent 20px/24px sizes.
-- Use custom SVG only for the Switchback mark and product-specific map/route glyphs.
+- Use custom SVG only for the OpenGravel mark and product-specific map/route glyphs.
 - Eliminate sparkles as a generic “smart/AI” signifier.
 - Free Ride should use a winding-road/route glyph, not a magic sparkle.
 - Icon-only buttons require accessible names and tooltips on hover-capable devices.

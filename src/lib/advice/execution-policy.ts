@@ -1,4 +1,5 @@
 import type { AdviceRequest, AdvisorToolbox, AdvisorToolDefinition } from "./contracts"
+import { classifyAdvisorAction } from "./action-policy"
 
 /**
  * Which shape of turn this question needs — decided in code, before any model
@@ -94,6 +95,14 @@ export function classifyTurn(input: AdviceRequest): AdvisorExecutionMode {
 
   const text = normalise(message)
   if (text.length === 0) return "route-only"
+
+  // Action intent is a stronger signal than generic discovery words. A pure
+  // reroute is only choosing among Switchback's already-computed candidates,
+  // so it should stay on the fast one-shot path. A reroute that asks for a stop
+  // must have place tools no matter what other comparison words it contains.
+  const action = classifyAdvisorAction(input)
+  if (action === "reroute") return "route-only"
+  if (action === "route-with-stop" || action === "stop-scout") return "tool-assisted"
 
   if (DISCOVERY_VERBS.some((verb) => containsWord(text, verb))) return "tool-assisted"
   if (PLACE_NOUNS.some((noun) => containsWord(text, noun))) return "tool-assisted"

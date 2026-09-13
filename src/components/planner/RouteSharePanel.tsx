@@ -2,6 +2,7 @@
 
 import { Copy, ShareNetwork } from "@phosphor-icons/react"
 import { useMemo, useState } from "react"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import { createPortableShare, type PrivacyZone } from "@/lib/share/route-share"
 import type { PlannedRoute } from "@/lib/routing/types"
 
@@ -33,7 +34,7 @@ export function RouteSharePanel({ route, onShareCreated }: RouteSharePanelProps)
     try {
       const share = createPortableShare(route, zones, window.location.origin)
       if (nativeShare && navigator.share) {
-        await navigator.share({ title: route.name, text: "A private Switchback route copy", url: share.url })
+        await navigator.share({ title: route.name, text: `A private ${PRODUCT_BRAND.name} route copy.`, url: share.url })
         setMessage("Private route copy shared. Your protected zones were removed first.")
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(share.url)
@@ -51,7 +52,7 @@ export function RouteSharePanel({ route, onShareCreated }: RouteSharePanelProps)
     <section className="route-share-panel" aria-label="Private route sharing">
       <div>
         <strong>Share an editable copy</strong>
-        <p>Switchback removes the selected start/end zones before creating a portable link. It does not expose live location or your saved original.</p>
+        <p>{PRODUCT_BRAND.name} removes the selected start/end zones before creating a portable link. It does not expose live location or your saved original.</p>
       </div>
       <div className="route-share-controls">
         <label><input type="checkbox" checked={protectStart} onChange={(event) => setProtectStart(event.currentTarget.checked)} /> Hide start</label>

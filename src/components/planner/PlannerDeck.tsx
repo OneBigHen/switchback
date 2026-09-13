@@ -28,6 +28,10 @@ import { usePlannerStore } from "@/stores/planner-store"
 import { DownloadModePicker, DOWNLOAD_MODE_PICKER_DEFAULT, type DownloadModePickerValue } from "./DownloadModePicker"
 import { KeyboardScope } from "./a11y"
 import { ContextSheet } from "./workspace/ContextSheet"
+import {
+  isCompactWorkspaceWidth,
+  readWorkspaceViewportWidth
+} from "./workspace/workspace-mode"
 import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { isActivePlanningPhase } from "./PlannerDeckViewModel"
@@ -52,9 +56,14 @@ interface VoiceRecognition {
 type VoiceRecognitionConstructor = new () => VoiceRecognition
 
 function isPhoneViewport(): boolean {
-  return typeof window !== "undefined"
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(max-width: 760px)").matches
+  // Resolve through the canonical workspace-mode authority (issue #115) rather
+  // than a component-local media query, so the sheet detent, the map insets and
+  // the route renderer all agree on what "compact" means.
+  //
+  // A missing viewport (server render, unmeasured node) is deliberately NOT
+  // treated as compact: the previous implementation returned false there too.
+  const width = readWorkspaceViewportWidth()
+  return width !== null && isCompactWorkspaceWidth(width)
 }
 
 interface PlannerDeckProps {
@@ -83,6 +92,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const curvatureVisible = rideConfig.curvatureVisible
   const avoidHighways = rideConfig.avoidHighways
   const tollPolicy = rideConfig.tollPolicy
+  // Ride intent is canonical store state. Subscribe directly so this additive
+  // control does not require every older presentation fixture to grow a field.
+  const gravelAtlas = usePlannerStore((state) => state.gravelAtlas)
   const savedCount = ui.savedCount
   const segmentProfiles = rideConfig.segmentProfiles
   const avoidAreaCount = rideConfig.avoidAreaCount
@@ -128,6 +140,18 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onCurvatureChange = rc.onCurvatureChange
   const onAvoidHighwaysChange = rc.onAvoidHighwaysChange
   const onTollPolicyChange = rc.onTollPolicyChange
+  const onGravelAtlasChange = rc.onGravelAtlasChange ?? ((preference: typeof gravelAtlas) => {
+    const current = usePlannerStore.getState()
+    const hadPlan = Boolean(current.plan)
+    const outcome = current.editRide(
+      { gravelAtlas: preference },
+      preference.enabled ? `Favored known gravel (${preference.intensity})` : "Stopped favoring known gravel"
+    )
+    // The normal planning session fences/aborts its predecessor before running,
+    // so an existing route can be refreshed immediately without a second state
+    // authority or a shell-only closure.
+    if (outcome === "applied" && hadPlan) commands.onPlan()
+  })
   const onPlanModeChange = rc.onPlanModeChange
   const onRideTimeChange = rc.onRideTimeChange
   const onSegmentProfileChange = rc.onSegmentProfileChange
@@ -181,7 +205,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     ? formatDistanceMiles(selectedRoute.distanceMiles, units)
     : null
   const selectedRouteMeta = selectedRoute && selectedRouteDistance
-    ? `${Math.round(selectedRoute.durationMinutes)} min · ${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
+    ? `${selectedRoute.durationMinutes > 0 ? `${Math.round(selectedRoute.durationMinutes)} min · ` : ""}${selectedRouteDistance.value}${selectedRouteDistance.unit ? ` ${selectedRouteDistance.unit}` : ""}${selectedProfileLabel ? ` · ${selectedProfileLabel}` : ""}`
     : null
   const timeboxMismatch = getLoopTimeboxMismatch(selectedRoute)
   // Acceptance belongs to the exact result the rider was shown, not to a route
@@ -391,6 +415,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 curvatureVisible={curvatureVisible}
                 avoidHighways={avoidHighways}
                 tollPolicy={tollPolicy}
+                gravelAtlas={gravelAtlas}
                 targetMinutes={targetMinutes}
                 timeShaped={timeShaped}
                 segmentProfiles={segmentProfiles}
@@ -424,6 +449,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 onCurvatureChange={onCurvatureChange}
                 onAvoidHighwaysChange={onAvoidHighwaysChange}
                 onTollPolicyChange={onTollPolicyChange}
+                onGravelAtlasChange={onGravelAtlasChange}
                 onRideTimeChange={onRideTimeChange}
                 onSegmentProfileChange={onSegmentProfileChange}
                 onOpenRoadLocks={() => setRoadLocksOpen(true)}

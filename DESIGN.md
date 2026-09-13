@@ -1,4 +1,4 @@
-# Switchback UX V2 Design System
+# OpenGravel UX V2 Design System
 
 ## Authority
 
@@ -6,7 +6,7 @@
 
 ## Mode and thesis
 
-Switchback is an **Operate** surface: a cartographic field instrument for motorcycle riders. The map supplies atmosphere and geographic orientation; the chrome supplies compact, reliable control. The interface should feel premium, rugged, tactile, and calm without becoming decorative or costume-like.
+OpenGravel is an **Operate** surface: a cartographic field instrument for motorcycle riders. The map supplies atmosphere and geographic orientation; the chrome supplies compact, reliable control. The interface should feel premium, rugged, tactile, and calm without becoming decorative or costume-like.
 
 The primary journey is Plan, Decide, Prepare, Ride, and Review. Rides and Discover support that journey without displacing the persistent map workspace. Every surface exposes one dominant next action and retains a clear recovery or exit path.
 

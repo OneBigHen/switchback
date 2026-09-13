@@ -1,11 +1,27 @@
 import type { PlannedRoute } from "../routing/types"
 import Dexie, { type EntityTable } from "dexie"
 
+export type SavedRouteSourceFormat = "gpx" | "kml" | "kmz"
+
+export type SavedRouteLibraryProvenance =
+  | { kind: "planned" }
+  | {
+      kind: "imported-file"
+      sourceFormat: SavedRouteSourceFormat
+      sourceFileName: string
+      importedAt: string
+      fingerprint?: string
+    }
+  | { kind: "catalog-copy"; sourceCatalogRouteId: string }
+  | { kind: "recording-derived" }
+  | { kind: "trip-derived" }
+
 export interface SavedRoute extends PlannedRoute {
   notes: string
   folder: string
   tags: string[]
   visible: boolean
+  libraryProvenance: SavedRouteLibraryProvenance
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +48,13 @@ class SwitchbackDatabase extends Dexie {
     this.version(2).stores({
       routes: "&id, name, profile, folder, *tags, visible, createdAt, updatedAt"
     })
+    this.version(3)
+      .stores({
+        routes: "&id, name, profile, folder, *tags, visible, createdAt, updatedAt"
+      })
+      .upgrade((transaction) => transaction.table("routes").toCollection().modify((route: { libraryProvenance?: SavedRouteLibraryProvenance }) => {
+        if (!route.libraryProvenance) route.libraryProvenance = { kind: "planned" }
+      }))
   }
 }
 
@@ -49,7 +72,11 @@ export class RouteLibrary {
     return new Date(timestamp).toISOString()
   }
 
-  async save(route: PlannedRoute, notes = ""): Promise<SavedRoute> {
+  async save(
+    route: PlannedRoute,
+    notes = "",
+    libraryProvenance?: SavedRouteLibraryProvenance
+  ): Promise<SavedRoute> {
     if (route.previewOnly) {
       throw new Error("Preview-only geometry cannot be saved as a routed trip")
     }
@@ -61,6 +88,7 @@ export class RouteLibrary {
       folder: existing?.folder ?? "Unfiled",
       tags: existing?.tags ?? [],
       visible: existing?.visible ?? true,
+      libraryProvenance: libraryProvenance ?? existing?.libraryProvenance ?? { kind: "planned" },
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp
     }
@@ -70,6 +98,14 @@ export class RouteLibrary {
 
   async get(id: string): Promise<SavedRoute | undefined> {
     return this.database.routes.get(id)
+  }
+
+  async findCatalogCopy(sourceCatalogRouteId: string): Promise<SavedRoute | undefined> {
+    const routes = await this.database.routes.orderBy("updatedAt").reverse().toArray()
+    return routes.find((route) =>
+      route.libraryProvenance.kind === "catalog-copy" &&
+      route.libraryProvenance.sourceCatalogRouteId === sourceCatalogRouteId
+    )
   }
 
   async upsertSynced(route: SavedRoute): Promise<void> {

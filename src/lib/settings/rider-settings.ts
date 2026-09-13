@@ -1,4 +1,4 @@
-import { layerCatalog, type RiderLayerId } from "@/lib/client/map-layers"
+import { migrateRiderLayerId, type RiderLayerId } from "@/lib/client/map-layers"
 import type { RouteProfileId } from "@/lib/routing/types"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 
@@ -98,7 +98,6 @@ const ROUTE_PROFILES = new Set<RouteProfileId>([
   "avoid-highways",
   "neural"
 ])
-const RIDER_LAYER_IDS = new Set<RiderLayerId>(layerCatalog.map((layer) => layer.id))
 
 function boundedKnownValues<T extends string>(value: unknown, allowed: ReadonlySet<T>, max?: number): T[] {
   if (!Array.isArray(value)) return []
@@ -111,10 +110,28 @@ function boundedKnownValues<T extends string>(value: unknown, allowed: ReadonlyS
   return result
 }
 
+/**
+ * Quick-layer preferences are durable rider state, so retired ids are migrated
+ * rather than discarded. This keeps an existing "unpaved" shortcut attached
+ * to the unified Gravel Atlas after the PA-only layer is retired.
+ */
+function boundedRiderLayers(value: unknown, max: number): RiderLayerId[] {
+  if (!Array.isArray(value)) return []
+  const result: RiderLayerId[] = []
+  for (const candidate of value) {
+    if (typeof candidate !== "string") continue
+    const migrated = migrateRiderLayerId(candidate)
+    if (!migrated || result.includes(migrated)) continue
+    result.push(migrated)
+    if (result.length >= max) break
+  }
+  return result
+}
+
 export function defaultRiderUiPreferences(): RiderUiPreferences {
   return {
     planQuickActions: ["free-ride", "record"],
-    quickLayers: ["curvature", "unpaved"],
+    quickLayers: ["curvature", "gravel-atlas"],
     rideMetrics: ["eta", "remaining-distance", "speed"],
     recordingMetrics: ["elapsed", "distance", "speed"],
     routeDetailOrder: [...ROUTE_DETAIL_ORDER],
@@ -128,7 +145,7 @@ export function validateRiderUiPreferences(value: unknown): RiderUiPreferences {
   const input = value as Record<string, unknown>
 
   const planQuickActions = boundedKnownValues(input.planQuickActions, new Set(PLAN_QUICK_ACTIONS), 4)
-  const quickLayers = boundedKnownValues(input.quickLayers, RIDER_LAYER_IDS, 4)
+  const quickLayers = boundedRiderLayers(input.quickLayers, 4)
   const rideMetrics = boundedKnownValues(input.rideMetrics, new Set(RIDE_METRICS), 3)
   const recordingMetrics = boundedKnownValues(input.recordingMetrics, new Set(RECORDING_METRICS), 3)
   const suppliedOrder = boundedKnownValues(input.routeDetailOrder, new Set(ROUTE_DETAIL_ORDER))

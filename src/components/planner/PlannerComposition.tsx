@@ -13,6 +13,7 @@ import {
   type RouteDetailsWorkspaceState
 } from "./planner-route-details-state"
 import { RouteTrafficSummary } from "./RouteTrafficSummary"
+import { useWorkspaceMode } from "./workspace/use-workspace-mode"
 import { RouteDecisionRail } from "./v2/RouteDecisionRail"
 import { RideAdvisor } from "./v2/RideAdvisor"
 import { RideIntentFeedback } from "./RideIntentFeedback"
@@ -38,8 +39,10 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
   const {
     deck: deckCommands,
     addAdvisorStop: onAddAdvisorStop,
+    routeWithAdvisorStop: onRouteWithAdvisorStop,
     planAdvisorRide: onPlanAdvisorRide
   } = commands
+  const workspaceMode = useWorkspaceMode()
   const [details, setDetails] = useState<RouteDetailsWorkspaceState | null>(null)
   // Clearing the plan ends the workspace. Route ids are derived from profile and
   // geometry, so replanning the same trip yields the same ids — a details state
@@ -97,6 +100,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
   return (
     <div
       aria-busy={bootstrapPending || undefined}
+      data-workspace-mode={workspaceMode}
       style={{ display: "contents" }}
     >
       <PlannerDeck viewModel={viewModel} commands={deckCommands}>
@@ -120,8 +124,10 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
             routes={comparison?.routes ?? NO_ROUTES}
             selectedRouteId={comparison?.selectedId ?? ""}
             warnings={planWarnings}
+            resultRevision={viewModel.ui.resultRevision}
             origin={advisorOrigin}
             onAddStop={onAddAdvisorStop}
+            {...(onRouteWithAdvisorStop ? { onRouteWithStop: onRouteWithAdvisorStop } : {})}
             {...(comparison ? { onSelectRoute: selectRoute } : {})}
             {...(onPlanAdvisorRide ? { onPlanRide: onPlanAdvisorRide } : {})}
           />

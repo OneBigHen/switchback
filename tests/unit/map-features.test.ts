@@ -120,6 +120,22 @@ describe("rider map feature HTTP contract", () => {
     expect(await response.json()).toEqual(collection)
   })
 
+  it("never lets shared caches hold build-specific Gravel Atlas answers", async () => {
+    const provider = vi.fn(async () => collection)
+    const atlas = await handleMapFeaturesRequest(
+      new Request("http://switchback.test/api/map-features?bbox=-74.52,39.62,-74.38,39.80&layers=fuel,gravel-atlas"),
+      provider
+    )
+    expect(atlas.status).toBe(200)
+    expect(atlas.headers.get("cache-control")).toBe("no-store")
+
+    const ordinary = await handleMapFeaturesRequest(
+      new Request("http://switchback.test/api/map-features?bbox=-74.52,39.62,-74.38,39.80&layers=fuel"),
+      provider
+    )
+    expect(ordinary.headers.get("cache-control")).toContain("public")
+  })
+
   it("rejects unbounded or unsupported layers before calling an upstream provider", async () => {
     const provider = vi.fn()
     const response = await handleMapFeaturesRequest(

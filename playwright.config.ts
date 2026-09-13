@@ -5,6 +5,10 @@ const testMode = process.env.SWITCHBACK_E2E_MODE ?? "existing"
 const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111" : "3110")
 const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
+// The shared Route Library is read from disk by server components, so browser
+// tests cannot stub it with page.route. Serve the committed fixture catalog
+// instead of whatever (gitignored) data/gpx-library a machine happens to hold.
+const routeLibraryFixture = "tests/fixtures/route-library"
 // The mobile-qa tree is owned exclusively by playwright.mobile.config.ts.
 const mobileQaTree = /\/e2e\/mobile-qa\//
 const qualitySuites = /\/e2e\/(critical|real-router|pwa|visual)\//
@@ -13,7 +17,7 @@ const roadLockSpec = /\/road-lock\.spec\.ts$/
 // Every spec under tests/e2e/critical/ must be named here: the tree is excluded
 // from the broad projects by `qualitySuites`, so a spec this list forgets runs
 // in no project at all and silently guards nothing.
-const criticalMainMatch = /\/e2e\/critical\/(planner-journeys|navigation-ia|planner-surface-composition|sketch-recovery|route-details-identity|community-routes)\.spec\.ts$/
+const criticalMainMatch = /\/e2e\/critical\/(planner-journeys|navigation-ia|planner-surface-composition|sketch-recovery|route-details-identity|community-routes|origin-authority|route-library-ownership|adaptive-workspace)\.spec\.ts$/
 const criticalWebkitSmokeMatch = /\/e2e\/critical\/webkit-smoke\.spec\.ts$/
 const realRouterMatch = /\/e2e\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/e2e\/pwa\/.*\.spec\.ts$/
@@ -111,7 +115,7 @@ export default defineConfig({
     }
   ],
   webServer: externalBaseUrl ? undefined : {
-    command: `SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
+    command: `node scripts/copy-maplibre-worker.mjs && GPX_LIBRARY_PATH=${routeLibraryFixture} SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
       ? `npx next start --hostname 127.0.0.1 --port ${testPort}`
       : `npx next dev --hostname 127.0.0.1 --port ${testPort}`}`,
     url: localBaseUrl,

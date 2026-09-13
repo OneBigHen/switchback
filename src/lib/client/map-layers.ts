@@ -26,7 +26,9 @@ export type MapStyleId = LegacyMapStyleId
 
 export type RiderLayerId =
   | "curvature"
+  /** @deprecated Stored pre-Gravel-Atlas layer id. Normalize to `gravel-atlas`. */
   | "unpaved"
+  | "gravel-atlas"
   | "public-land"
   | "private-land"
   | "mvum"
@@ -135,6 +137,7 @@ export type RiderLayerRuntime =
   | { kind: "features" }
 
 export const featureMapLayerIds = [
+  "gravel-atlas",
   "public-land",
   "private-land",
   "mvum",
@@ -175,12 +178,12 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
     legend: "Warmer, heavier line = denser bends", minZoom: 7
   },
   {
-    id: "unpaved", name: "PA unpaved roads", category: "roads", status: "regional",
-    source: "Pennsylvania Spatial Data Access (PASDA)",
-    provenance: `${PA_UNPAVED_ROADS_PROVENANCE}. Government-published historic regional unpaved-road survey; mapped surface evidence only — not legal/public access, passability, maintenance, or current openness. Verify currency against provider release notes.`,
+    id: "gravel-atlas", name: "Known gravel roads", category: "roads", status: "regional",
+    source: "Switchback Gravel Atlas",
+    provenance: "Graph-verified gravel and unimproved-road corridors reconciled from Government-published official source snapshots and the active motorcycle routing graph. Surface evidence is not a guarantee of legal access, current openness, or passability.",
     dataCategory: "road-surface",
-    freshness: "Dataset version shown by provider", coverage: "Pennsylvania",
-    legend: "Brown dashed line = mapped unpaved-road survey", minZoom: PA_UNPAVED_ROADS_MIN_ZOOM
+    freshness: "Source snapshot + routing-graph fingerprint", coverage: "New Jersey only",
+    legend: "Tan dashed line = graph-verified known gravel corridor", minZoom: 8
   },
   {
     id: "public-land", name: "Protected and public land", category: "access", status: "live",
@@ -281,7 +284,7 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
   {
     id: "cell-coverage", name: "Cell towers", category: "conditions", status: "live",
     source: "OpenStreetMap communications tags",
-    provenance: "OpenStreetMap man_made=mast and communication:mobile_phone=yes nodes. Tower locations only — not signal strength, not carrier availability, not a coverage guarantee.",
+    provenance: "OpenStreetMap man_made=mast and communication:mobile_phone=yes tags. Tower locations only — not signal strength, not carrier availability, not a coverage guarantee.",
     dataCategory: "conditions-connectivity",
     freshness: "Community-maintained", coverage: "Mapped towers",
     legend: "Purple marker = mapped tower, not a coverage guarantee", minZoom: 9
@@ -293,7 +296,7 @@ const catalogIds = new Set<RiderLayerId>(layerCatalog.map((layer) => layer.id))
 export function defaultRiderLayerSettings(): RiderLayerSetting[] {
   return layerCatalog.map((layer, order) => ({
     id: layer.id,
-    visible: layer.id === "unpaved",
+    visible: false,
     opacity: 1,
     order
   }))
@@ -317,13 +320,14 @@ export function catalogLayerSettings(settings: readonly RiderLayerSetting[]): Ca
 }
 
 /**
- * Layer ids that have been renamed. A rider's saved choice must survive the
- * rename: `traffic` was always OSM signals and stops, never live congestion,
- * and it is called `road-controls` now that real traffic is arriving as its
- * own thing. Dropping the old id would silently reset a saved map pack.
+ * Layer ids that have been renamed. A rider's saved choice must survive each
+ * rename. `traffic` was always OSM signals and stops, never live congestion;
+ * `unpaved` was the PA-only PASDA overlay and now migrates into the unified,
+ * graph-verified Pennsylvania/New Jersey Gravel Atlas surface layer.
  */
 const RENAMED_LAYER_IDS: Record<string, RiderLayerId> = {
-  traffic: "road-controls"
+  traffic: "road-controls",
+  unpaved: "gravel-atlas"
 }
 
 /**
@@ -366,7 +370,7 @@ export function normalizeRiderLayerSettings(settings: readonly RiderLayerSetting
   }
   return layerCatalog.map((layer, fallbackOrder) => selected.get(layer.id) ?? {
     id: layer.id,
-    visible: layer.id === "unpaved",
+    visible: false,
     opacity: 1,
     order: layerCatalog.length + fallbackOrder
   }).sort((a, b) => a.order - b.order || layerCatalog.findIndex((layer) => layer.id === a.id) - layerCatalog.findIndex((layer) => layer.id === b.id))

@@ -1,6 +1,8 @@
 "use client"
 
 import { Compass, GearSix, MapTrifold, Path, Record } from "@phosphor-icons/react"
+import { OpenGravelMark } from "@/components/brand/OpenGravelMark"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import type { PrimaryDestination } from "@/lib/client/app-navigation"
 
 const destinations: Array<{
@@ -21,7 +23,7 @@ interface AppNavigationProps {
 }
 
 /**
- * Primary navigation owns Switchback's four persistent destinations. Record is
+ * Primary navigation owns OpenGravel's four persistent destinations. Record is
  * intentionally separate because it starts a task rather than changing the
  * rider's top-level place in the application.
  */
@@ -33,13 +35,11 @@ export function AppNavigation({
   return (
     <nav className="app-navigation" aria-label="Primary">
       <div className="app-navigation-brand">
-        <span className="switchback-mark" aria-hidden="true">
-          <svg viewBox="0 0 44 44" focusable="false">
-            <path d="M9 12h17c5 0 8 2 8 6s-3 6-8 6H18c-5 0-8 2-8 7s4 7 9 7h16" />
-            <path d="m28 8 6 4-6 4M16 28l-6 4 6 4" />
-          </svg>
+        <OpenGravelMark className="open-gravel-mark" />
+        <span>
+          <strong>{PRODUCT_BRAND.name}</strong>
+          <small>Gravel &amp; backroad routing</small>
         </span>
-        <span><strong>Switchback</strong><small>Motorcycle routing</small></span>
       </div>
       <div className="app-navigation-primary" role="group" aria-label="Primary destinations">
         {destinations.map(({ destination, label, icon: Icon }) => (

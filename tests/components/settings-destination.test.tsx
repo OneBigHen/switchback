@@ -64,7 +64,8 @@ describe("SettingsDestination", () => {
     const onOpenAdvancedSettings = vi.fn()
     render(<SettingsDestination theme="auto" onThemeChange={vi.fn()} onOpenAdvancedSettings={onOpenAdvancedSettings} />)
 
-    expect(screen.getByRole("region", { name: "Customize Switchback" })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Customize OpenGravel" })).toBeInTheDocument()
+    expect(screen.queryAllByText(/Switchback/i)).toHaveLength(0)
     fireEvent.click(screen.getByRole("button", { name: "Account, sync & data" }))
     expect(onOpenAdvancedSettings).toHaveBeenCalledOnce()
   })

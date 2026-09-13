@@ -38,8 +38,8 @@ test("moving between destinations updates the URL and the visible surface", asyn
 
   await primary.getByRole("button", { name: "Rides" }).click()
   await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
-  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
   await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
   await expect(activeDestination(page)).toHaveText("Rides")
 
@@ -104,8 +104,8 @@ test("moving between destinations updates the URL and the visible surface", asyn
 test("legacy ?tab=library deep link lands on the Rides destination", async ({ page }) => {
   await page.goto("/?tab=library")
 
-  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
   await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
   await expect(page).toHaveURL(/[?&]tab=library(?:&|$)/)
   await expect(activeDestination(page)).toHaveText("Rides")

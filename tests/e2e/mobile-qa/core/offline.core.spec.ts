@@ -29,7 +29,7 @@ test("offline keeps the local Rides destination honest and recovers online witho
   await expectMobileAppReady(page)
   await page.getByRole("button", { name: "Rides", exact: true }).tap()
   await expect(page).toHaveURL(/tab=rides/)
-  await expect(page.getByRole("heading", { name: "Rides", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   const localRoute = page.getByRole("button", { name: `Open ${route.name}` })
   await expect(localRoute).toBeVisible()
   await mobileQa.setNetwork("offline")

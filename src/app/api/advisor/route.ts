@@ -48,6 +48,7 @@ const candidateSchema = object_({
   durationMinutes: number({ finite: true, min: 0, max: 100_000 }),
   twistiness: number({ finite: true, min: 0, max: 100 }),
   turnCount: number({ finite: true, min: 0, max: 100_000 }),
+  geometry: optional(array(coordinateSchema, { min: 2, max: 64 })),
   roadMix: optional(object_({}, { passthrough: true })),
   surfaceMix: optional(object_({}, { passthrough: true })),
   officialUnpavedSharePercent: optional(number({ finite: true, min: 0, max: 100 }))

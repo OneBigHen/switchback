@@ -16,6 +16,17 @@ describe("riderFeatureUnavailableLayerIds", () => {
     )).toEqual(["fuel", "repair", "weather"])
   })
 
+  it("maps a Gravel Atlas outage only to the Known gravel roads layer, never to OSM layers", () => {
+    expect(riderFeatureUnavailableLayerIds(
+      ["gravel-atlas"],
+      ["fuel", "gravel-atlas", "live-traffic"]
+    )).toEqual(["gravel-atlas"])
+    expect(riderFeatureUnavailableLayerIds(
+      ["osm"],
+      ["fuel", "gravel-atlas"]
+    )).toEqual(["fuel"])
+  })
+
   it("ignores unavailable providers for layers that were not requested", () => {
     expect(riderFeatureUnavailableLayerIds(
       ["traffic"],
