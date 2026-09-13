@@ -1,5 +1,6 @@
 import type { Coordinate } from "@/lib/routing/types"
 import { haversine } from "@/lib/routing/scoring"
+import { sumElevationChanges } from "@/lib/client/geo-math"
 import type { GpxStreamDocument, GpxStreamPoint, GpxStreamSegment } from "@/lib/gpx/streaming-parser"
 
 export interface NormalizedGpxWaypoint {
@@ -111,20 +112,16 @@ function elevationMetrics(groups: SourceGroup[]): { ascent: number; descent: num
   let hasElevation = false
   for (const group of groups) {
     for (const segment of group.segments) {
-      let previous: number | null = null
-      for (const point of segment.points) {
-        if (point.elevationMeters === null) {
-          previous = null
-          continue
-        }
+      if (!hasElevation && segment.points.some((point) => point.elevationMeters !== null)) {
         hasElevation = true
-        if (previous !== null) {
-          const change = point.elevationMeters - previous
-          if (change > 0) ascent += change
-          else descent += Math.abs(change)
-        }
-        previous = point.elevationMeters
       }
+      // One shared elevation computation with the Recon adapters: same
+      // null-resets-previous convention, no forked arithmetic.
+      const totals = sumElevationChanges(
+        segment.points.map((point) => point.elevationMeters)
+      )
+      ascent += totals.ascentMeters
+      descent += totals.descentMeters
     }
   }
   return { ascent, descent, hasElevation }

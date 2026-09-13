@@ -23,6 +23,8 @@ interface ReplayTimeline {
   /** Normalized cumulative times (start at zero); recorded tracks only. */
   timesMs: number[];
   distancesMeters: number[];
+  /** Heading per segment, carried through stops; see resolveSegmentBearings. */
+  bearingsDegrees: number[];
   totalDurationMs: number | null;
   totalDistanceMeters: number;
 }
@@ -38,12 +40,14 @@ function buildTimeline(track: ReconTrack): ReplayTimeline | null {
 
   const distancesMeters = cumulativeDistancesMeters(points);
   const totalDistanceMeters = distancesMeters[distancesMeters.length - 1]!;
+  const bearingsDegrees = resolveSegmentBearings(points);
 
   if (track.playbackKind === "preview") {
     return {
       points,
       timesMs: [],
       distancesMeters,
+      bearingsDegrees,
       totalDurationMs: null,
       totalDistanceMeters,
     };
@@ -69,6 +73,7 @@ function buildTimeline(track: ReconTrack): ReplayTimeline | null {
     points,
     timesMs,
     distancesMeters,
+    bearingsDegrees,
     totalDurationMs,
     totalDistanceMeters,
   };
@@ -119,10 +124,39 @@ function interpolateScalar(
   return a + (b - a) * fraction;
 }
 
-/** Geometric direction of travel, normalized to [0, 360). */
-function bearingDegrees(a: Coordinate, b: Coordinate): number {
-  const bearing = turfBearing(a, b);
-  return ((bearing % 360) + 360) % 360;
+/**
+ * Heading of travel per segment, resolved once per timeline.
+ *
+ * A recorded stop repeats coordinates, and the bearing of identical points
+ * reads as north — an invented heading that would snap a camera at every
+ * red light. Stops carry the previous valid heading forward instead, and a
+ * leading stationary stretch takes the first heading that exists ahead
+ * (adjacent geometry, per the camera plan). A track that never moves has no
+ * direction information at all and falls back to north, deliberately.
+ */
+function resolveSegmentBearings(points: ReconTrack["points"]): number[] {
+  const raw: (number | null)[] = [];
+  let firstValid: number | null = null;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const a = points[index]!.coordinate;
+    const b = points[index + 1]!.coordinate;
+    if (a[0] === b[0] && a[1] === b[1]) {
+      raw.push(null);
+      continue;
+    }
+    const bearing = turfBearing(a, b);
+    const normalized = ((bearing % 360) + 360) % 360;
+    const valid = Number.isFinite(normalized) ? normalized : null;
+    raw.push(valid);
+    if (valid !== null && firstValid === null) firstValid = valid;
+  }
+  const resolved: number[] = [];
+  let carried = firstValid ?? 0;
+  for (const value of raw) {
+    if (value !== null) carried = value;
+    resolved.push(carried);
+  }
+  return resolved;
 }
 
 /**
@@ -158,7 +192,7 @@ export function sampleReplay(
       progress,
       elapsedMs,
       coordinate: interpolateCoordinate(a.coordinate, b.coordinate, fraction),
-      bearingDegrees: bearingDegrees(a.coordinate, b.coordinate),
+      bearingDegrees: timeline.bearingsDegrees[index]!,
       speedMph: interpolateScalar(a.speedMph, b.speedMph, fraction),
       altitudeMeters: interpolateScalar(
         a.altitudeMeters,
@@ -177,7 +211,7 @@ export function sampleReplay(
     // Previews carry no observed time and no synthetic speed — ever.
     elapsedMs: null,
     coordinate: interpolateCoordinate(a.coordinate, b.coordinate, fraction),
-    bearingDegrees: bearingDegrees(a.coordinate, b.coordinate),
+    bearingDegrees: timeline.bearingsDegrees[index]!,
     speedMph: null,
     altitudeMeters: interpolateScalar(
       a.altitudeMeters,

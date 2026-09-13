@@ -1,4 +1,7 @@
-import { polylineDistanceMeters } from "@/lib/client/geo-math";
+import {
+  polylineDistanceMeters,
+  sumElevationChanges,
+} from "@/lib/client/geo-math";
 import type { Coordinate } from "@/lib/routing/types";
 import type {
   ReconPlaybackKind,
@@ -86,35 +89,28 @@ export function cumulativeDistancesMeters(
 }
 
 /**
- * Ascent/descent from observed altitude readings, following the
- * corpus-ingest convention: an unknown reading resets the running previous
- * value, so gaps never contribute invented deltas. With no usable pair of
- * adjacent readings the totals stay unknown rather than becoming a false
- * zero.
+ * Ascent/descent from observed altitude readings via the one shared
+ * computation (sumElevationChanges, also used by GPX corpus ingest): an
+ * unknown reading resets the running previous value, so gaps never
+ * contribute invented deltas. With no usable pair of adjacent readings the
+ * totals stay unknown rather than becoming a false zero. Readings come off
+ * device GPS, so the UI presents these totals as approximate, never as
+ * surveyed fact.
  */
 export function elevationTotals(points: ReadonlyArray<ReconTrackPoint>): {
   ascentMeters: number | null;
   descentMeters: number | null;
 } {
-  let ascent = 0;
-  let descent = 0;
-  let pairSeen = false;
-  let previous: number | null = null;
-  for (const point of points) {
-    if (point.altitudeMeters === null) {
-      previous = null;
-      continue;
-    }
-    if (previous !== null) {
-      const change = point.altitudeMeters - previous;
-      if (change > 0) ascent += change;
-      else descent += Math.abs(change);
-      pairSeen = true;
-    }
-    previous = point.altitudeMeters;
+  const totals = sumElevationChanges(
+    points.map((point) => point.altitudeMeters),
+  );
+  if (totals.usablePairCount === 0) {
+    return { ascentMeters: null, descentMeters: null };
   }
-  if (!pairSeen) return { ascentMeters: null, descentMeters: null };
-  return { ascentMeters: ascent, descentMeters: descent };
+  return {
+    ascentMeters: totals.ascentMeters,
+    descentMeters: totals.descentMeters,
+  };
 }
 
 export interface ReconTrackInit {

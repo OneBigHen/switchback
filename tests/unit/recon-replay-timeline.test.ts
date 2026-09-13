@@ -287,6 +287,49 @@ describe("sampleReplay fails safely on impossible tracks", () => {
     // 30 s of the 90 s leg from the stop to the finish: one third north.
     expect(resumed.coordinate[1]).toBeCloseTo(0.002 / 3, 12);
   });
+
+  it("carries the last valid heading through a recorded stop instead of inventing north", () => {
+    // Eastbound ride (bearing 90°) with a stop in the middle: the two points
+    // at [0.001, 0] repeat, and the frame at the stop must read east — the
+    // last real direction of travel — never the north that an identical-point
+    // bearing would invent at every red light.
+    const eastboundWithStop = adaptRecordedRide(
+      makeRecordedRide({
+        points: [
+          {
+            coordinate: [0, 0],
+            recordedAt: isoAt(0),
+            speedMph: 10,
+            altitudeMeters: 100,
+          },
+          {
+            coordinate: [0.001, 0],
+            recordedAt: isoAt(30_000),
+            speedMph: 10,
+            altitudeMeters: 100,
+          },
+          {
+            coordinate: [0.001, 0],
+            recordedAt: isoAt(60_000),
+            speedMph: 0,
+            altitudeMeters: 100,
+          },
+          {
+            coordinate: [0.002, 0],
+            recordedAt: isoAt(120_000),
+            speedMph: 10,
+            altitudeMeters: 100,
+          },
+        ],
+      }),
+    )!;
+
+    expect(sampleReplay(eastboundWithStop, 0)!.bearingDegrees).toBe(90);
+    const atStop = sampleReplay(eastboundWithStop, 45_000 / 120_000)!;
+    expect(atStop.coordinate).toEqual([0.001, 0]);
+    expect(atStop.bearingDegrees).toBe(90);
+    expect(sampleReplay(eastboundWithStop, 1)!.bearingDegrees).toBe(90);
+  });
 });
 
 function isoAt(offsetMs: number): string {

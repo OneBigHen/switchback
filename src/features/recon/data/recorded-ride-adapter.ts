@@ -43,6 +43,11 @@ export function adaptRecordedRide(ride: RecordedRide): ReconTrack | null {
   if (playbackKind === "recorded") {
     const times = points.map((point) => point.recordedAt!);
     if (!isMonotonicTimestamps(times)) return null;
+  } else {
+    // Preview truth: without observed time there is no observed speed.
+    // A sensor reading of mph without a timestamp cannot be placed on any
+    // timeline, so it stays unknown — never displayed, never interpolated.
+    for (const point of points) point.speedMph = null;
   }
 
   const startedAt = playbackKind === "recorded" ? points[0]!.recordedAt : null;

@@ -117,6 +117,24 @@ describe("adaptRecordedRide", () => {
     expect(track.points.every((point) => point.recordedAt === null)).toBe(true);
   });
 
+  it("strips observed speed from previews: no timestamp, no observed velocity", () => {
+    // The journal entries carry real sensor speeds, but without timestamps
+    // those readings cannot be placed on any timeline. They must stay
+    // unknown — never displayed, never interpolated.
+    const ride = makeRecordedRide({
+      points: makeRecordedRidePoints().map((point) => ({
+        ...point,
+        recordedAt: "",
+      })),
+      startedAt: "",
+      endedAt: "",
+    });
+    const track = adaptRecordedRide(ride)!;
+
+    expect(track.playbackKind).toBe("preview");
+    expect(track.points.every((point) => point.speedMph === null)).toBe(true);
+  });
+
   it("rejects a ride with mixed present and missing timestamps", () => {
     const ride = makeRecordedRide({
       points: [
