@@ -1,4 +1,4 @@
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl"
+import type { FilterSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl"
 import type { PlannerMapRenderer } from "./planner-map-renderer"
 import {
   buildRouteFeatures,
@@ -182,20 +182,31 @@ export function riderLayerLinePaint(id: RiderLayerId) {
 export function addRiderMapLayers(map: MapLibreMap, renderer: PlannerMapRenderer) {
   map.addSource(RIDER_FEATURE_SOURCE, { type: "geojson", data: emptyFeatureCollection() })
   for (const id of featureMapLayerIds) {
-    const filter: ["==", string, string] = ["==", "layerId", id]
+    // One shared source carries every overlay, so each style layer must also
+    // select its geometry type: without it a corridor LineString was filled
+    // as a wedge and drawn as a dot on every vertex. Polygons keep their
+    // outline through the line layer.
+    const ofGeometry = (types: string[]): FilterSpecification => [
+      "all",
+      ["==", ["get", "layerId"], id],
+      ["match", ["geometry-type"], types, true, false]
+    ]
+    const polygons = ofGeometry(["Polygon", "MultiPolygon"])
+    const linesAndOutlines = ofGeometry(["LineString", "MultiLineString", "Polygon", "MultiPolygon"])
+    const points = ofGeometry(["Point", "MultiPoint"])
     const color = riderLayerColor(id)
     renderer.addLayer(map, {
-      id: riderFeatureLayerIds(id)[0], type: "fill", source: RIDER_FEATURE_SOURCE, filter,
+      id: riderFeatureLayerIds(id)[0], type: "fill", source: RIDER_FEATURE_SOURCE, filter: polygons,
       layout: { visibility: "none" },
       paint: { "fill-color": color, "fill-opacity": 0.16, "fill-outline-color": color }
     }, { slot: "bottom", beforeId: "switchback-route-shadow" })
     renderer.addLayer(map, {
-      id: riderFeatureLayerIds(id)[1], type: "line", source: RIDER_FEATURE_SOURCE, filter,
+      id: riderFeatureLayerIds(id)[1], type: "line", source: RIDER_FEATURE_SOURCE, filter: linesAndOutlines,
       layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
       paint: riderLayerLinePaint(id)
     }, { slot: "middle", beforeId: "switchback-route-shadow" })
     renderer.addLayer(map, {
-      id: riderFeatureLayerIds(id)[2], type: "circle", source: RIDER_FEATURE_SOURCE, filter,
+      id: riderFeatureLayerIds(id)[2], type: "circle", source: RIDER_FEATURE_SOURCE, filter: points,
       layout: { visibility: "none" },
       paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 14, 7], "circle-color": color, "circle-stroke-color": "#101310", "circle-stroke-width": 1.5, "circle-opacity": 0.9 }
     }, { slot: "middle", beforeId: "switchback-route-shadow" })
