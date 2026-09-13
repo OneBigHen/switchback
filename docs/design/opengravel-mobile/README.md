@@ -24,6 +24,14 @@ These are repository-optimized review copies of the approved 941×1672 concepts.
 
 ![OpenGravel GPX Library list reference](./reference/gpx-library-list.webp)
 
+## Acceptance captures
+
+The four states as built, captured from the running application at 390×844,
+live in [`acceptance/`](./acceptance/) beside the references they answer to.
+That directory also records the measured composition and the one gap that
+remains: the reference WebPs below cannot be decoded, so the build followed the
+UX spec's written transcription of them.
+
 ## Read in this order
 
 1. [`CLAUDE-BUILD-BRIEF.md`](./CLAUDE-BUILD-BRIEF.md) — execution contract and non-negotiables.

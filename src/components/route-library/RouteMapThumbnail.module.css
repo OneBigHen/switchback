@@ -12,7 +12,13 @@
   isolation: isolate;
 }
 
+/* Positioned, not in flow. An absolutely-positioned sibling paints above
+   in-flow content in the same stacking context, so an in-flow image sat
+   *underneath* the fallback plate it was supposed to replace — the rendered
+   map was there, fully opaque, and invisible. */
 .image {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;

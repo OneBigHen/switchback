@@ -24,6 +24,14 @@ import type { RoutePreviewSpec } from "@/lib/routes/route-preview"
 import type { Coordinate } from "@/lib/routing/types"
 
 const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs"
+
+/**
+ * Previews use the fuller basemap rather than the minimal one. A card has one
+ * job — say where the ride is — and at browse zoom the minimal style renders
+ * rural ground as an almost empty field, which answers nothing. The interactive
+ * workspaces keep the quieter style, where the rider can zoom for themselves.
+ */
+const PREVIEW_STYLE = "explorer" as const
 const ROUTE_SOURCE = "preview-route"
 const ROUTE_CASING_LAYER = "preview-route-casing"
 const ROUTE_LINE_LAYER = "preview-route-line"
@@ -103,7 +111,7 @@ async function createMap(spec: RoutePreviewSpec): Promise<MapHandle | null> {
     maplibre.setWorkerUrl(MAPLIBRE_WORKER_URL)
     const map = new maplibre.Map({
       container: previewContainer(spec),
-      style: mapStyleUrl("clean"),
+      style: mapStyleUrl(PREVIEW_STYLE),
       center: [(spec.bbox[0] + spec.bbox[2]) / 2, (spec.bbox[1] + spec.bbox[3]) / 2],
       zoom: 6,
       interactive: false,

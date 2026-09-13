@@ -54,8 +54,11 @@ export interface RoutePreviewSizeSpec {
  * that each miss the cache.
  */
 export const ROUTE_PREVIEW_SIZES: Readonly<Record<RoutePreviewSize, RoutePreviewSizeSpec>> = {
-  small: { width: 168, height: 168, pixelRatio: 2 },
-  medium: { width: 320, height: 200, pixelRatio: 2 },
+  // Each size matches the shape of the box it fills. A square render inside a
+  // landscape card is cropped by `object-fit: cover`, and what gets cropped is
+  // the edge of the frame — where the town names are.
+  small: { width: 176, height: 124, pixelRatio: 2 },
+  medium: { width: 320, height: 112, pixelRatio: 2 },
   hero: { width: 720, height: 360, pixelRatio: 2 }
 }
 

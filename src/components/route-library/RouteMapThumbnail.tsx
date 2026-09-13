@@ -69,7 +69,7 @@ export function RouteMapThumbnail({
 
   const spec = useMemo(
     () => placeable
-      ? buildRoutePreviewSpec({ routeId, bbox, size, styleId: "clean", geometryFingerprint: fingerprint })
+      ? buildRoutePreviewSpec({ routeId, bbox, size, styleId: "explorer", geometryFingerprint: fingerprint })
       : null,
     [bbox, fingerprint, placeable, routeId, size]
   )

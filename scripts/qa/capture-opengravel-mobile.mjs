@@ -86,7 +86,23 @@ await shot("02-explore-map")
 // 3 — GPX Library, list mode.
 await page.goto(`${BASE}/gpx-library`, { waitUntil: "domcontentloaded" })
 await page.getByRole("heading", { name: "GPX Library" }).waitFor({ timeout: 30_000 })
-await settle(24_000)
+
+// Previews are rendered one at a time by a single shared map, so wait for the
+// cards that are actually on screen to finish rather than guessing a duration.
+// The state is reported either way: a capture full of fallback plates is
+// evidence about the renderer, not about the design.
+const previewStates = async () => page.evaluate(() =>
+  [...document.querySelectorAll("[data-route-preview]")]
+    .slice(0, 4)
+    .map((node) => node.getAttribute("data-route-preview")))
+const deadline = Date.now() + 45_000
+let states = await previewStates()
+while (Date.now() < deadline && states.some((state) => state === "pending")) {
+  await settle(1_000)
+  states = await previewStates()
+}
+console.log("first four preview states:", states.join(", "))
+await settle(1_500)
 await shot("03-gpx-library-list")
 
 // 4 — Route details.
