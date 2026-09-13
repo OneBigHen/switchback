@@ -289,13 +289,11 @@ h6,
   }
 }
 
-/* The 320px handset still needs the idle command surface's final minimize
-   control wholly inside the sheet. Add one compact line of vertical budget;
-   the larger phone cap remains unchanged and the map clearance follows this
-   same token above. */
+/* The narrow-phone command surface keeps Preferences and Minimize on one
+   compact row, so it can use the standard idle-sheet cap. */
 @media (max-width: 360px) and (orientation: portrait) {
   .planner-shell {
-    --sb-sheet-idle-height: min(47dvh, 360px);
+    --sb-sheet-idle-height: min(44dvh, 360px);
   }
 }
 

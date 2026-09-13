@@ -381,8 +381,9 @@
 
 }
 
-/* The preferences row owns its own line on the narrowest phones so the
-   summary text is never squeezed to an ellipsis before it has said anything. */
+/* The narrowest phones need Preferences and Minimize to share one row. The
+   summary is allowed to ellipsize so the control does not create a third
+   action row and overspend the idle sheet's map budget. */
 @media (max-width: 360px),
        (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
   .plan-v2__options-trigger {
@@ -402,6 +403,27 @@ so stop
 }
 
 @media (max-width: 360px) {
+  .planner-deck.is-idle-plan .planner-scroll {
+    padding-bottom: 4px;
+  }
+
+  .plan-v2__compact-rail {
+    gap: 4px;
+  }
+
+  .plan-v2__action-rail {
+    flex-wrap: nowrap;
+  }
+
+  .plan-v2__options-trigger {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .plan-v2__options-summary {
+    min-width: 0;
+  }
+
   .planner-route-context__identity > span {
     max-width: 180px;
   }
