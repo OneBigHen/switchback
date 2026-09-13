@@ -371,7 +371,13 @@ export function PlanComposer({
             {requestBusy ? <SpinnerGap className="spin" aria-hidden="true" /> : <Path weight="bold" aria-hidden="true" />}
             <span>{createLabel}</span>
           </button>
-          <button type="button" className="plan-v2__draw-action" disabled={requestBusy} onClick={onDraw}>
+          <button
+            type="button"
+            className="plan-v2__draw-action"
+            aria-label="Draw manually"
+            disabled={requestBusy}
+            onClick={onDraw}
+          >
             <PencilLine aria-hidden="true" />
             <span>Draw manually</span>
           </button>
