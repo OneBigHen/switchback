@@ -131,6 +131,16 @@
  * shared clearance here so it wins at every mobile width.
  */
 @media (max-width: 760px) {
+  /* The native zoom/location group is taller than the compact peek header.
+     Reserve one touch target beyond the sheet edge so the last zoom button
+     cannot sit underneath the route identity/action control. */
+  .planner-shell:has(.sb-bottom-sheet[data-sheet-detent="peek"]) {
+    --sb-map-sheet-clearance: calc(
+      var(--sb-mobile-sheet-bottom) + var(--sb-sheet-peek-height) +
+      var(--sb-space-2) + var(--sb-touch-target)
+    );
+  }
+
   /* Sketch mode deliberately removes the ContextSheet while the rider draws.
      The default mobile variable still assumes a half-height sheet, which used
      to leave attribution/scale stranded halfway up an otherwise empty map.

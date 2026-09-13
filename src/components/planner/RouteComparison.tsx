@@ -118,8 +118,13 @@ export function RouteComparison({
       if (!identity || !scroll) return
       const identityBox = identity.getBoundingClientRect()
       const scrollBox = scroll.getBoundingClientRect()
+      const stickyHeader = scroll.querySelector<HTMLElement>(".planner-route-details__header")
+      const stickyHeaderBottom = stickyHeader && getComputedStyle(stickyHeader).position === "sticky"
+        ? stickyHeader.getBoundingClientRect().bottom
+        : scrollBox.top
+      const topClearance = Math.max(8, stickyHeaderBottom - scrollBox.top + 8)
       scroll.scrollTo({
-        top: Math.max(0, scroll.scrollTop + identityBox.top - scrollBox.top - 8),
+        top: Math.max(0, scroll.scrollTop + identityBox.top - scrollBox.top - topClearance),
         behavior: "auto"
       })
     })
