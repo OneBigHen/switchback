@@ -1,0 +1,37 @@
+
+Running 3 tests using 1 worker
+
+  ✓  1 [critical-chromium] › tests/e2e/critical/recon.spec.ts:36:1 › recon explorer opens with map, picker sections, no overflow and no console errors (47.9s)
+  ✓  2 [critical-chromium] › tests/e2e/critical/recon.spec.ts:54:1 › a route preview loads from the picker into the HUD (36.8s)
+  ✘  3 [critical-chromium] › tests/e2e/critical/recon.spec.ts:95:1 › the focused ride view deep-links to the same route (9.9s)
+
+
+  1) [critical-chromium] › tests/e2e/critical/recon.spec.ts:95:1 › the focused ride view deep-links to the same route 
+
+    Error: page.goto: Target page, context or browser has been closed
+    Call log:
+      - navigating to "http://localhost:3114/labs/recon/replay/fixture-bald-eagle", waiting until "load"
+
+
+      107 |   expect(route).toBeDefined();
+      108 |
+    > 109 |   await page.goto(`/labs/recon/replay/${encodeURIComponent(route!.id)}`);
+          |              ^
+      110 |   const canvas = page.locator("canvas.maplibregl-canvas").first();
+      111 |   await expect(canvas).toBeVisible({ timeout: 60_000 });
+      112 |
+        at /root/.hermes/worktrees/20260913-173838-03a74beb/tests/e2e/critical/recon.spec.ts:109:14
+
+    Error Context: test-results/critical-recon-the-focused-244dd-eep-links-to-the-same-route-critical-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/critical-recon-the-focused-244dd-eep-links-to-the-same-route-critical-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/critical-recon-the-focused-244dd-eep-links-to-the-same-route-critical-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [critical-chromium] › tests/e2e/critical/recon.spec.ts:95:1 › the focused ride view deep-links to the same route 
+  2 passed (2.7m)

@@ -1,0 +1,8 @@
+
+Running 3 tests using 1 worker
+
+  ✓  1 [critical-chromium] › tests/e2e/critical/recon.spec.ts:36:1 › recon explorer opens with map, picker sections, no overflow and no console errors (8.8s)
+  ✓  2 [critical-chromium] › tests/e2e/critical/recon.spec.ts:54:1 › a route preview loads from the picker into the HUD (21.6s)
+  ✓  3 [critical-chromium] › tests/e2e/critical/recon.spec.ts:95:1 › the focused ride view deep-links to the same route (8.9s)
+
+  3 passed (1.1m)
