@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { RouteDiscoverySurface } from "@/components/route-library/RouteDiscoverySurface"
 import type { QuickChipId } from "@/components/route-library/route-discovery-state"
 import type { AtlasBrowseRoute } from "./atlas-browse"
@@ -13,6 +12,10 @@ import type { AtlasBrowseRoute } from "./atlas-browse"
  * geographic previews. What differs here is the framing — this page names the
  * collection and states its size, because a rider who deep-linked into it has
  * no app shell around them to say where they are.
+ *
+ * It carries no breadcrumb of its own: the page renders the same primary
+ * navigation as the rest of the app, and a second row of links back to Plan
+ * and Saved would be the same two destinations twice.
  */
 
 /** `Duration` and `Difficulty` are the catalog's own truthful dimensions. */
@@ -48,12 +51,6 @@ export function AtlasBrowser({
       defaultView="list"
       quickChips={LIBRARY_CHIPS}
       showCatalogSummary
-      contextSlot={(
-        <nav className="atlas-context" aria-label="Route Library context">
-          <Link href="/">Back to planner</Link>
-          <Link href="/?tab=saved">Saved</Link>
-        </nav>
-      )}
     />
   )
 }

@@ -119,6 +119,7 @@
 .chipRow {
   display: flex;
   overflow-x: auto;
+  align-items: center;
   gap: 6px;
   margin: 0 calc(var(--sb-space-4) * -1);
   padding: 2px var(--sb-space-4);
