@@ -13,10 +13,7 @@ import {
   fetchGravelEvidence,
   type GravelEvidence,
 } from "@/features/recon/layers/gravel-evidence-layer";
-import {
-  groupPickerEntries,
-  type CatalogEntry,
-} from "./picker-groups";
+import { groupPickerEntries, type CatalogEntry } from "./picker-groups";
 import ReconRidePicker from "./ReconRidePicker";
 import ReconHud, { type ReconHudAction } from "./ReconHud";
 
@@ -186,9 +183,7 @@ export default function ReconShell({
           return;
         }
         setPreviewError(null);
-        setCatalogTracks((previous) =>
-          new Map(previous).set(trackId, track),
-        );
+        setCatalogTracks((previous) => new Map(previous).set(trackId, track));
       })
       .catch(() => {
         if (cancelled || controller.signal.aborted) return;
@@ -250,8 +245,7 @@ export default function ReconShell({
     () =>
       journalTracks?.filter(
         (track) =>
-          track.playbackKind === "recorded" &&
-          track.id !== selectedTrack?.id,
+          track.playbackKind === "recorded" && track.id !== selectedTrack?.id,
       ) ?? [],
     [journalTracks, selectedTrack],
   );

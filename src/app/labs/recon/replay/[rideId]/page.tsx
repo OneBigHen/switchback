@@ -3,9 +3,9 @@ import ReconShell from "@/features/recon/ui/ReconShell";
 import "@/features/recon/recon.css";
 
 export const metadata: Metadata = {
-  title: "Recon — OpenGravel Labs",
-  description:
-    "A focused view of one recorded ride or Route Library preview on the Recon explorer.",
+ title: "Recon — OpenGravel Labs",
+ description:
+  "A focused view of one recorded ride or Route Library preview on the Recon explorer.",
 };
 
 /**
@@ -15,10 +15,10 @@ export const metadata: Metadata = {
  * earns replay language when real playback exists.
  */
 export default async function ReconReplayPage({
-  params,
+ params,
 }: {
-  params: Promise<{ rideId: string }>;
+ params: Promise<{ rideId: string }>;
 }) {
-  const { rideId } = await params;
-  return <ReconShell focusedTrackId={decodeURIComponent(rideId)} />;
+ const { rideId } = await params;
+ return <ReconShell focusedTrackId={decodeURIComponent(rideId)} />;
 }
