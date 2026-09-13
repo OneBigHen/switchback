@@ -76,7 +76,7 @@ test("the planner UI reaches the real GraphHopper fixture and preserves live evi
   await ensureStart(page)
   await chooseFixtureFinish(page)
   const responsePromise = routeResponse(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   const response = await responsePromise
   expect(response.status()).toBe(200)
   const body = await response.json() as {

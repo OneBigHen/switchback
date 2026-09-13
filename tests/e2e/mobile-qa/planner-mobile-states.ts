@@ -81,7 +81,7 @@ export function expectFixtureRequestStart(capture: RouteCapture): void {
 export async function submitFixturePlan(page: Page): Promise<void> {
   await ensureFixtureStart(page)
   await fillFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).tap()
+  await page.getByRole("button", { name: "Create ride", exact: true }).tap()
 }
 
 export { ensureFixtureStart, fillFixtureFinish, tapAutocompleteOption } from "./fixtures"

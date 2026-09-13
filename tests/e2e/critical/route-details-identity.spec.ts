@@ -24,7 +24,7 @@ test("opening and closing Route Details preserves the selected route and Start a
   await openPlannerEditor(page)
   await ensureFixtureStart(page)
   await fillFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   const choices = page.getByRole("region", { name: "Route choices" })
   await expect(choices.getByText("Twisty detail route", { exact: true })).toBeVisible({ timeout: 30_000 })
   await choices.getByRole("button", { name: "Select Twisty detail route" }).click()

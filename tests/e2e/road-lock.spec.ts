@@ -132,7 +132,7 @@ async function mockSharedPlannerServices(page: import("@playwright/test").Page) 
 async function openRouteEditor(page: import("@playwright/test").Page) {
   const start = page.getByRole("combobox", { name: "Start", exact: true })
   if (await start.isVisible().catch(() => false)) return
-  await page.getByRole("button", { name: "Ride options", exact: true }).click()
+  await page.getByRole("button", { name: /^Ride options/ }).click()
   await expect(start).toBeVisible()
 }
 
@@ -186,10 +186,10 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
   await openRouteEditor(page)
   await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByRole("button", { name: /^Ride options/ })).toHaveAttribute("aria-expanded", "true")
 
   await page.getByRole("button", { name: "Loop", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Plan a 2-hour loop" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Create 2-hour loop", exact: true })).toBeVisible()
 
   await page.getByRole("button", { name: "Prefer a road on map" }).click()
   await expect(page.getByRole("region", { name: "Road lock draft" })).toBeVisible()
@@ -219,7 +219,7 @@ test("tap a road, save as Must use (graph-matched), and confirm the lock is forw
   expect(matchRequest?.start).toBeDefined()
   expect(matchRequest?.end).toBeDefined()
 
-  await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
+  await page.getByRole("button", { name: "Create 2-hour loop", exact: true }).click()
   await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
 
   expect(routeRequest).toBeDefined()

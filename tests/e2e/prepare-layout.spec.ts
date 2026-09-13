@@ -36,7 +36,7 @@ for (const viewport of VIEWPORTS) {
     // already have set one. The helpers own that branch for every other spec.
     await ensureFixtureStart(page)
     await fillFixtureFinish(page)
-    await page.getByRole("button", { name: "Plan route" }).click()
+    await page.getByRole("button", { name: "Create ride", exact: true }).click()
     await expectRouteOutcome(page, capture)
     // Every card in the decision rail offers both "Select <route>" and
     // "Details for <route>", so neither label is unique on its own. Take the

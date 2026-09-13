@@ -61,7 +61,7 @@ async function settleVisualFrame(page: Page): Promise<void> {
 
 async function expectPlanReady(page: Page): Promise<void> {
   await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Ride options/ })).toBeVisible()
 }
 
 async function assertIdlePlanGeometry(page: Page, viewport: { width: number; height: number }): Promise<void> {
@@ -126,7 +126,7 @@ async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expectRouteOutcome(page, capture)
 }
 

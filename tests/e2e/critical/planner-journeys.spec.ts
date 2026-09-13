@@ -35,7 +35,7 @@ async function planDirectRoute(page: import("@playwright/test").Page, capture: R
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expectRouteOutcome(page, capture)
 }
 
@@ -47,7 +47,7 @@ test("the idle composer keeps trip shape and free-form planning discoverable", a
   const composer = page.locator(".plan-v2")
   await expect(composer.getByRole("button", { name: "To", exact: true })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Loop" })).toBeVisible()
-  await expect(composer.getByRole("button", { name: "Draw route" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Draw manually", exact: true })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Free Ride" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toHaveCount(0)
   await expect(page.getByText("Try", { exact: true })).toHaveCount(0)
@@ -58,7 +58,7 @@ test("Draw opens the typed sketch toolbar from the V2 composer", async ({ page }
   await page.goto("/")
   await expandPhonePlanner(page)
 
-  await page.getByRole("button", { name: "Draw route", exact: true }).click()
+  await page.getByRole("button", { name: "Draw manually", exact: true }).click()
 
   await expect(page.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
   await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
@@ -141,7 +141,7 @@ test("loop planning uses one fixed start and completes with a non-empty geometry
   await openPlannerEditor(page)
   await ensureStart(page)
   await page.getByRole("button", { name: "Loop" }).click()
-  await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
+  await page.getByRole("button", { name: "Create 2-hour loop", exact: true }).click()
   await expectRouteOutcome(page, capture)
   expect(capture.requests[0]).toMatchObject({
     roundTrip: { targetMinutes: 120 },
@@ -188,11 +188,11 @@ test("provider failure ends loading and exposes a typed actionable error", async
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expect(page.getByText("Route unavailable")).toBeVisible()
   await expect(page.getByText(/temporarily unavailable/i)).toBeVisible()
   await expect(page.getByRole("status", { name: "Ride planning progress" })).toBeHidden()
-  await expect(page.getByRole("button", { name: "Plan route" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Create ride", exact: true })).toBeEnabled()
 })
 
 test("a newer plan wins and a stale provider response cannot overwrite it", async ({ page }) => {

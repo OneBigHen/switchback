@@ -160,7 +160,7 @@ test("provider failure remains visible and is limited to the deliberate routes e
   await openPlannerEditor(page)
   await ensureFixtureStart(page)
   await fillFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).tap()
+  await page.getByRole("button", { name: "Create ride", exact: true }).tap()
   await expect(page.getByText("Route unavailable")).toBeVisible()
   await captureMobileQaScreenshot(page, testInfo, "provider-failure")
   expectOnlyDeliberateNetworkFailures(mobileQa.runtimeIssues, { host: new URL(page.url()).host, pathname: "/api/routes", status: 503 })

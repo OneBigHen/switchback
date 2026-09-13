@@ -11,7 +11,7 @@ import { CANONICAL_HEALTH_RESPONSE } from "../helpers/health-fixtures"
 
 async function expectPlannerReady(page: import("@playwright/test").Page): Promise<void> {
   const rideRequest = page.getByRole("combobox", { name: "Ride request" })
-  const rideOptions = page.getByRole("button", { name: "Ride options", exact: true })
+  const rideOptions = page.getByRole("button", { name: /^Ride options/ })
   const editRoute = page.getByRole("button", { name: "Edit route", exact: true })
 
   // A fresh shell exposes the request composer and Ride options. A recovered
@@ -70,7 +70,7 @@ async function planAndSaveRoute(
   await expect(page.getByRole("option", { name: /Fixture finish/i })).toBeVisible()
   await page.getByRole("option", { name: /Fixture finish/i }).click()
   await expect(finish).toHaveValue(/Fixture finish/i)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expectRouteOutcome(page, capture)
   await page.getByRole("button", { name: /^Details for /i }).click()
   await page.getByRole("button", { name: "Show route details" }).click()

@@ -232,7 +232,7 @@ for (const viewport of BANNER_VIEWPORTS) {
 /**
  * A failed route request renders its explanation below the expanded Ride
  * options panel. Without help that lands roughly a thousand pixels under the
- * fold, so tapping Plan route and having it fail looked like nothing happened.
+ * fold, so tapping Create ride and having it fail looked like nothing happened.
  */
 test("a failed route plan shows the rider why, without hunting for it", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -249,7 +249,7 @@ test("a failed route plan shows the rider why, without hunting for it", async ({
       body: JSON.stringify({ error: "Routing provider unavailable" })
     })
   })
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
 
   const alert = page.getByRole("alert").filter({ hasText: "Route unavailable" })
   await expect(alert).toBeVisible()
@@ -287,7 +287,7 @@ for (const viewport of DRAW_VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height })
     await pinVisualClock(page)
     await uxState.home(page)
-    await page.getByRole("button", { name: "Draw route" }).click()
+    await page.getByRole("button", { name: "Draw manually", exact: true }).click()
     await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
     await settleMapDelay(page)
 

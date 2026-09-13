@@ -42,7 +42,7 @@ test("WebKit can plan one destination route", async ({ page }) => {
   await openPlannerEditor(page)
   await ensureFixtureStart(page)
   await fillFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
 
   await expectRouteOutcome(page, capture)
   await expect(page.getByRole("region", { name: "Route choices" }).getByText("WebKit smoke route", { exact: true })).toBeVisible()
