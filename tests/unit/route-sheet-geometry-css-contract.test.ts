@@ -15,6 +15,8 @@ describe("route sheet geometry contract", () => {
     expect(routeStyles).toContain("bottom: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-5)) !important")
     const designSystemStyles = readFileSync(resolve(process.cwd(), "src/app/styles/design-system.css"), "utf8")
     expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet[data-sheet-detent=\"full\"] .planner-full-attribution {\n    position: static !important;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet[data-sheet-detent=\"full\"] {\n    height: var(--sb-sheet-full-height);\n    max-height: var(--sb-sheet-full-height);\n    display: flex;\n    flex-direction: column;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet[data-sheet-detent=\"full\"] > .planner-scroll {\n    flex: 1 1 0%;\n    min-height: 0;\n    height: auto !important;")
   })
 
   it("reserves the real home dock height on the parent scroll container", () => {

@@ -17,6 +17,8 @@ describe("mobile QA network classification", () => {
     expect(isExpectedProviderHealthAbort("GET http://localhost:3112/api/health?x=1 failed: net::ERR_ABORTED")).toBe(false)
     expect(isExpectedProviderHealthAbort("503 http://localhost:3112/api/health")).toBe(false)
     expect(isExpectedProviderHealthAbort("GET http://localhost:3112/api/health failed: net::ERR_CONNECTION_RESET")).toBe(false)
+    expect(isExpectedProviderHealthAbort("GET http://localhost:3112/api/route-catalog failed: Load request cancelled")).toBe(true)
+    expect(isExpectedProviderHealthAbort("GET http://localhost:3112/api/route-catalog?x=1 failed: Load request cancelled")).toBe(false)
   })
 
   it("waits for browser network readiness instead of sleeping after a transition", async () => {

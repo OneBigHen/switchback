@@ -293,14 +293,14 @@ test("a saved route survives a reload and remains available in the library", asy
   // Verify the saved object in the destination, then reload while that destination
   // is active so persistence and URL-state restoration are covered together.
   await page.getByRole("button", { name: "Saved", exact: true }).click()
-  const rides = page.getByRole("main", { name: "Rides destination" })
+  const rides = page.getByRole("main", { name: "My Rides destination" })
   await expect(rides).toBeVisible()
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 
   await page.reload()
   await expect(page).toHaveURL(/[?&]tab=saved(?:&|$)/)
-  const restoredRides = page.getByRole("main", { name: "Rides destination" })
+  const restoredRides = page.getByRole("main", { name: "My Rides destination" })
   await expect(restoredRides).toBeVisible()
   await expect(restoredRides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 })

@@ -21,7 +21,7 @@ test("WebKit can use the V2 destinations without horizontal overflow", async ({ 
   await expect(nav.getByRole("button", { name: "Settings", exact: true })).toBeVisible()
 
   await nav.getByRole("button", { name: "Saved", exact: true }).click()
-  await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
+  await expect(page.getByRole("main", { name: "My Rides destination" })).toBeVisible()
 
   const widths = await page.evaluate(() => ({
     viewport: window.innerWidth,

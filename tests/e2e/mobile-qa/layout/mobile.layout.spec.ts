@@ -19,6 +19,7 @@ import {
   expectMobileRuntimeContract,
   expectNoNestedScrollTrap,
 } from "./layout-helpers"
+import { tapControlByTouch } from "../ride-mobile-states"
 import { pinVisualClock, settleMapDelay, uxState } from "../../helpers/ux-state-fixtures"
 
 type LayoutState = "plan" | "prepare" | "rides" | "free-ride" | "ride" | "settings" | "keyboard" | "offline"
@@ -215,11 +216,12 @@ test("Prepare keeps static headings, dock, and scroll content reachable", async 
 test("a saved ride survives navigation through the Rides destination", async ({ page, mobileQa }, testInfo) => {
   selectMatrix("rides", testInfo)
   await uxState.routeSelected(page)
+  await page.getByRole("button", { name: /^Details for / }).first().tap()
   await page.getByRole("button", { name: "Show route details" }).first().tap()
   await page.getByRole("button", { name: "Save route" }).tap()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
   await page.getByRole("button", { name: "Saved", exact: true }).tap()
-  const rides = page.getByRole("main", { name: "Rides destination" })
+  const rides = page.getByRole("main", { name: "My Rides destination" })
   await expect(rides).toBeVisible()
   await expect(page.getByText("Contract fixture route")).toBeVisible()
   await expectMobileRuntimeContract(page, testInfo.project.name)
@@ -227,7 +229,7 @@ test("a saved ride survives navigation through the Rides destination", async ({ 
   await expectSheetsAndModalsInsideVisualViewport(page)
   await expectFixedAndStickyContainment(page)
   await expectNavigationReachability(page)
-  await expectRealScrollOwner(page, "[aria-label='Rides destination']")
+  await expectRealScrollOwner(page, "[aria-label='My Rides destination']")
   await expectNoNestedScrollTrap(page)
   await page.getByRole("button", { name: "Plan", exact: true }).tap()
   await expect(rides).toBeHidden()
@@ -251,7 +253,7 @@ test("Free Ride controls remain inside the touch viewport and escape cleanly", a
   // accepting it the exit is cancelled and the surface never changes — which
   // reads as a broken escape rather than the guard doing its job.
   page.once("dialog", (dialog) => void dialog.accept())
-  await page.getByRole("button", { name: "Exit Free Ride" }).tap()
+  await tapControlByTouch(page, page.getByRole("button", { name: "Exit Free Ride" }))
   await expect(page.getByRole("form", { name: "Ride request" })).toBeVisible()
   expectCleanRuntime(page, mobileQa.runtimeIssues)
 })
@@ -282,13 +284,13 @@ test("primary navigation, settings sheet, and modal escape remain usable", async
     if (destination === "Saved") {
       // Rides is a destination now, not the retired drawer overlay: the tap
       // renders the surface in place and primary navigation stays current.
-      await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
+      await expect(page.getByRole("main", { name: "My Rides destination" })).toBeVisible()
       await expect(target).toHaveAttribute("aria-current", "page")
     }
   }
-  // Record is an activity control in the secondary cluster, never a
-  // destination: it opens the preflight panel without claiming aria-current.
-  const recordControl = navigation.locator(".app-navigation-secondary button").filter({ hasText: "Record" }).first()
+  // Record is an activity control, never a destination: it opens the
+  // preflight panel without claiming aria-current.
+  const recordControl = navigation.getByRole("button", { name: "Record", exact: true })
   await recordControl.tap()
   await expect(page.getByRole("heading", { name: "Record a ride" })).toBeVisible()
   await expect(recordControl).not.toHaveAttribute("aria-current")
@@ -332,6 +334,7 @@ test("route editor keeps keyboard focus and actions in view", async ({ page, mob
 test("saved route reloads and remains available while offline", async ({ page, mobileQa }, testInfo) => {
   selectMatrix("offline", testInfo)
   await uxState.routeSelected(page)
+  await page.getByRole("button", { name: /^Details for / }).first().tap()
   await page.getByRole("button", { name: "Show route details" }).first().tap()
   await page.getByRole("button", { name: "Save route" }).tap()
   await expect(page.getByText("Route saved on this device.")).toBeVisible()
@@ -347,7 +350,7 @@ test("saved route reloads and remains available while offline", async ({ page, m
   await expect(navigation).not.toHaveAttribute("aria-hidden", "true")
   await expect(navigation).toHaveJSProperty("inert", false)
   await expect(navigation.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Saved")
-  await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
+  await expect(page.getByRole("main", { name: "My Rides destination" })).toBeVisible()
   await mobileQa.setNetwork("offline")
   await expect(page.getByText("Contract fixture route")).toBeVisible()
   await expectNoHorizontalOverflow(page)

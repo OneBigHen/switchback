@@ -363,7 +363,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   // importing is a two-step flow (open the import panel, then choose what the
   // file becomes) rather than a bare file input inside the drawer.
   await page.getByRole("button", { name: "Saved", exact: true }).click()
-  const rides = page.getByRole("main", { name: "Rides destination" })
+  const rides = page.getByRole("main", { name: "My Rides destination" })
   await expect(rides).toBeVisible()
   if (testInfo.project.name.includes("landscape")) {
     await expectInsideViewport(page, rides)
