@@ -75,7 +75,7 @@ console.log("map visible:", sheetBox
 // 2 — Explore, map mode with a selected route and the card rail.
 await page.goto(`${BASE}/?tab=explore`, { waitUntil: "domcontentloaded" })
 await page.getByRole("heading", { name: "Explore routes" }).waitFor({ timeout: 30_000 })
-await settle(14_000)
+await settle(20_000)
 const firstCard = page.locator("[data-route-card] button").first()
 if (await firstCard.count()) {
   await firstCard.click()
@@ -86,14 +86,14 @@ await shot("02-explore-map")
 // 3 — GPX Library, list mode.
 await page.goto(`${BASE}/gpx-library`, { waitUntil: "domcontentloaded" })
 await page.getByRole("heading", { name: "GPX Library" }).waitFor({ timeout: 30_000 })
-await settle(16_000)
+await settle(24_000)
 await shot("03-gpx-library-list")
 
 // 4 — Route details.
 const detailHref = await page.locator("a[href^='/gpx-library/']").first().getAttribute("href")
 await page.goto(`${BASE}${detailHref ?? "/gpx-library"}`, { waitUntil: "domcontentloaded" })
 await page.getByRole("heading", { name: "Route details" }).waitFor({ timeout: 30_000 })
-await settle(9_000)
+await settle(12_000)
 await shot("04-route-details")
 
 console.log(errors.length === 0 ? "NO CONSOLE ERRORS" : `CONSOLE ERRORS (${errors.length}):`)

@@ -146,7 +146,7 @@
 
 .saved {
   flex: none;
-  color: var(--sb-golden-hour);
+  color: var(--sb-warning-text);
 }
 
 .saved svg {
@@ -231,7 +231,7 @@
 
 .surface[data-evidence="estimated"]::after {
   content: " · est";
-  color: var(--sb-golden-hour);
+  color: var(--sb-warning-text);
   font-weight: 800;
 }
 

@@ -111,6 +111,11 @@
   --sb-band-twisty: #a9762c;
   --sb-band-hairpin: #c2423f;
 
+  /* Amber as *text*. Golden Hour is a fill colour: at ~2.6:1 on cream it fails
+     the AA floor the design contract enforces, so an "Estimated" label needs
+     its own darker value. Validated >= 4.6:1 on Surface, Raised and Canvas. */
+  --sb-warning-text: #8A5A12;
+
   /* Route-role colors carry over from V1 until the route phases re-decide them. */
   --scenic: #10a6a6;
   --adventure: #e99400;
@@ -141,6 +146,7 @@
   --sb-band-mellow: #6bbfa6;
   --sb-band-twisty: #e0b45c;
   --sb-band-hairpin: #ef8079;
+  --sb-warning-text: #E0B45C;
 
   /* V1 carry-over aliases (dark). */
   --oled: var(--sb-ink);

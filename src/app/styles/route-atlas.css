@@ -191,7 +191,7 @@
   text-transform: uppercase;
 }
 
-[data-evidence="estimated"] .route-evidence-tag { color: var(--sb-golden-hour); }
+[data-evidence="estimated"] .route-evidence-tag { color: var(--sb-warning-text); }
 [data-evidence="verified"] .route-evidence-tag { color: var(--sb-success); }
 
 .route-decision__actions {
