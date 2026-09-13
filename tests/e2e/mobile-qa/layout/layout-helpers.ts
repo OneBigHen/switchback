@@ -2,6 +2,7 @@ import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
 import {
   isExpectedProviderHealthAbort,
+  isExpectedRouteTrafficAbort,
   isExpectedRouteWeatherAbort,
   expectNoConsoleErrors,
 } from "../assertions"
@@ -92,6 +93,8 @@ export async function expectNoNestedScrollTrap(page: Page): Promise<void> {
 
 export function expectCleanRuntime(page: Page, runtimeIssues: MobileQaRuntimeIssues): void {
   expectNoConsoleErrors(page, runtimeIssues)
-  const unexpectedFailures = runtimeIssues.failedRequests.filter((failure) => !isExpectedRouteWeatherAbort(failure) && !isExpectedProviderHealthAbort(failure))
+  const unexpectedFailures = runtimeIssues.failedRequests.filter((failure) => !isExpectedRouteWeatherAbort(failure)
+    && !isExpectedProviderHealthAbort(failure)
+    && !isExpectedRouteTrafficAbort(failure))
   expect(unexpectedFailures, "unexpected failed network requests").toEqual([])
 }

@@ -411,6 +411,7 @@ export function expectNoUnexpectedNetworkFailures(
   const failures = (collector?.failedRequests ?? [])
     .filter((failure) => !isExpectedProviderHealthAbort(failure)
       && !isExpectedOptionalOverlayAbort(failure)
+      && !isExpectedRouteTrafficAbort(failure)
       && !options.ignore?.(failure))
   expect(failures, "unexpected failed network requests").toEqual([])
 }
@@ -421,6 +422,25 @@ export function isExpectedRouteWeatherAbort(failure: string): boolean {
   try {
     const url = new URL(match[1])
     return url.pathname === "/api/route-weather"
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Route traffic is advisory and belongs to the selected route's temporary
+ * surface. Leaving that surface aborts its in-flight POST by design; keep the
+ * exact cancellation outcome distinct from a failed traffic provider.
+ */
+export function isExpectedRouteTrafficAbort(failure: string): boolean {
+  const match = /^POST (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return url.pathname === "/api/route-traffic"
+      && url.search === ""
+      && url.hash === ""
       && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
   } catch {
     return false

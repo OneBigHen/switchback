@@ -14,6 +14,7 @@ import {
   expectViewportFitAndSafeAreaContainment,
   isExpectedOptionalOverlayAbort,
   isExpectedProviderHealthAbort,
+  isExpectedRouteTrafficAbort,
   isExpectedRouteWeatherAbort,
   type MobileQaRuntimeIssues
 } from "./assertions"
@@ -206,7 +207,8 @@ export async function assertMobileRideSurface(page: Page, runtimeIssues: MobileQ
   expectNoConsoleErrors(page, runtimeIssues)
   const unexpectedFailures = runtimeIssues.failedRequests.filter((failure) => !isExpectedRouteWeatherAbort(failure)
     && !isExpectedProviderHealthAbort(failure)
-    && !isExpectedOptionalOverlayAbort(failure))
+    && !isExpectedOptionalOverlayAbort(failure)
+    && !isExpectedRouteTrafficAbort(failure))
   expect(unexpectedFailures, "unexpected failed network requests").toEqual([])
 }
 

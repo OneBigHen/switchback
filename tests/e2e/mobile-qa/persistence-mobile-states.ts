@@ -1,7 +1,7 @@
 import { expect, type Page, type TestInfo } from "@playwright/test"
 import type { RouteFixture } from "../helpers/planner-fixtures"
 import { ensureMobileQaArtifactDirectory } from "./artifacts"
-import { isExpectedProviderHealthAbort, type MobileQaRuntimeIssues } from "./assertions"
+import { isExpectedProviderHealthAbort, isExpectedRouteTrafficAbort, type MobileQaRuntimeIssues } from "./assertions"
 
 export interface SavedRouteSeed extends RouteFixture {
   readonly notes: string
@@ -126,7 +126,7 @@ export function expectOnlyDeliberateNetworkFailures(
   // Mount-time capability probes the app cancels itself are not failures the
   // deliberate-endpoint check is about, and they do not carry a status code, so
   // they would otherwise fall through the status match below as "unexpected".
-  const failures = runtimeIssues.failedRequests.filter((failure) => !isExpectedProviderHealthAbort(failure))
+  const failures = runtimeIssues.failedRequests.filter((failure) => !isExpectedProviderHealthAbort(failure) && !isExpectedRouteTrafficAbort(failure))
   expect(failures.length, "the deliberate failure endpoint must be observed").toBeGreaterThan(0)
   const unexpected = failures.filter((failure) => {
     const match = /^(\d+) (https?:\/\/[^ ]+)/.exec(failure)

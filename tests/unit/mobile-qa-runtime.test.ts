@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import {
   isExpectedOptionalOverlayAbort,
   isExpectedProviderHealthAbort,
+  isExpectedRouteTrafficAbort,
   isExpectedRouteWeatherAbort,
 } from "../../tests/e2e/mobile-qa/assertions"
 import { waitForMobileQaNetworkState } from "../../tests/e2e/mobile-qa/fixtures"
@@ -31,6 +32,14 @@ describe("mobile QA network classification", () => {
     expect(isExpectedOptionalOverlayAbort("POST http://localhost:3112/api/curvature failed: net::ERR_ABORTED")).toBe(false)
     expect(isExpectedOptionalOverlayAbort("GET http://localhost:3112/api/curvature failed: net::ERR_CONNECTION_RESET")).toBe(false)
     expect(isExpectedOptionalOverlayAbort("GET http://localhost:3112/api/curvature-extra failed: net::ERR_ABORTED")).toBe(false)
+  })
+
+  it("accepts only exact route-traffic cancellation requests", () => {
+    expect(isExpectedRouteTrafficAbort("POST http://localhost:3112/api/route-traffic failed: net::ERR_ABORTED")).toBe(true)
+    expect(isExpectedRouteTrafficAbort("POST http://localhost:3112/api/route-traffic failed: Load request cancelled")).toBe(true)
+    expect(isExpectedRouteTrafficAbort("GET http://localhost:3112/api/route-traffic failed: Load request cancelled")).toBe(false)
+    expect(isExpectedRouteTrafficAbort("POST http://localhost:3112/api/route-traffic-extra failed: net::ERR_ABORTED")).toBe(false)
+    expect(isExpectedRouteTrafficAbort("POST http://localhost:3112/api/route-traffic failed: net::ERR_CONNECTION_RESET")).toBe(false)
   })
 
   it("waits for browser network readiness instead of sleeping after a transition", async () => {
