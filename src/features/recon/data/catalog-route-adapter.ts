@@ -1,6 +1,10 @@
-import type { PlannedRoute } from "@/lib/routing/types"
-import type { ReconTrack, ReconTrackPoint } from "@/features/recon/types"
-import { createReconTrack, finiteOrNull, isValidReconCoordinate } from "./recon-track"
+import type { PlannedRoute } from "@/lib/routing/types";
+import type { ReconTrack, ReconTrackPoint } from "@/features/recon/types";
+import {
+  createReconTrack,
+  finiteOrNull,
+  isValidReconCoordinate,
+} from "./recon-track";
 
 /**
  * Adapts a parsed catalog route (the `PlannedRoute` payload served by the
@@ -13,11 +17,11 @@ import { createReconTrack, finiteOrNull, isValidReconCoordinate } from "./recon-
  * geometry rejects the route (null) instead of being repaired.
  */
 export function adaptCatalogRoute(route: PlannedRoute): ReconTrack | null {
-  if (route.geometry.length < 2) return null
+  if (route.geometry.length < 2) return null;
 
-  const points: ReconTrackPoint[] = []
+  const points: ReconTrackPoint[] = [];
   for (const coordinate of route.geometry) {
-    if (!isValidReconCoordinate(coordinate)) return null
+    if (!isValidReconCoordinate(coordinate)) return null;
     points.push({
       coordinate: [...coordinate],
       recordedAt: null,
@@ -25,7 +29,7 @@ export function adaptCatalogRoute(route: PlannedRoute): ReconTrack | null {
       altitudeMeters: null,
       headingDegrees: null,
       accuracyMeters: null,
-    })
+    });
   }
 
   return createReconTrack({
@@ -49,5 +53,5 @@ export function adaptCatalogRoute(route: PlannedRoute): ReconTrack | null {
       matchPercent: null,
       confidence: null,
     },
-  })
+  });
 }
