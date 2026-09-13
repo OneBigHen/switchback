@@ -29,31 +29,47 @@ describe("AppNavigation", () => {
     expect(screen.getByText("Gravel & backroad routing")).toBeInTheDocument()
   })
 
-  it("exposes the four V2 destinations in the primary cluster", () => {
+  it("exposes the approved mobile model in order", () => {
     renderNav()
 
     const primary = screen.getByRole("group", { name: "Primary destinations" })
     const items = within(primary).getAllByRole("button")
 
-    expect(items.map((item) => item.textContent)).toEqual(["Plan", "Rides", "Discover", "Settings"])
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Plan",
+      "Explore",
+      "Saved",
+      "Settings",
+      "Record"
+    ])
   })
 
   it("announces the active destination", () => {
-    renderNav("rides")
+    renderNav("saved")
 
     const primary = screen.getByRole("group", { name: "Primary destinations" })
-    const rides = within(primary).getByRole("button", { name: "Rides" })
+    const saved = within(primary).getByRole("button", { name: "Saved" })
 
-    expect(rides).toHaveAttribute("aria-current", "page")
+    expect(saved).toHaveAttribute("aria-current", "page")
     expect(within(primary).getByRole("button", { name: "Plan" })).not.toHaveAttribute("aria-current")
   })
 
   it("selects destinations through the primary cluster", () => {
     const { onSelect } = renderNav()
 
-    fireEvent.click(screen.getByRole("button", { name: "Discover" }))
+    fireEvent.click(screen.getByRole("button", { name: "Explore" }))
 
-    expect(onSelect).toHaveBeenCalledWith("discover")
+    expect(onSelect).toHaveBeenCalledWith("explore")
+  })
+
+  it("routes discovery to Explore and rider-owned material to Saved", () => {
+    const { onSelect } = renderNav()
+
+    fireEvent.click(screen.getByRole("button", { name: "Saved" }))
+
+    expect(onSelect).toHaveBeenCalledWith("saved")
+    expect(screen.queryByRole("button", { name: "Rides" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Discover" })).not.toBeInTheDocument()
   })
 
   it("selects Settings as a destination rather than a secondary launcher", () => {
@@ -76,6 +92,8 @@ describe("AppNavigation", () => {
       "data-nav-cluster",
       "secondary"
     )
+    // Sharing the bar must not make Record claim to be a place.
+    expect(screen.getByRole("button", { name: "Record" })).not.toHaveAttribute("aria-current")
   })
 
   it("migrates legacy profile deep links to the Settings destination", () => {

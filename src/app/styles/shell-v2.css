@@ -1,8 +1,9 @@
 /* OpenGravel UX V2 shell chrome.
  *
- * Home of the primary navigation: four persistent destinations (Plan, Rides,
- * Discover, Settings) plus the secondary Record activity. Consumes the
- * canonical --sb-* tokens only. This layer replaces the retired nav blocks in
+ * Home of the primary navigation: the approved mobile model
+ * `Plan · Explore · Saved · Record · Settings`. Four of those are
+ * destinations; Record is an activity that keeps its own marking while sharing
+ * the bar at equal weight. Consumes the canonical --sb-* tokens only. This layer replaces the retired nav blocks in
  * the retired switchback-v1.css and design-system.css; it is not an override layer.
  */
 
@@ -68,6 +69,19 @@
   border-top: 1px solid var(--sb-border);
 }
 
+/* Record shares the destination group so the bar reads in the approved order,
+   but it still starts a task rather than moving the rider. On the desktop rail
+   it keeps its old separated position at the foot of the column. */
+.planner-shell .app-navigation-primary > [data-nav-cluster="secondary"] {
+  margin-top: auto;
+  border-top: 1px solid var(--sb-border);
+  padding-top: var(--sb-space-2);
+}
+
+.app-navigation-primary {
+  flex: 1 1 auto;
+}
+
 .app-navigation button {
   display: grid;
   min-width: var(--sb-touch-target);
@@ -124,24 +138,47 @@
   .app-navigation-primary {
     min-width: 0;
     flex: 1 1 auto;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--sb-space-1);
-    padding: var(--sb-space-2);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px var(--sb-space-2) 4px;
+  }
+
+  /* One row of five equal items: the divider that used to fence Record off
+     made the bar read as 4 + 1 rather than as one navigation model. */
+  .planner-shell .app-navigation-primary > [data-nav-cluster="secondary"] {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
   }
 
   .app-navigation-secondary {
-    flex: 0 0 auto;
-    margin-top: 0;
-    grid-auto-flow: column;
-    align-items: stretch;
-    padding: var(--sb-space-2);
-    border-top: 0;
-    border-left: 1px solid var(--sb-border);
+    display: none;
   }
 
   .app-navigation button {
-    min-height: 48px;
+    min-height: var(--sb-touch-target);
     padding: 4px 2px;
+    gap: 3px;
+  }
+
+  .app-navigation button svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .app-navigation button span {
+    overflow: hidden;
+    font-size: 10px;
+    letter-spacing: -0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The selected destination carries terracotta emphasis over a quiet raised
+     surface, per the approved direction. */
+  .app-navigation button.is-active {
+    background: color-mix(in srgb, var(--sb-action) 12%, var(--sb-surface));
+    color: var(--sb-ember-text);
   }
 }
 
@@ -180,13 +217,13 @@
     padding: var(--sb-space-1);
   }
 
+  .planner-shell .app-navigation-primary > [data-nav-cluster="secondary"] {
+    margin-top: var(--sb-space-1);
+    padding-top: var(--sb-space-1);
+  }
+
   .app-navigation-secondary {
-    flex: 0 0 auto;
-    margin-top: auto;
-    grid-auto-flow: row;
-    padding: var(--sb-space-1);
-    border-top: 1px solid var(--sb-border);
-    border-left: 0;
+    display: none;
   }
 
   .app-navigation button {

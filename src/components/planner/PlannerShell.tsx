@@ -409,7 +409,7 @@ export function PlannerShell() {
       // surface). Legacy V1 tab values migrate inside destinationFromLocation.
       const derived = destinationFromLocation(window.location.href)
       dispatchNavigation({ type: "restore_destination", destination: derived.destination, overlays: derived.overlays })
-      usePlannerStore.getState().setSurface(derived.destination === "rides" ? "library" : "planner")
+      usePlannerStore.getState().setSurface(derived.destination === "saved" ? "library" : "planner")
     }
     handleBack()
     window.addEventListener("popstate", handleBack)
@@ -690,7 +690,7 @@ export function PlannerShell() {
 
   const applyDestination = (destination: PrimaryDestination, historyMode: "push" | "replace" = "push") => {
     dispatchNavigation({ type: "select_destination", destination })
-    usePlannerStore.getState().setSurface(destination === "rides" ? "library" : "planner")
+    usePlannerStore.getState().setSurface(destination === "saved" ? "library" : "planner")
     const url = new URL(window.location.href)
     if (destination === "plan") url.searchParams.delete("tab")
     else url.searchParams.set("tab", destination)
@@ -1719,7 +1719,7 @@ message: failure?.message ?? "The rough route could not be routed."
             onUseHome: useHome,
             onSaveHome: () => saveHome(start),
             onClearHome: clearHome,
-            onOpenLibrary: () => handleDestination("rides"),
+            onOpenLibrary: () => handleDestination("saved"),
             onStartRide: (route) => void handleStartRide(route),
             onStartFreeRide: handleStartFreeRide,
             onStartDrawing: () => {
@@ -1788,7 +1788,7 @@ message: failure?.message ?? "The rough route could not be routed."
       </MapWorkspace>
       {/* Surface guard: a popstate during an active ride must never mount
           the drawer over the live HUD (its a11y effect inerts the map). */}
-      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "rides" ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "saved" ? (
         <RidesDestination
           routes={savedRoutes}
           recordedRides={recordedRides}
@@ -1844,7 +1844,7 @@ message: failure?.message ?? "The rough route could not be routed."
           }}
         />
       ) : null}
-      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "discover" ? (
+      {surface !== "ride" && surface !== "free-ride" && navigation.destination === "explore" ? (
         <DiscoverDestination />
       ) : null}
       {surface !== "ride" && surface !== "free-ride" && navigation.overlays.includes("record") ? (
