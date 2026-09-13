@@ -180,7 +180,7 @@ export const layerCatalog: readonly RiderLayerDefinition[] = [
     source: "Switchback Gravel Atlas",
     provenance: "Graph-verified gravel and unimproved-road corridors reconciled from Government-published official source snapshots and the active motorcycle routing graph. Surface evidence is not a guarantee of legal access, current openness, or passability.",
     dataCategory: "road-surface",
-    freshness: "Source snapshot + routing-graph fingerprint", coverage: "Configured Pennsylvania and New Jersey atlas regions",
+    freshness: "Source snapshot + routing-graph fingerprint", coverage: "New Jersey only",
     legend: "Tan dashed line = graph-verified known gravel corridor", minZoom: 8
   },
   {

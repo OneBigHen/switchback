@@ -47,6 +47,12 @@ describe("Gravel Atlas rider controls", () => {
     expect(setting).toMatchObject({ visible: false, opacity: 1 })
   })
 
+  it("describes only the activated New Jersey coverage while Pennsylvania stays gated", () => {
+    const definition = layerCatalog.find((layer) => layer.id === ("gravel-atlas" as never))
+    expect(definition?.coverage).toMatch(/New Jersey/)
+    expect(definition?.coverage).not.toMatch(/Pennsylvania/)
+  })
+
   it("loads Known gravel roads through the same bounded viewport query used by rider layers", () => {
     const settings = [{
       id: "gravel-atlas",
