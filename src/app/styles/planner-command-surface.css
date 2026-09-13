@@ -288,6 +288,21 @@
   padding-top: 14px;
 }
 
+/* On a phone the default planner has a height budget it must not overspend:
+   the whole approved composition — request, mode, preferences, Create ride,
+   Draw manually, ride state and the advisor row — has to fit inside it, or
+   the map pays for the padding. */
+@media (max-width: 760px) {
+  .planner-deck.is-idle-plan .planner-scroll {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .planner-deck.is-idle-plan .planner-stage-content {
+    margin-top: 6px;
+  }
+}
+
 @media (min-width: 761px) {
   .planner-deck {
     width: min(420px, calc(100vw - 112px));

@@ -147,13 +147,23 @@ test.describe("explore", () => {
     await page.goto("/?tab=explore")
     await expect(page.getByRole("heading", { name: "Explore routes" })).toBeVisible()
 
+    const rail = page.getByRole("list", { name: "Routes on the map" })
+    await expect(rail.locator("[data-route-card]").first()).toBeVisible()
+    const unfiltered = await rail.locator("[data-route-card]").count()
+
     await page.getByPlaceholder("Search routes, places, or regions").fill("bald")
-    const count = await page.getByRole("status").first().textContent()
+    const filteredOnMap = await rail.locator("[data-route-card]").count()
+    expect(filteredOnMap).toBeGreaterThan(0)
+    expect(filteredOnMap).toBeLessThan(unfiltered)
 
     await page.getByRole("group", { name: "Presentation" }).getByRole("button", { name: "List" }).click()
-    await expect(page.getByRole("list", { name: "Routes" })).toBeVisible()
-    // The same query, the same answer — List is a presentation, not a reload.
-    await expect(page.getByRole("status").first()).toHaveText(count ?? "")
+    const list = page.getByRole("list", { name: "Routes" })
+    await expect(list).toBeVisible()
+
+    // The same query, the same answer: List is a presentation over the result
+    // Map was already showing, not a second fetch with its own filtering.
+    expect(await list.locator("[data-route-card]").count()).toBe(filteredOnMap)
+    await expect(page.getByPlaceholder("Search routes, places, or regions")).toHaveValue("bald")
   })
 })
 

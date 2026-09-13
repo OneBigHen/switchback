@@ -217,3 +217,24 @@ describe("describeDiscoveryResult", () => {
     expect(describeDiscoveryResult(2, DEFAULT_FILTERS, { chips: ["gravel"] }, false)).toBe("2 routes match")
   })
 })
+
+describe("recovered geometry reuse", () => {
+  it("parses a browse row's art once per resolution", async () => {
+    const { browseRouteGeography } = await import("@/components/route-library/route-preview-source")
+    const subject = route({ id: "memo" })
+
+    const first = browseRouteGeography(subject, 64)
+    const second = browseRouteGeography(subject, 64)
+
+    // Identity, not equality: re-ranking the catalog on every keystroke must
+    // not re-parse every surviving route's poster art.
+    expect(second).toBe(first)
+    expect(browseRouteGeography(subject, 32)).not.toBe(first)
+  })
+
+  it("reports no geometry for a row whose art carried no bounding box", async () => {
+    const { browseRouteGeography } = await import("@/components/route-library/route-preview-source")
+
+    expect(browseRouteGeography(route({ id: "unplaceable", bbox: null })).geometry).toEqual([])
+  })
+})

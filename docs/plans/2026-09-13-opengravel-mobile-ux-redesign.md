@@ -457,3 +457,104 @@ PR description should contain:
 - any reference metric intentionally omitted because live data cannot support it truthfully.
 
 Do not merge without explicit authorization.
+
+---
+
+# Implementation record
+
+Executed 2026-09-13 against the plan above. What follows is what was actually
+built, where it differs from the plan, and what the data could not support.
+
+## Where the geography came from
+
+The plan's Task 4 asked for a preview pipeline and offered pre-generated
+static images or a profiled runtime renderer. Neither needed a new data
+source: `scripts/build-route-atlas.mjs` projects each route's own geometry
+into the poster viewBox with an **aspect-fit Mercator transform**, and stores
+the route's real-world bbox beside it. That transform is invertible, so
+`src/lib/routes/route-preview.ts` recovers true longitude/latitude from art the
+listing already ships. The inverse is tested against the builder's own forward
+maths rather than against itself.
+
+The recovered line is the *simplified* line — jitter-filtered, RDP-reduced,
+Chaikin-smoothed, rounded to a tenth of a viewBox unit. Over a 0.65-degree
+route that is well under a tenth of a mile: a faithful shape at browse sizes,
+not a claim of survey accuracy. Route detail, which already loads the real
+geometry, draws the real geometry.
+
+## Renderer choice
+
+One shared off-screen MapLibre instance for the whole application
+(`route-preview-renderer.ts`), serialised behind a queue, gated on visibility,
+keyed by `routeId + geometry fingerprint + padded bbox + style version + size`.
+Measured on the 537-route production catalog: first preview ~4s cold (style,
+sprites, glyphs), then ~190ms each; one WebGL context total; zero canvases
+inside route cards. Recovered geometry is memoised per row and resolution, so
+re-ranking on every keystroke does not re-parse the catalog.
+
+Where the renderer cannot run, the card shows the route's real line in its own
+Mercator projection and says `Basemap unavailable`. That is deliberately not
+the retired silhouette: the shape is in its true projection and the state is
+stated.
+
+## Deviations from the plan and the spec
+
+- **Mobile-QA spec path.** The plan named
+  `tests/e2e/mobile-qa/opengravel-mobile-redesign.spec.ts`. The mobile-QA
+  projects only match `core/*.core.spec.ts` and the layout/visual specs, so a
+  file at that path would have run in no project and guarded nothing. It lives
+  at `tests/e2e/mobile-qa/core/opengravel-mobile-redesign.core.spec.ts`. A
+  second spec, `tests/e2e/critical/opengravel-mobile-redesign.spec.ts`, runs in
+  the PR gate at 390x844 so the contract is enforced on every PR rather than
+  only on the nightly mobile matrix.
+- **Destination ids renamed, not just relabelled.** `rides` became `saved` and
+  `discover` became `explore`, with superseded `?tab=` values migrating through
+  the door the V1 tabs already used. Leaving the code speaking a retired
+  vocabulary would have been the larger cost.
+- **`?open=record` added.** A page outside the app shell needs a way to hand
+  the rider back to Record. `?tab=record` keeps its historical meaning (Plan,
+  no overlay, no recording); `?open=record` shows the Record surface. Showing
+  the panel still starts nothing.
+- **The Discover destination was retired, not deleted.** Rider-published
+  routes keep their own page at `/routes`; Explore links to it. The in-shell
+  community browse surface is gone because Explore owns discovery.
+- **Record sits in the destinations group.** The approved order puts it between
+  Saved and Settings, so it shares the bar at equal weight while keeping its
+  activity marking (`data-nav-cluster="secondary"`, never `aria-current`).
+
+## What the data could not support
+
+- **Surface percentages.** The shared listing carries no measured surface mix,
+  so cards say `Surface unknown` unless a route's routing profile is adventure
+  or gravel, which reads as `Gravel-capable · est`. The `Gravel` quick chip is
+  offered **disabled with its reason** on a catalog with no such evidence,
+  rather than enabled and always empty.
+- **Elevation profile.** The catalog stores total ascent/descent, not samples
+  along the line. Route detail shows total climb and its plain-language
+  character, and states that a per-mile profile was not retained. No chart is
+  drawn, because a flat or invented curve would read as a claim about the ride.
+- **Highlight chips.** `creek crossings`, `scenic`, `quiet roads` and `remote`
+  from the reference have no evidence anywhere in the import pipeline and are
+  absent. What remains is derived from real fields: measured surface, curvature
+  band, recorded ascent per mile, routing profile, distance.
+- **`Create ride` starts disabled** in a fresh `To` planner with a start and no
+  destination. That is the truthful state — there is no ride to create — and
+  the line beneath says what is missing.
+
+## Measured composition at 390x844
+
+- Planner: sheet top at y=426, so the map keeps **50%** of the viewport.
+- Explore: header 166px, map 293px, card rail 303px, navigation 68px. The map
+  is **64%** of the workspace above the rail and the bar (spec: 65-70%).
+- GPX Library list: three information-dense cards below the header, each with a
+  geographic preview at a 45/55 preview-to-content split.
+- Route detail: hero map **36%** of the viewport (spec: 35-40%).
+
+## Reference images
+
+The four WebP references in `docs/design/opengravel-mobile/reference/` are
+**not decodable** — each is ~15KB of data with no RIFF/WebP header, identical
+on origin. The build therefore followed the UX spec's explicit transcription of
+those references (copy strings, element order, ratios, radii, gutters, colour
+anchors). A visual side-by-side against the real references is still
+outstanding and needs the images restored.

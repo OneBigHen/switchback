@@ -33,17 +33,36 @@ export interface RouteGeography {
 
 const EMPTY: RouteGeography = { geometry: [], start: null, end: null, fingerprint: null }
 
+/**
+ * Recovered geometry, remembered per browse row and resolution.
+ *
+ * Typing in the search field re-ranks the catalog on every keystroke, and the
+ * map redraws from the ranked result. Without this, every keystroke re-parsed
+ * every surviving route's poster art — hundreds of thousands of coordinate
+ * conversions to answer a question whose geometry has not changed. Browse rows
+ * are stable objects from one payload, so a WeakMap both keys on identity and
+ * lets a replaced catalog be collected.
+ */
+const recovered = new WeakMap<AtlasBrowseRoute, Map<number, RouteGeography>>()
+
 /** Real-world line for a browse row, recovered from its precomputed art. */
 export function browseRouteGeography(route: AtlasBrowseRoute, maxPoints = 160): RouteGeography {
+  const byResolution = recovered.get(route) ?? new Map<number, RouteGeography>()
+  const cached = byResolution.get(maxPoints)
+  if (cached) return cached
+
   const art = browseRouteArt(route)
-  if (!art) return EMPTY
-  const polyline = atlasGeoPolyline(art)
-  if (polyline.length < 2) return EMPTY
-  const endpoints = atlasGeoEndpoints(art)
-  return {
-    geometry: simplifyForOverlay(polyline, maxPoints),
-    start: endpoints.start,
-    end: endpoints.end,
-    fingerprint: atlasGeometryFingerprint(art)
-  }
+  const polyline = art ? atlasGeoPolyline(art) : []
+  const result: RouteGeography = !art || polyline.length < 2
+    ? EMPTY
+    : {
+        geometry: simplifyForOverlay(polyline, maxPoints),
+        start: atlasGeoEndpoints(art).start,
+        end: atlasGeoEndpoints(art).end,
+        fingerprint: atlasGeometryFingerprint(art)
+      }
+
+  byResolution.set(maxPoints, result)
+  recovered.set(route, byResolution)
+  return result
 }
