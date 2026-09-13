@@ -48,7 +48,7 @@ describe("Gravel Goblin's idle invitation", () => {
         routes={[]}
         selectedRouteId=""
         warnings={[]}
-        resultRevision={0}
+        resultRevision={null}
         origin={null}
         onAddStop={vi.fn()}
       />
@@ -74,7 +74,7 @@ describe("Gravel Goblin's idle invitation", () => {
         routes={[]}
         selectedRouteId=""
         warnings={[]}
-        resultRevision={0}
+        resultRevision={null}
         origin={null}
         onAddStop={vi.fn()}
       />
