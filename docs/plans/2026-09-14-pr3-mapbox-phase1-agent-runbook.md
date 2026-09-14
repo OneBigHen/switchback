@@ -54,8 +54,8 @@ existing ArcGIS image-host typo.
 
 - Red/green loop:
   `npx vitest run tests/unit/next-config.test.ts tests/unit/deployment-contract.test.ts`
-- Broader affected configuration tests:
-  `npx vitest run tests/unit/next-config.test.ts tests/unit/deployment-contract.test.ts tests/unit/security-headers.test.ts`
+- The affected configuration tests are the two existing files above; there is no
+  separate `tests/unit/security-headers.test.ts` file in this repository.
 
 **Acceptance criteria**
 

@@ -210,11 +210,11 @@ commit or evidence gate changes.
 | T-2.5 | PR 2 | blocked — Packet F | server decision payload |
 | T-2.6 | PR 2 | blocked — Packet F | role corpus and V1/V2 evidence |
 | T-2.7 | PR 2 | blocked — Packet F | policy comparison report |
-| T-3.1 | PR 3 | not started | Packet C implementation |
-| T-3.2 | PR 3 | not started | Mapbox fallback implementation |
-| T-3.3 | PR 3 | not started | renderer-specific labels |
-| T-3.4 | PR 3 | not started | browser Mapbox mount/fallback evidence |
-| T-3.5 | PR 3 | not started | temporary rollout note; no production mutation here |
+| T-3.1 | PR 3 | complete — PR #146 | CSP hosts and ArcGIS origin are covered by focused tests |
+| T-3.2 | PR 3 | complete — PR #146 | session-scoped Mapbox initial-load fallback and component regression pass |
+| T-3.3 | PR 3 | complete — PR #146 | renderer-specific labels and canonical preset ids are covered |
+| T-3.4 | PR 3 | complete — PR #146 | dedicated Mapbox mount/fallback spec is 2/2 at exact head |
+| T-3.5 | PR 3 | complete — PR #141 | authority links PR3 runbook and records owner boundary |
 | T-3.6 | PR 3 | OWNER OPS blocked | owner-approved production rollout; see T-3.6 runbook |
 | T-4.1 | PR 4 | blocked — Packet H | server profile/role contract |
 | T-4.2 | PR 4 | partial — warning subtask complete in follow-up | T-4.2a/b warning carrier and propagation are implemented/tested; full cards wait for Packet F/role data |
@@ -259,6 +259,10 @@ Packet F and the Phase 7 decision payload exist.
 - T-0.1 benchmark override: PR #144, branch `fix/advisor-bench-model-override`,
   head `3d0b85c4d355286c7881644dd8915455e728f3e2`, makes the OpenRouter model
   selectable without changing the verified default or production behavior.
+- PR3 map packet: PR #146, branch `fix/routing-map-phase1`, head
+  `5c648a804a3536c0fbb2c71c0ebe22797ef5e837`, covers CSP, renderer fallback,
+  truthful map labels, and deterministic browser mount/failure evidence on the
+  exact PR #139 base.
 - The full repository suite at that warning-branch head is `424` files,
   `2,890` tests passed, `1` configured test skipped. Exact-head lint, typecheck,
   and production build also pass locally; the associated GitHub checks must still
