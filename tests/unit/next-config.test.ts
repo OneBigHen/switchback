@@ -15,9 +15,12 @@ describe("Next development access", () => {
   })
 
   it("allows the Mapbox browser requests and the canonical ArcGIS image host", () => {
-    expect(nextConfigSource).toContain("https://api.mapbox.com")
-    expect(nextConfigSource).toContain("https://events.mapbox.com")
-    expect(nextConfigSource).toContain("https://server.arcgisonline.com")
-    expect(nextConfigSource).not.toContain("https://server.arcgisonline https://")
+    const connectSrc = nextConfigSource.match(/"connect-src ([^"]+)"/)?.[1]?.split(/\s+/) ?? []
+    const imageSrc = nextConfigSource.match(/"img-src ([^"]+)"/)?.[1]?.split(/\s+/) ?? []
+
+    expect(connectSrc).toContain("https://api.mapbox.com")
+    expect(connectSrc).toContain("https://events.mapbox.com")
+    expect(imageSrc).toContain("https://server.arcgisonline.com")
+    expect(imageSrc).not.toContain("https://server.arcgisonline")
   })
 })

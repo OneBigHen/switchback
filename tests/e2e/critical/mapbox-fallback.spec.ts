@@ -6,9 +6,11 @@ type MapboxRequestMode = "success" | "style-failure"
 async function installMapboxFixtures(page: Page, mode: MapboxRequestMode): Promise<{
   requests: string[]
   failedRequests: string[]
+  handledRequests: string[]
 }> {
   const requests: string[] = []
   const failedRequests: string[] = []
+  const handledRequests: string[] = []
   page.on("request", (request) => {
     if (request.url().includes("api.mapbox.com") || request.url().includes("events.mapbox.com")) {
       requests.push(request.url())
@@ -20,8 +22,12 @@ async function installMapboxFixtures(page: Page, mode: MapboxRequestMode): Promi
     }
   })
 
-  await page.route("https://api.mapbox.com/**", (route) => {
-    if (route.request().url().includes("/styles/v1/")) {
+  await page.route("**/*", (route) => {
+    const requestUrl = new URL(route.request().url())
+    const isMapboxHost = requestUrl.hostname === "mapbox.com" || requestUrl.hostname.endsWith(".mapbox.com")
+    if (!isMapboxHost) return route.fallback()
+    handledRequests.push(requestUrl.toString())
+    if (requestUrl.hostname === "api.mapbox.com" && requestUrl.pathname.includes("/styles/v1/")) {
       if (mode === "style-failure") return route.abort()
       return route.fulfill({
         status: 200,
@@ -29,10 +35,10 @@ async function installMapboxFixtures(page: Page, mode: MapboxRequestMode): Promi
         body: JSON.stringify({ ...EMPTY_MAP_STYLE, name: "OpenGravel Mapbox fixture" })
       })
     }
+    if (requestUrl.hostname === "events.mapbox.com") return route.fulfill({ status: 204, body: "" })
     return route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
   })
-  await page.route("https://events.mapbox.com/**", (route) => route.fulfill({ status: 204, body: "" }))
-  return { requests, failedRequests }
+  return { requests, failedRequests, handledRequests }
 }
 
 async function openQuickLayers(page: Page) {
@@ -42,10 +48,10 @@ async function openQuickLayers(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => sessionStorage.clear())
-  await installPlannerServices(page)
 })
 
 test("mounts the Mapbox renderer with premium map choices and no paid requests", async ({ page }) => {
+  await installPlannerServices(page)
   const mapbox = await installMapboxFixtures(page, "success")
   await page.goto("/")
 
@@ -55,10 +61,12 @@ test("mounts the Mapbox renderer with premium map choices and no paid requests",
   await expect(quick.getByRole("radio", { name: "Terrain" })).toBeVisible()
   await expect(quick.getByRole("radio", { name: "Satellite" })).toBeVisible()
   expect(mapbox.requests.some((url) => url.includes("/styles/v1/"))).toBe(true)
+  expect(mapbox.handledRequests).toEqual(mapbox.requests)
   expect(mapbox.failedRequests).toEqual([])
 })
 
 test("falls back to MapLibre when the initial Mapbox style fails", async ({ page }) => {
+  await installPlannerServices(page)
   const mapbox = await installMapboxFixtures(page, "style-failure")
   await page.goto("/")
 
@@ -69,5 +77,6 @@ test("falls back to MapLibre when the initial Mapbox style fails", async ({ page
   await expect(quick.getByRole("radio", { name: "Satellite" })).toHaveCount(0)
   expect(await page.evaluate(() => sessionStorage.getItem("switchback.mapbox-fallback"))).toBe("1")
   expect(mapbox.requests.some((url) => url.includes("/styles/v1/"))).toBe(true)
+  expect(mapbox.handledRequests).toEqual(mapbox.requests)
   expect(mapbox.failedRequests.some((url) => url.includes("/styles/v1/"))).toBe(true)
 })
