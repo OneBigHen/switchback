@@ -64,7 +64,7 @@ test("a route preview plays as a flyover with no recorded time", async ({ page }
 test("a recorded ride replays, opens X-Ray and runs Cinematic", async ({ page }) => {
   const errors = watchErrors(page)
   const route = await firstCatalogRoute(page)
-  expect(route.geometry.length).toBeGreaterThan(10)
+  expect(route.geometry.length).toBeGreaterThanOrEqual(2)
 
   // Seed the Dexie ride journal (IndexedDB "switchback-ride-journal", Dexie v1 = IDB v10).
   await page.goto("/labs/recon")
@@ -72,7 +72,14 @@ test("a recorded ride replays, opens X-Ray and runs Cinematic", async ({ page })
   await page.evaluate(
     async ({ id, geometry, name, routeId }) => {
       const start = Date.UTC(2026, 7, 30, 14, 0, 0)
-      const points = geometry.map((coordinate, index) => ({
+      // Densify the route line into ~1 fix per vertex step, as a phone would record it.
+      const fixes: [number, number][] = []
+      for (let index = 1; index < geometry.length; index += 1) {
+        const [a, b] = [geometry[index - 1]!, geometry[index]!]
+        for (let step = 0; step < 25; step += 1) fixes.push([a[0] + ((b[0] - a[0]) * step) / 25, a[1] + ((b[1] - a[1]) * step) / 25])
+      }
+      fixes.push(geometry[geometry.length - 1]!)
+      const points = fixes.map((coordinate, index) => ({
         coordinate,
         recordedAt: new Date(start + index * 4_000).toISOString(),
         speedMph: 28 + (index % 7),

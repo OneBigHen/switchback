@@ -5,9 +5,9 @@ import type { Map as MapLibreMap, RasterDEMSourceSpecification } from "maplibre-
  *
  * `NEXT_PUBLIC_RECON_TERRAIN_TILEJSON` selects the DEM TileJSON; unset uses
  * Mapterhorn's public terrarium tiles and `off` disables terrain entirely.
- * Any failure (fetch, malformed TileJSON, tile errors) removes terrain once
- * and never retries — terrain is atmosphere, never a fatal dependency. Only
- * ordinary tile requests leave the browser; no ride geometry is sent.
+ * A failed TileJSON or repeated tile errors remove terrain once and never
+ * retry, and software WebGL skips it: terrain is atmosphere, never a fatal
+ * dependency. Only ordinary tile requests leave the browser, never ride data.
  */
 
 export const DEFAULT_TERRAIN_TILEJSON = "https://tiles.mapterhorn.com/tilejson.json"
@@ -16,6 +16,14 @@ const HILLSHADE_SOURCE = "recon-hillshade-dem"
 const HILLSHADE_LAYER = "recon-hillshade"
 const EXAGGERATION = 1.35
 const DEFAULT_ATTRIBUTION = "© Mapterhorn"
+/**
+ * Mapterhorn's TileJSON omits maxzoom, so MapLibre would request z17+ tiles
+ * that 404 (probed 2026-09-13 over PA/NJ: z15 served, z17 404). Relief past
+ * z14 adds nothing at replay zooms, and MapLibre overzooms beyond maxzoom.
+ */
+const DEFAULT_DEM_MAXZOOM = 14
+/** A handful of missing tiles is coverage, not a broken source. */
+const MAX_TILE_ERRORS = 6
 
 export interface ReconTerrainHandle {
   dispose(): void
@@ -25,7 +33,7 @@ export interface TerrainTileJson {
   tiles: string[]
   encoding: "terrarium" | "mapbox"
   tileSize: 256 | 512
-  maxzoom: number | undefined
+  maxzoom: number
   attribution: string
 }
 
@@ -43,7 +51,7 @@ export function parseTerrainTileJson(body: unknown): TerrainTileJson | null {
   if (!Array.isArray(tiles) || tiles.length === 0 || !tiles.every((tile) => typeof tile === "string" && tile.startsWith("https://"))) {
     return null
   }
-  const maxzoom = typeof record.maxzoom === "number" && Number.isFinite(record.maxzoom) ? Math.min(15, Math.max(8, Math.round(record.maxzoom))) : undefined
+  const maxzoom = typeof record.maxzoom === "number" && Number.isFinite(record.maxzoom) ? Math.min(15, Math.max(8, Math.round(record.maxzoom))) : DEFAULT_DEM_MAXZOOM
   return {
     tiles: tiles as string[],
     encoding: record.encoding === "mapbox" ? "mapbox" : "terrarium",
@@ -59,23 +67,41 @@ function demSource(tileJson: TerrainTileJson): RasterDEMSourceSpecification {
     tiles: tileJson.tiles,
     encoding: tileJson.encoding,
     tileSize: tileJson.tileSize,
-    ...(tileJson.maxzoom !== undefined ? { maxzoom: tileJson.maxzoom } : {}),
+    maxzoom: tileJson.maxzoom,
     attribution: tileJson.attribution
+  }
+}
+
+/**
+ * Software WebGL (SwiftShader, llvmpipe) renders 3D terrain at a few frames a
+ * minute; on those renderers Recon stays flat so Replay remains usable.
+ */
+export function isSoftwareRenderer(map: MapLibreMap): boolean {
+  try {
+    const canvas = map.getCanvas()
+    const gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null
+    if (!gl) return true
+    const info = gl.getExtension("WEBGL_debug_renderer_info")
+    const renderer = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer)
+  } catch {
+    return false
   }
 }
 
 /** Attach terrain to a loaded map; call `dispose()` before `map.remove()`. */
 export function enhanceReconMapTerrain(map: MapLibreMap, beforeLayerId?: string): ReconTerrainHandle {
   const url = terrainTileJsonUrl()
-  if (!url) return { dispose() {} }
+  if (!url || isSoftwareRenderer(map)) return { dispose() {} }
 
   const controller = new AbortController()
   let disabled = false
 
-  // One strike: a DEM error repeats for every bad tile, so the first disables.
+  // A dead DEM host errors on every tile; stop after a few instead of storming.
+  let tileErrors = 0
   const onError = (event: object) => {
     const sourceId = (event as { sourceId?: string }).sourceId
-    if (sourceId === TERRAIN_SOURCE || sourceId === HILLSHADE_SOURCE) disable()
+    if ((sourceId === TERRAIN_SOURCE || sourceId === HILLSHADE_SOURCE) && ++tileErrors >= MAX_TILE_ERRORS) disable()
   }
 
   function disable(): void {
