@@ -15,9 +15,9 @@
 - PR #141 Quality and Mobile Core were green on its then-current head before this
   follow-up docs commit. Re-check CI after every docs/code head change.
 - PR #142 `fix/routing-long-trip-alternatives` is the pushed PR1 implementation
-  stack at `e4731268e3b8fd5529c69f2c57f996be95706aec`.
+  stack at `1a218cd4d0cea29e19a08c605a5e8e5792d5c090`.
 - PR #143 `fix/routing-allow-with-warning` is the pushed warning-contract follow-up
-  at `40599bfff8239e1a9cc8fd937136f82976520be`, stacked on PR #142.
+  at `851a6ac9a9ef3bf2883212dd996eddd9bdda3aba`, stacked on PR #142.
 
 Do not assume these SHAs are still current. Every execution packet starts by
 fetching and reconciling the refs it names.
@@ -224,18 +224,20 @@ Packet F and the Phase 7 decision payload exist.
 ## Implementation evidence at the current heads
 
 - PR1 implementation: PR #142, branch `fix/routing-long-trip-alternatives`, head
-  `e4731268e3b8fd5529c69f2c57f996be95706aec`. The ten-task packet is implemented
-  in reviewable commits; T-1.10's local benchmark telemetry and calibration code
-  are present, but no reachable branch GraphHopper was available for the p95 bar.
+  `1a218cd4d0cea29e19a08c605a5e8e5792d5c090`. The ten-task packet is implemented in reviewable commits; the
+  cancellation follow-up also covers provider timeout classification, corridor
+  resolution, and PASDA/elevation signal cleanup. T-1.10's local benchmark
+  telemetry and calibration code are present, but no reachable branch
+  GraphHopper was available for the p95 bar.
 - Warning follow-up: branch `fix/routing-allow-with-warning`, head
-  `40599bfff8239e1a9cc8fd937136f82976520be`, stacked on PR1. The focused
-  provider/eligibility/planner/API/state/component suite is `115/115` passing;
-  `allow-with-warning` remains eligible and carries typed warning data.
+  `851a6ac9a9ef3bf2883212dd996eddd9bdda3aba`, stacked on PR1. The focused
+  provider/eligibility/planner/API/state/component suite is `133/133` passing;
+  `allow-with-warning` remains eligible and carries
+  typed warning data through enrichment, selection, serialization, state, and UI.
 - The full repository suite at that warning-branch head is `424` files,
-  `2,876` tests passed, `1` configured test skipped. Local configured gates at the
-  same code head also pass: critical `85/85`, road-lock `1/1`, advisor `21/21`,
-  PWA `3/3`, visual `62/62`, real-router `5/5`, and mobile-core `56/56`; the
-  associated GitHub checks must still be read at each final PR head.
+  `2,890` tests passed, `1` configured test skipped. Exact-head lint, typecheck,
+  and production build also pass locally; the associated GitHub checks must still
+  be read at each final PR head.
 - No production deployment, provider activation, secret/config mutation, or
   T-3.6 owner operation was performed.
 

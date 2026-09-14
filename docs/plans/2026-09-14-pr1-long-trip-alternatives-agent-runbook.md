@@ -1,7 +1,7 @@
 # PR 1 execution runbook — long-trip alternatives
 
 > **Status:** implementation complete through T-1.9 on PR #142 head
-> `e4731268e3b8fd5529c69f2c57f996be95706aec`; T-1.10's benchmark telemetry and
+> `1a218cd4d0cea29e19a08c605a5e8e5792d5c090`; T-1.10's benchmark telemetry and
 > calibration code are complete, but its reachable-service p95 evidence remains
 > open. The canonical task ids are `T-1.1` through
 > `T-1.10`. The execution authority at

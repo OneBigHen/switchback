@@ -261,10 +261,10 @@ symbols and tests supersede moved line citations below.
 **T-1.1 — deadline helper (new `src/lib/routing/deadline.ts`)**
 
 PR #142 implements T-1.1 through T-1.9 at head
-`e4731268e3b8fd5529c69f2c57f996be95706aec`. T-1.10's telemetry and calibration
+`1a218cd4d0cea29e19a08c605a5e8e5792d5c090`. T-1.10's telemetry and calibration
 code are implemented, but the reachable-service calibration evidence remains open.
 The dependency-ready T-4.2 warning subtask is implemented in stacked PR #143 at
-`40599bfff8239e1a9cc8fd937136f82976520be`; full role/card/traffic work remains
+`851a6ac9a9ef3bf2883212dd996eddd9bdda3aba`; full role/card/traffic work remains
 Packet H/Packet F dependent.
 
 - Export `timeoutSignal(ms)`, `composeSignals(...)`, `createDeadline(ms, parent)`.

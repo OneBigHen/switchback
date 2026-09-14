@@ -2,7 +2,8 @@
 
 > **Status:** the dependency-ready T-4.2a/b warning implementation is complete on
 > branch `fix/routing-allow-with-warning`, head
-> `40599bfff8239e1a9cc8fd937136f82976520be`, in PR #143 stacked on PR1.
+> `851a6ac9a9ef3bf2883212dd996eddd9bdda3aba`, in PR #143 stacked on PR1. The follow-up also hardens warning
+> preservation through replacing enrichment seams and weighted segmented routes.
 > The full T-4.2 card/details work remains a Packet H follow-through task after the
 > traffic/decision contracts exist. This runbook covers the warning defect only: an
 > eligible route with toll evidence must retain structured rider-facing warning data
@@ -55,8 +56,8 @@ to be proven not to drop the warning. T-1.7 owns the separate warning-only
 alternative response lifecycle; T-4.2b owns route-warning preservation.
 
 Implementation evidence at the current head: the focused provider/eligibility/
-planner/API/state/component suite is `115/115` passing, and the full repository
-suite is `424` files with `2,876` tests passed and `1` configured skip. The route
+planner/API/state/component suite is `133/133` passing, and the full repository
+suite is `424` files with `2,890` tests passed and `1` configured skip. The route
 warning field is optional for compatibility, but every policy-aware planner path
 adds/merges it before selection; no UI code parses provider detail text.
 
