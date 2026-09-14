@@ -14,6 +14,10 @@
 - Planning PR #141: `docs/routing-rework-plan-20260914`.
 - PR #141 Quality and Mobile Core were green on its then-current head before this
   follow-up docs commit. Re-check CI after every docs/code head change.
+- PR #142 `fix/routing-long-trip-alternatives` is the pushed PR1 implementation
+  stack at `e4731268e3b8fd5529c69f2c57f996be95706aec`.
+- PR #143 `fix/routing-allow-with-warning` is the pushed warning-contract follow-up
+  at `40599bfff8239e1a9cc8fd937136f82976520be`, stacked on PR #142.
 
 Do not assume these SHAs are still current. Every execution packet starts by
 fetching and reconciling the refs it names.
@@ -164,23 +168,24 @@ progress or completion decisions.
 
 This is the only execution status index for the routing-rework package. The
 master plan is linked for rationale; stale phase/PR prose in it is not a second
-status source. Statuses below were reconciled against the live repository and
-PRs on 2026-09-14 and must be updated in this file when a task commit lands.
+status source. Statuses below were reconciled against the live repository,
+implementation branches, and PRs on 2026-09-14. Update this file whenever a task
+commit or evidence gate changes.
 
 | Task | Packet | Status | Dependency / evidence gate |
 |---|---|---|---|
 | T-0.1 | Step 0 | not started | local bench change; no production access |
 | T-0.2 | Step 0 | OWNER OPS blocked | model bakeoff, owner approval, production config and app proof |
-| T-1.1 | PR 1 | ready to execute | none; runbook created |
-| T-1.2 | PR 1 | blocked by T-1.1 | strategy runbook created |
-| T-1.3 | PR 1 | blocked by T-1.2 | server-owned provider field |
-| T-1.4 | PR 1 | blocked by T-1.1 | lane-settlement contract |
-| T-1.5 | PR 1 | blocked by T-1.2–T-1.4 | lane table and corridor contracts |
-| T-1.6 | PR 1 | blocked by T-1.1/T-1.4 | signal-aware enrichment and provider queues |
-| T-1.7 | PR 1 | blocked by T-1.4–T-1.6 | outcome/diagnostics/client contract |
-| T-1.8 | PR 1 | blocked by T-1.6 | preserve normalization score |
-| T-1.9 | PR 1 | blocked by T-1.1–T-1.8 | complete regression matrix |
-| T-1.10 | PR 1 | blocked by T-1.7/T-1.9 | branch benchmark or explicit unavailable evidence |
+| T-1.1 | PR 1 | complete — PR #142 | `deadline.ts`; focused cleanup/cancellation tests pass |
+| T-1.2 | PR 1 | complete — PR #142 | `alternatives-strategy.ts`; boundary/corridor/loop tests pass |
+| T-1.3 | PR 1 | complete — PR #142 | server-owned `engineAlternates`; provider/API fixture tests pass |
+| T-1.4 | PR 1 | complete — PR #142 | bounded completion-order lane settlement is implemented/tested |
+| T-1.5 | PR 1 | complete — PR #142 | short/long lane table and corridor lanes are implemented/tested |
+| T-1.6 | PR 1 | complete — PR #142 | cancellation-aware enrichment/fallback and Valhalla limiter are tested |
+| T-1.7 | PR 1 | complete — PR #142 | outcome/diagnostics/timing and progressive merge contract is tested |
+| T-1.8 | PR 1 | complete — PR #142 | hybrid double scoring removed; normalization score preserved |
+| T-1.9 | PR 1 | complete — PR #142 | provider cancellation/regression matrix passes in the affected full suite |
+| T-1.10 | PR 1 | partial — code complete, live evidence open | benchmark telemetry/help and unreachable smoke exist; no reachable branch calibration was available |
 | T-2.1 | PR 2 | blocked — Packet F | V2 may remain dark until traffic contract exists |
 | T-2.2 | PR 2 | blocked — Packet F | real traffic cost and unknown-axis semantics |
 | T-2.3 | PR 2 | blocked — Packet F | common candidate pool and traffic evidence |
@@ -195,7 +200,7 @@ PRs on 2026-09-14 and must be updated in this file when a task commit lands.
 | T-3.5 | PR 3 | not started | temporary rollout note; no production mutation here |
 | T-3.6 | PR 3 | OWNER OPS blocked | owner-approved production rollout; see T-3.6 runbook |
 | T-4.1 | PR 4 | blocked — Packet H | server profile/role contract |
-| T-4.2 | PR 4 | partial — warning subtask separately executable | full cards wait for Packet F/role data; see dedicated runbook |
+| T-4.2 | PR 4 | partial — warning subtask complete in follow-up | T-4.2a/b warning carrier and propagation are implemented/tested; full cards wait for Packet F/role data |
 | T-4.3 | PR 4 | blocked — Packet E/F | TomTom traffic adapter and shared budget/breaker |
 | T-4.4 | PR 4 | blocked — Packet H | capability and visibility contracts |
 | T-4.5 | PR 4 | blocked — Packet H | component, visual, mobile evidence |
@@ -212,8 +217,27 @@ The executable artifacts are:
 - T-4.2 warning contract: `2026-09-14-t4-2-allow-with-warning-agent-runbook.md`
 
 The T-4.2 status is intentionally partial: its warning contract can be isolated,
-but the complete role/card/traffic surface must not be claimed until Packet F and
-the Phase 7 decision payload exist.
+and the dependency-ready warning propagation is now implemented in the stacked
+follow-up branch. The complete role/card/traffic surface must not be claimed until
+Packet F and the Phase 7 decision payload exist.
+
+## Implementation evidence at the current heads
+
+- PR1 implementation: PR #142, branch `fix/routing-long-trip-alternatives`, head
+  `e4731268e3b8fd5529c69f2c57f996be95706aec`. The ten-task packet is implemented
+  in reviewable commits; T-1.10's local benchmark telemetry and calibration code
+  are present, but no reachable branch GraphHopper was available for the p95 bar.
+- Warning follow-up: branch `fix/routing-allow-with-warning`, head
+  `40599bfff8239e1a9cc8fd937136f82976520be`, stacked on PR1. The focused
+  provider/eligibility/planner/API/state/component suite is `115/115` passing;
+  `allow-with-warning` remains eligible and carries typed warning data.
+- The full repository suite at that warning-branch head is `424` files,
+  `2,876` tests passed, `1` configured test skipped. Local configured gates at the
+  same code head also pass: critical `85/85`, road-lock `1/1`, advisor `21/21`,
+  PWA `3/3`, visual `62/62`, real-router `5/5`, and mobile-core `56/56`; the
+  associated GitHub checks must still be read at each final PR head.
+- No production deployment, provider activation, secret/config mutation, or
+  T-3.6 owner operation was performed.
 
 ## Correct dependency graph
 

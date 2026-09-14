@@ -1,10 +1,12 @@
 # T-4.2 execution runbook — allow-with-warning route contract
 
-> **Status:** dedicated behavioral contract packet. The full T-4.2 card/details
-> work remains a Packet H follow-through task after the traffic/decision contracts
-> exist. This runbook covers the dependency-ready warning defect only: an eligible
-> route with toll evidence must retain structured rider-facing warning data through
-> the complete active route path. The canonical status lives in
+> **Status:** the dependency-ready T-4.2a/b warning implementation is complete on
+> branch `fix/routing-allow-with-warning`, head
+> `40599bfff8239e1a9cc8fd937136f82976520be`, in PR #143 stacked on PR1.
+> The full T-4.2 card/details work remains a Packet H follow-through task after the
+> traffic/decision contracts exist. This runbook covers the warning defect only: an
+> eligible route with toll evidence must retain structured rider-facing warning data
+> through the complete active route path. The canonical status lives in
 > `2026-09-14-cheap-agent-execution-authority.md`.
 
 ## Required invariant
@@ -32,24 +34,31 @@ symbol name if a preceding packet moves them.
 
 | Boundary | Current implementation | Current behavior / risk |
 |---|---|---|
-| Provider/evidence | `src/lib/routing/graphhopper-response.ts` `normalizeGraphHopperPath` | GraphHopper `details.toll` becomes `PlannedRoute.tollEvidence` at normalization; known toll share is preserved, but no structured rider warning is created for `allow-with-warning`. |
-| Provider normalization | `src/lib/routing/valhalla.ts` `normalizeTrip` | Valhalla routes have the active `PlannedRoute` shape; toll evidence is absent unless a later trusted adapter supplies it. Absence is unknown, not “no toll”. |
-| Active route type | `src/lib/routing/types.ts` `PlannedRoute` | Carries `tollEvidence` and `routeScore`, but no route-level warning field. |
-| Existing typed warning model | `src/lib/domain/contracts.ts` `RouteWarning` and `CandidateRoute.warnings` | A typed warning structure already exists, but the active provider-normalized `PlannedRoute` path does not use it. Reuse it rather than inventing a parallel shape. Add a toll code only if the existing union cannot express the contract. |
+| Provider/evidence | `src/lib/routing/graphhopper-response.ts` `normalizeGraphHopperPath` and `src/lib/routing/route-warnings.ts` `withRoutePolicyWarnings` | GraphHopper `details.toll` becomes `PlannedRoute.tollEvidence`; known exposure under `allow-with-warning` adds a typed `toll-exposure` warning. Repeated application is stable/deduplicated. |
+| Provider normalization | `src/lib/routing/valhalla.ts` `normalizeTrip` | Valhalla routes have the active `PlannedRoute` shape; toll evidence is absent unless a later trusted adapter supplies it. Absence is unknown, not “no toll”. The generic planner wrapper applies policy warnings to injected provider results. |
+| Active route type | `src/lib/routing/types.ts` `PlannedRoute` | Carries optional `warnings: RouteWarning[]` alongside `tollEvidence` and `routeScore`; the optional field preserves existing fixtures. |
+| Existing typed warning model | `src/lib/domain/contracts.ts` `RouteWarning` and `CandidateRoute.warnings` | The active route now reuses this typed structure, with the smallest `toll-exposure` code-union member. No parallel warning model was introduced. |
 | Feature policy | `src/lib/domain/routing/eligibility.ts` `evaluateFeatureEligibility` | Unknown/discouraged feature facts produce structured `EligibilityWarning` values and preserve eligibility; hard illegal/closed facts produce failures. |
-| Route policy | `src/lib/domain/routing/eligibility.ts` `evaluateEligibility` | Currently checks geometry, preview-only, and unsatisfied must locks and always returns `warnings: []`; this is a direct warning-drop boundary. |
-| Candidate bridge | `src/lib/recommendation/route-candidate.ts` `plannedRouteToScoreable` / `scorePlannedRoute` | Aggregates route evidence into a scoreable segment. `route-score.ts` turns feature warnings into `routeScore.explanations` strings, which is not sufficient structured route warning transport. |
-| Recommendation | `src/lib/routing/planner.ts` candidate filtering/selection and `src/lib/routing/planner-shared.ts` `chooseSelectedCandidate` | Acceptance filters use `routeScore.accepted` and `evaluateEligibility`; warning-only candidates must remain in the eligible set. Ranking must carry warning-bearing route objects unchanged. |
-| Plan result | `src/lib/routing/planner-contract.ts` `TripPlan` | `TripPlan.warnings: string[]` is the existing rider-facing plan-level channel; diagnostics are internal once T-1.7 lands. Route-specific structured warnings need a typed route field and a deliberate plan projection. |
-| API serialization | `src/app/api/routes/handler.ts` `jsonWithRequestId` | Serializes the `TripPlan`; verify route warning fields survive the actual JSON response and cache path. `serverTimingHeader` is unrelated to warning content. |
-| Progressive client | `src/lib/client/trip-planning-coordinator.ts` `loadAlternatives` | It currently returns early for `alternatives.routes.length === 0` and does not merge/notify alternative warnings; warning-only alternative responses can disappear here. |
-| State projection | `src/stores/planner-store.ts` `applyPlan` and `mergeAlternatives` | `mergeAlternatives` already unions plan-level warning strings when called, but it cannot repair a coordinator early return or a route warning dropped before state. |
-| Rider surface | `src/components/planner/v2/RouteDecisionCard.tsx` `buildRouteDecisionPresentation` and card render; `src/components/planner/RouteComparison.tsx` and `RouteEvidencePanel.tsx` | Decision-card warning currently covers timebox/preview/track-only/unsatisfied-lock cases, not structured toll warnings. Details are the progressive-disclosure surface for evidence. |
+| Route policy | `src/lib/domain/routing/eligibility.ts` `evaluateEligibility` and `tollFailure` | `allow-with-warning` remains eligible; known toll exposure rejects only when `tollPolicy === "avoid"`; unknown/zero evidence does not guess or reject. Existing feature warnings remain separate. |
+| Candidate bridge | `src/lib/recommendation/route-candidate.ts` `plannedRouteToScoreable` / `scorePlannedRoute` | Scoring still consumes route evidence, while `PlannedRoute.warnings` stays on the route object. Warning rendering is not derived from score explanation strings. |
+| Recommendation | `src/lib/routing/planner.ts` `policyAwareProvider`, alternative filtering, and `src/lib/routing/planner-shared.ts` `chooseSelectedCandidate` | Provider results are policy-enriched before selection; eligibility filters receive the normalized toll policy; warning-bearing eligible routes remain selectable and are not reconstructed without warnings. |
+| Plan result | `src/lib/routing/planner-contract.ts` `TripPlan` | Existing `TripPlan.warnings: string[]` remains the plan-level rider channel from T-1.7. Route-specific typed warnings live on each `PlannedRoute`, so API/state can identify the affected route without flattening evidence. |
+| API serialization | `src/app/api/routes/handler.ts` `jsonWithRequestId` | The serialized `TripPlan.routes[].warnings` field survives the API response and the tested planner-store summary/cache projection. `serverTimingHeader` is unrelated to warning content. |
+| Progressive client | `src/lib/client/trip-planning-coordinator.ts` `loadAlternatives` | T-1.7 already owns warning-only alternatives merge/notification and identity fencing. T-4.2b preserves route warnings on non-empty primary/alternative route objects; it does not create a second coordinator warning path. |
+| State projection | `src/stores/planner-store.ts` `applyPlan` and `mergeAlternatives` | Existing plan application/alternative merge retains route objects and the tests assert route warning preservation; plan-level warnings continue to use the established string channel. |
+| Rider surface | `src/components/planner/v2/RouteDecisionCard.tsx` `buildRouteDecisionPresentation` and `src/components/planner/RouteEvidencePanel.tsx` | The decision card shows the first concise route warning without changing selection; the evidence panel renders all distinct structured route warnings as progressive detail. |
 
-The known defect is therefore not merely missing copy: toll evidence exists at the
-provider-normalized route, but active eligibility has no warning result, the active
-route type has no structured warning carrier, and the alternative coordinator can
-drop warning-only responses before the store/UI sees them.
+The repaired defect was not merely missing copy: toll evidence existed at the
+provider-normalized route, but active eligibility had no toll-policy branch, the
+active route type had no structured warning carrier, and downstream transforms had
+to be proven not to drop the warning. T-1.7 owns the separate warning-only
+alternative response lifecycle; T-4.2b owns route-warning preservation.
+
+Implementation evidence at the current head: the focused provider/eligibility/
+planner/API/state/component suite is `115/115` passing, and the full repository
+suite is `424` files with `2,876` tests passed and `1` configured skip. The route
+warning field is optional for compatibility, but every policy-aware planner path
+adds/merges it before selection; no UI code parses provider detail text.
 
 ## Scope and dependencies
 
@@ -61,10 +70,10 @@ framework, or unrelated card redesign.
 Prerequisites:
 
 - Reconcile the exact branch/base and inspect the active symbols above.
-- `T-1.7` must define the final `TripPlan.warnings`/diagnostics ownership before
-  changing plan-level warning projection. If T-1.7 is not merged, a route-level
-  warning fix may proceed only if it preserves the current `string[]` plan channel
-  and documents the stacked dependency.
+- T-1.7 is implemented in PR #142 and defines the final `TripPlan.warnings` /
+  diagnostics ownership. This follow-up preserves the existing `string[]` plan
+  channel and adds only the route-level typed warning field required for affected
+  candidate evidence.
 - Use the existing `RouteWarning` type if it is compatible. Do not create a second
   warning enum or duplicate evidence model.
 - `tollEvidence.known === false` is unknown evidence. It must not produce a clean
@@ -85,8 +94,12 @@ GraphHopper toll normalization. No traffic or Policy V2 dependency.
 ### Files expected to change
 
 - `src/lib/domain/contracts.ts` only if a new toll warning code is necessary.
+- `src/lib/routing/route-warnings.ts` for the pure policy-warning derivation and
+  stable warning merge helper.
 - `src/lib/routing/types.ts` to carry the reused typed warning field on the active
   `PlannedRoute` contract.
+- `src/lib/domain/routing/eligibility.ts` to keep the toll-policy classification
+  separate from warning transport.
 - `src/lib/routing/graphhopper-response.ts` to create the warning from known toll
   evidence and request toll policy.
 - `src/lib/routing/valhalla.ts` only if a verified toll evidence source exists;
@@ -118,7 +131,8 @@ GraphHopper toll normalization. No traffic or Policy V2 dependency.
 4. Extend the route eligibility result/adapter so an allow-with-warning route
    returns `eligible: true` and preserves existing route warnings. Do not filter it
    from `chooseDistinctCandidate` or recommendation ranking.
-5. Dedupe by stable warning identity (`code`, `segmentId`, and condition) while
+5. Dedupe by stable warning identity (`code`, `segmentId`, and message/condition)
+   while
    preserving multiple distinct warnings.
 
 ### Tests
@@ -163,27 +177,22 @@ T-4.2a and the T-1.7 `TripPlan` ownership contract.
 
 ### Files expected to change
 
-- `src/lib/recommendation/route-candidate.ts` only if score bridging currently
-  reconstructs routes and drops warnings.
-- `src/lib/routing/planner.ts` and `src/lib/routing/planner-shared.ts` only if
-  filtering/selection copies route objects without warnings.
-- `src/lib/routing/planner-contract.ts` only for the smallest explicit plan
-  projection needed by the existing API contract.
-- `src/lib/client/trip-planning-coordinator.ts` to merge warning-only alternatives.
-- `src/stores/planner-store.ts` only if route-level warning projection needs to be
-  preserved by the route entity cache.
-- `src/components/planner/v2/RouteDecisionCard.tsx` and/or
-  `src/components/planner/RouteComparison.tsx` for progressive-disclosure rider
+- `src/lib/routing/planner.ts`, `planner-shared.ts`, `planner-timebox.ts`,
+  `planner-segmented.ts`, and `gravel-atlas-provider.ts` so policy-aware selection
+  and every active route-producing path retain the warning.
+- `src/lib/routing/planner-contract.ts` only for the existing route contract; no
+  new plan-level warning channel is required.
+- `src/stores/planner-store.ts` only where the route entity/cache projection needs
+  an explicit preservation assertion.
+- `src/components/planner/v2/RouteDecisionCard.tsx` and
+  `src/components/planner/RouteEvidencePanel.tsx` for progressive-disclosure rider
   presentation.
 - `tests/unit/planner.test.ts`.
 - `tests/unit/candidate-enrichment.test.ts`.
-- `tests/unit/trip-planning-coordinator.test.ts`.
 - `tests/unit/planner-store.test.ts`.
-- `tests/unit/api-handlers.test.ts` or `tests/unit/routes-api-wiring.test.ts` after
-  locating the actual serialization fixture.
+- `tests/unit/api-handlers.test.ts` for the actual serialization fixture.
 - `tests/components/route-decision-rail.test.tsx`.
-- `tests/components/route-comparison.test.tsx` and/or
-  `tests/components/route-evidence-panel.test.tsx`.
+- `tests/components/route-evidence-panel.test.tsx`.
 
 ### Contract
 
@@ -206,15 +215,15 @@ let warning rendering affect selected route or eligibility.
 
 ### Implementation steps
 
-1. Add a pure warning projection helper if one is needed; keep it next to the
-   active routing contract and use it from both primary and alternatives results.
+1. Add a pure warning projection/merge helper next to the active routing contract
+   and use it from both normalized primary and alternatives results.
 2. Ensure enrichment returns the original route object fields when it adds region
    or elevation evidence.
 3. Update planner acceptance/ranking tests to assert warning-bearing routes remain
    candidates and preserve all distinct warnings.
-4. Remove the coordinator's `routes.length === 0` early return when warnings or an
-   outcome message are present; call the existing merge path for warning-only
-   alternatives and notify through the established warning callback.
+4. Preserve the T-1.7 coordinator identity fence and warning-only merge; do not
+   add a second warning channel or flatten route-specific warnings into unrelated
+   plan text.
 5. Render the warning on the existing route decision/evidence surface with a
    stable test id/accessible text. Keep copy concise and include measured toll
    share only if that value is actually known.
@@ -239,7 +248,7 @@ The implementation is not complete until the applicable real seams prove:
 | warning does not alter eligibility | same route remains selectable/eligible |
 | multiple warnings | distinct warning identities all survive; none overwrite another |
 | missing evidence | approved unknown policy applies; no guessed toll claim |
-| warning-only alternatives | response is merged/notified even with zero new routes |
+| warning-only alternatives | T-1.7 response lifecycle remains merged/notified even with zero new routes |
 | stale lifecycle | an old warning cannot land on a newer plan |
 
 ### Acceptance criteria

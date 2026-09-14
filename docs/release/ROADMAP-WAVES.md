@@ -82,10 +82,11 @@ it does not become another audit.
 for phases 1 (rollout), 2 (partly), 4, 5, 6 (partly) and 7. It does not close any
 phase by itself: a phase still needs its own acceptance evidence.
 
-- **Phase 7** is the PR 2 foundation of that plan — `PA_NJ_ROUTE_POLICY_V2`,
-  server-side route roles, and Protect the Ride cost. The current execution
-  package does **not** close Phase 7: real traffic scoring, the Protect-the-Ride
-  cost, and the corpus/evidence gate remain required in Packet F/G. Phase 5 keeps
+- **Phase 7** is represented only by a partial PR 2 foundation in that plan —
+  `PA_NJ_ROUTE_POLICY_V2`, server-side route roles, and Protect the Ride cost are
+  the intended Phase 7 scope. The current execution package does **not** close
+  Phase 7: real traffic scoring, the Protect-the-Ride cost, and the corpus/evidence
+  gate remain required in Packet F/G. Phase 5 keeps
   the boundary stated above: the TomTom adapter and its bakeoff ship dark, and
   federating Thrilling candidates into the lane pool is Phase 7 work (`T7` in that
   plan), not Phase 5.

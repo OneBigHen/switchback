@@ -95,7 +95,7 @@ Everything the owner named is covered. Everything found but **not** covered is l
 | This plan | Roadmap phase | Covers |
 |---|---|---|
 | PR 1 | **unphased bugfix** | Long-trip alternatives deadline + the candidate-lane substrate Phase 7 builds on. Filed as a fix outside phase sequencing (owner decision 2026-09-14). |
-| PR 2 | **Phase 7** | `PA_NJ_ROUTE_POLICY_V2`, rider-facing route roles, Protect the Ride cost, traffic as real evidence. |
+| PR 2 | **Phase 7 foundation (partial)** | `PA_NJ_ROUTE_POLICY_V2`, rider-facing route roles, Protect the Ride cost, traffic as real evidence; Packet F and the corpus gate remain prerequisites to closure. |
 | PR 3 | **Phase 1 (rollout)** + **part of Phase 2** | Mapbox Standard live behind the existing owner-only gate, with parity/fallback evidence. Picker labels + Satellite are Phase 2. Light presets, premium route ribbon, road-character layer and map-pack migration stay open. |
 | PR 4 | **Phase 4** + **part of Phase 6** | Server-declared capabilities (ADR 0021 slice) + traffic evidence end to end. Future-departure-time routing stays open. |
 | PR 5 | **Phase 5** | TomTom capability bakeoff, recorded findings, tested adapter that ships **dark**. |
@@ -158,7 +158,7 @@ Every capability the scouts found, with an explicit disposition. "Prod?" reflect
 | Valhalla elevation → `ascentMeters` | `VALHALLA_ELEVATION_URL` | Yes | **Show it** — PR 4 T-4.2 (computed today, rendered nowhere) |
 | Curvature DB | `CURVATURE_DB_PATH` | Yes | Keep; PR 4 makes its influence legible via explanations |
 | Gravel Atlas | `GRAVEL_ATLAS_DB_PATH` + graph/source fingerprints | **Yes** (both fingerprints are in `.env.local`) | **Show it** — PR 4 T-4.2 renders `gravelAtlasEvidence` |
-| Toll evidence | GraphHopper `toll` detail | Yes | **Show it** — PR 4 T-4.2; today `allow-with-warning` never warns |
+| Toll evidence | GraphHopper `toll` detail | Yes | **Show it** — the dependency-ready T-4.2 warning subtask carries known exposure as structured route warning data; full cards remain Packet H |
 | Weather (NWS) | `NWS_USER_AGENT` | Yes | No change |
 | Google places / geocode | server `GOOGLE_MAPS_API_KEY` | **Yes** (in systemd env) | No change |
 | Google 3D cinematic (ADR 0016) | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — read nowhere in `src` | Key present, **not built** | **Defer** — Phase 10 |
@@ -259,6 +259,14 @@ The deterministic execution procedure for T-1.1 through T-1.10 is
 symbols and tests supersede moved line citations below.
 
 **T-1.1 — deadline helper (new `src/lib/routing/deadline.ts`)**
+
+PR #142 implements T-1.1 through T-1.9 at head
+`e4731268e3b8fd5529c69f2c57f996be95706aec`. T-1.10's telemetry and calibration
+code are implemented, but the reachable-service calibration evidence remains open.
+The dependency-ready T-4.2 warning subtask is implemented in stacked PR #143 at
+`40599bfff8239e1a9cc8fd937136f82976520be`; full role/card/traffic work remains
+Packet H/Packet F dependent.
+
 - Export `timeoutSignal(ms)`, `composeSignals(...)`, `createDeadline(ms, parent)`.
 - Build on `setTimeout`/`clearTimeout`: `AbortSignal.timeout` does not follow Vitest fake timers, which `tests/unit/request-timeout.test.ts` already works around.
 - Replace `AbortSignal.timeout` at `planner.ts:412-414`.
@@ -289,10 +297,12 @@ symbols and tests supersede moved line citations below.
 | Trip | Lanes, in order |
 |---|---|
 | Short | `quick` single-path (3 s) → primary profile **with** engine alternates (5 s) → other comparison profiles, single-path (5 s each) |
-| Long | `quick` single-path (3 s) → ≤ 2 corridor via-point lanes on the primary profile (7 s each) → other profiles, single-path, **excluding the primary profile** (7 s) → optional Valhalla lane (6 s) |
+| Long | `quick` single-path (3 s) → ≤ 2 corridor via-point lanes on the primary profile (7 s each) → other profiles, single-path, **excluding the primary profile** (7 s) |
 
 - **Corridor lanes:** anchors from `buildAnchorSets(start, finish, corridorEnvelope(primaryMiles × 1.35), options.resolveCorridors sources)` (`destination-corridors.ts:236`), then `generateCorridorCandidates(req, sets, { maxCandidates: 2 })` (`candidate-generator.ts:61`).
 - **Budget:** candidates must land by 10 s; the last 2 s are for enrichment and selection.
+- Valhalla remains the provider-level fallback/supplement with its own limiter; it is
+  not a separate alternative lane in the long-trip table.
 - **Selection:** sort by lane priority and path index, **never by finish time**. Then `evaluateEligibility` → `chooseDistinctCandidate` (`src/lib/recommendation/route-diversity.ts`). `selectedRouteId` stays the primary.
 - Fix the stale "concurrency one" comment while you are there.
 
@@ -300,7 +310,7 @@ symbols and tests supersede moved line citations below.
 - `RouteCandidateEnricher` gains `options.signal` (`planner-contract.ts`).
 - `enrichCandidates` (`planner-shared.ts`) races the signal and runs **once, in parallel**, over the final ≤ 2 routes (today it is awaited one candidate at a time inside the loop).
 - `hybrid.ts:77-79` skips the Valhalla fallback when the call was aborted or the error is `ROUTE_CANCELLED`.
-- Export `createValhallaCandidateProvider` from `hybrid.ts` and inject it in `route.ts` with its **own** `createRouteJobLimiter(1)`. Today both providers share the two tokens from `route.ts:28`. Keep it off when `VALHALLA_URL` is unset.
+- Export `createValhallaCandidateProvider` from `hybrid.ts` and inject it in `route.ts` with its **own** `createRouteJobLimiter(1)`. The pre-PR1 shared-limiter behavior is removed. Keep Valhalla off when `VALHALLA_URL` is unset.
 
 **T-1.7 — contract and client**
 - `TripPlan.alternativesOutcome` = `{ status: complete | partial | timed-out | none-distinct | unavailable, strategy }`.
@@ -459,7 +469,8 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 - Add a "3D rides" entry (`/labs/recon`) to Explore and Saved.
 - New `GET /api/capabilities` → `{ freeRideLive, tomtomTraffic, tomtomRouting, advisor }`. Minimal ADR 0021 slice, no identity gating yet; `freeRideLive` is false without a RIG graph, which hides the currently dead Free Ride control.
 - Show the "90-minute backroads" preset to first-run riders (`RideIntentFeedback.tsx`).
-- `TripPlan.warnings` is rider-facing text; provider/lane diagnostics stay internal.
+- `TripPlan.warnings` is rider-facing plan text; route-specific typed warnings stay
+  on `PlannedRoute.warnings`; provider/lane diagnostics stay internal.
   Do not create a second warning channel.
 
 **T-4.5 — tests.** Component tests for chips/cards/capabilities; intentional visual-baseline updates; mobile-core chip row at 390 px; Playwright screenshots at 1440 and 390 px plus a dark-mode contrast check.

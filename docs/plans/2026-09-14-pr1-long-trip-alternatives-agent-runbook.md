@@ -1,6 +1,9 @@
 # PR 1 execution runbook — long-trip alternatives
 
-> **Status:** executable packet. The canonical task ids are `T-1.1` through
+> **Status:** implementation complete through T-1.9 on PR #142 head
+> `e4731268e3b8fd5529c69f2c57f996be95706aec`; T-1.10's benchmark telemetry and
+> calibration code are complete, but its reachable-service p95 evidence remains
+> open. The canonical task ids are `T-1.1` through
 > `T-1.10`. The execution authority at
 > `2026-09-14-cheap-agent-execution-authority.md` owns sequencing and status; this
 > file owns the bounded implementation procedure. It is based on the reconciled
@@ -82,10 +85,11 @@ None. Preserve the existing `PlanningOptions.signal` contract in
 
 ### Contract
 
-- `timeoutSignal(ms)` returns a signal that aborts once after a finite positive
-  duration using `setTimeout`.
+- `timeoutSignal(ms)` returns a `DisposableSignal` (`{ signal, dispose }`) that
+  aborts once after a finite non-negative duration using `setTimeout`.
 - `composeSignals(...signals)` accepts defined/undefined parent signals and
-  returns a composed signal that mirrors the first abort reason.
+  returns a `DisposableSignal` whose `signal` mirrors the first abort reason and
+  whose `dispose` removes parent listeners.
 - `createDeadline(ms, parent)` returns `{ signal, dispose }`. The deadline signal
   aborts with a timeout reason when its own budget expires, mirrors `parent` when
   the caller aborts, and `dispose()` is idempotent and clears timer/listener
@@ -407,12 +411,13 @@ start until lane settlement tests are green.
 Short direct requests use: quick single-path (3 s), primary profile with engine
 alternates (5 s), then other comparison profiles single-path (5 s each). Long
 direct requests use: quick single-path (3 s), up to two primary-profile corridor
-lanes (7 s each), other profiles single-path excluding the primary (7 s each),
-then optional Valhalla (6 s). The packet deadline is 12 s; candidate collection
-must finish by 10 s, leaving up to 2 s for final enrichment/selection. Loops and
-free-draw requests retain their existing specialized behavior unless the test
-proves this table can be applied without a contract change. The primary route id
-remains selected.
+lanes (7 s each), then other profiles single-path excluding the primary (7 s
+each). Valhalla is not a separate alternative lane; it remains the provider-level
+fallback/supplement governed by T-1.6 and its dedicated limiter. The packet
+deadline is 12 s; candidate collection must finish by 10 s, leaving up to 2 s for
+final enrichment/selection. Loops and free-draw requests retain their existing
+specialized behavior unless the test proves this table can be applied without a
+contract change. The primary route id remains selected.
 
 ### Implementation steps
 
