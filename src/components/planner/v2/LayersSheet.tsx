@@ -45,7 +45,11 @@ export function LayersSheet({
   onRiderLayerVisibilityChange,
   onOpenAdvanced
 }: LayersSheetProps) {
-  const allowedPresets = MAP_PRESETS.filter((style) => style.id !== "satellite" || premiumExperiences)
+  const allowedPresets = MAP_PRESETS
+    .filter((style) => style.id !== "satellite" || premiumExperiences)
+    .map((style) => style.id === "terrain" && !premiumExperiences
+      ? { ...style, label: "Outdoors" }
+      : style)
   const settings = new Map<RiderLayerId, RiderLayerSetting>()
   for (const setting of riderLayers) {
     const id = migrateRiderLayerId(setting.id)
