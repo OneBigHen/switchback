@@ -2,7 +2,9 @@ import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import { partitionLocksByPrecedence } from "@/lib/roads/lock-precedence"
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
-import type { PlannedRoute, RouteRequest } from "./types"
+import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
+import type { PlannedRoute, RouteRequest, TollPolicy } from "./types"
+import { mergeRouteWarnings } from "./route-warnings"
 import type {
   CandidateEnrichmentOptions,
   RouteCandidateEnricher,
@@ -48,8 +50,16 @@ export function selectedCandidateScore(route: PlannedRoute): number {
     route.durationMinutes * (route.profile === "quick" ? 1 : 0.08)
 }
 
-export function chooseSelectedCandidate(routes: PlannedRoute[]): PlannedRoute | null {
-  return routes.filter(route => route.routeScore?.accepted !== false).reduce<PlannedRoute | null>((best, candidate) => {
+export function chooseSelectedCandidate(
+  routes: PlannedRoute[],
+  options: { tollPolicy?: TollPolicy } = {}
+): PlannedRoute | null {
+  const candidates = routes
+    .filter(route => route.routeScore?.accepted !== false)
+    .filter(route => options.tollPolicy === undefined || evaluateEligibility(route, {
+      tollPolicy: options.tollPolicy
+    }).eligible)
+  return candidates.reduce<PlannedRoute | null>((best, candidate) => {
     if (!best) return candidate
     return selectedCandidateScore(candidate) > selectedCandidateScore(best) ? candidate : best
   }, null)
@@ -65,6 +75,24 @@ export function tripPlanMetadata(
   }
 }
 
+function preserveRouteWarnings(
+  originalRoutes: readonly PlannedRoute[],
+  result: RouteCandidateEnrichmentResult
+): RouteCandidateEnrichmentResult {
+  const warningsById = new Map(originalRoutes.map((route) => [route.id, route.warnings]))
+  return {
+    ...result,
+    routes: result.routes.map((route, index) => {
+      const warnings = mergeRouteWarnings(
+        warningsById.get(route.id),
+        originalRoutes[index]?.warnings,
+        route.warnings
+      )
+      return warnings.length > 0 ? { ...route, warnings } : route
+    })
+  }
+}
+
 export async function enrichCandidates(
   request: RouteRequest,
   routes: PlannedRoute[],
@@ -74,7 +102,7 @@ export async function enrichCandidates(
   if (options?.signal?.aborted) throw options.signal.reason ?? new DOMException("Route enrichment was cancelled.", "AbortError")
   if (!enricher) return { routes, warnings: [] }
   try {
-    return await enricher(request, routes, options)
+    return preserveRouteWarnings(routes, await enricher(request, routes, options))
   } catch (reason) {
     if (options?.signal?.aborted) throw reason
     return {

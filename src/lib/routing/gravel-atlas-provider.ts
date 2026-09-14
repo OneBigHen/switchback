@@ -227,7 +227,7 @@ export function createGravelAtlasAwareProvider(
     if (corridors.length === 0) return direct
 
     const directWithEvidence = withResultEvidence(direct, corridors)
-    const baseline = chooseSelectedCandidate(directWithEvidence.routes)
+    const baseline = chooseSelectedCandidate(directWithEvidence.routes, { tollPolicy: request.tollPolicy })
     if (!baseline || baseline.distanceMiles <= 0 || baseline.durationMinutes <= 0) {
       return directWithEvidence
     }
@@ -266,7 +266,7 @@ export function createGravelAtlasAwareProvider(
             await baseProvider(candidate.request, options),
             corridors
           )
-          const selected = chooseSelectedCandidate(result.routes)
+          const selected = chooseSelectedCandidate(result.routes, { tollPolicy: candidate.request.tollPolicy })
           if (
             !selected ||
             !reasonableLoopDuration(selected, targetMinutes, intensity) ||
@@ -316,7 +316,7 @@ export function createGravelAtlasAwareProvider(
           await baseProvider(candidate.request, options),
           corridors
         )
-        const selected = chooseSelectedCandidate(result.routes)
+        const selected = chooseSelectedCandidate(result.routes, { tollPolicy: candidate.request.tollPolicy })
         if (
           !selected ||
           !reasonableDetour(selected, baseline, intensity) ||

@@ -70,4 +70,39 @@ describe("segmented planner strategy", () => {
       "enrichment warning"
     ])
   })
+
+  it("carries policy warnings from individual legs onto the composed route", async () => {
+    const provider = vi.fn(async (request: RouteRequest): Promise<RoutingResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [{
+        ...route(request, `${request.profile}-route`, 20),
+        tollEvidence: { known: true, tollSharePercent: request.profile === "twisty" ? 50 : 0 }
+      }]
+    }))
+    const request = normalizeRouteRequest({
+      profile: "twisty",
+      points: [
+        { lat: 40.2, lon: -76.9 },
+        { lat: 40.25, lon: -76.8 },
+        { lat: 40.3, lon: -76.7 }
+      ],
+      segmentProfiles: ["twisty", "adventure"],
+      tollPolicy: "allow-with-warning"
+    })
+
+    const plan = await planSegmentedTrip(request, provider)
+
+    expect(plan.routes[0]?.tollEvidence).toEqual({
+      known: true,
+      tollSharePercent: 25
+    })
+    expect(plan.routes[0]?.warnings).toEqual([
+      expect.objectContaining({
+        code: "toll-exposure",
+        message: expect.stringContaining("25%")
+      })
+    ])
+    expect(plan.routes[0]?.warnings?.[0]?.message).not.toContain("50%")
+  })
 })

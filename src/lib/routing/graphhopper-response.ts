@@ -4,6 +4,7 @@ import { getProfile } from "./profiles"
 import { analyzeGeometry, calculateDetailDistribution, curvedDistanceShare, type DetailInterval } from "./scoring"
 import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 import { sketchCorridorContext } from "./sketch-corridor"
+import { withRoutePolicyWarnings } from "./route-warnings"
 
 export class GraphHopperProviderError extends Error {
   constructor(
@@ -200,10 +201,11 @@ export function normalizeGraphHopperPath(
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: request.segmentProfiles ? [...request.segmentProfiles] : undefined
   }
-  normalized.featureProvenance = featureProvenanceForPlannedRoute(normalized)
+  const policyAware = withRoutePolicyWarnings(normalized, request.tollPolicy)
+  policyAware.featureProvenance = featureProvenanceForPlannedRoute(policyAware)
   return {
-    ...normalized,
-    routeScore: scorePlannedRoute(normalized, {
+    ...policyAware,
+    routeScore: scorePlannedRoute(policyAware, {
       profile: request.profile,
       bikeProfile: request.bikeProfile,
       corridor: sketchCorridorContext(request.sketchCorridor)

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
   evaluateFeatureEligibility,
+  evaluateEligibility,
   isRoadSegmentFeature
 } from "@/lib/domain/routing/eligibility"
 import type { RoadSegmentFeature } from "@/lib/domain/contracts"
 import { getBikeProfile } from "@/lib/routing/bike-profiles"
+import type { PlannedRoute } from "@/lib/routing/types"
 
 function segment(overrides: Partial<RoadSegmentFeature> = {}): RoadSegmentFeature {
   return {
@@ -29,6 +31,28 @@ function route(segments: RoadSegmentFeature[]) {
     geometry: [[-77.1, 40.1], [-77, 40.2]] as [number, number][],
     confidence: 0.9,
     segments
+  }
+}
+
+function plannedRoute(overrides: Partial<PlannedRoute> = {}): PlannedRoute {
+  return {
+    id: "planned-route",
+    name: "Planned route",
+    profile: "twisty",
+    geometry: [[-77.1, 40.1], [-77, 40.2]],
+    waypoints: [],
+    instructions: [],
+    distanceMiles: 20,
+    durationMinutes: 35,
+    ascentMeters: null,
+    descentMeters: null,
+    twistiness: 60,
+    turnCount: 12,
+    roadMix: {},
+    surfaceMix: {},
+    routingSource: "live",
+    previewOnly: false,
+    ...overrides
   }
 }
 
@@ -87,5 +111,57 @@ describe("P14 eligibility engine", () => {
     } as RoadSegmentFeature]) as never, { profile: "twisty" })
     expect(report.eligible).toBe(false)
     expect(report.failures[0]?.code).toBe("invalid-feature-data")
+  })
+})
+
+describe("route policy eligibility contract", () => {
+  it("keeps known toll exposure eligible under allow-with-warning", () => {
+    const candidate = plannedRoute({
+      tollEvidence: { known: true, tollSharePercent: 40 },
+      warnings: [{
+        code: "toll-exposure",
+        severity: "warning",
+        message: "Known toll exposure covers 40% of this route."
+      }]
+    })
+
+    const report = evaluateEligibility(candidate, { tollPolicy: "allow-with-warning" })
+
+    expect(report.eligible).toBe(true)
+    expect(report.failures).toEqual([])
+    expect(candidate.warnings).toHaveLength(1)
+  })
+
+  it("rejects known toll exposure only under an explicit avoid policy", () => {
+    const candidate = plannedRoute({
+      tollEvidence: { known: true, tollSharePercent: 40 }
+    })
+
+    const report = evaluateEligibility(candidate, { tollPolicy: "avoid" })
+
+    expect(report.eligible).toBe(false)
+    expect(report.failures).toMatchObject([{
+      code: "toll-exposure"
+    }])
+  })
+
+  it("does not guess from missing toll evidence", () => {
+    const report = evaluateEligibility(plannedRoute({
+      tollEvidence: { known: false, tollSharePercent: null }
+    }), { tollPolicy: "avoid" })
+
+    expect(report.eligible).toBe(true)
+    expect(report.failures).toEqual([])
+  })
+
+  it("fails closed on malformed toll evidence when avoidance is explicit", () => {
+    const report = evaluateEligibility(plannedRoute({
+      tollEvidence: { known: true, tollSharePercent: null }
+    }), { tollPolicy: "avoid" })
+
+    expect(report.eligible).toBe(false)
+    expect(report.failures).toMatchObject([{
+      code: "invalid-feature-data"
+    }])
   })
 })

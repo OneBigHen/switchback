@@ -161,6 +161,7 @@ export type RouteWarningCode =
   | "excessive-detour"
   | "offline-only"
   | "unsafe-interaction"
+  | "toll-exposure"
 
 export interface RouteWarning {
   code: RouteWarningCode

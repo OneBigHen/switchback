@@ -174,6 +174,24 @@ describe("RouteDecisionRail", () => {
     expect(within(card).getAllByTestId("route-decision-warning")).toHaveLength(1)
   })
 
+  it("surfaces a structured route warning without changing the selected candidate", () => {
+    const warningRoute = {
+      ...routes[2]!,
+      warnings: [{
+        code: "toll-exposure" as const,
+        severity: "warning" as const,
+        message: "Known toll exposure covers 40% of this route. Check toll charges before riding."
+      }]
+    }
+    render(<RouteDecisionRail routes={[routes[0]!, warningRoute]} selectedId={warningRoute.id} onSelect={vi.fn()} />)
+
+    const card = screen.getByRole("article", { name: /scenic route/i })
+    expect(within(card).getByTestId("route-decision-warning")).toHaveTextContent(
+      "Known toll exposure covers 40% of this route"
+    )
+    expect(card).toHaveAttribute("data-selected", "true")
+  })
+
   it("keeps route choice primary and reveals preparation details only on request", () => {
     const comparison = {
       routes,

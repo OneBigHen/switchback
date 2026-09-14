@@ -401,6 +401,7 @@ describe("alternatives failure finalizes the lifecycle (Phase 6 regression)", ()
   it("moves the lifecycle to ready when the alternatives request fails, instead of hanging on 'alternatives'", async () => {
     const gate = createLatestRequestGate()
     const state = planner()
+    const notify = vi.fn()
     const requestPlan = vi.fn()
       .mockResolvedValueOnce(primaryWithRoute)
       .mockRejectedValueOnce(new RoutingClientError("alternatives timed out", "ROUTER_UNREACHABLE", 503))
@@ -410,7 +411,7 @@ describe("alternatives failure finalizes the lifecycle (Phase 6 regression)", ()
       gate,
       getPlanner: () => state,
       requestPlan,
-      onWarning: vi.fn()
+      onWarning: notify
     })
 
     await vi.waitFor(() => {
@@ -418,5 +419,6 @@ describe("alternatives failure finalizes the lifecycle (Phase 6 regression)", ()
       expect(phases).toEqual(["routing-primary", "alternatives", "ready"])
     })
     expect(state.failRouting).not.toHaveBeenCalled()
+    expect(notify).toHaveBeenCalledWith("Couldn't find a different route in time — your route is ready.")
   })
 })

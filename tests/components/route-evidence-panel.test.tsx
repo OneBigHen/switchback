@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 import { RouteEvidencePanel } from "@/components/planner/RouteEvidencePanel"
 import type { PlannedRoute } from "@/lib/routing/types"
@@ -147,5 +147,31 @@ describe("route evidence panel", () => {
       expect(panel).not.toHaveTextContent("0% overlap")
       expect(panel).not.toHaveTextContent("aligns")
     })
+  })
+
+  it("renders every structured route warning in the progressive evidence panel", () => {
+    const warningRoute = {
+      ...routeWithOfficialEvidence,
+      warnings: [
+        {
+          code: "toll-exposure" as const,
+          severity: "warning" as const,
+          message: "Known toll exposure covers 40% of this route. Check toll charges before riding."
+        },
+        {
+          code: "low-confidence" as const,
+          severity: "warning" as const,
+          message: "Some road evidence is incomplete."
+        }
+      ]
+    }
+
+    render(<RouteEvidencePanel route={warningRoute} />)
+
+    const panel = screen.getByRole("region", { name: "Why this route was chosen" })
+    expect(within(panel).getByTestId("route-evidence-warning")).toHaveTextContent(
+      "Known toll exposure covers 40% of this route"
+    )
+    expect(panel).toHaveTextContent("Some road evidence is incomplete.")
   })
 })

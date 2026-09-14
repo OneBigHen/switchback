@@ -150,15 +150,16 @@ export function buildRouteDecisionPresentation(
     : character
 
   const timeboxMismatch = getLoopTimeboxMismatch(route)
+  const routeWarning = route.warnings?.[0]?.message ?? null
   const warning = timeboxMismatch
     ? `${timeboxMismatch.actualMinutes} min route — requested ${timeboxMismatch.requestedMinutes} min. Accept this ${timeboxMismatch.direction} ride before starting.`
     : route.previewOnly
       ? "Preview route — verify before riding."
-      : route.navigationMode === "track-only"
-        ? "Track guidance only; turn-by-turn is unavailable."
-        : route.lockSatisfaction?.some((lock) => lock.satisfied === false)
-          ? "A required road could not be included."
-          : null
+        : route.navigationMode === "track-only"
+          ? "Track guidance only; turn-by-turn is unavailable."
+          : route.lockSatisfaction?.some((lock) => lock.satisfied === false)
+            ? "A required road could not be included."
+            : routeWarning
 
   return {
     role: routeDecisionRole(route, routes),

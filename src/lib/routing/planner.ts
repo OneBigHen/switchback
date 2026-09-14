@@ -38,6 +38,7 @@ import {
   type CorridorSourceCandidates
 } from "./destination-corridors"
 import { generateCorridorCandidates } from "./candidate-generator"
+import { withRoutePolicyWarnings } from "./route-warnings"
 import {
   CORRIDOR_OPTION_PRESENTATION,
   corridorAdherence,
@@ -227,11 +228,12 @@ function alternativeLaneRoutes(
 
 function settledAlternativeCandidates(
   settlements: readonly LaneSettlement<TimeboxedProviderResult>[],
-  primaryAnchor: PlannedRoute
+  primaryAnchor: PlannedRoute,
+  tollPolicy: NormalizedRouteRequest["tollPolicy"]
 ): PlannedRoute[] {
   const accepted: PlannedRoute[] = []
   for (const settlement of stableLaneOrder(settlements)) {
-    const eligible = alternativeLaneRoutes(settlement).filter((route) => evaluateEligibility(route).eligible)
+    const eligible = alternativeLaneRoutes(settlement).filter((route) => evaluateEligibility(route, { tollPolicy }).eligible)
     const distinct = chooseDistinctCandidate(
       eligible,
       [...accepted, primaryAnchor],
@@ -246,9 +248,10 @@ function settledAlternativeCandidates(
 
 function laneHasEnoughAlternatives(
   settlements: readonly LaneSettlement<TimeboxedProviderResult>[],
-  primaryAnchor: PlannedRoute
+  primaryAnchor: PlannedRoute,
+  tollPolicy: NormalizedRouteRequest["tollPolicy"]
 ): boolean {
-  return settledAlternativeCandidates(settlements, primaryAnchor).length >= MAX_ALTERNATIVES
+  return settledAlternativeCandidates(settlements, primaryAnchor, tollPolicy).length >= MAX_ALTERNATIVES
 }
 
 function laneRequest(
@@ -443,7 +446,7 @@ async function planCorridorAlternatives(
     }
     if (result.warning) warnings.push(result.warning)
     const eligible = result.result.routes.filter((route) => {
-      const report = evaluateEligibility(route)
+      const report = evaluateEligibility(route, { tollPolicy: request.tollPolicy })
       if (!report.eligible) warnings.push(`${label} option skipped: ${report.failures[0]?.message}`)
       return report.eligible
     })
@@ -481,14 +484,21 @@ export async function planMotorcycleTrip(
   // Every provider call below receives the single normalized contract: all
   // constraint fields are explicit and every mode shares one pipeline (SB-001).
   const normalized = normalizeRouteRequest(request)
+  const policyAwareProvider: RouteProvider = async (providerRequest, providerOptions) => {
+    const result = await provider(providerRequest, providerOptions)
+    return {
+      ...result,
+      routes: result.routes.map((route) => withRoutePolicyWarnings(route, providerRequest.tollPolicy))
+    }
+  }
   if (normalized.candidateSet === "alternatives") {
-    return planAlternativeRoutes(normalized, provider, enricher, options)
+    return planAlternativeRoutes(normalized, policyAwareProvider, enricher, options)
   }
   if (normalized.targetMinutes != null && !normalized.roundTrip && !normalized.loopTargetMinutes
     && !normalized.segmentProfiles?.length && normalized.points.length >= 2) {
-    return planDestinationTimebox(normalized, provider, options)
+    return planDestinationTimebox(normalized, policyAwareProvider, options)
   }
-  return planPrimaryRoute(normalized, provider, options)
+  return planPrimaryRoute(normalized, policyAwareProvider, options)
 }
 
 /**
@@ -517,7 +527,9 @@ async function planPrimaryRoute(
     undefined,
     options
   )
-  const selected = chooseSelectedCandidate(selectedAttempt.result.routes)
+  const selected = chooseSelectedCandidate(selectedAttempt.result.routes, {
+    tollPolicy: request.tollPolicy
+  })
   if (!selected) {
     throw new Error("The selected profile returned no routes")
   }
@@ -730,7 +742,7 @@ async function planAlternativeRoutes(
     const settled = await settleLanes(lanes, {
       concurrency: 2,
       deadline,
-      shouldStop: (results) => laneHasEnoughAlternatives(results, primaryAnchor)
+      shouldStop: (results) => laneHasEnoughAlternatives(results, primaryAnchor, request.tollPolicy)
     })
     const lanesElapsed = performance.now() - lanesStarted
     if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
@@ -750,7 +762,7 @@ async function planAlternativeRoutes(
       if (settlement.value.warning) appendWarning(settlement.value.warning)
       for (const warning of settlement.value.result.warnings ?? []) appendWarning(warning)
       const eligible = alternativeLaneRoutes(settlement).filter((route) => {
-        const report = evaluateEligibility(route)
+        const report = evaluateEligibility(route, { tollPolicy: request.tollPolicy })
         if (!report.eligible) {
           appendWarning(`${laneLabel(lane)} skipped: ${report.failures[0]?.message ?? "route is not eligible"}`)
         }

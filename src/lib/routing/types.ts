@@ -2,7 +2,7 @@ import type { PaUnpavedRoadEvidence } from "@/lib/roads/types"
 import type { IntrinsicFeatureProvenanceMap } from "@/lib/roads/intrinsic-features"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { RoadLock, RoadLockSatisfaction } from "@/lib/roads/road-locks"
-import type { RouteScore as NormalizedRouteScore } from "@/lib/domain/contracts"
+import type { RouteScore as NormalizedRouteScore, RouteWarning } from "@/lib/domain/contracts"
 import type { RouteUtilityBreakdown } from "@/lib/recommendation/route-score"
 import type { GpxIntelligenceReport } from "@/lib/gpx/intelligence"
 import type { CorridorAdherence, CorridorOptionRole } from "./sketch-corridor"
@@ -188,6 +188,8 @@ export interface PlannedRoute {
     /** Percentage of route miles on tolled edges; null while unknown. */
     tollSharePercent: number | null
   }
+  /** Structured provider/policy evidence for the rider; never console-only. */
+  warnings?: RouteWarning[]
   routingSource: "live" | "imported" | "preview"
   provider?: "graphhopper" | "valhalla"
   providerVersion?: string

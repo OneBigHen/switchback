@@ -62,7 +62,7 @@ describe("destination timebox planner strategy", () => {
     let calls = 0
     const provider = vi.fn(async (request: RouteRequest): Promise<RoutingResult> => {
       calls += 1
-      if (calls === 5) {
+      if (request.roundTrip?.targetMinutes === 480) {
         caller.abort(reason)
         throw reason
       }
@@ -72,6 +72,11 @@ describe("destination timebox planner strategy", () => {
         routes: [{
           ...route(request),
           id: `loop-${calls}`,
+          geometry: [
+            [-76.9, 40.2],
+            [-76.8, 40.3],
+            [-76.9, 40.2]
+          ],
           durationMinutes: 60
         }]
       }

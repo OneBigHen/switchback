@@ -20,6 +20,7 @@ export function RouteEvidencePanel({ route }: { route: PlannedRoute }) {
   const survey = route.officialUnpavedEvidence
   const hasSurfaceData = hasKnownSurfaceData(route)
   const hasSurveyOverlap = Boolean(survey && survey.sharePercent > 0)
+  const warnings = route.warnings ?? []
   return (
     <section className="route-evidence" aria-label="Why this route was chosen">
       <div className="section-heading compact">
@@ -40,6 +41,9 @@ export function RouteEvidencePanel({ route }: { route: PlannedRoute }) {
           : `${PA_UNPAVED_ROADS_PROVENANCE} survey overlap unavailable; absence is not a confirmed zero and does not replace routing/OSM surface evidence.`}</span></li>
         <li><Info aria-hidden="true" /><span><strong>Weather</strong>Forecast and alerts are shown separately with their source and update time.</span></li>
         <li><WarningCircle aria-hidden="true" /><span><strong>Traffic and closures</strong>Never inferred when a live licensed/agency feed is unavailable; check the Map Studio source status.</span></li>
+        {warnings.length > 0 ? (
+          <li data-testid="route-evidence-warning"><WarningCircle aria-hidden="true" /><span><strong>Route warnings</strong>{warnings.map((warning) => warning.message).join(" ")}</span></li>
+        ) : null}
       </ul>
     </section>
   )

@@ -6,7 +6,7 @@ import {
   disallowedTracktypes
 } from "@/lib/routing/bike-profiles"
 import { isIntrinsicFeatureProvenanceMap } from "@/lib/roads/intrinsic-features"
-import type { Coordinate, PlannedRoute } from "@/lib/routing/types"
+import type { Coordinate, PlannedRoute, TollPolicy } from "@/lib/routing/types"
 import type { RoadLockSatisfaction } from "@/lib/roads/road-locks"
 
 /**
@@ -30,6 +30,7 @@ export type EligibilityFailureCode =
   | "no-feature-data"
   | "blocking-safety"
   | "outside-coverage"
+  | "toll-exposure"
 
 export interface EligibilityFailure {
   code: EligibilityFailureCode
@@ -293,16 +294,40 @@ function mustRoadFailure(route: PlannedRoute): EligibilityFailure | null {
   return null
 }
 
+function tollFailure(route: PlannedRoute, tollPolicy: TollPolicy): EligibilityFailure | null {
+  if (tollPolicy !== "avoid" || route.tollEvidence?.known !== true) return null
+  const share = route.tollEvidence.tollSharePercent
+  if (typeof share !== "number" || !Number.isFinite(share) || share < 0 || share > 100) {
+    return {
+      code: "invalid-feature-data",
+      message: "This route has incomplete toll evidence, so toll avoidance cannot be verified."
+    }
+  }
+  if (share <= 0) return null
+  return {
+    code: "toll-exposure",
+    message: "This route uses tolled roads, which you asked to avoid."
+  }
+}
+
+export interface RouteEligibilityOptions {
+  tollPolicy?: TollPolicy
+}
+
 /**
- * Evaluate hard eligibility for a candidate route. Hard rules that depend
- * only on the route are applied today; provider/coverage context is a future
- * extension point.
+ * Evaluate hard eligibility for a candidate route. Policy-derived route facts
+ * are checked here when the normalized request supplies them; rider-facing
+ * warning evidence remains attached to the route itself.
  */
-export function evaluateEligibility(route: PlannedRoute): RouteEligibility {
+export function evaluateEligibility(
+  route: PlannedRoute,
+  options: RouteEligibilityOptions = {}
+): RouteEligibility {
   const failures = [
     geometryFailure(route),
     previewFailure(route),
-    mustRoadFailure(route)
+    mustRoadFailure(route),
+    tollFailure(route, options.tollPolicy ?? "allow-with-warning")
   ].filter((failure): failure is EligibilityFailure => failure !== null)
   return {
     eligible: failures.length === 0,
@@ -311,6 +336,6 @@ export function evaluateEligibility(route: PlannedRoute): RouteEligibility {
   }
 }
 
-export function isEligible(route: PlannedRoute): boolean {
-  return evaluateEligibility(route).eligible
+export function isEligible(route: PlannedRoute, options: RouteEligibilityOptions = {}): boolean {
+  return evaluateEligibility(route, options).eligible
 }
