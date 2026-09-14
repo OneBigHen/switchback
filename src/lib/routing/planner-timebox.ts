@@ -340,7 +340,6 @@ export async function planDestinationTimebox(
         const refined = await routeAnchorSets(request, provider, anchorSets, corridorOptions, options.signal)
         if (refined.length > 0) candidates = refined
       }
-
     if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
 
     const partitioned = partitionLocksForRequest(request)
@@ -380,6 +379,7 @@ export async function planDestinationTimebox(
       }
     }
 
+    }
     // No candidate passed every gate: return the eligible direct baseline with
     // honest feasibility wording. A shaped candidate that failed quality gates
     // must never be selected or described as safe (SB-004).
