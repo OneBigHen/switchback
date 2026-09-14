@@ -156,8 +156,64 @@ same API.
 ### C9 — task-count metadata is stale
 
 The planning PR body describes 29 tasks. The master plan has 32 indexed rows and
-an additional unindexed T-3.6. Do not use the PR-body count for progress or
-completion decisions.
+an additional unindexed T-3.6. The canonical scope is therefore **33 tasks**
+(T-0.1 through T-5.3, with T-3.6 restored). Do not use the PR-body count for
+progress or completion decisions.
+
+## Canonical task index and current status
+
+This is the only execution status index for the routing-rework package. The
+master plan is linked for rationale; stale phase/PR prose in it is not a second
+status source. Statuses below were reconciled against the live repository and
+PRs on 2026-09-14 and must be updated in this file when a task commit lands.
+
+| Task | Packet | Status | Dependency / evidence gate |
+|---|---|---|---|
+| T-0.1 | Step 0 | not started | local bench change; no production access |
+| T-0.2 | Step 0 | OWNER OPS blocked | model bakeoff, owner approval, production config and app proof |
+| T-1.1 | PR 1 | ready to execute | none; runbook created |
+| T-1.2 | PR 1 | blocked by T-1.1 | strategy runbook created |
+| T-1.3 | PR 1 | blocked by T-1.2 | server-owned provider field |
+| T-1.4 | PR 1 | blocked by T-1.1 | lane-settlement contract |
+| T-1.5 | PR 1 | blocked by T-1.2–T-1.4 | lane table and corridor contracts |
+| T-1.6 | PR 1 | blocked by T-1.1/T-1.4 | signal-aware enrichment and provider queues |
+| T-1.7 | PR 1 | blocked by T-1.4–T-1.6 | outcome/diagnostics/client contract |
+| T-1.8 | PR 1 | blocked by T-1.6 | preserve normalization score |
+| T-1.9 | PR 1 | blocked by T-1.1–T-1.8 | complete regression matrix |
+| T-1.10 | PR 1 | blocked by T-1.7/T-1.9 | branch benchmark or explicit unavailable evidence |
+| T-2.1 | PR 2 | blocked — Packet F | V2 may remain dark until traffic contract exists |
+| T-2.2 | PR 2 | blocked — Packet F | real traffic cost and unknown-axis semantics |
+| T-2.3 | PR 2 | blocked — Packet F | common candidate pool and traffic evidence |
+| T-2.4 | PR 2 | blocked — Packet F | decision payload contract |
+| T-2.5 | PR 2 | blocked — Packet F | server decision payload |
+| T-2.6 | PR 2 | blocked — Packet F | role corpus and V1/V2 evidence |
+| T-2.7 | PR 2 | blocked — Packet F | policy comparison report |
+| T-3.1 | PR 3 | not started | Packet C implementation |
+| T-3.2 | PR 3 | not started | Mapbox fallback implementation |
+| T-3.3 | PR 3 | not started | renderer-specific labels |
+| T-3.4 | PR 3 | not started | browser Mapbox mount/fallback evidence |
+| T-3.5 | PR 3 | not started | temporary rollout note; no production mutation here |
+| T-3.6 | PR 3 | OWNER OPS blocked | owner-approved production rollout; see T-3.6 runbook |
+| T-4.1 | PR 4 | blocked — Packet H | server profile/role contract |
+| T-4.2 | PR 4 | partial — warning subtask separately executable | full cards wait for Packet F/role data; see dedicated runbook |
+| T-4.3 | PR 4 | blocked — Packet E/F | TomTom traffic adapter and shared budget/breaker |
+| T-4.4 | PR 4 | blocked — Packet H | capability and visibility contracts |
+| T-4.5 | PR 4 | blocked — Packet H | component, visual, mobile evidence |
+| T-5.1 | PR 5 | blocked — Packet E | server-only adapter and shared budget/breaker |
+| T-5.2 | PR 5 | blocked — T-5.1 | GraphHopper normalization/overlap contract |
+| T-5.3 | PR 5 | blocked — T-5.1/T-5.2 | recorded bakeoff; no activation |
+
+**Count check:** 2 Step 0 + 10 PR 1 + 7 PR 2 + 6 PR 3 (including T-3.6) +
+5 PR 4 + 3 PR 5 = **33 tasks**.
+
+The executable artifacts are:
+
+- PR 1: `2026-09-14-pr1-long-trip-alternatives-agent-runbook.md`
+- T-4.2 warning contract: `2026-09-14-t4-2-allow-with-warning-agent-runbook.md`
+
+The T-4.2 status is intentionally partial: its warning contract can be isolated,
+but the complete role/card/traffic surface must not be claimed until Packet F and
+the Phase 7 decision payload exist.
 
 ## Correct dependency graph
 

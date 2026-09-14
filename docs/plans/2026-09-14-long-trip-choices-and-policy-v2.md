@@ -1,8 +1,15 @@
 # OpenGravel long-trip choices, Route Policy V2, and provider expansion — implementation plan
 
+> **Execution authority:** `2026-09-14-cheap-agent-execution-authority.md` is the
+> canonical execution index, dependency graph, status record, and runbook directory
+> for this plan. This document remains the design rationale and evidence inventory;
+> its sequencing or completion language is superseded where the authority says so.
+
 > **For the implementing agent (any model):** execute task by task, in order, and run each task's verification before starting the next. Do not "improve" anything outside your assigned task. Do not commit unless a task says to. Every line citation was verified on the base branch below; re-verify a line before editing it, and if a citation is wrong, fix the citation in this file in the same PR rather than guessing.
 
-**Base branch:** `ux/streamline-pass-1` @ `a1346aeb` (draft PR #139 → `main`). PR 1 stacks on it. PRs 2–5 stack on PR 1 unless stated.
+**Validated base at plan time:** `ux/streamline-pass-1` @ `a1346aeb` (draft PR #139 →
+`main`). Reconcile the live branch and PR head before every execution packet. PR 1
+stacks on the reconciled #139 base; later packets must follow the authority graph.
 
 **How to read this document.** The owner's request, the roadmap mapping, and the capability inventory are context. The work is in **Workstreams** below. If you only need to implement, read *Execution rules* → *Task index* → your assigned workstream.
 
@@ -23,7 +30,7 @@
 
 ---
 
-## Task index
+## Task index — 33 canonical tasks
 
 | Task | Workstream | Files (primary) | Done when |
 |---|---|---|---|
@@ -51,6 +58,7 @@
 | T-3.3 | PR 3 | `v2/LayersSheet.tsx`, `MapStageLayerControl.tsx` | labels match the active renderer |
 | T-3.4 | PR 3 | new Playwright spec | Mapbox mounts in a browser test; forced failure falls back |
 | T-3.5 | PR 3 | production `.env.local`, ADR 0015 note, `docs/astra/ASTRA-STATE.md` | owner-approved deploy; picker shows Satellite on prod |
+| T-3.6 | PR 3 | production `.env.local`, provider dashboard, `docs/astra/ASTRA-STATE.md` | **OWNER OPS only:** approved production rollout, monitoring, and rollback evidence |
 | T-4.1 | PR 4 | `v2/RideStyleChips.tsx` (new), `PlanOptions.tsx`, `PlanComposer.tsx` | one-tap style; chips test passes |
 | T-4.2 | PR 4 | `RouteDecisionCard.tsx`, `RouteComparison.tsx` | cards show role, +N min, explanation, climb, toll, gravel |
 | T-4.3 | PR 4 | `src/lib/traffic/tomtom.ts`, `api/route-traffic/route.ts` | up to 3 routes; budget + breaker; card messages |
@@ -246,6 +254,10 @@ Every capability the scouts found, with an explicit disposition. "Prod?" reflect
 
 Standalone bugfix PR based on `ux/streamline-pass-1`. Not a roadmap phase. **Do not** wire Thrilling in here, and **do not** change scoring policy here.
 
+The deterministic execution procedure for T-1.1 through T-1.10 is
+`2026-09-14-pr1-long-trip-alternatives-agent-runbook.md`. That runbook's verified
+symbols and tests supersede moved line citations below.
+
 **T-1.1 — deadline helper (new `src/lib/routing/deadline.ts`)**
 - Export `timeoutSignal(ms)`, `composeSignals(...)`, `createDeadline(ms, parent)`.
 - Build on `setTimeout`/`clearTimeout`: `AbortSignal.timeout` does not follow Vitest fake timers, which `tests/unit/request-timeout.test.ts` already works around.
@@ -322,7 +334,12 @@ Update deliberately: `planner.test.ts` (145, 180, 578, 616, 646, 682), `graphhop
 
 ---
 
-## PR 2 — `feat(routing)`: Route Policy V2, server-side roles, fair scoring (Phase 7)
+## PR 2 — `feat(routing)`: Route Policy V2, server-side roles, fair scoring (Phase 7 foundation)
+
+This packet is a **partial Phase 7 foundation**, not Phase 7 closure. It cannot be
+called complete until the Packet F traffic contract supplies real traffic scoring,
+the Protect-the-Ride cost, and the corpus/evidence gates required by the execution
+authority.
 
 **T-2.1 — policy.** Add a frozen `PA_NJ_ROUTE_POLICY_V2` in `src/lib/recommendation/route-policy.ts` next to the untouched V1.
 - Role envelopes: fastest-now 0, fast-and-fun 0.15, best-ride 0.35, maximum-twisties 0.60.
@@ -384,10 +401,23 @@ Update deliberately: `planner.test.ts` (145, 180, 578, 616, 646, 682), `graphhop
 This turns on a **client-only build-time flag**, which ADR 0021 forbids as a permanent pattern. `mapbox-config.ts:34` documents it as "the temporary phase-1 rollout gate" that Phase 4 replaces with the server-declared payload. State this explicitly so a reviewer does not read it as an ADR violation, and make T-4.4 actually supersede it.
 
 **T-3.6 — production (owner-approved deploy only)**
-- Set `NEXT_PUBLIC_SWITCHBACK_PREMIUM_MAPBOX=true` in `/root/Vibe/switchback/.env.local` and **rebuild** — `NEXT_PUBLIC_*` is inlined at build time.
-- Confirm the token's URL restriction includes the production origin; if not, the owner fixes it in the Mapbox dashboard.
-- Watch the map-load counter (`planner-map-renderer.ts:46-53`) against the 50k/month free tier.
-- Update the ADR 0015 status note and `docs/astra/ASTRA-STATE.md`.
+- **OWNER OPS only; do not execute in an implementation worktree.** Prerequisites
+  are a merged PR 3 head, green exact-head gates, owner approval, a backed-up
+  production environment file, an origin-restricted Mapbox public token, and a
+  rollback build known to work with MapLibre.
+- Owner action: set `NEXT_PUBLIC_SWITCHBACK_PREMIUM_MAPBOX=true` in the production
+  `.env.local` and rebuild — `NEXT_PUBLIC_*` is inlined at build time. Confirm the
+  token's URL restriction includes the production origin in the provider dashboard.
+- Verification: record the deployed build SHA, map renderer/capability response,
+  successful Road/Terrain/Satellite load, fallback behavior, map-load counter
+  (`planner-map-renderer.ts:46-53`), and `/api/health` after restart.
+- Rollback: restore the backed-up production environment/flag, rebuild the known
+  MapLibre artifact, restart through the owner's deployment procedure, and repeat
+  health plus planner-map smoke checks.
+- Proof required before dependent work proceeds: owner approval, production build
+  and service identity, token restriction evidence, renderer/fallback screenshots
+  or trace, counter sample, health response, and the rollback result. The cheap
+  implementation agent must stop before every production action.
 
 **Scope boundary:** only the planner map. Route library, route detail, thumbnails and Recon stay MapLibre (Phase 11 owns retirement).
 
@@ -409,7 +439,13 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 - Cards show: role; "+N min vs fastest" (always, per ADR 0013/0022); the top explanation; total climb (`ascentMeters`); a toll warning when `tollEvidence` shows tolls under `allow-with-warning`; gravel-atlas matched miles.
 - Details view uses `ElevationSparkline`, `SurfaceMixBar`, `RideCharacterBars`.
 - Label the rider-history re-ranking so a silent auto-selection becomes visible.
-- **Honesty fix:** "Fastest Now" is currently just the shortest duration and is not traffic-aware. Once T-4.3 lands, either make it traffic-aware or rename it — do not ship a label the data does not support. Ask the owner if the choice is not obvious.
+- The allow-with-warning behavior is a domain contract, not optional copy: the
+  eligible candidate must carry structured warning evidence through normalization,
+  recommendation, API/state projection, and the card. The dedicated deterministic
+  procedure is `2026-09-14-t4-2-allow-with-warning-agent-runbook.md`.
+- Until Packet F supplies a traffic-duration reference, the user-visible shortest
+  route label is **Fastest**. Internal role ids may remain compatible; do not ship
+  **Fastest Now** for duration-only data.
 
 **T-4.3 — traffic on every card (TomTom, key-gated)**
 - Add `getTomTomTrafficForRoutes(routes)` in `src/lib/traffic/tomtom.ts`: union of corridor boxes across candidates, one fetch per box, incidents assigned within 150 m, 3-minute in-process cache, daily request budget with a circuit breaker (ADR 0018).
@@ -423,7 +459,8 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 - Add a "3D rides" entry (`/labs/recon`) to Explore and Saved.
 - New `GET /api/capabilities` → `{ freeRideLive, tomtomTraffic, tomtomRouting, advisor }`. Minimal ADR 0021 slice, no identity gating yet; `freeRideLive` is false without a RIG graph, which hides the currently dead Free Ride control.
 - Show the "90-minute backroads" preset to first-run riders (`RideIntentFeedback.tsx`).
-- Decide `TripPlan.warnings`: surface rider-facing text, or declare it advisor-only. Do not leave it ambiguous.
+- `TripPlan.warnings` is rider-facing text; provider/lane diagnostics stay internal.
+  Do not create a second warning channel.
 
 **T-4.5 — tests.** Component tests for chips/cards/capabilities; intentional visual-baseline updates; mobile-core chip row at 390 px; Playwright screenshots at 1440 and 390 px plus a dark-mode contrast check.
 
@@ -452,9 +489,12 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 ## Open items
 
 - **T7 (Phase 7):** federate Thrilling candidates into PR 1's lane pool, behind the same deadline and its own limiter, only if the T-5.3 bakeoff shows distinct, better-scoring candidates.
-- **P1 — Protect the Ride cost (Phase 7):** PR 2 makes traffic real evidence and keeps closures hard-failing, but no explicit Protect-the-Ride cost term exists, and `TemporalContext` is never passed to `scoreRoute`. Decide whether PR 2 must add it to claim Phase 7 complete.
+- **P1 — Protect the Ride cost (Phase 7):** not implemented in the current
+  foundation. Packet F must provide the traffic contract and `TemporalContext`
+  before the scorer can add the ADR 0019 cost and Phase 7 can close.
 - **L1 — loop alternatives:** `planner.ts:394-401` returns one route for loops; ADR 0020's "up to three loops" is not implemented. Not in this plan.
-- **Fastest Now naming:** see T-4.2 — a product decision.
+- **Fastest naming:** display `Fastest` until the traffic-duration reference exists;
+  this is resolved by the execution authority, not an open product question.
 - **Phase 6 remainder:** future-departure-time routing (`departAt`).
 - **Phase 2 remainder:** light presets are delivered by PR 3; premium route ribbon, road-character layer and map-pack migration stay open.
 - **Unused graphics:** `EvidenceMeter`, `ConfidenceBadge` and 6 icons stay unused; deletion is a separate decision.
@@ -499,7 +539,7 @@ Gates: `install-scripts audit lint typecheck vitest build critical advisor webki
 - Run with `VALHALLA_URL` unset, and with GraphHopper stopped mid-alternatives: no error, no fallback after abort.
 
 **Live UI (Playwright on the branch build)**
-- Philadelphia → State College shows Fastest Now and Best Ride with minutes vs fastest and per-card traffic.
+- Philadelphia → State College shows Fastest and Best Ride with minutes vs fastest and per-card traffic once Packet F exists.
 - The primary does not flip after alternatives arrive.
 - Style chips switch in one tap.
 - The Mapbox picker shows Satellite; a forced failure falls back to MapLibre.
