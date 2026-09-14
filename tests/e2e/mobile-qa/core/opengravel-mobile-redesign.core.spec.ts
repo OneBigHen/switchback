@@ -85,7 +85,7 @@ test.describe("OpenGravel mobile redesign", () => {
   test("the GPX library gives every card geography and keeps one shared renderer", async ({ mobileQa }, testInfo) => {
     const { page } = mobileQa
     await page.goto("/gpx-library")
-    await expect(page.getByRole("heading", { name: "GPX Library" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Explore routes" })).toBeVisible()
 
     const cards = page.locator("[data-route-card]")
     if (await cards.count()) {

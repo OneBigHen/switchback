@@ -46,7 +46,7 @@ export function AtlasBrowser({
       routeCount={routeCount}
       totalMiles={totalMiles}
       updatedLabel={updatedLabel}
-      title="GPX Library"
+      title="Explore routes"
       searchPlaceholder="Search routes, locations, or keywords"
       defaultView="list"
       quickChips={LIBRARY_CHIPS}

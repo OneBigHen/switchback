@@ -48,7 +48,7 @@ export function RouteDetailHeader({ routeName, detailsAnchor }: RouteDetailHeade
 
   return (
     <header className={styles.header}>
-      <Link className={styles.iconButton} href="/gpx-library" aria-label="Back to the GPX Library">
+      <Link className={styles.iconButton} href="/gpx-library" aria-label="Back to Explore routes">
         <ArrowLeft weight="bold" aria-hidden="true" />
       </Link>
       <h1 className={styles.title}>Route details</h1>

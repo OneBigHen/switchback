@@ -57,14 +57,14 @@ describe("RidesSurface", () => {
   it("points riders to the shared Route Library without mixing its routes into My Rides", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 
-    expect(screen.getByRole("link", { name: "Browse Route Library" })).toHaveAttribute("href", "/gpx-library")
+    expect(screen.getByRole("link", { name: "Explore routes" })).toHaveAttribute("href", "/gpx-library")
   })
 
   it("offers the Route Library from the empty personal state", () => {
     render(<RidesSurface items={[]} onOpen={vi.fn()} onImport={vi.fn()} />)
 
     expect(screen.getByText("No rides saved yet.")).toBeInTheDocument()
-    expect(screen.getByText(/save one from the Route Library/i)).toBeInTheDocument()
+    expect(screen.getByText(/save one from Explore routes/i)).toBeInTheDocument()
   })
 
   it("never shows an unknown saved-route duration as 0 min or labels rows as a project library", () => {

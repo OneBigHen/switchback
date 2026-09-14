@@ -150,7 +150,7 @@ export async function generateMetadata({ params }: { params: Promise<{ routeId: 
   if (!route) return { title: `Route not found — ${PRODUCT_BRAND.name}` }
   const story = buildRouteStory({ ...route, durationMinutes: knownDurationMinutes(route.durationMinutes) })
   return {
-    title: `${listed?.title ?? displayTitle(route, story.title)} — ${PRODUCT_BRAND.name} GPX Library`,
+    title: `${listed?.title ?? displayTitle(route, story.title)} — Explore routes — ${PRODUCT_BRAND.name}`,
     description: story.summary
   }
 }
@@ -208,7 +208,7 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
     return (
       <main className="atlas-page">
         <p className="atlas-empty">
-          <strong>Too many Route Library requests from this address.</strong>
+          <strong>Too many route requests from this address.</strong>
           <span>Give it a minute and reload.</span>
         </p>
       </main>
@@ -264,13 +264,17 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
     <main className="atlas-page atlas-page--detail">
       <RouteDetailHeader routeName={title} detailsAnchor={TECHNICAL_DETAILS_ID} />
 
-      <RouteDetailMap
-        geometry={simplifyForOverlay(geometry, DETAIL_MAP_MAX_POINTS)}
-        bbox={bbox ?? null}
-        routeName={title}
-        provenanceNote={route.previewOnly ? "Preview import — the full line was not stored." : null}
-      />
+      <div className="route-detail-layout">
+      <div className="route-detail-layout__map">
+        <RouteDetailMap
+          geometry={simplifyForOverlay(geometry, DETAIL_MAP_MAX_POINTS)}
+          bbox={bbox ?? null}
+          routeName={title}
+          provenanceNote={route.previewOnly ? "Preview import — the full line was not stored." : null}
+        />
+      </div>
 
+      <div className="route-detail-layout__body">
       <section className="route-decision" aria-label="Route summary">
         {eyebrow ? <p className="route-decision__eyebrow">{eyebrow}</p> : null}
         <h2 className="route-decision__title">{title}</h2>
@@ -320,7 +324,7 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
 
         <p className="route-decision__note">
           Open in Planner loads this shared line as a track without saving it. Save keeps your own copy on this
-          device; the GPX Library entry stays as it is.
+          device; the shared route stays as it is.
         </p>
       </section>
 
@@ -396,6 +400,8 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
 
         {route.gpxIntelligence ? <GpxIntelligencePanel report={route.gpxIntelligence} /> : null}
       </section>
+      </div>
+      </div>
 
       <AppNavigationLinks active="explore" />
     </main>

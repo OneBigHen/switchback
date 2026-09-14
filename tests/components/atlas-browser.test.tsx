@@ -110,7 +110,7 @@ describe("GPX Library discovery", () => {
   it("names the collection and states its real size", () => {
     renderBrowser()
 
-    expect(screen.getByRole("heading", { name: "GPX Library" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Explore routes" })).toBeInTheDocument()
     expect(screen.getByText(/2 routes · 153 miles · Updated Sep 9, 2026/)).toBeInTheDocument()
   })
 

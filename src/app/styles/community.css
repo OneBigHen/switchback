@@ -1,6 +1,7 @@
 .community-page {
   min-height: 100dvh;
-  padding: 32px max(20px, 5vw) 64px;
+  /* Clears the primary navigation: the bottom bar here, the left rail on desktop. */
+  padding: 32px max(20px, 5vw) calc(var(--sb-mobile-nav-height) + max(var(--sb-mobile-edge), env(safe-area-inset-bottom)) + 32px);
   overflow-y: auto;
   /* --oled is the theme-aware app background (Canvas in light, Ink in
      dark). Pinning the brand --sb-canvas directly left dark mode with
@@ -122,7 +123,8 @@ body:has(.community-page) {
 .community-preview-map svg {
   display: block;
   width: 100%;
-  min-height: 180px;
+  height: auto;
+  aspect-ratio: 2 / 1;
   color: var(--sb-action, var(--signal));
 }
 
@@ -190,9 +192,43 @@ body:has(.community-page) {
 }
 
 .community-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
   width: min(760px, 100%);
   margin: 0 auto;
+  padding: 24px;
+  border: 1px dashed var(--sb-border, var(--line));
+  border-radius: var(--sb-radius-card, 20px);
   color: var(--sb-text-muted, var(--metal));
+}
+
+.community-empty strong {
+  color: var(--sb-text, var(--instrument));
+  font-size: 16px;
+}
+
+.community-empty p {
+  margin: 0;
+}
+
+.community-empty a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 0 16px;
+  border-radius: var(--sb-radius-control, 12px);
+  background: var(--sb-action, var(--signal));
+  color: var(--sb-paper);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (min-width: 1181px) {
+  .community-page {
+    padding: 40px 40px 64px 96px;
+  }
 }
 
 @media (max-width: 560px) {

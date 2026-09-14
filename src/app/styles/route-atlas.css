@@ -49,16 +49,44 @@
   padding: 0 0 calc(var(--sb-mobile-nav-height) + max(var(--sb-mobile-edge), env(safe-area-inset-bottom)) + 24px);
 }
 
-@media (min-width: 761px) {
+/* Desktop: the primary navigation is the 64px left rail (16px inset), so the
+   page clears 96px on the left and nothing at the bottom. */
+@media (min-width: 1181px) {
   .atlas-page--discovery {
     padding-bottom: 0;
-    padding-left: 352px;
+    padding-left: 96px;
   }
 
   .atlas-page--detail {
-    padding-bottom: 64px;
-    padding-left: 352px;
-    max-width: 1072px;
+    max-width: 1440px;
+    padding: 0 32px 64px 96px;
+  }
+
+  /* Detail on a wide screen: the map holds still on the left while the
+     decision and the evidence scroll on the right, instead of a 720px phone
+     column centred in an empty page. */
+  .route-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(380px, 1fr);
+    align-items: start;
+    gap: 32px;
+    padding-top: 16px;
+  }
+
+  .route-detail-layout__map {
+    position: sticky;
+    top: 72px;
+  }
+
+  .route-detail-layout__map [data-detail-map] {
+    height: calc(100dvh - 104px);
+    min-height: 420px;
+    border: 1px solid var(--sb-border);
+    border-radius: var(--sb-radius-card);
+  }
+
+  .route-detail-layout__body > .route-decision {
+    padding-top: 0;
   }
 }
 

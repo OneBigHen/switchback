@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { getCommunityStore } from "@/app/api/community/context"
 import { CommunityPreviewMap } from "@/components/community/CommunityPreviewMap"
 import { CommunityReportForm } from "@/components/community/CommunityReportForm"
+import { AppNavigationLinks } from "@/components/shell/AppNavigationLinks"
 
 export const dynamic = "force-dynamic"
 
@@ -12,7 +13,7 @@ export default async function CommunityRoutePage({ params }: { params: Promise<{
   return (
     <main className="community-page">
       <header className="community-page-header">
-        <Link href="/routes" className="community-back-link">← All community routes</Link>
+        <Link href="/routes" className="community-back-link">← Community routes</Link>
         <p className="community-eyebrow">{route.visibility === "public" ? "Public route" : "Unlisted route"}</p>
         <h1>{route.title}</h1>
         {route.description ? <p>{route.description}</p> : null}
@@ -30,6 +31,7 @@ export default async function CommunityRoutePage({ params }: { params: Promise<{
         <Link href="/">Plan your own route</Link>
       </div>
       <CommunityReportForm routeId={route.id} />
+      <AppNavigationLinks active="explore" />
     </main>
   )
 }

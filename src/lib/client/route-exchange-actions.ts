@@ -189,13 +189,13 @@ export function createRouteExchangeActions({
         onLoad(catalogRoute)
         onNotice({
           kind: "success",
-          message: `${catalogRoute.name} opened from the Route Library. It is not in My Rides until you save it.`
+          message: `${catalogRoute.name} opened from Explore routes. It is not in My Rides until you save it.`
         })
       } catch (caught) {
         if (superseded()) return
         onNotice({
           kind: "warning",
-          message: caught instanceof Error ? caught.message : "That Route Library entry could not be opened."
+          message: caught instanceof Error ? caught.message : "That shared route could not be opened."
         })
       }
     },
