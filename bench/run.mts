@@ -45,7 +45,7 @@ const MAX_UPSTREAM_RETRIES = Number(process.env.BENCH_RETRIES ?? 6)
  * ID"; the floating alias carries a leading `~`, and today resolves to
  * `deepseek/deepseek-v4-flash-0731`. Verified against /api/v1/models.
  */
-const DEEPSEEK_MODEL = "~deepseek/deepseek-v4-flash-latest"
+const DEEPSEEK_MODEL = process.env.BENCH_OPENROUTER_MODEL ?? "~deepseek/deepseek-v4-flash-latest"
 
 /**
  * A global minimum gap between upstream requests, per host.
