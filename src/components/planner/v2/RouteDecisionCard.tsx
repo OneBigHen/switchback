@@ -10,7 +10,7 @@ import styles from "./RouteDecisionCard.module.css"
 
 export type RouteDecisionRole =
   | "Your route"
-  | "Fastest Now"
+  | "Fastest"
   | "Fast & Fun"
   | "Maximum Twisties"
   | "Best Ride"
@@ -116,10 +116,10 @@ export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): 
     return CORRIDOR_OPTION_PRESENTATION[route.corridorOption].label as RouteDecisionRole
   }
   // Every other role is a comparison. With nothing to compare against, calling
-  // a lone twisty route "Fastest Now" is simply untrue.
+  // a lone twisty route "Fastest" is simply untrue.
   if (routes.length < 2) return "Your route"
   const fastestMinutes = Math.min(...routes.map((candidate) => candidate.durationMinutes))
-  if (route.durationMinutes === fastestMinutes) return "Fastest Now"
+  if (route.durationMinutes === fastestMinutes) return "Fastest"
 
   const maxTwistiness = Math.max(...routes.map((candidate) => candidate.twistiness))
   if (route.profile === "twisty" && route.twistiness === maxTwistiness && route.twistiness >= 70) {
