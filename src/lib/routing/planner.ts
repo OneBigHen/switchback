@@ -1,4 +1,5 @@
 import type { PlannedRoute, RouteProfileId, RouteRequest } from "./types"
+import { getProfile } from "./profiles"
 import { rankDiverseCandidates, routeSimilarity } from "@/lib/recommendation/route-diversity"
 import { PA_NJ_ROUTE_POLICY_V1 } from "@/lib/recommendation/route-policy"
 import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
@@ -86,6 +87,27 @@ function chooseDistinctCandidate(
     overlapPercent: Math.round(similarities[0]?.overlapShare ? similarities[0].overlapShare * 100 : 0),
     worstOverlap
   }
+}
+
+/**
+ * Profiles worth asking the engine about on the alternatives call, in order.
+ *
+ * The primary's own profile comes first: the primary call returns a single
+ * path, so its engine alternates (the likeliest "same style, different road"
+ * options) are only computed here. After that, a profile is skipped when it
+ * would send the engine a request already queued — Balanced and Quick share
+ * `motorcycle_fastest`, Gravel shares Adventure's model, Neural shares
+ * Twisty's — because the answer can only be dropped as a duplicate.
+ */
+export function comparisonProfilesFor(request: { profile: RouteProfileId; avoidHighways?: boolean }): RouteProfileId[] {
+  const seen = new Set<string>()
+  return [request.profile, ...COMPARISON_PROFILE_ORDER.filter((profile) => profile !== request.profile)]
+    .filter((profile) => {
+      const engineRequest = `${getProfile(profile).engineProfile}|${Boolean(request.avoidHighways) || profile === "avoid-highways"}`
+      if (seen.has(engineRequest)) return false
+      seen.add(engineRequest)
+      return true
+    })
 }
 
 function variedComparisonRequest(
@@ -431,7 +453,7 @@ async function planAlternativeRoutes(
 
   const accepted: PlannedRoute[] = []
   const warnings: string[] = [...partitioned.warnings]
-  const profiles = COMPARISON_PROFILE_ORDER.filter((profile) => profile !== request.profile)
+  const profiles = comparisonProfilesFor(request)
 
   // Comparison profiles race two-at-a-time through a sliding window, but
   // results are accepted strictly in profile order. The window only shifts

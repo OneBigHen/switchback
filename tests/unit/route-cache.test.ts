@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 import { createRouteCache, routeCacheKey } from "@/lib/server/route-cache"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { RouteRequest } from "@/lib/routing/types"
+import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
+import type { RoadLock } from "@/lib/roads/road-locks"
 
 const plan: TripPlan = {
   selectedRouteId: "route-1",
@@ -55,6 +57,19 @@ describe("route cache key", () => {
     expect(routeCacheKey(request({ profile: "quick" }))).not.toBe(routeCacheKey(request()))
     expect(routeCacheKey(request({ avoidHighways: true }))).not.toBe(routeCacheKey(request()))
     expect(routeCacheKey(request({ tollPolicy: "avoid" }))).not.toBe(routeCacheKey(request()))
+  })
+
+  it("separates requests that differ in bike rules, a widened lock, or a redrawn area", () => {
+    const [street, adventure] = [MOTORCYCLE_PROFILES[0]!, MOTORCYCLE_PROFILES.at(-1)!]
+    expect(routeCacheKey(request({ bikeProfile: street }))).not.toBe(routeCacheKey(request({ bikeProfile: adventure })))
+
+    const lock = { id: "lock-1", mode: "must", edgeIds: ["7"], fallbackToleranceMeters: 50 } as RoadLock
+    expect(routeCacheKey(request({ roadLocks: [lock] })))
+      .not.toBe(routeCacheKey(request({ roadLocks: [{ ...lock, fallbackToleranceMeters: 150 }] })))
+
+    const area = { id: "area-1", polygon: [[-75.1, 40.2], [-75.0, 40.2], [-75.0, 40.3]] as [number, number][] }
+    expect(routeCacheKey(request({ avoidAreas: [area] })))
+      .not.toBe(routeCacheKey(request({ avoidAreas: [{ ...area, polygon: [[-75.2, 40.2], [-75.0, 40.2], [-75.0, 40.3]] }] })))
   })
 
   it("treats equivalent rounded points as the same request", () => {

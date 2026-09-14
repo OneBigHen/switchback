@@ -122,8 +122,24 @@ export function routeCacheKey(request: RouteRequest, namespace?: RouteCacheNames
           sourceFingerprint: atlasNamespace.gravelAtlasSourceFingerprint?.trim() || null
         }
       : null,
-    avoidAreas: (request.avoidAreas ?? []).map((area) => area.id).sort(),
-    roadLocks: (request.roadLocks ?? []).map((lock) => lock.id).sort(),
+    // Ids alone are not enough: an area redrawn or a lock widened ("try a
+    // wider match") keeps its id and must not be answered from the cache.
+    avoidAreas: (request.avoidAreas ?? [])
+      .map((area) => ({
+        id: area.id,
+        polygon: area.polygon.map((coordinate) => [roundCoordinate(coordinate[0]), roundCoordinate(coordinate[1])])
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    roadLocks: (request.roadLocks ?? [])
+      .map((lock) => ({
+        id: lock.id,
+        mode: lock.mode,
+        tolerance: lock.fallbackToleranceMeters,
+        edges: [...lock.edgeIds].sort()
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    // Bike rules become engine surface restrictions, so they change the route.
+    bikeProfile: request.bikeProfile ?? null,
     segmentProfiles: request.segmentProfiles ?? [],
     targetMinutes: request.targetMinutes ?? null,
     loopTargetMinutes: request.loopTargetMinutes ?? null,

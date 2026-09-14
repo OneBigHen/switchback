@@ -62,6 +62,9 @@ interface TimeboxedProviderResult {
   warning: string | null
 }
 
+/** Wall-clock budget for walking a failed loop request down in distance. */
+export const LOOP_FALLBACK_BUDGET_MS = 8_000
+
 async function requestInitialTimeboxedRoute(
   request: NormalizedRouteRequest,
   provider: RouteProvider,
@@ -77,6 +80,10 @@ async function requestInitialTimeboxedRoute(
   // loop; the timebox caller warns when the achieved loop is shorter than the
   // target instead of failing outright.
   const distanceSteps = [1, 0.75, 0.5, 0.35, 0.25]
+  // Five distance steps × seven seeds is up to 35 engine calls when the area
+  // cannot hold a loop. Past the budget the rider is better served by an
+  // honest failure than by another half-minute of retries.
+  const budgetEndsAt = performance.now() + LOOP_FALLBACK_BUDGET_MS
   let lastError: unknown
   for (const step of distanceSteps) {
     const minutes = Math.max(20, Math.round(originalMinutes * step))
@@ -89,6 +96,7 @@ async function requestInitialTimeboxedRoute(
         return await provider(candidate.request, options)
       } catch (caught) {
         lastError = caught
+        if (performance.now() >= budgetEndsAt || options.signal?.aborted) throw caught
       }
     }
   }

@@ -277,7 +277,9 @@ export async function handleRouteRequest(
     if (cacheKey && cache) {
       cache.set(cacheKey, trip)
     }
-    return jsonWithRequestId({ ...trip, requestId: responseRequestId }, responseRequestId)
+    return jsonWithRequestId({ ...trip, requestId: responseRequestId }, responseRequestId, {
+      headers: serverTimingHeader(trip.timingMs)
+    })
   } catch (error) {
     if (error instanceof RouteQueueFullError) {
       // The provider queue is saturated; 429 tells the client to back off
@@ -341,4 +343,15 @@ function errorResponse(
   details?: unknown
 ): Response {
   return apiErrorResponse(code, message, status, requestId, details)
+}
+
+/**
+ * Planning stage durations as a standard `Server-Timing` header, so a slow
+ * plan is attributable from the browser's network panel without logging.
+ */
+export function serverTimingHeader(timingMs: Record<string, number> | undefined): Record<string, string> {
+  const entries = Object.entries(timingMs ?? {})
+    .filter(([name, duration]) => /^[A-Za-z][\w-]*$/.test(name) && Number.isFinite(duration))
+    .map(([name, duration]) => `${name};dur=${Math.round(duration)}`)
+  return entries.length > 0 ? { "server-timing": entries.join(", ") } : {}
 }

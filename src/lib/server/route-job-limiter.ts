@@ -2,9 +2,10 @@
  * Bounded, priority-aware scheduling for provider work on the host.
  *
  * The host is a small machine, so provider calls are shaped by a token
- * semaphore: a primary lifecycle may hold both tokens (letting one primary
- * corridor evaluate two candidates concurrently), while alternatives hold
- * at most one token and always dequeue behind queued primary work. Queue
+ * semaphore. Every call holds one token; primary work always dequeues ahead
+ * of alternatives. (Primary calls used to take every token, which serialised
+ * all routing on the server — the two-at-a-time corridor and loop retries
+ * planned inside one lifecycle never actually overlapped.) Queue
  * entries are abortable, so a cancelled lifecycle never leaves dead work
  * waiting for a token. Health checks bypass the queue entirely.
  */
@@ -127,7 +128,7 @@ export function createRouteJobLimiter(
       return new Promise<T>((resolve, reject) => {
         const job: QueuedJob = {
           priority,
-          tokens: priority === "primary" ? tokens : 1,
+          tokens: 1,
           task: task as () => Promise<unknown>,
           signal,
           resolve: (value) => resolve(value as T),

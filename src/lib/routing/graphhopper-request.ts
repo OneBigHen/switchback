@@ -347,7 +347,11 @@ export function createGraphHopperRequest(
         : { headings: [_request.roundTrip.heading] })
     }
   }
-  if (_request.points.length === 2) {
+  // Engine alternatives belong to the background alternatives call. On the
+  // primary call they are pure cost: the planner paints one route, and
+  // `alternative_route` with three paths measured 18–21 s against 0.2–4.7 s
+  // for a single path on Philadelphia → State College (issue #133).
+  if (_request.points.length === 2 && _request.candidateSet === "alternatives") {
     return {
       ...baseRequest,
       algorithm: "alternative_route",
