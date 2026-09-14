@@ -443,7 +443,7 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 **T-4.1 — ride-style chips (new `v2/RideStyleChips.tsx`)**
 - Choices: Fastest (`quick`) · Balanced · Twisty · Scenic · Back roads (`adventure`, with a "More gravel" sub-option mapping to `gravel`), each with a one-line description.
 - Placement: under the search field in `PlanComposer.tsx`, and above `RouteDecisionRail` after planning, where it stays visible.
-- Tapping a style selects the returned route that already holds that role (no replan); otherwise call the existing `onProfileChange`, which auto-replans (`PlannerShell.tsx:1612`).
+- Tapping a style changes the requested profile. It must not infer or select a decision role; use the existing `onProfileChange` replan path (`PlannerShell.tsx:1612`) when the requested profile differs from the current plan.
 - Remove the Road feel chips from `PlanOptions.tsx`. "Avoid Highways" stays only as the avoid checkbox. Hide "Neural" (its flag is never read).
 - Add the bike profile to the collapsed summary (`plan-preference-summary.ts:29-47` never receives it today).
 - Placeholder hint: "Search a place or describe a ride — 'twisty 2 hours'".
@@ -472,7 +472,7 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 **T-4.4 — hidden work**
 - Raise the quick-layer cap so "Road controls" is not cut (`LayersSheet.tsx:61-62`).
 - Add a "3D rides" entry (`/labs/recon`) to Explore and Saved.
-- New `GET /api/capabilities` → `{ freeRideLive, tomtomTraffic, tomtomRouting, advisor }`. Minimal ADR 0021 slice, no identity gating yet; `freeRideLive` is false without a RIG graph, which hides the currently dead Free Ride control.
+- New `GET /api/capabilities` is the server authority required by ADR 0021. Its public payload must include `mapboxPremium`, `googleCinematic`, `tomtomTraffic`, `tomtomRouting`, and `advancedFreeRide`, combining deployment defaults, provider prerequisites, optional stable-identity gates, and provider health; missing prerequisites force `false` and secrets never reach the browser. `advisor` may remain an additional operational capability. `freeRideLive` is false without a RIG graph, which hides the currently dead Free Ride control.
 - Show the "90-minute backroads" preset to first-run riders (`RideIntentFeedback.tsx`).
 - `TripPlan.warnings` is rider-facing plan text; route-specific typed warnings stay
   on `PlannedRoute.warnings`; provider/lane diagnostics stay internal.
