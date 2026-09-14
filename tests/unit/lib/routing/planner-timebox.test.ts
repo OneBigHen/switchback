@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 import { normalizeRouteRequest } from "@/lib/domain/routing/normalized-request"
-import { planDestinationTimebox } from "@/lib/routing/planner-timebox"
+import { planDestinationTimebox, requestTimeboxedRoutes } from "@/lib/routing/planner-timebox"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 import type { RoutingResult } from "@/lib/routing/planner-contract"
+import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 
 function route(request: RouteRequest): PlannedRoute {
   return {
@@ -53,5 +54,70 @@ describe("destination timebox planner strategy", () => {
     expect(plan.candidateSet).toBe("primary")
     expect(plan.targetMinutes).toBe(120)
     expect(plan.warnings).toEqual(["provider warning"])
+  })
+
+  it("does not turn caller cancellation during loop refinement into a stale success", async () => {
+    const caller = new AbortController()
+    const reason = new Error("rider cancelled")
+    let calls = 0
+    const provider = vi.fn(async (request: RouteRequest): Promise<RoutingResult> => {
+      calls += 1
+      if (calls === 5) {
+        caller.abort(reason)
+        throw reason
+      }
+      return {
+        engine: "graphhopper",
+        engineVersion: "11.0",
+        routes: [{
+          ...route(request),
+          id: `loop-${calls}`,
+          durationMinutes: 60
+        }]
+      }
+    })
+
+    await expect(requestTimeboxedRoutes(
+      normalizeRouteRequest({
+        profile: "twisty",
+        points: [{ lat: 40.2, lon: -76.9 }],
+        roundTrip: { targetMinutes: 120, seed: 4 }
+      }),
+      provider,
+      undefined,
+      { signal: caller.signal }
+    )).rejects.toBe(reason)
+  })
+
+  it("bounds optional corridor resolution and disposes its deadline", async () => {
+    vi.useFakeTimers()
+    try {
+      const resolver = vi.fn(() => new Promise<CorridorSourceCandidates>(() => {}))
+      const provider = vi.fn(async (request: RouteRequest): Promise<RoutingResult> => ({
+        engine: "graphhopper",
+        engineVersion: "11.0",
+        routes: [{ ...route(request), durationMinutes: 60 }]
+      }))
+      const pending = planDestinationTimebox(
+        normalizeRouteRequest({
+          profile: "twisty",
+          targetMinutes: 120,
+          points: [
+            { lat: 40.2, lon: -76.9 },
+            { lat: 40.3, lon: -76.7 }
+          ]
+        }),
+        provider,
+        { resolveCorridors: resolver }
+      )
+      const assertion = expect(pending).resolves.toMatchObject({ selectedRouteId: "direct-route" })
+      await vi.advanceTimersByTimeAsync(6_000)
+
+      await assertion
+      expect(resolver).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

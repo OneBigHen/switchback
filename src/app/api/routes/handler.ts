@@ -165,7 +165,7 @@ const MAX_ROUTE_REQUEST_BYTES = 16 * 1024
 export interface RoutePlanningContext {
   cache?: RouteCache
   /** Phase 4 corridor-source resolver for destination timeboxing. */
-  resolveCorridors?: (request: RouteRequest) => Promise<CorridorSourceCandidates>
+  resolveCorridors?: (request: RouteRequest, signal?: AbortSignal) => Promise<CorridorSourceCandidates>
 }
 
 async function readRoutePayload(
@@ -319,6 +319,8 @@ function friendlyRoutingErrorMessage(code: string): string {
       return "That ride leaves the covered map area. Pick a start and destination inside the map, or zoom in to check the bounds."
     case "PROVIDER_UNAVAILABLE":
       return "The route service is temporarily unavailable. Nothing was lost — try again in a moment."
+    case "ROUTE_TIMEOUT":
+      return "The route service took too long to answer. Try a shorter ride or try again in a moment."
     case "ROUTING_REJECTED":
       return "That ride couldn't be routed. Try different start or finish points, or a different route style."
     default:

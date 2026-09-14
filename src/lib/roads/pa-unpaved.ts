@@ -6,6 +6,7 @@ import type {
   PaUnpavedRoadCorridorQuery,
   PaUnpavedRoadQuery
 } from "./types"
+import { createDeadline } from "@/lib/routing/deadline"
 
 export const PA_UNPAVED_ROADS_QUERY_URL =
   "https://mapservices.pasda.psu.edu/server/rest/services/pasda/DEP/MapServer/33/query"
@@ -38,6 +39,7 @@ export interface PaUnpavedRoadProviderOptions {
   fetcher?: typeof fetch
   timeoutMs?: number
   cache?: boolean
+  signal?: AbortSignal
 }
 
 export class PaUnpavedRoadProviderError extends Error {
@@ -83,7 +85,9 @@ export async function fetchPaUnpavedRoadsNearRoutes(
     orderByFields: "OBJECTID ASC",
     resultRecordCount: String(limit)
   })
-  const cacheEnabled = options.cache ?? options.fetcher === undefined
+  // A caller-bound request must never populate or consume the shared cache:
+  // cancellation of one rider must not cancel or poison another rider's read.
+  const cacheEnabled = options.signal ? false : options.cache ?? options.fetcher === undefined
   const cacheKey = JSON.stringify({ paths, bufferMeters, limit })
   if (cacheEnabled) {
     const cached = corridorCache.get(cacheKey)
@@ -127,12 +131,11 @@ async function requestCorridorFeatureCollection(
   limit: number,
   options: PaUnpavedRoadProviderOptions
 ): Promise<PaUnpavedRoadFeatureCollection> {
-  const controller = new AbortController()
   const timeoutMs = Math.max(
     1,
     Math.min(options.timeoutMs ?? PA_UNPAVED_ROADS_CORRIDOR_TIMEOUT_MS, 15_000)
   )
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const lifecycle = createDeadline(timeoutMs, options.signal)
   let payload: ArcGisGeoJsonResponse
   try {
     const response = await (options.fetcher ?? fetch)(PA_UNPAVED_ROADS_QUERY_URL, {
@@ -142,7 +145,7 @@ async function requestCorridorFeatureCollection(
         "content-type": "application/x-www-form-urlencoded"
       },
       body,
-      signal: controller.signal
+      signal: lifecycle.signal
     })
     if (!response.ok) throw unavailableError()
     const value: unknown = await response.json()
@@ -157,9 +160,10 @@ async function requestCorridorFeatureCollection(
     payload = value as ArcGisGeoJsonResponse
   } catch (error) {
     if (error instanceof PaUnpavedRoadProviderError) throw error
+    if (options.signal?.aborted) throw options.signal.reason ?? error
     throw unavailableError()
   } finally {
-    clearTimeout(timeout)
+    lifecycle.dispose()
   }
 
   return normalizeFeatureCollection(payload, limit)
@@ -193,17 +197,16 @@ export async function fetchPaUnpavedRoads(
   url.searchParams.set("orderByFields", "OBJECTID ASC")
   url.searchParams.set("resultRecordCount", String(limit))
 
-  const controller = new AbortController()
   const timeoutMs = Math.max(
     1,
     Math.min(options.timeoutMs ?? PA_UNPAVED_ROADS_TIMEOUT_MS, 15_000)
   )
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const lifecycle = createDeadline(timeoutMs, options.signal)
   let payload: ArcGisGeoJsonResponse
   try {
     const response = await (options.fetcher ?? fetch)(url, {
       headers: { accept: "application/geo+json, application/json" },
-      signal: controller.signal
+      signal: lifecycle.signal
     })
     if (!response.ok) throw unavailableError()
 
@@ -219,9 +222,10 @@ export async function fetchPaUnpavedRoads(
     payload = value as ArcGisGeoJsonResponse
   } catch (error) {
     if (error instanceof PaUnpavedRoadProviderError) throw error
+    if (options.signal?.aborted) throw options.signal.reason ?? error
     throw unavailableError()
   } finally {
-    clearTimeout(timeout)
+    lifecycle.dispose()
   }
 
   return normalizeFeatureCollection(payload, limit)

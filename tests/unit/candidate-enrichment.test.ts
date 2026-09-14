@@ -57,4 +57,24 @@ describe("accepted-candidate enrichment", () => {
       { signal: caller.signal }
     )).rejects.toBe(reason)
   })
+
+  it("passes the lifecycle signal to region evidence and preserves caller cancellation", async () => {
+    const caller = new AbortController()
+    const reason = new Error("rider cancelled before elevation")
+    const regionEvidence = vi.fn(async (
+      _request: RouteRequest,
+      routes: PlannedRoute[],
+      options?: { signal?: AbortSignal }
+    ) => {
+      expect(options?.signal).toBeInstanceOf(AbortSignal)
+      caller.abort(reason)
+      throw options?.signal?.reason
+    })
+    const run = createCandidateEnricher({
+      regionEvidence,
+      signal: new AbortController().signal
+    })
+
+    await expect(run(request, [route], { signal: caller.signal })).rejects.toBe(reason)
+  })
 })

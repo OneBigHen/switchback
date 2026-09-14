@@ -460,4 +460,51 @@ describe("GraphHopper cancellation", () => {
       status: 499
     })
   })
+
+  it("keeps provider timeout distinct from caller cancellation", async () => {
+    vi.useFakeTimers()
+    try {
+      const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+        await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+        })
+      )
+
+      const pending = requestGraphHopperRoutes(
+        { profile: "twisty", points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }] },
+        { baseUrl: "http://graphhopper.test", fetcher }
+      )
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: "ROUTE_TIMEOUT",
+        status: 504
+      })
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      await assertion
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("preserves a custom caller cancellation reason", async () => {
+    const controller = new AbortController()
+    const reason = new Error("rider stopped planning")
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+      })
+    )
+
+    const pending = requestGraphHopperRoutes(
+      { profile: "twisty", points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }] },
+      { baseUrl: "http://graphhopper.test", fetcher, signal: controller.signal }
+    )
+    controller.abort(reason)
+
+    await expect(pending).rejects.toMatchObject({
+      code: "ROUTE_CANCELLED",
+      status: 499
+    })
+  })
 })

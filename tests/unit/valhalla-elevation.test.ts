@@ -74,6 +74,25 @@ describe("fetchRouteElevations", () => {
     const result = await fetchRouteElevations(geometry, "http://valhalla.test", fetcher as typeof fetch)
     expect(result).toEqual({ ascentMeters: 40, descentMeters: 20 })
   })
+
+  it("does not convert caller cancellation into unavailable elevation", async () => {
+    const caller = new AbortController()
+    const reason = new Error("rider cancelled")
+    const fetcher = async (_input: string | URL | Request, init?: RequestInit) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+      })
+
+    const pending = fetchRouteElevations(
+      geometry,
+      "http://valhalla.test",
+      fetcher as typeof fetch,
+      caller.signal
+    )
+    caller.abort(reason)
+
+    await expect(pending).rejects.toBe(reason)
+  })
 })
 
 describe("enrichWithElevations", () => {

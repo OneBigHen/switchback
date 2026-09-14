@@ -163,23 +163,55 @@ async function resolveCorridorSourcesBeforeDeadline(
   options: PlanningOptions,
   signal: AbortSignal
 ): Promise<CorridorSourceCandidates> {
-  if (!options.resolveCorridors || signal.aborted) return emptyCorridorSources()
-  const sourcePromise = options.resolveCorridors(request).catch(() => emptyCorridorSources())
-  return new Promise<CorridorSourceCandidates>((resolve) => {
+  if (!options.resolveCorridors) return emptyCorridorSources()
+  if (options.signal?.aborted) {
+    throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+  }
+  if (signal.aborted) return emptyCorridorSources()
+  const sourcePromise = Promise.resolve().then(() => options.resolveCorridors!(request, signal))
+  return new Promise<CorridorSourceCandidates>((resolve, reject) => {
     let settled = false
+    const cleanup = () => signal.removeEventListener("abort", onAbort)
     const finish = (sources: CorridorSourceCandidates) => {
       if (settled) return
       settled = true
-      signal.removeEventListener("abort", onAbort)
+      cleanup()
       resolve(sources)
     }
-    const onAbort = () => finish(emptyCorridorSources())
+    const fail = (reason: unknown) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(reason)
+    }
+    const onAbort = () => {
+      if (options.signal?.aborted) {
+        fail(options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError"))
+        return
+      }
+      finish(emptyCorridorSources())
+    }
     signal.addEventListener("abort", onAbort, { once: true })
     if (signal.aborted) {
       onAbort()
       return
     }
-    void sourcePromise.then(finish, () => finish(emptyCorridorSources()))
+    void sourcePromise.then(
+      (sources) => {
+        if (options.signal?.aborted) {
+          fail(options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError"))
+          return
+        }
+        finish(sources)
+      },
+      (reason) => {
+        if (options.signal?.aborted) {
+          fail(options.signal.reason ?? reason)
+          return
+        }
+        finish(emptyCorridorSources())
+      }
+    )
   })
 }
 

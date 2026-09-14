@@ -28,6 +28,7 @@ import {
   selectedCandidateScore,
   tripPlanMetadata
 } from "./planner-shared"
+import { createDeadline } from "./deadline"
 
 const ROUND_TRIP_DURATION_TOLERANCE = 0.15
 
@@ -109,7 +110,9 @@ export async function requestTimeboxedRoutes(
   enricher?: RouteCandidateEnricher,
   options: PlanningOptions = {}
 ): Promise<TimeboxedProviderResult> {
+  if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
   const initial = await requestInitialTimeboxedRoute(request, provider, options)
+  if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
   const roundTrip = request.roundTrip
   const targetMinutes = roundTrip?.targetMinutes ?? request.loopTargetMinutes
   if (!targetMinutes) {
@@ -181,6 +184,7 @@ export async function requestTimeboxedRoutes(
       }
     }, provider, options))
   )
+  if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
   const candidates = [
     ...initial.routes,
     ...retries.flatMap((retry) => retry.status === "fulfilled" ? retry.value.routes : [])
@@ -205,7 +209,8 @@ export async function requestTimeboxedRoutes(
       candidates.push(...finalAttempt.routes)
       closest = closestDurationCandidate(candidates, targetMinutes) ?? closest
       remainingError = durationDifference(closest, targetMinutes) / targetMinutes
-    } catch {
+    } catch (reason) {
+      if (options.signal?.aborted) throw options.signal.reason ?? reason
       // The best earlier candidate remains usable and will carry a warning.
       break
     }
@@ -293,83 +298,101 @@ export async function planDestinationTimebox(
     }
   }
 
-  const deadline: AbortSignal = options.signal
-    ? AbortSignal.any([options.signal, AbortSignal.timeout(PRIMARY_CORRIDOR_DEADLINE_MS)])
-    : AbortSignal.timeout(PRIMARY_CORRIDOR_DEADLINE_MS)
-  const corridorOptions = { ...options, signal: deadline }
+  const corridorDeadline = createDeadline(PRIMARY_CORRIDOR_DEADLINE_MS, options.signal)
+  const corridorOptions = { ...options, signal: corridorDeadline.signal }
 
-  let envelope = corridorEnvelope(feasibility.estimatedTargetDistanceMiles)
-  let anchorSets = await resolveAnchorSets(request, options, startCoord, finishCoord, envelope)
-  let candidates = await routeAnchorSets(request, provider, anchorSets, corridorOptions)
+  try {
+    let envelope = corridorEnvelope(feasibility.estimatedTargetDistanceMiles)
+    let anchorSets = await resolveAnchorSets(
+      request,
+      corridorOptions,
+      startCoord,
+      finishCoord,
+      envelope,
+      options.signal
+    )
+    let candidates = await routeAnchorSets(request, provider, anchorSets, corridorOptions, options.signal)
 
-  // One refinement pass: when every candidate misses the target, re-derive
-  // the envelope from the best measured duration and re-route it once.
-  const inTolerance = (route: PlannedRoute) =>
-    Math.abs(route.durationMinutes - targetMinutes) / targetMinutes <= 0.1
-  if (candidates.length > 0 && !candidates.some(inTolerance)) {
-    const best = closestDurationCandidate(candidates, targetMinutes)
-    if (best) {
-      const refinedBaseline = estimateTimeboxBaseline(best.durationMinutes, best.distanceMiles, targetMinutes)
-      envelope = corridorEnvelope(refinedBaseline.estimatedTargetDistanceMiles)
-      anchorSets = await resolveAnchorSets(request, options, startCoord, finishCoord, envelope)
-      const refined = await routeAnchorSets(request, provider, anchorSets, corridorOptions)
-      if (refined.length > 0) candidates = refined
+    // One refinement pass: when every candidate misses the target, re-derive
+    // the envelope from the best measured duration and re-route it once.
+    const inTolerance = (route: PlannedRoute) =>
+      Math.abs(route.durationMinutes - targetMinutes) / targetMinutes <= 0.1
+    if (candidates.length > 0 && !candidates.some(inTolerance)) {
+      const best = closestDurationCandidate(candidates, targetMinutes)
+      if (best) {
+        const refinedBaseline = estimateTimeboxBaseline(best.durationMinutes, best.distanceMiles, targetMinutes)
+        envelope = corridorEnvelope(refinedBaseline.estimatedTargetDistanceMiles)
+        anchorSets = await resolveAnchorSets(
+          request,
+          corridorOptions,
+          startCoord,
+          finishCoord,
+          envelope,
+          options.signal
+        )
+        const refined = await routeAnchorSets(request, provider, anchorSets, corridorOptions, options.signal)
+        if (refined.length > 0) candidates = refined
+      }
     }
-  }
 
-  const partitioned = partitionLocksForRequest(request)
-  const withLocks = (route: PlannedRoute) =>
-    ensureLockSatisfaction({ ...route, overlapPercent: 100 }, partitioned.survivingLocks)
+    if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
 
-  const scored = candidates.map((route) => ({
-    route: withLocks(route),
-    report: routeQualityReport({
-      route,
-      targetMinutes,
-      start: startCoord,
-      finish: finishCoord,
-      tollPolicy: request.tollPolicy ?? "allow-with-warning",
-      stateTransitions: countStateTransitions(route.geometry),
-      minimumStateTransitions: minimumStateTransitions(startCoord, finishCoord),
-      evidenceMiles: anchorSets.find((set) => set.label === route.name)?.evidenceMiles ?? 0
-    })
-  }))
+    const partitioned = partitionLocksForRequest(request)
+    const withLocks = (route: PlannedRoute) =>
+      ensureLockSatisfaction({ ...route, overlapPercent: 100 }, partitioned.survivingLocks)
 
-  const passing = scored
-    .filter((entry) => entry.report.passedGates)
-    .sort((left, right) => right.report.score - left.report.score)
+    const scored = candidates.map((route) => ({
+      route: withLocks(route),
+      report: routeQualityReport({
+        route,
+        targetMinutes,
+        start: startCoord,
+        finish: finishCoord,
+        tollPolicy: request.tollPolicy ?? "allow-with-warning",
+        stateTransitions: countStateTransitions(route.geometry),
+        minimumStateTransitions: minimumStateTransitions(startCoord, finishCoord),
+        evidenceMiles: anchorSets.find((set) => set.label === route.name)?.evidenceMiles ?? 0
+      })
+    }))
 
-  if (passing.length > 0) {
-    const best = passing[0]!
+    const passing = scored
+      .filter((entry) => entry.report.passedGates)
+      .sort((left, right) => right.report.score - left.report.score)
+
+    if (passing.length > 0) {
+      const best = passing[0]!
+      return {
+        ...tripPlanMetadata(request),
+        selectedRouteId: best.route.id,
+        routes: [best.route],
+        warnings: [
+          ...partitioned.warnings,
+          ...(baselineAttempt.warning ? [baselineAttempt.warning] : []),
+          ...best.report.explanation
+        ],
+        timingMs: { primary: performance.now() - started }
+      }
+    }
+
+    // No candidate passed every gate: return the eligible direct baseline with
+    // honest feasibility wording. A shaped candidate that failed quality gates
+    // must never be selected or described as safe (SB-004).
+    const gateFailures = scored.length > 0 ? scored[0]!.report.failures : {}
+    const gateSummary = Object.values(gateFailures).join(" ")
     return {
       ...tripPlanMetadata(request),
-      selectedRouteId: best.route.id,
-      routes: [best.route],
+      selectedRouteId: baseline.id,
+      routes: [baseline],
       warnings: [
         ...partitioned.warnings,
-        ...(baselineAttempt.warning ? [baselineAttempt.warning] : []),
-        ...best.report.explanation
+        gateSummary
+          ? `No shaped route passed the quality gates (${gateSummary}); returning the direct route (${baseline.durationMinutes} min).`
+          : `No shaped route met the ${targetMinutes}-minute target; returning the direct route (${baseline.durationMinutes} min).`
       ],
       timingMs: { primary: performance.now() - started }
     }
-  }
-
-  // No candidate passed every gate: return the eligible direct baseline with
-  // honest feasibility wording. A shaped candidate that failed quality gates
-  // must never be selected or described as safe (SB-004).
-  const gateFailures = scored.length > 0 ? scored[0]!.report.failures : {}
-  const gateSummary = Object.values(gateFailures).join(" ")
-  return {
-    ...tripPlanMetadata(request),
-    selectedRouteId: baseline.id,
-    routes: [baseline],
-    warnings: [
-      ...partitioned.warnings,
-      gateSummary
-        ? `No shaped route passed the quality gates (${gateSummary}); returning the direct route (${baseline.durationMinutes} min).`
-        : `No shaped route met the ${targetMinutes}-minute target; returning the direct route (${baseline.durationMinutes} min).`
-    ],
-    timingMs: { primary: performance.now() - started }
+  } finally {
+    corridorDeadline.dispose()
   }
 }
 
@@ -381,12 +404,47 @@ async function resolveAnchorSets(
   options: PlanningOptions,
   start: Coordinate,
   finish: Coordinate,
-  envelope: { maxPathDistanceMiles: number; maxLateralMiles: number }
+  envelope: { maxPathDistanceMiles: number; maxLateralMiles: number },
+  callerSignal?: AbortSignal
 ): Promise<AnchorSet[]> {
+  if (callerSignal?.aborted) {
+    throw callerSignal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+  }
   const sources = options.resolveCorridors
-    ? await options.resolveCorridors(request).catch(() => emptyCorridorSources())
+    ? await resolveCorridorSources(options.resolveCorridors, request, options.signal, callerSignal)
     : emptyCorridorSources()
   return buildAnchorSets(start, finish, envelope, sources)
+}
+
+async function resolveCorridorSources(
+  resolver: NonNullable<PlanningOptions["resolveCorridors"]>,
+  request: RouteRequest,
+  deadlineSignal?: AbortSignal,
+  callerSignal?: AbortSignal
+): Promise<CorridorSourceCandidates> {
+  const sourcePromise = Promise.resolve().then(() => resolver(request, deadlineSignal))
+  if (!deadlineSignal) {
+    try {
+      return await sourcePromise
+    } catch {
+      return emptyCorridorSources()
+    }
+  }
+
+  let onAbort: (() => void) | undefined
+  const deadline = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(deadlineSignal.reason ?? new DOMException("Route planning deadline expired.", "TimeoutError"))
+    deadlineSignal.addEventListener("abort", onAbort, { once: true })
+    if (deadlineSignal.aborted) onAbort()
+  })
+  try {
+    return await Promise.race([sourcePromise, deadline])
+  } catch (reason) {
+    if (callerSignal?.aborted) throw callerSignal.reason ?? reason
+    return emptyCorridorSources()
+  } finally {
+    if (onAbort) deadlineSignal.removeEventListener("abort", onAbort)
+  }
 }
 
 function emptyCorridorSources(): CorridorSourceCandidates {
@@ -397,7 +455,8 @@ async function routeAnchorSets(
   request: NormalizedRouteRequest,
   provider: RouteProvider,
   anchorSets: AnchorSet[],
-  options: PlanningOptions
+  options: PlanningOptions,
+  callerSignal?: AbortSignal
 ): Promise<PlannedRoute[]> {
   const results: PlannedRoute[] = []
   const candidates = generateCorridorCandidates(request, anchorSets, { maxCandidates: 4 })
@@ -410,9 +469,13 @@ async function routeAnchorSets(
       if (options.signal?.aborted) return
       try {
         const attempt = await requestTimeboxedRoutes(candidate.request, provider, undefined, options)
+        if (callerSignal?.aborted) {
+          throw callerSignal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+        }
         const selected = chooseSelectedCandidate(attempt.result.routes)
         if (selected) results.push({ ...selected, candidateSource: candidate.source })
-      } catch {
+      } catch (reason) {
+        if (callerSignal?.aborted) throw callerSignal.reason ?? reason
         // A corridor that cannot be routed is skipped; the others still compete.
       }
     }

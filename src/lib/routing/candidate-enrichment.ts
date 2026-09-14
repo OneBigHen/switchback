@@ -34,7 +34,7 @@ export function createCandidateEnricher({ regionEvidence, elevate, signal }: Can
       throw reason
     }
     try {
-      const enriched = await regionEvidence(request, routes)
+      const enriched = await regionEvidence(request, routes, { signal: lifecycle.signal })
       if (!elevate || request.candidateSet !== "alternatives" || enriched.routes.length === 0) return enriched
       const elevationDeadline = createDeadline(ELEVATION_ENRICHMENT_TIMEOUT_MS, lifecycle.signal)
       try {

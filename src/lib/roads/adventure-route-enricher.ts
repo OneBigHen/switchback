@@ -1,4 +1,4 @@
-import { fetchPaUnpavedRoadsNearRoutes } from "./pa-unpaved"
+import { fetchPaUnpavedRoadsNearRoutes, type PaUnpavedRoadProviderOptions } from "./pa-unpaved"
 import { calculatePaUnpavedRoadEvidence } from "./route-unpaved-evidence"
 import {
   PA_UNPAVED_ROADS_PROVENANCE,
@@ -8,7 +8,11 @@ import {
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 interface AdventureRouteEnricherOptions {
-  fetchRoads?: (query: PaUnpavedRoadCorridorQuery) => Promise<PaUnpavedRoadFeatureCollection>
+  fetchRoads?: (
+    query: PaUnpavedRoadCorridorQuery,
+    options?: PaUnpavedRoadProviderOptions
+  ) => Promise<PaUnpavedRoadFeatureCollection>
+  signal?: AbortSignal
 }
 
 export interface AdventureRouteEnrichmentResult {
@@ -43,6 +47,7 @@ export async function enrichAdventureRoutesWithPaData(
   routes: PlannedRoute[],
   options: AdventureRouteEnricherOptions = {}
 ): Promise<AdventureRouteEnrichmentResult> {
+  if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route enrichment was cancelled.", "AbortError")
   if (!UNPAVED_SEEKING_PROFILES.has(request.profile) || routes.length === 0) {
     return { routes, warnings: [] }
   }
@@ -50,11 +55,15 @@ export async function enrichAdventureRoutesWithPaData(
   if (eligibleRoutes.length === 0) return { routes, warnings: [] }
 
   try {
-    const roads = await (options.fetchRoads ?? fetchPaUnpavedRoadsNearRoutes)({
+    const query = {
       paths: eligibleRoutes.map((route) => route.geometry),
       bufferMeters: 50,
       limit: 500
-    })
+    }
+    const fetchRoads = options.fetchRoads ?? fetchPaUnpavedRoadsNearRoutes
+    const roads = options.signal
+      ? await fetchRoads(query, { signal: options.signal })
+      : await fetchRoads(query)
     if (roads.metadata?.truncated) {
       return {
         routes,
@@ -71,7 +80,8 @@ export async function enrichAdventureRoutesWithPaData(
       } : route),
       warnings: []
     }
-  } catch {
+  } catch (reason) {
+    if (options.signal?.aborted) throw reason
     return {
       routes,
       warnings: [

@@ -13,6 +13,7 @@ import {
   normalizeGraphHopperProviderError,
   type GraphHopperResponse
 } from "./graphhopper-response"
+import { createDeadline } from "./deadline"
 
 export {
   createGraphHopperRequest,
@@ -58,53 +59,69 @@ async function fetchRouteOnce(
   omitSmoothness = false
 ): Promise<RouteFetchResult> {
   const fetcher = options.fetcher ?? fetch
-  let response: Response
+  const lifecycle = createDeadline(30_000, options.signal)
   try {
-    response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(createGraphHopperRequest(request, details, omitSmoothness)),
-      signal: options.signal
-        ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)])
-        : AbortSignal.timeout(30_000)
-    })
-  } catch (caught) {
-    if (isAbortError(caught)) {
+    let response: Response
+    try {
+      response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(createGraphHopperRequest(request, details, omitSmoothness)),
+        signal: lifecycle.signal
+      })
+    } catch (caught) {
+      if (options.signal?.aborted || isAbortError(caught) && !lifecycle.signal.aborted) {
+        throw new GraphHopperProviderError(
+          "Route planning was cancelled.",
+          "ROUTE_CANCELLED",
+          499
+        )
+      }
+      if (lifecycle.signal.aborted) {
+        throw new GraphHopperProviderError(
+          "GraphHopper route planning timed out.",
+          "ROUTE_TIMEOUT",
+          504
+        )
+      }
       throw new GraphHopperProviderError(
-        "Route planning was cancelled.",
-        "ROUTE_CANCELLED",
-        499
+        "Cannot reach the routing engine. Check that GraphHopper is running and try again.",
+        "PROVIDER_UNAVAILABLE",
+        503
       )
     }
-    throw new GraphHopperProviderError(
-      "Cannot reach the routing engine. Check that GraphHopper is running and try again.",
-      "PROVIDER_UNAVAILABLE",
-      503
-    )
-  }
 
-  let payload: GraphHopperResponse
-  try {
-    payload = (await response.json()) as GraphHopperResponse
-  } catch {
-    throw new GraphHopperProviderError(
-      "GraphHopper returned an unreadable response",
-      "INVALID_PROVIDER_RESPONSE",
-      502
-    )
-  }
+    let payload: GraphHopperResponse
+    try {
+      payload = (await response.json()) as GraphHopperResponse
+    } catch {
+      throw new GraphHopperProviderError(
+        "GraphHopper returned an unreadable response",
+        "INVALID_PROVIDER_RESPONSE",
+        502
+      )
+    }
+    if (options.signal?.aborted) {
+      throw new GraphHopperProviderError("Route planning was cancelled.", "ROUTE_CANCELLED", 499)
+    }
+    if (lifecycle.signal.aborted) {
+      throw new GraphHopperProviderError("GraphHopper route planning timed out.", "ROUTE_TIMEOUT", 504)
+    }
 
-  const missingDetail = response.ok
-    ? null
-    : payload.message?.match(/Cannot find the path details: \[([^\]]+)\]/)?.[1] ?? null
-  const missingEncodedValue = response.ok
-    ? null
-    : payload.message?.match(/'([^']+)' not available/)?.[1] ?? null
-  return {
-    response,
-    payload,
-    unsupportedDetail: missingDetail,
-    unsupportedEncodedValue: missingEncodedValue
+    const missingDetail = response.ok
+      ? null
+      : payload.message?.match(/Cannot find the path details: \[([^\]]+)\]/)?.[1] ?? null
+    const missingEncodedValue = response.ok
+      ? null
+      : payload.message?.match(/'([^']+)' not available/)?.[1] ?? null
+    return {
+      response,
+      payload,
+      unsupportedDetail: missingDetail,
+      unsupportedEncodedValue: missingEncodedValue
+    }
+  } finally {
+    lifecycle.dispose()
   }
 }
 

@@ -368,3 +368,53 @@ describe("Valhalla provider", () => {
     })
   })
 })
+
+describe("Valhalla cancellation", () => {
+  it("keeps provider timeout distinct from caller cancellation", async () => {
+    vi.useFakeTimers()
+    try {
+      const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+        await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+        })
+      )
+
+      const pending = requestValhallaRoutes(routeRequest(), {
+        baseUrl: "http://valhalla.test",
+        fetcher
+      })
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: "ROUTE_TIMEOUT",
+        status: 504
+      })
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      await assertion
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("preserves a custom caller cancellation as ROUTE_CANCELLED", async () => {
+    const controller = new AbortController()
+    const reason = new Error("rider stopped planning")
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+      })
+    )
+
+    const pending = requestValhallaRoutes(routeRequest(), {
+      baseUrl: "http://valhalla.test",
+      fetcher,
+      signal: controller.signal
+    })
+    controller.abort(reason)
+
+    await expect(pending).rejects.toMatchObject({
+      code: "ROUTE_CANCELLED",
+      status: 499
+    })
+  })
+})

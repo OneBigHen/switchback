@@ -60,7 +60,7 @@ export interface PlanningOptions {
    * research hints) for destination timeboxing. Injected by the API wiring
    * so the planner stays pure; absent sources degrade to an empty set.
    */
-  resolveCorridors?: (request: RouteRequest) => Promise<CorridorSourceCandidates>
+  resolveCorridors?: (request: RouteRequest, signal?: AbortSignal) => Promise<CorridorSourceCandidates>
 }
 
 export type RouteProvider = (

@@ -71,8 +71,8 @@ export async function enrichCandidates(
   enricher?: RouteCandidateEnricher,
   options?: CandidateEnrichmentOptions
 ): Promise<RouteCandidateEnrichmentResult> {
-  if (!enricher) return { routes, warnings: [] }
   if (options?.signal?.aborted) throw options.signal.reason ?? new DOMException("Route enrichment was cancelled.", "AbortError")
+  if (!enricher) return { routes, warnings: [] }
   try {
     return await enricher(request, routes, options)
   } catch (reason) {
