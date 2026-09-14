@@ -107,7 +107,12 @@ test.describe("OpenGravel mobile redesign", () => {
     if (!(await firstRoute.count())) test.skip(true, "no catalog routes on this machine")
     await firstRoute.click()
 
-    await expect(page.getByRole("heading", { name: "Route details" })).toBeVisible()
+    // The detail page is a server-rendered navigation in the dev harness. Wait
+    // for the URL transition explicitly before checking its content; otherwise
+    // a cold route compile can leave the list visible for the default 5-second
+    // locator timeout even though the click and navigation are correct.
+    await expect(page).toHaveURL(/\/gpx-library\/[^/]+/, { timeout: 15_000 })
+    await expect(page.getByRole("heading", { name: "Route details" })).toBeVisible({ timeout: 15_000 })
     await expect(page.locator("[data-detail-map]")).toHaveCount(1)
     await expect(page.locator(".atlas-poster")).toHaveCount(0)
 
