@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test"
 
 const externalBaseUrl = process.env.SWITCHBACK_E2E_URL
 const testMode = process.env.SWITCHBACK_E2E_MODE ?? "existing"
+const mapboxE2e = process.env.SWITCHBACK_E2E_MAPBOX === "1"
 const testPort = process.env.SWITCHBACK_E2E_PORT ?? (testMode === "pwa" ? "3111" : "3110")
 const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
@@ -19,6 +20,7 @@ const roadLockSpec = /\/road-lock\.spec\.ts$/
 // in no project at all and silently guards nothing.
 const criticalMainMatch = /\/e2e\/critical\/(planner-journeys|navigation-ia|planner-surface-composition|sketch-recovery|route-details-identity|community-routes|origin-authority|route-library-ownership|adaptive-workspace|opengravel-mobile-redesign|recon)\.spec\.ts$/
 const criticalWebkitSmokeMatch = /\/e2e\/critical\/webkit-smoke\.spec\.ts$/
+const mapboxCriticalMatch = /\/e2e\/critical\/mapbox-fallback\.spec\.ts$/
 const realRouterMatch = /\/e2e\/real-router\/.*\.spec\.ts$/
 const pwaMatch = /\/e2e\/pwa\/.*\.spec\.ts$/
 const visualMatch = /\/e2e\/visual\/.*\.spec\.ts$/
@@ -81,6 +83,11 @@ export default defineConfig({
       testMatch: criticalMainMatch,
       use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
     },
+    {
+      name: "critical-mapbox",
+      testMatch: mapboxCriticalMatch,
+      use: { ...devices["Desktop Chrome"], serviceWorkers: "block" }
+    },
     // PR compatibility gate: WebKit proves app boot/navigation plus one routed
     // outcome. Full WebKit coverage remains available as a manual deep check.
     {
@@ -115,7 +122,7 @@ export default defineConfig({
     }
   ],
   webServer: externalBaseUrl ? undefined : {
-    command: `node scripts/copy-maplibre-worker.mjs && GPX_LIBRARY_PATH=${routeLibraryFixture} SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
+    command: `node scripts/copy-maplibre-worker.mjs && ${mapboxE2e ? "NEXT_PUBLIC_SWITCHBACK_PREMIUM_MAPBOX=true NEXT_PUBLIC_MAPBOX_TOKEN=pk.test " : ""}GPX_LIBRARY_PATH=${routeLibraryFixture} SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} ${testMode === "pwa"
       ? `npx next start --hostname 127.0.0.1 --port ${testPort}`
       : `npx next dev --hostname 127.0.0.1 --port ${testPort}`}`,
     url: localBaseUrl,

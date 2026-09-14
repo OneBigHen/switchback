@@ -463,20 +463,36 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
     let releaseMapProbe: (() => void) | null = null
     let releaseSculptListeners: (() => void) | null = null
     let initialStyleLoaded = false
+    let initialRendererFailureReported = false
     const container = containerRef.current
     if (!container) return
+    const reportInitialRendererFailure = (error: unknown, message: string) => {
+      if (disposed || initialRendererFailureReported) return
+      initialRendererFailureReported = true
+      const onRendererFailure = propsRef.current.onRendererFailure
+      if (onRendererFailure) {
+        onRendererFailure(error)
+        return
+      }
+      setMapError(message)
+    }
     void renderer.load().then((renderersModule) => {
       // Abandon a mount that ended while the bundle was still loading:
       // constructing a map only to remove it aborts its own style request.
       if (disposed || !containerRef.current) return
       const initialStart = propsRef.current.start
-      map = renderer.create(renderersModule, {
-        container,
-        experience: experienceRef.current,
-        center: initialStart ? [initialStart.lon, initialStart.lat] : PLANNING_REGION_VIEW.center,
-        zoom: initialStart ? 10.5 : PLANNING_REGION_VIEW.zoom,
-        onLocateMe: (point) => propsRef.current.onLocateMe?.(point)
-      })
+      try {
+        map = renderer.create(renderersModule, {
+          container,
+          experience: experienceRef.current,
+          center: initialStart ? [initialStart.lon, initialStart.lat] : PLANNING_REGION_VIEW.center,
+          zoom: initialStart ? 10.5 : PLANNING_REGION_VIEW.zoom,
+          onLocateMe: (point) => propsRef.current.onLocateMe?.(point)
+        })
+      } catch (error) {
+        reportInitialRendererFailure(error, "The interactive map could not start in this browser.")
+        return
+      }
       mapRef.current = map
       releaseMapProbe = setMapRuntimeProbe(() => {
         const style = map?.getStyle()
@@ -963,7 +979,10 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
 
       map.on("error", () => {
         if (shouldShowBaseMapFailure(initialStyleLoaded, map?.isStyleLoaded() ?? false)) {
-          setMapError("The base map could not load. Routing controls remain available.")
+          reportInitialRendererFailure(
+            new Error("The base map could not load."),
+            "The base map could not load. Routing controls remain available."
+          )
         }
       })
 
@@ -973,13 +992,16 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       const styleTimeout = window.setTimeout(() => {
         if (disposed) return
         if (!initialStyleLoaded && !map?.isStyleLoaded()) {
-          setMapError("The map is taking too long to load. Check your connection, then reload to retry.")
+          reportInitialRendererFailure(
+            new Error("The initial map style timed out."),
+            "The map is taking too long to load. Check your connection, then reload to retry."
+          )
         }
       }, 20_000)
       map.on("load", () => window.clearTimeout(styleTimeout))
       styleTimeoutRef.current = styleTimeout
-    }).catch(() => {
-      setMapError("The interactive map could not start in this browser.")
+    }).catch((error: unknown) => {
+      reportInitialRendererFailure(error, "The interactive map could not start in this browser.")
     })
 
     return () => {

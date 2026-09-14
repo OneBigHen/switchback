@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { MapStage } from "@/components/planner/MapStage"
@@ -62,7 +62,7 @@ describe("map layer controls", () => {
     await user.click(screen.getByRole("button", { name: "Open map layers" }))
     expect(screen.getByRole("region", { name: "Quick map layers" })).toBeVisible()
     expect(screen.getByRole("radio", { name: "Road" })).toBeVisible()
-    expect(screen.getByRole("radio", { name: "Terrain" })).toBeVisible()
+    expect(screen.getByRole("radio", { name: "Outdoors" })).toBeVisible()
     // MapStage uses the renderer-neutral fallback; Satellite remains correctly
     // capability-gated while the premium LayersSheet contract covers it.
     expect(screen.queryByRole("radio", { name: "Satellite" })).not.toBeInTheDocument()
@@ -71,6 +71,9 @@ describe("map layer controls", () => {
 
     await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
     expect(screen.getByText(/OpenGravel road-shape analysis/i)).toBeVisible()
+    const mapView = screen.getByRole("radiogroup", { name: "Map view" })
+    expect(within(mapView).getByRole("radio", { name: "Outdoors" })).toBeVisible()
+    expect(within(mapView).queryByRole("radio", { name: "Terrain" })).not.toBeInTheDocument()
     // Basemaps are the preset radio group above, never a second overlay
     // checkbox that would let the rider pick imagery twice.
     expect(screen.queryByRole("checkbox", { name: /Satellite imagery/i })).not.toBeInTheDocument()

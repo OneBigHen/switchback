@@ -72,6 +72,11 @@ export interface MapStageProps {
   onRouteSculptCommit?(): void | Promise<void>
   /** A browser "locate me" fix was produced; the planner should adopt it as the start. */
   onLocateMe?(point: { lat: number; lon: number }): void
+  /**
+   * The selected renderer failed before its initial style became usable. The
+   * stage owner may replace it with the migration fallback.
+   */
+  onRendererFailure?(error: unknown): void
   /** Live breadcrumb trail for a recording session in ride mode. */
   recordingTrail?: Coordinate[] | null
   /**

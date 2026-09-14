@@ -81,7 +81,10 @@ const QUICK_LAYER_IDS: RiderLayerId[] = ["curvature", "gravel-atlas", "live-traf
  */
 function mapPresetChoices(premium: boolean): { id: MapPresetId; label: string }[] {
   return availableMapPresets({ premiumRenderer: premium })
-    .map((preset) => ({ id: preset.id, label: PRESET_LABELS[preset.id] }))
+    .map((preset) => ({
+      id: preset.id,
+      label: preset.id === "terrain" && !premium ? "Outdoors" : PRESET_LABELS[preset.id]
+    }))
 }
 
 export function MapStageLayerControl({

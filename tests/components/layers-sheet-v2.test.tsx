@@ -58,6 +58,8 @@ describe("LayersSheet", () => {
     )
 
     expect(screen.queryByRole("radio", { name: "Satellite" })).not.toBeInTheDocument()
+    expect(screen.getByRole("radio", { name: "Outdoors" })).toBeInTheDocument()
+    expect(screen.queryByRole("radio", { name: "Terrain" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("radio", { name: "Road" }))
     expect(onMapPresetChange).toHaveBeenCalledWith("road")
 

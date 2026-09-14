@@ -28,6 +28,12 @@
   background: #111614;
 }
 
+/* The SSR-neutral renderer shell is visible for one hydration tick. Keep it
+   in the same light map state as the normal planning surface. */
+.map-stage-hydrating {
+  background: #ebe9e3;
+}
+
 .map-stage::after {
   position: absolute;
   inset: 0;
