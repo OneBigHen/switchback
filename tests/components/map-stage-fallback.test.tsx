@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react"
+import { renderToString } from "react-dom/server"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { MapStageProps } from "@/components/planner/map-stage-props"
@@ -20,7 +21,14 @@ vi.mock("@/components/planner/MapboxMapStage", () => ({
 }))
 
 vi.mock("@/components/planner/PlannerMapStage", () => ({
-  PlannerMapStage: () => <div data-testid="maplibre-fallback">MapLibre fallback stage</div>
+  PlannerMapStage: ({ onRendererFailure }: { onRendererFailure?: unknown }) => (
+    <div
+      data-testid="maplibre-fallback"
+      data-has-fallback-callback={String(Boolean(onRendererFailure))}
+    >
+      MapLibre fallback stage
+    </div>
+  )
 }))
 
 import { MapStage } from "@/components/planner/MapStage"
@@ -43,5 +51,22 @@ describe("MapStage renderer fallback", () => {
     render(<MapStage {...({} as MapStageProps)} />)
     expect(screen.getByTestId("maplibre-fallback")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Fail Mapbox mount" })).not.toBeInTheDocument()
+  })
+
+  it("does not attach the Mapbox failure callback to a MapLibre mount", () => {
+    sessionStorage.setItem("switchback.mapbox-fallback", "1")
+
+    render(<MapStage {...({} as MapStageProps)} />)
+
+    expect(screen.getByTestId("maplibre-fallback")).toHaveAttribute(
+      "data-has-fallback-callback",
+      "false"
+    )
+  })
+
+  it("keeps the renderer selection neutral during SSR", () => {
+    sessionStorage.setItem("switchback.mapbox-fallback", "1")
+
+    expect(renderToString(<MapStage {...({} as MapStageProps)} />)).toContain("map-stage-hydrating")
   })
 })

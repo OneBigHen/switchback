@@ -29,12 +29,22 @@ function rememberSessionMapboxFallback(): void {
   }
 }
 
-function subscribeToSessionMapboxFallback(): () => void {
+type MapRendererSelection = "pending" | "mapbox" | "maplibre"
+
+function subscribeToMapRendererSelection(): () => void {
   return () => {}
 }
 
-function noSessionMapboxFallback(): boolean {
-  return false
+function browserMapRendererSelection(): Exclude<MapRendererSelection, "pending"> {
+  return isPremiumMapboxRendererEnabled() && !hasSessionMapboxFallback()
+    ? "mapbox"
+    : "maplibre"
+}
+
+function serverMapRendererSelection(): MapRendererSelection {
+  // Session storage does not exist during SSR. Keep the server and hydration
+  // markup renderer-neutral, then choose the browser renderer after hydration.
+  return "pending"
 }
 
 /**
@@ -46,17 +56,21 @@ function noSessionMapboxFallback(): boolean {
  */
 export function MapStage(props: MapStageProps) {
   const [fallbackRequested, setFallbackRequested] = useState(false)
-  const sessionFallback = useSyncExternalStore(
-    subscribeToSessionMapboxFallback,
-    hasSessionMapboxFallback,
-    noSessionMapboxFallback
+  const rendererSelection = useSyncExternalStore(
+    subscribeToMapRendererSelection,
+    browserMapRendererSelection,
+    serverMapRendererSelection
   )
-  const useMapbox = isPremiumMapboxRendererEnabled() && !fallbackRequested && !sessionFallback
+  const useMapbox = rendererSelection === "mapbox" && !fallbackRequested
   const handleRendererFailure = useCallback(() => {
     if (!useMapbox) return
     rememberSessionMapboxFallback()
     setFallbackRequested(true)
   }, [useMapbox])
+
+  if (rendererSelection === "pending") {
+    return <div className="map-stage map-stage-hydrating" aria-label="Interactive route map" />
+  }
 
   return useMapbox
     ? <MapboxMapStage {...props} onRendererFailure={handleRendererFailure} />
