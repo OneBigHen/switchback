@@ -189,11 +189,13 @@ function interpolate(coordinates: readonly Coordinate[], cumulative: readonly nu
  */
 export function setSelectedEmphasis(map: MapLibreMap, emphasis: "focus" | "ahead"): void {
   const ahead = emphasis === "ahead"
-  const set = (layer: string, property: "line-opacity", value: number) => {
+  const paint = (layer: string, property: "line-opacity" | "line-color", value: number | string | ExpressionSpecification) => {
     if (map.getLayer(layer)) map.setPaintProperty(layer, property, value)
   }
-  set("recon-selected-glow", "line-opacity", ahead ? 0.08 : 0.28)
-  set("recon-selected-casing", "line-opacity", ahead ? 0.35 : 0.9)
-  set("recon-selected-line", "line-opacity", ahead ? 0.45 : 1)
-  set("recon-selected-preview", "line-opacity", ahead ? 0.5 : 1)
+  paint("recon-selected-glow", "line-opacity", ahead ? 0 : 0.28)
+  paint("recon-selected-casing", "line-opacity", ahead ? 0.55 : 0.9)
+  // Ahead of the rider the road is neutral ink; deck.gl paints the ridden trail.
+  paint("recon-selected-line", "line-color", ahead ? RECON_COLORS.ink : ["match", ["get", "status"], "previously-ridden", RECON_COLORS.moss, RECON_COLORS.ember])
+  paint("recon-selected-line", "line-opacity", ahead ? 0.5 : 1)
+  paint("recon-selected-preview", "line-opacity", ahead ? 0.55 : 1)
 }

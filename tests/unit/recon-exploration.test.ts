@@ -82,6 +82,21 @@ describe("X-Ray facts", () => {
     expect(shareNear(ride, line(40.8, 40.84, -77.49), 60)).toBe(0)
   })
 
+  it("matches a planned route drawn with long, sparse segments", () => {
+    // Planned routes can be a handful of vertices kilometers apart, diagonal.
+    const planned: Coordinate[] = [
+      [-77.6, 40.7],
+      [-77.5, 40.85],
+      [-77.3, 40.9]
+    ]
+    const ride: Coordinate[] = []
+    for (let index = 1; index < planned.length; index += 1) {
+      const [a, b] = [planned[index - 1]!, planned[index]!]
+      for (let step = 0; step < 400; step += 1) ride.push([a[0] + ((b[0] - a[0]) * step) / 400, a[1] + ((b[1] - a[1]) * step) / 400])
+    }
+    expect(shareNear(ride, planned, 60)).toBe(100)
+  })
+
   it("keeps unknown elevation and speed unknown instead of zero", () => {
     const points = line(40.8, 40.84).map((coordinate, index) => makeRidePoint(coordinate, iso(TEST_RIDE_START_MS + index * 10_000)))
     const track = adaptRecordedRide(makeRecordedRide({ points, startedAt: points[0]!.recordedAt, endedAt: points[points.length - 1]!.recordedAt }))!

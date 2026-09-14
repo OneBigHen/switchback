@@ -14,7 +14,7 @@ import { enhanceReconMapTerrain } from "./terrain"
 
 declare global {
   interface Window {
-    __reconMapDebug?: { getPitch(): number; getBearing(): number; getZoom(): number }
+    __reconMapDebug?: { getPitch(): number; getBearing(): number; getZoom(): number; hasTerrain(): boolean }
   }
 }
 
@@ -59,14 +59,14 @@ export default function ReconMap({ atmosphere, onReady, onDispose, className }: 
       attributionControl: { compact: true },
       canvasContextAttributes: { antialias: true }
     })
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right")
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right")
     let terrain: { dispose(): void } | null = null
 
     const onLoad = () => {
       addReconLayers(map)
       applyReconAtmosphere(map, callbacks.current.atmosphere)
       terrain = enhanceReconMapTerrain(map, firstRoadLayerId(map) ?? RECON_FIRST_ROUTE_LAYER)
-      window.__reconMapDebug = { getPitch: () => map.getPitch(), getBearing: () => map.getBearing(), getZoom: () => map.getZoom() }
+      window.__reconMapDebug = { getPitch: () => map.getPitch(), getBearing: () => map.getBearing(), getZoom: () => map.getZoom(), hasTerrain: () => map.getTerrain() !== null }
       callbacks.current.onReady(map)
     }
     map.once("load", onLoad)

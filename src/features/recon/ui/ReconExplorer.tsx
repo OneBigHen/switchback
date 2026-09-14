@@ -293,16 +293,27 @@ function boundsOf(coordinates: Iterable<Coordinate>): LngLatBoundsLike | null {
   return Number.isFinite(west) ? [[west, south], [east, north]] : null
 }
 
+/**
+ * Frame the ride for a pitched camera. fitBounds solves for a flat view, so
+ * the pitched result is foreshortened; on wide screens the camera also looks
+ * across the ride's long axis so it spans the screen instead of receding.
+ */
 function fitTrack(map: MapLibreMap, track: ReconTrack): void {
   const bounds = boundsOf(track.geometry.coordinates)
-  if (!bounds) return
   const path = displayPath(track)
-  const wide = map.getCanvas().clientWidth > 900
-  map.fitBounds(bounds, {
-    padding: wide ? { top: 120, bottom: 260, left: 420, right: 120 } : { top: 110, bottom: 300, left: 32, right: 32 },
-    pitch: 60,
-    bearing: path ? (chordBearing(path, 0, 0, path.totalDistanceMeters * 0.5) ?? -18) : -18,
-    maxZoom: RECON_FIT_MAX_ZOOM,
+  if (!bounds || !path) return
+  const canvas = map.getCanvas()
+  const wide = canvas.clientWidth > 900
+  const axis = chordBearing(path, 0, 0, path.totalDistanceMeters) ?? 0
+  const bearing = wide ? axis - 70 : axis
+  const padding = wide ? { top: 140, bottom: 300, left: 400, right: 80 } : { top: 120, bottom: 320, left: 24, right: 24 }
+  const camera = map.cameraForBounds(bounds, { padding, bearing })
+  if (!camera) return
+  map.easeTo({
+    ...camera,
+    zoom: Math.min(RECON_FIT_MAX_ZOOM, (camera.zoom ?? 10) + 0.7),
+    pitch: 62,
+    bearing,
     duration: prefersReducedMotion() ? 0 : RECON_FIT_DURATION_MS,
     essential: true
   })

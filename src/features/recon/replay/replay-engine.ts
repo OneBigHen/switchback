@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { ExplorationSegment, ReconTrack, ReplayFrame } from "@/features/recon/types"
 import type { CinematicPlan } from "@/features/recon/cinematic/shot-plan"
-import { ReconCameraDirector, modeTarget, type CameraPose, type ReconCameraMode } from "./camera-director"
+import { ReconCameraDirector, chordBearing, modeTarget, type CameraPose, type ReconCameraMode } from "./camera-director"
 import { displayPath, pointAtFraction, progressAtDistance, replayTimeline, sampleReplay, type DisplayPath } from "./replay-timeline"
 import type { ReplayOverlay } from "./replay-overlay"
 
@@ -268,7 +268,9 @@ export class ReplayEngine {
     if (!frame) return
     if (!this.plan) {
       fraction = frame.distanceMeters / Math.max(1, this.track.distanceMeters)
-      groundSpeedMps = this.playing ? (this.track.distanceMeters / this.durationMs) * 1000 * this.rate : 0
+      // Frame for the playback speed even while paused, so pausing never
+      // slams the chase camera down onto the road.
+      groundSpeedMps = (this.track.distanceMeters / this.durationMs) * 1000 * this.rate
     }
 
     const head = pointAtFraction(this.path, fraction)
@@ -281,7 +283,8 @@ export class ReplayEngine {
       path: this.path,
       cutIndex: head.index,
       head: head.coordinate,
-      bearing: frame.bearingDegrees,
+      // A short path chord points the beacon down the road without GPS wobble.
+      bearing: chordBearing(this.path, fraction, 25, 60) ?? frame.bearingDegrees,
       vertexMeters: this.vertexMeters,
       segments: this.segments,
       playbackKind: this.track.playbackKind,

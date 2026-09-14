@@ -90,10 +90,13 @@ export function chordBearing(path: DisplayPath, fraction: number, behindMeters: 
   return Number.isFinite(bearing) ? bearing : null
 }
 
+/** Closer than this, a pitched basemap is blank paper with no road context. */
+const MAX_FOLLOW_ZOOM = 16
+
 /** Zoom at which `meters` of ground spans roughly `viewportPx` (512 px world tiles). */
 export function zoomForSpan(meters: number, latitude: number, viewportPx: number): number {
   const metersPerPixelAtZ0 = 78_271.52 * Math.cos((latitude * Math.PI) / 180)
-  return clamp(Math.log2((metersPerPixelAtZ0 * viewportPx) / Math.max(50, meters)), 3, 17.5)
+  return clamp(Math.log2((metersPerPixelAtZ0 * viewportPx) / Math.max(50, meters)), 3, MAX_FOLLOW_ZOOM)
 }
 
 /** Ride-level framing target for one mode, before smoothing. */

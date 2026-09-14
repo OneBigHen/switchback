@@ -6,8 +6,8 @@
  */
 
 .recon-root {
-  --recon-glass: color-mix(in srgb, var(--sb-ink) 78%, transparent);
-  --recon-glass-strong: color-mix(in srgb, var(--sb-ink) 90%, transparent);
+  --recon-glass: color-mix(in srgb, var(--sb-ink) 88%, transparent);
+  --recon-glass-strong: color-mix(in srgb, var(--sb-ink) 95%, transparent);
   --recon-line: color-mix(in srgb, var(--sb-paper) 14%, transparent);
   --recon-gap: 16px;
   position: fixed;
@@ -111,6 +111,10 @@
   text-decoration: none;
   cursor: pointer;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.recon-chip.recon-glass {
+  background: var(--recon-glass);
 }
 
 .recon-chip:hover,
@@ -474,7 +478,6 @@
   display: flex;
   gap: var(--sb-space-2);
   margin-left: auto;
-  margin-right: 56px;
 }
 
 .recon-readout {
@@ -1052,7 +1055,6 @@
   transform-origin: left center;
 }
 
-.recon-ride.is-cinematic .maplibregl-ctrl-top-right,
 .recon-ride.is-cinematic .maplibregl-ctrl-bottom-right {
   opacity: 0;
   pointer-events: none;
@@ -1066,11 +1068,6 @@
 }
 
 /* ---- Map controls ----------------------------------------------------- */
-
-.recon-root .maplibregl-ctrl-top-right {
-  top: calc(var(--recon-gap) - 10px);
-  right: calc(var(--recon-gap) - 10px);
-}
 
 .recon-root .maplibregl-ctrl-group {
   background: var(--recon-glass-strong);
@@ -1086,8 +1083,18 @@
   filter: invert(1);
 }
 
+/* Replay drives the camera through its modes; zoom buttons would fight it. */
+.recon-ride .maplibregl-ctrl-group {
+  display: none;
+}
+
 .recon-ride .maplibregl-ctrl-bottom-right {
   bottom: 150px;
+}
+
+.recon-ride.has-xray .maplibregl-ctrl-bottom-right {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ---- Small screens ---------------------------------------------------- */
@@ -1099,6 +1106,10 @@
 
   .recon-panel-toggle {
     display: inline-flex;
+  }
+
+  .recon-root .maplibregl-ctrl-group {
+    display: none;
   }
 
   .recon-panel {
@@ -1140,7 +1151,7 @@
   }
 
   .recon-topbar-actions {
-    margin-right: 48px;
+    margin-right: 0;
   }
 
   .recon-readout {
@@ -1188,10 +1199,6 @@
 
   .recon-ride.has-xray .recon-readout {
     display: none;
-  }
-
-  .recon-ride .maplibregl-ctrl-top-right {
-    top: 2px;
   }
 
   .recon-film-lower {

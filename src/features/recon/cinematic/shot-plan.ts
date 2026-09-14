@@ -151,7 +151,8 @@ export function buildCinematicPlan({ id, path, twistiness }: CinematicInput): Ci
           zoom: zoomForSpan(whole.spanMeters * 1.25, whole.center[1], viewportPx) + 0.25 * u * drift
         }
       case "dive":
-        return { ...modeTarget("chase", { path, fraction, groundSpeedMps: 25 }, viewportPx, 0, travel), pitch: 70 }
+        // Land exactly where the first riding shot will frame the road.
+        return { ...modeTarget("chase", { path, fraction, groundSpeedMps: groundSpeedAt(rideStartSeconds + 1) }, viewportPx, 0, travel), pitch: 66 }
       case "chase":
         return modeTarget("chase", { path, fraction, groundSpeedMps: speed }, viewportPx, 0, travel)
       case "lead":

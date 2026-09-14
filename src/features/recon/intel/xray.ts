@@ -2,7 +2,7 @@ import { analyzeGeometry } from "@/lib/routing/scoring"
 import type { Coordinate } from "@/lib/routing/types"
 import type { ExplorationSegment, ReconTrack } from "@/features/recon/types"
 import { cumulativeDistancesMeters } from "@/features/recon/data/recon-track"
-import { replayTimeline } from "@/features/recon/replay/replay-timeline"
+import { replayTimeline, simplifyByTolerance } from "@/features/recon/replay/replay-timeline"
 import { EXPLORATION_SAMPLE_METERS, resampleAlong } from "./exploration"
 
 /**
@@ -18,6 +18,8 @@ import { EXPLORATION_SAMPLE_METERS, resampleAlong } from "./exploration"
 
 export const XRAY_BIN_COUNT = 180
 const CURVATURE_WINDOW_METERS = 800
+/** GPS wander below this is noise, not a bend in the road. */
+const GPS_SIMPLIFY_METERS = 8
 const GAP_DISTANCE_METERS = 250
 const GAP_TIME_MS = 45_000
 const LOW_ACCURACY_METERS = 25
@@ -130,7 +132,9 @@ export function buildXRay(track: ReconTrack, evidence: EvidenceLines | null): XR
     }
   })
 
-  const windowSamples = resampleAlong(coordinates, 20)
+  // Curvature reads the road's shape, so recorded GPS is simplified first.
+  const shape = recorded ? simplifyByTolerance(coordinates, GPS_SIMPLIFY_METERS) : coordinates
+  const windowSamples = resampleAlong(shape, 20)
   const windowDistances = cumulativeDistancesMeters(windowSamples)
   const evidenceIndex = evidence && evidence.length > 0 ? new SegmentIndex(evidence, EVIDENCE_TOLERANCE_METERS) : null
   let knownGravelMeters = 0
@@ -172,7 +176,7 @@ export function buildXRay(track: ReconTrack, evidence: EvidenceLines | null): XR
       speedSource: speeds.source,
       ascentMeters: track.facts.ascentMeters,
       descentMeters: track.facts.descentMeters,
-      twistiness: coordinates.length >= 3 ? analyzeGeometry(coordinates).twistiness : null,
+      twistiness: shape.length >= 3 ? analyzeGeometry(shape).twistiness : null,
       onPlanPercent: track.plannedGeometry ? shareNear(coordinates, track.plannedGeometry, PLAN_TOLERANCE_METERS) : null,
       gapCount: gaps.length,
       knownGravelMeters: evidenceIndex ? knownGravelMeters : null
@@ -290,23 +294,24 @@ class SegmentIndex {
     this.lngScale = METERS_PER_DEGREE * Math.max(0.05, Math.cos((latitude * Math.PI) / 180))
     this.cellLat = Math.max(tolerance, 200) / METERS_PER_DEGREE
     this.cellLng = Math.max(tolerance, 200) / this.lngScale
+    // Register each segment in the cells it passes through, sampled at half a
+    // cell so no crossed cell is missed; lookups search the 3×3 neighbourhood.
+    const cellMeters = Math.max(tolerance, 200)
     for (const line of lines) {
       for (let index = 1; index < line.length; index += 1) {
         const a = line[index - 1]!
         const b = line[index]!
-        const x0 = Math.floor(Math.min(a[0], b[0]) / this.cellLng)
-        const x1 = Math.floor(Math.max(a[0], b[0]) / this.cellLng)
-        const y0 = Math.floor(Math.min(a[1], b[1]) / this.cellLat)
-        const y1 = Math.floor(Math.max(a[1], b[1]) / this.cellLat)
-        // Corridor segments are short; a runaway bbox is malformed data.
-        if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) continue
-        for (let x = x0; x <= x1; x += 1) {
-          for (let y = y0; y <= y1; y += 1) {
-            const key = `${x}:${y}`
-            const cell = this.cells.get(key)
-            if (cell) cell.push([a, b])
-            else this.cells.set(key, [[a, b]])
-          }
+        const lengthMeters = Math.hypot((b[0] - a[0]) * this.lngScale, (b[1] - a[1]) * METERS_PER_DEGREE)
+        const steps = Math.max(1, Math.ceil(lengthMeters / (cellMeters / 2)))
+        const keys = new Set<string>()
+        for (let step = 0; step <= steps; step += 1) {
+          const t = step / steps
+          keys.add(`${Math.floor((a[0] + (b[0] - a[0]) * t) / this.cellLng)}:${Math.floor((a[1] + (b[1] - a[1]) * t) / this.cellLat)}`)
+        }
+        for (const key of keys) {
+          const cell = this.cells.get(key)
+          if (cell) cell.push([a, b])
+          else this.cells.set(key, [[a, b]])
         }
       }
     }

@@ -241,14 +241,9 @@ function perpendicularDistanceMeters(p: Coordinate, a: Coordinate, b: Coordinate
   return Math.abs(dy * (px - ax) - dx * (py - ay)) / length
 }
 
-/**
- * Douglas–Peucker by vertex budget: every interior vertex gets the error it
- * would introduce, then the endpoints plus the largest errors are kept. Ties
- * break toward the lower index, so the result is deterministic.
- */
-export function selectVerticesByBudget(coordinates: readonly Coordinate[], maxVertices: number): number[] {
+/** Per-vertex Douglas–Peucker error: what dropping each interior vertex would cost. */
+function vertexErrors(coordinates: readonly Coordinate[]): Float64Array {
   const count = coordinates.length
-  if (count <= maxVertices) return coordinates.map((_, index) => index)
   const errors = new Float64Array(count)
   const stack: Array<[number, number]> = [[0, count - 1]]
   while (stack.length > 0) {
@@ -266,6 +261,29 @@ export function selectVerticesByBudget(coordinates: readonly Coordinate[], maxVe
     errors[bestIndex] = bestError
     stack.push([start, bestIndex], [bestIndex, end])
   }
+  return errors
+}
+
+/**
+ * Classic Douglas–Peucker at a tolerance in meters. Recorded GPS wanders a few
+ * meters between fixes; simplifying first keeps curvature analysis from
+ * reading that wander as turns.
+ */
+export function simplifyByTolerance(coordinates: readonly Coordinate[], toleranceMeters: number): Coordinate[] {
+  if (coordinates.length <= 2) return [...coordinates]
+  const errors = vertexErrors(coordinates)
+  return coordinates.filter((_, index) => index === 0 || index === coordinates.length - 1 || errors[index]! >= toleranceMeters)
+}
+
+/**
+ * Douglas–Peucker by vertex budget: every interior vertex gets the error it
+ * would introduce, then the endpoints plus the largest errors are kept. Ties
+ * break toward the lower index, so the result is deterministic.
+ */
+export function selectVerticesByBudget(coordinates: readonly Coordinate[], maxVertices: number): number[] {
+  const count = coordinates.length
+  if (count <= maxVertices) return coordinates.map((_, index) => index)
+  const errors = vertexErrors(coordinates)
   const interior = Array.from({ length: count - 2 }, (_, offset) => offset + 1)
   interior.sort((a, b) => errors[b]! - errors[a]! || a - b)
   return [0, ...interior.slice(0, maxVertices - 2), count - 1].sort((a, b) => a - b)
