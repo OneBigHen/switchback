@@ -14,9 +14,11 @@ export interface RouteDecisionRailProps {
   selectedId: string
   onSelect(id: string): void
   onOpenDetails?(id: string): void
+  /** The route is drawn and more options are still on their way. */
+  findingAlternatives?: boolean
 }
 
-export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails }: RouteDecisionRailProps) {
+export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails, findingAlternatives = false }: RouteDecisionRailProps) {
   const routeIds = useMemo(() => routes.map((route) => route.id), [routes])
   const routeKey = routeIds.join("|")
 
@@ -57,9 +59,16 @@ export function RouteDecisionRail({ routes, selectedId, onSelect, onOpenDetails 
       <header className={styles.header}>
         <div>
           <span>Route options</span>
-          <h2>Choose your ride</h2>
+          <h2>{routes.length > 1 ? "Choose your ride" : "Your route"}</h2>
         </div>
-        <small>{routes.length} {routes.length === 1 ? "route" : "routes"}</small>
+        {/* Alternatives are optional: the rider can already ride the drawn
+            route, so their arrival is a quiet line here, not the planner's
+            busy spinner. */}
+        <small role="status" aria-live="polite">
+          {findingAlternatives
+            ? "Finding other roads…"
+            : `${routes.length} ${routes.length === 1 ? "route" : "routes"}`}
+        </small>
       </header>
       <div className={styles.rail}>
         {routes.map((route) => (

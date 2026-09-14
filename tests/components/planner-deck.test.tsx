@@ -751,13 +751,18 @@ describe("planner lifecycle progress (Phase 6)", () => {
     const user = userEvent.setup()
     const onCancelRideChange = vi.fn()
     renderDeck({
-      vm: { lifecycle: { phase: "alternatives", startedAt: Date.now(), label: "Adding alternatives…" } },
+      vm: { lifecycle: { phase: "routing-primary", startedAt: Date.now(), label: "Routing your ride…" } },
       cmds: { onCancelRideChange }
     })
     const cancel = screen.getByRole("button", { name: "Cancel ride change" })
     expect(cancel).toBeInTheDocument()
     await user.click(cancel)
     expect(onCancelRideChange).toHaveBeenCalledOnce()
+  })
+
+  it("stops the busy status once the route is drawn and only alternatives are pending", () => {
+    renderDeck({ vm: { lifecycle: { phase: "alternatives", startedAt: Date.now() - 9_000, label: "Adding alternatives…" } } })
+    expect(screen.queryByRole("status", { name: "Ride planning progress" })).not.toBeInTheDocument()
   })
 
   it("hides the progress status once the lifecycle is ready", () => {

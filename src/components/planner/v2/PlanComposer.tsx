@@ -93,7 +93,10 @@ export interface PlanComposerProps {
   onResearchRideIdea?(prompt: string): void
 }
 
-const SETTLED_PLANNING_PHASES = new Set<PlanningPhase>(["idle", "ready", "error", "cancelled"])
+// `alternatives` is settled for the composer: the route is already drawn and
+// usable, so the busy spinner and its climbing seconds counter stop there.
+// The route rail says quietly that more options are coming.
+const SETTLED_PLANNING_PHASES = new Set<PlanningPhase>(["idle", "ready", "alternatives", "error", "cancelled"])
 
 export function PlanComposer({
   planMode,

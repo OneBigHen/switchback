@@ -110,6 +110,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
             selectedId={comparison.selectedId}
             onSelect={selectRoute}
             onOpenDetails={openDetails}
+            findingAlternatives={viewModel.lifecycle?.phase === "alternatives"}
           />
         ) : null}
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { routeDisplayName } from "@/lib/routing/route-display-name"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { RouteComparison } from "./RouteComparison"
 import type { PlannerRouteComparisonProps } from "./PlannerPresentationBoundary"
@@ -32,7 +33,7 @@ export function PlannerRouteDetailsWorkspace({
         </button>
         <span className="planner-route-details__identity">
           <small>Route details</small>
-          <strong>{route.name}</strong>
+          <strong>{routeDisplayName(route)}</strong>
         </span>
       </header>
       <RouteComparison {...comparison} selectedId={route.id} />

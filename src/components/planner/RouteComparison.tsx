@@ -1,5 +1,6 @@
 "use client"
 
+import { routeDisplayName } from "@/lib/routing/route-display-name"
 import {
   CaretDown,
   CaretUp,
@@ -162,7 +163,7 @@ export function RouteComparison({
           {selectedRoute ? (
             <p ref={selectedRouteIdentityRef} className="route-selection-identity">
               <span>Selected route</span>
-              <strong>{selectedRoute.name}</strong>
+              <strong>{routeDisplayName(selectedRoute)}</strong>
             </p>
           ) : null}
         </div>

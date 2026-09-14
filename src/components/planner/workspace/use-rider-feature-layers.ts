@@ -71,6 +71,13 @@ export function useRiderFeatureLayers(
   const unpavedAbortRef = useRef<AbortController | null>(null)
   const riderFeaturesAbortRef = useRef<AbortController | null>(null)
 
+  // The toggles are read from `deps`, never from `live`. The caller refreshes
+  // `live` in an effect that runs after these, so on the render that turns a
+  // layer on `live` still said it was off and nothing was fetched until the
+  // rider moved the map (#131). Each effect re-subscribes when its toggle
+  // changes, so the values captured here are current for its handlers.
+  const { curvatureVisible, unpavedVisible, riderLayers } = deps
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
@@ -82,10 +89,10 @@ export function useRiderFeatureLayers(
       if (disposed || mapRef.current !== map) return
       const version = ++requestVersion
       curvatureAbortRef.current?.abort()
-      if (!live.current?.curvatureVisible || map.getZoom() < 7) {
+      if (!curvatureVisible || map.getZoom() < 7) {
         if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-curvature")?.setData(emptyFeatureCollection())
-        setCurvatureStatus(live.current?.curvatureVisible ? "zoom" : "hidden")
+        setCurvatureStatus(curvatureVisible ? "zoom" : "hidden")
         return
       }
       const bounds = map.getBounds()
@@ -142,7 +149,7 @@ export function useRiderFeatureLayers(
       map.off("moveend", onMoveEnd)
       curvatureAbortRef.current?.abort()
     }
-  }, [deps.curvatureVisible, ready, live, mapRef])
+  }, [curvatureVisible, ready, live, mapRef])
 
   useEffect(() => {
     const map = mapRef.current
@@ -155,8 +162,7 @@ export function useRiderFeatureLayers(
       if (disposed || mapRef.current !== map) return
       const version = ++requestVersion
       unpavedAbortRef.current?.abort()
-      const current = live.current
-      if (!current?.unpavedVisible) {
+      if (!unpavedVisible) {
         if (!isCurrent(version)) return
         geoJsonSource(map, "switchback-unpaved")?.setData(emptyFeatureCollection())
         setUnpavedStatus("hidden")
@@ -213,7 +219,7 @@ export function useRiderFeatureLayers(
       map.off("moveend", onMoveEnd)
       unpavedAbortRef.current?.abort()
     }
-  }, [deps.unpavedVisible, ready, live, mapRef])
+  }, [unpavedVisible, ready, live, mapRef])
 
   useEffect(() => {
     const map = mapRef.current
@@ -228,15 +234,14 @@ export function useRiderFeatureLayers(
       if (disposed || mapRef.current !== map) return
       const version = ++requestVersion
       riderFeaturesAbortRef.current?.abort()
-      const current = live.current
       const bounds = map.getBounds()
       const zoom = map.getZoom()
-      const selectedLayers = riderFeatureLayersAtZoom(current?.riderLayers ?? [], zoom)
+      const selectedLayers = riderFeatureLayersAtZoom(riderLayers, zoom)
       const selectedSet = new Set<RiderLayerId>(selectedLayers)
-      const visibleFeatureLayers = (current?.riderLayers ?? [])
+      const visibleFeatureLayers = riderLayers
         .filter((setting) => setting.visible && FEATURE_LAYER_SET.has(setting.id))
         .map((setting) => setting.id)
-      const query = riderFeatureQuery(current?.riderLayers ?? [], {
+      const query = riderFeatureQuery(riderLayers, {
         west: bounds.getWest(),
         south: bounds.getSouth(),
         east: bounds.getEast(),
@@ -367,7 +372,7 @@ export function useRiderFeatureLayers(
       map.off("moveend", onMoveEnd)
       riderFeaturesAbortRef.current?.abort()
     }
-  }, [deps.riderLayers, ready, riderFeaturesRetry, live, mapRef])
+  }, [riderLayers, ready, riderFeaturesRetry, live, mapRef])
 
   return {
     curvatureStatus,

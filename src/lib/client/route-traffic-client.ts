@@ -140,6 +140,16 @@ export async function fetchRouteTrafficEvidence(
   return payload
 }
 
+function closureLocation(incident: TrafficIncidentEvidence): string | null {
+  const road = incident.roadNumbers[0]?.trim() || null
+  const from = incident.from?.trim() || null
+  const to = incident.to?.trim() || null
+  const between = from && to ? `between ${from} and ${to}` : from ? `near ${from}` : null
+  if (road && between) return `${road} closed ${between}`
+  if (road) return `${road} closed`
+  return between ? `Closed ${between}` : null
+}
+
 function incidentCountLabel(count: number): string {
   return `${count} reported ${count === 1 ? "incident" : "incidents"}`
 }
@@ -156,10 +166,14 @@ export function summarizeRouteTrafficEvidence(evidence: RouteTrafficEvidence): R
   }
 
   if (evidence.hasClosure || evidence.incidents.some((incident) => incident.kind === "closure")) {
+    const closure = evidence.incidents.find((incident) => incident.kind === "closure")
+    const where = closure ? closureLocation(closure) : null
     return {
       state: "danger",
       title: "Closure reported",
-      detail: incidentCountLabel(incidentCount)
+      // A red banner with only a count gives the rider nothing to act on;
+      // say which road, when the provider told us.
+      detail: where ? `${where} · ${incidentCountLabel(incidentCount)}` : incidentCountLabel(incidentCount)
     }
   }
 

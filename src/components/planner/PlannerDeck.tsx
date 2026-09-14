@@ -1,5 +1,6 @@
 "use client"
 
+import { routeDisplayName } from "@/lib/routing/route-display-name"
 import {
   CaretDown,
   CaretUp,
@@ -351,7 +352,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
               <span>
                 <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
-                <strong>{selectedRoute?.name ?? "OpenGravel"}</strong>
+                <strong>{selectedRoute ? routeDisplayName(selectedRoute) : "OpenGravel"}</strong>
                 <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
                   {planningStage}
                 </span>
@@ -410,7 +411,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <section className="planner-route-context" aria-label="Current route setup">
                 <span className="planner-route-context__identity">
                   <small>{hasUnappliedChange ? "Previous route · changes not applied" : ui.routesCount > 1 ? `${ui.routesCount} route options` : "Route ready"}</small>
-                  <strong>{selectedRoute?.name ?? "Choose a route"}</strong>
+                  <strong>{selectedRoute ? routeDisplayName(selectedRoute) : "Choose a route"}</strong>
                   {selectedRouteMeta ? <span>{selectedRouteMeta}</span> : null}
                 </span>
                 <button
