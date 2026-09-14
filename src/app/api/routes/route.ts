@@ -213,7 +213,7 @@ async function handleRoutePost(request: Request): Promise<Response> {
   const provider = createGravelAtlasAwareProvider(baseProvider, resolveCorridors)
 
   const enrichCandidates = createCandidateEnricher({
-    regionEvidence: enrichAdventureRoutesWithPaData,
+    regionEvidence: (routeRequest, routes) => enrichAdventureRoutesWithPaData(routeRequest, routes),
     ...(elevationUrl ? { elevate: (result, signal) => enrichWithElevations(result, { baseUrl: elevationUrl, signal }) } : {}),
     signal: request.signal
   })

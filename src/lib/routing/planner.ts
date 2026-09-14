@@ -5,6 +5,8 @@ import { PA_NJ_ROUTE_POLICY_V1 } from "@/lib/recommendation/route-policy"
 import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
 import type {
+  AlternativesLaneDiagnostic,
+  AlternativesOutcome,
   PlanningOptions,
   RouteCandidateEnricher,
   RouteProvider,
@@ -49,6 +51,8 @@ import type { RouteCandidateSource, Waypoint } from "./types"
 import type { RoadLockPartitionResult } from "./planner-shared"
 
 export type {
+  AlternativesLaneDiagnostic,
+  AlternativesOutcome,
   PlanningOptions,
   RouteCandidateEnricher,
   RouteCandidateEnrichmentResult,
@@ -232,6 +236,45 @@ function laneRequest(
 
 function laneLabel(lane: AlternativeLane): string {
   return lane.profile === "quick" ? "quick" : `${lane.profile} comparison`
+}
+
+function diagnosticReason(reason: unknown): string | undefined {
+  if (reason instanceof Error && reason.message.trim()) return reason.message.trim()
+  if (typeof reason === "string" && reason.trim()) return reason.trim()
+  return undefined
+}
+
+function alternativeDiagnostics(
+  settlements: readonly LaneSettlement<TimeboxedProviderResult>[]
+): AlternativesLaneDiagnostic[] {
+  return stableLaneOrder(settlements).map((settlement) => ({
+    id: settlement.lane.id,
+    status: settlement.status,
+    elapsedMs: Number(Math.max(0, settlement.elapsedMs).toFixed(1)),
+    ...(diagnosticReason(settlement.reason) ? { reason: diagnosticReason(settlement.reason) } : {})
+  }))
+}
+
+function isTimeoutReason(reason: unknown): boolean {
+  return reason !== null && typeof reason === "object" &&
+    "name" in reason && (reason as { name?: unknown }).name === "TimeoutError"
+}
+
+function alternativesOutcome(
+  strategy: AlternativesStrategy,
+  settlements: readonly LaneSettlement<TimeboxedProviderResult>[],
+  routes: readonly PlannedRoute[],
+  deadline: AbortSignal
+): AlternativesOutcome {
+  const timedOut = deadline.aborted && isTimeoutReason(deadline.reason)
+  const hasFailures = settlements.some((settlement) => settlement.status !== "fulfilled")
+  const hasSuccessfulLane = settlements.some((settlement) => settlement.status === "fulfilled")
+  const status = timedOut
+    ? routes.length > 0 ? "partial" : "timed-out"
+    : routes.length > 0
+      ? hasFailures ? "partial" : "complete"
+      : hasSuccessfulLane ? "none-distinct" : "unavailable"
+  return { status, strategy }
 }
 
 /**
@@ -478,8 +521,8 @@ async function planPrimaryRoute(
 /**
  * Alternatives path: at most two meaningfully different routes (≤85%
  * sampled-geometry overlap against the primary and every accepted
- * alternative) drawn from the other profiles. Profiles run with concurrency
- * one under a shared 12-second deadline; enrichment (PASDA, elevation) runs
+ * alternative) drawn from the other profiles. Profiles run in bounded lanes
+ * under a shared 12-second deadline; enrichment (PASDA, elevation) runs
  * here as background evidence and never changes the selected primary.
  */
 async function planAlternativeRoutes(
@@ -504,6 +547,8 @@ async function planAlternativeRoutes(
       selectedRouteId: primaryId,
       routes: [],
       warnings: ["Alternatives are only available for point-to-point destination rides."],
+      alternativesOutcome: { status: "none-distinct", strategy: "lane-search" },
+      diagnostics: { lanes: [] },
       timingMs: { alternatives: performance.now() - started }
     }
   }
@@ -513,6 +558,8 @@ async function planAlternativeRoutes(
       selectedRouteId: primaryId,
       routes: [],
       warnings: ["Free-draw options are unavailable while each leg has its own riding style."],
+      alternativesOutcome: { status: "none-distinct", strategy: "lane-search" },
+      diagnostics: { lanes: [] },
       timingMs: { alternatives: performance.now() - started }
     }
   }
@@ -555,7 +602,14 @@ async function planAlternativeRoutes(
         selectedRouteId: primaryId,
         routes: corridorPlan.routes,
         warnings: [...partitioned.warnings, ...corridorPlan.warnings],
-        timingMs: { alternatives: performance.now() - started }
+        alternativesOutcome: alternativesOutcome("lane-search", [], corridorPlan.routes, deadline.signal),
+        diagnostics: { lanes: [] },
+        timingMs: {
+          alternatives: performance.now() - started,
+          "alt-lanes": performance.now() - started,
+          "alt-select": 0,
+          "alt-enrich": 0
+        }
       }
     }
 
@@ -640,13 +694,16 @@ async function planAlternativeRoutes(
       )
     }
 
+    const lanesStarted = performance.now()
     const settled = await settleLanes(lanes, {
       concurrency: 2,
       deadline,
       shouldStop: (results) => laneHasEnoughAlternatives(results, primaryAnchor)
     })
+    const lanesElapsed = performance.now() - lanesStarted
     if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
 
+    const selectionStarted = performance.now()
     const accepted: PlannedRoute[] = []
     const warnings: string[] = [...partitioned.warnings]
     const appendWarning = (warning: string) => {
@@ -685,10 +742,13 @@ async function planAlternativeRoutes(
       )
       if (accepted.length >= MAX_ALTERNATIVES) break
     }
+    const selectionElapsed = performance.now() - selectionStarted
 
+    const enrichmentStarted = performance.now()
     const enriched = deadline.signal.aborted
       ? { routes: accepted, warnings: [] }
       : await enrichCandidates(request, accepted, enricher, { signal: deadline.signal })
+    const enrichmentElapsed = performance.now() - enrichmentStarted
     for (const warning of enriched.warnings) appendWarning(warning)
     const routes = enriched.routes.map((route) => ensureLockSatisfaction(route, partitioned.survivingLocks))
     return {
@@ -696,7 +756,18 @@ async function planAlternativeRoutes(
       selectedRouteId: primaryId,
       routes,
       warnings,
-      timingMs: { alternatives: performance.now() - started }
+      alternativesOutcome: alternativesOutcome(strategy, settled, routes, deadline.signal),
+      diagnostics: { lanes: alternativeDiagnostics(settled) },
+      timingMs: {
+        alternatives: performance.now() - started,
+        "alt-lanes": lanesElapsed,
+        "alt-select": selectionElapsed,
+        "alt-enrich": enrichmentElapsed,
+        ...Object.fromEntries(stableLaneOrder(settled).map((settlement) => [
+          `lane-${settlement.lane.id}`,
+          Math.max(0, settlement.elapsedMs)
+        ]))
+      }
     }
   } finally {
     deadline.dispose()

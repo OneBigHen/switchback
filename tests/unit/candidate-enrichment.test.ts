@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
-import { createCandidateEnricher } from "@/lib/routing/candidate-enrichment"
+import { createCandidateEnricher, type CandidateEnricherOptions } from "@/lib/routing/candidate-enrichment"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 const route = { id: "r1", ascentMeters: null } as unknown as PlannedRoute
 const request: RouteRequest = { profile: "twisty", points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.7 }] }
 
-function enricher(elevate = vi.fn(async (result: { routes: PlannedRoute[] }) => ({
+function enricher(elevate: NonNullable<CandidateEnricherOptions["elevate"]> = vi.fn(async (result: { routes: PlannedRoute[] }) => ({
   ...result,
   routes: result.routes.map((candidate) => ({ ...candidate, ascentMeters: 321 }))
 }))) {

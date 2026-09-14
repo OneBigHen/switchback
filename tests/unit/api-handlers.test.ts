@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { handleCurvatureRequest } from "@/app/api/curvature/handler"
 import { handleGeocodeRequest } from "@/app/api/geocode/handler"
 import { getSystemHealth } from "@/app/api/health/service"
-import { handleRouteRequest } from "@/app/api/routes/handler"
+import { handleRouteRequest, serverTimingHeader } from "@/app/api/routes/handler"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { GraphHopperResult } from "@/lib/routing/graphhopper"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
@@ -30,6 +30,18 @@ const route: PlannedRoute = {
 }
 
 describe("route HTTP contract", () => {
+  it("serializes only finite approved timing entries", () => {
+    expect(serverTimingHeader({
+      "alt-lanes": 12.4,
+      "alt-select": 1.2,
+      "lane-quick": 4,
+      "not valid": 9,
+      broken: Number.NaN
+    })).toEqual({
+      "server-timing": "alt-lanes;dur=12, alt-select;dur=1, lane-quick;dur=4"
+    })
+  })
+
   it("rejects oversized request bodies before route planning", async () => {
     const provider = vi.fn()
     const response = await handleRouteRequest(
@@ -100,6 +112,36 @@ describe("route HTTP contract", () => {
       selectedRouteId: "twisty-live",
       routes: [{ id: "twisty-live", routingSource: "live", previewOnly: false }]
     })
+  })
+
+  it("serializes alternatives outcome, lane diagnostics, and server timing", async () => {
+    const provider = vi.fn(async (): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [route]
+    }))
+    const response = await handleRouteRequest(
+      new Request("http://switchback.test/api/routes", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          profile: "twisty",
+          candidateSet: "alternatives",
+          primaryRoute: { id: "twisty-primary", geometry: route.geometry },
+          points: [
+            { lat: 40.2, lon: -76.9 },
+            { lat: 40.3, lon: -76.8 }
+          ]
+        })
+      }),
+      provider
+    )
+
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.alternativesOutcome).toMatchObject({ strategy: "engine-alternates" })
+    expect(body.diagnostics.lanes.length).toBeGreaterThan(0)
+    expect(response.headers.get("server-timing")).toContain("alt-lanes")
   })
 
   it("applies optional server-side candidate intelligence before selecting a route", async () => {

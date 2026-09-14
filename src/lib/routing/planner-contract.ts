@@ -12,6 +12,20 @@ export interface TripPlanRequest extends RouteRequest {
   primaryRoute?: { id: string; geometry: Coordinate[] }
 }
 
+export type AlternativesOutcomeStatus = "complete" | "partial" | "timed-out" | "none-distinct" | "unavailable"
+
+export interface AlternativesOutcome {
+  status: AlternativesOutcomeStatus
+  strategy: "engine-alternates" | "lane-search"
+}
+
+export interface AlternativesLaneDiagnostic {
+  id: string
+  status: "fulfilled" | "rejected" | "timed-out" | "cancelled"
+  elapsedMs: number
+  reason?: string
+}
+
 export interface TripPlan {
   /** Echoed from the request so the client can merge only matching lifecycles. */
   requestId?: string
@@ -24,6 +38,10 @@ export interface TripPlan {
   targetMinutes?: number
   /** Server-side phase timings in milliseconds when measured. */
   timingMs?: Record<string, number>
+  /** Present on alternatives responses; optional for legacy primary responses. */
+  alternativesOutcome?: AlternativesOutcome
+  /** Internal lane evidence for server diagnostics; never used as rider copy. */
+  diagnostics?: { lanes: AlternativesLaneDiagnostic[] }
 }
 
 export interface RoutingResult {

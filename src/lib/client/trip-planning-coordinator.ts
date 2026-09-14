@@ -32,6 +32,7 @@ interface RunLatestTripPlanOptions {
 
 /** The alternatives endpoint receives at most this many primary coordinates. */
 const MAX_PRIMARY_SAMPLES = 128
+const ALTERNATIVES_UNAVAILABLE_MESSAGE = "Couldn't find a different route in time — your route is ready."
 
 function samplePrimaryGeometry(
   geometry: Coordinate[] | undefined,
@@ -111,7 +112,8 @@ export async function runLatestTripPlan({
       requestPlan,
       getPlanner,
       identity,
-      settleStaleIntent
+      settleStaleIntent,
+      onWarning
     })
     return primary
   } catch (caught) {
@@ -137,6 +139,7 @@ interface LoadAlternativesOptions {
   requestPlan(request: TripPlanRequest, signal?: AbortSignal): Promise<TripPlan>
   getPlanner(): PlannerRouteLifecycle
   settleStaleIntent(): void
+  onWarning(message: string): void
 }
 
 async function loadAlternatives({
@@ -148,7 +151,8 @@ async function loadAlternatives({
   requestPlan,
   getPlanner,
   identity,
-  settleStaleIntent
+  settleStaleIntent,
+  onWarning
 }: LoadAlternativesOptions): Promise<void> {
   const primaryRoute = primary.routes.find((route) => route.id === primary.selectedRouteId)
     ?? primary.routes[0]
@@ -171,14 +175,24 @@ async function loadAlternatives({
       settleStaleIntent()
       return
     }
+    const timedOutOrUnavailable = alternatives.alternativesOutcome?.status === "timed-out"
+      || alternatives.alternativesOutcome?.status === "unavailable"
     if (alternatives.routes.length === 0) {
-      // An empty successful alternative set is final, not an error.
+      // Warning-only alternatives are still a meaningful response: merge them
+      // into the active plan so the rider can see why the optional search ended.
+      if (alternatives.warnings.length > 0) {
+        if (identity) getPlanner().mergeAlternatives(alternatives, identity)
+        else getPlanner().mergeAlternatives(alternatives)
+      }
+      if (timedOutOrUnavailable) onWarning(ALTERNATIVES_UNAVAILABLE_MESSAGE)
+      else if (alternatives.warnings.length > 0) onWarning(alternatives.warnings.join(" "))
       getPlanner().setPlanningPhase("ready")
       void refreshCorridorHints(request, fetch, controller.signal)
       return
     }
     if (identity) getPlanner().mergeAlternatives(alternatives, identity)
     else getPlanner().mergeAlternatives(alternatives)
+    if (alternatives.warnings.length > 0) onWarning(alternatives.warnings.join(" "))
     getPlanner().setPlanningPhase("ready")
     // Phase 5 merge: warm the adviser hint cache in the background so the
     // next timeboxed plan can use source-backed corridor hints locally.
@@ -187,7 +201,10 @@ async function loadAlternatives({
     // Alternatives are optional evidence; never fail the primary, but DO
     // finish the lifecycle so the UI does not spin on "Adding alternatives…"
     // forever when they time out or error.
-    if (gate.isCurrent(requestId)) getPlanner().setPlanningPhase("ready")
+    if (gate.isCurrent(requestId)) {
+      onWarning(ALTERNATIVES_UNAVAILABLE_MESSAGE)
+      getPlanner().setPlanningPhase("ready")
+    }
     else settleStaleIntent()
   }
 }
