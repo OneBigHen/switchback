@@ -1,6 +1,9 @@
 # OpenGravel Recon V1 — reconciled implementation plan
 
-Status: approved product direction. Repository `/root/Vibe/switchback`, reconciled against
+Status: approved product direction; implemented on this branch. Renderer, overlay, terrain and Ultra
+decisions are recorded in [ADR 0025](../../adr/0025-recon-labs-renderer.md), which supersedes §8's R3F /
+3D-tiles notes and §14 below (§14.1's "no mapbox-gl imports" premise was wrong: main carries a
+flag-gated Mapbox renderer that production does not enable). Repository `/root/Vibe/switchback`, reconciled against
 `origin/main` @ `44393de8` on 2026-09-13. Owner: Zac. Execution: phased run with deterministic
 gates; PR stays unmerged for owner review.
 

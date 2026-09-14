@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { ExplorationSegment, ReconTrack, ReplayFrame } from "@/features/recon/types"
 import type { CinematicPlan } from "@/features/recon/cinematic/shot-plan"
-import { ReconCameraDirector, type CameraPose, type ReconCameraMode } from "./camera-director"
+import { ReconCameraDirector, modeTarget, type CameraPose, type ReconCameraMode } from "./camera-director"
 import { displayPath, pointAtFraction, progressAtDistance, replayTimeline, sampleReplay, type DisplayPath } from "./replay-timeline"
 import type { ReplayOverlay } from "./replay-overlay"
 
@@ -93,6 +93,12 @@ export class ReplayEngine {
     const scale = track.distanceMeters / Math.max(1, path.totalDistanceMeters)
     this.vertexMeters = path.distancesMeters.map((meters) => meters * scale)
     this.detachInteraction = this.watchManualCamera()
+    // Open on the whole ride, then let the director dive into its mode.
+    if (!reducedMotion) {
+      const opening = modeTarget("overview", { path, fraction: 0, groundSpeedMps: 0 }, this.viewportPx(), 0, map.getBearing())
+      this.applyPose({ ...opening, zoom: opening.zoom - 1.2, pitch: 45 })
+      this.director.resume(this.currentPose())
+    }
     this.raf = requestAnimationFrame(this.tick)
   }
 
