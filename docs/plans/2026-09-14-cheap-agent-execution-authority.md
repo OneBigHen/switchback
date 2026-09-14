@@ -1,0 +1,300 @@
+# OpenGravel routing rework — cheap-agent execution authority
+
+> **Execution status:** authoritative for low-cost/limited-context agents. The longer
+> `2026-09-14-long-trip-choices-and-policy-v2.md` remains the design rationale and
+> evidence inventory. Where that document and this file disagree about execution
+> order, phase closure, task boundaries, or unresolved choices, **this file wins**.
+> ADRs remain higher authority than both files.
+
+## Validated starting refs
+
+- Repository: `OneBigHen/switchback`
+- `main`: `030b256a02409f6b0efcf53583ba421e2ea27841` when this authority was written.
+- PR #139 `ux/streamline-pass-1`: `a1346aeb85ffc25584ec46e19f124995d4568c9d`.
+- Planning PR #141: `docs/routing-rework-plan-20260914`.
+- PR #141 Quality and Mobile Core were green on its then-current head before this
+  follow-up docs commit. Re-check CI after every docs/code head change.
+
+Do not assume these SHAs are still current. Every execution packet starts by
+fetching and reconciling the refs it names.
+
+## Read order for a cheap agent
+
+1. This file.
+2. The one PR-specific runbook assigned to the agent.
+3. Only the ADRs and source files named by that runbook.
+4. The master plan only when the runbook explicitly points to a section.
+
+**Do not feed the complete master plan as the active prompt.** It spans independent
+subsystems and contains historical sequencing language that is useful to a reviewer
+but hazardous to a model that treats every sentence as an immediate instruction.
+
+## Hard execution protocol
+
+1. Work on **one task id only** until its test cycle and commit are complete.
+2. Use a dedicated worktree and branch. Never edit `main` or another open PR's
+   checkout directly.
+3. Before editing, print `git status --short --branch`, `git rev-parse HEAD`, and
+   `git merge-base HEAD <expected-base>`; stop on an unexplained mismatch.
+4. TDD is mandatory for behavior changes: add/modify the smallest test, run it and
+   observe the expected failure, implement, then run it green.
+5. Run only the targeted test during the red/green loop. Run broader gates at the
+   runbook checkpoints.
+6. Do not change an ADR, threshold, public type, product label, or phase definition
+   to make code easier. Stop and report the conflict instead.
+7. Do not modify production files, systemd, provider dashboards, secrets, or live
+   data. Production actions are separate **OWNER OPS** steps.
+8. Do not update visual snapshots merely because they changed. First prove the
+   visual change is the task's intended behavior and attach before/after evidence.
+9. Do not suppress a failing test, broaden a catch, add `any`, disable lint, or
+   remove an assertion to get green.
+10. Commit after each independently reviewable task. No drive-by cleanup.
+11. When a cited line moved, locate the symbol by name. If behavior differs from
+    the runbook, stop; do not guess from nearby code.
+12. A PR is not done until required repository gates and its runbook acceptance
+    evidence are recorded against the exact head SHA.
+
+## Corrections to the master plan
+
+These are execution blockers, not editorial preferences.
+
+### C1 — phase 7 cannot close before real traffic cost exists
+
+The master plan maps its PR 2 to Phase 7 while its own open item P1 says the
+Protect-the-Ride cost is not implemented. ADR 0019 requires traffic to enter the
+versioned deterministic scorer as a tested cost; ADR 0022 says Route Policy V2
+uses traffic as real evidence rather than a neutral placeholder. Therefore:
+
+- Do **not** claim Phase 7 complete from old T-2.1 through T-2.7 alone.
+- Do **not** activate V2 as the rider-facing decision policy before the Phase 6
+  traffic contract exists.
+- Policy/role code may be developed as a dark/scaffolded precursor, but activation
+  and Phase 7 closure happen only in the Phase 7 packet defined below.
+
+### C2 — old PR 4 mixes three independent subsystems
+
+The old PR 4 combines:
+
+- ride-style UX and route-card presentation;
+- server capability/entitlement declaration;
+- TomTom traffic retrieval and route evidence.
+
+They have different dependencies and acceptance criteria. Cheap-agent execution
+must split them into separate packets/commits; never assign old T-4.1 through
+T-4.5 as one undifferentiated job.
+
+### C3 — ADR 0021 capability payload must be complete enough to replace the flag
+
+The old T-4.4 payload `{ freeRideLive, tomtomTraffic, tomtomRouting, advisor }`
+cannot supersede the temporary Mapbox build flag and cannot close Phase 4. ADR
+0021 defines the capability family as:
+
+- `mapboxPremium`
+- `googleCinematic`
+- `tomtomTraffic`
+- `tomtomRouting`
+- `advancedFreeRide`
+
+The resolver must combine deployment default, configured provider prerequisites,
+optional stable-identity allowlist, and provider health. Missing prerequisites
+force `false`; server secrets never enter the browser payload. `advisor` may be an
+additional non-premium operational capability, but it does not replace the ADR
+fields.
+
+### C4 — style chips are profiles, route roles are decisions
+
+Old T-4.1 says tapping a style may select a route that already "holds that role",
+but profiles (`quick`, `balanced`, `twisty`, `scenic`, `adventure`, `gravel`) do
+not have a one-to-one mapping to decision roles (`fastest-now`, `fast-and-fun`,
+`best-ride`, `maximum-twisties`).
+
+Frozen behavior for execution:
+
+- Style chips change the requested **profile**.
+- If the selected profile differs from the plan's scored profile, call the existing
+  profile-change/replan path.
+- Do not infer a role from a profile and do not silently select a card as a shortcut.
+- Role cards remain a separate choice surface produced by server decision data.
+
+### C5 — user-visible name is `Fastest` until the traffic-duration reference exists
+
+The current route is shortest-duration, not traffic-aware. Do not ship the text
+`Fastest Now` while that is true.
+
+- Internal role ids may remain stable for compatibility.
+- Display `Fastest` until Phase 6 supplies the traffic-duration reference required
+  by ADR 0019.
+- When Phase 6 is complete, the Phase 7 runbook may restore `Fastest Now` if the
+  semantics actually match.
+
+This removes the old "ask the owner" branch from T-4.2.
+
+### C6 — `TripPlan.warnings` is rider-facing; diagnostics are internal
+
+PR 1 already separates `warnings` from `diagnostics`. Therefore the old T-4.4
+question is resolved:
+
+- `TripPlan.warnings`: concise rider-facing copy that may be rendered.
+- `TripPlan.diagnostics`: provider/lane/debug facts; never render directly.
+
+Do not leave warning ownership ambiguous.
+
+### C7 — T-3.6 exists and is OWNER OPS, not a cheap-agent task
+
+The master task index omitted T-3.6 even though the PR 3 body defines it. Treat it
+as an owner-approved production deployment step, not as an implementation task.
+It must never be executed merely because preceding tests are green.
+
+### C8 — TomTom budget/breaker is shared infrastructure
+
+Old PR 5 says it uses the "shared TomTom budget and breaker" introduced by old
+T-4.3. Therefore PR 5 cannot be developed as though it were independent of that
+infrastructure. Put the reusable budget/breaker in a server-only TomTom utility
+module, cover it with unit tests, and let traffic and routing adapters consume the
+same API.
+
+### C9 — task-count metadata is stale
+
+The planning PR body describes 29 tasks. The master plan has 32 indexed rows and
+an additional unindexed T-3.6. Do not use the PR-body count for progress or
+completion decisions.
+
+## Correct dependency graph
+
+This is the build order. Independent packets may be developed concurrently only
+when their bases and interfaces do not overlap.
+
+### Packet A — prerequisite UX base
+
+PR #139 must either:
+
+- still exist at the exact validated head and be used as the explicit base for a
+  stacked PR; or
+- be merged into `main`, with that head proven as an ancestor of the new base.
+
+Never reconstruct #139 changes manually.
+
+### Packet B — long-trip alternatives defect fix
+
+Corresponds to old PR 1. This is the **first executable packet** and has its own
+runbook:
+
+`docs/plans/2026-09-14-pr1-long-trip-alternatives-agent-runbook.md`
+
+No policy V2, TomTom routing, Mapbox, capabilities, or general planner redesign.
+
+### Packet C — Mapbox Phase 1 rollout + bounded Phase 2 picker work
+
+Corresponds to old PR 3 code tasks. It is independent of Route Policy V2 and may
+branch from the reconciled #139 base. It includes CSP, runtime fallback, truthful
+renderer labels, and a browser test that actually mounts Mapbox.
+
+The production flag flip/rebuild is OWNER OPS after merge and approval.
+
+### Packet D — Phase 4 capabilities
+
+Implement ADR 0021 as the server authority. This packet owns:
+
+- capability resolver and API contract;
+- provider-prerequisite checks;
+- stable-identity gate when configured;
+- optional-provider health/degraded semantics;
+- Mapbox public config exposure without server secrets;
+- hiding unavailable premium controls.
+
+This packet supersedes the temporary Mapbox client-only decision mechanism. It
+may include the Free Ride visibility fix because that behavior directly consumes
+capability state. Generic navigation links and presets are UX work, not Phase 4.
+
+### Packet E — Phase 5 TomTom routing adapter + bakeoff, dark
+
+Implement the adapter and recorded capability bakeoff. Do not federate it into
+route selection. Reuse the shared server-only TomTom budget/breaker contract.
+
+The bakeoff must cover ADR 0018's real questions: motorcycle mode, `departAt`,
+traffic-aware duration, Thrilling, hilliness/windingness, guidance geometry, and
+PA/NJ coverage. Record unsupported parameter combinations instead of coding
+around them by assumption.
+
+### Packet F — Phase 6 traffic evidence and future departure end-to-end
+
+This is missing as a complete packet in the master plan. It must exist before
+Phase 7 can close. It owns:
+
+- multi-route traffic evidence retrieval;
+- cache, daily budget and circuit breaker;
+- traffic evidence attached to candidate data with explicit `available`,
+  `degraded`, or `unknown` state;
+- `departAt` request contract and provider propagation where supported;
+- traffic-aware duration/reference semantics;
+- closure/timebox hard eligibility behavior;
+- rider-facing traffic evidence on route cards;
+- tests proving unknown traffic is not treated as clear traffic.
+
+Do not re-rank with an ad-hoc UI rule. The output is evidence for the deterministic
+scorer used in Packet G.
+
+### Packet G — Phase 7 policy V2, Protect the Ride, roles, federation
+
+Only start after Packet F's traffic contract is available. This packet owns:
+
+- frozen `PA_NJ_ROUTE_POLICY_V2` while V1 stays byte-identical;
+- pure, tested Protect-the-Ride traffic cost from ADR 0019;
+- unknown-axis rescaling and confidence semantics;
+- common-scale re-scoring of the candidate pool;
+- server role assignment and hysteresis;
+- rider-facing decision payload;
+- TomTom Thrilling federation **only if** Packet E's bakeoff passes the recorded
+  distinctness/quality bar; otherwise leave it dark and document the rejection.
+
+Phase 7 is complete only when the route corpus covers traffic delay, stale/unknown
+traffic, closures, timeboxes, detour roles, and provider outage behavior.
+
+### Packet H — planner UX follow-through
+
+Execute after the server contracts it consumes exist. Split into reviewable commits:
+
+1. Always-visible profile chips. Profiles trigger profile change/replan; no
+   profile→role guessing.
+2. Decision cards/details. Render server role, added minutes versus Fastest,
+   explanation, climb, toll warning, gravel evidence, traffic evidence, and the
+   existing graph components.
+3. Visibility cleanup: 3D rides links, Road controls cap, first-run 90-minute
+   backroads preset, rider-history label.
+4. Mobile/accessibility/visual evidence.
+
+## Production action quarantine
+
+The following must be labeled `OWNER OPS` in every runbook and are **never**
+executed by a cheap implementation agent:
+
+- changing `/root/Vibe/switchback/.env.local`;
+- changing `/etc/switchback/switchback.env`;
+- restarting or deploying `switchback-cloudflare.service`;
+- modifying provider token restrictions or provider dashboards;
+- applying production data migrations/curation;
+- enabling `TOMTOM_ROUTING_ENABLED`;
+- turning on the Mapbox rollout flag in production.
+
+An implementation PR can document exact commands and rollback, but it stops before
+running them.
+
+## Cheap-agent completion report format
+
+Every assigned task ends with exactly this information:
+
+```text
+TASK: <id and title>
+BASE: <base SHA>
+HEAD: <new exact SHA>
+FILES: <changed files only>
+RED: <targeted test command + expected failure observed>
+GREEN: <targeted test command + result>
+BROADER: <broader checks actually run + result>
+BEHAVIOR: <one paragraph describing only the intended change>
+DEVIATIONS: none | <exact mismatch and why work stopped>
+NEXT: <next task id; do not execute it unless assigned>
+```
+
+If `DEVIATIONS` is not `none`, stop. A cheap agent is not authorized to resolve a
+new architecture or product decision on its own.
