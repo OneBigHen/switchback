@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useState } from "react"
@@ -269,7 +269,34 @@ describe("V2 compact Plan composer", () => {
     await user.type(input, "A scenic ride to a river overlook")
     await user.click(screen.getByRole("button", { name: /find ride options/i }))
 
-    expect(onRidePrompt).toHaveBeenCalledWith("A scenic ride to a river overlook")
+    expect(onRidePrompt).toHaveBeenCalledWith("A scenic ride to a river overlook", null)
+  })
+
+  it("hands a chosen suggestion's coordinates to planning with the prompt", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async () => Response.json({
+      places: [{ id: "lock-haven", label: "Lock Haven, Pennsylvania, United States", name: "Lock Haven", region: "Pennsylvania", country: "United States", lat: 41.137, lon: -77.4469 }]
+    })))
+    const user = userEvent.setup()
+    const onRidePrompt = vi.fn()
+    renderComposer({}, { intent: { onRidePrompt } })
+
+    const input = screen.getByPlaceholderText("Search a place or describe a ride")
+    await user.type(input, "Lock Hav")
+    await waitFor(() => expect(screen.getByRole("option", { name: /Lock Haven/i })).toBeInTheDocument())
+    await user.click(screen.getByRole("option", { name: /Lock Haven/i }))
+    await user.click(screen.getByRole("button", { name: /find ride options/i }))
+
+    expect(onRidePrompt).toHaveBeenCalledWith(
+      "Ride to Lock Haven, Pennsylvania, United States",
+      { lat: 41.137, lon: -77.4469, label: "Lock Haven, Pennsylvania, United States" }
+    )
+
+    // Editing the text away from the chosen place drops the pin.
+    onRidePrompt.mockClear()
+    await user.type(input, " via PA-150")
+    await user.click(screen.getByRole("button", { name: /find ride options/i }))
+    expect(onRidePrompt).toHaveBeenCalledWith("Ride to Lock Haven, Pennsylvania, United States via PA-150", null)
+    vi.unstubAllGlobals()
   })
 
   it("offers an explicit cancel action while a map point is armed", async () => {

@@ -643,7 +643,7 @@ describe("planner ride composer", () => {
     )
     await user.click(screen.getByRole("button", { name: /find ride options/i }))
 
-    expect(onRidePrompt).toHaveBeenCalledWith("Give me two hours of gravel and a good brewery")
+    expect(onRidePrompt).toHaveBeenCalledWith("Give me two hours of gravel and a good brewery", null)
   })
 
   it("lets a rider choose a rider-fit stop instead of silently adding one", async () => {

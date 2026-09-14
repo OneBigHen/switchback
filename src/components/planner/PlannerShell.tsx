@@ -1707,7 +1707,7 @@ message: failure?.message ?? "The rough route could not be routed."
               }
             },
             intent: {
-              onRidePrompt: (prompt) => void handleRidePrompt(prompt),
+              onRidePrompt: (prompt, chosenPlace) => void handleRidePrompt(prompt, chosenPlace),
               onChooseStopIdea: (stop) => void handleChooseStopIdea(stop),
               onResearchRideIdea: (prompt) => void handleRideResearch(prompt)
             },

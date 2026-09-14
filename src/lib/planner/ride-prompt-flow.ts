@@ -35,6 +35,12 @@ export interface RidePromptWaypointOptions {
   search: (query: string, bias: GeocoderBias) => Promise<PlaceResult[]>
   requestLocation: () => Promise<RideStartLocation>
   defaultBias?: GeocoderBias
+  /**
+   * Places the rider already chose from suggestions, with their coordinates.
+   * A query naming one of these routes to it directly: re-geocoding the label
+   * costs a network round trip and can land on a different namesake.
+   */
+  pinnedPlaces?: readonly Waypoint[]
 }
 
 /** Where an inferred start came from. */
@@ -210,11 +216,29 @@ function selectRidePromptPlace(
   )[0]!.place
 }
 
+/** The pinned place a query names, when the query is that place's label (or its leading part). */
+export function pinnedPlaceForQuery(query: string, pinned: readonly Waypoint[] | undefined): Waypoint | null {
+  const normalizedQuery = normalizePlaceText(query)
+  if (!normalizedQuery) return null
+  for (const place of pinned ?? []) {
+    if (!place.label) continue
+    const label = normalizePlaceText(place.label)
+    const head = normalizePlaceText(place.label.split(",")[0] ?? "")
+    if (normalizedQuery === label || (head && normalizedQuery.startsWith(head) && label.startsWith(normalizedQuery))) {
+      return place
+    }
+  }
+  return null
+}
+
 async function resolvePlace(
   query: string,
   bias: GeocoderBias,
-  search: RidePromptWaypointOptions["search"]
+  search: RidePromptWaypointOptions["search"],
+  pinned?: readonly Waypoint[]
 ): Promise<Waypoint> {
+  const chosen = pinnedPlaceForQuery(query, pinned)
+  if (chosen) return chosen
   const places = await search(query, bias)
   const place = selectRidePromptPlace(query, places, bias)
   if (!place) {
@@ -248,7 +272,7 @@ export async function resolveRidePromptWaypoints(
   if (intent.startQuery) {
     start = isHomeQuery(intent.startQuery)
       ? resolveHome(options.home)
-      : await resolvePlace(intent.startQuery, asBias(start, defaultBias), options.search)
+      : await resolvePlace(intent.startQuery, asBias(start, defaultBias), options.search, options.pinnedPlaces)
   }
   if (!start) {
     const resolved = await options.requestLocation()
@@ -263,7 +287,7 @@ export async function resolveRidePromptWaypoints(
   if (intent.mode === "destination" && intent.destinationQuery) {
     finish = isHomeQuery(intent.destinationQuery)
       ? resolveHome(options.home)
-      : await resolvePlace(intent.destinationQuery, asBias(start, defaultBias), options.search)
+      : await resolvePlace(intent.destinationQuery, asBias(start, defaultBias), options.search, options.pinnedPlaces)
   }
 
   return { start, finish, locationSource }

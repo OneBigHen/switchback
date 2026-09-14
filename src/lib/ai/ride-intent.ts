@@ -191,6 +191,42 @@ function inferOriginFromTo(prompt: string): string | null {
   return candidate
 }
 
+const RIDE_STYLE_LANGUAGE = /(?:quick|fastest|direct|shortest|balanced|practical|scenic|backroads?|rural|country roads?|twist(?:y|ies)|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun|neural|personalized|learned|avoid(?:ing)?\s+(?:the\s+)?highways?|stay\s+off\s+(?:the\s+)?interstates?)\b/i
+
+/**
+ * Whether the rider actually said how they want to ride. A request that only
+ * names a place ("Ride to Lock Haven") carries no style, so the style the rider
+ * already chose in the planner must survive it rather than be replaced by a
+ * parser default or a model's guess.
+ */
+export function promptNamesRideStyle(prompt: string): boolean {
+  return RIDE_STYLE_LANGUAGE.test(prompt)
+}
+
+const EXPLICIT_LOOP_LANGUAGE = /\b(?:loop|round[ -]?trip)\b/i
+
+/** Compound requests — sequencing, stops, constraints — are what the model is for. */
+const COMPOUND_REQUEST_LANGUAGE = /;|\b(?:then|and|but|with|via|through|stop(?:ping)?|coffee|cafe|brewery|lunch|dinner|food|surprise|somewhere|like|except|unless)\b/i
+
+/**
+ * A request the local parser fully understands does not need a model round
+ * trip. The free model tier routinely takes 4–12 s, and that wait sat in front
+ * of every route, including ones a rider built by picking a suggested place.
+ */
+export function isConfidentLocalIntent(prompt: string, local: RideIntent): boolean {
+  if (prompt.trim().length > 80) return false
+  if (COMPOUND_REQUEST_LANGUAGE.test(prompt)) return false
+  // A missing style is not a reason to ask the model: the planner keeps the
+  // rider's chosen style for requests that do not name one. What the parser
+  // must be sure of is the shape — a named destination or an explicit loop.
+  return local.mode === "destination"
+    ? Boolean(local.destinationQuery)
+    : EXPLICIT_LOOP_LANGUAGE.test(prompt)
+}
+
+/** Upper bound on the model call; the local parse answers when it is exceeded. */
+export const RIDE_INTENT_MODEL_TIMEOUT_MS = 4_000
+
 export function parseRidePromptLocally(prompt: string): RideIntent {
   const normalized = prompt.trim().toLowerCase()
   const duration = targetMinutes(prompt)
@@ -240,7 +276,7 @@ export function parseRidePromptLocally(prompt: string): RideIntent {
       : /\b(?:food|lunch|dinner|restaurant|meal)\b/.test(normalized)
         ? "food"
         : null
-  const hasStyleKeyword = /(?:quick|fastest|direct|shortest|balanced|practical|scenic|backroads?|rural|country roads?|twist(?:y|ies)|curvy|curves?|switchbacks?|winding|gravel|dirt|unpaved|adventure|fun|neural|personalized|learned|avoid(?:ing)?\s+(?:the\s+)?highways?|stay\s+off\s+(?:the\s+)?interstates?)\b/.test(normalized)
+  const hasStyleKeyword = promptNamesRideStyle(normalized)
   const hasLoopKeyword = /\b(?:loop|round[ -]?trip|bring me home|back home|return home)\b/.test(normalized)
   const ambiguous = !hasStyleKeyword || (destination === null && !hasLoopKeyword && !homeDestinationRequest)
   const profile: RouteProfileId = neural
@@ -295,7 +331,7 @@ export async function interpretRidePrompt(
   options: RideIntentInterpreterOptions = {}
 ): Promise<RideIntent> {
   const fallback = parseRidePromptLocally(prompt)
-  if (!options.apiKey) return fallback
+  if (!options.apiKey || isConfidentLocalIntent(prompt, fallback)) return fallback
 
   try {
     const response = await (options.fetcher ?? fetch)(
@@ -357,7 +393,7 @@ export async function interpretRidePrompt(
             }
           }
         }),
-        signal: AbortSignal.timeout(12_000)
+        signal: AbortSignal.timeout(RIDE_INTENT_MODEL_TIMEOUT_MS)
       }
     )
     if (!response.ok) return fallback

@@ -21,7 +21,8 @@ export interface RideRequestAutocompleteProps {
   /** Reserved for contextual discovery. Explicit typed place searches are
    * intentionally un-biased so "Austin" cannot become a nearer namesake. */
   bias?: GeocoderBias
-  onChange(value: string): void
+  /** `place` accompanies the value only when the rider chose a suggestion. */
+  onChange(value: string, place?: PlaceResult): void
 }
 
 export function RideRequestAutocomplete({
@@ -93,7 +94,7 @@ export function RideRequestAutocomplete({
     setActiveIndex(-1)
     setSearching(false)
     setDismissed(true)
-    onChange(completed)
+    onChange(completed, place)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
