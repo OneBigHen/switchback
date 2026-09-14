@@ -231,6 +231,7 @@ commit or evidence gate changes.
 The executable artifacts are:
 
 - PR 1: `2026-09-14-pr1-long-trip-alternatives-agent-runbook.md`
+- PR 3: `2026-09-14-pr3-mapbox-phase1-agent-runbook.md`
 - T-4.2 warning contract: `2026-09-14-t4-2-allow-with-warning-agent-runbook.md`
 
 The T-4.2 status is intentionally partial: its warning contract can be isolated,
