@@ -16,12 +16,12 @@ test("WebKit can use the V2 destinations without horizontal overflow", async ({ 
 
   const nav = page.getByRole("navigation", { name: /primary/i })
   await expect(nav.getByRole("button", { name: "Plan", exact: true })).toBeVisible()
-  await expect(nav.getByRole("button", { name: "Rides", exact: true })).toBeVisible()
-  await expect(nav.getByRole("button", { name: "Discover", exact: true })).toBeVisible()
+  await expect(nav.getByRole("button", { name: "Saved", exact: true })).toBeVisible()
+  await expect(nav.getByRole("button", { name: "Explore", exact: true })).toBeVisible()
   await expect(nav.getByRole("button", { name: "Settings", exact: true })).toBeVisible()
 
-  await nav.getByRole("button", { name: "Rides", exact: true }).click()
-  await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
+  await nav.getByRole("button", { name: "Saved", exact: true }).click()
+  await expect(page.getByRole("main", { name: "My Rides destination" })).toBeVisible()
 
   const widths = await page.evaluate(() => ({
     viewport: window.innerWidth,
@@ -42,7 +42,7 @@ test("WebKit can plan one destination route", async ({ page }) => {
   await openPlannerEditor(page)
   await ensureFixtureStart(page)
   await fillFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
 
   await expectRouteOutcome(page, capture)
   await expect(page.getByRole("region", { name: "Route choices" }).getByText("WebKit smoke route", { exact: true })).toBeVisible()

@@ -14,7 +14,7 @@ import { settleMapDelay } from "../../helpers/ux-state-fixtures"
 async function expectIdleComposer(page: import("@playwright/test").Page): Promise<void> {
   await expandPhonePlanner(page)
   await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Ride options/ })).toBeVisible()
 }
 
 test.describe("mobile planner Level A core states", () => {
@@ -109,7 +109,7 @@ test.describe("mobile planner Level A core states", () => {
     await expect(plannerError).toContainText("Route unavailable")
     await expect(plannerError).toContainText("temporarily unavailable")
     await expect(page.getByRole("status", { name: "Ride planning progress" })).toBeHidden()
-    await expect(page.getByRole("button", { name: "Plan route" })).toBeEnabled()
+    await expect(page.getByRole("button", { name: "Create ride", exact: true })).toBeEnabled()
     await capturePlannerState(page, testInfo, "provider-failure")
     await expectMobilePlannerContracts(page)
   })

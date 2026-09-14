@@ -9,7 +9,12 @@
   --sb-mobile-nav-gap: 16px;
   --sb-mobile-sheet-bottom: calc(var(--sb-mobile-nav-height) + var(--sb-mobile-nav-gap) + env(safe-area-inset-bottom));
   --sb-sheet-peek-height: 146px;
-  --sb-sheet-idle-height: 300px;
+  /* The default planning sheet is content-sized up to this cap. The cap is
+     what guarantees the map keeps roughly half the phone viewport while the
+     approved composition (request, mode, preferences, Create ride, Draw
+     manually, ride state, advisor row) is on screen: at 390x844 it leaves
+     about 47% of the viewport as usable map above the sheet and the nav. */
+  --sb-sheet-idle-height: min(44dvh, 360px);
   --sb-sheet-half-height: min(50dvh, 560px);
   --sb-sheet-full-height: min(88dvh, calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-2)));
   --sb-sheet-dock-height: 82px;
@@ -208,6 +213,18 @@ h6,
   .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] {
     height: var(--sb-sheet-full-height);
     max-height: var(--sb-sheet-full-height);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* The full-sheet map credit is a sibling of the planner scroller. Keep the
+     scroller as the flexible middle region so the credit remains inside the
+     clipped sheet even when route editing makes the composer taller than the
+     viewport. */
+  .planner-shell .sb-bottom-sheet[data-sheet-detent="full"] > .planner-scroll {
+    flex: 1 1 0%;
+    min-height: 0;
+    height: auto !important;
   }
 
   .planner-shell .planner-sheet-handle {
@@ -269,6 +286,23 @@ h6,
 
   .planner-shell .ride-research > button {
     min-height: var(--sb-touch-target);
+  }
+}
+
+/* The narrow-phone command surface keeps Preferences and Minimize on one
+   compact row, so it can use the standard idle-sheet cap. */
+@media (max-width: 360px) and (orientation: portrait) {
+  .planner-shell {
+    --sb-sheet-idle-height: min(44dvh, 360px);
+  }
+}
+
+/* The shorter 320x568 handset still needs the extra idle-sheet line so its
+   action row remains wholly visible. The taller 320x700 visual contract uses
+   the standard cap above and keeps more map exposed. */
+@media (max-width: 360px) and (orientation: portrait) and (max-height: 650px) {
+  .planner-shell {
+    --sb-sheet-idle-height: min(47dvh, 360px);
   }
 }
 

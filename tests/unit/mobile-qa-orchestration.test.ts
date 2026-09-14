@@ -36,12 +36,12 @@ function chunkResult(
 describe("mobile QA FAST orchestration", () => {
   it("keeps the standard WebKit ride in its own browser invocation", () => {
     expect(MOBILE_QA_CHUNKS).toEqual([
-      expect.objectContaining({ id: "webkit-core", project: "webkit-standard", testCount: 18 }),
+      expect.objectContaining({ id: "webkit-core", project: "webkit-standard", testCount: 21 }),
       expect.objectContaining({ id: "webkit-free-ride-suggestion", project: "webkit-standard", testCount: 1, grep: "Free Ride suggestion is reachable by touch and can enter guidance" }),
       expect.objectContaining({ id: "webkit-ride", project: "webkit-standard", testCount: 6, grepInvert: "Free Ride suggestion is reachable by touch and can enter guidance" }),
-      expect.objectContaining({ id: "chromium-core", project: "chromium-standard", testCount: 25 }),
+      expect.objectContaining({ id: "chromium-core", project: "chromium-standard", testCount: 28 }),
     ])
-    expect(MOBILE_QA_CHUNKS.flatMap((chunk) => chunk.files)).toHaveLength(11)
+    expect(MOBILE_QA_CHUNKS.flatMap((chunk) => chunk.files)).toHaveLength(13)
     expect(MOBILE_QA_CHUNKS.reduce((total, chunk) => total + chunk.testCount, 0)).toBe(FAST_EXPECTED_TESTS)
   })
 
@@ -109,7 +109,7 @@ describe("mobile QA FAST orchestration", () => {
   })
 
   it("marks list inventory as NOT RUN and never as browser PASS", () => {
-    const inventory = renderMobileQaInventory({ exitCode: 0, totalTests: 50, totalFiles: 5, failedChunks: [] })
+    const inventory = renderMobileQaInventory({ exitCode: 0, totalTests: 56, totalFiles: 6, failedChunks: [] })
     expect(inventory).toContain("Mode: INVENTORY (NOT RUN)")
     expect(inventory).not.toContain("Mobile responsive emulation: PASS")
     expect(inventory).not.toContain("WebKit mobile approximation: PASS")
@@ -162,11 +162,12 @@ describe("mobile QA FAST orchestration", () => {
       "tests/e2e/mobile-qa/core/planner.core.spec.ts",
       "tests/e2e/mobile-qa/core/ride.core.spec.ts",
       "tests/e2e/mobile-qa/core/scroll-owner.core.spec.ts",
+      "tests/e2e/mobile-qa/core/opengravel-mobile-redesign.core.spec.ts",
     ]
-    const webkitTests = Array.from({ length: 18 }, (_, index) => ({ id: `w-core-${index}`, file: files[index % 3]!, title: `core-${index}` }))
+    const webkitTests = Array.from({ length: 21 }, (_, index) => ({ id: `w-core-${index}`, file: index === 20 ? files[5]! : files[index % 3]!, title: `core-${index}` }))
       .concat([{ id: "w-suggestion", file: files[3]!, title: "Free Ride suggestion is reachable by touch and can enter guidance" }])
       .concat(Array.from({ length: 6 }, (_, index) => ({ id: `w-ride-${index}`, file: files[3]!, title: `ride-${index}` })))
-    const chromiumTests = Array.from({ length: 25 }, (_, index) => ({ id: `c-${index}`, file: files[index % files.length]!, title: `chromium-${index}` }))
+    const chromiumTests = Array.from({ length: 28 }, (_, index) => ({ id: `c-${index}`, file: files[index % files.length]!, title: `chromium-${index}` }))
     const full = { runId: "unit", projects: [
       { name: "webkit-standard", tests: webkitTests },
       { name: "chromium-standard", tests: chromiumTests },
@@ -179,9 +180,9 @@ describe("mobile QA FAST orchestration", () => {
         writeFileSync(join(root, "orchestration", `${chunk.id}.discovery.inventory.json`), JSON.stringify({ runId: "unit", projects: [{ name: chunk.project, tests }] }))
       }
       const writeValidChunks = () => {
-        writeChunkTests("webkit-core", webkitTests.slice(0, 18))
-        writeChunkTests("webkit-free-ride-suggestion", webkitTests.slice(18, 19))
-        writeChunkTests("webkit-ride", webkitTests.slice(19))
+        writeChunkTests("webkit-core", webkitTests.slice(0, 21))
+        writeChunkTests("webkit-free-ride-suggestion", webkitTests.slice(21, 22))
+        writeChunkTests("webkit-ride", webkitTests.slice(22))
         writeChunkTests("chromium-core", chromiumTests)
       }
       writeValidChunks()

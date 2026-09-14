@@ -256,11 +256,32 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     || (planMode === "destination" && !finish)
     || status === "routing"
     || intentStatus === "interpreting"
-  const planLabel = status === "routing"
+  /**
+   * One primary commitment for the whole planner.
+   *
+   * A rider expresses a ride in one of two ways — by describing it in the
+   * request field, or by setting its points — and `Create ride` has to honour
+   * whichever they used. A prompt is the newer statement of intent, so it wins
+   * when there is one; otherwise the existing waypoint plan runs. Both paths
+   * call the same store commands they always did.
+   */
+  const promptReady = ridePrompt.trim().length >= 3 && intentStatus !== "interpreting"
+  const createDisabled = !promptReady && planDisabled
+  const createLabel = status === "routing"
     ? "Reading the roads…"
-    : planMode === "loop"
-      ? `Plan a ${durationLabel} loop`
-      : "Plan route"
+    : intentStatus === "interpreting"
+      ? "Reading your request…"
+      : planMode === "loop" && !promptReady
+        ? `Create ${durationLabel} loop`
+        : "Create ride"
+  const createRide = () => {
+    if (createDisabled) return
+    if (promptReady) {
+      onRidePrompt(ridePrompt.trim())
+      return
+    }
+    onPlan()
+  }
 
   const voiceSessionRef = useRef(false)
   const startVoiceInput = () => {
@@ -459,6 +480,9 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 onSaveHome={onSaveHome}
                 onClearHome={onClearHome}
                 onStartFreeRide={onStartFreeRide}
+                onCreateRide={createRide}
+                createDisabled={createDisabled}
+                createLabel={createLabel}
                 stopIdeas={stopIdeas}
                 onChooseStopIdea={onChooseStopIdea}
                 researchStatus={researchStatus}
@@ -578,11 +602,6 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               </button>
             )}
           </>
-        ) : editing ? (
-          <button type="button" className="plan-button" disabled={planDisabled} onClick={onPlan}>
-            {status === "routing" ? <SpinnerGap className="spin" aria-hidden="true" /> : <Path weight="bold" aria-hidden="true" />}
-            <span>{planLabel}</span>
-          </button>
         ) : null}
       </div>
 

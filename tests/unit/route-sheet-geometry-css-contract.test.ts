@@ -6,6 +6,7 @@ const routeStyles = readFileSync(resolve(process.cwd(), "src/app/styles/route-co
 const dockStyles = readFileSync(resolve(process.cwd(), "src/app/styles/planner-action-dock.css"), "utf8")
 const routeComparisonSource = readFileSync(resolve(process.cwd(), "src/components/planner/RouteComparison.tsx"), "utf8")
 const sheetStyles = readFileSync(resolve(process.cwd(), "src/app/styles/planner-deck.css"), "utf8")
+const mapPlacementStyles = readFileSync(resolve(process.cwd(), "src/app/styles/map-placement.css"), "utf8")
 
 describe("route sheet geometry contract", () => {
   it("keeps full-sheet attribution in its own safe band outside scroll content", () => {
@@ -14,6 +15,8 @@ describe("route sheet geometry contract", () => {
     expect(routeStyles).toContain("bottom: calc(var(--sb-sheet-dock-home-height) + var(--sb-space-5)) !important")
     const designSystemStyles = readFileSync(resolve(process.cwd(), "src/app/styles/design-system.css"), "utf8")
     expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet[data-sheet-detent=\"full\"] .planner-full-attribution {\n    position: static !important;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet[data-sheet-detent=\"full\"] {\n    height: var(--sb-sheet-full-height);\n    max-height: var(--sb-sheet-full-height);\n    display: flex;\n    flex-direction: column;")
+    expect(designSystemStyles).toContain(".planner-shell .sb-bottom-sheet[data-sheet-detent=\"full\"] > .planner-scroll {\n    flex: 1 1 0%;\n    min-height: 0;\n    height: auto !important;")
   })
 
   it("reserves the real home dock height on the parent scroll container", () => {
@@ -50,7 +53,8 @@ describe("route sheet geometry contract", () => {
     expect(routeComparisonSource).toContain("const selectedRouteIdentityRef = useRef<HTMLParagraphElement>(null)")
     expect(routeComparisonSource).toContain("const scroll = identity?.closest<HTMLElement>(\".planner-scroll\")")
     expect(routeComparisonSource).toContain("scroll.scrollTo({")
-    expect(routeComparisonSource).toContain("scroll.scrollTop + identityBox.top - scrollBox.top - 8")
+    expect(routeComparisonSource).toContain("stickyHeaderBottom - scrollBox.top + 8")
+    expect(routeComparisonSource).toContain("scroll.scrollTop + identityBox.top - scrollBox.top - topClearance")
     expect(routeComparisonSource).not.toContain("selectedRouteIdentityRef.current?.scrollIntoView?.")
     expect(routeComparisonSource).toContain("ref={selectedRouteIdentityRef}")
     expect(routeStyles).toContain(".route-rack .route-slip {\n    scroll-margin-block: calc(var(--sb-space-8) + var(--sb-space-5)) var(--sb-space-4);")
@@ -62,5 +66,11 @@ describe("route sheet geometry contract", () => {
 
   it("leaves a visible top clearance when the selected identity is re-anchored", () => {
     expect(routeStyles).toContain(".route-selection-identity {\n  scroll-margin-block-start: var(--sb-space-2);")
+  })
+
+  it("keeps the native map controls above the compact peek sheet", () => {
+    expect(mapPlacementStyles).toContain(".planner-shell:has(.sb-bottom-sheet[data-sheet-detent=\"peek\"]) {")
+    expect(mapPlacementStyles).toContain("var(--sb-sheet-peek-height) +")
+    expect(mapPlacementStyles).toContain("var(--sb-touch-target)")
   })
 })

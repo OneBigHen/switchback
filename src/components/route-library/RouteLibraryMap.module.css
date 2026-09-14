@@ -1,0 +1,104 @@
+/* The discovery map workspace. The map is the product here, so it owns its
+   box and the controls sit lightly on top of it. */
+
+.stage {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--sb-moss) 12%, var(--sb-surface));
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.mapSummary {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.control {
+  display: grid;
+  width: var(--sb-touch-target);
+  height: var(--sb-touch-target);
+  place-items: center;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sb-surface) 92%, transparent);
+  color: var(--sb-spruce);
+  cursor: pointer;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
+.control svg {
+  width: 19px;
+  height: 19px;
+}
+
+.control:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.attribution {
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sb-surface) 78%, transparent);
+  color: var(--sb-text-muted);
+  font-size: 9px;
+}
+
+.attribution a {
+  display: inline-flex;
+  min-height: 12px;
+  align-items: center;
+  color: inherit;
+}
+
+.fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  max-width: 84%;
+  padding: 14px 16px;
+  gap: 4px;
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  background: var(--sb-surface);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.fallback strong {
+  color: var(--sb-text);
+  font-size: 13px;
+}
+
+.fallback span {
+  color: var(--sb-text-muted);
+  font-size: 12px;
+}

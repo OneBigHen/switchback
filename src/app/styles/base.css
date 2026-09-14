@@ -31,6 +31,14 @@ body:has(.atlas-page) {
   overflow: visible;
 }
 
+/* The discovery presentation is a fixed viewport application again — its list
+   and its card rail own their own scrolling — so it opts back out of document
+   scrolling rather than producing two nested scrollers. */
+html:has(.atlas-page--discovery),
+body:has(.atlas-page--discovery) {
+  overflow: hidden;
+}
+
 html.ride-mode-active,
 body.ride-mode-active {
   width: 100%;

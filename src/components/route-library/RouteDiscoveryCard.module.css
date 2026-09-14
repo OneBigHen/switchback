@@ -1,0 +1,290 @@
+/* One route card, in two densities.
+ *
+ * list — the GPX Library row: geography on the left at the approved 45% of the
+ *        card width, rider-facing decision information on the right.
+ * rail — the Explore carousel card: geography on top, information beneath, and
+ *        the primary action visible without opening anything.
+ *
+ * Both use whitespace and type for grouping. There is exactly one border per
+ * card, so a screen of cards does not read as a stack of nested boxes.
+ */
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--sb-border);
+  border-radius: 18px;
+  background: var(--sb-surface);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.linkSurface,
+.selectSurface {
+  display: grid;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.linkSurface:focus-visible,
+.selectSurface:focus-visible,
+.viewRoute:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: -3px;
+}
+
+/* --- list density ------------------------------------------------------- */
+
+.list .linkSurface,
+.list .selectSurface {
+  grid-template-columns: 45% minmax(0, 1fr);
+  min-height: 118px;
+  align-items: stretch;
+  gap: 0;
+}
+
+.list .preview {
+  position: relative;
+  display: block;
+  min-height: 118px;
+  border-radius: 0;
+}
+
+.list .info {
+  min-width: 0;
+  padding: 11px 13px 12px;
+}
+
+/* --- rail density ------------------------------------------------------- */
+
+.rail .linkSurface,
+.rail .selectSurface {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.rail .preview {
+  position: relative;
+  display: block;
+  height: 96px;
+}
+
+.rail .info {
+  min-width: 0;
+  padding: 9px 13px 6px;
+}
+
+.rail .viewRoute {
+  display: flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 11px 10px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: var(--sb-action);
+  color: var(--sb-paper);
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.rail .viewRoute svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- shared content ----------------------------------------------------- */
+
+.preview {
+  overflow: hidden;
+  background: color-mix(in srgb, var(--sb-moss) 10%, var(--sb-surface));
+}
+
+.away {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sb-paper) 88%, transparent);
+  color: var(--sb-text);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.info {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+}
+
+.saved {
+  flex: none;
+  color: var(--sb-warning-text);
+}
+
+.saved svg {
+  width: 15px;
+  height: 15px;
+}
+
+.stats {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+}
+
+.statLead {
+  color: var(--sb-text);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stat[data-evidence="unknown"] {
+  font-style: italic;
+}
+
+.estimate {
+  padding: 0 4px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--sb-warning) 22%, transparent);
+  color: var(--sb-text);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.character {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.band {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentcolor 10%, transparent);
+  color: var(--sb-spruce);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* The four curvature anchors are canonical tokens now, so a card reads the
+   same on Explore, in the GPX Library and inside the app shell. */
+.band:global(.band-calm) { color: var(--sb-band-calm); }
+.band:global(.band-mellow) { color: var(--sb-band-mellow); }
+.band:global(.band-twisty) { color: var(--sb-band-twisty); }
+.band:global(.band-hairpin) { color: var(--sb-band-hairpin); }
+
+.surface {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.surface[data-evidence="unknown"] {
+  color: var(--sb-text-muted);
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.surface[data-evidence="estimated"]::after {
+  content: " · est";
+  color: var(--sb-warning-text);
+  font-weight: 800;
+}
+
+.area {
+  overflow: hidden;
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.story {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.visuallyHidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- selection ---------------------------------------------------------- */
+
+.isSelected {
+  border-color: var(--sb-action);
+  box-shadow: 0 0 0 1px var(--sb-action), var(--sb-shadow);
+}
+
+.isSelected .title {
+  color: var(--sb-ember-text);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    border-color: color-mix(in srgb, var(--sb-action) 45%, var(--sb-border));
+  }
+}
+
+@media (max-width: 360px) {
+  .list .linkSurface,
+  .list .selectSurface {
+    grid-template-columns: 42% minmax(0, 1fr);
+  }
+
+  .list .info {
+    padding: 10px 10px 11px;
+  }
+}

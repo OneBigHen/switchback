@@ -320,9 +320,9 @@ run_baselines() {
 unit-mobile-qa|||npx vitest run tests/unit/mobile-qa-artifacts.test.ts tests/unit/mobile-qa-devices.test.ts tests/unit/mobile-qa-reporter.test.ts tests/unit/mobile-qa-runtime.test.ts tests/unit/mobile-qa-scroll.test.ts
 typecheck|||npm run typecheck
 lint|||npm run lint
-playwright-fast-list|50|5|npx playwright test --config=playwright.mobile.config.ts --project=webkit-standard --project=chromium-standard --list
+playwright-fast-list|56|6|npx playwright test --config=playwright.mobile.config.ts --project=webkit-standard --project=chromium-standard --list
 playwright-prepare-list|7|1|npx playwright test --config=playwright.mobile.config.ts --project=webkit-prepare --list
-playwright-full-list|110|7|npx playwright test --config=playwright.mobile.config.ts --project=webkit-small --project=webkit-standard --project=webkit-large --project=webkit-standard-landscape --project=chromium-standard --list
+playwright-full-list|116|8|npx playwright test --config=playwright.mobile.config.ts --project=webkit-small --project=webkit-standard --project=webkit-large --project=webkit-standard-landscape --project=chromium-standard --list
 EOF
   local all_rc=0 name expected_tests expected_files command rc count_rc
   while IFS='|' read -r name expected_tests expected_files command; do
@@ -368,7 +368,7 @@ write_summary() {
 set -eu
 printf 'run_id=%s\\nmanifest_hash=%s\\nimage_id=%s\\n' '$RUN_ID' '$MANIFEST_HASH' '$EXPECTED_IMAGE_ID' > '$REMOTE_ROOT/summary.txt'
 printf 'unit-mobile-qa_exit=%s\\ntypecheck_exit=%s\\nlint_exit=%s\\n' "\$(sed -n 's/^unit-mobile-qa_exit=//p' '$REMOTE_ROOT/logs/unit-mobile-qa.log' | tail -1)" "\$(sed -n 's/^typecheck_exit=//p' '$REMOTE_ROOT/logs/typecheck.log' | tail -1)" "\$(sed -n 's/^lint_exit=//p' '$REMOTE_ROOT/logs/lint.log' | tail -1)" >> '$REMOTE_ROOT/summary.txt'
-printf 'playwright_fast_tests=50\\nplaywright_fast_files=5\\nplaywright_prepare_tests=7\\nplaywright_prepare_files=1\\nplaywright_full_tests=110\\nplaywright_full_files=7\\nbaseline_exit=%s\\n' '$baseline_rc' >> '$REMOTE_ROOT/summary.txt'
+printf 'playwright_fast_tests=56\\nplaywright_fast_files=6\\nplaywright_prepare_tests=7\\nplaywright_prepare_files=1\\nplaywright_full_tests=116\\nplaywright_full_files=8\\nbaseline_exit=%s\\n' '$baseline_rc' >> '$REMOTE_ROOT/summary.txt'
 cat '$REMOTE_ROOT/summary.txt'
 EOF
   cat "$LOCAL_LOG_ROOT/summary-write.txt"

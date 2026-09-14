@@ -59,7 +59,7 @@ export async function expectInteractiveElementsUnclipped(page: Page): Promise<vo
     const problems: string[] = []
     const describe = (element: HTMLElement): string => element.getAttribute("aria-label") ?? (element.textContent?.trim().slice(0, 40) || element.className || element.tagName.toLowerCase())
     for (const element of visible) {
-      if (element.closest(".planner-full-attribution") !== null) continue
+      if (element.closest(".planner-full-attribution,[data-provider-attribution=\"true\"]") !== null) continue
       const rect = element.getBoundingClientRect()
       if (rect.width <= 0 || rect.height <= 0) continue
       if (rect.right <= -1 || rect.left >= viewport.width + 1 || rect.bottom <= -1 || rect.top >= viewport.height + 1) continue
@@ -148,7 +148,7 @@ export async function expectMinimumTouchTargetSize(page: Page, minimum = 44): Pr
   const issues = await page.evaluate(({ minimum, selector }) => {
     const problems: string[] = []
     for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
-      if (element.closest(".planner-full-attribution") !== null) continue
+      if (element.closest(".planner-full-attribution,[data-provider-attribution=\"true\"]") !== null) continue
       const style = getComputedStyle(element)
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) continue
       const isHiddenFileInput = element.tagName === "INPUT"
@@ -197,7 +197,7 @@ export async function expectProviderAttributionLinks(page: Page): Promise<void> 
       if (center === null || (!element.contains(center) && !center.contains(element))) problems.push("provider attribution link is obscured at its center")
     }
     return problems
-  }, { minimum: PROVIDER_ATTRIBUTION_MINIMUM, selector: ".planner-full-attribution a" })
+  }, { minimum: PROVIDER_ATTRIBUTION_MINIMUM, selector: ".planner-full-attribution a,[data-provider-attribution=\"true\"] a" })
   assertNoIssues(issues, `provider attribution links must be at least ${PROVIDER_ATTRIBUTION_MINIMUM.width}x${PROVIDER_ATTRIBUTION_MINIMUM.height}px and reachable`)
 }
 
@@ -409,7 +409,12 @@ export function expectNoUnexpectedNetworkFailures(
   options: RuntimeIssueExpectation = {},
 ): void {
   const failures = (collector?.failedRequests ?? [])
-    .filter((failure) => !isExpectedProviderHealthAbort(failure) && !options.ignore?.(failure))
+    .filter((failure) => !isExpectedProviderHealthAbort(failure)
+      && !isExpectedOptionalOverlayAbort(failure)
+      && !isExpectedRouteTrafficAbort(failure)
+      && !isExpectedMapStyleAbort(failure)
+      && !isExpectedStaticFontAbort(failure)
+      && !options.ignore?.(failure))
   expect(failures, "unexpected failed network requests").toEqual([])
 }
 
@@ -426,15 +431,82 @@ export function isExpectedRouteWeatherAbort(failure: string): boolean {
 }
 
 /**
+ * Route traffic is advisory and belongs to the selected route's temporary
+ * surface. Leaving that surface aborts its in-flight POST by design; keep the
+ * exact cancellation outcome distinct from a failed traffic provider.
+ */
+export function isExpectedRouteTrafficAbort(failure: string): boolean {
+  const match = /^POST (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return url.pathname === "/api/route-traffic"
+      && url.search === ""
+      && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * MapLibre loads one of the three known OpenFreeMap styles for the map
+ * surface. When a navigation transition or page teardown removes that map
+ * before the style response arrives, WebKit reports the intentionally
+ * abandoned load as a request failure. Keep the host, path, and cancellation
+ * reason exact so a real style outage remains visible.
+ */
+const MAP_STYLE_PATHS: ReadonlySet<string> = new Set([
+  "/styles/positron",
+  "/styles/liberty",
+  "/styles/fiord",
+])
+
+export function isExpectedMapStyleAbort(failure: string): boolean {
+  const match = /^GET (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return url.hostname === "tiles.openfreemap.org"
+      && MAP_STYLE_PATHS.has(url.pathname)
+      && url.search === ""
+      && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The bundled Oswald face can be abandoned by WebKit while a reload swaps the
+ * document. Match only the exact Next static asset family observed in that
+ * lifecycle transition; missing assets and other fonts must still fail QA.
+ */
+export function isExpectedStaticFontAbort(failure: string): boolean {
+  const match = /^GET (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return /^\/_next\/static\/media\/oswald-latin-wght-normal\.[A-Za-z0-9_-]+\.woff2$/.test(url.pathname)
+      && url.search === ""
+      && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
  * Surfaces that ask the server what it can do as soon as they mount, and
  * cancel the question in cleanup.
  *
- * Provider health and the advisor capability are both answered before the
- * rider can act on them, so a rider who taps away first leaves a cancelled
- * request behind by design. Cancellation is the only tolerated outcome: a 4xx
- * or 5xx from either endpoint is still a failure this suite must catch.
+ * Provider health, advisor capability, and route-catalog discovery are
+ * answered before the rider can act on them, so a rider who taps away first
+ * leaves a cancelled request behind by design. Cancellation is the only
+ * tolerated outcome: a 4xx or 5xx from any endpoint is still a failure this
+ * suite must catch.
  */
-const CANCELLABLE_PROBE_PATHS: ReadonlySet<string> = new Set(["/api/health", "/api/advisor"])
+const CANCELLABLE_PROBE_PATHS: ReadonlySet<string> = new Set(["/api/health", "/api/advisor", "/api/route-catalog"])
 
 export function isExpectedProviderHealthAbort(failure: string): boolean {
   const match = /^GET (\S+) failed: (.+)$/.exec(failure)
@@ -442,6 +514,29 @@ export function isExpectedProviderHealthAbort(failure: string): boolean {
   try {
     const url = new URL(match[1])
     return CANCELLABLE_PROBE_PATHS.has(url.pathname) && url.search === "" && url.hash === ""
+      && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Optional map overlays are fetched while rider surfaces mount, then are
+ * cancelled when the surface is replaced or the test tears it down. Keep
+ * those deliberate cancellations distinct from capability probes so a real
+ * overlay error (HTTP failure or connection reset) remains visible.
+ */
+const OPTIONAL_OVERLAY_PATHS: ReadonlySet<string> = new Set([
+  "/api/curvature",
+  "/api/pa-unpaved-roads",
+])
+
+export function isExpectedOptionalOverlayAbort(failure: string): boolean {
+  const match = /^GET (\S+) failed: (.+)$/.exec(failure)
+  if (match === null) return false
+  try {
+    const url = new URL(match[1])
+    return OPTIONAL_OVERLAY_PATHS.has(url.pathname)
       && (match[2] === "Load request cancelled" || match[2] === "net::ERR_ABORTED")
   } catch {
     return false

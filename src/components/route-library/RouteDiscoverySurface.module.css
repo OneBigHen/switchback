@@ -1,0 +1,409 @@
+/* Route discovery: one query, two presentations.
+ *
+ * Phone composition follows the approved references — a compact header that
+ * stays out of the way, then either a map that owns roughly two thirds of the
+ * workspace with a snapping card rail beneath it, or a single-column list of
+ * geographic cards.
+ */
+
+.surface {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--sb-canvas);
+}
+
+.header {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 9px var(--sb-space-4) 6px;
+  border-bottom: 1px solid var(--sb-border);
+  background: var(--sb-canvas);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  color: var(--sb-text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.summary {
+  margin: -4px 0 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Map | List. A segmented control, not two buttons that look like actions. */
+.viewToggle {
+  display: inline-flex;
+  flex: none;
+  padding: 3px;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: var(--sb-surface-raised);
+}
+
+.viewToggle button {
+  min-width: 54px;
+  min-height: var(--sb-touch-target);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.viewToggle button:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 1px;
+}
+
+.viewOn {
+  background: var(--sb-surface);
+  box-shadow: 0 1px 3px rgb(22 29 28 / 12%);
+  color: var(--sb-ember-text) !important;
+}
+
+.searchField {
+  display: flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  background: var(--sb-surface);
+}
+
+.searchField svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--sb-text-muted);
+}
+
+.searchField input {
+  min-width: 0;
+  min-height: var(--sb-touch-target);
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.searchField input:focus {
+  outline: none;
+}
+
+.searchField:focus-within {
+  border-color: var(--sb-focus-ring);
+  box-shadow: 0 0 0 3px var(--sb-focus-fill);
+}
+
+.chipRow {
+  display: flex;
+  overflow-x: auto;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  margin: 0 calc(var(--sb-space-4) * -1);
+  padding: 2px var(--sb-space-4);
+  scrollbar-width: none;
+}
+
+.chipRow::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 0 11px;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.chip svg {
+  width: 15px;
+  height: 15px;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--sb-action);
+  background: color-mix(in srgb, var(--sb-action) 14%, var(--sb-surface));
+  color: var(--sb-ember-text);
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
+.filters {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  background: var(--sb-surface);
+}
+
+.filterGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.filterLabel {
+  color: var(--sb-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filterChip {
+  min-height: var(--sb-touch-target);
+  padding: 0 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: 10px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.filterChip:global(.band-calm)[aria-pressed="true"] { border-color: var(--sb-band-calm); }
+.filterChip:global(.band-mellow)[aria-pressed="true"] { border-color: var(--sb-band-mellow); }
+.filterChip:global(.band-twisty)[aria-pressed="true"] { border-color: var(--sb-band-twisty); }
+.filterChip:global(.band-hairpin)[aria-pressed="true"] { border-color: var(--sb-band-hairpin); }
+
+.filterChip[aria-pressed="true"] {
+  border-color: var(--sb-action);
+  background: color-mix(in srgb, var(--sb-action) 12%, var(--sb-surface));
+  color: var(--sb-ember-text);
+}
+
+.filterChip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.select {
+  min-height: var(--sb-touch-target);
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: 10px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.resultBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Map mode keeps the count (and the way back out of a filter) reachable
+   without spending a row of header on it. */
+.resultBar[data-compact="true"] {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip-path: inset(50%);
+}
+
+.resultBar[data-compact="true"] .reset {
+  position: static;
+}
+
+.reset {
+  min-height: var(--sb-touch-target);
+  padding: 0 10px;
+  border: 1px solid var(--sb-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sb-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* --- map mode ----------------------------------------------------------- */
+
+.mapMode {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.mapPane {
+  position: relative;
+  min-height: 0;
+}
+
+.rail {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  padding: 10px var(--sb-space-4) 12px;
+  margin: 0;
+  list-style: none;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* One card dominates; the next one peeks so horizontal browsing is obvious
+   without a hint or a dot row. */
+.railItem {
+  flex: 0 0 78%;
+  max-width: 320px;
+  scroll-snap-align: center;
+}
+
+/* The rail is a browsing aid above the map, not the surface itself: it takes
+   the height one card needs and no more, so the map keeps the workspace. */
+.rail {
+  flex: 0 0 auto;
+}
+
+/* --- list mode ---------------------------------------------------------- */
+
+.list {
+  display: grid;
+  min-width: 0;
+  overflow-y: auto;
+  min-height: 0;
+  gap: 10px;
+  padding: 12px var(--sb-space-4) 20px;
+  margin: 0;
+  list-style: none;
+}
+
+.empty {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 28px var(--sb-space-4);
+  justify-items: center;
+  text-align: center;
+}
+
+.empty strong {
+  color: var(--sb-text);
+  font-size: 15px;
+}
+
+.empty p {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--sb-text-muted);
+  font-size: 13px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Tablet and wider keep a genuine two-column browse rather than a stretched
+   phone list; the map mode gains a side rail instead of a bottom carousel. */
+@media (min-width: 760px) {
+  .header {
+    padding: 16px var(--sb-space-6) 12px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .list {
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    padding: 16px var(--sb-space-6) 24px;
+  }
+
+  .chipRow {
+    margin: 0;
+    padding: 2px 0;
+  }
+}
+
+@media (min-width: 900px) {
+  .mapMode {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+
+  .rail {
+    display: grid;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-content: start;
+    grid-auto-rows: max-content;
+    border-left: 1px solid var(--sb-border);
+    scroll-snap-type: none;
+  }
+
+  .railItem {
+    max-width: none;
+    flex: none;
+  }
+}

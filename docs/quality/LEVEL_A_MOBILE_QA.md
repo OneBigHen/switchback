@@ -46,11 +46,11 @@ portrait projects:
 - `webkit-standard` — WebKit/iPhone approximation, 390x844, touch enabled;
 - `chromium-standard` — Chromium comparison, 390x844, touch enabled.
 
-The FAST command is an exact 50-test inventory across the five core spec files.
-It runs four sequential Playwright invocations: `webkit-core` (the four core
+The FAST command is an exact 56-test inventory across the six core spec files.
+It runs four sequential Playwright invocations: `webkit-core` (the five core
 files other than Ride), `webkit-free-ride-suggestion` (the single suggestion
 acceptance test), `webkit-ride` (the remaining six Ride tests), and
-`chromium-core` (all five files). The three WebKit invocations deliberately
+`chromium-core` (all six files). The three WebKit invocations deliberately
 recycle the browser process around the resource-heavy Free Ride flow while
 keeping the same `webkit-standard` project and iPhone 14 profile. This is a
 Linux resource-isolation approximation; it is not proof of iOS Safari or a
@@ -59,8 +59,8 @@ physical device.
 Each invocation selects exactly one expected project, uses one worker and zero
 retries, and independent invocations continue after a failure so that the
 aggregate evidence is complete. The command exits nonzero if any invocation
-fails, selects zero tests, selects duplicate tests, or misses any of the 50
-tests. `--list` validates the same FAST50/5-file inventory without running
+fails, selects zero tests, selects duplicate tests, or misses any of the 56
+tests. `--list` validates the same FAST56/6-file inventory without running
 tests; `--dry-run` performs no writes and prints the no-browser discovery
 command plus the three chunk commands (four plan lines). With `--list`, all
 four plan lines are inventory-only and explicitly `NOT RUN`. PREPARE and FULL

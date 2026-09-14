@@ -15,29 +15,29 @@ describe("typed application navigation", () => {
     expect(initial.backStack).toEqual([])
   })
 
-  it("moves plan → rides → discover → settings without duplicating routing state", () => {
+  it("moves plan → saved → explore → settings without duplicating routing state", () => {
     const initial = createInitialAppNavigationState("auto")
-    const rides = appNavigationReducer(initial, { type: "select_destination", destination: "rides" })
+    const saved = appNavigationReducer(initial, { type: "select_destination", destination: "saved" })
 
-    expect(rides.destination).toBe("rides")
-    expect(rides.overlays).toEqual([])
-    expect(rides.backStack.at(-1)).toEqual({ kind: "destination", destination: "plan" })
+    expect(saved.destination).toBe("saved")
+    expect(saved.overlays).toEqual([])
+    expect(saved.backStack.at(-1)).toEqual({ kind: "destination", destination: "plan" })
 
-    const discover = appNavigationReducer(rides, { type: "select_destination", destination: "discover" })
-    expect(discover.destination).toBe("discover")
-    expect(discover.backStack.at(-1)).toEqual({ kind: "destination", destination: "rides" })
+    const explore = appNavigationReducer(saved, { type: "select_destination", destination: "explore" })
+    expect(explore.destination).toBe("explore")
+    expect(explore.backStack.at(-1)).toEqual({ kind: "destination", destination: "saved" })
 
-    const settings = appNavigationReducer(discover, { type: "select_destination", destination: "settings" })
+    const settings = appNavigationReducer(explore, { type: "select_destination", destination: "settings" })
     expect(settings.destination).toBe("settings")
-    expect(settings.backStack.at(-1)).toEqual({ kind: "destination", destination: "discover" })
+    expect(settings.backStack.at(-1)).toEqual({ kind: "destination", destination: "explore" })
   })
 
   it("clears open advanced overlays when the destination changes", () => {
     const initial = createInitialAppNavigationState("auto")
     const withAdvanced = appNavigationReducer(initial, { type: "open_overlay", overlay: "advanced-settings" })
-    const rides = appNavigationReducer(withAdvanced, { type: "select_destination", destination: "rides" })
+    const rides = appNavigationReducer(withAdvanced, { type: "select_destination", destination: "saved" })
 
-    expect(rides.destination).toBe("rides")
+    expect(rides.destination).toBe("saved")
     expect(rides.overlays).toEqual([])
   })
 
@@ -81,13 +81,13 @@ describe("typed application navigation", () => {
 
   it("closes overlays with back before changing destination", () => {
     const initial = createInitialAppNavigationState("auto")
-    const rides = appNavigationReducer(initial, { type: "select_destination", destination: "rides" })
-    const withAdvanced = appNavigationReducer(rides, { type: "open_overlay", overlay: "advanced-settings" })
+    const saved = appNavigationReducer(initial, { type: "select_destination", destination: "saved" })
+    const withAdvanced = appNavigationReducer(saved, { type: "open_overlay", overlay: "advanced-settings" })
 
     const afterBack = appNavigationReducer(withAdvanced, { type: "back" })
 
     expect(afterBack.overlays).toEqual([])
-    expect(afterBack.destination).toBe("rides")
+    expect(afterBack.destination).toBe("saved")
 
     const backToPlan = appNavigationReducer(afterBack, { type: "back" })
 
@@ -95,9 +95,17 @@ describe("typed application navigation", () => {
     expect(backToPlan.backStack).toEqual([])
   })
 
-  it("maps legacy ?tab=library to the rides destination", () => {
+  it("migrates superseded tabs onto the approved destinations", () => {
     expect(destinationFromLocation("https://switchback.app/?tab=library")).toEqual({
-      destination: "rides",
+      destination: "saved",
+      overlays: []
+    })
+    expect(destinationFromLocation("https://switchback.app/?tab=rides")).toEqual({
+      destination: "saved",
+      overlays: []
+    })
+    expect(destinationFromLocation("https://switchback.app/?tab=discover")).toEqual({
+      destination: "explore",
       overlays: []
     })
   })
@@ -116,12 +124,25 @@ describe("typed application navigation", () => {
     })
   })
 
-  it("reads V2 destinations and rejects unknown tab values", () => {
-    expect(destinationFromLocation("https://switchback.app/?tab=rides")).toEqual({ destination: "rides", overlays: [] })
-    expect(destinationFromLocation("https://switchback.app/?tab=discover")).toEqual({ destination: "discover", overlays: [] })
+  it("reads current destinations and rejects unknown tab values", () => {
+    expect(destinationFromLocation("https://switchback.app/?tab=saved")).toEqual({ destination: "saved", overlays: [] })
+    expect(destinationFromLocation("https://switchback.app/?tab=explore")).toEqual({ destination: "explore", overlays: [] })
     expect(destinationFromLocation("https://switchback.app/?tab=settings")).toEqual({ destination: "settings", overlays: [] })
     expect(destinationFromLocation("https://switchback.app/?tab=not-a-tab")).toEqual({ destination: "plan", overlays: [] })
     expect(destinationFromLocation("https://switchback.app/plan")).toEqual({ destination: "plan", overlays: [] })
+  })
+
+  it("opens the Record surface for an explicit ?open=record hand-off", () => {
+    // Pages outside the app shell (the GPX Library) hand the rider back to
+    // Record this way. Showing the panel still starts no recording.
+    expect(destinationFromLocation("https://switchback.app/?open=record")).toEqual({
+      destination: "plan",
+      overlays: ["record"]
+    })
+    expect(destinationFromLocation("https://switchback.app/?tab=explore&open=record")).toEqual({
+      destination: "explore",
+      overlays: ["record"]
+    })
   })
 
   it("restores a URL-derived destination and replaces overlays without pushing history", () => {
@@ -130,11 +151,11 @@ describe("typed application navigation", () => {
 
     const restored = appNavigationReducer(withAdvanced, {
       type: "restore_destination",
-      destination: "rides",
+      destination: "saved",
       overlays: []
     })
 
-    expect(restored.destination).toBe("rides")
+    expect(restored.destination).toBe("saved")
     expect(restored.overlays).toEqual([])
     expect(restored.backStack).toEqual([])
   })
@@ -157,7 +178,7 @@ describe("typed application navigation", () => {
     expect(appModeForState({ surface: "planner", destination: "plan", hasPlan: false })).toBe("explore")
     expect(appModeForState({ surface: "planner", destination: "plan", hasPlan: true })).toBe("plan")
     expect(appModeForState({ surface: "ride", destination: "plan", hasPlan: true })).toBe("ride")
-    expect(appModeForState({ surface: "planner", destination: "rides", hasPlan: false })).toBe("library")
+    expect(appModeForState({ surface: "planner", destination: "saved", hasPlan: false })).toBe("library")
     expect(appModeForState({ surface: "planner", destination: "settings", hasPlan: false })).toBe("explore")
   })
 

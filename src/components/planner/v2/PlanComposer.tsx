@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, CaretDown, MapPin, Microphone, NavigationArrow, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
+import { ArrowRight, CaretDown, MapPin, Microphone, Path, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
 import { useCallback, useEffect, useRef, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
@@ -81,6 +81,10 @@ export interface PlanComposerProps {
   onSaveHome?(): void
   onClearHome?(): void
   onStartFreeRide?(): void
+  /** The one primary commitment: turn what the rider asked for into a ride. */
+  onCreateRide(): void
+  createDisabled: boolean
+  createLabel: string
   stopIdeas?: PlaceIdeasResult | null
   onChooseStopIdea?(stop: Waypoint): void
   researchStatus?: "idle" | "researching"
@@ -158,6 +162,9 @@ export function PlanComposer({
   onSaveHome,
   onClearHome,
   onStartFreeRide,
+  onCreateRide,
+  createDisabled,
+  createLabel,
   stopIdeas,
   onChooseStopIdea,
   researchStatus = "idle",
@@ -173,6 +180,17 @@ export function PlanComposer({
   // prompt. Route planning already fences stale provider responses; only the
   // intent interpreter itself needs to block a new prompt submission.
   const canSubmitRequest = ridePrompt.trim().length >= 3 && !intentBusy
+
+  const waypointLabel = (point: Waypoint | null, fallback: string) => point?.label?.trim() || fallback
+  const rideStateLine = planMode === "loop"
+    ? start
+      ? `Starts and ends at ${waypointLabel(start, "your start")}`
+      : "Choose where the loop starts"
+    : start && finish
+      ? `${waypointLabel(start, "Start")} → ${waypointLabel(finish, "Finish")}`
+      : start
+        ? "Add a destination, or describe the ride above"
+        : "Choose a start, or describe the ride above"
 
   const cancelPlacement = useCallback(() => {
     if (addingVia) {
@@ -272,22 +290,14 @@ export function PlanComposer({
           </button>
         </form>
 
+        <PlanModeSelector
+          value={planMode}
+          onChange={onPlanModeChange}
+          {...onStartFreeRide ? { onStartFreeRide } : {}}
+          disabled={requestBusy}
+        />
+
         <div className="plan-v2__action-rail">
-          <PlanModeSelector
-            value={planMode}
-            onChange={onPlanModeChange}
-            disabled={requestBusy}
-          />
-          <button type="button" className="plan-v2__draw-action" disabled={requestBusy} onClick={onDraw}>
-            <PencilLine aria-hidden="true" />
-            <span>Draw route</span>
-          </button>
-          {onStartFreeRide ? (
-            <button type="button" className="plan-v2__free-ride" disabled={requestBusy} onClick={onStartFreeRide}>
-              <NavigationArrow weight="fill" aria-hidden="true" />
-              <span>Free Ride</span>
-            </button>
-          ) : null}
           <PlanOptions
             open={editing}
             onToggle={() => onEditingChange(!editing)}
@@ -345,14 +355,49 @@ export function PlanComposer({
               <CaretDown weight="bold" aria-hidden="true" />
             </button>
           ) : null}
-          {placementActive ? (
-            <button type="button" className="plan-v2__placement-cancel" aria-label="Cancel map placement" onClick={cancelPlacement}>
-              <X weight="bold" aria-hidden="true" />
-              <span>Cancel placement</span>
-              <kbd>Esc</kbd>
-            </button>
-          ) : null}
         </div>
+
+        {/* One primary commitment, one quiet alternative. Everything else on
+            this surface is a way of describing the ride; these two are the
+            ways of making one. */}
+        <div className="plan-v2__commit">
+          <button
+            type="button"
+            className="plan-v2__create-ride"
+            disabled={createDisabled}
+            aria-busy={requestBusy}
+            onClick={onCreateRide}
+          >
+            {requestBusy ? <SpinnerGap className="spin" aria-hidden="true" /> : <Path weight="bold" aria-hidden="true" />}
+            <span>{createLabel}</span>
+          </button>
+          <button
+            type="button"
+            className="plan-v2__draw-action"
+            aria-label="Draw manually"
+            disabled={requestBusy}
+            onClick={onDraw}
+          >
+            <PencilLine aria-hidden="true" />
+            <span>Draw manually</span>
+          </button>
+        </div>
+
+        {/* What kind of ride this is and how ready it is — the one thing the
+            preferences row above does not say. Kept to two short lines so the
+            map keeps the space it needs. */}
+        <p className="plan-v2__ride-state">
+          <strong>{planMode === "loop" ? "Loop ride" : "Destination ride"}</strong>
+          <span>{rideStateLine}</span>
+        </p>
+
+        {placementActive ? (
+          <button type="button" className="plan-v2__placement-cancel" aria-label="Cancel map placement" onClick={cancelPlacement}>
+            <X weight="bold" aria-hidden="true" />
+            <span>Cancel placement</span>
+            <kbd>Esc</kbd>
+          </button>
+        ) : null}
       </div>
 
       {error ? (

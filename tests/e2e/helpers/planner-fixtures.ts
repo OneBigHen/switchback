@@ -227,7 +227,7 @@ export async function openPlannerEditor(page: Page): Promise<void> {
   if (await editRoute.isVisible().catch(() => false)) await editRoute.click()
   // V2 has one disclosure authority. A real tap must reach Ride options; force-click
   // would hide the exact mobile overlap regression this helper is meant to catch.
-  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  const options = page.getByRole("button", { name: /^Ride options/ })
   await expect(options).toBeVisible({ timeout: 15_000 })
   // That single authority is why this is a state, not a tap: "Edit route" and
   // "Ride options" drive the same `editing` flag, so clicking unconditionally

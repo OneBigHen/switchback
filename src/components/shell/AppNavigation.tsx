@@ -1,20 +1,20 @@
 "use client"
 
-import { Compass, GearSix, MapTrifold, Path, Record } from "@phosphor-icons/react"
+import type { MapTrifold } from "@phosphor-icons/react"
 import { OpenGravelMark } from "@/components/brand/OpenGravelMark"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import type { PrimaryDestination } from "@/lib/client/app-navigation"
+import { NAV_ITEMS_BEFORE_RECORD, PRIMARY_NAV_ITEMS, RECORD_NAV_ITEM } from "./primary-nav-items"
 
-const destinations: Array<{
-  destination: PrimaryDestination
-  label: string
-  icon: typeof MapTrifold
-}> = [
-  { destination: "plan", label: "Plan", icon: MapTrifold },
-  { destination: "rides", label: "Rides", icon: Path },
-  { destination: "discover", label: "Discover", icon: Compass },
-  { destination: "settings", label: "Settings", icon: GearSix }
-]
+/**
+ * The approved mobile model, in order: `Plan · Explore · Saved · Record ·
+ * Settings`.
+ *
+ * Four of those are places the rider can *be*; Record starts a task. That
+ * distinction is real — it decides whether selecting the item changes the URL
+ * and the back stack — so Record keeps its activity marking even though it
+ * sits in the same bar at the same weight.
+ */
 
 interface AppNavigationProps {
   activeDestination: PrimaryDestination
@@ -22,11 +22,6 @@ interface AppNavigationProps {
   onOpenRecord(): void
 }
 
-/**
- * Primary navigation owns OpenGravel's four persistent destinations. Record is
- * intentionally separate because it starts a task rather than changing the
- * rider's top-level place in the application.
- */
 export function AppNavigation({
   activeDestination,
   onSelect,
@@ -42,25 +37,56 @@ export function AppNavigation({
         </span>
       </div>
       <div className="app-navigation-primary" role="group" aria-label="Primary destinations">
-        {destinations.map(({ destination, label, icon: Icon }) => (
-          <button
+        {PRIMARY_NAV_ITEMS.slice(0, NAV_ITEMS_BEFORE_RECORD).map(({ destination, label, icon: Icon }) => (
+          <NavItem
             key={destination}
-            type="button"
-            className={activeDestination === destination ? "is-active" : undefined}
-            aria-current={activeDestination === destination ? "page" : undefined}
+            label={label}
+            icon={Icon}
+            active={activeDestination === destination}
             onClick={() => onSelect(destination)}
-          >
-            <Icon aria-hidden="true" />
-            <span>{label}</span>
-          </button>
+          />
+        ))}
+        <NavItem
+          label={RECORD_NAV_ITEM.label}
+          icon={RECORD_NAV_ITEM.icon}
+          active={false}
+          cluster="secondary"
+          onClick={onOpenRecord}
+        />
+        {PRIMARY_NAV_ITEMS.slice(NAV_ITEMS_BEFORE_RECORD).map(({ destination, label, icon: Icon }) => (
+          <NavItem
+            key={destination}
+            label={label}
+            icon={Icon}
+            active={activeDestination === destination}
+            onClick={() => onSelect(destination)}
+          />
         ))}
       </div>
-      <div className="app-navigation-secondary" data-nav-cluster="secondary">
-        <button type="button" onClick={onOpenRecord}>
-          <Record aria-hidden="true" />
-          <span>Record</span>
-        </button>
-      </div>
     </nav>
+  )
+}
+
+interface NavItemProps {
+  label: string
+  icon: typeof MapTrifold
+  active: boolean
+  cluster?: "secondary"
+  onClick(): void
+}
+
+function NavItem({ label, icon: Icon, active, cluster, onClick }: NavItemProps) {
+  return (
+    <button
+      type="button"
+      className={active ? "is-active" : undefined}
+      aria-current={active ? "page" : undefined}
+      data-nav-cluster={cluster}
+      data-nav-item={label.toLowerCase()}
+      onClick={onClick}
+    >
+      <Icon aria-hidden="true" />
+      <span>{label}</span>
+    </button>
   )
 }

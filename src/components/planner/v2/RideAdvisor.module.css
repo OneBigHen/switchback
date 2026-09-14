@@ -105,10 +105,10 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   width: 100%;
-  min-height: 72px;
+  min-height: var(--sb-touch-target);
   align-items: center;
-  gap: 11px;
-  padding: 8px 10px;
+  gap: 10px;
+  padding: 6px 10px;
   border: 0;
   border-radius: inherit;
   background: transparent;
@@ -609,5 +609,29 @@
   .avatar[data-size="large"] {
     width: 48px;
     height: 48px;
+  }
+}
+
+/* Phone: one compact invitation row. A large always-visible advisor card is
+   the most expensive thing a planner can reserve on a 390px screen, and the
+   rider has not asked for it yet. */
+.goblinInvitePitch {
+  display: none;
+}
+
+.goblinInviteAction svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (min-width: 761px) {
+  .goblinInviteButton {
+    min-height: 72px;
+    gap: 11px;
+    padding: 8px 10px;
+  }
+
+  .goblinInvitePitch {
+    display: block;
   }
 }

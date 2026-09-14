@@ -9,6 +9,11 @@ const artifactRoot = process.env.MOBILE_QA_ARTIFACT_ROOT ?? "artifacts/mobile-qa
 const inventoryMode = process.env.MOBILE_QA_INVENTORY === "1"
 const localBaseUrl = `http://localhost:${testPort}`
 const localSessionSecret = "switchback-playwright-local-session-secret"
+// The shared Route Library is read by server components, so the mobile suite
+// must serve the committed fixture catalog just like the main Playwright
+// quality config. Otherwise Explore and GPX Library silently exercise their
+// empty states instead of the approved geographic-preview surfaces.
+const routeLibraryFixture = "tests/fixtures/route-library"
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -36,7 +41,7 @@ export default defineConfig({
   },
   projects: mobileQaProjects(),
   webServer: externalBaseUrl ? undefined : {
-    command: `SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} npx next dev --hostname 127.0.0.1 --port ${testPort}`,
+    command: `GPX_LIBRARY_PATH=${routeLibraryFixture} SWITCHBACK_SESSION_SECRET=${localSessionSecret} SWITCHBACK_WEBAUTHN_RP_ID=localhost SWITCHBACK_WEBAUTHN_ORIGIN=${localBaseUrl} npx next dev --hostname 127.0.0.1 --port ${testPort}`,
     url: localBaseUrl,
     reuseExistingServer: false,
     timeout: 120_000,

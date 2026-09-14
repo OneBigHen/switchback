@@ -61,7 +61,7 @@ async function settleVisualFrame(page: Page): Promise<void> {
 
 async function expectPlanReady(page: Page): Promise<void> {
   await expect(page.getByRole("combobox", { name: "Ride request" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Ride options", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Ride options/ })).toBeVisible()
 }
 
 async function assertIdlePlanGeometry(page: Page, viewport: { width: number; height: number }): Promise<void> {
@@ -126,7 +126,7 @@ async function planFixtureRoute(page: Page, capture: RouteCapture): Promise<void
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expectRouteOutcome(page, capture)
 }
 
@@ -148,10 +148,10 @@ for (const viewport of VIEWPORTS) {
     test("Rides screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Rides", exact: true }).click()
-      const panel = page.getByRole("main", { name: "Rides destination" })
+      await page.getByRole("button", { name: "Saved", exact: true }).click()
+      const panel = page.getByRole("main", { name: "My Rides destination" })
       await assertPanelVisible(panel)
-      await expect(page.getByRole("region", { name: "Rides" })).toBeVisible()
+      await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
       await expect(page).toHaveScreenshot(`rides-${viewport.name}.png`, screenshotOptions(page))
     })
 

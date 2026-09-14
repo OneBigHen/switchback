@@ -27,55 +27,19 @@
   align-items: stretch;
 }
 
-/* Destination and Loop are persistent trip shape. Draw is deliberately not a
-   third segment: it is an action on the map and lives in the action row below. */
+/* One mode family: To, Loop and Free Ride are the three shapes a ride can
+   take. Drawing a route by hand is an action on the map, not a shape, so it
+   stays out of this control. */
 .plan-v2__mode-selector {
   flex: 1 1 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-color: color-mix(in srgb, var(--sb-border) 78%, transparent);
   background: color-mix(in srgb, var(--sb-surface-raised) 72%, transparent);
 }
 
-.plan-v2__draw-action,
-.plan-v2__free-ride,
 .plan-v2__options-trigger {
   min-width: 0;
   flex: 1 1 0;
-}
-
-.plan-v2__draw-action {
-  display: inline-flex;
-  min-height: var(--sb-touch-target);
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 9px;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius-chip);
-  background: var(--sb-surface);
-  color: var(--sb-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.plan-v2__draw-action:hover:not(:disabled),
-.plan-v2__draw-action:focus-visible:not(:disabled) {
-  border-color: var(--sb-focus-ring);
-  background: var(--sb-surface-raised);
-}
-
-.plan-v2__draw-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.52;
-}
-
-.plan-v2__draw-action svg {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 auto;
 }
 
 .plan-v2__minimize-control {
@@ -324,6 +288,21 @@
   padding-top: 14px;
 }
 
+/* On a phone the default planner has a height budget it must not overspend:
+   the whole approved composition — request, mode, preferences, Create ride,
+   Draw manually, ride state and the advisor row — has to fit inside it, or
+   the map pays for the padding. */
+@media (max-width: 760px) {
+  .planner-deck.is-idle-plan .planner-scroll {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .planner-deck.is-idle-plan .planner-stage-content {
+    margin-top: 6px;
+  }
+}
+
 @media (min-width: 761px) {
   .planner-deck {
     width: min(420px, calc(100vw - 112px));
@@ -333,33 +312,33 @@
       0 2px 8px rgb(20 29 27 / 8%);
   }
 
-  .planner-scroll {
+.planner-scroll {
     padding: 14px 16px 22px;
   }
 
-  .deck-header {
+.deck-header {
     margin: 0 0 10px;
   }
 
-  .planner-minimize,
+.planner-minimize,
   .planner-full-map-tools {
     min-width: var(--sb-touch-target);
     width: var(--sb-touch-target);
     min-height: var(--sb-touch-target);
     height: var(--sb-touch-target);
   }
+
 }
 
 /* Portrait tablets keep the compact ~360px planner even though the app has
    crossed into rail navigation. Size the secondary actions from available
    space so nothing wraps into a confusing orphan row. */
 @media (max-width: 800px) {
-  .plan-v2__draw-action,
-  .plan-v2__free-ride,
   .plan-v2__options-trigger {
     min-width: 0;
     flex: 1 1 0;
   }
+
 }
 
 @media (max-width: 760px) {
@@ -367,34 +346,31 @@
     gap: 7px;
   }
 
-  .plan-v2__search {
+.plan-v2__search {
     min-height: 48px;
   }
 
-  .plan-v2__action-rail {
+.plan-v2__action-rail {
     gap: 6px;
   }
 
-  .plan-v2__draw-action,
-  .plan-v2__free-ride,
-  .plan-v2__options-trigger {
-    padding-inline: 7px;
-    font-size: 11px;
+.plan-v2__options-trigger {
+    padding-inline: 10px;
   }
 
-  .plan-v2__options-panel {
+.plan-v2__options-panel {
     padding-inline: 8px;
   }
 
-  .planner-route-context {
+.planner-route-context {
     padding: 8px 9px;
   }
 
-  .planner-route-context__identity strong {
+.planner-route-context__identity strong {
     font-size: 14px;
   }
 
-  /* A sticky header inside the half-height phone sheet can cover the next
+/* A sticky header inside the half-height phone sheet can cover the next
      preparation control when the browser scrolls that control into view.
      Keep route identity in normal flow on touch-sized layouts so every
      control remains physically tappable; desktop retains the sticky context. */
@@ -402,51 +378,62 @@
     position: static;
     padding-top: 4px;
   }
+
 }
 
-/* At 320px the rail used to hide the Draw and Free Ride labels and leave two
-   bare glyphs beside a fully labelled "Ride options" -- the two distinctive
-   actions were the least discoverable things on the sheet, and the mundane one
-   kept its label. Squeezing all four onto one row cannot fit compact text, so
-   the rail wraps instead: Draw and Free Ride share a labelled row, options and
-   the collapse control take the row below. Costs one row of sheet height on
-   the shortest phones and keeps every action readable. */
+/* The narrowest phones need Preferences and Minimize to share one row. The
+   summary is allowed to ellipsize so the control does not create a third
+   action row and overspend the idle sheet's map budget. */
 @media (max-width: 360px),
        (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
-  .plan-v2__draw-action,
-  .plan-v2__free-ride {
-    flex: 1 1 calc(50% - 3px);
-    min-width: 0;
-    justify-content: center;
+  .plan-v2__options-trigger {
+    flex: 1 1 100%;
+  }
+
+/* Once each control owns half a row it has room for its own words,
+so stop
+     breaking mid-word -- the short-landscape rail was rendering "Ride option
+     s" across three lines. */
+  .plan-v2__draw-action span,
+.plan-v2__options-trigger span {
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
+}
+
+@media (max-width: 360px) {
+  .planner-deck.is-idle-plan .planner-scroll {
+    padding-bottom: 4px;
+  }
+
+  .plan-v2__compact-rail {
+    gap: 4px;
+  }
+
+  .planner-deck.is-idle-plan .plan-v2__action-rail {
+    flex-wrap: nowrap;
   }
 
   .plan-v2__options-trigger {
     flex: 1 1 auto;
+    min-width: 0;
   }
 
-  /* Once each control owns half a row it has room for its own words, so stop
-     breaking mid-word -- the short-landscape rail was rendering "Ride option
-     s" across three lines. */
-  .plan-v2__draw-action span,
-  .plan-v2__free-ride span,
-  .plan-v2__options-trigger span {
-    overflow-wrap: normal;
-    white-space: nowrap;
+  .plan-v2__options-summary {
+    min-width: 0;
   }
-}
 
-@media (max-width: 360px) {
   .planner-route-context__identity > span {
     max-width: 180px;
   }
+
 }
 
 /* The 568px short-landscape viewport gives the planner only a narrow side
  * deck. Keep the action names visible without allowing a horizontal label to
  * run into its neighbour or the minimize target. */
 @media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
-  .plan-v2__draw-action,
-  .plan-v2__free-ride,
   .plan-v2__options-trigger {
     flex-direction: column;
     gap: 1px;
@@ -457,29 +444,28 @@
     white-space: normal;
   }
 
-  .plan-v2__draw-action span,
-  .plan-v2__free-ride span,
-  .plan-v2__options-trigger span {
+.plan-v2__draw-action span,
+.plan-v2__options-trigger span {
     min-width: 0;
     overflow-wrap: anywhere;
     text-align: center;
     white-space: normal;
   }
 
-  .plan-v2__draw-action svg,
-  .plan-v2__free-ride svg,
-  .plan-v2__options-trigger svg {
+.plan-v2__draw-action svg,
+.plan-v2__options-trigger svg {
     width: 16px;
     height: 16px;
   }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
   .plan-v2__search,
   .plan-v2__minimize-control,
   .plan-v2__draw-action,
-  .plan-v2__options-trigger,
-  .plan-v2__free-ride {
+  .plan-v2__options-trigger {
     transition: none;
   }
+
 }

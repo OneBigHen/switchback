@@ -27,7 +27,7 @@ async function openRideEditor(page: Page): Promise<void> {
   await expect(async () => {
     const editRoute = page.getByRole("button", { name: "Edit route", exact: true })
     if (await editRoute.isVisible().catch(() => false)) await editRoute.click()
-    const options = page.getByRole("button", { name: "Ride options", exact: true })
+    const options = page.getByRole("button", { name: /^Ride options/ })
     await expect(options).toBeVisible({ timeout: 2_000 })
     if (await options.getAttribute("aria-expanded") !== "true") await options.click()
     await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible({ timeout: 2_000 })
@@ -41,7 +41,7 @@ async function planFromCurrentLocation(page: Page): Promise<void> {
 }
 
 async function openRideOptions(page: Page): Promise<void> {
-  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  const options = page.getByRole("button", { name: /^Ride options/ })
   await expect(options).toBeVisible({ timeout: 15_000 })
   if (await options.getAttribute("aria-expanded") !== "true") await options.click()
   await expect(options).toHaveAttribute("aria-expanded", "true")
@@ -83,7 +83,7 @@ async function persistedRideIntent(page: Page): Promise<Record<string, unknown> 
 
 /** The ride summary is the planner's resting surface; the editor covers it. */
 async function closeRideEditor(page: Page): Promise<void> {
-  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  const options = page.getByRole("button", { name: /^Ride options/ })
   if (await options.getAttribute("aria-expanded") === "true") await options.click()
   await expect(page.getByRole("region", { name: "Your ride" })).toBeVisible()
 }
