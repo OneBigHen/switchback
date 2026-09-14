@@ -1188,7 +1188,7 @@ export function PlannerShell() {
       setReplayComparison(null)
     }
     applyDestination("plan", "replace")
-    setNotice({ kind: "success", message: `Replay loaded: ${ride.points.length} recorded points, notes, and photo metadata remain on this device.` })
+    setNotice({ kind: "success", message: `Planned vs ridden: ${ride.points.length} recorded points loaded. Notes and photo metadata stay on this device.` })
   }
 
   const handleResolveMustLock = (lockId: string, option: MustLockUnresolvedOption) => {

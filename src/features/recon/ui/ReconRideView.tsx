@@ -32,13 +32,18 @@ declare global {
 interface ReconRideViewProps {
   trackId: string
   startFilm: boolean
+  /** Where the rider came from; defaults to the 3D ride list. */
+  back?: { href: string; label: string }
 }
+
+const ALL_RIDES = { href: "/labs/recon", label: "All rides" }
 
 /**
  * One ride, brought back: Replay on the real recorded timeline, a synchronized
- * X-Ray, and an authored Cinematic film — all over the same single map.
+ * road-detail breakdown (the "X-Ray" panel), and an authored Cinematic film —
+ * all over the same single map.
  */
-export default function ReconRideView({ trackId, startFilm }: ReconRideViewProps) {
+export default function ReconRideView({ trackId, startFilm, back = ALL_RIDES }: ReconRideViewProps) {
   const library = useReconLibrary()
   const load = useResolvedTrack(library, trackId)
   const track = load.state === "ready" ? load.track : null
@@ -180,28 +185,28 @@ export default function ReconRideView({ trackId, startFilm }: ReconRideViewProps
 
       {load.state === "unavailable" || engineFailed ? (
         <section className="recon-empty" aria-labelledby="recon-missing-title">
-          <p className="recon-eyebrow">OpenGravel Labs · Recon</p>
+          <p className="recon-eyebrow">3D preview · Beta</p>
           <h1 id="recon-missing-title" className="recon-empty-title">
             {engineFailed ? "This ride's GPS data can't be played back." : load.state === "unavailable" ? load.message : ""}
           </h1>
-          <Link className="recon-button recon-button-primary" href="/labs/recon">
-            ← All rides
+          <Link className="recon-button recon-button-primary" href={back.href}>
+            ← {back.label}
           </Link>
         </section>
       ) : null}
 
       {track && !cinematic ? (
         <header className="recon-topbar">
-          <Link href="/labs/recon" className="recon-chip recon-glass">
-            ← All rides
+          <Link href={back.href} className="recon-chip recon-glass">
+            ← {back.label}
           </Link>
           <div className="recon-title recon-glass">
-            <p className="recon-eyebrow">{recorded ? `Replay · ${rideDate(track.startedAt)}` : "Route preview · no recorded time"}</p>
+            <p className="recon-eyebrow">{recorded ? `3D replay · ${rideDate(track.startedAt)}` : "3D flyover · no recorded time"}</p>
             <h1 className="recon-title-name">{track.name}</h1>
           </div>
           <div className="recon-topbar-actions">
             <button type="button" className="recon-chip recon-glass" aria-pressed={xrayOpen} aria-controls="recon-xray" onClick={() => setXrayOpen((open) => !open)} disabled={!xray}>
-              X-Ray
+              Road detail
             </button>
             <button type="button" className="recon-chip recon-glass recon-chip-accent" onClick={startCinematic} disabled={!engine}>
               {recorded ? "Cinematic" : "Flyover film"}

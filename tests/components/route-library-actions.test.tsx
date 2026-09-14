@@ -85,6 +85,14 @@ describe("RouteLibraryActions", () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
+  it("opens the 3D flyover for the route, with back returning to it", async () => {
+    render(<RouteLibraryActions catalogRouteId="atlas-42" routeName="Bald Eagle Loop" canUseGeometry library={fakeLibrary()} />)
+
+    expect(screen.getByRole("link", { name: "3D flyover" }))
+      .toHaveAttribute("href", "/labs/recon/replay/catalog%3Aatlas-42?film=1&from=route")
+    await screen.findByRole("button", { name: "Save to My Rides" })
+  })
+
   it("saves explicitly, then offers the owned copy", async () => {
     const library = fakeLibrary()
     const fetcher = vi.fn(async () => detailResponse())

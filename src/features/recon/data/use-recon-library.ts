@@ -7,11 +7,11 @@ import type { Coordinate } from "@/lib/routing/types"
 import type { ReconTrack } from "@/features/recon/types"
 import { makeLineProximity } from "@/features/recon/intel/xray"
 import { adaptRecordedRide } from "./recorded-ride-adapter"
-import { adaptCatalogRoute } from "./catalog-route-adapter"
+import { adaptCatalogRoute, CATALOG_PREFIX } from "./catalog-route-adapter"
 
 /**
  * Recon's read-only view of data OpenGravel already owns: the rider's ride
- * journal (IndexedDB, never leaves the browser), the shared Route Library
+ * journal (IndexedDB, never leaves the browser), the shared route
  * catalog, and Gravel Atlas corridors near a selected track. Every loader
  * degrades to an explicit unavailable state, never to a false "nothing here".
  */
@@ -25,7 +25,7 @@ export interface CatalogEntry {
   name: string
 }
 
-export const CATALOG_PREFIX = "catalog:"
+export { CATALOG_PREFIX }
 
 export interface ReconLibrary {
   rides: ReconTrack[]
@@ -68,7 +68,10 @@ export function useReconLibrary(): ReconLibrary {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch("/api/gpx-library", { signal: controller.signal, cache: "no-store" })
+    // The browse catalog, not the raw manifest: the same curated rows and
+    // titles Explore routes shows, so previews here are the rides a rider
+    // already knows by name (the manifest also lists every split sliver).
+    fetch("/api/route-catalog", { signal: controller.signal, cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error(`catalog ${response.status}`)
         setCatalog({ state: "ready", entries: parseCatalog(await response.json()) })
@@ -93,10 +96,10 @@ function parseCatalog(body: unknown): CatalogEntry[] {
   if (!Array.isArray(routes)) return []
   const entries: CatalogEntry[] = []
   for (const item of routes) {
-    const record = item as { id?: unknown; name?: unknown } | null
-    if (typeof record?.id === "string" && record.id && typeof record.name === "string") {
-      entries.push({ id: `${CATALOG_PREFIX}${record.id}`, routeId: record.id, name: record.name })
-    }
+    const record = item as { id?: unknown; name?: unknown; title?: unknown; canUseGeometry?: unknown } | null
+    if (typeof record?.id !== "string" || !record.id || record.canUseGeometry === false) continue
+    const name = typeof record.title === "string" && record.title ? record.title : record.name
+    if (typeof name === "string") entries.push({ id: `${CATALOG_PREFIX}${record.id}`, routeId: record.id, name })
   }
   return entries
 }
@@ -130,14 +133,30 @@ export function useResolvedTrack(library: ReconLibrary, trackId: string | null):
     return () => controller.abort()
   }, [trackId, isCatalog])
 
+  // Settled once, when both the route and the catalog it is titled from are
+  // in: a track whose identity changed after the replay engine started would
+  // tear the engine down mid-film.
+  const catalogSettled = library.catalogState !== "loading"
+  const catalogTitle = isCatalog ? library.catalog.find((entry) => entry.id === trackId)?.name ?? null : null
+  const titled = useMemo(
+    () => (fetched && catalogSettled ? withCatalogTitle(fetched.load, catalogTitle) : null),
+    [fetched, catalogSettled, catalogTitle]
+  )
+
   if (!trackId) return { state: "idle" }
   if (isCatalog) {
-    if (fetched?.id === trackId) return fetched.load
-    return library.catalogState === "unavailable" ? { state: "unavailable", message: "The Route Library is unavailable right now." } : { state: "loading" }
+    if (fetched?.id === trackId) return titled ?? { state: "loading" }
+    return library.catalogState === "unavailable" ? { state: "unavailable", message: "Shared routes are unavailable right now." } : { state: "loading" }
   }
   if (ride) return { state: "ready", track: ride }
   if (library.ridesState === "loading") return { state: "loading" }
   return { state: "unavailable", message: "That ride isn't in this browser's ride journal." }
+}
+
+/** A shared route keeps the title its card and route page show, not its import filename. */
+function withCatalogTitle(load: TrackLoad, title: string | null): TrackLoad {
+  if (load.state !== "ready" || !title || title === load.track.name) return load
+  return { state: "ready", track: { ...load.track, name: title } }
 }
 
 /** The map-features API rejects boxes wider than 3° × 2°; longer rides show no evidence. */

@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test"
 
-// Recon critical coverage: Explorer opens on the one map, a Route Library
+// Recon critical coverage: Explorer opens on the one map, a shared route
 // preview flies without inventing time, and a recorded ride (seeded into this
-// browser's ride journal from real fixture road geometry) replays, opens
-// X-Ray, and enters and leaves Cinematic — with no console errors.
+// browser's ride journal from real fixture road geometry) replays, opens road
+// detail, and enters and leaves Cinematic — with no console errors. Both ways
+// in are covered: "3D flyover" on a route page and "Replay in 3D" in Saved.
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = []
@@ -24,21 +25,27 @@ async function expectNoOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(0)
 }
 
-async function firstCatalogRoute(page: Page): Promise<{ id: string; name: string; geometry: [number, number][] }> {
-  const list = await page.request.get("/api/gpx-library")
+/** The first shared route as riders see it: its card title, and its full line. */
+async function firstCatalogRoute(page: Page): Promise<{ id: string; name: string; title: string; geometry: [number, number][] }> {
+  const list = await page.request.get("/api/route-catalog")
   expect(list.status()).toBe(200)
-  const { routes } = (await list.json()) as { routes: { id: string; name: string }[] }
+  const { routes } = (await list.json()) as { routes: { id: string; name: string; title: string }[] }
   const detail = await page.request.get(`/api/gpx-library?id=${encodeURIComponent(routes[0]!.id)}`)
   expect(detail.status()).toBe(200)
-  const body = (await detail.json()) as { route?: { geometry: [number, number][] }; geometry?: [number, number][] }
-  return { id: routes[0]!.id, name: routes[0]!.name, geometry: body.route?.geometry ?? body.geometry ?? [] }
+  const body = (await detail.json()) as { route?: { name: string; geometry: [number, number][] }; name?: string; geometry?: [number, number][] }
+  return {
+    id: routes[0]!.id,
+    name: body.route?.name ?? body.name ?? routes[0]!.name,
+    title: routes[0]!.title,
+    geometry: body.route?.geometry ?? body.geometry ?? []
+  }
 }
 
 test("explorer opens with the map, the ride panel and a preview card", async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto("/labs/recon")
   await expect(page.locator("canvas.maplibregl-canvas").first()).toBeVisible({ timeout: 60_000 })
-  await expect(page.getByRole("heading", { name: "Recon" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "3D rides" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Your rides" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Route previews" })).toBeVisible()
   await expect(page.getByRole("link", { name: "▶ Preview flyover" })).toBeVisible({ timeout: 60_000 })
@@ -51,8 +58,8 @@ test("a route preview plays as a flyover with no recorded time", async ({ page }
   const errors = watchErrors(page)
   const route = await firstCatalogRoute(page)
   await page.goto(`/labs/recon/replay/${encodeURIComponent(`catalog:${route.id}`)}`)
-  await expect(page.getByRole("heading", { name: route.name })).toBeVisible({ timeout: 60_000 })
-  await expect(page.getByText("Route preview · no recorded time")).toBeVisible()
+  await expect(page.getByRole("heading", { name: route.title })).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText("3D flyover · no recorded time")).toBeVisible()
   await expect(page.getByRole("button", { name: "Play" })).toBeVisible({ timeout: 60_000 })
   await expect(page.getByText("Elapsed", { exact: true })).toHaveCount(0)
   await page.getByRole("button", { name: "Play" }).click()
@@ -127,8 +134,8 @@ test("a recorded ride replays, opens X-Ray and runs Cinematic", async ({ page })
   await expect.poll(() => page.evaluate(() => window.__reconReplayDebug?.progress() ?? 0), { timeout: 20_000 }).toBeGreaterThan(0)
   await page.getByRole("button", { name: "Pause" }).click()
 
-  await page.getByRole("button", { name: "X-Ray" }).click()
-  const xray = page.getByRole("complementary", { name: "X-Ray ride breakdown" })
+  await page.getByRole("button", { name: "Road detail" }).click()
+  const xray = page.getByRole("complementary", { name: "Road detail" })
   await expect(xray).toBeVisible()
   await expect(xray.getByText("No earlier rides on record — all new to you")).toBeVisible()
   await expect(xray.getByRole("button", { name: /Overlook/ })).toBeVisible()
@@ -140,5 +147,18 @@ test("a recorded ride replays, opens X-Ray and runs Cinematic", async ({ page })
   await expect(page.getByRole("button", { name: "Play" })).toBeVisible()
 
   await expectNoOverflow(page)
+  expect(appErrors(errors)).toEqual([])
+})
+
+test("a route page opens its 3D flyover, and back returns to the route", async ({ page }) => {
+  const errors = watchErrors(page)
+  const route = await firstCatalogRoute(page)
+  await page.goto(`/gpx-library/${encodeURIComponent(route.id)}`)
+  await page.getByRole("link", { name: "3D flyover" }).click()
+  await expect(page).toHaveURL(/\/labs\/recon\/replay\/catalog%3A.*film=1/)
+  await expect.poll(() => page.evaluate(() => window.__reconReplayDebug?.cinematic() ?? false), { timeout: 60_000 }).toBe(true)
+  await page.keyboard.press("Escape")
+  await page.getByRole("link", { name: "← Route" }).click()
+  await expect(page).toHaveURL(new RegExp(`/gpx-library/${route.id}$`))
   expect(appErrors(errors)).toEqual([])
 })

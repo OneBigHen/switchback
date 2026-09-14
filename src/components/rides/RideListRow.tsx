@@ -1,6 +1,7 @@
 "use client"
 
-import { ArrowRight, DotsThree } from "@phosphor-icons/react"
+import { ArrowRight, CubeFocus, DotsThree } from "@phosphor-icons/react"
+import Link from "next/link"
 import { useState } from "react"
 import { RouteThumbnail } from "@/components/graphics"
 import { formatAway } from "@/lib/client/geo"
@@ -101,6 +102,17 @@ export function RideListRow({ item, distanceAwayMiles, onOpen, onMatchRoads, onO
           </button>
         ) : null}
       </div>
+
+      {/* A recorded ride can be replayed on its own GPS timeline in 3D. The
+          replay reads the same ride journal, so the link is the ride's id. */}
+      {item.kind === "recorded-ride" && item.sourceId && item.geometry ? (
+        <div className={styles.rowActions}>
+          <Link href={`/labs/recon/replay/${encodeURIComponent(item.sourceId)}?from=saved`}>
+            <CubeFocus aria-hidden="true" />
+            Replay in 3D
+          </Link>
+        </div>
+      ) : null}
 
       {manageOpen && management ? (
         <div className={styles.management} aria-label={`Manage ${item.name} actions`}>

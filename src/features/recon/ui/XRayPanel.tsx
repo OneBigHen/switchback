@@ -91,13 +91,13 @@ export default function XRayPanel({ engine, track, report, exploration, evidence
   const newMeters = exploration?.newToYouMeters ?? null
 
   return (
-    <aside id="recon-xray" className="recon-xray recon-glass" aria-label="X-Ray ride breakdown">
+    <aside id="recon-xray" className="recon-xray recon-glass" aria-label="Road detail">
       <header className="recon-xray-head">
         <div>
-          <p className="recon-eyebrow">X-Ray</p>
+          <p className="recon-eyebrow">Road detail</p>
           <h2 className="recon-xray-title">What this ride was made of</h2>
         </div>
-        <button type="button" className="recon-icon-button" onClick={onClose} aria-label="Close X-Ray">
+        <button type="button" className="recon-icon-button" onClick={onClose} aria-label="Close road detail">
           ×
         </button>
       </header>

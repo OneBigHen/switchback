@@ -186,7 +186,7 @@ export default function ReplayControls({ engine, state, track, xray, segments, e
           ) : null}
         </div>
       </section>
-      <p className="recon-sr-only">Keyboard: space plays or pauses, arrow keys step, X opens X-Ray, C starts Cinematic, 1 to 5 choose the camera.</p>
+      <p className="recon-sr-only">Keyboard: space plays or pauses, arrow keys step, X opens road detail, C starts the film, 1 to 5 choose the camera.</p>
     </>
   )
 }

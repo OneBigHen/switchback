@@ -468,6 +468,33 @@
   font-weight: 650;
 }
 
+/* Third, quieter action: a text-weight link, so the decision between
+   planning and saving stays the obvious pair. */
+.atlas-launch-3d {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--sb-space-3);
+  border-radius: var(--sb-radius-control);
+  color: var(--sb-text-link);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.atlas-launch-3d svg {
+  width: 18px;
+  height: 18px;
+}
+
+.atlas-launch-3d:hover { background: color-mix(in srgb, var(--sb-text-link) 10%, transparent); }
+
+.atlas-launch-3d:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
 .atlas-launch-save:hover:not(:disabled) { background: color-mix(in srgb, var(--sb-action) 12%, transparent); }
 
 .atlas-launch-save:disabled {
