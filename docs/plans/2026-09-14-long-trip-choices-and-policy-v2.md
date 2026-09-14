@@ -233,8 +233,8 @@ Every capability the scouts found, with an explicit disposition. "Prod?" reflect
 
 **T-0.1 — make the bench target selectable**
 - Files: `bench/run.mts`.
-- Do: replace the hard-coded `DEEPSEEK_MODEL` with `process.env.BENCH_OPENROUTER_MODEL ?? DEEPSEEK_MODEL`. No other behaviour change. This commit rides in PR 1.
-- Verify: `BENCH_OPENROUTER_MODEL=openrouter/free npx tsx bench/run.mts --help` (or a 1-task dry run) uses the override.
+- Do: replace the hard-coded `DEEPSEEK_MODEL` with `process.env.BENCH_OPENROUTER_MODEL ?? DEEPSEEK_MODEL`. No other behaviour change. This is isolated in PR #144 so the advisor benchmark does not expand the routing bug-fix PR's scope.
+- Verify: `BENCH_REPS=0 BENCH_ARMS=deepseek OPENROUTER_API_KEY=stub BENCH_ONLY=read-route BENCH_OPENROUTER_MODEL=openrouter/free npx tsx bench/run.mts --help` completes with zero upstream calls; a real bake-off must opt in to credentials separately.
 - Done when: the bench can target any OpenRouter model without a code edit.
 
 **T-0.2 — bake off, then switch production**
@@ -266,6 +266,11 @@ code are implemented, but the reachable-service calibration evidence remains ope
 The dependency-ready T-4.2 warning subtask is implemented in stacked PR #143 at
 `851a6ac9a9ef3bf2883212dd996eddd9bdda3aba`; full role/card/traffic work remains
 Packet H/Packet F dependent.
+T-0.1 is complete in the isolated benchmark follow-up PR #144 at
+`3d0b85c4d355286c7881644dd8915455e728f3e2`. The duration-only Fastest label
+correction from authority C5 is complete in stacked PR #145 at
+`354592ea79077c29925c7fe3e4de38cfaf94c7d3`; it does not activate traffic-aware
+role semantics.
 
 - Export `timeoutSignal(ms)`, `composeSignals(...)`, `createDeadline(ms, parent)`.
 - Build on `setTimeout`/`clearTimeout`: `AbortSignal.timeout` does not follow Vitest fake timers, which `tests/unit/request-timeout.test.ts` already works around.

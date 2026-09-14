@@ -18,6 +18,10 @@
   stack at `1a218cd4d0cea29e19a08c605a5e8e5792d5c090`.
 - PR #143 `fix/routing-allow-with-warning` is the pushed warning-contract follow-up
   at `851a6ac9a9ef3bf2883212dd996eddd9bdda3aba`, stacked on PR #142.
+- PR #144 `fix/advisor-bench-model-override` is the isolated T-0.1 benchmark
+  configuration fix at `3d0b85c4d355286c7881644dd8915455e728f3e2`.
+- PR #145 `fix/routing-fastest-label` is the C5 presentation correction at
+  `354592ea79077c29925c7fe3e4de38cfaf94c7d3`, stacked on PR #143.
 
 Do not assume these SHAs are still current. Every execution packet starts by
 fetching and reconciling the refs it names.
@@ -187,7 +191,7 @@ commit or evidence gate changes.
 
 | Task | Packet | Status | Dependency / evidence gate |
 |---|---|---|---|
-| T-0.1 | Step 0 | not started | local bench change; no production access |
+| T-0.1 | Step 0 | complete — PR #144 | `BENCH_OPENROUTER_MODEL` selects the local bake-off model; verified with zero-call smoke |
 | T-0.2 | Step 0 | OWNER OPS blocked | model bakeoff, owner approval, production config and app proof |
 | T-1.1 | PR 1 | complete — PR #142 | `deadline.ts`; focused cleanup/cancellation tests pass |
 | T-1.2 | PR 1 | complete — PR #142 | `alternatives-strategy.ts`; boundary/corridor/loop tests pass |
@@ -247,6 +251,13 @@ Packet F and the Phase 7 decision payload exist.
   provider/eligibility/planner/API/state/component suite is `133/133` passing;
   `allow-with-warning` remains eligible and carries
   typed warning data through enrichment, selection, serialization, state, and UI.
+- Fastest label correction: PR #145, branch `fix/routing-fastest-label`, head
+  `354592ea79077c29925c7fe3e4de38cfaf94c7d3`, displays `Fastest` for the
+  duration-only reference and keeps `Fastest Now` reserved for the future
+  traffic-duration contract. Its focused role/rail/map suite is `28/28` passing.
+- T-0.1 benchmark override: PR #144, branch `fix/advisor-bench-model-override`,
+  head `3d0b85c4d355286c7881644dd8915455e728f3e2`, makes the OpenRouter model
+  selectable without changing the verified default or production behavior.
 - The full repository suite at that warning-branch head is `424` files,
   `2,890` tests passed, `1` configured test skipped. Exact-head lint, typecheck,
   and production build also pass locally; the associated GitHub checks must still
