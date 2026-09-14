@@ -147,7 +147,7 @@ describe("candidate lane settlement", () => {
       { id: "quick", priority: 0, pathIndex: 0, budgetMs: 100, run: async () => "quick" },
       { id: "primary-2", priority: 1, pathIndex: 1, budgetMs: 100, run: async () => "primary-2" }
     ]
-    const results = lanes.map((lane) => ({ lane, status: "fulfilled" as const, value: lane.id }))
+    const results = lanes.map((lane) => ({ lane, status: "fulfilled" as const, value: lane.id, elapsedMs: 1 }))
 
     expect(stableLaneOrder([...results].reverse()).map((result) => result.lane.id))
       .toEqual(["quick", "primary", "primary-2"])
