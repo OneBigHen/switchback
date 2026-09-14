@@ -6,7 +6,7 @@
  */
 
 .recon-root {
-  --recon-glass: color-mix(in srgb, var(--sb-ink) 88%, transparent);
+  --recon-glass: color-mix(in srgb, var(--sb-ink) 92%, transparent);
   --recon-glass-strong: color-mix(in srgb, var(--sb-ink) 95%, transparent);
   --recon-line: color-mix(in srgb, var(--sb-paper) 14%, transparent);
   --recon-gap: 16px;
@@ -128,9 +128,10 @@
   cursor: default;
 }
 
-.recon-chip[aria-pressed="true"] {
+.recon-chip[aria-pressed="true"],
+.recon-chip.recon-glass[aria-pressed="true"] {
   border-color: var(--sb-ember);
-  background: color-mix(in srgb, var(--sb-ember) 26%, transparent);
+  background: color-mix(in srgb, var(--sb-ember) 45%, var(--sb-ink));
 }
 
 .recon-chip-accent {
@@ -761,6 +762,7 @@
 .recon-strips {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sb-space-2);
   container-type: inline-size;
   touch-action: pan-y;
@@ -793,12 +795,14 @@
 }
 
 .recon-strip-label {
+  flex: none;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .recon-strip-note {
+  min-width: 0;
   overflow: hidden;
   color: var(--sb-ride-text-muted);
   text-align: right;
@@ -959,6 +963,32 @@
   transform: none;
 }
 
+/* A low scrim behind the title card and lower third keeps type legible on a
+   bright basemap without darkening the whole frame. */
+.recon-film::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 9vh;
+  height: 55vh;
+  background: linear-gradient(to top, rgb(10 14 13 / 62%), transparent);
+  pointer-events: none;
+}
+
+.recon-film-title,
+.recon-film-lower,
+.recon-film-end,
+.recon-film-play,
+.recon-film-exit {
+  z-index: 1;
+}
+
+.recon-film .recon-eyebrow {
+  color: var(--sb-ride-text);
+  text-shadow: 0 1px 10px rgb(0 0 0 / 70%);
+}
+
 .recon-film-name {
   margin: var(--sb-space-2) 0;
   font-family: var(--font-display);
@@ -1025,7 +1055,7 @@
 .recon-film-play {
   position: absolute;
   left: 50%;
-  top: 50%;
+  bottom: calc(9vh + 28px);
   min-height: 64px;
   padding: 0 32px;
   border: 0;
@@ -1036,7 +1066,7 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   pointer-events: auto;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
 }
 
 .recon-film-progress {
@@ -1106,6 +1136,22 @@
 
   .recon-panel-toggle {
     display: inline-flex;
+  }
+
+  /* Phones open on the map and the ride; the list is one tap away. */
+  .recon-panel[data-open="auto"] {
+    display: none;
+  }
+
+  /* The planner's unscoped phone rule lifts these to 70dvh; Recon owns its own. */
+  .recon-root .maplibregl-ctrl-bottom-right {
+    top: 64px;
+    bottom: auto;
+  }
+
+  .recon-ride .maplibregl-ctrl-bottom-right {
+    top: auto;
+    bottom: 176px;
   }
 
   .recon-root .maplibregl-ctrl-group {

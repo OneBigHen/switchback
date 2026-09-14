@@ -41,7 +41,7 @@ export function addReconLayers(map: MapLibreMap): void {
       type: "line",
       source: HISTORY,
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": RECON_COLORS.spruce, "line-opacity": 0.55, "line-width": byZoom(1.5, 3) }
+      paint: { "line-color": RECON_COLORS.spruce, "line-opacity": 0.6, "line-width": byZoom(2, 3.5) }
     },
     {
       id: "recon-selected-glow",
@@ -49,7 +49,7 @@ export function addReconLayers(map: MapLibreMap): void {
       source: SELECTED,
       filter: ["==", ["get", "kind"], "line"],
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": RECON_COLORS.ember, "line-opacity": 0.28, "line-blur": 10, "line-width": byZoom(14, 30) }
+      paint: { "line-color": RECON_COLORS.ember, "line-opacity": 0.28, "line-blur": 10, "line-width": byZoom(18, 32) }
     },
     {
       id: "recon-selected-casing",
@@ -57,7 +57,7 @@ export function addReconLayers(map: MapLibreMap): void {
       source: SELECTED,
       filter: ["==", ["get", "kind"], "line"],
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": RECON_COLORS.paper, "line-opacity": 0.9, "line-width": byZoom(6, 11) }
+      paint: { "line-color": RECON_COLORS.paper, "line-opacity": 0.9, "line-width": byZoom(8, 12) }
     },
     {
       id: "recon-selected-line",
@@ -67,7 +67,7 @@ export function addReconLayers(map: MapLibreMap): void {
       layout: { "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": ["match", ["get", "status"], "previously-ridden", RECON_COLORS.moss, RECON_COLORS.ember],
-        "line-width": byZoom(3.5, 7)
+        "line-width": byZoom(5, 8)
       }
     },
     {
@@ -77,7 +77,7 @@ export function addReconLayers(map: MapLibreMap): void {
       source: SELECTED,
       filter: ["all", ["==", ["get", "kind"], "line"], ["==", ["get", "playbackKind"], "preview"]],
       layout: { "line-join": "round" },
-      paint: { "line-color": RECON_COLORS.signal, "line-width": byZoom(3.5, 7), "line-dasharray": [1.4, 1.2] }
+      paint: { "line-color": RECON_COLORS.signal, "line-width": byZoom(5, 8), "line-dasharray": [1.4, 1.2] }
     },
     {
       id: "recon-selected-endpoints",

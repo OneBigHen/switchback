@@ -26,7 +26,9 @@ const ReconMap = dynamic(() => import("@/features/recon/map/ReconMap"), {
 export default function ReconExplorer() {
   const library = useReconLibrary()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [panelOpen, setPanelOpen] = useState(true)
+  // null = automatic: open on wide screens, collapsed on phones (CSS decides,
+  // so server and client render the same markup).
+  const [panelOpen, setPanelOpen] = useState<boolean | null>(null)
   const [map, setMap] = useState<MapLibreMap | null>(null)
 
   const effectiveId =
@@ -95,11 +97,11 @@ export default function ReconExplorer() {
         <button
           type="button"
           className="recon-chip recon-panel-toggle"
-          aria-expanded={panelOpen}
+          aria-expanded={panelOpen === true}
           aria-controls="recon-rides-panel"
-          onClick={() => setPanelOpen((open) => !open)}
+          onClick={() => setPanelOpen((open) => open !== true)}
         >
-          {panelOpen ? "Hide rides" : "Rides"}
+          {panelOpen === true ? "Hide rides" : "Rides"}
         </button>
       </header>
 
@@ -118,8 +120,8 @@ export default function ReconExplorer() {
         </section>
       ) : null}
 
-      {panelOpen && !empty ? (
-        <aside id="recon-rides-panel" className="recon-panel recon-glass" aria-label="Rides and routes">
+      {panelOpen !== false && !empty ? (
+        <aside id="recon-rides-panel" className="recon-panel recon-glass" data-open={panelOpen === null ? "auto" : "true"} aria-label="Rides and routes">
           {totals.rides > 0 ? (
             <dl className="recon-totals">
               <div>
@@ -136,7 +138,15 @@ export default function ReconExplorer() {
               </div>
             </dl>
           ) : null}
-          <RideList library={library} selectedId={effectiveId} onSelect={setSelectedId} />
+          <RideList
+            library={library}
+            selectedId={effectiveId}
+            onSelect={(id) => {
+              setSelectedId(id)
+              // On phones the list was opened on purpose; picking a ride returns to the map.
+              setPanelOpen((open) => (open === true ? false : open))
+            }}
+          />
         </aside>
       ) : null}
 
@@ -311,7 +321,7 @@ function fitTrack(map: MapLibreMap, track: ReconTrack): void {
   if (!camera) return
   map.easeTo({
     ...camera,
-    zoom: Math.min(RECON_FIT_MAX_ZOOM, (camera.zoom ?? 10) + 0.7),
+    zoom: Math.min(RECON_FIT_MAX_ZOOM, (camera.zoom ?? 10) + 1.1),
     pitch: 62,
     bearing,
     duration: prefersReducedMotion() ? 0 : RECON_FIT_DURATION_MS,
