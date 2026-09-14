@@ -174,6 +174,11 @@ describe("trip planner", () => {
     expect(plan.routes).toHaveLength(2)
     expect(plan.routes.find((candidate) => candidate.profile === "quick")?.id).toBe("quick-distinct")
     expect(plan.routes[0].overlapPercent).toBeLessThan(100)
+    expect(plan.alternativesOutcome).toMatchObject({
+      status: "complete",
+      strategy: "engine-alternates"
+    })
+    expect(plan.diagnostics?.lanes.length).toBeGreaterThan(0)
   })
 
   it("caps progressive alternatives at two and skips the remaining profiles", async () => {
@@ -228,6 +233,7 @@ describe("trip planner", () => {
     expect(calls.some((call) => call.engineAlternates === true)).toBe(false)
     expect(plan.selectedRouteId).toBe("scenic-primary")
     expect(plan.routes.length).toBeGreaterThanOrEqual(1)
+    expect(plan.alternativesOutcome?.strategy).toBe("lane-search")
   })
 
   it("prefers official-road evidence among already-distinct Adventure alternatives", async () => {
