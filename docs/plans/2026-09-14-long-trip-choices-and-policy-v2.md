@@ -57,7 +57,7 @@ stacks on the reconciled #139 base; later packets must follow the authority grap
 | T-3.2 | PR 3 | `src/components/planner/MapStage.tsx` | runtime fallback unit test passes |
 | T-3.3 | PR 3 | `v2/LayersSheet.tsx`, `MapStageLayerControl.tsx` | labels match the active renderer |
 | T-3.4 | PR 3 | new Playwright spec | Mapbox mounts in a browser test; forced failure falls back |
-| T-3.5 | PR 3 | production `.env.local`, ADR 0015 note, `docs/astra/ASTRA-STATE.md` | owner-approved deploy; picker shows Satellite on prod |
+| T-3.5 | PR 3 | ADR 0015 note, `docs/astra/ASTRA-STATE.md` | rollout note records the owner gate and expected picker/fallback evidence; no production mutation |
 | T-3.6 | PR 3 | production `.env.local`, provider dashboard, `docs/astra/ASTRA-STATE.md` | **OWNER OPS only:** approved production rollout, monitoring, and rollback evidence |
 | T-4.1 | PR 4 | `v2/RideStyleChips.tsx` (new), `PlanOptions.tsx`, `PlanComposer.tsx` | one-tap style; chips test passes |
 | T-4.2 | PR 4 | `RouteDecisionCard.tsx`, `RouteComparison.tsx` | cards show role, +N min, explanation, climb, toll, gravel |
@@ -95,9 +95,9 @@ Everything the owner named is covered. Everything found but **not** covered is l
 | This plan | Roadmap phase | Covers |
 |---|---|---|
 | PR 1 | **unphased bugfix** | Long-trip alternatives deadline + the candidate-lane substrate Phase 7 builds on. Filed as a fix outside phase sequencing (owner decision 2026-09-14). |
-| PR 2 | **Phase 7 foundation (partial)** | `PA_NJ_ROUTE_POLICY_V2`, rider-facing route roles, Protect the Ride cost, traffic as real evidence; Packet F and the corpus gate remain prerequisites to closure. |
+| PR 2 | **Phase 7 foundation (partial)** | `PA_NJ_ROUTE_POLICY_V2` and role/scoring foundation; real traffic evidence and the Protect-the-Ride cost remain Packet F/G work, with the corpus gate required for closure. |
 | PR 3 | **Phase 1 (rollout)** + **part of Phase 2** | Mapbox Standard live behind the existing owner-only gate, with parity/fallback evidence. Picker labels + Satellite are Phase 2. Light presets, premium route ribbon, road-character layer and map-pack migration stay open. |
-| PR 4 | **Phase 4** + **part of Phase 6** | Server-declared capabilities (ADR 0021 slice) + traffic evidence end to end. Future-departure-time routing stays open. |
+| PR 4 | **Phase 4** + **part of Phase 6** | Full server-declared capabilities (ADR 0021) + traffic evidence end to end. Future-departure-time routing stays open. |
 | PR 5 | **Phase 5** | TomTom capability bakeoff, recorded findings, tested adapter that ships **dark**. |
 | Step 0 | **ops** (no phase) | Advisor model swap; config only, no build. |
 
@@ -150,7 +150,7 @@ Every capability the scouts found, with an explicit disposition. "Prod?" reflect
 | Mapbox renderer, Satellite, Lighting, real Terrain | `NEXT_PUBLIC_SWITCHBACK_PREMIUM_MAPBOX` + token + CSP | **No** (flag unset, CSP blocks) | **Ship** — PR 3 |
 | Mapbox on non-planner maps (route library, route detail, thumbnails, Recon) | always MapLibre | n/a | **Out of scope** — PR 3 covers the planner only |
 | Light presets (Auto/Dawn/Day/Dusk/Night) | premium renderer only | No | **Delivered by PR 3** (the picker already exists at `MapStageLayerControl.tsx:217-235`) |
-| `GET /api/capabilities` (ADR 0021 slice) | not implemented | No | **Ship** — PR 4 T-4.4, no identity gating yet |
+| `GET /api/capabilities` (ADR 0021 contract) | not implemented | No | **Ship** — PR 4 T-4.4, with the full server-declared capability family and optional identity gate |
 | TomTom traffic incidents | `TOMTOM_API_KEY` | **Yes** | **Extend** — PR 4 T-4.3 (all cards, budget, breaker) |
 | TomTom routing / Thrilling | not implemented | No | **Ship dark** — PR 5; federate in T7 |
 | GraphHopper | `GRAPHHOPPER_URL` | Yes | Keep as the baseline engine that must answer alone |
@@ -175,7 +175,7 @@ Every capability the scouts found, with an explicit disposition. "Prod?" reflect
 | Unused graphics: `EvidenceMeter`, `ConfidenceBadge`, 6 icons | — | — | **Leave unused.** Do not delete in these PRs |
 | `featureFlags.neuralRanking` | defined, never read | n/a | **Hide the "Neural" chip** (PR 4 T-4.1); do not delete the flag |
 | Loops get one route (ADR 0020 "up to three") | not implemented | No | **Out of scope** — *Open item L1* |
-| Protect the Ride cost (ADR 0019) | not implemented | No | **Partial in PR 2** — *Open item P1* |
+| Protect the Ride cost (ADR 0019) | not implemented | No | **Remaining Packet F/G work** — not delivered by PR 2; *Open item P1* |
 | Rider-history re-ranking | `rider-route-ranking.ts` | Yes, unlabelled | **Label it** (PR 4 T-4.2); hysteresis in PR 2 T-2.5 |
 
 **Production evidence (probed 2026-09-14 against `127.0.0.1:3100`):** `GET /api/map-features?layers=gravel-atlas` over a New Jersey bbox returned **200 with 11 features**, and `?layers=road-controls` returned **200 with 369 features**. Gravel Atlas is genuinely live, so T-4.2 has real evidence to render and T-4.4 only has to fix the UI cap — neither is a missing-config problem.
