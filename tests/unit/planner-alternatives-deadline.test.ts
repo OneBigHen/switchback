@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { composeSignals, createDeadline, timeoutSignal } from "@/lib/routing/deadline"
 import { chooseAlternativesStrategy } from "@/lib/routing/alternatives-strategy"
+import {
+  settleLanes,
+  stableLaneOrder,
+  type CandidateLane
+} from "@/lib/routing/candidate-lanes"
 
 function directRequest(miles: number, extra: Record<string, unknown> = {}) {
   return {
@@ -102,5 +107,114 @@ describe("alternatives strategy", () => {
 
     vi.stubEnv("ROUTING_ENGINE_ALTERNATES_MAX_MILES", "not-a-number")
     expect(chooseAlternativesStrategy(directRequest(20))).toBe("engine-alternates")
+  })
+})
+
+function waitForAbort(signal: AbortSignal): Promise<never> {
+  return new Promise<never>((_resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason)
+      return
+    }
+    signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+  })
+}
+
+describe("candidate lane settlement", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("keeps a finished later lane when an earlier lane hangs at the deadline", async () => {
+    vi.useFakeTimers()
+    const deadline = createDeadline(1_000)
+    const lanes: CandidateLane<string>[] = [
+      { id: "slow", priority: 0, pathIndex: 0, budgetMs: 1_200, run: (signal) => waitForAbort(signal) },
+      { id: "fast", priority: 1, pathIndex: 0, budgetMs: 1_200, run: async () => "fast" }
+    ]
+
+    const settledPromise = settleLanes(lanes, { concurrency: 2, deadline })
+    await vi.advanceTimersByTimeAsync(1_000)
+    const settled = await settledPromise
+
+    expect(settled.map((result) => result.lane.id)).toEqual(["fast"])
+    expect(settled[0]?.status).toBe("fulfilled")
+  })
+
+  it("produces stable lane order independent of completion order", () => {
+    const lanes: CandidateLane<string>[] = [
+      { id: "primary", priority: 1, pathIndex: 0, budgetMs: 100, run: async () => "primary" },
+      { id: "quick", priority: 0, pathIndex: 0, budgetMs: 100, run: async () => "quick" },
+      { id: "primary-2", priority: 1, pathIndex: 1, budgetMs: 100, run: async () => "primary-2" }
+    ]
+    const results = lanes.map((lane) => ({ lane, status: "fulfilled" as const, value: lane.id }))
+
+    expect(stableLaneOrder([...results].reverse()).map((result) => result.lane.id))
+      .toEqual(["quick", "primary", "primary-2"])
+  })
+
+  it("aborts an over-budget lane and starts the next lane", async () => {
+    vi.useFakeTimers()
+    const deadline = createDeadline(1_000)
+    const started: string[] = []
+    const lanes: CandidateLane<string>[] = [
+      {
+        id: "over-budget",
+        priority: 0,
+        pathIndex: 0,
+        budgetMs: 10,
+        run: async (signal) => {
+          started.push("over-budget")
+          await waitForAbort(signal)
+          return "never"
+        }
+      },
+      {
+        id: "next",
+        priority: 1,
+        pathIndex: 0,
+        budgetMs: 100,
+        run: async () => {
+          started.push("next")
+          return "next"
+        }
+      }
+    ]
+
+    const settledPromise = settleLanes(lanes, { concurrency: 1, deadline })
+    await vi.advanceTimersByTimeAsync(10)
+    const settled = await settledPromise
+
+    expect(started).toEqual(["over-budget", "next"])
+    expect(settled.map((result) => [result.lane.id, result.status])).toEqual([
+      ["over-budget", "timed-out"],
+      ["next", "fulfilled"]
+    ])
+  })
+
+  it("stops launching queued lanes when the caller cancels", async () => {
+    vi.useFakeTimers()
+    const caller = new AbortController()
+    const deadline = createDeadline(1_000, caller.signal)
+    const started: string[] = []
+    const lanes: CandidateLane<string>[] = [
+      { id: "active", priority: 0, pathIndex: 0, budgetMs: 500, run: async (signal) => {
+        started.push("active")
+        await waitForAbort(signal)
+        return "never"
+      } },
+      { id: "queued", priority: 1, pathIndex: 0, budgetMs: 500, run: async () => {
+        started.push("queued")
+        return "queued"
+      } }
+    ]
+
+    const settledPromise = settleLanes(lanes, { concurrency: 1, deadline })
+    caller.abort(new Error("rider cancelled"))
+    await vi.runAllTimersAsync()
+    const settled = await settledPromise
+
+    expect(started).toEqual(["active"])
+    expect(settled).toEqual([])
   })
 })
