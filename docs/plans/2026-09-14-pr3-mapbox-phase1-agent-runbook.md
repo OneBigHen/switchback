@@ -110,6 +110,7 @@ error; it must not create a fallback loop.
 - `src/components/planner/map-stage-props.ts`
 - `src/components/planner/MapStage.tsx`
 - `src/components/planner/PlannerMapStage.tsx`
+- `src/app/styles/planner-shell.css`
 - `tests/components/map-stage-fallback.test.tsx` (new regression test)
 
 **Contract**
