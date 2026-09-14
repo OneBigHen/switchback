@@ -4,10 +4,12 @@ import { ArrowRight, WarningCircle } from "@phosphor-icons/react"
 import type { FocusEvent, MouseEvent } from "react"
 import { getLoopTimeboxMismatch } from "@/lib/planner/route-readiness"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { routeDisplayName } from "@/lib/routing/route-display-name"
 import { CORRIDOR_OPTION_PRESENTATION } from "@/lib/routing/sketch-corridor"
 import styles from "./RouteDecisionCard.module.css"
 
 export type RouteDecisionRole =
+  | "Your route"
   | "Fastest Now"
   | "Fast & Fun"
   | "Maximum Twisties"
@@ -113,6 +115,9 @@ export function routeDecisionRole(route: PlannedRoute, routes: PlannedRoute[]): 
   if (route.corridorOption) {
     return CORRIDOR_OPTION_PRESENTATION[route.corridorOption].label as RouteDecisionRole
   }
+  // Every other role is a comparison. With nothing to compare against, calling
+  // a lone twisty route "Fastest Now" is simply untrue.
+  if (routes.length < 2) return "Your route"
   const fastestMinutes = Math.min(...routes.map((candidate) => candidate.durationMinutes))
   if (route.durationMinutes === fastestMinutes) return "Fastest Now"
 
@@ -159,7 +164,7 @@ export function buildRouteDecisionPresentation(
     role: routeDecisionRole(route, routes),
     subtitle: route.corridorOption
       ? CORRIDOR_OPTION_PRESENTATION[route.corridorOption].description
-      : route.name,
+      : routeDisplayName(route),
     // Imported tracks often carry no timing; unknown is not "0 min".
     timeLabel: route.durationMinutes > 0 ? `${Math.round(route.durationMinutes)} min` : "Time unknown",
     distanceLabel: `${route.distanceMiles.toFixed(1)} mi`,

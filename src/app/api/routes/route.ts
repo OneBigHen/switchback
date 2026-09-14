@@ -16,7 +16,8 @@ import { characterForProfile } from "@/lib/domain/routing/ride-character"
 import { setRouteRuntimeProbe } from "@/lib/server/runtime-diagnostics"
 import type { CorridorSourceCandidates } from "@/lib/routing/destination-corridors"
 import type { RouteRequest } from "@/lib/routing/types"
-import { readFile } from "node:fs/promises"
+import { createCandidateEnricher } from "@/lib/routing/candidate-enrichment"
+import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
 
 export const dynamic = "force-dynamic"
@@ -63,6 +64,47 @@ function gravelAtlasBounds(request: RouteRequest): {
   }
 }
 
+const curvatureRepositories = new Map<string, CurvatureRepository>()
+function curvatureRepository(databasePath: string): CurvatureRepository {
+  let repository = curvatureRepositories.get(databasePath)
+  if (!repository) {
+    repository = new CurvatureRepository(databasePath)
+    curvatureRepositories.set(databasePath, repository)
+  }
+  return repository
+}
+
+type GpxCorridorRoute = CorridorSourceCandidates["gpxRoutes"][number]
+let gpxCorridorCache: { key: string; routes: Promise<readonly GpxCorridorRoute[]> } | null = null
+
+/**
+ * The GPX corridor evidence is the same handful of route files for every
+ * request, so it is read once per library version (keyed by the manifest's
+ * path and modification time) instead of parsing the manifest and twelve route
+ * files on every time-shaped plan.
+ */
+async function gpxCorridorRoutes(gpxLibraryPath: string): Promise<readonly GpxCorridorRoute[]> {
+  const manifestPath = path.join(gpxLibraryPath, "manifest.json")
+  const key = `${manifestPath}:${(await stat(manifestPath)).mtimeMs}`
+  if (gpxCorridorCache?.key !== key) {
+    const routes = (async () => {
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as { routes?: Array<{ id: string; name?: string }> }
+      const loaded: GpxCorridorRoute[] = []
+      for (const entry of (manifest.routes ?? []).slice(0, 12)) {
+        const result = await loadRouteGeometry(entry.id, gpxLibraryPath, entry.name ?? "Imported GPX")
+        if (result.route) loaded.push(result.route)
+      }
+      return loaded
+    })()
+    gpxCorridorCache = { key, routes }
+    // A failed read must not stick: the next request tries again.
+    routes.catch(() => {
+      if (gpxCorridorCache?.routes === routes) gpxCorridorCache = null
+    })
+  }
+  return gpxCorridorCache.routes
+}
+
 /**
  * Phase 4 corridor sources: curvature database segments near the request,
  * known-good GPX route geometries, optional research hints, and (when the
@@ -80,7 +122,7 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
 
   const databasePath = process.env.CURVATURE_DB_PATH ?? path.join(process.cwd(), "data/segments.db")
   try {
-    sources.curvatureSegments = new CurvatureRepository(databasePath).queryBounds({
+    sources.curvatureSegments = curvatureRepository(databasePath).queryBounds({
       south, west, north, east,
       minScore: 70,
       limit: 24
@@ -91,14 +133,7 @@ async function resolveCorridors(request: RouteRequest): Promise<CorridorSourceCa
 
   const gpxLibraryPath = process.env.GPX_LIBRARY_PATH ?? path.join(process.cwd(), "data/gpx-library")
   try {
-    const manifest = JSON.parse(
-      await readFile(path.join(gpxLibraryPath, "manifest.json"), "utf8")
-    ) as { routes?: Array<{ id: string; name?: string }> }
-    const routes = (manifest.routes ?? []).slice(0, 12)
-    for (const entry of routes) {
-      const loaded = await loadRouteGeometry(entry.id, gpxLibraryPath, entry.name ?? "Imported GPX")
-      if (loaded.route) sources.gpxRoutes.push(loaded.route)
-    }
+    sources.gpxRoutes = [...await gpxCorridorRoutes(gpxLibraryPath)]
   } catch {
     // GPX corridors are optional evidence.
   }
@@ -175,20 +210,20 @@ async function handleRoutePost(request: Request): Promise<Response> {
           signal: providerOptions?.signal
         }
       )
-    } : {}),
-    ...(elevationUrl ? {
-      enrich: (result) => enrichWithElevations(result, {
-        baseUrl: elevationUrl,
-        signal: request.signal
-      })
     } : {})
   })
   const provider = createGravelAtlasAwareProvider(baseProvider, resolveCorridors)
 
+  const enrichCandidates = createCandidateEnricher({
+    regionEvidence: enrichAdventureRoutesWithPaData,
+    ...(elevationUrl ? { elevate: (result, signal) => enrichWithElevations(result, { baseUrl: elevationUrl, signal }) } : {}),
+    signal: request.signal
+  })
+
   return handleRouteRequest(
     request,
     provider,
-    enrichAdventureRoutesWithPaData,
+    enrichCandidates,
     { cache: routeCache, resolveCorridors }
   )
 }

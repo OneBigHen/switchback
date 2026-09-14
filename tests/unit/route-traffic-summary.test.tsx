@@ -101,7 +101,7 @@ describe("RouteTrafficSummary", () => {
     render(<RouteTrafficSummary route={route("closed")} />)
 
     expect(await screen.findByText("Closure reported")).toBeInTheDocument()
-    expect(screen.getByText("1 reported incident")).toBeInTheDocument()
+    expect(screen.getByText("PA-263 closed between County Line Rd and Street Rd · 1 reported incident")).toBeInTheDocument()
   })
 
   it("keeps unknown traffic out of route choice instead of calling it clear", async () => {

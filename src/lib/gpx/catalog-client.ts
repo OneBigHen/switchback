@@ -60,22 +60,22 @@ function isFiniteNumber(value: unknown): value is number {
  */
 export function parseCatalogRouteDetail(value: unknown, id: string): PlannedRoute {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new CatalogRouteError("The Route Library returned an unreadable route.")
+    throw new CatalogRouteError("The shared route came back unreadable.")
   }
   const record = value as Record<string, unknown>
-  if (record.id !== id) throw new CatalogRouteError("The Route Library returned a different route.")
-  if (typeof record.name !== "string") throw new CatalogRouteError("This Route Library entry has no name.")
+  if (record.id !== id) throw new CatalogRouteError("A different shared route came back.")
+  if (typeof record.name !== "string") throw new CatalogRouteError("This shared route has no name.")
   if (record.previewOnly === true) {
     throw new CatalogRouteError("Only a preview of this route was stored, so it cannot be opened or saved as the real line.")
   }
   if (!Array.isArray(record.geometry) || record.geometry.length < 2 || !record.geometry.every(isCoordinate)) {
-    throw new CatalogRouteError("This Route Library entry has no usable route geometry.")
+    throw new CatalogRouteError("This shared route has no usable line.")
   }
   if (!Array.isArray(record.waypoints) || !Array.isArray(record.instructions)) {
-    throw new CatalogRouteError("This Route Library entry is incomplete.")
+    throw new CatalogRouteError("This shared route is incomplete.")
   }
   if (!isFiniteNumber(record.distanceMiles) || !isFiniteNumber(record.durationMinutes)) {
-    throw new CatalogRouteError("This Route Library entry is missing its distance.")
+    throw new CatalogRouteError("This shared route is missing its distance.")
   }
 
   const route: Record<string, unknown> = { ...record, previewOnly: false }
@@ -84,23 +84,23 @@ export function parseCatalogRouteDetail(value: unknown, id: string): PlannedRout
 }
 
 export async function fetchCatalogRoute(id: string, fetcher: typeof fetch = fetch): Promise<PlannedRoute> {
-  if (!isCatalogRouteId(id)) throw new CatalogRouteError("That Route Library entry was not found.")
+  if (!isCatalogRouteId(id)) throw new CatalogRouteError("That shared route was not found.")
   let response: Response
   try {
     response = await fetcher(`/api/gpx-library?id=${encodeURIComponent(id)}`, { cache: "no-store" })
   } catch {
-    throw new CatalogRouteError("The Route Library could not be reached. Check your connection and try again.")
+    throw new CatalogRouteError("Shared routes could not be reached. Check your connection and try again.")
   }
   if (!response.ok) {
     throw new CatalogRouteError(response.status === 404
-      ? "That Route Library entry was not found."
-      : "The Route Library is not available right now.")
+      ? "That shared route was not found."
+      : "Shared routes are not available right now.")
   }
   let body: unknown
   try {
     body = await response.json()
   } catch {
-    throw new CatalogRouteError("The Route Library returned an unreadable route.")
+    throw new CatalogRouteError("The shared route came back unreadable.")
   }
   return parseCatalogRouteDetail(body, id)
 }

@@ -3,6 +3,7 @@
 import { ArrowRight, CaretDown, MapPin, Microphone, Path, PencilLine, SpinnerGap, X } from "@phosphor-icons/react"
 import { useCallback, useEffect, useRef, type FormEvent } from "react"
 import type { PlaceIdeasResult } from "@/lib/client/place-ideas-client"
+import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { BikeProfile } from "@/lib/routing/bike-profiles"
 import type { GravelAtlasPreference, RouteProfileId, TollPolicy, Waypoint } from "@/lib/routing/types"
@@ -18,7 +19,7 @@ export interface PlanComposerProps {
   onPlanModeChange(mode: PlanMode): void
   onDraw(): void
   ridePrompt: string
-  onRidePromptChange(prompt: string): void
+  onRidePromptChange(prompt: string, place?: PlaceResult): void
   onRidePromptSubmit(event: FormEvent<HTMLFormElement>): void
   onStartVoiceInput(): void
   onUseCurrentLocation?(): void
@@ -92,7 +93,10 @@ export interface PlanComposerProps {
   onResearchRideIdea?(prompt: string): void
 }
 
-const SETTLED_PLANNING_PHASES = new Set<PlanningPhase>(["idle", "ready", "error", "cancelled"])
+// `alternatives` is settled for the composer: the route is already drawn and
+// usable, so the busy spinner and its climbing seconds counter stop there.
+// The route rail says quietly that more options are coming.
+const SETTLED_PLANNING_PHASES = new Set<PlanningPhase>(["idle", "ready", "alternatives", "error", "cancelled"])
 
 export function PlanComposer({
   planMode,

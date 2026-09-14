@@ -161,7 +161,8 @@ export interface PlannerRideConfigCommands {
 }
 
 export interface PlannerIntentCommands {
-  onRidePrompt(prompt: string): void
+  /** `chosenPlace` is the suggestion the rider picked, when the prompt still names it. */
+  onRidePrompt(prompt: string, chosenPlace?: Waypoint | null): void
   onChooseStopIdea(stop: Waypoint): void
   onResearchRideIdea(prompt: string): void
 }

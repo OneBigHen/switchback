@@ -18,8 +18,10 @@ const items: RideLibraryItem[] = [
   },
   {
     id: "recorded-1",
+    sourceId: "journal-7",
     kind: "recorded-ride",
     name: "Sunday ride",
+    geometry: [[-77.9, 40.75], [-77.5, 40.9]],
     sourceLabel: "Recorded ride",
     distanceMiles: 63.1,
     durationMinutes: 118,
@@ -57,14 +59,22 @@ describe("RidesSurface", () => {
   it("points riders to the shared Route Library without mixing its routes into My Rides", () => {
     render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
 
-    expect(screen.getByRole("link", { name: "Browse Route Library" })).toHaveAttribute("href", "/gpx-library")
+    expect(screen.getByRole("link", { name: "Explore routes" })).toHaveAttribute("href", "/gpx-library")
+  })
+
+  it("offers a 3D replay on recorded rides only", () => {
+    render(<RidesSurface items={items} onOpen={vi.fn()} onImport={vi.fn()} />)
+
+    const replays = screen.getAllByRole("link", { name: "Replay in 3D" })
+    expect(replays).toHaveLength(1)
+    expect(replays[0]).toHaveAttribute("href", "/labs/recon/replay/journal-7?from=saved")
   })
 
   it("offers the Route Library from the empty personal state", () => {
     render(<RidesSurface items={[]} onOpen={vi.fn()} onImport={vi.fn()} />)
 
     expect(screen.getByText("No rides saved yet.")).toBeInTheDocument()
-    expect(screen.getByText(/save one from the Route Library/i)).toBeInTheDocument()
+    expect(screen.getByText(/save one from Explore routes/i)).toBeInTheDocument()
   })
 
   it("never shows an unknown saved-route duration as 0 min or labels rows as a project library", () => {

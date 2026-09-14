@@ -643,7 +643,7 @@ describe("planner ride composer", () => {
     )
     await user.click(screen.getByRole("button", { name: /find ride options/i }))
 
-    expect(onRidePrompt).toHaveBeenCalledWith("Give me two hours of gravel and a good brewery")
+    expect(onRidePrompt).toHaveBeenCalledWith("Give me two hours of gravel and a good brewery", null)
   })
 
   it("lets a rider choose a rider-fit stop instead of silently adding one", async () => {
@@ -751,13 +751,18 @@ describe("planner lifecycle progress (Phase 6)", () => {
     const user = userEvent.setup()
     const onCancelRideChange = vi.fn()
     renderDeck({
-      vm: { lifecycle: { phase: "alternatives", startedAt: Date.now(), label: "Adding alternatives…" } },
+      vm: { lifecycle: { phase: "routing-primary", startedAt: Date.now(), label: "Routing your ride…" } },
       cmds: { onCancelRideChange }
     })
     const cancel = screen.getByRole("button", { name: "Cancel ride change" })
     expect(cancel).toBeInTheDocument()
     await user.click(cancel)
     expect(onCancelRideChange).toHaveBeenCalledOnce()
+  })
+
+  it("stops the busy status once the route is drawn and only alternatives are pending", () => {
+    renderDeck({ vm: { lifecycle: { phase: "alternatives", startedAt: Date.now() - 9_000, label: "Adding alternatives…" } } })
+    expect(screen.queryByRole("status", { name: "Ride planning progress" })).not.toBeInTheDocument()
   })
 
   it("hides the progress status once the lifecycle is ready", () => {

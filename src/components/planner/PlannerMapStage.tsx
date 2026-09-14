@@ -73,6 +73,17 @@ import {
 import { MapStageLayerControl } from "./MapStageLayerControl"
 import { SketchRouteToolbar } from "./v2/SketchRouteToolbar"
 
+/**
+ * Where the map opens before OpenGravel knows the rider's start: the region
+ * the routing policy and graph cover (PA/NJ), not the whole continent. A
+ * national view told a new rider nothing about where planning works
+ * (UX-AUDIT U25); the start seed flies in closer as soon as one exists.
+ */
+const PLANNING_REGION_VIEW: { center: [number, number]; zoom: number } = {
+  center: [-76.6, 40.6],
+  zoom: 6.3
+}
+
 type LiveMapProps = PlannerMapStageProps
 
 export interface PlannerMapStageProps extends MapStageProps {
@@ -462,8 +473,8 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
       map = renderer.create(renderersModule, {
         container,
         experience: experienceRef.current,
-        center: initialStart ? [initialStart.lon, initialStart.lat] : [-98.5795, 39.8283],
-        zoom: initialStart ? 10.5 : 3.8,
+        center: initialStart ? [initialStart.lon, initialStart.lat] : PLANNING_REGION_VIEW.center,
+        zoom: initialStart ? 10.5 : PLANNING_REGION_VIEW.zoom,
         onLocateMe: (point) => propsRef.current.onLocateMe?.(point)
       })
       mapRef.current = map

@@ -73,7 +73,7 @@ describe("summarizeRouteTrafficEvidence", () => {
     expect(summarizeRouteTrafficEvidence(evidence)).toEqual({
       state: "danger",
       title: "Closure reported",
-      detail: "1 reported incident"
+      detail: "PA-611 closed between York Rd and Bristol Rd · 1 reported incident"
     })
   })
 

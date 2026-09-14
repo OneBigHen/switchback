@@ -246,6 +246,9 @@ export function RouteDiscoverySurface({
             }
             const availability = quickChipAvailability(chip, routes, located)
             const pressed = quick.chips.includes(chip)
+            // Gravel with no surface evidence anywhere is not a choice the
+            // catalog can offer yet; a permanently greyed chip only reads as broken.
+            if (chip === "gravel" && !availability.enabled && !pressed) return null
             // A chip nothing can satisfy is disabled with its reason rather
             // than silently returning an empty list.
             const blocked = !availability.enabled && !(chip === "nearby" && !located)

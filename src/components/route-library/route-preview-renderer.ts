@@ -16,7 +16,10 @@
  *
  * If WebGL is unavailable the renderer says so once and every caller gets
  * `null`, which the thumbnail turns into an honest unavailable state rather
- * than a silhouette pretending to be a map.
+ * than a silhouette pretending to be a map. A slow or failed *style load* is
+ * not the same thing: it is retried a couple of times before the session gives
+ * up, because one bad moment on a phone connection used to switch every card
+ * basemap off until a full reload.
  */
 
 import { mapStyleUrl } from "@/lib/client/map-layers"
@@ -40,8 +43,12 @@ const MARKER_LAYER = "preview-markers-layer"
 
 /** Beyond this a preview is abandoned so one slow tile cannot stall the queue. */
 const RENDER_TIMEOUT_MS = 9_000
-/** Roughly two screens of large cards; older entries are cheap to redraw. */
-const CACHE_LIMIT = 140
+/** Every catalog card at one size, so browsing back up never re-renders. */
+const CACHE_LIMIT = 200
+/** Style-load attempts before the session stops trying (WebGL absence stops at once). */
+const MAX_MAP_ATTEMPTS = 3
+/** Pause between style-load attempts. */
+const MAP_RETRY_DELAY_MS = 4_000
 
 export interface RoutePreviewRequest {
   readonly spec: RoutePreviewSpec
@@ -55,16 +62,23 @@ type RendererState = "idle" | "ready" | "unavailable"
 interface QueueEntry {
   readonly request: RoutePreviewRequest
   readonly resolve: (value: string | null) => void
+  /** Cards still waiting for this render; at zero a queued entry is dropped. */
+  waiters: number
+  started: boolean
 }
 
 const cache = new Map<string, string>()
-const inFlight = new Map<string, Promise<string | null>>()
+const inFlight = new Map<string, { promise: Promise<string | null>; entry: QueueEntry }>()
 const queue: QueueEntry[] = []
 
 let state: RendererState = "idle"
 let container: HTMLDivElement | null = null
 let mapPromise: Promise<MapHandle | null> | null = null
+let mapAttempts = 0
 let draining = false
+
+/** Thrown when the style did not load in time; worth another attempt later. */
+class PreviewStyleTimeout extends Error {}
 
 interface MapHandle {
   // Structural rather than nominal: this module must not import maplibre-gl's
@@ -122,21 +136,30 @@ async function createMap(spec: RoutePreviewSpec): Promise<MapHandle | null> {
       preserveDrawingBuffer: true,
       pixelRatio: spec.pixelRatio
     } as ConstructorParameters<typeof maplibre.Map>[0])
-    await new Promise<void>((resolve, reject) => {
-      const timer = window.setTimeout(() => reject(new Error("style load timed out")), RENDER_TIMEOUT_MS)
+    // Only the first load decides. MapLibre reports every failed tile, glyph
+    // or sprite as an `error` event and keeps loading around it, so treating
+    // the first such event as fatal turned one missing tile into "no basemaps
+    // for the rest of the session".
+    const loaded = await new Promise<boolean>((resolve) => {
+      const timer = window.setTimeout(() => resolve(false), RENDER_TIMEOUT_MS)
       map.once("load", () => {
         window.clearTimeout(timer)
-        resolve()
-      })
-      map.once("error", () => {
-        window.clearTimeout(timer)
-        reject(new Error("map style failed"))
+        resolve(true)
       })
     })
+    if (!loaded) {
+      map.remove()
+      throw new PreviewStyleTimeout()
+    }
     state = "ready"
     return { map: map as unknown as MapHandle["map"] }
-  } catch {
-    // No WebGL, blocked tiles, or a style that will not load. Say so once.
+  } catch (caught) {
+    if (caught instanceof PreviewStyleTimeout && mapAttempts < MAX_MAP_ATTEMPTS) {
+      // Let the next render try again after a pause.
+      mapPromise = null
+      return null
+    }
+    // No WebGL, or a style that repeatedly will not load. Say so once.
     state = "unavailable"
     return null
   }
@@ -214,10 +237,16 @@ function waitForIdle(handle: MapHandle): Promise<void> {
 }
 
 async function renderOne(request: RoutePreviewRequest): Promise<string | null> {
-  if (state === "unavailable") return null
-  mapPromise ??= createMap(request.spec)
-  const handle = await mapPromise
-  if (!handle) return null
+  let handle: MapHandle | null = null
+  while (!handle) {
+    if (state === "unavailable") return null
+    if (!mapPromise) {
+      if (mapAttempts > 0) await new Promise((resolve) => window.setTimeout(resolve, MAP_RETRY_DELAY_MS))
+      mapAttempts += 1
+      mapPromise = createMap(request.spec)
+    }
+    handle = await mapPromise
+  }
 
   try {
     previewContainer(request.spec)
@@ -246,6 +275,7 @@ async function drain(): Promise<void> {
         entry.resolve(cached)
         continue
       }
+      entry.started = true
       const image = await renderOne(entry.request)
       if (image) remember(entry.request.spec.key, image)
       entry.resolve(image)
@@ -271,20 +301,41 @@ function remember(key: string, image: string): void {
 /**
  * Ask for one preview. Repeat requests for the same key share one render, and
  * a key already rendered this session resolves immediately from memory.
+ *
+ * `signal` withdraws this caller's interest — a card that unmounted or was
+ * scrolled past. When no caller is left waiting, a render that has not started
+ * is dropped from the queue, so a fast scroll does not leave a backlog of
+ * nine-second renders for cards nobody is looking at.
  */
-export function requestRoutePreview(request: RoutePreviewRequest): Promise<string | null> {
+export function requestRoutePreview(request: RoutePreviewRequest, signal?: AbortSignal): Promise<string | null> {
   if (typeof window === "undefined") return Promise.resolve(null)
-  const cached = cache.get(request.spec.key)
+  const key = request.spec.key
+  const cached = cache.get(key)
   if (cached) return Promise.resolve(cached)
-  if (state === "unavailable") return Promise.resolve(null)
-  const pending = inFlight.get(request.spec.key)
-  if (pending) return pending
+  if (state === "unavailable" || signal?.aborted) return Promise.resolve(null)
 
-  const promise = new Promise<string | null>((resolve) => {
-    queue.push({ request, resolve })
+  let flight = inFlight.get(key)
+  if (flight) {
+    flight.entry.waiters += 1
+  } else {
+    let resolveEntry!: (value: string | null) => void
+    const promise = new Promise<string | null>((resolve) => { resolveEntry = resolve })
+      .finally(() => inFlight.delete(key))
+    const entry: QueueEntry = { request, resolve: resolveEntry, waiters: 1, started: false }
+    flight = { promise, entry }
+    inFlight.set(key, flight)
+    queue.push(entry)
     void drain()
-  }).finally(() => inFlight.delete(request.spec.key))
-  inFlight.set(request.spec.key, promise)
+  }
+
+  const { entry, promise } = flight
+  signal?.addEventListener("abort", () => {
+    entry.waiters -= 1
+    if (entry.waiters > 0 || entry.started) return
+    const index = queue.indexOf(entry)
+    if (index >= 0) queue.splice(index, 1)
+    entry.resolve(null)
+  }, { once: true })
   return promise
 }
 
@@ -302,6 +353,7 @@ export function resetRoutePreviewRenderer(): void {
   inFlight.clear()
   queue.length = 0
   mapPromise = null
+  mapAttempts = 0
   state = "idle"
   container?.remove()
   container = null

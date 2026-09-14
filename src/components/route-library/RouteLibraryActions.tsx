@@ -1,5 +1,6 @@
 "use client"
 
+import { CubeFocus } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
 import { saveCatalogRouteToMyRides, type CatalogCopyLibrary } from "@/lib/gpx/catalog-client"
 import { RouteLibrary } from "@/lib/storage/route-library"
@@ -29,6 +30,8 @@ export interface RouteLibraryActionsProps {
  * - Save to My Rides fetches and validates the full route, then writes one
  *   duplicate-safe `catalog-copy`. An existing copy is recognised on mount.
  * - Open saved copy loads the rider-owned row, not the shared entry.
+ * - 3D flyover opens the route in the 3D preview, straight into the film, with
+ *   back returning here. It was only reachable by typing /labs/recon.
  */
 export function RouteLibraryActions({
   catalogRouteId,
@@ -106,6 +109,16 @@ export function RouteLibraryActions({
           {state.kind === "saving" ? "Saving…" : "Save to My Rides"}
         </button>
       )}
+
+      {canUseGeometry ? (
+        <a
+          href={`/labs/recon/replay/${encodeURIComponent(`catalog:${catalogRouteId}`)}?film=1&from=route`}
+          className="atlas-launch-3d"
+        >
+          <CubeFocus aria-hidden="true" />
+          3D flyover
+        </a>
+      ) : null}
 
       {state.kind === "unsaved" && state.error ? (
         <p className="atlas-launch-error" role="alert">{state.error}</p>

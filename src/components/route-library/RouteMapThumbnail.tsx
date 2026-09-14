@@ -104,14 +104,12 @@ export function RouteMapThumbnail({
 
   useEffect(() => {
     if (!spec || !visible || cachedRoutePreview(spec.key)) return
-    let cancelled = false
+    const controller = new AbortController()
     const key = spec.key
-    void requestRoutePreview({ spec, geometry, start, end }).then((result) => {
-      if (!cancelled) setRendered({ key, url: result })
+    void requestRoutePreview({ spec, geometry, start, end }, controller.signal).then((result) => {
+      if (!controller.signal.aborted) setRendered({ key, url: result })
     })
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
     // `geometry`/`start`/`end` are derived from the same art the spec key
     // fingerprints, so the key is the honest dependency here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -210,7 +208,9 @@ function MercatorPlate({
     <svg
       className={styles.plate}
       viewBox={`0 0 ${PLATE.width} ${PLATE.height}`}
-      preserveAspectRatio="xMidYMid slice"
+      // `meet`, not `slice`: the plate is square and most cards are not, and
+      // slicing cut the top and bottom off every north–south ride.
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label={label}
     >

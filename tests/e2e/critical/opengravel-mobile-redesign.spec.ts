@@ -170,7 +170,7 @@ test.describe("explore", () => {
 test.describe("GPX Library", () => {
   test("lists routes with geography, not silhouettes, and does not lead with turn counts", async ({ page }) => {
     await page.goto("/gpx-library")
-    await expect(page.getByRole("heading", { name: "GPX Library" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Explore routes" })).toBeVisible()
 
     const presentation = page.getByRole("group", { name: "Presentation" })
     await expect(presentation.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true")

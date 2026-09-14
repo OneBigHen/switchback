@@ -50,7 +50,7 @@ test("moving between destinations updates the URL and the visible surface", asyn
   await expect(page.getByPlaceholder("Search routes, places, or regions")).toBeVisible()
   // Rider-published routes keep their own home; Explore links to it rather
   // than swallowing or quietly dropping a surface that already worked.
-  await expect(page.getByRole("link", { name: "Community Atlas" })).toHaveAttribute("href", "/routes")
+  await expect(page.getByRole("link", { name: "Community routes" })).toHaveAttribute("href", "/routes")
   await expect(activeDestination(page)).toHaveText("Explore")
 
   await primary.getByRole("button", { name: "Settings" }).click()

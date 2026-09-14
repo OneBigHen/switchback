@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { pathToFileURL } from "node:url"
 import { atlasSourceFingerprint } from "./lib/route-atlas-integrity.mjs"
 
 /**
@@ -79,8 +80,16 @@ function dropJitter(points, minDist) {
   return out
 }
 
-/** Ramer-Douglas-Peucker simplification. */
-function rdp(points, epsilon) {
+/**
+ * Ramer-Douglas-Peucker simplification.
+ *
+ * A closed loop starts and ends on the same point, so its first chord has zero
+ * length. Distance to that "line" then computed as zero for every point and
+ * the whole loop collapsed to its two identical endpoints — 48 routes drew as a
+ * single dot and their cards claimed "Location unknown". A degenerate chord
+ * uses plain distance to the point instead.
+ */
+export function rdp(points, epsilon) {
   if (points.length < 3) return points
   const keep = new Array(points.length).fill(false)
   keep[0] = true
@@ -94,10 +103,12 @@ function rdp(points, epsilon) {
     const [x2, y2] = points[end]
     const dx = x2 - x1
     const dy = y2 - y1
-    const len = Math.hypot(dx, dy) || 1e-12
+    const len = Math.hypot(dx, dy)
     for (let i = start + 1; i < end; i += 1) {
       const [px, py] = points[i]
-      const dist = Math.abs(dy * px - dx * py + x2 * y1 - y2 * x1) / len
+      const dist = len > 1e-9
+        ? Math.abs(dy * px - dx * py + x2 * y1 - y2 * x1) / len
+        : Math.hypot(px - x1, py - y1)
       if (dist > maxDist) {
         maxDist = dist
         index = i
@@ -248,7 +259,10 @@ async function main() {
   console.log(`route atlas: wrote poster art for ${out.count} of ${manifest.routes.length} routes`)
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+// Run only as a script, so tests can import the geometry helpers.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error)
+    process.exitCode = 1
+  })
+}

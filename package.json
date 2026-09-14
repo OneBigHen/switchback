@@ -38,6 +38,7 @@
     "offline:build:pa": "node --max-old-space-size=2048 scripts/build-offline-v2.mjs data/pennsylvania-motorcycle.osm.pbf data/offline-regions pennsylvania Pennsylvania",
     "offline:build:nj": "node --max-old-space-size=2048 scripts/build-offline-v2.mjs data/new-jersey-latest.osm.pbf data/offline-regions new-jersey 'New Jersey'",
     "gpx:import-projects": "tsx scripts/import-project-gpx.ts",
+    "gpx:curate": "tsx scripts/curate-gpx-library.ts",
     "validate:live": "node scripts/validate-live.mjs",
     "validate:curvature": "node scripts/validate-curvature-live.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",

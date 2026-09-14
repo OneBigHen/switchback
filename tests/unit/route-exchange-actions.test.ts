@@ -133,7 +133,7 @@ describe("route exchange actions", () => {
     expect(subject.refresh).not.toHaveBeenCalled()
     expect(subject.onNotice).toHaveBeenCalledWith({
       kind: "success",
-      message: "Bald Eagle Loop opened from the Route Library. It is not in My Rides until you save it."
+      message: "Bald Eagle Loop opened from Explore routes. It is not in My Rides until you save it."
     })
   })
 

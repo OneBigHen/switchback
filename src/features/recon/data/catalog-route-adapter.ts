@@ -2,6 +2,9 @@ import type { PlannedRoute } from "@/lib/routing/types"
 import type { ReconTrack, ReconTrackPoint } from "@/features/recon/types"
 import { createReconTrack, finiteOrNull, isValidReconCoordinate } from "./recon-track"
 
+/** Track ids for shared catalog routes are `catalog:<route id>`. Server-safe (no "use client"). */
+export const CATALOG_PREFIX = "catalog:"
+
 /**
  * Adapts a Route Library catalog route into a Recon track. Catalog geometry
  * carries no timestamps, so the result is always a `preview` and is never
@@ -25,7 +28,7 @@ export function adaptCatalogRoute(route: PlannedRoute): ReconTrack | null {
   }
 
   return createReconTrack({
-    id: `catalog:${route.id}`,
+    id: `${CATALOG_PREFIX}${route.id}`,
     name: route.name,
     sourceKind: "catalog-route",
     playbackKind: "preview",

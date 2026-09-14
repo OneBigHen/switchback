@@ -17,6 +17,8 @@ const BAND_LABEL: Record<AtlasBrowseRoute["band"], string> = {
   hairpin: "Hairpin"
 }
 
+const BAND_LEVEL: Record<AtlasBrowseRoute["band"], number> = { calm: 1, mellow: 2, twisty: 3, hairpin: 4 }
+
 export function routeAreaLabel(route: AtlasBrowseRoute): string | null {
   const parts = [route.region, ...route.ridingAreas].filter((part): part is string => Boolean(part))
   return parts.length > 0 ? parts.join(" · ") : null
@@ -27,7 +29,8 @@ export function routeAreaLabel(route: AtlasBrowseRoute): string | null {
  *
  * The shared listing carries no measured surface mix, so a percentage here
  * would be invented. An adventure/gravel routing profile is real evidence of
- * intent; nothing at all is stated as unknown.
+ * intent; nothing at all is stated as unknown — on the route page. A card
+ * leaves it out: the same "Surface unknown" on every card tells nobody apart.
  */
 export function routeSurfaceLabel(
   route: AtlasBrowseRoute
@@ -53,7 +56,8 @@ export interface RouteDiscoveryCardProps {
  * One route, presented for a rider deciding whether to ride it.
  *
  * The information order is the approved one: geography, name, distance and
- * time, character and surface, area, then the ride's own short story. Mapped
+ * time, character and surface, then area. The distance-bucket tag ("Big
+ * ride") repeated the mileage right above it and is gone. Mapped
  * turn counts are deliberately absent — they are an analyzer diagnostic, not a
  * reason anybody picks a road — and live on the route detail page instead.
  */
@@ -112,12 +116,18 @@ export function RouteDiscoveryCard({
         </span>
 
         <span className={styles.character}>
-          <span className={`${styles.band} band-${route.band}`}>{BAND_LABEL[route.band]}</span>
-          <span className={styles.surface} data-evidence={surface.evidence}>{surface.text}</span>
+          <span className={`${styles.band} band-${route.band}`} title="Curvature compared with the other routes here">
+            <span className={styles.bandMeter} aria-hidden="true">
+              {[1, 2, 3, 4].map((level) => <i key={level} data-on={level <= BAND_LEVEL[route.band]} />)}
+            </span>
+            {BAND_LABEL[route.band]}
+          </span>
+          {surface.evidence !== "unknown" ? (
+            <span className={styles.surface} data-evidence={surface.evidence}>{surface.text}</span>
+          ) : null}
         </span>
 
         {area ? <span className={styles.area}>{area}</span> : null}
-        <span className={styles.story}>{route.tone}</span>
       </span>
     </>
   )

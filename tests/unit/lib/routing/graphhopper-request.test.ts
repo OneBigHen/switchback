@@ -70,8 +70,18 @@ describe("GraphHopper request policy", () => {
     featureFlags.roadRequirements = true
   })
 
-  it("builds the complete normal point-to-point request", () => {
-    expect(createGraphHopperRequest({ profile: "twisty", points: [start, finish] })).toEqual({
+  it("asks for a single path on the primary call", () => {
+    // Engine alternatives cost 18–21 s on long trips (issue #133); the primary
+    // paints one route and the alternatives call computes the rest.
+    const body = createGraphHopperRequest({ profile: "twisty", points: [start, finish] })
+    expect(body).not.toHaveProperty("algorithm")
+    expect(Object.keys(body).some((key) => key.startsWith("alternative_route"))).toBe(false)
+    expect(createGraphHopperRequest({ profile: "twisty", candidateSet: "primary", points: [start, finish] }))
+      .not.toHaveProperty("algorithm")
+  })
+
+  it("builds the complete alternatives point-to-point request", () => {
+    expect(createGraphHopperRequest({ profile: "twisty", candidateSet: "alternatives", points: [start, finish] })).toEqual({
       profile: "motorcycle_twisty",
       points: [[-76.8867, 40.2732], [-76.3055, 40.0379]],
       points_encoded: false,
@@ -110,7 +120,7 @@ describe("GraphHopper request policy", () => {
   })
 
   it("adds the highway avoidance policy without changing the base request", () => {
-    expect(createGraphHopperRequest({ profile: "quick", avoidHighways: true, points: [start, finish] })).toEqual({
+    expect(createGraphHopperRequest({ profile: "quick", avoidHighways: true, candidateSet: "alternatives", points: [start, finish] })).toEqual({
       profile: "motorcycle_fastest",
       points: [[-76.8867, 40.2732], [-76.3055, 40.0379]],
       points_encoded: false,

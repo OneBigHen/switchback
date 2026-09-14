@@ -1,5 +1,6 @@
 "use client"
 
+import { routeDisplayName } from "@/lib/routing/route-display-name"
 import {
   CaretDown,
   CaretUp,
@@ -34,6 +35,8 @@ import {
 } from "./workspace/workspace-mode"
 import { RoadLockLibraryDrawer } from "./RoadLockLibraryDrawer"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "./PlannerDeckViewModel"
+import type { PlaceResult } from "@/lib/geocoding/photon"
+import type { Waypoint } from "@/lib/routing/types"
 import { isActivePlanningPhase } from "./PlannerDeckViewModel"
 import { PlanComposer } from "./v2/PlanComposer"
 
@@ -173,6 +176,19 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const onSaveOffline = commands.onSaveOffline
 
   const [ridePrompt, setRidePrompt] = useState("")
+  // The suggestion the rider picked, tied to the exact text it produced. Any
+  // later edit to the prompt makes it stale by comparison, so nothing has to
+  // clear it.
+  // Only read when submitting, so it lives in a ref rather than render state.
+  const chosenPlaceRef = useRef<{ prompt: string; waypoint: Waypoint } | null>(null)
+  const changeRidePrompt = (prompt: string, place?: PlaceResult) => {
+    setRidePrompt(prompt)
+    if (place) chosenPlaceRef.current = { prompt, waypoint: { lat: place.lat, lon: place.lon, label: place.label } }
+  }
+  const chosenPlaceFor = (prompt: string): Waypoint | null => {
+    const chosen = chosenPlaceRef.current
+    return chosen && chosen.prompt.trim() === prompt ? chosen.waypoint : null
+  }
   const sheetDetentOverride = usePlannerStore((state) => state.sheetDetentOverride)
   const setSheetDetentOverride = usePlannerStore((state) => state.setSheetDetentOverride)
   const sheetDetent = sheetDetentOverride ?? "half"
@@ -249,7 +265,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
     event.preventDefault()
     const prompt = (new FormData(event.currentTarget).get("ride-prompt") as string | null ?? ridePrompt).trim()
     if (prompt.length < 3 || intentStatus === "interpreting") return
-    onRidePrompt(prompt)
+    onRidePrompt(prompt, chosenPlaceFor(prompt))
   }
 
   const planDisabled = !start
@@ -277,7 +293,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
   const createRide = () => {
     if (createDisabled) return
     if (promptReady) {
-      onRidePrompt(ridePrompt.trim())
+      onRidePrompt(ridePrompt.trim(), chosenPlaceFor(ridePrompt.trim()))
       return
     }
     onPlan()
@@ -336,7 +352,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <span className="brand-mark" aria-hidden="true"><Path weight="bold" /></span>
               <span>
                 <small>{selectedRoute ? "Route ready" : "Route planner"}</small>
-                <strong>{selectedRoute?.name ?? "OpenGravel"}</strong>
+                <strong>{selectedRoute ? routeDisplayName(selectedRoute) : "OpenGravel"}</strong>
                 <span className="planner-stage-chip" aria-label={`Planning stage: ${planningStage}`}>
                   {planningStage}
                 </span>
@@ -395,7 +411,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
               <section className="planner-route-context" aria-label="Current route setup">
                 <span className="planner-route-context__identity">
                   <small>{hasUnappliedChange ? "Previous route · changes not applied" : ui.routesCount > 1 ? `${ui.routesCount} route options` : "Route ready"}</small>
-                  <strong>{selectedRoute?.name ?? "Choose a route"}</strong>
+                  <strong>{selectedRoute ? routeDisplayName(selectedRoute) : "Choose a route"}</strong>
                   {selectedRouteMeta ? <span>{selectedRouteMeta}</span> : null}
                 </span>
                 <button
@@ -417,7 +433,7 @@ export function PlannerDeck({ viewModel, commands, children }: PlannerDeckProps)
                 onPlanModeChange={onPlanModeChange}
                 onDraw={() => onStartDrawing?.()}
                 ridePrompt={ridePrompt}
-                onRidePromptChange={setRidePrompt}
+                onRidePromptChange={changeRidePrompt}
                 onRidePromptSubmit={submitRidePrompt}
                 onStartVoiceInput={startVoiceInput}
                 onUseCurrentLocation={onUseCurrentLocation}

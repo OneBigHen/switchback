@@ -9,14 +9,17 @@ function deferred<T = unknown>() {
 }
 
 describe("route job limiter", () => {
-  it("runs one primary job with both tokens while a second waits", async () => {
+  it("runs two primary jobs side by side and queues a third", async () => {
     const limiter = createRouteJobLimiter(2)
     const first = deferred()
     const second = deferred()
+    const third = deferred()
     const firstDone = limiter.run(() => first.promise, { priority: "primary" })
     const secondDone = limiter.run(() => second.promise, { priority: "primary" })
+    const thirdDone = limiter.run(() => third.promise, { priority: "primary" })
 
-    // First primary holds both tokens; the second is queued.
+    // One token per call: a lifecycle's paired corridor or loop-retry calls
+    // really do overlap, instead of the first primary starving the second.
     await Promise.resolve()
     expect(limiter.runningCount()).toBe(2)
     expect(limiter.queuedCount()).toBe(1)
@@ -24,11 +27,13 @@ describe("route job limiter", () => {
     first.resolve("first")
     await expect(firstDone).resolves.toBe("first")
     second.resolve("second")
+    third.resolve("third")
     await expect(secondDone).resolves.toBe("second")
+    await expect(thirdDone).resolves.toBe("third")
     expect(limiter.queuedCount()).toBe(0)
   })
 
-  it("lets a primary request acquire both tokens while an alternative holds one", async () => {
+  it("starts a primary alongside a running alternative", async () => {
     const limiter = createRouteJobLimiter(2)
     const alternative = deferred()
     const primary = deferred()
@@ -37,10 +42,10 @@ describe("route job limiter", () => {
     await Promise.resolve()
     expect(limiter.runningCount()).toBe(1)
 
-    // A primary needs both tokens; it must wait for the alternative to finish.
     const primaryDone = limiter.run(() => primary.promise, { priority: "primary" })
     await Promise.resolve()
-    expect(limiter.queuedCount()).toBe(1)
+    expect(limiter.runningCount()).toBe(2)
+    expect(limiter.queuedCount()).toBe(0)
 
     alternative.resolve("alt")
     await expect(alternativeDone).resolves.toBe("alt")
@@ -50,23 +55,27 @@ describe("route job limiter", () => {
 
   it("dequeues a queued primary ahead of queued alternatives", async () => {
     const limiter = createRouteJobLimiter(2)
-    const firstPrimary = deferred()
-    const secondPrimary = deferred()
-    const alternative = deferred()
-
-    const firstDone = limiter.run(() => firstPrimary.promise, { priority: "primary" })
+    const holders = [deferred(), deferred()]
+    const started: string[] = []
+    const holding = holders.map((holder) => limiter.run(() => holder.promise, { priority: "primary" }))
     await Promise.resolve()
-    const alternativeDone = limiter.run(() => alternative.promise, { priority: "alternatives" })
-    const secondDone = limiter.run(() => secondPrimary.promise, { priority: "primary" })
 
-    // Alternative queued first, then a primary: the primary jumps the queue
-    // (second primary runs when the first releases a token).
-    firstPrimary.resolve("first")
-    await expect(firstDone).resolves.toBe("first")
-    secondPrimary.resolve("second")
-    await expect(secondDone).resolves.toBe("second")
-    alternative.resolve("alt")
-    await expect(alternativeDone).resolves.toBe("alt")
+    // The alternative queues first, then a primary: when a token frees, the
+    // primary jumps the queue.
+    const alternativeDone = limiter.run(async () => { started.push("alternative") }, { priority: "alternatives" })
+    const primaryDone = limiter.run(async () => { started.push("primary") }, { priority: "primary" })
+    await Promise.resolve()
+    expect(limiter.queuedCount()).toBe(2)
+
+    holders[0]!.resolve("released")
+    await holding[0]
+    await primaryDone
+    expect(started[0]).toBe("primary")
+
+    holders[1]!.resolve("released")
+    await holding[1]
+    await alternativeDone
+    expect(started).toEqual(["primary", "alternative"])
   })
 
   it("rejects a queued job when its lifecycle signal aborts", async () => {
@@ -75,6 +84,7 @@ describe("route job limiter", () => {
     const controller = new AbortController()
 
     const holding = limiter.run(() => blocker.promise, { priority: "primary" })
+    const holdingToo = limiter.run(() => blocker.promise, { priority: "primary" })
     await Promise.resolve()
     expect(limiter.runningCount()).toBe(2)
 
@@ -91,6 +101,7 @@ describe("route job limiter", () => {
 
     blocker.resolve("done")
     await expect(holding).resolves.toBe("done")
+    await expect(holdingToo).resolves.toBe("done")
   })
 
   it("rejects immediately when enqueued with an already-aborted signal", async () => {
@@ -108,6 +119,7 @@ describe("route job limiter", () => {
     const limiter = createRouteJobLimiter(2, { maxQueue: 2 })
     const blocker = deferred()
     const holding = limiter.run(() => blocker.promise, { priority: "primary" })
+    const holdingToo = limiter.run(() => blocker.promise, { priority: "primary" })
     await Promise.resolve()
     expect(limiter.runningCount()).toBe(2)
 
@@ -123,6 +135,7 @@ describe("route job limiter", () => {
 
     blocker.resolve("done")
     await expect(holding).resolves.toBe("done")
+    await expect(holdingToo).resolves.toBe("done")
     await expect(queued).resolves.toBe("queued")
     await expect(queued2).resolves.toBe("queued2")
     expect(limiter.queuedCount()).toBe(0)

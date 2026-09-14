@@ -78,6 +78,34 @@ function boundary(comparison: PlannerRouteComparisonProps | null) {
 }
 
 describe("RouteDecisionRail", () => {
+  it("does not call a lone route a comparison, and titles the rail for one route", () => {
+    const only = route("twisty", "twisty", 71, 44.8, 91)
+    render(<RouteDecisionRail routes={[only]} selectedId="twisty" onSelect={vi.fn()} />)
+    expect(screen.getByRole("heading", { name: "Your route" })).toBeInTheDocument()
+    expect(screen.queryByText("Fastest Now")).not.toBeInTheDocument()
+    expect(buildRouteDecisionPresentation(only, [only], "twisty").role).toBe("Your route")
+  })
+
+  it("says quietly that other roads are coming instead of counting", () => {
+    render(<RouteDecisionRail routes={routes} selectedId="twisty" onSelect={vi.fn()} findingAlternatives />)
+    expect(screen.getByRole("status")).toHaveTextContent("Finding other roads…")
+  })
+
+  it("replaces engine generation names with the style and the roads it takes", () => {
+    const alternate = {
+      ...route("twisty-2", "twisty", 80, 48, 88),
+      name: "Twisty alternative 2",
+      instructions: [
+        { distanceMeters: 9_000, timeMilliseconds: 1, sign: 0, text: "", streetName: "PA-150", interval: [0, 1] as [number, number] },
+        { distanceMeters: 400, timeMilliseconds: 1, sign: 0, text: "", streetName: "Main St", interval: [1, 2] as [number, number] },
+        { distanceMeters: 21_000, timeMilliseconds: 1, sign: 0, text: "", streetName: "US-220", interval: [2, 3] as [number, number] }
+      ]
+    }
+    expect(buildRouteDecisionPresentation(alternate, [alternate, routes[0]!], null).subtitle).toBe("Twisty via US-220 & PA-150")
+    expect(buildRouteDecisionPresentation({ ...alternate, instructions: [] }, [alternate], null).subtitle).toBe("Twisty option")
+    expect(buildRouteDecisionPresentation(routes[0]!, routes, null).subtitle).toBe(routes[0]!.name)
+  })
+
   it("presents scan-first rider choices relative to the current route without provider jargon", () => {
     render(<RouteDecisionRail routes={routes} selectedId="twisty" onSelect={vi.fn()} />)
 

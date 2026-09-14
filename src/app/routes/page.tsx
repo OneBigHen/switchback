@@ -1,16 +1,23 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { getCommunityStore } from "@/app/api/community/context"
+import { AppNavigationLinks } from "@/components/shell/AppNavigationLinks"
+import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+  title: `Community routes — ${PRODUCT_BRAND.name}`,
+  description: "Routes riders chose to publish, as exact sanitized previews."
+}
 
 export default function CommunityRoutesPage() {
   const routes = getCommunityStore().listPublicRoutes(50)
   return (
     <main className="community-page">
       <header className="community-page-header">
-        <Link href="/" className="community-back-link">← OpenGravel planner</Link>
-        <p className="community-eyebrow">Community routes</p>
-        <h1>Find a better road.</h1>
+        <Link href="/?tab=explore" className="community-back-link">← Explore routes</Link>
+        <h1>Community routes</h1>
         <p>Browse rider-published previews. Every line here is the exact sanitized artifact the owner chose to share.</p>
       </header>
       {routes.length > 0 ? (
@@ -29,7 +36,14 @@ export default function CommunityRoutesPage() {
             </li>
           ))}
         </ul>
-      ) : <p className="community-empty">No public routes yet. Publish one from a saved route.</p>}
+      ) : (
+        <section className="community-empty">
+          <strong>No rider has published a route yet.</strong>
+          <p>Publish one of yours from Saved, or browse the shared routes in the meantime.</p>
+          <Link href="/?tab=explore">Explore routes</Link>
+        </section>
+      )}
+      <AppNavigationLinks active="explore" />
     </main>
   )
 }

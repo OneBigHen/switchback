@@ -1,5 +1,5 @@
 import path from "node:path"
-import { readAtlasArt } from "@/lib/gpx/atlas"
+import { readAtlasArt, type AtlasRouteArt } from "@/lib/gpx/atlas"
 import { readDerivedCached } from "@/lib/gpx/catalog-cache"
 import { buildAtlasBrowseRoutes, type AtlasListingRoute } from "./atlas-listing"
 import type { BrowseCatalog } from "./browse-catalog"
@@ -34,6 +34,10 @@ function isAtlasListingRoute(value: unknown): value is AtlasListingRoute {
   if (value.profile !== undefined && typeof value.profile !== "string") return false
   if (value.duplicateFamilyId !== undefined && typeof value.duplicateFamilyId !== "string") return false
   if (value.previewOnly !== undefined && typeof value.previewOnly !== "boolean") return false
+  if (value.sourceFile !== undefined && typeof value.sourceFile !== "string") return false
+  if (value.sources !== undefined && !(Array.isArray(value.sources) && value.sources.every((source) => typeof source === "string"))) {
+    return false
+  }
   return value.duplicateFamilyRole === undefined
     || value.duplicateFamilyRole === "canonical"
     || value.duplicateFamilyRole === "near-duplicate"
@@ -57,6 +61,27 @@ function formatUpdated(value: string | undefined): string | null {
     : `Updated ${date.toLocaleDateString("en-US", { dateStyle: "medium" })}`
 }
 
+let lastBrowse: {
+  listing: readonly AtlasListingRoute[]
+  art: Readonly<Record<string, AtlasRouteArt>>
+  routes: ReturnType<typeof buildAtlasBrowseRoutes>
+} | null = null
+
+/**
+ * Both reads above return the same objects until a file changes, so the cards
+ * (titles, bands, curation) are built once per catalog version — the route
+ * detail page looks its card up on every request.
+ */
+function browseRoutesFor(
+  listing: readonly AtlasListingRoute[],
+  art: Readonly<Record<string, AtlasRouteArt>>
+): ReturnType<typeof buildAtlasBrowseRoutes> {
+  if (lastBrowse?.listing === listing && lastBrowse.art === art) return lastBrowse.routes
+  const routes = buildAtlasBrowseRoutes(listing, art)
+  lastBrowse = { listing, art, routes }
+  return routes
+}
+
 /**
  * The manifest is hundreds of kilobytes and these surfaces are public, so the
  * parse and the per-route validation are memoised against the file's mtime
@@ -71,7 +96,7 @@ export async function loadBrowseCatalog(): Promise<BrowseCatalog> {
     listing = { routes: [] }
   }
   const art = await readAtlasArt(root)
-  const routes = buildAtlasBrowseRoutes(listing.routes, art)
+  const routes = browseRoutesFor(listing.routes, art)
 
   return {
     routes,

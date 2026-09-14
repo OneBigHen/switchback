@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { OpenGravelMark } from "@/components/brand/OpenGravelMark"
 import type { PrimaryDestination } from "@/lib/client/app-navigation"
 import { NAV_ITEMS_BEFORE_RECORD, PRIMARY_NAV_ITEMS, RECORD_NAV_ITEM, type PrimaryNavItem } from "./primary-nav-items"
 
@@ -20,6 +21,10 @@ interface AppNavigationLinksProps {
 export function AppNavigationLinks({ active }: AppNavigationLinksProps) {
   return (
     <nav className="app-navigation app-navigation--links" aria-label="Primary">
+      {/* Drawn only on the desktop rail, as in the planner shell. */}
+      <div className="app-navigation-brand" aria-hidden="true">
+        <OpenGravelMark className="open-gravel-mark" />
+      </div>
       <div className="app-navigation-primary" role="group" aria-label="Primary destinations">
         {PRIMARY_NAV_ITEMS.slice(0, NAV_ITEMS_BEFORE_RECORD).map((item) => (
           <DestinationLink key={item.destination} item={item} active={active} />

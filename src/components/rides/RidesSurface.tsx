@@ -189,7 +189,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
             {/* Shared routes live in the Route Library and only arrive here as explicit saves. */}
             <Link href="/gpx-library" className={styles.libraryLink}>
               <MapTrifold weight="bold" aria-hidden="true" />
-              <span>Browse Route Library</span>
+              <span>Explore routes</span>
             </Link>
           </>
         )}
@@ -274,7 +274,7 @@ export function RidesSurface({ items, onOpen, onImport, onImportRoads, onMatchRo
         <div className={styles.empty}>
           <RouteGraphic seed={`empty:${filter}:${normalizedQuery}`} variant="library" />
           <strong>No rides saved yet.</strong>
-          <span>Import a route file, save a planned route, or save one from the Route Library to start My Rides.</span>
+          <span>Import a route file, save a planned route, or save one from Explore routes to start My Rides.</span>
           <button type="button" className={styles.importButton} onClick={() => setImportOpen(true)}>
             <FileArrowUp weight="bold" aria-hidden="true" />
             <span>Import your first ride</span>

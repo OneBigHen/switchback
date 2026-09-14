@@ -87,12 +87,12 @@ export default function ReconExplorer() {
       <div className="recon-vignette" aria-hidden="true" />
 
       <header className="recon-brand">
-        <Link href="/" className="recon-brand-back" aria-label="Back to the OpenGravel planner">
+        <Link href="/?tab=saved" className="recon-brand-back" aria-label="Back to Saved">
           ←
         </Link>
         <div>
-          <p className="recon-eyebrow">OpenGravel Labs</p>
-          <h1 className="recon-wordmark">Recon</h1>
+          <p className="recon-eyebrow">3D preview · Beta</p>
+          <h1 className="recon-wordmark">3D rides</h1>
         </div>
         <button
           type="button"
@@ -109,10 +109,10 @@ export default function ReconExplorer() {
         <section className="recon-empty" aria-labelledby="recon-empty-title">
           <p className="recon-eyebrow">Nothing to explore yet</p>
           <h2 id="recon-empty-title" className="recon-empty-title">
-            Record a ride and Recon will bring it back to life.
+            Record a ride and replay it here in 3D.
           </h2>
           <p className="recon-quiet">
-            Recon replays rides saved in this browser&apos;s ride journal. It never edits your routes or your journal.
+            3D replays use rides saved in this browser&apos;s ride journal. They never edit your routes or your journal.
           </p>
           <Link className="recon-button recon-button-primary" href="/">
             Open the planner
@@ -195,9 +195,9 @@ function RideList({ library, selectedId, onSelect }: { library: ReturnType<typeo
 
       <h2 className="recon-section">Route previews</h2>
       {library.catalogState === "loading" ? (
-        <p className="recon-quiet">Loading the Route Library…</p>
+        <p className="recon-quiet">Loading shared routes…</p>
       ) : library.catalogState === "unavailable" && journalPreviews.length === 0 ? (
-        <p className="recon-quiet">The Route Library is unavailable right now.</p>
+        <p className="recon-quiet">Shared routes are unavailable right now.</p>
       ) : (
         <ul className="recon-rows">
           {journalPreviews.map((ride) => (
@@ -207,7 +207,7 @@ function RideList({ library, selectedId, onSelect }: { library: ReturnType<typeo
           ))}
           {library.catalog.map((entry: CatalogEntry) => (
             <li key={entry.id}>
-              <RowButton id={entry.id} selected={entry.id === selectedId} onSelect={onSelect} name={entry.name} meta="Route Library" badge="Preview" />
+              <RowButton id={entry.id} selected={entry.id === selectedId} onSelect={onSelect} name={entry.name} meta="Explore routes" badge="Preview" />
             </li>
           ))}
         </ul>

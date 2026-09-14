@@ -52,3 +52,15 @@ export function completeRidePromptWithPlace(
 
   return planMode === "loop" ? `Loop near ${label}` : `Ride to ${label}`
 }
+
+/**
+ * True when the prompt is nothing but a chosen place promoted to a ride — the
+ * exact text `completeRidePromptWithPlace` produces for a bare place — so the
+ * rider added no constraints that would need interpreting.
+ */
+export function isPlaceCompletionPrompt(prompt: string, placeLabel: string): boolean {
+  const label = placeLabel.trim()
+  if (!label) return false
+  const trimmed = prompt.trim()
+  return trimmed === `Ride to ${label}` || trimmed === `Loop near ${label}`
+}

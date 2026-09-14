@@ -5,10 +5,11 @@ import { readStoredPlannerLocation, requestPlannerLocation, savePlannerLocation 
 import { discoverPlaceIdeas, type PlaceIdeasResult } from "@/lib/client/place-ideas-client"
 import { searchPlacesClient } from "@/lib/client/geocoding-client"
 import { requestRideIntent } from "@/lib/client/ride-intent-client"
+import { isPlaceCompletionPrompt } from "@/lib/planner/ride-request-autocomplete"
 import type { LatestRequestGate } from "@/lib/client/latest-request"
 import { buildRideTripRequest, createPlanningId } from "@/lib/planner/ride-plan-request"
 import { resolveRidePromptWaypoints, type RideStartLocation, type RideStartLocationSource } from "@/lib/planner/ride-prompt-flow"
-import { isExplicitHomeDestinationRequest } from "@/lib/ai/ride-intent"
+import { isExplicitHomeDestinationRequest, parseRidePromptLocally, promptNamesRideStyle } from "@/lib/ai/ride-intent"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
 import type { GeocoderBias } from "@/lib/geocoding/photon"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
@@ -65,7 +66,7 @@ export function usePlannerRideIntent({
   setIntentSummary,
   onNotice
 }: UsePlannerRideIntentOptions) {
-  return useCallback(async (prompt: string) => {
+  return useCallback(async (prompt: string, chosenPlace?: Waypoint | null) => {
     const requestId = gate.begin()
     const store = usePlannerStore.getState()
     setStopIdeas(null)
@@ -74,9 +75,19 @@ export function usePlannerRideIntent({
     setIntentSummary("Reading your ride request…")
     store.setPlanningPhase("interpreting")
     try {
-      const intent = await requestRideIntent(prompt)
+      // A request that is only a chosen suggestion ("Ride to <place>") says
+      // nothing the local parser cannot read, and its place already has
+      // coordinates. Asking the model and then geocoding the label again was
+      // the slowest part of planning, and could land on a different namesake.
+      const intent = chosenPlace?.label && isPlaceCompletionPrompt(prompt, chosenPlace.label)
+        ? parseRidePromptLocally(prompt)
+        : await requestRideIntent(prompt)
       if (!gate.isCurrent(requestId)) return
       const current = usePlannerStore.getState()
+      // Naming a place is not choosing a riding style. Unless the rider said
+      // how they want to ride, keep the style they already picked instead of a
+      // parser default or the model's guess.
+      const profile = promptNamesRideStyle(prompt) ? intent.profile as RouteProfileId : current.profile
       const nextMode: PlanMode = intent.mode
       const nextDuration = intent.targetMinutes ?? targetMinutes
       // A destination ride is time-shaped only when the rider actually named a
@@ -92,6 +103,7 @@ export function usePlannerRideIntent({
         finish: current.finish,
         home,
         search: (query, bias) => searchPlacesClient(query, fetch, undefined, bias),
+        pinnedPlaces: chosenPlace ? [chosenPlace] : undefined,
         requestLocation: async (): Promise<RideStartLocation> => {
           // Try the browser fix first; when it is unavailable or denied,
           // infer a start from what the rider already gave us so the ride
@@ -143,7 +155,7 @@ export function usePlannerRideIntent({
         timeShaped: nextTimeShaped,
         avoidHighways: intent.avoidHighways,
         tollPolicy: intent.tollPolicy,
-        profile: intent.profile as RouteProfileId,
+        profile,
         via: [],
         // Per-leg styles describe legs, and this prompt just replaced them:
         // `via: []` leaves a single leg where there may have been several.
@@ -176,7 +188,7 @@ export function usePlannerRideIntent({
         mode: nextMode,
         start: usePlannerStore.getState().start,
         finish: nextFinish,
-        profile: intent.profile as RouteProfileId,
+        profile,
         bikeProfile: usePlannerStore.getState().bikeProfile,
         roadLocks: usePlannerStore.getState().roadLocks,
         targetMinutes: nextDuration,

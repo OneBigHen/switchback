@@ -110,7 +110,7 @@ describe("GPX Library discovery", () => {
   it("names the collection and states its real size", () => {
     renderBrowser()
 
-    expect(screen.getByRole("heading", { name: "GPX Library" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Explore routes" })).toBeInTheDocument()
     expect(screen.getByText(/2 routes · 153 miles · Updated Sep 9, 2026/)).toBeInTheDocument()
   })
 
@@ -216,13 +216,11 @@ describe("GPX Library discovery", () => {
     expect(screen.getByTestId("discovery-map")).toHaveAttribute("data-selected", "gap")
   })
 
-  it("disables a quick filter the collection cannot satisfy instead of returning nothing", () => {
+  it("does not offer Gravel when no route in the collection carries surface evidence", () => {
     renderBrowser()
 
-    const gravel = screen.getByRole("button", { name: "Gravel" })
-
-    expect(gravel).toBeDisabled()
-    expect(gravel).toHaveAttribute("title", expect.stringMatching(/surface evidence/i))
+    // A chip that is greyed out on every visit reads as broken, not as a filter.
+    expect(screen.queryByRole("button", { name: "Gravel" })).toBeNull()
   })
 
   it("applies a quick filter the collection can satisfy", () => {

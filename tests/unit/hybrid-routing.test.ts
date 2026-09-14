@@ -99,25 +99,4 @@ describe("hybrid route provider", () => {
     expect(graphHopper).toHaveBeenCalledTimes(2)
     expect(valhalla).not.toHaveBeenCalled()
   })
-
-  it("enriches alternatives but never a primary request", async () => {
-    const enrich = vi.fn(async (routing: RoutingResult): Promise<RoutingResult> => ({
-      ...routing,
-      routes: routing.routes.map((route) => ({ ...route, ascentMeters: 321 }))
-    }))
-    const provider = createHybridRouteProvider({
-      graphHopper: async () => result("graphhopper", [candidate("gh")]),
-      enrich
-    })
-
-    // Primary: no elevation enrichment on the critical path.
-    const primary = await provider(normalizeRouteRequest(request))
-    expect(enrich).not.toHaveBeenCalled()
-    expect(primary.routes[0].ascentMeters).toBeNull()
-
-    // Alternatives: enrichment runs as background evidence.
-    const alternatives = await provider(normalizeRouteRequest({ ...request, candidateSet: "alternatives" }))
-    expect(enrich).toHaveBeenCalledOnce()
-    expect(alternatives.routes.every((route) => route.ascentMeters === 321)).toBe(true)
-  })
 })

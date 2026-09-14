@@ -3,8 +3,8 @@ import ReconExplorer from "@/features/recon/ui/ReconExplorer"
 import "@/features/recon/recon.css"
 
 export const metadata: Metadata = {
-  title: "Recon — OpenGravel Labs",
-  description: "Explore your recorded rides on pitched, terrain-backed maps, then replay them."
+  title: "3D rides — OpenGravel",
+  description: "Your recorded rides and shared routes on pitched, terrain-backed maps, ready to replay in 3D."
 }
 
 export default function ReconLabsPage() {

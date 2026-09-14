@@ -2,9 +2,9 @@
 /**
  * Phase 1 baseline benchmark for the routing-intelligence rework.
  *
- * Records reproducible per-stage timings (intent parse, direct route,
- * compare, loop, long route) plus provider counts at the public app
- * boundary. It never restarts services, never prints credentials, and
+ * Records reproducible per-stage timings (intent parse, direct, short and
+ * long routes with the alternatives call that follows each, a time-shaped
+ * destination, and a loop) plus provider counts at the public app boundary. It never restarts services, never prints credentials, and
  * does not enforce performance budgets — Phase 7 owns thresholds.
  * Unreachable services are recorded as such, not treated as failures.
  *
@@ -31,6 +31,24 @@ const GOLDEN_PROMPT = "2 hour fun ride from Hatboro to Stockton NJ"
 const HARRISBURG = { lat: 40.2732, lon: -76.8867, label: "Harrisburg" }
 const LANCASTER = { lat: 40.0379, lon: -76.3055, label: "Lancaster" }
 const SCRANTON = { lat: 41.4089, lon: -75.6624, label: "Scranton" }
+const PHILADELPHIA = { lat: 39.9526, lon: -75.1652, label: "Philadelphia" }
+const STATE_COLLEGE = { lat: 40.7934, lon: -77.86, label: "State College" }
+const LOCK_HAVEN = { lat: 41.137, lon: -77.4469, label: "Lock Haven" }
+/** /api/routes allows 10 requests a minute per client; stay under it. */
+const ROUTE_REQUEST_SPACING_MS = 6_500
+
+/** Nudge a point ~30 m per run so repeated runs measure planning, not the route cache. */
+function jitter(point, run) {
+  return { ...point, lat: point.lat + run * 0.0003 }
+}
+
+/** The client sends the primary line to the alternatives call sampled to 128 points. */
+function sampledPrimary(payload) {
+  const primary = payload?.routes?.find((route) => route.id === payload.selectedRouteId) ?? payload?.routes?.[0]
+  if (!primary?.geometry?.length) return null
+  const step = Math.max(1, Math.ceil(primary.geometry.length / 128))
+  return { id: primary.id, geometry: primary.geometry.filter((_, index) => index % step === 0) }
+}
 
 function parseArgs(argv) {
   const args = { runs: 3, baseUrl: process.env.SWITCHBACK_URL ?? "http://127.0.0.1:3000", tag: null }
@@ -124,12 +142,19 @@ async function run() {
   const appUp = Boolean(health?.ok)
   console.log(`health: ${health?.ok ? "ok" : "unreachable"} (${health?.status ?? "n/a"})`)
 
+  // `body` may be a function of the run index and earlier results in the run,
+  // so an alternatives stage can send the primary it follows, exactly as the
+  // browser does.
   const endpoints = [
-    { name: "intent.golden", path: "/api/ride-intent", body: { prompt: GOLDEN_PROMPT }, post: true },
-    { name: "routes.direct", path: "/api/routes", body: { profile: "twisty", points: [HARRISBURG, LANCASTER] }, post: true },
-    { name: "routes.compare", path: "/api/routes", body: { profile: "twisty", compare: true, points: [HARRISBURG, LANCASTER] }, post: true },
-    { name: "routes.loop", path: "/api/routes", body: { profile: "adventure", points: [HARRISBURG], roundTrip: { targetMinutes: 120, seed: 17 } }, post: true },
-    { name: "routes.long", path: "/api/routes", body: { profile: "scenic", compare: true, points: [HARRISBURG, SCRANTON] }, post: true }
+    { name: "intent.golden", path: "/api/ride-intent", body: () => ({ prompt: GOLDEN_PROMPT }) },
+    { name: "intent.place", path: "/api/ride-intent", body: () => ({ prompt: "Ride to Lock Haven, Pennsylvania, United States" }) },
+    { name: "routes.direct", path: "/api/routes", body: (run) => ({ profile: "twisty", points: [jitter(HARRISBURG, run), LANCASTER] }) },
+    { name: "routes.direct.alts", path: "/api/routes", after: "routes.direct", body: (run, prior) => ({ profile: "twisty", candidateSet: "alternatives", primaryRoute: sampledPrimary(prior), points: [jitter(HARRISBURG, run), LANCASTER] }) },
+    { name: "routes.short", path: "/api/routes", body: (run) => ({ profile: "quick", points: [jitter(STATE_COLLEGE, run), LOCK_HAVEN] }) },
+    { name: "routes.long", path: "/api/routes", body: (run) => ({ profile: "twisty", points: [jitter(PHILADELPHIA, run), STATE_COLLEGE] }) },
+    { name: "routes.long.alts", path: "/api/routes", after: "routes.long", body: (run, prior) => ({ profile: "twisty", candidateSet: "alternatives", primaryRoute: sampledPrimary(prior), points: [jitter(PHILADELPHIA, run), STATE_COLLEGE] }) },
+    { name: "routes.timed", path: "/api/routes", body: (run) => ({ profile: "twisty", targetMinutes: 150, points: [jitter(HARRISBURG, run), SCRANTON] }) },
+    { name: "routes.loop", path: "/api/routes", body: (run) => ({ profile: "adventure", points: [HARRISBURG], roundTrip: { targetMinutes: 120, seed: 17 + run } }) }
   ]
 
   const samplesByEndpoint = Object.fromEntries(endpoints.map((endpoint) => [endpoint.name, []]))
@@ -138,14 +163,19 @@ async function run() {
   for (let run = 0; run < runs; run += 1) {
     const runTag = tag === "auto" ? (run === 0 ? "cold" : "warm") : tag
     console.log(`\n— run ${run + 1}/${runs} (${runTag}) —`)
+    const payloads = {}
     for (const endpoint of endpoints) {
-      const result = appUp
+      const prior = endpoint.after ? payloads[endpoint.after] : undefined
+      const body = endpoint.body(run, prior)
+      if (endpoint.path === "/api/routes") await new Promise((resolveDelay) => setTimeout(resolveDelay, ROUTE_REQUEST_SPACING_MS))
+      const result = appUp && (!endpoint.after || body.primaryRoute)
         ? await jsonRequest(baseUrl, endpoint.path, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify(endpoint.body)
+            body: JSON.stringify(body)
           }).catch((error) => ({ status: 0, ok: false, elapsedMs: 0, payload: null, error: String(error) }))
-        : { status: 0, ok: false, elapsedMs: 0, payload: null, error: "app unreachable" }
+        : { status: 0, ok: false, elapsedMs: 0, payload: null, error: appUp ? "no primary to follow" : "app unreachable" }
+      payloads[endpoint.name] = result.payload
       const record = {
         timestamp: new Date().toISOString(),
         run: run + 1,

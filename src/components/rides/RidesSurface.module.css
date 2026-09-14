@@ -261,6 +261,41 @@
   text-transform: uppercase;
 }
 
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 8px 8px;
+}
+
+.rowActions a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--sb-border) 92%, transparent);
+  border-radius: 999px;
+  color: var(--sb-text);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.rowActions a svg {
+  width: 16px;
+  height: 16px;
+  color: var(--sb-text-link);
+}
+
+.rowActions a:hover {
+  background: color-mix(in srgb, var(--sb-surface-raised) 72%, transparent);
+}
+
+.rowActions a:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: 2px;
+}
+
 .manageButton {
   display: grid;
   width: 44px;

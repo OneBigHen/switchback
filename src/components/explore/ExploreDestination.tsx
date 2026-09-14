@@ -105,7 +105,7 @@ export function ExploreDestination() {
         className={styles.surface}
         contextSlot={(
           <Link className={styles.atlasLink} href="/routes">
-            <span>Community Atlas</span>
+            <span>Community routes</span>
             <ArrowRight weight="bold" aria-hidden="true" />
           </Link>
         )}

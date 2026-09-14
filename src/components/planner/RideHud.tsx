@@ -1,5 +1,6 @@
 "use client"
 
+import { routeDisplayName } from "@/lib/routing/route-display-name"
 import {
   ArrowClockwise,
   Bookmarks,
@@ -182,7 +183,7 @@ export function RideHud(input: NavigationSessionControllerInput) {
           <span className="live-dot" aria-hidden="true" />
           <span className="ride-route-copy">
             <small>{headerLabel}</small>
-            <strong>{route.name}</strong>
+            <strong>{routeDisplayName(route)}</strong>
           </span>
         </div>
         <div className="gps-status">

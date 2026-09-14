@@ -109,6 +109,23 @@ describe("planner store", () => {
     ])
   })
 
+  it("keeps the painted primary selected when alternatives arrive", () => {
+    // The primary is a single engine path now; its own-profile alternates and
+    // other styles arrive later. None of them may move the rider's selection.
+    usePlannerStore.getState().applyPlan({ selectedRouteId: route.id, routes: [route], warnings: [] })
+    usePlannerStore.getState().mergeAlternatives({
+      selectedRouteId: route.id,
+      routes: [
+        { ...route, id: "twisty-alternate", name: "Twisty alternative 2" },
+        { ...route, id: "quick-1", profile: "quick" as const }
+      ],
+      warnings: []
+    })
+
+    expect(usePlannerStore.getState()).toMatchObject({ selectedRouteId: route.id, selectionSource: "automatic" })
+    expect(usePlannerStore.getState().plan?.routes).toHaveLength(3)
+  })
+
   it("treats a new plan's provider-chosen route as automatic again", () => {
     usePlannerStore.getState().selectRoute("twisty-1")
     const nextPlan = {

@@ -8,7 +8,6 @@ import { sketchCorridorContext } from "./sketch-corridor"
 export interface HybridRouteProviderOptions {
   graphHopper: RouteProvider
   valhalla?: RouteProvider
-  enrich?: (result: RoutingResult) => Promise<RoutingResult>
 }
 
 function supportsValhallaCandidate(request: NormalizedRouteRequest): boolean {
@@ -98,7 +97,7 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
     }
 
     const warnings = [...(graphHopperResult.warnings ?? [])]
-    let result: RoutingResult = {
+    const result: RoutingResult = {
       engine: "graphhopper",
       engineVersion: graphHopperResult.engineVersion,
       routes: attachRoadLockSatisfaction(
@@ -106,18 +105,6 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
         request.roadLocks
       ),
       ...(warnings.length > 0 ? { warnings } : {})
-    }
-    // Elevation enrichment is background evidence on the alternatives call;
-    // it never delays the primary route.
-    if (options.enrich && request.candidateSet === "alternatives") {
-      try {
-        result = await options.enrich(result)
-      } catch {
-        result = {
-          ...result,
-          warnings: [...(result.warnings ?? []), "Elevation enrichment unavailable; route geometry was preserved."]
-        }
-      }
     }
     return result
   }

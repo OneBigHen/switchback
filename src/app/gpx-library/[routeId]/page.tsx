@@ -3,7 +3,8 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import path from "node:path"
 import { readJsonCached } from "@/lib/gpx/catalog-cache"
-import { curvatureBand, readAtlasArt } from "@/lib/gpx/atlas"
+import { curvatureBand, readAtlasArt, type CurvatureBand } from "@/lib/gpx/atlas"
+import { loadBrowseCatalog } from "../load-catalog"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import { isGpxIntelligenceReport, type GpxIntelligenceReport } from "@/lib/gpx/intelligence"
@@ -11,6 +12,7 @@ import { GpxIntelligencePanel } from "@/components/planner/GpxIntelligencePanel"
 import { RouteLibraryActions } from "@/components/route-library/RouteLibraryActions"
 import { RouteDetailHeader } from "@/components/route-library/RouteDetailHeader"
 import { RouteDetailMap } from "@/components/route-library/RouteDetailMap"
+import { simplifyForOverlay } from "@/lib/routes/route-preview"
 import { AppNavigationLinks } from "@/components/shell/AppNavigationLinks"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import {
@@ -21,6 +23,13 @@ import {
 import { durationEvidence, surfaceEvidence, trackConfidence, twistinessEvidence } from "@/lib/routes/route-evidence"
 import { routeHighlights, routeSizeEyebrow } from "@/lib/routes/route-highlights"
 import type { Coordinate } from "@/lib/routing/types"
+
+/**
+ * The hero map is an overview; the planner opens the full line. Imported
+ * tracks carry up to ~22,000 points, which all went into the page payload
+ * (900 KB of HTML for the largest) for a map that cannot show them.
+ */
+const DETAIL_MAP_MAX_POINTS = 4_000
 
 export const dynamic = "force-dynamic"
 
@@ -54,6 +63,8 @@ interface AtlasDetailRoute {
 interface DetailLoad {
   route: AtlasDetailRoute | null
   bbox?: readonly [number, number, number, number]
+  /** The route's card in the library, so the page and its card carry one title and one band. */
+  listed?: { title: string; band: CurvatureBand }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,7 +133,12 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
     const parsedRoute: unknown = await readJsonCached(path.join(root, "routes", `${routeId}.json`))
     if (!isDetailRoute(parsedRoute) || parsedRoute.id !== routeId) return { route: null }
     const art = (await readAtlasArt())[routeId]
-    return { route: parsedRoute, ...art?.bbox ? { bbox: art.bbox } : {} }
+    const card = (await loadBrowseCatalog()).routes.find((entry) => entry.id === routeId)
+    return {
+      route: parsedRoute,
+      ...art?.bbox ? { bbox: art.bbox } : {},
+      ...card ? { listed: { title: card.title, band: card.band } } : {}
+    }
   } catch {
     return { route: null }
   }
@@ -130,11 +146,11 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
 
 export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }): Promise<Metadata> {
   const { routeId } = await params
-  const { route } = await loadRouteDetail(routeId)
+  const { route, listed } = await loadRouteDetail(routeId)
   if (!route) return { title: `Route not found — ${PRODUCT_BRAND.name}` }
   const story = buildRouteStory({ ...route, durationMinutes: knownDurationMinutes(route.durationMinutes) })
   return {
-    title: `${displayTitle(route, story.title)} — ${PRODUCT_BRAND.name} GPX Library`,
+    title: `${listed?.title ?? displayTitle(route, story.title)} — Explore routes — ${PRODUCT_BRAND.name}`,
     description: story.summary
   }
 }
@@ -192,13 +208,13 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
     return (
       <main className="atlas-page">
         <p className="atlas-empty">
-          <strong>Too many Route Library requests from this address.</strong>
+          <strong>Too many route requests from this address.</strong>
           <span>Give it a minute and reload.</span>
         </p>
       </main>
     )
   }
-  const { route, bbox } = await loadRouteDetail(routeId)
+  const { route, bbox, listed } = await loadRouteDetail(routeId)
   if (!route) notFound()
 
   const geometry = Array.isArray(route.geometry) ? route.geometry : []
@@ -212,10 +228,10 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
     turnCount: route.turnCount,
     ascentMeters: route.ascentMeters
   })
-  const title = displayTitle(route, story.title)
+  const title = listed?.title ?? displayTitle(route, story.title)
   const area = classifyCatalogArea(bbox)
   const areaLabel = [area.region, ...area.ridingAreas].filter(Boolean).join(" · ")
-  const band = curvatureBand(route.twistiness)
+  const band = listed?.band ?? curvatureBand(route.twistiness)
 
   const surface = surfaceEvidence({
     intelligence: route.gpxIntelligence ?? null,
@@ -248,13 +264,17 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
     <main className="atlas-page atlas-page--detail">
       <RouteDetailHeader routeName={title} detailsAnchor={TECHNICAL_DETAILS_ID} />
 
-      <RouteDetailMap
-        geometry={geometry}
-        bbox={bbox ?? null}
-        routeName={title}
-        provenanceNote={route.previewOnly ? "Preview import — the full line was not stored." : null}
-      />
+      <div className="route-detail-layout">
+      <div className="route-detail-layout__map">
+        <RouteDetailMap
+          geometry={simplifyForOverlay(geometry, DETAIL_MAP_MAX_POINTS)}
+          bbox={bbox ?? null}
+          routeName={title}
+          provenanceNote={route.previewOnly ? "Preview import — the full line was not stored." : null}
+        />
+      </div>
 
+      <div className="route-detail-layout__body">
       <section className="route-decision" aria-label="Route summary">
         {eyebrow ? <p className="route-decision__eyebrow">{eyebrow}</p> : null}
         <h2 className="route-decision__title">{title}</h2>
@@ -304,7 +324,7 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
 
         <p className="route-decision__note">
           Open in Planner loads this shared line as a track without saving it. Save keeps your own copy on this
-          device; the GPX Library entry stays as it is.
+          device; the shared route stays as it is.
         </p>
       </section>
 
@@ -380,6 +400,8 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
 
         {route.gpxIntelligence ? <GpxIntelligencePanel report={route.gpxIntelligence} /> : null}
       </section>
+      </div>
+      </div>
 
       <AppNavigationLinks active="explore" />
     </main>

@@ -9,6 +9,8 @@ import styles from "./RouteDetailMap.module.css"
 const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs"
 const ROUTE_SOURCE = "detail-route"
 const MARKER_SOURCE = "detail-markers"
+/** How long the basemap style may take before the hero says it is unavailable. */
+const MAP_LOAD_TIMEOUT_MS = 15_000
 
 interface MinimalMap {
   addSource(id: string, source: Record<string, unknown>): void
@@ -50,6 +52,12 @@ export function RouteDetailMap({ geometry, bbox, routeName, provenanceNote }: Ro
   useEffect(() => {
     if (!usable) return
     let disposed = false
+    // Held here, not returned from the async body: a cleanup returned from
+    // inside the promise was discarded, so every visit left a live map and its
+    // WebGL context behind — browsers cap those at about sixteen and start
+    // dropping the oldest, including the shared card-preview renderer's.
+    let map: MinimalMap | null = null
+    let loadTimeout: number | undefined
     const container = containerRef.current
     if (!container) return
 
@@ -59,7 +67,7 @@ export function RouteDetailMap({ geometry, bbox, routeName, provenanceNote }: Ro
         maplibre.setWorkerUrl(MAPLIBRE_WORKER_URL)
         if (disposed) return
         const [west, south, east, north] = padBoundingBox(frame!, 0.16)
-        const map = new maplibre.Map({
+        const created = new maplibre.Map({
           container,
           style: mapStyleUrl("clean"),
           bounds: [[west, south], [east, north]],
@@ -68,9 +76,19 @@ export function RouteDetailMap({ geometry, bbox, routeName, provenanceNote }: Ro
           maxZoom: 17,
           attributionControl: false
         }) as unknown as MinimalMap
+        map = created
+        const route = created
+        let loaded = false
+        // A style that never loads left an empty box with no message.
+        loadTimeout = window.setTimeout(() => {
+          if (!disposed && !loaded) setStatus("unavailable")
+        }, MAP_LOAD_TIMEOUT_MS)
 
-        map.once("load", () => {
+        route.once("load", () => {
+          loaded = true
+          window.clearTimeout(loadTimeout)
           if (disposed) return
+          const map = route
           map.addSource(ROUTE_SOURCE, {
             type: "geojson",
             data: {
@@ -121,8 +139,6 @@ export function RouteDetailMap({ geometry, bbox, routeName, provenanceNote }: Ro
           }
           setStatus("ready")
         })
-
-        return () => map.remove()
       } catch {
         if (!disposed) setStatus("unavailable")
       }
@@ -130,6 +146,9 @@ export function RouteDetailMap({ geometry, bbox, routeName, provenanceNote }: Ro
 
     return () => {
       disposed = true
+      window.clearTimeout(loadTimeout)
+      map?.remove()
+      map = null
     }
     // The route is fixed for this page; geometry identity changes only on a
     // different route, which remounts the page anyway.

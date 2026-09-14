@@ -158,8 +158,13 @@ for (const viewport of VIEWPORTS) {
     test("Record screen", async ({ page }) => {
       await installPlannerServices(page)
       await page.goto("/")
-      await page.getByRole("button", { name: "Record", exact: true }).click()
       const panel = page.locator(".record-panel")
+      // A click that lands before hydration does nothing (flaked on main in
+      // 2 of 10 runs); retry the click until the panel opens.
+      await expect(async () => {
+        await page.getByRole("button", { name: "Record", exact: true }).click()
+        await expect(panel).toBeVisible({ timeout: 1_000 })
+      }).toPass({ timeout: 15_000 })
       await assertPanelVisible(panel)
       await expect(page).toHaveScreenshot(`record-${viewport.name}.png`, screenshotOptions(page))
     })

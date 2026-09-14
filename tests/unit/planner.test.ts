@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { planMotorcycleTrip, type RoutingResult } from "@/lib/routing/planner"
+import { comparisonProfilesFor, planMotorcycleTrip, type RoutingResult } from "@/lib/routing/planner"
 import type { GraphHopperResult } from "@/lib/routing/graphhopper"
 import type { PlannedRoute, RouteProfileId, RouteRequest } from "@/lib/routing/types"
 import { MOTORCYCLE_PROFILES } from "@/lib/routing/bike-profiles"
@@ -162,9 +162,14 @@ describe("trip planner", () => {
       ]
     }, provider)
 
+    // The primary's own profile is asked first (its engine alternates are only
+    // computed on this call); its answer here is the primary line itself, so
+    // it is dropped and quick and twisty fill the two slots.
     expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual([
+      "scenic",
       "quick",
-      "twisty"
+      "twisty",
+      "adventure"
     ])
     expect(plan.selectedRouteId).toBe("scenic-primary")
     expect(plan.routes).toHaveLength(2)
@@ -191,9 +196,10 @@ describe("trip planner", () => {
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
     }, provider)
 
-    // quick and twisty are accepted; adventure is not attempted once the cap is full.
+    // A distinct scenic alternate and quick fill the cap; twisty is never attempted.
     expect(plan.routes).toHaveLength(2)
-    expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual(["quick", "twisty"])
+    expect(plan.routes.map((candidate) => candidate.profile)).toEqual(["scenic", "quick"])
+    expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual(["scenic", "quick"])
   })
 
   it("prefers official-road evidence among already-distinct Adventure alternatives", async () => {
@@ -600,15 +606,25 @@ describe("trip planner", () => {
     expect(plan.warnings.join(" ")).toMatch(/duplicate quick/i)
   })
 
+  it("asks the primary's own profile first and never sends the engine the same request twice", () => {
+    expect(comparisonProfilesFor({ profile: "twisty" })).toEqual(["twisty", "quick", "scenic", "adventure", "avoid-highways"])
+    expect(comparisonProfilesFor({ profile: "balanced" })).toEqual(["balanced", "twisty", "scenic", "adventure", "avoid-highways"])
+    // With highways already avoided, the avoid-highways profile is plain quick.
+    expect(comparisonProfilesFor({ profile: "quick", avoidHighways: true })).toEqual(["quick", "twisty", "scenic", "adventure"])
+  })
+
   it("drops an alternative that duplicates an already-accepted alternative", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
       engineVersion: "11.0",
       routes: [{
         ...route(request.profile, request.profile === "quick" || request.profile === "scenic" ? 0.02 : -0.02),
-        geometry: request.profile === "quick" || request.profile === "scenic"
-          ? route(request.profile, 0.02).geometry
-          : route(request.profile, -0.02).geometry
+        // The twisty call is the primary's own profile; it returns the primary line.
+        geometry: request.profile === "twisty"
+          ? route("twisty").geometry
+          : request.profile === "quick" || request.profile === "scenic"
+            ? route(request.profile, 0.02).geometry
+            : route(request.profile, -0.02).geometry
       }]
     }))
 

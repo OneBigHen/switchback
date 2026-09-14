@@ -4,7 +4,7 @@ import { CrosshairSimple, NavigationArrow } from "@phosphor-icons/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { mapStyleUrl } from "@/lib/client/map-layers"
 import type { AtlasBrowseRoute } from "@/app/gpx-library/atlas-browse"
-import { padBoundingBox, type GeoBoundingBox } from "@/lib/routes/route-preview"
+import { collectionBoundingBox, padBoundingBox, type GeoBoundingBox } from "@/lib/routes/route-preview"
 import { browseRouteGeography } from "./route-preview-source"
 import styles from "./RouteLibraryMap.module.css"
 
@@ -15,6 +15,9 @@ const ROUTES_LINE = "discovery-routes-line"
 const SELECTED_LINE = "discovery-selected-line"
 const ENDPOINTS_SOURCE = "discovery-endpoints"
 const ENDPOINTS_LAYER = "discovery-endpoints-layer"
+
+/** How long the basemap style may take before the stage says it is unavailable. */
+const MAP_LOAD_TIMEOUT_MS = 15_000
 
 /** Overlay resolution: enough to read a road's shape, not a survey trace. */
 const OVERLAY_POINTS = 72
@@ -84,23 +87,13 @@ export function RouteLibraryMap({
     return { route, geography }
   }).filter((entry) => entry.geography.geometry.length >= 2), [routes])
 
-  const collectionBounds = useMemo<GeoBoundingBox | null>(() => {
-    let west = Infinity
-    let south = Infinity
-    let east = -Infinity
-    let north = -Infinity
-    for (const { route } of features) {
-      if (!route.bbox) continue
-      west = Math.min(west, route.bbox[0])
-      south = Math.min(south, route.bbox[1])
-      east = Math.max(east, route.bbox[2])
-      north = Math.max(north, route.bbox[3])
-    }
-    return Number.isFinite(west) && Number.isFinite(north) ? [west, south, east, north] : null
-  }, [features])
+  const collectionBounds = useMemo<GeoBoundingBox | null>(() => collectionBoundingBox(
+    features.flatMap(({ route }) => route.bbox ? [route.bbox] : [])
+  ), [features])
 
   useEffect(() => {
     let disposed = false
+    let loadTimeout: number | undefined
     const container = containerRef.current
     if (!container) return
 
@@ -119,7 +112,17 @@ export function RouteLibraryMap({
           attributionControl: false
         }) as unknown as MinimalMap
 
+        // A style that never loads used to leave the stage "loading" forever:
+        // an empty tinted box with no explanation. Individual tile errors are
+        // not a reason to give up (MapLibre still loads around them), so only
+        // the absence of a first load is. A late load still wins.
+        let loaded = false
+        loadTimeout = window.setTimeout(() => {
+          if (!disposed && !loaded) setStatus("unavailable")
+        }, MAP_LOAD_TIMEOUT_MS)
         map.once("load", () => {
+          loaded = true
+          window.clearTimeout(loadTimeout)
           if (disposed) return
           installLayers(map)
           setStatus("ready")
@@ -155,6 +158,7 @@ export function RouteLibraryMap({
 
     return () => {
       disposed = true
+      window.clearTimeout(loadTimeout)
       mapRef.current?.remove()
       mapRef.current = null
     }

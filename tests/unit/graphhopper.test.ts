@@ -57,6 +57,7 @@ describe("GraphHopper provider", () => {
     expect(
       createGraphHopperRequest({
         profile: "twisty",
+        candidateSet: "alternatives",
         points: [
           { lat: 40.2732, lon: -76.8867, label: "Harrisburg" },
           { lat: 40.0379, lon: -76.3055, label: "Lancaster" }
@@ -256,6 +257,7 @@ describe("GraphHopper provider", () => {
         { lat: 40.2732, lon: -76.8867 },
         { lat: 40.28, lon: -76.84 }
       ],
+      candidateSet: "alternatives",
       targetMinutes: 120
     })
     expect(corridorBody["alternative_route.max_weight_factor"]).toBe(4.0)
@@ -264,7 +266,8 @@ describe("GraphHopper provider", () => {
       points: [
         { lat: 40.2732, lon: -76.8867 },
         { lat: 40.28, lon: -76.84 }
-      ]
+      ],
+      candidateSet: "alternatives"
     })["alternative_route.max_weight_factor"]).toBe(1.8)
   })
 

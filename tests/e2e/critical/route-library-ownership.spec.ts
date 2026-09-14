@@ -75,9 +75,9 @@ test("Route Library stays shared while My Rides holds only explicit, duplicate-s
   expect(await ownedRoutes(page)).toEqual([])
 
   // 2. Browsing the Route Library (filters, map selection) never writes My Rides.
-  await page.getByRole("link", { name: "Browse Route Library" }).click()
+  await page.getByRole("link", { name: "Explore routes" }).click()
   await expect(page).toHaveURL(/\/gpx-library$/)
-  await expect(page.getByRole("heading", { name: "GPX Library", level: 1 })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Explore routes", level: 1 })).toBeVisible()
   const list = page.getByRole("list", { name: "Routes" })
   const cards = list.locator("[data-route-card]")
   await expect(cards).toHaveCount(2)
@@ -114,7 +114,7 @@ test("Route Library stays shared while My Rides holds only explicit, duplicate-s
   expect(await ownedRoutes(page)).toEqual([])
   await page.getByRole("link", { name: "Open in Planner" }).click()
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByText(`${CLEAN_NAME} opened from the Route Library. It is not in My Rides until you save it.`)).toBeVisible()
+  await expect(page.getByText(`${CLEAN_NAME} opened from Explore routes. It is not in My Rides until you save it.`)).toBeVisible()
   expect(await ownedRoutes(page)).toEqual([])
   await openMyRides(page)
   await expect(page.getByText("No rides saved yet.")).toBeVisible()
@@ -164,7 +164,7 @@ test("Route Library keeps its list and map presentations contained and synchroni
   // second document scroll owner underneath the app navigation.
   await page.setViewportSize({ width: 1280, height: 560 })
   await page.goto("/gpx-library")
-  await expect(page.getByRole("heading", { name: "GPX Library", level: 1 })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Explore routes", level: 1 })).toBeVisible()
   const list = page.getByRole("list", { name: "Routes" })
   await expect(list).toBeVisible()
   await expect(list.locator("[data-route-card]")).toHaveCount(2)
