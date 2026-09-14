@@ -149,6 +149,19 @@ The master task index omitted T-3.6 even though the PR 3 body defines it. Treat 
 as an owner-approved production deployment step, not as an implementation task.
 It must never be executed merely because preceding tests are green.
 
+The owner gate is explicit: prerequisites are a merged PR 3 head, green
+exact-head gates, owner approval, a backed-up production environment, an
+origin-restricted Mapbox public token, and a known-good MapLibre rollback build.
+The owner action is to set the production build flag, verify token restrictions,
+and rebuild through the approved deployment procedure. Required verification is
+the deployed SHA, renderer/capability response, Road/Terrain/Satellite load,
+fallback behavior, map-load counter, and health response. Rollback restores the
+backed-up environment and known-good MapLibre artifact, then repeats health and
+planner-map checks. Dependent work cannot proceed without owner approval,
+service/build identity, token restriction evidence, renderer/fallback evidence,
+counter and health samples, and a successful rollback result. The implementation
+agent stops before every production action.
+
 ### C8 — TomTom budget/breaker is shared infrastructure
 
 Old PR 5 says it uses the "shared TomTom budget and breaker" introduced by old
