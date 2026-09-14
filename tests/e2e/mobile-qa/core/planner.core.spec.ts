@@ -36,7 +36,9 @@ test.describe("mobile planner Level A core states", () => {
     await held.release()
     const choices = page.getByRole("region", { name: "Route choices" })
     await expect(choices).toBeVisible()
-    await expect(choices.getByRole("heading", { name: "Choose your ride" })).toBeVisible()
+    // One route is not a choice: the heading only asks the rider to choose
+    // once alternatives exist (see the three-card test below).
+    await expect(choices.getByRole("heading", { name: "Your route" })).toBeVisible()
     expectCleanRuntime(page)
   })
 
