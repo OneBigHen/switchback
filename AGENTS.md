@@ -42,8 +42,11 @@ behind a clean interface — no generic provider framework, no microservices.
   Supabase/Firebase, no session-store service.
 - Sharing: opaque-link read-only snapshots, not a social network — no
   followers/likes/feed/DMs/moderation (ADR 0012).
-- Analytics: PostHog, ~15 deliberate events, no PII, no session replay, no
-  autocapture, `TELEMETRY_ENABLED=false` for self-hosters (ADR 0011).
+- Analytics: hosted beta uses high-observability PostHog with explicit prior
+  acknowledgement, session replay, selected autocapture, IP/GeoIP, typed semantic
+  events, workflow timing, build correlation and agent-readable evidence. Auth
+  secrets/raw GPX/raw ride geometry remain excluded; self-hosters stay telemetry
+  off by default (ADR 0026, supersedes 0011).
 - Rate limiting: in-process limiter for the single instance. No Redis.
 - Default route: Best Ride, with Fastest/Balanced one tap away (ADR 0013).
   Route Policy V2 gives each rider-facing role its own detour envelope; V1 is
