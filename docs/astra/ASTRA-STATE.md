@@ -18,6 +18,61 @@ permission-denial recovery), then deploy and re-qualify the replacement SHA
 before the real-iPhone checklist. Do not open Astra Wave 2 or another
 refactor/UX wave in place of beta evidence.
 
+## UX streamline pass 1 (2026-09-14, branch `ux/streamline-pass-1`)
+
+Defect remediation on top of `main` @ `030b256a`, owner-requested; not a new
+wave. Seven revertable commits, one draft PR, follow-ups in a tracking issue.
+
+- **Selected-place identity (Luna blocker) remediated.** A chosen suggestion
+  keeps its coordinates and is routed without `/api/ride-intent` or a second
+  geocode. A prompt that names no style keeps the rider's style. RED-first:
+  `tests/unit/ride-intent-chosen-place.test.tsx` (3 of 8 fail on `030b256a`).
+  The server skips the model for plain destination/loop prompts, and the
+  model timeout is now 4 s instead of 12 s.
+- **Routing latency.** The primary is single-path. The limiter lets two jobs
+  overlap. Comparison profiles that repeat an engine request are skipped.
+  Elevation is fetched only for accepted alternatives, the loop fallback has
+  an 8 s budget, the route-cache key covers avoid areas, locks and bike
+  profile, and responses carry `Server-Timing`. Benchmark against the same
+  LAN GraphHopper:
+
+  | Endpoint | Before (prod) | After (branch) |
+  |---|---|---|
+  | `routes.long` | 18.6–23.0 s | 3.1–3.7 s |
+  | `intent.place` | 4.6–12.0 s | < 0.06 s |
+- **Planner truth.** The spinner stops at primary paint. The heading reads
+  "Your route" until there is a choice. Engine names such as "Scenic
+  alternative 3" become "via A & B". Closure detail names the road. The
+  first-run camera opens on the planning region. #131: layers fetch on
+  toggle.
+- **Route catalog.**
+  - Closed loops keep their shape in the atlas.
+  - The library map fits a robust extent.
+  - The detail map no longer leaks WebGL and has a load timeout.
+  - Card previews retry per card instead of disabling for the session.
+  - Curation rules live in `src/lib/gpx/catalog-curation.ts` and are shared by
+    the listing, the importer and `npm run gpx:curate`.
+  - Titles are readable; split rides read "part N of M"; curvature bands are
+    catalog-relative.
+- **Prod data curated** (owner-approved). Backup:
+  `/root/backups/gpx-library-20260914-075142.tar.gz`. 119 manifest rows moved
+  to `rejected/`: 57 split slivers, 43 stub exports, 15 fixtures, 4 empty
+  tracks. The atlas was rebuilt. Live `/api/route-catalog` shows 126 routes,
+  all within PA/NJ/MD/WV/NY. Rollback: restore the tarball.
+- **Shell.**
+  - Standalone pages use the planner's 64 px rail at ≥1181 px.
+  - The planner rail no longer splits icons from labels.
+  - Route detail is two-column on desktop.
+  - Community pages have the navigation.
+  - Names are one per place: "Explore routes" and "Community routes".
+- **3D preview (Recon).** "3D flyover" on route pages and "Replay in 3D" on
+  recorded rides in Saved, with contextual back links. The renderer is
+  untouched (ADR 0025).
+
+**Next task:** review and merge the pass-1 PR, deploy with the worktree-build
++ `.next` swap, then re-run the Luna selected-place mission on the deployed
+SHA. Follow-ups are in the "UX streamline — next passes" issue.
+
 ## Repository and authority
 
 - Repo `/root/Vibe/switchback`, `main` @ `c918584` (2026-09-09).

@@ -218,9 +218,11 @@ body:has(.community-page) {
   align-items: center;
   margin-top: 8px;
   padding: 0 16px;
+  border: 1px solid var(--sb-border, var(--line));
   border-radius: var(--sb-radius-control, 12px);
-  background: var(--sb-action, var(--signal));
-  color: var(--sb-paper);
+  /* Paper on Ember is 3.7:1 in dark mode; the link token clears AA in both. */
+  background: var(--sb-surface, var(--machined));
+  color: var(--sb-text-link, var(--signal));
   font-weight: 700;
   text-decoration: none;
 }

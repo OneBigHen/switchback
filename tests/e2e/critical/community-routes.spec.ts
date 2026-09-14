@@ -26,7 +26,7 @@ test("anonymous community browse is available without identity and rejects inval
   expect(Array.isArray(payload.routes)).toBe(true)
 
   await page.goto("/routes")
-  await expect(page.getByRole("heading", { name: "Find a better road." })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Community routes", level: 1 })).toBeVisible()
 
   const invalid = await request.get("/api/community/routes/not-a-route")
   expect(invalid.status()).toBe(404)
@@ -53,7 +53,9 @@ test("anonymous community browse is available without identity and rejects inval
         }
         return getComputedStyle(document.documentElement).backgroundColor
       }
-      return ["h1", ".community-page-header > p:last-child", ".community-eyebrow", ".community-back-link"].map((selector) => {
+      // The empty state's call to action is sampled whenever the store is empty.
+      const emptyState = document.querySelector(".community-empty") ? [".community-empty p", ".community-empty a"] : []
+      return ["h1", ".community-page-header > p:last-child", ".community-back-link", ...emptyState].map((selector) => {
         const element = document.querySelector(selector)
         if (!element) throw new Error(`Missing contrast sample: ${selector}`)
         return { selector, foreground: getComputedStyle(element).color, background: backgroundFor(element) }
