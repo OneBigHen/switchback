@@ -21,6 +21,8 @@ export interface RouteStory {
   body: string
   /** Stable distance band used as a compact browsing tag. */
   tone: string
+  /** True when the import had no real name and `title` was generated from its distance. */
+  generatedTitle?: boolean
 }
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
@@ -39,7 +41,8 @@ function hours(durationMinutes: number): string {
 }
 
 function titleCase(value: string): string {
-  return value.replace(/\b[a-z]/g, (c) => c.toUpperCase())
+  // Not after an apostrophe: "Hermy's", never "Hermy'S".
+  return value.replace(/(^|[^\p{L}\p{N}'’])(\p{Ll})/gu, (_, before: string, letter: string) => before + letter.toUpperCase())
 }
 
 function sentenceCase(value: string): string {
@@ -107,5 +110,5 @@ export function buildRouteStory(route: RouteStoryInput): RouteStory {
   }
 
   const body = `${stats.join(", ")}. Route-level twistiness: ${twistiness}/100 (${character} overall).`
-  return { title, summary, body, tone }
+  return { title, summary, body, tone, generatedTitle: !hasRealName }
 }

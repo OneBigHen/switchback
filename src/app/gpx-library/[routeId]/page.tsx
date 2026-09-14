@@ -3,7 +3,8 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import path from "node:path"
 import { readJsonCached } from "@/lib/gpx/catalog-cache"
-import { curvatureBand, readAtlasArt } from "@/lib/gpx/atlas"
+import { curvatureBand, readAtlasArt, type CurvatureBand } from "@/lib/gpx/atlas"
+import { loadBrowseCatalog } from "../load-catalog"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import { isGpxIntelligenceReport, type GpxIntelligenceReport } from "@/lib/gpx/intelligence"
@@ -62,6 +63,8 @@ interface AtlasDetailRoute {
 interface DetailLoad {
   route: AtlasDetailRoute | null
   bbox?: readonly [number, number, number, number]
+  /** The route's card in the library, so the page and its card carry one title and one band. */
+  listed?: { title: string; band: CurvatureBand }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -130,7 +133,12 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
     const parsedRoute: unknown = await readJsonCached(path.join(root, "routes", `${routeId}.json`))
     if (!isDetailRoute(parsedRoute) || parsedRoute.id !== routeId) return { route: null }
     const art = (await readAtlasArt())[routeId]
-    return { route: parsedRoute, ...art?.bbox ? { bbox: art.bbox } : {} }
+    const card = (await loadBrowseCatalog()).routes.find((entry) => entry.id === routeId)
+    return {
+      route: parsedRoute,
+      ...art?.bbox ? { bbox: art.bbox } : {},
+      ...card ? { listed: { title: card.title, band: card.band } } : {}
+    }
   } catch {
     return { route: null }
   }
@@ -138,11 +146,11 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
 
 export async function generateMetadata({ params }: { params: Promise<{ routeId: string }> }): Promise<Metadata> {
   const { routeId } = await params
-  const { route } = await loadRouteDetail(routeId)
+  const { route, listed } = await loadRouteDetail(routeId)
   if (!route) return { title: `Route not found — ${PRODUCT_BRAND.name}` }
   const story = buildRouteStory({ ...route, durationMinutes: knownDurationMinutes(route.durationMinutes) })
   return {
-    title: `${displayTitle(route, story.title)} — ${PRODUCT_BRAND.name} GPX Library`,
+    title: `${listed?.title ?? displayTitle(route, story.title)} — ${PRODUCT_BRAND.name} GPX Library`,
     description: story.summary
   }
 }
@@ -206,7 +214,7 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
       </main>
     )
   }
-  const { route, bbox } = await loadRouteDetail(routeId)
+  const { route, bbox, listed } = await loadRouteDetail(routeId)
   if (!route) notFound()
 
   const geometry = Array.isArray(route.geometry) ? route.geometry : []
@@ -220,10 +228,10 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
     turnCount: route.turnCount,
     ascentMeters: route.ascentMeters
   })
-  const title = displayTitle(route, story.title)
+  const title = listed?.title ?? displayTitle(route, story.title)
   const area = classifyCatalogArea(bbox)
   const areaLabel = [area.region, ...area.ridingAreas].filter(Boolean).join(" · ")
-  const band = curvatureBand(route.twistiness)
+  const band = listed?.band ?? curvatureBand(route.twistiness)
 
   const surface = surfaceEvidence({
     intelligence: route.gpxIntelligence ?? null,

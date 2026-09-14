@@ -199,34 +199,48 @@
   gap: 6px;
 }
 
+/* Curvature is a character, not a warning: one neutral pill with a four-step
+   meter, so red stays reserved for closures and hazards. */
 .band {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, currentcolor 10%, transparent);
-  color: var(--sb-spruce);
+  background: color-mix(in srgb, var(--sb-text) 7%, transparent);
+  color: var(--sb-text);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
-/* The four curvature anchors are canonical tokens now, so a card reads the
-   same on Explore, in the GPX Library and inside the app shell. */
-.band:global(.band-calm) { color: var(--sb-band-calm); }
-.band:global(.band-mellow) { color: var(--sb-band-mellow); }
-.band:global(.band-twisty) { color: var(--sb-band-twisty); }
-.band:global(.band-hairpin) { color: var(--sb-band-hairpin); }
+.bandMeter {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 8px;
+}
+
+.bandMeter i {
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--sb-text) 22%, transparent);
+}
+
+.bandMeter i:nth-child(1) { height: 3px; }
+.bandMeter i:nth-child(2) { height: 5px; }
+.bandMeter i:nth-child(3) { height: 6px; }
+.bandMeter i:nth-child(4) { height: 8px; }
+
+.bandMeter i[data-on="true"] {
+  background: var(--sb-text);
+}
 
 .surface {
   color: var(--sb-text-muted);
   font-size: 11px;
   font-weight: 650;
-}
-
-.surface[data-evidence="unknown"] {
-  color: var(--sb-text-muted);
-  font-style: italic;
-  opacity: 0.85;
 }
 
 .surface[data-evidence="estimated"]::after {
@@ -241,12 +255,6 @@
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.story {
-  color: var(--sb-text-muted);
-  font-size: 11px;
-  line-height: 1.35;
 }
 
 .visuallyHidden {

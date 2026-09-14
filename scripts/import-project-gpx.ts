@@ -6,6 +6,7 @@ import path from "node:path"
 import { analyzeGeometry, haversine } from "../src/lib/routing/scoring"
 import { areGpxFingerprintsNear, splitGpxDocument, type GpxGeometryFingerprint, type NormalizedGpxRoute } from "../src/lib/gpx/corpus-ingest"
 import { mapMatchGpxStream, type GpxMapMatchResult } from "../src/lib/gpx/map-matching"
+import { CATALOG_EXCLUSION_LABEL, catalogExclusions, isFixtureSourcePath, splitTrackParent } from "../src/lib/gpx/catalog-curation"
 import { analyzeGpxIntelligence, type GpxIntelligenceReport } from "../src/lib/gpx/intelligence"
 import { GpxStreamParser, type GpxStreamDocument } from "../src/lib/gpx/streaming-parser"
 import type { PlannedRoute, Waypoint } from "../src/lib/routing/types"
@@ -306,12 +307,15 @@ function assignDuplicateFamilies(entries: RouteEntry[]): { duplicateFamilies: nu
   return { duplicateFamilies, nearDuplicateFamilies, nearDuplicateRoutes }
 }
 
-const discovered = discoverGpxFiles()
+const found = discoverGpxFiles()
   .map((filePath) => path.resolve(filePath))
   .filter((filePath) => filePath !== outputRoot &&
     !filePath.startsWith(`${outputRoot}${path.sep}`) &&
     !filePath.startsWith(`${outputRoot}.`))
-  .toSorted()
+// Other projects' test fixtures (gpx.studio `test-data`, Playwright fixtures,
+// staged imports) are not rides; the catalog once showed a dozen of them.
+const discovered = found.filter((filePath) => !isFixtureSourcePath(relativeSource(filePath))).toSorted()
+const skippedFixtures = found.length - discovered.length
 const byHash = new Map<string, SourceFileGroup>()
 
 for (const filePath of discovered) {
@@ -364,6 +368,20 @@ for (const group of byHash.values()) {
   }
 }
 
+// The shared curation rules: stub planner exports, empty tracks and
+// split-track slivers are kept for review under rejected/, never imported.
+const excluded = catalogExclusions(entries.map((entry) => entry.summary))
+const excludedIds = new Set(excluded.map(({ route }) => route.id))
+for (const { route, reason } of excluded) {
+  rejected.push({ id: route.id, sourceFile: route.sourceFile, sources: route.sources, reason: CATALOG_EXCLUSION_LABEL[reason] })
+}
+entries.splice(0, entries.length, ...entries.filter((entry) => !excludedIds.has(entry.summary.id)))
+const keptFiles = new Set(entries.map((entry) => splitTrackParent(entry.summary.id) ?? entry.summary.id))
+for (const fileId of new Set(excluded.map(({ route }) => splitTrackParent(route.id) ?? route.id))) {
+  if (keptFiles.has(fileId)) continue
+  await rename(path.join(originalsDirectory, fileId), path.join(rejectedDirectory, fileId)).catch(() => undefined)
+}
+
 const familyStats = assignDuplicateFamilies(entries)
 const routes = entries.map((entry) => entry.summary).toSorted((first, second) =>
   first.name.localeCompare(second.name) || first.id.localeCompare(second.id)
@@ -409,7 +427,7 @@ try {
   throw caught
 }
 
-console.log(`Scanned ${manifest.scannedFiles} GPX files (${manifest.uniqueFiles} unique).`)
+console.log(`Scanned ${manifest.scannedFiles} GPX files (${manifest.uniqueFiles} unique); skipped ${skippedFixtures} test fixtures.`)
 console.log(`Imported ${manifest.importedRoutes} routes; preserved ${manifest.rejectedFiles} rejected files for review.`)
 console.log(`Duplicate families: ${manifest.duplicateFamilies} (${manifest.nearDuplicateFamilies} near-duplicate families).`)
 console.log(`Map matching: ${manifest.mapMatch.endpointConfigured ? "configured; inspect per-route status" : "not configured; routes remain track-only"}.`)
