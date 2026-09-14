@@ -105,7 +105,7 @@ describe("map-native route comparison", () => {
       />
     )
 
-    const card = screen.getByRole("article", { name: /Fastest Now/i })
+    const card = screen.getByRole("article", { name: /Fastest/i })
     const select = screen.getByRole("button", { name: "Select balanced route" })
 
     fireEvent.mouseEnter(card)

@@ -95,7 +95,7 @@ describe("Best Ride follows the deterministic ranking", () => {
     const all = [quick, twisty]
 
     // Fastest is a measurement, and outranks the recommendation chip.
-    expect(routeDecisionRole(quick, all)).toBe("Fastest Now")
+    expect(routeDecisionRole(quick, all)).toBe("Fastest")
     // Measured twistiness keeps its own factual label.
     expect(routeDecisionRole(twisty, all)).toBe("Maximum Twisties")
   })

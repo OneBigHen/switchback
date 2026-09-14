@@ -110,7 +110,7 @@ describe("RouteDecisionRail", () => {
     render(<RouteDecisionRail routes={routes} selectedId="twisty" onSelect={vi.fn()} />)
 
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
-    expect(screen.getByText("Fastest Now")).toBeInTheDocument()
+    expect(screen.getByText("Fastest")).toBeInTheDocument()
     expect(screen.getByText("Maximum Twisties")).toBeInTheDocument()
     expect(screen.queryByText(/graphhopper/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/fixture-provider-version/i)).not.toBeInTheDocument()
@@ -122,7 +122,7 @@ describe("RouteDecisionRail", () => {
     expect(within(selected).getByText("71 min")).toBeInTheDocument()
     expect(within(selected).getByText("44.8 mi")).toBeInTheDocument()
 
-    const faster = screen.getByRole("article", { name: /Fastest Now/i })
+    const faster = screen.getByRole("article", { name: /Fastest/i })
     expect(within(faster).getByText("-9 min · -3.6 mi · -36 curve")).toBeInTheDocument()
   })
 
@@ -152,7 +152,7 @@ describe("RouteDecisionRail", () => {
     ]
     render(<RouteDecisionRail routes={tied} selectedId="" onSelect={vi.fn()} onOpenDetails={vi.fn()} />)
 
-    expect(screen.getAllByText("Fastest Now")).toHaveLength(2)
+    expect(screen.getAllByText("Fastest")).toHaveLength(2)
     expect(screen.getByRole("button", { name: "Select balanced route" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Select quick route" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Details for balanced route" })).toBeInTheDocument()
