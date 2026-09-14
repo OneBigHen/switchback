@@ -93,7 +93,7 @@ export async function planSegmentedTrip(
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: [...segmentProfiles]
   }
-  const enriched = await enrichCandidates(request, [composed], enricher)
+  const enriched = await enrichCandidates(request, [composed], enricher, options)
   const selected = enriched.routes[0] ?? composed
   return {
     ...tripPlanMetadata(request),

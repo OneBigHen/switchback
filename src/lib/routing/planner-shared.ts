@@ -4,6 +4,7 @@ import { partitionLocksByPrecedence } from "@/lib/roads/lock-precedence"
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import type { PlannedRoute, RouteRequest } from "./types"
 import type {
+  CandidateEnrichmentOptions,
   RouteCandidateEnricher,
   RouteCandidateEnrichmentResult,
   TripPlan
@@ -67,12 +68,15 @@ export function tripPlanMetadata(
 export async function enrichCandidates(
   request: RouteRequest,
   routes: PlannedRoute[],
-  enricher?: RouteCandidateEnricher
+  enricher?: RouteCandidateEnricher,
+  options?: CandidateEnrichmentOptions
 ): Promise<RouteCandidateEnrichmentResult> {
+  if (options?.signal?.aborted) throw options.signal.reason ?? new DOMException("Route enrichment was cancelled.", "AbortError")
   if (!enricher) return { routes, warnings: [] }
   try {
-    return await enricher(request, routes)
-  } catch {
+    return await enricher(request, routes, options)
+  } catch (reason) {
+    if (options?.signal?.aborted) throw reason
     return {
       routes,
       warnings: ["Optional route intelligence was unavailable; base routing was preserved."]

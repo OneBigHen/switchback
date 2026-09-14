@@ -87,6 +87,9 @@ describe("routes API provider wiring", () => {
 
     expect(source).toContain("@/lib/domain/routing/ride-character")
     expect(source).not.toContain("@/lib/client/")
+    expect(source).toMatch(/const valhallaLimiter = createRouteJobLimiter\(1\)/)
+    expect(source).toContain("createValhallaCandidateProvider")
+    expect(source).toContain("valhallaLimiter")
   })
 
   beforeEach(() => {

@@ -37,6 +37,8 @@ export interface NormalizedRouteRequest extends RouteRequest {
   roadLocks: RoadLock[]
   compare?: boolean
   primaryRoute?: { id: string; geometry: Coordinate[] }
+  /** Server-owned provider optimization; never accepted from client JSON. */
+  engineAlternates?: boolean
   /**
    * SB-014 ordered Must traversal: when must-use locks expand the request
    * points into wire via-waypoints (entry → exit per lock, in lock order),

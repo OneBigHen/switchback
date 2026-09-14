@@ -57,7 +57,7 @@ describe("Valhalla provider", () => {
   ] satisfies [RouteProfileId, Record<string, number>][]) (
     "uses valid motorcycle costing options for the %s profile",
     (profile, expectedOptions) => {
-      const body = createValhallaRequest(routeRequest(profile))
+      const body = createValhallaRequest({ ...routeRequest(profile), engineAlternates: true })
 
       expect(body).toMatchObject({
         costing: "motorcycle",
@@ -72,6 +72,10 @@ describe("Valhalla provider", () => {
       expect(body).not.toHaveProperty("costing_options.motorcycle.motorcycle_type")
     }
   )
+
+  it("does not request native alternatives unless the server opts in", () => {
+    expect(createValhallaRequest(routeRequest())).not.toHaveProperty("alternates")
+  })
 
   it("marks intermediate locations as through and sends closed avoid polygons", () => {
     const body = createValhallaRequest({
@@ -99,7 +103,6 @@ describe("Valhalla provider", () => {
         { lat: 40.2446, lon: -76.5294, type: "through", name: "River stop" },
         { lat: finish.lat, lon: finish.lon, type: "break", name: "Lancaster" }
       ],
-      alternates: 0,
       exclude_polygons: [[
         [-76.7, 40.1],
         [-76.6, 40.1],
@@ -108,6 +111,7 @@ describe("Valhalla provider", () => {
         [-76.7, 40.1]
       ]]
     })
+    expect(body).not.toHaveProperty("alternates")
   })
 
   it("rejects native round trips before calling Valhalla", async () => {
@@ -361,6 +365,56 @@ describe("Valhalla provider", () => {
       code: "OUT_OF_COVERAGE",
       status: 400,
       message: expect.stringMatching(/171.*No suitable edges near location/)
+    })
+  })
+})
+
+describe("Valhalla cancellation", () => {
+  it("keeps provider timeout distinct from caller cancellation", async () => {
+    vi.useFakeTimers()
+    try {
+      const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+        await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+        })
+      )
+
+      const pending = requestValhallaRoutes(routeRequest(), {
+        baseUrl: "http://valhalla.test",
+        fetcher
+      })
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: "ROUTE_TIMEOUT",
+        status: 504
+      })
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      await assertion
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("preserves a custom caller cancellation as ROUTE_CANCELLED", async () => {
+    const controller = new AbortController()
+    const reason = new Error("rider stopped planning")
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+      })
+    )
+
+    const pending = requestValhallaRoutes(routeRequest(), {
+      baseUrl: "http://valhalla.test",
+      fetcher,
+      signal: controller.signal
+    })
+    controller.abort(reason)
+
+    await expect(pending).rejects.toMatchObject({
+      code: "ROUTE_CANCELLED",
+      status: 499
     })
   })
 })

@@ -12,6 +12,20 @@ export interface TripPlanRequest extends RouteRequest {
   primaryRoute?: { id: string; geometry: Coordinate[] }
 }
 
+export type AlternativesOutcomeStatus = "complete" | "partial" | "timed-out" | "none-distinct" | "unavailable"
+
+export interface AlternativesOutcome {
+  status: AlternativesOutcomeStatus
+  strategy: "engine-alternates" | "lane-search"
+}
+
+export interface AlternativesLaneDiagnostic {
+  id: string
+  status: "fulfilled" | "rejected" | "timed-out" | "cancelled"
+  elapsedMs: number
+  reason?: string
+}
+
 export interface TripPlan {
   /** Echoed from the request so the client can merge only matching lifecycles. */
   requestId?: string
@@ -24,6 +38,10 @@ export interface TripPlan {
   targetMinutes?: number
   /** Server-side phase timings in milliseconds when measured. */
   timingMs?: Record<string, number>
+  /** Present on alternatives responses; optional for legacy primary responses. */
+  alternativesOutcome?: AlternativesOutcome
+  /** Internal lane evidence for server diagnostics; never used as rider copy. */
+  diagnostics?: { lanes: AlternativesLaneDiagnostic[] }
 }
 
 export interface RoutingResult {
@@ -42,7 +60,7 @@ export interface PlanningOptions {
    * research hints) for destination timeboxing. Injected by the API wiring
    * so the planner stays pure; absent sources degrade to an empty set.
    */
-  resolveCorridors?: (request: RouteRequest) => Promise<CorridorSourceCandidates>
+  resolveCorridors?: (request: RouteRequest, signal?: AbortSignal) => Promise<CorridorSourceCandidates>
 }
 
 export type RouteProvider = (
@@ -55,7 +73,13 @@ export interface RouteCandidateEnrichmentResult {
   warnings: string[]
 }
 
+export interface CandidateEnrichmentOptions {
+  /** The lane/packet signal; cancellation must not be converted to a warning. */
+  signal?: AbortSignal
+}
+
 export type RouteCandidateEnricher = (
   request: RouteRequest,
-  routes: PlannedRoute[]
+  routes: PlannedRoute[],
+  options?: CandidateEnrichmentOptions
 ) => Promise<RouteCandidateEnrichmentResult>

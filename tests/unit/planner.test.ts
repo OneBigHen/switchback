@@ -162,12 +162,11 @@ describe("trip planner", () => {
       ]
     }, provider)
 
-    // The primary's own profile is asked first (its engine alternates are only
-    // computed on this call); its answer here is the primary line itself, so
-    // it is dropped and quick and twisty fill the two slots.
+    // Quick is launched first; the primary profile is still included as its
+    // own native/primary-style lane, and later lanes fill the remaining slots.
     expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual([
-      "scenic",
       "quick",
+      "scenic",
       "twisty",
       "adventure"
     ])
@@ -175,6 +174,11 @@ describe("trip planner", () => {
     expect(plan.routes).toHaveLength(2)
     expect(plan.routes.find((candidate) => candidate.profile === "quick")?.id).toBe("quick-distinct")
     expect(plan.routes[0].overlapPercent).toBeLessThan(100)
+    expect(plan.alternativesOutcome).toMatchObject({
+      status: "complete",
+      strategy: "engine-alternates"
+    })
+    expect(plan.diagnostics?.lanes.length).toBeGreaterThan(0)
   })
 
   it("caps progressive alternatives at two and skips the remaining profiles", async () => {
@@ -196,10 +200,40 @@ describe("trip planner", () => {
       points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
     }, provider)
 
-    // A distinct scenic alternate and quick fill the cap; twisty is never attempted.
+    // Quick and the primary-style lane fill the cap; later profiles are never attempted.
     expect(plan.routes).toHaveLength(2)
-    expect(plan.routes.map((candidate) => candidate.profile)).toEqual(["scenic", "quick"])
-    expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual(["scenic", "quick"])
+    expect(plan.routes.map((candidate) => candidate.profile)).toEqual(["quick", "scenic"])
+    expect(provider.mock.calls.map(([callRequest]) => callRequest.profile)).toEqual(["quick", "scenic"])
+  })
+
+  it("uses lane search for long direct alternatives without enabling native alternates", async () => {
+    const calls: Array<{ profile: RouteProfileId; engineAlternates?: boolean }> = []
+    const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => {
+      calls.push({ profile: request.profile, engineAlternates: (request as RouteRequest & { engineAlternates?: boolean }).engineAlternates })
+      const offset = request.profile === "quick" ? 0.04 : request.profile === "twisty" ? -0.04 : 0.02
+      return {
+        engine: "graphhopper",
+        engineVersion: "11.0",
+        routes: [route(request.profile, offset, `${request.profile}-long`)]
+      }
+    })
+
+    const plan = await planMotorcycleTrip({
+      profile: "scenic",
+      compare: true,
+      candidateSet: "alternatives",
+      primaryRoute: { id: "scenic-primary", geometry: route("scenic").geometry },
+      points: [
+        { lat: 40.2, lon: -76.9 },
+        { lat: 40.2, lon: -74.5 }
+      ]
+    }, provider)
+
+    expect(calls[0]?.profile).toBe("quick")
+    expect(calls.some((call) => call.engineAlternates === true)).toBe(false)
+    expect(plan.selectedRouteId).toBe("scenic-primary")
+    expect(plan.routes.length).toBeGreaterThanOrEqual(1)
+    expect(plan.alternativesOutcome?.strategy).toBe("lane-search")
   })
 
   it("prefers official-road evidence among already-distinct Adventure alternatives", async () => {

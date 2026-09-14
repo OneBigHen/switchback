@@ -2,7 +2,7 @@ import { handleRouteRequest } from "./handler"
 import { enrichAdventureRoutesWithPaData } from "@/lib/roads/adventure-route-enricher"
 import { GravelAtlasRepository } from "@/lib/roads/gravel-atlas/repository"
 import { requestGraphHopperRoutes } from "@/lib/routing/graphhopper"
-import { createHybridRouteProvider } from "@/lib/routing/hybrid"
+import { createHybridRouteProvider, createValhallaCandidateProvider } from "@/lib/routing/hybrid"
 import { requestValhallaRoutes, enrichWithElevations } from "@/lib/routing/valhalla"
 import { createGravelAtlasAwareProvider } from "@/lib/routing/gravel-atlas-provider"
 import { createRouteJobLimiter } from "@/lib/server/route-job-limiter"
@@ -26,6 +26,7 @@ export const runtime = "nodejs"
 // Shared across requests: two provider tokens with primary priority, plus a
 // bounded 10-minute primary-result cache. Health probes bypass both.
 const providerLimiter = createRouteJobLimiter(2)
+const valhallaLimiter = createRouteJobLimiter(1)
 const routeCache = createRouteCache()
 setRouteRuntimeProbe(() => ({
   routeRunningJobs: providerLimiter.runningCount(),
@@ -200,22 +201,23 @@ async function handleRoutePost(request: Request): Promise<Response> {
       }
     ),
     ...(valhallaUrl ? {
-      valhalla: (routeRequest, providerOptions) => providerLimiter.run(
-        () => requestValhallaRoutes(routeRequest, {
+      valhalla: createValhallaCandidateProvider(
+        (routeRequest, providerOptions) => requestValhallaRoutes(routeRequest, {
           baseUrl: valhallaUrl,
           ...(providerOptions?.signal ? { signal: providerOptions.signal } : {})
         }),
-        {
-          priority: routeRequest.candidateSet === "alternatives" ? "alternatives" : "primary",
-          signal: providerOptions?.signal
-        }
+        valhallaLimiter
       )
     } : {})
   })
   const provider = createGravelAtlasAwareProvider(baseProvider, resolveCorridors)
 
   const enrichCandidates = createCandidateEnricher({
-    regionEvidence: enrichAdventureRoutesWithPaData,
+    regionEvidence: (routeRequest, routes, enrichmentOptions) => enrichAdventureRoutesWithPaData(
+      routeRequest,
+      routes,
+      enrichmentOptions?.signal ? { signal: enrichmentOptions.signal } : undefined
+    ),
     ...(elevationUrl ? { elevate: (result, signal) => enrichWithElevations(result, { baseUrl: elevationUrl, signal }) } : {}),
     signal: request.signal
   })

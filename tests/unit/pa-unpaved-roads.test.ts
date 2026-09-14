@@ -147,6 +147,25 @@ describe("Pennsylvania unpaved-road provider", () => {
     }
   })
 
+  it("preserves caller cancellation separately from the provider timeout", async () => {
+    const { fetchPaUnpavedRoadsNearRoutes } = await import("@/lib/roads/pa-unpaved")
+    const caller = new AbortController()
+    const reason = new Error("rider cancelled")
+    const fetcher = vi.fn<typeof fetch>(async (_input, init) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+      })
+    )
+
+    const pending = fetchPaUnpavedRoadsNearRoutes(
+      { paths: [[[-76.9, 40.2], [-76.8, 40.3]]] },
+      { fetcher, cache: false, signal: caller.signal }
+    )
+    caller.abort(reason)
+
+    await expect(pending).rejects.toBe(reason)
+  })
+
   it("coalesces identical in-flight corridor queries", async () => {
     const { fetchPaUnpavedRoadsNearRoutes } = await import("@/lib/roads/pa-unpaved")
     let release: ((response: Response) => void) | undefined
@@ -397,6 +416,28 @@ describe("Pennsylvania unpaved-road provider", () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it("preserves caller cancellation for envelope requests", async () => {
+    const { fetchPaUnpavedRoads } = await import("@/lib/roads/pa-unpaved")
+    const caller = new AbortController()
+    const reason = new Error("rider cancelled")
+    const fetcher = vi.fn<typeof fetch>(async (_input, init) =>
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })
+      })
+    )
+
+    const pending = fetchPaUnpavedRoads(
+      {
+        bounds: { south: 40, west: -77.2, north: 40.5, east: -76.6 },
+        limit: 100
+      },
+      { fetcher, signal: caller.signal }
+    )
+    caller.abort(reason)
+
+    await expect(pending).rejects.toBe(reason)
   })
 
   it("redacts upstream status bodies from provider failures", async () => {

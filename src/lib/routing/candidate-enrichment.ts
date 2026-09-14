@@ -1,5 +1,6 @@
 import type { RouteCandidateEnricher } from "./planner-contract"
 import type { PlannedRoute } from "./types"
+import { composeSignals, createDeadline } from "./deadline"
 
 /** Elevation is evidence for a finished candidate; it never holds up the answer for long. */
 export const ELEVATION_ENRICHMENT_TIMEOUT_MS = 4_000
@@ -25,17 +26,31 @@ export interface CandidateEnricherOptions {
  * alternatives, never on the primary, and gives up after a short timeout.
  */
 export function createCandidateEnricher({ regionEvidence, elevate, signal }: CandidateEnricherOptions): RouteCandidateEnricher {
-  return async (request, routes) => {
-    const enriched = await regionEvidence(request, routes)
-    if (!elevate || request.candidateSet !== "alternatives" || enriched.routes.length === 0) return enriched
+  return async (request, routes, options) => {
+    const lifecycle = composeSignals(signal, options?.signal)
+    if (lifecycle.signal.aborted) {
+      const reason = lifecycle.signal.reason ?? new DOMException("Route enrichment was cancelled.", "AbortError")
+      lifecycle.dispose()
+      throw reason
+    }
     try {
-      const elevated = await elevate(enriched, AbortSignal.any([signal, AbortSignal.timeout(ELEVATION_ENRICHMENT_TIMEOUT_MS)]))
-      return { routes: elevated.routes, warnings: elevated.warnings ?? enriched.warnings }
-    } catch {
-      return {
-        routes: enriched.routes,
-        warnings: [...enriched.warnings, "Elevation enrichment unavailable; route geometry was preserved."]
+      const enriched = await regionEvidence(request, routes, { signal: lifecycle.signal })
+      if (!elevate || request.candidateSet !== "alternatives" || enriched.routes.length === 0) return enriched
+      const elevationDeadline = createDeadline(ELEVATION_ENRICHMENT_TIMEOUT_MS, lifecycle.signal)
+      try {
+        const elevated = await elevate(enriched, elevationDeadline.signal)
+        return { routes: elevated.routes, warnings: elevated.warnings ?? enriched.warnings }
+      } catch (reason) {
+        if (lifecycle.signal.aborted) throw reason
+        return {
+          routes: enriched.routes,
+          warnings: [...enriched.warnings, "Elevation enrichment unavailable; route geometry was preserved."]
+        }
+      } finally {
+        elevationDeadline.dispose()
       }
+    } finally {
+      lifecycle.dispose()
     }
   }
 }

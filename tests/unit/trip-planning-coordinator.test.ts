@@ -282,6 +282,35 @@ describe("progressive alternatives and cancellation", () => {
     expect(state.failRouting).not.toHaveBeenCalled()
     expect(state.mergeAlternatives).not.toHaveBeenCalled()
   })
+
+  it("merges warning-only alternatives and surfaces the bounded-search outcome", async () => {
+    const gate = createLatestRequestGate()
+    const state = planner()
+    const notify = vi.fn()
+    const warningOnly: TripPlan = {
+      selectedRouteId: "route-primary",
+      candidateSet: "alternatives",
+      alternativesOutcome: { status: "timed-out", strategy: "lane-search" },
+      routes: [],
+      warnings: ["A different route was not available before the deadline."]
+    }
+    const requestPlan = vi.fn()
+      .mockResolvedValueOnce(primaryWithRoute)
+      .mockResolvedValueOnce(warningOnly)
+
+    await runLatestTripPlan({
+      request,
+      gate,
+      getPlanner: () => state,
+      requestPlan,
+      onWarning: notify
+    })
+
+    await vi.waitFor(() => {
+      expect(state.mergeAlternatives).toHaveBeenCalledWith(warningOnly)
+    })
+    expect(notify).toHaveBeenCalledWith("Couldn't find a different route in time — your route is ready.")
+  })
 })
 
 describe("lifecycle phase driving (Phase 6)", () => {

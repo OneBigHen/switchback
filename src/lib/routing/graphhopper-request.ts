@@ -10,6 +10,8 @@ import {
 import type { RoadLock } from "@/lib/roads/road-locks"
 import { featureFlags } from "@/lib/domain/feature-flags"
 
+type GraphHopperRequestInput = RouteRequest & { engineAlternates?: boolean }
+
 const ROUND_TRIP_SPEED_MPH: Record<RouteProfileId, number> = {
   quick: 48,
   balanced: 44,
@@ -231,7 +233,7 @@ function buildBikeProfileRules(profile: BikeProfile, omitSmoothness = false): Gr
 }
 
 export function createGraphHopperRequest(
-  _input: RouteRequest,
+  _input: GraphHopperRequestInput,
   details: string[] = REQUESTED_DETAILS,
   omitSmoothness = false
 ): Record<string, unknown> {
@@ -351,7 +353,7 @@ export function createGraphHopperRequest(
   // primary call they are pure cost: the planner paints one route, and
   // `alternative_route` with three paths measured 18–21 s against 0.2–4.7 s
   // for a single path on Philadelphia → State College (issue #133).
-  if (_request.points.length === 2 && _request.candidateSet === "alternatives") {
+  if (_request.points.length === 2 && _request.candidateSet === "alternatives" && _request.engineAlternates === true) {
     return {
       ...baseRequest,
       algorithm: "alternative_route",

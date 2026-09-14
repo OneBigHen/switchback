@@ -10,6 +10,7 @@
  *
  * Usage:
  *   node scripts/benchmark-routing.mjs [--runs 3] [--tag cold] [--base-url http://127.0.0.1:3000]
+ *   node scripts/benchmark-routing.mjs --calibrate-alternates --graphhopper-url http://127.0.0.1:8988
  *
  * Run through tsx to also capture the local parser timing without the app:
  *   npx tsx scripts/benchmark-routing.mjs
@@ -36,6 +37,7 @@ const STATE_COLLEGE = { lat: 40.7934, lon: -77.86, label: "State College" }
 const LOCK_HAVEN = { lat: 41.137, lon: -77.4469, label: "Lock Haven" }
 /** /api/routes allows 10 requests a minute per client; stay under it. */
 const ROUTE_REQUEST_SPACING_MS = 6_500
+const ALTERNATE_CALIBRATION_MILES = [35, 60, 80, 100, 155]
 
 /** Nudge a point ~30 m per run so repeated runs measure planning, not the route cache. */
 function jitter(point, run) {
@@ -51,15 +53,42 @@ function sampledPrimary(payload) {
 }
 
 function parseArgs(argv) {
-  const args = { runs: 3, baseUrl: process.env.SWITCHBACK_URL ?? "http://127.0.0.1:3000", tag: null }
+  const args = {
+    runs: 3,
+    baseUrl: process.env.SWITCHBACK_URL ?? "http://127.0.0.1:3000",
+    tag: null,
+    help: false,
+    calibrateAlternates: false,
+    graphhopperUrl: null
+  }
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i]
     const value = argv[i + 1]
-    if (flag === "--runs" && value) { args.runs = Math.max(1, Math.min(10, Number(value))); i += 1 }
+    if (flag === "--help" || flag === "-h") args.help = true
+    else if (flag === "--calibrate-alternates") args.calibrateAlternates = true
+    else if (flag === "--graphhopper-url" && value) { args.graphhopperUrl = value.replace(/\/$/, ""); i += 1 }
+    else if (flag === "--runs" && value) {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed)) args.runs = Math.max(1, Math.min(10, parsed))
+      i += 1
+    }
     else if (flag === "--base-url" && value) { args.baseUrl = value.replace(/\/$/, ""); i += 1 }
     else if (flag === "--tag" && value) { args.tag = value; i += 1 }
   }
   return args
+}
+
+function printHelp() {
+  console.log([
+    "Usage: node scripts/benchmark-routing.mjs [options]",
+    "",
+    "  --runs N                         samples per endpoint (1-10; default 3)",
+    "  --base-url URL                   local/branch OpenGravel app URL",
+    "  --tag NAME                       label raw/report samples",
+    "  --calibrate-alternates           sweep native alternate-route timings",
+    "  --graphhopper-url URL            explicit local GraphHopper URL for calibration",
+    "  --help                           show this help"
+  ].join("\n"))
 }
 
 async function jsonRequest(baseUrl, path, init = {}, timeoutMs = 60_000) {
@@ -73,8 +102,17 @@ async function jsonRequest(baseUrl, path, init = {}, timeoutMs = 60_000) {
     status: response.status,
     ok: response.ok,
     elapsedMs: performance.now() - started,
-    payload
+    payload,
+    serverTiming: response.headers.get("server-timing")
   }
+}
+
+function routeCount(payload) {
+  return Array.isArray(payload?.routes) ? payload.routes.length : null
+}
+
+function alternativesOutcome(payload) {
+  return payload?.alternativesOutcome ?? null
 }
 
 function providerCounts(payload) {
@@ -114,8 +152,108 @@ async function localGoldenParse() {
   }
 }
 
+function calibrationPayload(miles) {
+  const lat = HARRISBURG.lat
+  const longitudeDelta = miles / (69 * Math.max(0.2, Math.cos(lat * Math.PI / 180)))
+  return {
+    profile: "motorcycle_fastest",
+    points: [
+      [HARRISBURG.lon, lat],
+      [HARRISBURG.lon + longitudeDelta, lat]
+    ],
+    points_encoded: false,
+    instructions: false,
+    calc_points: true,
+    algorithm: "alternative_route",
+    "alternative_route.max_paths": 3,
+    "alternative_route.max_weight_factor": 1.8,
+    "alternative_route.max_share_factor": 0.62
+  }
+}
+
+async function runAlternateCalibration(args) {
+  if (!args.graphhopperUrl) {
+    throw new Error("--calibrate-alternates requires --graphhopper-url pointing at an authorized local GraphHopper instance")
+  }
+  const samples = []
+  const resultsByDistance = {}
+  for (const miles of ALTERNATE_CALIBRATION_MILES) {
+    const results = []
+    resultsByDistance[miles] = results
+    for (let run = 0; run < args.runs; run += 1) {
+      const result = await jsonRequest(args.graphhopperUrl, "/route", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(calibrationPayload(miles))
+      }, 15_000).catch((error) => ({
+        status: 0,
+        ok: false,
+        elapsedMs: 0,
+        payload: null,
+        serverTiming: null,
+        error: String(error)
+      }))
+      const record = {
+        distanceMiles: miles,
+        run: run + 1,
+        status: result.status,
+        ok: result.ok,
+        elapsedMs: Number(result.elapsedMs.toFixed(1)),
+        pathCount: Array.isArray(result.payload?.paths) ? result.payload.paths.length : null,
+        error: result.error ?? null
+      }
+      results.push(record)
+      samples.push(record)
+      console.log(`  ${String(miles).padStart(3)} crow miles run ${run + 1}: ${result.ok ? "ok" : "FAIL"} ${formatMs(result.elapsedMs)} (http ${result.status})`)
+    }
+  }
+
+  const rows = ALTERNATE_CALIBRATION_MILES.map((miles) => {
+    const values = resultsByDistance[miles].filter((sample) => sample.ok).map((sample) => sample.elapsedMs).sort((a, b) => a - b)
+    return {
+      miles,
+      runs: resultsByDistance[miles].length,
+      p50: percentile(values, 50),
+      p95: percentile(values, 95),
+      max: values.at(-1) ?? null,
+      pathCount: resultsByDistance[miles].find((sample) => sample.ok)?.pathCount ?? null
+    }
+  })
+  const passing = rows.filter((row) => row.p95 !== null && row.p95 <= 4_000)
+  const largestPassingThreshold = passing.at(-1)?.miles ?? null
+  const generated = new Date().toISOString()
+  const report = [
+    "# Native Alternate Calibration",
+    "",
+    `- Generated: ${generated}`,
+    `- GraphHopper URL: ${args.graphhopperUrl}`,
+    `- Runs per distance: ${args.runs}`,
+    `- Largest threshold with p95 <= 4 seconds: ${largestPassingThreshold === null ? "not measured" : `${largestPassingThreshold} crow miles`}`,
+    "",
+    "| Crow miles | runs | p50 | p95 | max | paths |",
+    "|---:|---:|---:|---:|---:|---:|",
+    ...rows.map((row) => `| ${row.miles} | ${row.runs} | ${formatMs(row.p50)} | ${formatMs(row.p95)} | ${formatMs(row.max)} | ${row.pathCount ?? "n/a"} |`),
+    "",
+    "Threshold calibration is evidence only; this command does not modify runtime configuration or the planner threshold."
+  ].join("\n")
+  await mkdir(REPORTS_DIR, { recursive: true })
+  const reportFile = `alternates-calibration-${generated.slice(0, 10)}.md`
+  await writeFile(join(REPORTS_DIR, reportFile), report + "\n")
+  console.log(`\nCalibration report → artifacts/routing-rework/reports/${reportFile}`)
+  console.log(`Largest measured threshold with p95 <= 4 seconds: ${largestPassingThreshold ?? "not measured"}`)
+  return samples
+}
+
 async function run() {
   const args = parseArgs(process.argv.slice(2))
+  if (args.help) {
+    printHelp()
+    return
+  }
+  if (args.calibrateAlternates) {
+    await runAlternateCalibration(args)
+    return
+  }
   const baseUrl = args.baseUrl
   const runs = args.runs
   const tag = args.tag ?? "auto"
@@ -137,7 +275,7 @@ async function run() {
   try {
     health = await jsonRequest(baseUrl, "/api/health", {}, 15_000)
   } catch (error) {
-    health = { status: 0, ok: false, elapsedMs: 0, payload: null, error: String(error) }
+    health = { status: 0, ok: false, elapsedMs: 0, payload: null, serverTiming: null, error: String(error) }
   }
   const appUp = Boolean(health?.ok)
   console.log(`health: ${health?.ok ? "ok" : "unreachable"} (${health?.status ?? "n/a"})`)
@@ -151,6 +289,8 @@ async function run() {
     { name: "routes.direct", path: "/api/routes", body: (run) => ({ profile: "twisty", points: [jitter(HARRISBURG, run), LANCASTER] }) },
     { name: "routes.direct.alts", path: "/api/routes", after: "routes.direct", body: (run, prior) => ({ profile: "twisty", candidateSet: "alternatives", primaryRoute: sampledPrimary(prior), points: [jitter(HARRISBURG, run), LANCASTER] }) },
     { name: "routes.short", path: "/api/routes", body: (run) => ({ profile: "quick", points: [jitter(STATE_COLLEGE, run), LOCK_HAVEN] }) },
+    { name: "routes.mid", path: "/api/routes", body: (run) => ({ profile: "twisty", points: [jitter(HARRISBURG, run), SCRANTON] }) },
+    { name: "routes.mid.alts", path: "/api/routes", after: "routes.mid", body: (run, prior) => ({ profile: "twisty", candidateSet: "alternatives", primaryRoute: sampledPrimary(prior), points: [jitter(HARRISBURG, run), SCRANTON] }) },
     { name: "routes.long", path: "/api/routes", body: (run) => ({ profile: "twisty", points: [jitter(PHILADELPHIA, run), STATE_COLLEGE] }) },
     { name: "routes.long.alts", path: "/api/routes", after: "routes.long", body: (run, prior) => ({ profile: "twisty", candidateSet: "alternatives", primaryRoute: sampledPrimary(prior), points: [jitter(PHILADELPHIA, run), STATE_COLLEGE] }) },
     { name: "routes.timed", path: "/api/routes", body: (run) => ({ profile: "twisty", targetMinutes: 150, points: [jitter(HARRISBURG, run), SCRANTON] }) },
@@ -174,7 +314,7 @@ async function run() {
             headers: { "content-type": "application/json" },
             body: JSON.stringify(body)
           }).catch((error) => ({ status: 0, ok: false, elapsedMs: 0, payload: null, error: String(error) }))
-        : { status: 0, ok: false, elapsedMs: 0, payload: null, error: appUp ? "no primary to follow" : "app unreachable" }
+        : { status: 0, ok: false, elapsedMs: 0, payload: null, serverTiming: null, error: appUp ? "no primary to follow" : "app unreachable" }
       payloads[endpoint.name] = result.payload
       const record = {
         timestamp: new Date().toISOString(),
@@ -185,6 +325,9 @@ async function run() {
         status: result.status,
         ok: result.ok,
         elapsedMs: Number(result.elapsedMs.toFixed(1)),
+        routeCount: result.ok ? routeCount(result.payload) : null,
+        alternativesOutcome: result.ok ? alternativesOutcome(result.payload) : null,
+        serverTiming: result.serverTiming ?? null,
         providerCounts: result.ok ? providerCounts(result.payload) : {},
         warnings: result.payload?.warnings ?? null,
         selectedRouteId: result.payload?.selectedRouteId ?? null
@@ -193,7 +336,10 @@ async function run() {
       if (result.ok) {
         samplesByEndpoint[endpoint.name].push(result.elapsedMs)
         summaryByEndpoint[endpoint.name] = {
-          providerCounts: providerCounts(result.payload)
+          providerCounts: providerCounts(result.payload),
+          routeCount: routeCount(result.payload),
+          alternativesOutcome: alternativesOutcome(result.payload),
+          serverTiming: result.serverTiming ?? null
         }
       }
       console.log(`  ${endpoint.name.padEnd(18)} ${result.ok ? "ok" : "FAIL"} ${formatMs(result.elapsedMs)} (http ${result.status})`)
@@ -249,21 +395,25 @@ async function run() {
     "",
     "## Per-endpoint timings",
     "",
-    "| Endpoint | runs | p50 | p95 | max | provider counts |",
-    "|---|---|---|---|---|---|",
+    "| Endpoint | runs | p50 | p95 | max | route count | outcome | provider counts | Server-Timing |",
+    "|---|---:|---:|---:|---:|---:|---|---|---|",
     ...endpoints.map((endpoint) => {
       const samples = [...samplesByEndpoint[endpoint.name]].sort((a, b) => a - b)
       const meta = summaryByEndpoint[endpoint.name] ?? {}
       const counts = Object.entries(meta.providerCounts ?? {})
         .map(([provider, count]) => `${provider}×${count}`)
         .join(", ") || "n/a"
+      const outcome = meta.alternativesOutcome?.status ?? "n/a"
       return [
         `| ${endpoint.name} |`,
         samples.length,
         `| ${formatMs(percentile(samples, 50))} |`,
         `${formatMs(percentile(samples, 95))} |`,
         `${formatMs(samples[samples.length - 1] ?? null)} |`,
-        `${counts} |`
+        `${meta.routeCount ?? "n/a"} |`,
+        `${outcome} |`,
+        `${counts} |`,
+        `${meta.serverTiming ?? "n/a"} |`
       ].join(" ")
     }),
     "",

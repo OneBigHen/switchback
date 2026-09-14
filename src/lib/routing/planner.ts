@@ -5,6 +5,8 @@ import { PA_NJ_ROUTE_POLICY_V1 } from "@/lib/recommendation/route-policy"
 import { normalizeRouteRequest, type NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
 import type {
+  AlternativesLaneDiagnostic,
+  AlternativesOutcome,
   PlanningOptions,
   RouteCandidateEnricher,
   RouteProvider,
@@ -21,6 +23,21 @@ import {
 } from "./planner-shared"
 import { planSegmentedTrip } from "./planner-segmented"
 import { planDestinationTimebox, requestTimeboxedRoutes } from "./planner-timebox"
+import { chooseAlternativesStrategy, type AlternativesStrategy } from "./alternatives-strategy"
+import { createDeadline } from "./deadline"
+import {
+  settleLanes,
+  stableLaneOrder,
+  type CandidateLane,
+  type LaneSettlement
+} from "./candidate-lanes"
+import {
+  buildAnchorSets,
+  corridorEnvelope,
+  distanceMiles,
+  type CorridorSourceCandidates
+} from "./destination-corridors"
+import { generateCorridorCandidates } from "./candidate-generator"
 import {
   CORRIDOR_OPTION_PRESENTATION,
   corridorAdherence,
@@ -30,10 +47,12 @@ import {
   type CorridorOptionRole,
   type CorridorScoringContext
 } from "./sketch-corridor"
-import type { Waypoint } from "./types"
+import type { RouteCandidateSource, Waypoint } from "./types"
 import type { RoadLockPartitionResult } from "./planner-shared"
 
 export type {
+  AlternativesLaneDiagnostic,
+  AlternativesOutcome,
   PlanningOptions,
   RouteCandidateEnricher,
   RouteCandidateEnrichmentResult,
@@ -50,6 +69,13 @@ const ALTERNATIVES_DEADLINE_MS = 12_000
 /** Meaningfully different means at most 85% sampled-geometry overlap. */
 const ALTERNATIVES_MAX_OVERLAP = PA_NJ_ROUTE_POLICY_V1.duplicateSimilarityThreshold * 100
 const MAX_COMPARISON_OVERLAP = 90
+
+type TimeboxedProviderResult = Awaited<ReturnType<typeof requestTimeboxedRoutes>>
+
+interface AlternativeLane extends CandidateLane<TimeboxedProviderResult> {
+  profile: RouteProfileId
+  candidateSource?: RouteCandidateSource
+}
 /**
  * Stable comparison order. The first four preserve the original product
  * comparison contract; the newer profiles remain available after them.
@@ -125,6 +151,162 @@ function variedComparisonRequest(
       heading: ((request.roundTrip.heading ?? 0) + (index + 1) * 73) % 360
     }
   }
+}
+
+function emptyCorridorSources(): CorridorSourceCandidates {
+  return { curvatureSegments: [], gpxRoutes: [], hints: [] }
+}
+
+/** Resolve optional local corridor evidence without allowing it to outlive the packet. */
+async function resolveCorridorSourcesBeforeDeadline(
+  request: NormalizedRouteRequest,
+  options: PlanningOptions,
+  signal: AbortSignal
+): Promise<CorridorSourceCandidates> {
+  if (!options.resolveCorridors) return emptyCorridorSources()
+  if (options.signal?.aborted) {
+    throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+  }
+  if (signal.aborted) return emptyCorridorSources()
+  const sourcePromise = Promise.resolve().then(() => options.resolveCorridors!(request, signal))
+  return new Promise<CorridorSourceCandidates>((resolve, reject) => {
+    let settled = false
+    const cleanup = () => signal.removeEventListener("abort", onAbort)
+    const finish = (sources: CorridorSourceCandidates) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(sources)
+    }
+    const fail = (reason: unknown) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(reason)
+    }
+    const onAbort = () => {
+      if (options.signal?.aborted) {
+        fail(options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError"))
+        return
+      }
+      finish(emptyCorridorSources())
+    }
+    signal.addEventListener("abort", onAbort, { once: true })
+    if (signal.aborted) {
+      onAbort()
+      return
+    }
+    void sourcePromise.then(
+      (sources) => {
+        if (options.signal?.aborted) {
+          fail(options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError"))
+          return
+        }
+        finish(sources)
+      },
+      (reason) => {
+        if (options.signal?.aborted) {
+          fail(options.signal.reason ?? reason)
+          return
+        }
+        finish(emptyCorridorSources())
+      }
+    )
+  })
+}
+
+function alternativeLaneRoutes(
+  settlement: LaneSettlement<TimeboxedProviderResult>
+): PlannedRoute[] {
+  if (settlement.status !== "fulfilled" || !settlement.value) return []
+  const source = (settlement.lane as AlternativeLane).candidateSource
+  return settlement.value.result.routes.map((route) => source
+    ? { ...route, candidateSource: source }
+    : route)
+}
+
+function settledAlternativeCandidates(
+  settlements: readonly LaneSettlement<TimeboxedProviderResult>[],
+  primaryAnchor: PlannedRoute
+): PlannedRoute[] {
+  const accepted: PlannedRoute[] = []
+  for (const settlement of stableLaneOrder(settlements)) {
+    const eligible = alternativeLaneRoutes(settlement).filter((route) => evaluateEligibility(route).eligible)
+    const distinct = chooseDistinctCandidate(
+      eligible,
+      [...accepted, primaryAnchor],
+      ALTERNATIVES_MAX_OVERLAP,
+      true
+    )
+    if (distinct) accepted.push(distinct.route)
+    if (accepted.length >= MAX_ALTERNATIVES) break
+  }
+  return accepted
+}
+
+function laneHasEnoughAlternatives(
+  settlements: readonly LaneSettlement<TimeboxedProviderResult>[],
+  primaryAnchor: PlannedRoute
+): boolean {
+  return settledAlternativeCandidates(settlements, primaryAnchor).length >= MAX_ALTERNATIVES
+}
+
+function laneRequest(
+  request: NormalizedRouteRequest,
+  profile: RouteProfileId,
+  engineAlternates = false,
+  points = request.points
+): NormalizedRouteRequest {
+  return {
+    ...request,
+    profile,
+    points,
+    targetMinutes: undefined,
+    engineAlternates
+  }
+}
+
+function laneLabel(lane: AlternativeLane): string {
+  return lane.profile === "quick" ? "quick" : `${lane.profile} comparison`
+}
+
+function diagnosticReason(reason: unknown): string | undefined {
+  if (reason instanceof Error && reason.message.trim()) return reason.message.trim()
+  if (typeof reason === "string" && reason.trim()) return reason.trim()
+  return undefined
+}
+
+function alternativeDiagnostics(
+  settlements: readonly LaneSettlement<TimeboxedProviderResult>[]
+): AlternativesLaneDiagnostic[] {
+  return stableLaneOrder(settlements).map((settlement) => ({
+    id: settlement.lane.id,
+    status: settlement.status,
+    elapsedMs: Number(Math.max(0, settlement.elapsedMs).toFixed(1)),
+    ...(diagnosticReason(settlement.reason) ? { reason: diagnosticReason(settlement.reason) } : {})
+  }))
+}
+
+function isTimeoutReason(reason: unknown): boolean {
+  return reason !== null && typeof reason === "object" &&
+    "name" in reason && (reason as { name?: unknown }).name === "TimeoutError"
+}
+
+function alternativesOutcome(
+  strategy: AlternativesStrategy,
+  settlements: readonly LaneSettlement<TimeboxedProviderResult>[],
+  routes: readonly PlannedRoute[],
+  deadline: AbortSignal
+): AlternativesOutcome {
+  const timedOut = deadline.aborted && isTimeoutReason(deadline.reason)
+  const hasFailures = settlements.some((settlement) => settlement.status !== "fulfilled")
+  const hasSuccessfulLane = settlements.some((settlement) => settlement.status === "fulfilled")
+  const status = timedOut
+    ? routes.length > 0 ? "partial" : "timed-out"
+    : routes.length > 0
+      ? hasFailures ? "partial" : "complete"
+      : hasSuccessfulLane ? "none-distinct" : "unavailable"
+  return { status, strategy }
 }
 
 /**
@@ -275,7 +457,7 @@ async function planCorridorAlternatives(
       warnings.push(`${label} matched the traced route too closely to offer.`)
       continue
     }
-    const enriched = await enrichCandidates(request, [distinct.route], enricher)
+    const enriched = await enrichCandidates(request, [distinct.route], enricher, { signal: deadline })
     warnings.push(...enriched.warnings)
     const chosen = enriched.routes[0] ?? distinct.route
     filledRoles.add(variant.role)
@@ -371,8 +553,8 @@ async function planPrimaryRoute(
 /**
  * Alternatives path: at most two meaningfully different routes (≤85%
  * sampled-geometry overlap against the primary and every accepted
- * alternative) drawn from the other profiles. Profiles run with concurrency
- * one under a shared 12-second deadline; enrichment (PASDA, elevation) runs
+ * alternative) drawn from the other profiles. Profiles run in bounded lanes
+ * under a shared 12-second deadline; enrichment (PASDA, elevation) runs
  * here as background evidence and never changes the selected primary.
  */
 async function planAlternativeRoutes(
@@ -397,6 +579,8 @@ async function planAlternativeRoutes(
       selectedRouteId: primaryId,
       routes: [],
       warnings: ["Alternatives are only available for point-to-point destination rides."],
+      alternativesOutcome: { status: "none-distinct", strategy: "lane-search" },
+      diagnostics: { lanes: [] },
       timingMs: { alternatives: performance.now() - started }
     }
   }
@@ -406,12 +590,12 @@ async function planAlternativeRoutes(
       selectedRouteId: primaryId,
       routes: [],
       warnings: ["Free-draw options are unavailable while each leg has its own riding style."],
+      alternativesOutcome: { status: "none-distinct", strategy: "lane-search" },
+      diagnostics: { lanes: [] },
       timingMs: { alternatives: performance.now() - started }
     }
   }
-  const deadline: AbortSignal = options.signal
-    ? AbortSignal.any([options.signal, AbortSignal.timeout(ALTERNATIVES_DEADLINE_MS)])
-    : AbortSignal.timeout(ALTERNATIVES_DEADLINE_MS)
+  const deadline = createDeadline(ALTERNATIVES_DEADLINE_MS, options.signal)
 
   const partitioned = partitionLocksForRequest(request)
   const primaryAnchor: PlannedRoute = {
@@ -432,64 +616,143 @@ async function planAlternativeRoutes(
     routingSource: "live",
     previewOnly: false
   }
-  if (corridor) {
-    const corridorPlan = await planCorridorAlternatives(
-      request,
-      corridor,
-      primaryAnchor,
-      deadline,
-      provider,
-      enricher,
-      partitioned
-    )
-    return {
-      ...tripPlanMetadata(request),
-      selectedRouteId: primaryId,
-      routes: corridorPlan.routes,
-      warnings: [...partitioned.warnings, ...corridorPlan.warnings],
-      timingMs: { alternatives: performance.now() - started }
+  try {
+    if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+    if (corridor) {
+      const corridorPlan = await planCorridorAlternatives(
+        request,
+        corridor,
+        primaryAnchor,
+        deadline.signal,
+        provider,
+        enricher,
+        partitioned
+      )
+      if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+      return {
+        ...tripPlanMetadata(request),
+        selectedRouteId: primaryId,
+        routes: corridorPlan.routes,
+        warnings: [...partitioned.warnings, ...corridorPlan.warnings],
+        alternativesOutcome: alternativesOutcome("lane-search", [], corridorPlan.routes, deadline.signal),
+        diagnostics: { lanes: [] },
+        timingMs: {
+          alternatives: performance.now() - started,
+          "alt-lanes": performance.now() - started,
+          "alt-select": 0,
+          "alt-enrich": 0
+        }
+      }
     }
-  }
 
-  const accepted: PlannedRoute[] = []
-  const warnings: string[] = [...partitioned.warnings]
-  const profiles = comparisonProfilesFor(request)
+    const strategy: AlternativesStrategy = chooseAlternativesStrategy(request)
+    const lanes: AlternativeLane[] = []
+    const addLane = (
+      id: string,
+      priority: number,
+      pathIndex: number,
+      budgetMs: number,
+      laneRequestValue: NormalizedRouteRequest,
+      profile: RouteProfileId,
+      candidateSource?: RouteCandidateSource
+    ) => {
+      lanes.push({
+        id,
+        priority,
+        pathIndex,
+        budgetMs,
+        profile,
+        ...(candidateSource ? { candidateSource } : {}),
+        run: (signal) => requestTimeboxedRoutes(laneRequestValue, provider, undefined, { signal })
+      })
+    }
 
-  // Comparison profiles race two-at-a-time through a sliding window, but
-  // results are accepted strictly in profile order. The window only shifts
-  // after a full pair is processed, so the two-alternative cap stops
-  // launching sibling profiles at exactly the same point as the old serial
-  // loop — while overlapping two requests instead of queueing six.
-  const pending = new Map<number, Promise<Awaited<ReturnType<typeof requestTimeboxedRoutes>> | null>>()
-  const launch = (index: number): void => {
-    if (index >= profiles.length || pending.has(index)) return
-    pending.set(index, requestTimeboxedRoutes(
-      // Comparison profiles are NOT timeboxed: strip the destination time
-      // target so they run at the normal alternative weight (1.8x) instead
-      // of the heavy 4.0x corridor factor, keeping them quick.
-      { ...variedComparisonRequest(request, profiles[index]!, 0), targetMinutes: undefined },
-      provider,
-      undefined,
-      { signal: deadline }
-    ).then(
-      (result) => result,
-      () => null
-    ))
-  }
-  launch(0)
-  launch(1)
-  for (let index = 0; index < profiles.length && accepted.length < MAX_ALTERNATIVES && !deadline.aborted; index += 1) {
-    const profile = profiles[index]!
-    const result = await pending.get(index)
-    if (result?.warning) warnings.push(result.warning)
-    if (result) {
-      // Hard eligibility first (SB-002): an ineligible candidate — preview
-      // geometry, no real geometry, or an unresolved must road — never
-      // reaches the comparison set, no matter how close it matches.
-      const eligible = result.result.routes.filter((route) => {
+    const quickUsesNativeAlternates = strategy === "engine-alternates" && request.profile === "quick"
+    addLane(
+      quickUsesNativeAlternates ? "quick-native" : "quick",
+      0,
+      0,
+      quickUsesNativeAlternates ? 5_000 : strategy === "engine-alternates" ? 3_000 : 7_000,
+      laneRequest(request, "quick", quickUsesNativeAlternates),
+      "quick"
+    )
+
+    if (strategy === "engine-alternates" && request.profile !== "quick") {
+      addLane(
+        "primary-native",
+        1,
+        0,
+        5_000,
+        laneRequest(request, request.profile, true),
+        request.profile
+      )
+    } else if (strategy === "lane-search") {
+      const first = request.points[0]
+      const last = request.points.at(-1)
+      if (first && last) {
+        const directMiles = distanceMiles([first.lon, first.lat], [last.lon, last.lat])
+        const sources = await resolveCorridorSourcesBeforeDeadline(request, options, deadline.signal)
+        const anchorSets = buildAnchorSets(
+          [first.lon, first.lat],
+          [last.lon, last.lat],
+          corridorEnvelope(Math.max(1, directMiles) * 1.35),
+          sources
+        )
+        const corridorCandidates = generateCorridorCandidates(request, anchorSets, { maxCandidates: 2 })
+        for (const [index, candidate] of corridorCandidates.entries()) {
+          addLane(
+            `primary-corridor-${index + 1}`,
+            1,
+            index,
+            7_000,
+            laneRequest(request, request.profile, false, candidate.request.points),
+            request.profile,
+            candidate.source
+          )
+        }
+      }
+    }
+
+    const otherProfiles = comparisonProfilesFor(request)
+      .filter((profile) => profile !== request.profile && profile !== "quick")
+    for (const [index, profile] of otherProfiles.entries()) {
+      addLane(
+        `profile-${profile}`,
+        2,
+        index,
+        strategy === "engine-alternates" ? 5_000 : 7_000,
+        laneRequest(variedComparisonRequest(request, profile, index), profile),
+        profile
+      )
+    }
+
+    const lanesStarted = performance.now()
+    const settled = await settleLanes(lanes, {
+      concurrency: 2,
+      deadline,
+      shouldStop: (results) => laneHasEnoughAlternatives(results, primaryAnchor)
+    })
+    const lanesElapsed = performance.now() - lanesStarted
+    if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
+
+    const selectionStarted = performance.now()
+    const accepted: PlannedRoute[] = []
+    const warnings: string[] = [...partitioned.warnings]
+    const appendWarning = (warning: string) => {
+      if (warning && !warnings.includes(warning)) warnings.push(warning)
+    }
+    for (const settlement of stableLaneOrder(settled)) {
+      const lane = settlement.lane as AlternativeLane
+      if (settlement.status !== "fulfilled" || !settlement.value) {
+        appendWarning(`${laneLabel(lane)} unavailable.`)
+        continue
+      }
+      if (settlement.value.warning) appendWarning(settlement.value.warning)
+      for (const warning of settlement.value.result.warnings ?? []) appendWarning(warning)
+      const eligible = alternativeLaneRoutes(settlement).filter((route) => {
         const report = evaluateEligibility(route)
         if (!report.eligible) {
-          warnings.push(`${profile} comparison skipped: ${report.failures[0]?.message}`)
+          appendWarning(`${laneLabel(lane)} skipped: ${report.failures[0]?.message ?? "route is not eligible"}`)
         }
         return report.eligible
       })
@@ -500,38 +763,45 @@ async function planAlternativeRoutes(
         true
       )
       if (!distinct) {
-        warnings.push(`Dropped duplicate ${profile} route.`)
-      } else {
-        // Enrichment (PASDA/elevation evidence) runs only on the candidate
-        // that actually made the cut, not on every comparison profile's full
-        // result set — it is background evidence, never the primary route.
-        const enriched = await enrichCandidates(request, [distinct.route], enricher)
-        warnings.push(...enriched.warnings)
-        accepted.push(
-          ensureLockSatisfaction(
-            { ...(enriched.routes[0] ?? distinct.route), overlapPercent: distinct.overlapPercent },
-            partitioned.survivingLocks
-          )
-        )
+        if (eligible.length > 0) appendWarning(`Dropped duplicate ${laneLabel(lane)} route.`)
+        continue
       }
-    } else {
-      warnings.push(`${profile} comparison unavailable.`)
+      accepted.push(
+        ensureLockSatisfaction(
+          { ...distinct.route, overlapPercent: distinct.overlapPercent },
+          partitioned.survivingLocks
+        )
+      )
+      if (accepted.length >= MAX_ALTERNATIVES) break
     }
-    // Shift the window only after the second profile of each pair has been
-    // fully processed, and only while the two-alternative cap is still open;
-    // acceptance for the current pair is what gates new launches. Both
-    // members of the next pair are launched so no profile is ever skipped.
-    if (index % 2 === 1 && accepted.length < MAX_ALTERNATIVES && !deadline.aborted) {
-      launch(index + 1)
-      launch(index + 2)
-    }
-  }
+    const selectionElapsed = performance.now() - selectionStarted
 
-  return {
-    ...tripPlanMetadata(request),
-    selectedRouteId: primaryId,
-    routes: accepted,
-    warnings,
-    timingMs: { alternatives: performance.now() - started }
+    const enrichmentStarted = performance.now()
+    const enriched = deadline.signal.aborted
+      ? { routes: accepted, warnings: [] }
+      : await enrichCandidates(request, accepted, enricher, { signal: deadline.signal })
+    const enrichmentElapsed = performance.now() - enrichmentStarted
+    for (const warning of enriched.warnings) appendWarning(warning)
+    const routes = enriched.routes.map((route) => ensureLockSatisfaction(route, partitioned.survivingLocks))
+    return {
+      ...tripPlanMetadata(request),
+      selectedRouteId: primaryId,
+      routes,
+      warnings,
+      alternativesOutcome: alternativesOutcome(strategy, settled, routes, deadline.signal),
+      diagnostics: { lanes: alternativeDiagnostics(settled) },
+      timingMs: {
+        alternatives: performance.now() - started,
+        "alt-lanes": lanesElapsed,
+        "alt-select": selectionElapsed,
+        "alt-enrich": enrichmentElapsed,
+        ...Object.fromEntries(stableLaneOrder(settled).map((settlement) => [
+          `lane-${settlement.lane.id}`,
+          Math.max(0, settlement.elapsedMs)
+        ]))
+      }
+    }
+  } finally {
+    deadline.dispose()
   }
 }

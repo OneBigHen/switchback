@@ -4,6 +4,9 @@ import { getProfile } from "./profiles"
 import { analyzeGeometry } from "./scoring"
 import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 import { sketchCorridorContext } from "./sketch-corridor"
+import { createDeadline } from "./deadline"
+
+type ValhallaRequestInput = RouteRequest & { engineAlternates?: boolean }
 
 export interface ValhallaOptions {
   baseUrl: string
@@ -55,7 +58,7 @@ const PROFILE_COSTING_OPTIONS: Record<RouteProfileId, Record<string, number>> = 
   neural: { use_highways: 0.15 }
 }
 
-export function createValhallaRequest(_input: RouteRequest): Record<string, unknown> {
+export function createValhallaRequest(_input: ValhallaRequestInput): Record<string, unknown> {
   const request = normalizeRouteRequest(_input)
   const profile = getProfile(request.profile)
   if (request.roundTrip) {
@@ -103,7 +106,7 @@ export function createValhallaRequest(_input: RouteRequest): Record<string, unkn
     units: "miles",
     directions_type: "instructions",
     format: "json",
-    alternates: request.points.length === 2 ? 2 : 0,
+    ...(request.engineAlternates === true ? { alternates: 2 } : {}),
     ...(excludePolygons.length > 0 ? { exclude_polygons: excludePolygons } : {})
   }
 }
@@ -270,50 +273,59 @@ export async function fetchRouteElevations(
   signal?: AbortSignal
 ): Promise<{ ascentMeters: number | null; descentMeters: number | null; unavailable?: boolean }> {
   const samples = sampleGeometryForHeight(geometry)
-  let response: Response
+  const lifecycle = createDeadline(15_000, signal)
   try {
-    response = await fetcher(`${baseUrl.replace(/\/$/, "")}/height`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ shape: samples, range: true }),
-      signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
-        : AbortSignal.timeout(15_000)
-    })
-  } catch {
-    return { ascentMeters: null, descentMeters: null, unavailable: true }
-  }
+    let response: Response
+    try {
+      response = await fetcher(`${baseUrl.replace(/\/$/, "")}/height`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ shape: samples, range: true }),
+        signal: lifecycle.signal
+      })
+    } catch (error) {
+      if (signal?.aborted) throw signal.reason ?? error
+      return { ascentMeters: null, descentMeters: null, unavailable: true }
+    }
 
-  if (!response.ok) return { ascentMeters: null, descentMeters: null, unavailable: true }
+    if (signal?.aborted) throw signal.reason ?? new DOMException("Elevation enrichment was cancelled.", "AbortError")
+    if (lifecycle.signal.aborted) return { ascentMeters: null, descentMeters: null, unavailable: true }
+    if (!response.ok) return { ascentMeters: null, descentMeters: null, unavailable: true }
 
-  let payload: ValhallaHeightResponse
-  try {
-    payload = (await response.json()) as ValhallaHeightResponse
-  } catch {
-    return { ascentMeters: null, descentMeters: null, unavailable: true }
-  }
+    let payload: ValhallaHeightResponse
+    try {
+      payload = (await response.json()) as ValhallaHeightResponse
+    } catch (error) {
+      if (signal?.aborted) throw signal.reason ?? error
+      return { ascentMeters: null, descentMeters: null, unavailable: true }
+    }
+    if (signal?.aborted) throw signal.reason ?? new DOMException("Elevation enrichment was cancelled.", "AbortError")
+    if (lifecycle.signal.aborted) return { ascentMeters: null, descentMeters: null, unavailable: true }
 
-  const heights: (number | null)[] = payload.range_height
-    ? payload.range_height.map(([, h]) => h)
-    : payload.height ?? []
+    const heights: (number | null)[] = payload.range_height
+      ? payload.range_height.map(([, h]) => h)
+      : payload.height ?? []
 
-  if (heights.length < 2 || heights.some((h) => h === null)) {
-    return { ascentMeters: null, descentMeters: null }
-  }
+    if (heights.length < 2 || heights.some((h) => h === null)) {
+      return { ascentMeters: null, descentMeters: null }
+    }
 
-  let ascent = 0
-  let descent = 0
-  for (let i = 1; i < heights.length; i++) {
-    const prev = heights[i - 1]!
-    const curr = heights[i]!
-    const delta = curr - prev
-    if (delta > 0) ascent += delta
-    else descent += Math.abs(delta)
-  }
+    let ascent = 0
+    let descent = 0
+    for (let i = 1; i < heights.length; i++) {
+      const prev = heights[i - 1]!
+      const curr = heights[i]!
+      const delta = curr - prev
+      if (delta > 0) ascent += delta
+      else descent += Math.abs(delta)
+    }
 
-  return {
-    ascentMeters: Math.round(ascent),
-    descentMeters: Math.round(descent)
+    return {
+      ascentMeters: Math.round(ascent),
+      descentMeters: Math.round(descent)
+    }
+  } finally {
+    lifecycle.dispose()
   }
 }
 
@@ -568,54 +580,62 @@ export async function requestValhallaRoutes(
   const request = normalizeRouteRequest(_input)
   const fetcher = options.fetcher ?? fetch
   const requestBody = createValhallaRequest(request)
-  let response: Response
+  const lifecycle = createDeadline(30_000, options.signal)
   try {
-    response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(requestBody),
-      signal: options.signal
-        ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)])
-        : AbortSignal.timeout(30_000)
-    })
-  } catch (caught) {
-    if (isAbortError(caught)) {
+    let response: Response
+    try {
+      response = await fetcher(`${options.baseUrl.replace(/\/$/, "")}/route`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: lifecycle.signal
+      })
+    } catch (caught) {
+      if (options.signal?.aborted || isAbortError(caught) && !lifecycle.signal.aborted) {
+        throw new ValhallaProviderError("Route planning was cancelled.", "ROUTE_CANCELLED", 499)
+      }
+      if (lifecycle.signal.aborted) {
+        throw new ValhallaProviderError("Valhalla route planning timed out.", "ROUTE_TIMEOUT", 504)
+      }
       throw new ValhallaProviderError(
-        "Route planning was cancelled.",
-        "ROUTE_CANCELLED",
-        499
+        "Cannot reach the Valhalla routing engine. Check that the container is running.",
+        "PROVIDER_UNAVAILABLE",
+        503
       )
     }
-    throw new ValhallaProviderError(
-      "Cannot reach the Valhalla routing engine. Check that the container is running.",
-      "PROVIDER_UNAVAILABLE",
-      503
-    )
-  }
 
-  let payload: ValhallaResponse
-  try {
-    payload = (await response.json()) as ValhallaResponse
-  } catch {
-    throw new ValhallaProviderError(
-      "Valhalla returned an unreadable response",
-      "INVALID_PROVIDER_RESPONSE",
-      502
-    )
-  }
+    let payload: ValhallaResponse
+    try {
+      payload = (await response.json()) as ValhallaResponse
+    } catch {
+      throw new ValhallaProviderError(
+        "Valhalla returned an unreadable response",
+        "INVALID_PROVIDER_RESPONSE",
+        502
+      )
+    }
+    if (options.signal?.aborted) {
+      throw new ValhallaProviderError("Route planning was cancelled.", "ROUTE_CANCELLED", 499)
+    }
+    if (lifecycle.signal.aborted) {
+      throw new ValhallaProviderError("Valhalla route planning timed out.", "ROUTE_TIMEOUT", 504)
+    }
 
-  if (!response.ok || payload.error) {
-    throw providerError(
-      response.status,
-      payload.error ?? payload.trip?.status_message ?? response.statusText,
-      payload.error_code
-    )
-  }
+    if (!response.ok || payload.error) {
+      throw providerError(
+        response.status,
+        payload.error ?? payload.trip?.status_message ?? response.statusText,
+        payload.error_code
+      )
+    }
 
-  return {
-    engine: "valhalla",
-    engineVersion: "3.x",
-    routes: normalizeTrips(payload, request)
+    return {
+      engine: "valhalla",
+      engineVersion: "3.x",
+      routes: normalizeTrips(payload, request)
+    }
+  } finally {
+    lifecycle.dispose()
   }
 }
 
