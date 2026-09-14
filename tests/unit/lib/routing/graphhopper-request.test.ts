@@ -80,8 +80,8 @@ describe("GraphHopper request policy", () => {
       .not.toHaveProperty("algorithm")
   })
 
-  it("builds the complete alternatives point-to-point request", () => {
-    expect(createGraphHopperRequest({ profile: "twisty", candidateSet: "alternatives", points: [start, finish] })).toEqual({
+  it("builds the complete engine-alternatives point-to-point request", () => {
+    expect(createGraphHopperRequest({ profile: "twisty", candidateSet: "alternatives", engineAlternates: true, points: [start, finish] })).toEqual({
       profile: "motorcycle_twisty",
       points: [[-76.8867, 40.2732], [-76.3055, 40.0379]],
       points_encoded: false,
@@ -95,6 +95,13 @@ describe("GraphHopper request policy", () => {
       "alternative_route.max_weight_factor": 1.8,
       "alternative_route.max_share_factor": 0.62
     })
+  })
+
+  it("keeps an alternatives request single-path unless the server opts into engine alternates", () => {
+    const body = createGraphHopperRequest({ profile: "twisty", candidateSet: "alternatives", points: [start, finish] })
+
+    expect(body).not.toHaveProperty("algorithm")
+    expect(Object.keys(body).some((key) => key.startsWith("alternative_route"))).toBe(false)
   })
 
   it("builds the complete round-trip request", () => {
@@ -120,7 +127,7 @@ describe("GraphHopper request policy", () => {
   })
 
   it("adds the highway avoidance policy without changing the base request", () => {
-    expect(createGraphHopperRequest({ profile: "quick", avoidHighways: true, candidateSet: "alternatives", points: [start, finish] })).toEqual({
+    expect(createGraphHopperRequest({ profile: "quick", avoidHighways: true, candidateSet: "alternatives", engineAlternates: true, points: [start, finish] })).toEqual({
       profile: "motorcycle_fastest",
       points: [[-76.8867, 40.2732], [-76.3055, 40.0379]],
       points_encoded: false,

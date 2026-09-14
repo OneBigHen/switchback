@@ -57,7 +57,7 @@ describe("Valhalla provider", () => {
   ] satisfies [RouteProfileId, Record<string, number>][]) (
     "uses valid motorcycle costing options for the %s profile",
     (profile, expectedOptions) => {
-      const body = createValhallaRequest(routeRequest(profile))
+      const body = createValhallaRequest({ ...routeRequest(profile), engineAlternates: true })
 
       expect(body).toMatchObject({
         costing: "motorcycle",
@@ -72,6 +72,10 @@ describe("Valhalla provider", () => {
       expect(body).not.toHaveProperty("costing_options.motorcycle.motorcycle_type")
     }
   )
+
+  it("does not request native alternatives unless the server opts in", () => {
+    expect(createValhallaRequest(routeRequest())).not.toHaveProperty("alternates")
+  })
 
   it("marks intermediate locations as through and sends closed avoid polygons", () => {
     const body = createValhallaRequest({
@@ -99,7 +103,6 @@ describe("Valhalla provider", () => {
         { lat: 40.2446, lon: -76.5294, type: "through", name: "River stop" },
         { lat: finish.lat, lon: finish.lon, type: "break", name: "Lancaster" }
       ],
-      alternates: 0,
       exclude_polygons: [[
         [-76.7, 40.1],
         [-76.6, 40.1],
@@ -108,6 +111,7 @@ describe("Valhalla provider", () => {
         [-76.7, 40.1]
       ]]
     })
+    expect(body).not.toHaveProperty("alternates")
   })
 
   it("rejects native round trips before calling Valhalla", async () => {

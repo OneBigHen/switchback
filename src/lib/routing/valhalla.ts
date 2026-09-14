@@ -5,6 +5,8 @@ import { analyzeGeometry } from "./scoring"
 import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
 import { sketchCorridorContext } from "./sketch-corridor"
 
+type ValhallaRequestInput = RouteRequest & { engineAlternates?: boolean }
+
 export interface ValhallaOptions {
   baseUrl: string
   fetcher?: typeof fetch
@@ -55,7 +57,7 @@ const PROFILE_COSTING_OPTIONS: Record<RouteProfileId, Record<string, number>> = 
   neural: { use_highways: 0.15 }
 }
 
-export function createValhallaRequest(_input: RouteRequest): Record<string, unknown> {
+export function createValhallaRequest(_input: ValhallaRequestInput): Record<string, unknown> {
   const request = normalizeRouteRequest(_input)
   const profile = getProfile(request.profile)
   if (request.roundTrip) {
@@ -103,7 +105,7 @@ export function createValhallaRequest(_input: RouteRequest): Record<string, unkn
     units: "miles",
     directions_type: "instructions",
     format: "json",
-    alternates: request.points.length === 2 ? 2 : 0,
+    ...(request.engineAlternates === true ? { alternates: 2 } : {}),
     ...(excludePolygons.length > 0 ? { exclude_polygons: excludePolygons } : {})
   }
 }

@@ -353,6 +353,29 @@ describe("route HTTP contract", () => {
     }), expect.anything())
   })
 
+  it("strips the server-owned engine alternate switch from client input", async () => {
+    const provider = vi.fn(async (): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [route]
+    }))
+    const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        engineAlternates: true,
+        points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }]
+      })
+    }), provider)
+
+    expect(response.status).toBe(200)
+    expect(provider).toHaveBeenCalledWith(
+      expect.not.objectContaining({ engineAlternates: true }),
+      expect.anything()
+    )
+  })
+
   it("rejects an alternatives request without the sampled primary route", async () => {
     const provider = vi.fn()
     const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {

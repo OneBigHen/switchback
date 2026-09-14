@@ -235,10 +235,18 @@ export async function handleRouteRequest(
       { message: parsed.error.message, path: parsed.error.path }
     )
   }
-  responseRequestId = parsed.data.requestId ?? responseRequestId
+  // The schema is passthrough for forward-compatible request fields, but
+  // provider optimization switches are server-owned. The planner adds
+  // `engineAlternates` only after choosing a bounded strategy; a client must
+  // never be able to buy the expensive provider path directly.
+  const { engineAlternates: _clientEngineAlternates, ...trustedRequest } = parsed.data as typeof parsed.data & {
+    engineAlternates?: unknown
+  }
+  void _clientEngineAlternates
+  responseRequestId = trustedRequest.requestId ?? responseRequestId
 
   try {
-    validateRouteRequest(parsed.data)
+    validateRouteRequest(trustedRequest)
   } catch (e) {
     if (e instanceof ValidationError) {
       return errorResponse(
@@ -256,21 +264,21 @@ export async function handleRouteRequest(
     // Thread the incoming request's abort signal through planning so a
     // client cancellation stops provider work, not just repainting.
     const cache = context.cache ?? null
-    const cacheKey = cache && parsed.data.candidateSet !== "alternatives"
-      ? routeCacheKey(parsed.data as RouteRequest)
+    const cacheKey = cache && trustedRequest.candidateSet !== "alternatives"
+      ? routeCacheKey(trustedRequest as RouteRequest)
       : null
     if (cacheKey && cache) {
       const cached = cache.get(cacheKey)
       if (cached) {
         return Response.json({
           ...cached,
-          ...echoedMetadata(parsed.data),
+          ...echoedMetadata(trustedRequest),
           requestId: responseRequestId,
           timingMs: { cache: "hit" }
         }, { headers: { "x-request-id": responseRequestId } })
       }
     }
-    const trip = await planMotorcycleTrip(parsed.data as TripPlanRequest, provider, enricher, {
+    const trip = await planMotorcycleTrip(trustedRequest as TripPlanRequest, provider, enricher, {
       signal: request.signal,
       resolveCorridors: context.resolveCorridors
     })
