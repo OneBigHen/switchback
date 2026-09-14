@@ -382,7 +382,7 @@ async function planCorridorAlternatives(
       warnings.push(`${label} matched the traced route too closely to offer.`)
       continue
     }
-    const enriched = await enrichCandidates(request, [distinct.route], enricher)
+    const enriched = await enrichCandidates(request, [distinct.route], enricher, { signal: deadline })
     warnings.push(...enriched.warnings)
     const chosen = enriched.routes[0] ?? distinct.route
     filledRoles.add(variant.role)
@@ -686,7 +686,9 @@ async function planAlternativeRoutes(
       if (accepted.length >= MAX_ALTERNATIVES) break
     }
 
-    const enriched = await enrichCandidates(request, accepted, enricher)
+    const enriched = deadline.signal.aborted
+      ? { routes: accepted, warnings: [] }
+      : await enrichCandidates(request, accepted, enricher, { signal: deadline.signal })
     for (const warning of enriched.warnings) appendWarning(warning)
     const routes = enriched.routes.map((route) => ensureLockSatisfaction(route, partitioned.survivingLocks))
     return {
