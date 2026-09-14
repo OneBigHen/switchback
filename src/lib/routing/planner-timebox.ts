@@ -113,7 +113,7 @@ export async function requestTimeboxedRoutes(
   const roundTrip = request.roundTrip
   const targetMinutes = roundTrip?.targetMinutes ?? request.loopTargetMinutes
   if (!targetMinutes) {
-    const enriched = await enrichCandidates(request, initial.routes, enricher)
+    const enriched = await enrichCandidates(request, initial.routes, enricher, options)
     return {
       result: { ...initial, routes: enriched.routes },
       warning: [...(initial.warnings ?? []), ...enriched.warnings].join(" ") || null
@@ -132,7 +132,7 @@ export async function requestTimeboxedRoutes(
     roundTrip && request.profile === "adventure"
   )
   if (relativeError <= ROUND_TRIP_DURATION_TOLERANCE && !exploreAdventureAlternatives) {
-    const enriched = await enrichCandidates(request, [initialCandidate], enricher)
+    const enriched = await enrichCandidates(request, [initialCandidate], enricher, options)
     return {
       result: {
         ...initial,
@@ -142,7 +142,7 @@ export async function requestTimeboxedRoutes(
     }
   }
   if (!roundTrip) {
-    const enriched = await enrichCandidates(request, initial.routes, enricher)
+    const enriched = await enrichCandidates(request, initial.routes, enricher, options)
     const closest = closestDurationCandidate(enriched.routes, targetMinutes) ?? initialCandidate
     return {
       result: {
@@ -221,7 +221,7 @@ export async function requestTimeboxedRoutes(
       durationDifference(left, targetMinutes) - durationDifference(right, targetMinutes)
     )
     .slice(0, 4)
-  const enriched = await enrichCandidates(request, contenders, enricher)
+  const enriched = await enrichCandidates(request, contenders, enricher, options)
   const timeMatchedCandidates = enriched.routes.filter((candidate) =>
     durationDifference(candidate, targetMinutes) / targetMinutes <= ROUND_TRIP_DURATION_TOLERANCE
   )

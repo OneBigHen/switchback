@@ -2,8 +2,8 @@ import type { RouteProvider, RoutingResult } from "./planner"
 import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { PlannedRoute } from "./types"
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
-import { featureProvenanceForPlannedRoute, scorePlannedRoute } from "@/lib/recommendation/route-candidate"
-import { sketchCorridorContext } from "./sketch-corridor"
+import { featureProvenanceForPlannedRoute } from "@/lib/recommendation/route-candidate"
+import type { JobPriority } from "@/lib/server/route-job-limiter"
 
 export interface HybridRouteProviderOptions {
   graphHopper: RouteProvider
@@ -17,8 +17,7 @@ function supportsValhallaCandidate(request: NormalizedRouteRequest): boolean {
 function withProvenance(
   result: RoutingResult,
   provider: "graphhopper" | "valhalla",
-  fallback = false,
-  request?: Pick<NormalizedRouteRequest, "bikeProfile" | "sketchCorridor">
+  fallback = false
 ): PlannedRoute[] {
   return result.routes.map((route) => {
     const enriched: PlannedRoute = {
@@ -33,13 +32,35 @@ function withProvenance(
       }
     }
     enriched.featureProvenance = featureProvenanceForPlannedRoute(enriched)
-    enriched.routeScore = scorePlannedRoute(enriched, {
-      profile: enriched.profile,
-      bikeProfile: request?.bikeProfile,
-      corridor: sketchCorridorContext(request?.sketchCorridor)
-    })
     return enriched
   })
+}
+
+export interface CandidateProviderLimiter {
+  run<T>(task: () => Promise<T>, options: { priority: JobPriority; signal?: AbortSignal }): Promise<T>
+}
+
+/** Bind an optional provider callback to its own host queue. */
+export function createValhallaCandidateProvider(
+  provider: RouteProvider,
+  limiter: CandidateProviderLimiter
+): RouteProvider {
+  return (request, providerOptions) => limiter.run(
+    () => provider(request, providerOptions),
+    {
+      priority: request.candidateSet === "alternatives" ? "alternatives" : "primary",
+      signal: providerOptions?.signal
+    }
+  )
+}
+
+function isCancellation(reason: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return true
+  if (reason !== null && typeof reason === "object") {
+    const candidate = reason as { code?: unknown; name?: unknown }
+    return candidate.code === "ROUTE_CANCELLED" || candidate.name === "AbortError"
+  }
+  return false
 }
 
 /**
@@ -76,10 +97,10 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
     try {
       graphHopperResult = await options.graphHopper(request, providerOptions)
     } catch (graphHopperReason) {
-      if (!valhallaEligible) throw graphHopperReason
+      if (!valhallaEligible || isCancellation(graphHopperReason, providerOptions?.signal)) throw graphHopperReason
       try {
         const valhallaFallback = await options.valhalla!(request, providerOptions)
-        const routes = withProvenance(valhallaFallback, "valhalla", true, request)
+        const routes = withProvenance(valhallaFallback, "valhalla", true)
         const warnings = [
           ...(valhallaFallback.warnings ?? []),
           `GraphHopper unavailable; Valhalla fallback preserved this supported route: ${rejectionMessage(graphHopperReason)}.`
@@ -101,7 +122,7 @@ export function createHybridRouteProvider(options: HybridRouteProviderOptions): 
       engine: "graphhopper",
       engineVersion: graphHopperResult.engineVersion,
       routes: attachRoadLockSatisfaction(
-        withProvenance(graphHopperResult, "graphhopper", false, request),
+        withProvenance(graphHopperResult, "graphhopper", false),
         request.roadLocks
       ),
       ...(warnings.length > 0 ? { warnings } : {})

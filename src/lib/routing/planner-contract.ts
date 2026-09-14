@@ -55,7 +55,13 @@ export interface RouteCandidateEnrichmentResult {
   warnings: string[]
 }
 
+export interface CandidateEnrichmentOptions {
+  /** The lane/packet signal; cancellation must not be converted to a warning. */
+  signal?: AbortSignal
+}
+
 export type RouteCandidateEnricher = (
   request: RouteRequest,
-  routes: PlannedRoute[]
+  routes: PlannedRoute[],
+  options?: CandidateEnrichmentOptions
 ) => Promise<RouteCandidateEnrichmentResult>

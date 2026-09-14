@@ -39,4 +39,22 @@ describe("accepted-candidate enrichment", () => {
     await run({ ...request, candidateSet: "alternatives" }, [])
     expect(elevate).not.toHaveBeenCalled()
   })
+
+  it("passes the lane signal to elevation and preserves caller cancellation", async () => {
+    const caller = new AbortController()
+    const reason = new Error("rider cancelled")
+    const elevate = vi.fn(async (_result: { routes: PlannedRoute[] }, signal: AbortSignal) => {
+      expect(signal.aborted).toBe(false)
+      caller.abort(reason)
+      expect(signal.aborted).toBe(true)
+      throw signal.reason
+    })
+    const { run } = enricher(elevate)
+
+    await expect(run(
+      { ...request, candidateSet: "alternatives" },
+      [route],
+      { signal: caller.signal }
+    )).rejects.toBe(reason)
+  })
 })
