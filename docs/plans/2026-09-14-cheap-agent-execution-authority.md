@@ -260,7 +260,8 @@ Packet F and the Phase 7 decision payload exist.
   head `3d0b85c4d355286c7881644dd8915455e728f3e2`, makes the OpenRouter model
   selectable without changing the verified default or production behavior.
 - PR3 map packet: PR #146, branch `fix/routing-map-phase1`, head
-  `5c648a804a3536c0fbb2c71c0ebe22797ef5e837`, covers CSP, renderer fallback,
+  `6abb930461189703fc1202052ee824ed03b9cc87`, covers CSP, hydration-safe
+  renderer fallback,
   truthful map labels, and deterministic browser mount/failure evidence on the
   exact PR #139 base.
 - The full repository suite at that warning-branch head is `424` files,

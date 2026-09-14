@@ -148,8 +148,13 @@ error; it must not create a fallback loop.
   `npx vitest run tests/components/map-stage-fallback.test.tsx`
 - Existing map controls:
   `npx vitest run tests/components/map-stage.test.tsx tests/components/map-stage-fallback.test.tsx tests/components/planner-map-renderer.test.ts`
+- Existing post-style error gate:
+  `npx vitest run tests/unit/map-layer-settings.test.ts`
 - Required regression cases: callback-driven fallback, session marker, no
-  Mapbox retry after remount, and no fallback path for MapLibre.
+  Mapbox retry after remount, no fallback path for MapLibre, and the
+  `shouldShowBaseMapFailure(true, false) === false` post-style gate. The
+  component test proves the renderer callback boundary; the map-layer test
+  proves that a working renderer is not torn down for a later overlay error.
 
 **Acceptance criteria**
 
