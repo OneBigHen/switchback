@@ -234,7 +234,7 @@ Every capability the scouts found, with an explicit disposition. "Prod?" reflect
 **T-0.1 — make the bench target selectable**
 - Files: `bench/run.mts`.
 - Do: replace the hard-coded `DEEPSEEK_MODEL` with `process.env.BENCH_OPENROUTER_MODEL ?? DEEPSEEK_MODEL`. No other behaviour change. This is isolated in PR #144 so the advisor benchmark does not expand the routing bug-fix PR's scope.
-- Verify: `BENCH_REPS=0 BENCH_ARMS=deepseek OPENROUTER_API_KEY=stub BENCH_ONLY=read-route BENCH_OPENROUTER_MODEL=openrouter/free npx tsx bench/run.mts --help` completes with zero upstream calls; a real bake-off must opt in to credentials separately.
+- Verify: `BENCH_REPS=0 BENCH_ARMS=deepseek OPENROUTER_API_KEY=stub BENCH_ONLY=read-route BENCH_OPENROUTER_MODEL=openrouter/free npx tsx bench/run.mts` completes with zero upstream calls; a real bake-off must opt in to credentials separately.
 - Done when: the bench can target any OpenRouter model without a code edit.
 
 **T-0.2 — bake off, then switch production**

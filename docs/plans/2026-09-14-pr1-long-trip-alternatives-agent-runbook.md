@@ -865,7 +865,10 @@ The command must not mutate service configuration or assume credentials.
 
 ### Tests
 
-Run the script's `--help` and a one-run unreachable/local smoke as applicable.
+Run the benchmark script's `--help` and a one-run unreachable/local smoke as
+applicable. The advisor bake-off smoke is separate: `bench/run.mts` does not
+parse command-line flags, so use its environment variables without appending
+`--help`.
 Run the repository benchmark command `npm run benchmark:routing` only against an
 explicitly authorized local/branch URL. Inspect the generated report manually for
 route count/outcome/timing fields.
