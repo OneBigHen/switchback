@@ -472,7 +472,7 @@ This turns on a **client-only build-time flag**, which ADR 0021 forbids as a per
 **T-4.4 — hidden work**
 - Raise the quick-layer cap so "Road controls" is not cut (`LayersSheet.tsx:61-62`).
 - Add a "3D rides" entry (`/labs/recon`) to Explore and Saved.
-- New `GET /api/capabilities` is the server authority required by ADR 0021. Its public payload must include `mapboxPremium`, `googleCinematic`, `tomtomTraffic`, `tomtomRouting`, and `advancedFreeRide`, combining deployment defaults, provider prerequisites, optional stable-identity gates, and provider health; missing prerequisites force `false` and secrets never reach the browser. `advisor` may remain an additional operational capability. `freeRideLive` is false without a RIG graph, which hides the currently dead Free Ride control.
+- New `GET /api/capabilities` is the server authority required by ADR 0021. Its public payload must include `mapboxPremium`, `googleCinematic`, `tomtomTraffic`, `tomtomRouting`, and `advancedFreeRide`, combining deployment defaults, provider prerequisites, optional stable-identity gates, and provider health; missing prerequisites force `false` and secrets never reach the browser. `advisor` may remain an additional operational capability. `advancedFreeRide` is false without a RIG graph, which hides the currently dead Free Ride control.
 - Show the "90-minute backroads" preset to first-run riders (`RideIntentFeedback.tsx`).
 - `TripPlan.warnings` is rider-facing plan text; route-specific typed warnings stay
   on `PlannedRoute.warnings`; provider/lane diagnostics stay internal.
