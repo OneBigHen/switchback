@@ -11,6 +11,7 @@ import { GpxIntelligencePanel } from "@/components/planner/GpxIntelligencePanel"
 import { RouteLibraryActions } from "@/components/route-library/RouteLibraryActions"
 import { RouteDetailHeader } from "@/components/route-library/RouteDetailHeader"
 import { RouteDetailMap } from "@/components/route-library/RouteDetailMap"
+import { simplifyForOverlay } from "@/lib/routes/route-preview"
 import { AppNavigationLinks } from "@/components/shell/AppNavigationLinks"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import {
@@ -21,6 +22,13 @@ import {
 import { durationEvidence, surfaceEvidence, trackConfidence, twistinessEvidence } from "@/lib/routes/route-evidence"
 import { routeHighlights, routeSizeEyebrow } from "@/lib/routes/route-highlights"
 import type { Coordinate } from "@/lib/routing/types"
+
+/**
+ * The hero map is an overview; the planner opens the full line. Imported
+ * tracks carry up to ~22,000 points, which all went into the page payload
+ * (900 KB of HTML for the largest) for a map that cannot show them.
+ */
+const DETAIL_MAP_MAX_POINTS = 4_000
 
 export const dynamic = "force-dynamic"
 
@@ -249,7 +257,7 @@ export default async function RouteDetailPage({ params }: { params: Promise<{ ro
       <RouteDetailHeader routeName={title} detailsAnchor={TECHNICAL_DETAILS_ID} />
 
       <RouteDetailMap
-        geometry={geometry}
+        geometry={simplifyForOverlay(geometry, DETAIL_MAP_MAX_POINTS)}
         bbox={bbox ?? null}
         routeName={title}
         provenanceNote={route.previewOnly ? "Preview import — the full line was not stored." : null}

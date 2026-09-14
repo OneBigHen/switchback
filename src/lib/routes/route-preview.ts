@@ -144,6 +144,41 @@ function bboxKey(bbox: GeoBoundingBox): string {
  * The preview contract the plan asks for:
  * `routeId + geometry fingerprint + padded bbox + style version + size -> key`.
  */
+/** Degrees of latitude/longitude from the collection's centre beyond which a route is an outlier. */
+const COLLECTION_OUTLIER_SPAN_DEGREES = 8
+
+/**
+ * The extent to frame a collection of routes in, ignoring stray outliers.
+ *
+ * One mislocated import (three GPX test fixtures in Brussels sat in a PA/NJ
+ * catalog) stretched the plain union across an ocean, so the discovery map
+ * opened on open water with every real route too small to see. The centre is
+ * the median of route centres — which outliers cannot drag — and only routes
+ * within a few degrees of it shape the frame. Returns null for no input.
+ */
+export function collectionBoundingBox(bboxes: ReadonlyArray<GeoBoundingBox>): GeoBoundingBox | null {
+  if (bboxes.length === 0) return null
+  const median = (values: number[]) => {
+    const sorted = [...values].sort((left, right) => left - right)
+    const middle = Math.floor(sorted.length / 2)
+    return sorted.length % 2 === 0 ? (sorted[middle - 1]! + sorted[middle]!) / 2 : sorted[middle]!
+  }
+  const centres = bboxes.map(([west, south, east, north]) => [(west + east) / 2, (south + north) / 2] as const)
+  const centreLon = median(centres.map(([lon]) => lon))
+  const centreLat = median(centres.map(([, lat]) => lat))
+  const nearby = bboxes.filter((_, index) => {
+    const [lon, lat] = centres[index]!
+    return Math.abs(lon - centreLon) <= COLLECTION_OUTLIER_SPAN_DEGREES && Math.abs(lat - centreLat) <= COLLECTION_OUTLIER_SPAN_DEGREES
+  })
+  const framed = nearby.length > 0 ? nearby : bboxes
+  return [
+    Math.min(...framed.map((bbox) => bbox[0])),
+    Math.min(...framed.map((bbox) => bbox[1])),
+    Math.max(...framed.map((bbox) => bbox[2])),
+    Math.max(...framed.map((bbox) => bbox[3]))
+  ]
+}
+
 export function buildRoutePreviewSpec(input: RoutePreviewSpecInput): RoutePreviewSpec {
   const dimensions = ROUTE_PREVIEW_SIZES[input.size]
   const source: GeoBoundingBox = isFiniteBbox(input.bbox) ? input.bbox : [-180, -60, 180, 75]
