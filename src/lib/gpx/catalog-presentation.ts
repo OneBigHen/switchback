@@ -152,3 +152,128 @@ export function classifyCatalogArea(bbox: CatalogBbox | null | undefined): Catal
   const outside = OUTSIDE_PA.find((region) => contains(region.bbox, center))
   return { region: outside?.label ?? "Farther afield", ridingAreas: [] }
 }
+
+/**
+ * Two-letter US state/territory codes. An import convention this catalog sees
+ * constantly puts the state between an origin and a destination
+ * ("Green Lane-NJ-Bucks-Creek-Crossing"), so a state token sitting between two
+ * named places is read as that separator rather than as part of either name.
+ */
+const STATE_CODES: ReadonlySet<string> = new Set([
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN",
+  "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
+  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT",
+  "VT", "VA", "WA", "WV", "WI", "WY"
+])
+
+/**
+ * Trailing markers bulk imports append to distinguish their own working
+ * copies. They describe the *file*, never the ride.
+ */
+const TECHNICAL_TOKENS: ReadonlySet<string> = new Set([
+  "TRACK", "TRACKS", "CORRECTED", "FIXED", "EDIT", "EDITED", "FINAL", "COPY", "DUPLICATE",
+  "DUP", "NEW", "OLD", "BACKUP", "EXPORT", "EXPORTED", "IMPORT", "IMPORTED", "CLEAN",
+  "CLEANED", "MERGED", "REVISED", "DRAFT", "TEMP", "TMP", "ROUTE", "GPX"
+])
+
+function isTechnicalToken(token: string): boolean {
+  const bare = token.replace(/[^A-Za-z0-9]/g, "")
+  if (bare.length === 0) return false
+  if (TECHNICAL_TOKENS.has(bare.toUpperCase())) return true
+  // Version markers: v2, V10, 2ND.
+  return /^v\d+$/i.test(bare)
+}
+
+/** Title-case a token that is shouting; leave deliberate casing alone. */
+function softTitleCase(token: string): string {
+  if (token.length === 0) return token
+  const letters = token.replace(/[^A-Za-z]/g, "")
+  if (letters.length < 2 || letters !== letters.toUpperCase()) return token
+  return token.replace(/[A-Za-z][A-Za-z']*/g, (word) => word[0]!.toUpperCase() + word.slice(1).toLowerCase())
+}
+
+/**
+ * A deterministic rider-facing title derived from an import filename. This
+ * cleans and re-reads tokens that are already present; it never generates a
+ * name, and it never calls a model.
+ */
+export function cleanImportedRouteTitle(name: string): string {
+  const base = cleanCatalogRouteName(name)
+  if (base.length === 0) return ""
+
+  const tokens = base.split(/[-_]+/).map((token) => token.trim()).filter((token) => token.length > 0)
+  if (tokens.length <= 1) return softTitleCase(base)
+
+  // A name made only of file bookkeeping carries no ride in it. Stripping the
+  // tail would leave a worse half-name ("Track"), so the import's own name is
+  // kept verbatim as provenance instead of a derived one.
+  if (tokens.every(isTechnicalToken)) return base
+
+  // Strip technical markers from the tail only: a ride legitimately called
+  // "Copper Creek Track" keeps its name, a file called "…-TRACK" does not.
+  let end = tokens.length
+  while (end > 1 && isTechnicalToken(tokens[end - 1]!)) end -= 1
+  const kept = tokens.slice(0, end)
+  if (kept.length === 0) return softTitleCase(base)
+
+  const separator = kept.findIndex((token, index) =>
+    index > 0 && index < kept.length - 1 && STATE_CODES.has(token.toUpperCase()))
+
+  if (separator > 0) {
+    const origin = kept.slice(0, separator).map(softTitleCase).join(" ").trim()
+    const destination = kept.slice(separator + 1).map(softTitleCase).join(" ").trim()
+    if (origin.length > 0 && destination.length > 0) return `${origin} \u2192 ${destination}`
+  }
+
+  const joined = kept.map(softTitleCase).join(" ").replace(/\s+/g, " ").trim()
+  return joined.length > 0 ? joined : softTitleCase(base)
+}
+
+/**
+ * Whether a stored name still reads as the file it came from. Used to decide
+ * that a "catalog title" is not actually a title worth showing a rider.
+ */
+export function looksLikeRawImportFilename(name: string): boolean {
+  const trimmed = name.trim()
+  if (trimmed.length === 0) return false
+  if (/\.(?:gpx|kml|kmz)$/i.test(trimmed)) return true
+  if (/^\d{2,}[\s._-]/.test(trimmed)) return true
+  if (/\bcreated by\b/i.test(trimmed)) return true
+  const tokens = trimmed.split(/[-_]+/).filter((token) => token.trim().length > 0)
+  if (tokens.length < 2) return false
+  return tokens.some(isTechnicalToken) || tokens.some((token) => STATE_CODES.has(token.trim().toUpperCase()))
+}
+
+export interface CatalogTitleInput {
+  /** A title the rider or publisher set explicitly. Always wins. */
+  readonly userTitle?: string | null
+  /** An existing catalog display title, used only when it reads as a title. */
+  readonly catalogTitle?: string | null
+  /** The imported filename. Provenance — the last resort for display. */
+  readonly originalName: string
+}
+
+/**
+ * Display-name precedence for a catalog route:
+ *
+ * 1. explicit user/public title,
+ * 2. a strong existing catalog display title,
+ * 3. the deterministic cleaned import title,
+ * 4. the original filename.
+ *
+ * The original name is never altered; provenance stays available beside the
+ * display title for anyone who needs to trace the import.
+ */
+export function catalogDisplayTitle(input: CatalogTitleInput): string {
+  const explicit = input.userTitle?.trim()
+  if (explicit) return explicit
+
+  const catalog = input.catalogTitle?.trim()
+  if (catalog && !looksLikeRawImportFilename(catalog)) return catalog
+
+  const cleaned = cleanImportedRouteTitle(input.originalName)
+  if (cleaned) return cleaned
+
+  const original = cleanCatalogRouteName(input.originalName) || input.originalName.trim()
+  return original || "Untitled route"
+}

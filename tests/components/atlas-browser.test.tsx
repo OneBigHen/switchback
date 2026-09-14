@@ -8,10 +8,25 @@ vi.mock("@/lib/client/near-me", async (importOriginal) => ({
   useNearMe: () => ({ anchor: null, status: "idle", located: false, requestLocation: vi.fn() })
 }))
 
-vi.mock("@/components/route-library/RouteLibraryActions", () => ({
-  RouteLibraryActions: ({ catalogRouteId, canUseGeometry }: { catalogRouteId: string; canUseGeometry: boolean }) => (
-    canUseGeometry ? <a href={`/?ride=${catalogRouteId}`}>Open in Planner</a> : <span>Geometry not retained</span>
+// The discovery map is a WebGL workspace with its own coverage; this suite is
+// about the browse contract, not about MapLibre.
+vi.mock("@/components/route-library/RouteLibraryMap", () => ({
+  RouteLibraryMap: ({ routes, selectedId }: { routes: Array<{ id: string }>; selectedId: string | null }) => (
+    <div data-testid="discovery-map" data-route-count={routes.length} data-selected={selectedId ?? ""} />
   )
+}))
+
+// The shared preview renderer owns one off-screen map; in jsdom it simply
+// reports that it cannot run, which is the state the fallback plate covers.
+vi.mock("@/components/route-library/route-preview-renderer", () => ({
+  requestRoutePreview: () => Promise.resolve(null),
+  cachedRoutePreview: () => null,
+  routePreviewRendererState: () => "unavailable",
+  resetRoutePreviewRenderer: () => undefined
+}))
+
+vi.mock("@/components/route-library/use-saved-catalog-routes", () => ({
+  useSavedCatalogRoutes: () => ({ ids: new Set(["bald-eagle"]), ready: true, refresh: vi.fn() })
 }))
 
 function route(over: Partial<AtlasBrowseRoute> & { id: string }): AtlasBrowseRoute {
@@ -25,6 +40,7 @@ function route(over: Partial<AtlasBrowseRoute> & { id: string }): AtlasBrowseRou
     turnCount: 118,
     twistiness: 62,
     unpavedShare: null,
+    profile: null,
     bbox: [-77.9, 40.75, -77.25, 41.1],
     region: "North-Central PA",
     ridingAreas: ["PA Wilds", "Bald Eagle / Rothrock"],
@@ -47,13 +63,14 @@ const routes: AtlasBrowseRoute[] = [
     durationMinutes: 95,
     region: "New Jersey",
     ridingAreas: [],
-    paths: ["M0 0 L50 50"]
+    bbox: [-75.15, 40.9, -74.95, 41.1],
+    paths: ["M10 110 L50 50 L90 14"]
   })
 ]
 
-function setWide(wide: boolean) {
+function setMatchMedia(matches: boolean) {
   vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
-    matches: wide,
+    matches,
     media: query,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -64,7 +81,7 @@ function setWide(wide: boolean) {
   })))
 }
 
-function renderBrowser() {
+function renderBrowser(override: Partial<Parameters<typeof AtlasBrowser>[0]> = {}) {
   return render(
     <AtlasBrowser
       routes={routes}
@@ -73,20 +90,31 @@ function renderBrowser() {
       routeCount={routes.length}
       totalMiles={152.9}
       updatedLabel="Updated Sep 9, 2026"
+      {...override}
     />
   )
 }
 
-beforeEach(() => setWide(false))
+function openFilters() {
+  fireEvent.click(screen.getByRole("button", { name: /Filters/ }))
+}
+
+beforeEach(() => setMatchMedia(false))
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
 
-describe("Route Library browser", () => {
-  it("shows a truthful card: clean name, distance, known duration only, real preview, region and riding area", () => {
-    setWide(false)
+describe("GPX Library discovery", () => {
+  it("names the collection and states its real size", () => {
+    renderBrowser()
+
+    expect(screen.getByRole("heading", { name: "GPX Library" })).toBeInTheDocument()
+    expect(screen.getByText(/2 routes · 153 miles · Updated Sep 9, 2026/)).toBeInTheDocument()
+  })
+
+  it("shows a truthful card: clean name, distance, known duration only, area and saved state", () => {
     renderBrowser()
 
     const card = screen.getByRole("link", { name: /Bald Eagle Dual Sport/ })
@@ -94,24 +122,56 @@ describe("Route Library browser", () => {
     expect(within(card).getByText("105 mi")).toBeInTheDocument()
     expect(card).not.toHaveTextContent(/\b0 min\b/)
     expect(within(card).getByText("North-Central PA · PA Wilds · Bald Eagle / Rothrock")).toBeInTheDocument()
-    expect(card.querySelector("path")?.getAttribute("d")).toBe("M8 110 L35 60 L76 82 L92 12")
+    expect(within(card).getByText("Saved to your rides")).toBeInTheDocument()
 
     const gap = screen.getByRole("link", { name: /Delaware Water Gap/ })
     expect(within(gap).getByText("1 hr 35 min")).toBeInTheDocument()
     expect(within(gap).getByText("New Jersey")).toBeInTheDocument()
+    expect(within(gap).queryByText("Saved to your rides")).toBeNull()
   })
 
-  it("demotes catalog totals to secondary metadata", () => {
+  it("marks a distance-derived time as an estimate rather than showing it as recorded", () => {
     renderBrowser()
 
-    expect(screen.getByText("2 rides")).toBeInTheDocument()
-    const meta = screen.getByText(/153 mi in the shared collection/)
-    expect(meta.closest(".atlas-catalog-meta")).not.toBeNull()
-    expect(screen.queryByText(/2 imported rides/)).toBeNull()
+    const card = screen.getByRole("link", { name: /Bald Eagle Dual Sport/ })
+    const estimated = within(card).getByText("est")
+
+    expect(estimated).toBeInTheDocument()
+    expect(within(screen.getByRole("link", { name: /Delaware Water Gap/ })).queryByText("est")).toBeNull()
   })
 
-  it("filters by riding area and by region", () => {
+  it("gives every card geography, not an abstract route silhouette", () => {
     renderBrowser()
+
+    const card = screen.getByRole("link", { name: /Bald Eagle Dual Sport/ })
+    const preview = card.querySelector("[data-route-preview]")
+
+    expect(preview).not.toBeNull()
+    // The plate is projected from the route's real bbox, so its path is not
+    // the atlas viewBox art the card used to draw.
+    expect(card.querySelector("[data-route-line]")?.getAttribute("d"))
+      .not.toBe("M8 110 L35 60 L76 82 L92 12")
+    expect(within(card).getByRole("img", { name: "Map of Bald Eagle Dual Sport" })).toBeInTheDocument()
+  })
+
+  it("says a route is unplaceable rather than drawing it somewhere", () => {
+    renderBrowser({
+      routes: [route({ id: "no-geo", title: "No geography", bbox: null, paths: [] })],
+      routeCount: 1
+    })
+
+    expect(screen.getByText("Location unknown")).toBeInTheDocument()
+  })
+
+  it("does not lead with mapped turn counts", () => {
+    renderBrowser()
+
+    expect(screen.queryByText(/118 turns/)).toBeNull()
+  })
+
+  it("keeps region and riding-area filtering, now behind Filters", () => {
+    renderBrowser()
+    openFilters()
 
     fireEvent.change(screen.getByRole("combobox", { name: "Riding area" }), { target: { value: "PA Wilds" } })
     expect(screen.queryByRole("link", { name: /Delaware Water Gap/ })).toBeNull()
@@ -122,46 +182,79 @@ describe("Route Library browser", () => {
     expect(screen.queryByRole("link", { name: /Bald Eagle Dual Sport/ })).toBeNull()
   })
 
-  it("on wide screens previews the selected ride in a rail from summary data, without fetching full geometry", () => {
-    setWide(true)
-    const fetchSpy = vi.fn()
-    vi.stubGlobal("fetch", fetchSpy)
+  it("keeps ride-length and corner filtering available", () => {
+    renderBrowser()
+    openFilters()
+
+    fireEvent.click(screen.getByRole("button", { name: "Under 50 mi" }))
+
+    expect(screen.getByRole("link", { name: /Delaware Water Gap/ })).toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /Bald Eagle Dual Sport/ })).toBeNull()
+  })
+
+  it("offers Map and List as two presentations of one query", () => {
     renderBrowser()
 
-    const rail = screen.getByRole("complementary", { name: "Selected ride" })
-    expect(within(rail).getByRole("heading", { name: "Bald Eagle Dual Sport" })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Water Gap" } })
+    expect(screen.getByText("1 route matching “Water Gap”")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /Delaware Water Gap/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Map" }))
 
-    expect(within(rail).getByRole("heading", { name: "Delaware Water Gap" })).toBeInTheDocument()
-    expect(within(rail).getByRole("link", { name: "Route details" })).toHaveAttribute("href", "/gpx-library/gap")
-    expect(within(rail).getByRole("link", { name: "Open in Planner" })).toHaveAttribute("href", "/?ride=gap")
-    expect(screen.getByRole("button", { name: /Delaware Water Gap/ })).toHaveAttribute("aria-pressed", "true")
+    const map = screen.getByTestId("discovery-map")
+    expect(map).toHaveAttribute("data-route-count", "1")
+    expect(screen.getByRole("button", { name: /Delaware Water Gap — show on map/ })).toBeInTheDocument()
+  })
+
+  it("synchronises card selection with the map", () => {
+    renderBrowser()
+    fireEvent.click(screen.getByRole("button", { name: "Map" }))
+
+    const card = screen.getByRole("button", { name: /Delaware Water Gap — show on map/ })
+    fireEvent.click(card)
+
+    expect(card).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByTestId("discovery-map")).toHaveAttribute("data-selected", "gap")
+  })
+
+  it("disables a quick filter the collection cannot satisfy instead of returning nothing", () => {
+    renderBrowser()
+
+    const gravel = screen.getByRole("button", { name: "Gravel" })
+
+    expect(gravel).toBeDisabled()
+    expect(gravel).toHaveAttribute("title", expect.stringMatching(/surface evidence/i))
+  })
+
+  it("applies a quick filter the collection can satisfy", () => {
+    renderBrowser({
+      routes: [
+        route({ id: "adv", title: "Adventure ride", profile: "adventure" }),
+        route({ id: "scenic", title: "Scenic ride", profile: "scenic" })
+      ]
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Gravel" }))
+
+    expect(screen.getByRole("link", { name: /Adventure ride/ })).toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /Scenic ride/ })).toBeNull()
+  })
+
+  it("browses without fetching any route geometry", () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal("fetch", fetchSpy)
+
+    renderBrowser()
+    fireEvent.click(screen.getByRole("button", { name: "Map" }))
+
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it("does not offer rail actions for poster art without retained geometry", () => {
-    setWide(true)
-    render(
-      <AtlasBrowser
-        routes={[route({ id: "preview", name: "Preview", title: "Preview", canUseGeometry: false })]}
-        regions={[]}
-        ridingAreas={[]}
-        routeCount={1}
-        totalMiles={10}
-        updatedLabel={null}
-      />
-    )
-    const rail = screen.getByRole("complementary", { name: "Selected ride" })
-    expect(within(rail).queryByRole("link", { name: "Open in Planner" })).toBeNull()
-    expect(within(rail).getByText("Geometry not retained")).toBeInTheDocument()
-  })
-
-  it("keeps phone drill-in navigation with no rail", () => {
-    setWide(false)
+  it("explains an empty result rather than showing a blank deck", () => {
     renderBrowser()
 
-    expect(screen.queryByRole("complementary", { name: "Selected ride" })).toBeNull()
-    expect(screen.getByRole("link", { name: /Delaware Water Gap/ })).toHaveAttribute("href", "/gpx-library/gap")
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "nothing matches this" } })
+
+    expect(screen.getByText("No routes match those filters.")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Clear filters" })).toBeInTheDocument()
   })
 })

@@ -61,13 +61,14 @@ for (const scheme of ["light", "dark"] as const) {
     test("saved ride in Rides", async ({ page, mobileQa }, testInfo) => {
       selectMatrix("rides", testInfo)
       await uxState.routeSelected(page)
+      await page.getByRole("button", { name: /^Details for / }).first().tap()
       await page.getByRole("button", { name: "Show route details" }).first().tap()
       await page.getByRole("button", { name: "Save route" }).tap()
       await expect(page.getByText("Route saved on this device.")).toBeVisible()
       // Saved rides live on the Rides destination; the modal drawer this used
       // to capture is retired. See mobile.layout.spec.ts.
-      await page.getByRole("button", { name: "Rides", exact: true }).tap()
-      await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
+      await page.getByRole("button", { name: "Saved", exact: true }).tap()
+      await expect(page.getByRole("main", { name: "My Rides destination" })).toBeVisible()
       await captureState(page, mobileQa.projectName, scheme, "rides")
     })
 

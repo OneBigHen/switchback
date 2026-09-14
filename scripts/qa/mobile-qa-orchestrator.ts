@@ -12,8 +12,8 @@ import {
   type MobileQaProjectReport,
 } from "../../tests/e2e/mobile-qa/reporter"
 
-export const FAST_EXPECTED_TESTS = 50
-export const FAST_EXPECTED_FILES = 5
+export const FAST_EXPECTED_TESTS = 56
+export const FAST_EXPECTED_FILES = 6
 
 const CORE_ROOT = "tests/e2e/mobile-qa/core"
 const LIBRARY = `${CORE_ROOT}/library-settings.core.spec.ts`
@@ -21,6 +21,7 @@ const OFFLINE = `${CORE_ROOT}/offline.core.spec.ts`
 const PLANNER = `${CORE_ROOT}/planner.core.spec.ts`
 const RIDE = `${CORE_ROOT}/ride.core.spec.ts`
 const SCROLL = `${CORE_ROOT}/scroll-owner.core.spec.ts`
+const REDESIGN = `${CORE_ROOT}/opengravel-mobile-redesign.core.spec.ts`
 const FREE_RIDE_SUGGESTION_TITLE = "Free Ride suggestion is reachable by touch and can enter guidance"
 
 export interface MobileQaChunk {
@@ -35,10 +36,10 @@ export interface MobileQaChunk {
 }
 
 export const MOBILE_QA_CHUNKS: readonly MobileQaChunk[] = [
-  { id: "webkit-core", project: "webkit-standard", files: [LIBRARY, OFFLINE, PLANNER, SCROLL], testCount: 18 },
+  { id: "webkit-core", project: "webkit-standard", files: [LIBRARY, OFFLINE, PLANNER, SCROLL, REDESIGN], testCount: 21 },
   { id: "webkit-free-ride-suggestion", project: "webkit-standard", files: [RIDE], testCount: 1, grep: FREE_RIDE_SUGGESTION_TITLE, testTitle: FREE_RIDE_SUGGESTION_TITLE },
   { id: "webkit-ride", project: "webkit-standard", files: [RIDE], testCount: 6, grepInvert: FREE_RIDE_SUGGESTION_TITLE, excludedTestTitle: FREE_RIDE_SUGGESTION_TITLE },
-  { id: "chromium-core", project: "chromium-standard", files: [LIBRARY, OFFLINE, PLANNER, RIDE, SCROLL], testCount: 25 },
+  { id: "chromium-core", project: "chromium-standard", files: [LIBRARY, OFFLINE, PLANNER, RIDE, SCROLL, REDESIGN], testCount: 28 },
 ]
 
 export interface MobileQaChunkProjectResult {
@@ -112,6 +113,7 @@ export function buildDiscoveryArgs(): readonly string[] {
     PLANNER,
     RIDE,
     SCROLL,
+    REDESIGN,
   ]
 }
 

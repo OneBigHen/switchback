@@ -12,8 +12,12 @@ import {
   expectNoHorizontalOverflow,
   expectSheetsAndModalsInsideVisualViewport,
   expectViewportFitAndSafeAreaContainment,
+  isExpectedMapStyleAbort,
+  isExpectedOptionalOverlayAbort,
   isExpectedProviderHealthAbort,
+  isExpectedRouteTrafficAbort,
   isExpectedRouteWeatherAbort,
+  isExpectedStaticFontAbort,
   type MobileQaRuntimeIssues
 } from "./assertions"
 import { ensureMobileQaArtifactDirectory } from "./artifacts"
@@ -203,7 +207,12 @@ export async function assertMobileRideSurface(page: Page, runtimeIssues: MobileQ
   await expectSheetsAndModalsInsideVisualViewport(page)
   await expectNavigationReachability(page)
   expectNoConsoleErrors(page, runtimeIssues)
-  const unexpectedFailures = runtimeIssues.failedRequests.filter((failure) => !isExpectedRouteWeatherAbort(failure) && !isExpectedProviderHealthAbort(failure))
+  const unexpectedFailures = runtimeIssues.failedRequests.filter((failure) => !isExpectedRouteWeatherAbort(failure)
+    && !isExpectedProviderHealthAbort(failure)
+    && !isExpectedOptionalOverlayAbort(failure)
+    && !isExpectedRouteTrafficAbort(failure)
+    && !isExpectedMapStyleAbort(failure)
+    && !isExpectedStaticFontAbort(failure))
   expect(unexpectedFailures, "unexpected failed network requests").toEqual([])
 }
 

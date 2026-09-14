@@ -1,0 +1,92 @@
+/* Explore sits inside the app shell, above the persistent map slot, and
+   reserves the primary navigation the shell draws at the bottom. */
+
+/* The destination stops *above* the primary navigation rather than covering
+   it and relying on z-index: the map workspace is an isolated stacking
+   context, so the navigation inside it can never paint over a sibling that
+   overlaps it. Ending the box where the bar begins is the honest fix. */
+.destination {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: calc(var(--sb-mobile-nav-height) + max(var(--sb-mobile-edge), env(safe-area-inset-bottom)) + 6px);
+  left: 0;
+  z-index: 12;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--sb-canvas);
+}
+
+.surface {
+  min-height: 0;
+}
+
+.state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.state svg {
+  width: 26px;
+  height: 26px;
+  color: var(--sb-text-muted);
+}
+
+.state strong {
+  display: block;
+  color: var(--sb-text);
+  font-size: 15px;
+}
+
+.state span {
+  color: var(--sb-text-muted);
+  font-size: 13px;
+}
+
+.state button {
+  min-height: var(--sb-touch-target);
+  padding: 0 16px;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (min-width: 761px) {
+  .destination {
+    bottom: 0;
+    left: 96px;
+  }
+}
+
+/* Rider-published routes live at their own address. Explore owns the shared
+   GPX collection; this keeps the community atlas one tap away rather than
+   quietly dropping a surface that already worked. */
+.atlasLink {
+  display: inline-flex;
+  min-height: var(--sb-touch-target);
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  border: 1px dashed var(--sb-border);
+  border-radius: 999px;
+  color: var(--sb-text-link);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.atlasLink svg {
+  width: 14px;
+  height: 14px;
+}

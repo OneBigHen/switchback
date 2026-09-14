@@ -1,0 +1,95 @@
+/* Compact detail chrome. It floats over the hero map, so it stays light and
+   keeps its own contrast rather than borrowing the map's. */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 4px;
+  padding: max(6px, env(safe-area-inset-top)) 8px 6px;
+  border-bottom: 1px solid var(--sb-border);
+  background: color-mix(in srgb, var(--sb-canvas) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.title {
+  margin: 0;
+  color: var(--sb-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.iconButton {
+  display: grid;
+  width: var(--sb-touch-target);
+  height: var(--sb-touch-target);
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--sb-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.iconButton svg {
+  width: 21px;
+  height: 21px;
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--sb-focus-ring);
+  outline-offset: -2px;
+}
+
+.overflow {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 210px;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: var(--sb-surface);
+  box-shadow: var(--sb-shadow);
+}
+
+.menu button,
+.menu a {
+  min-height: var(--sb-touch-target);
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--sb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  line-height: var(--sb-touch-target);
+}
+
+.menu button:hover,
+.menu a:hover {
+  background: var(--sb-surface-raised);
+}
+
+.status {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip-path: inset(50%);
+}

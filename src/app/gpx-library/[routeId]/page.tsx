@@ -1,18 +1,25 @@
 import { cache } from "react"
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import path from "node:path"
 import { readJsonCached } from "@/lib/gpx/catalog-cache"
-import { atlasPathColor, curvatureBand, readAtlasArt, type AtlasMiniPath } from "@/lib/gpx/atlas"
-import { buildPosterSpec } from "@/lib/gpx/poster"
+import { curvatureBand, readAtlasArt } from "@/lib/gpx/atlas"
 import { buildRouteStory } from "@/lib/gpx/route-story"
 import { isAtlasPageOverBudget } from "@/lib/gpx/atlas-page-guard"
 import { isGpxIntelligenceReport, type GpxIntelligenceReport } from "@/lib/gpx/intelligence"
 import { GpxIntelligencePanel } from "@/components/planner/GpxIntelligencePanel"
 import { RouteLibraryActions } from "@/components/route-library/RouteLibraryActions"
+import { RouteDetailHeader } from "@/components/route-library/RouteDetailHeader"
+import { RouteDetailMap } from "@/components/route-library/RouteDetailMap"
+import { AppNavigationLinks } from "@/components/shell/AppNavigationLinks"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
-import { classifyCatalogArea, cleanCatalogRouteName, knownDurationMinutes } from "@/lib/gpx/catalog-presentation"
+import {
+  catalogDisplayTitle,
+  classifyCatalogArea,
+  knownDurationMinutes
+} from "@/lib/gpx/catalog-presentation"
+import { durationEvidence, surfaceEvidence, trackConfidence, twistinessEvidence } from "@/lib/routes/route-evidence"
+import { routeHighlights, routeSizeEyebrow } from "@/lib/routes/route-highlights"
 import type { Coordinate } from "@/lib/routing/types"
 
 export const dynamic = "force-dynamic"
@@ -46,10 +53,7 @@ interface AtlasDetailRoute {
 
 interface DetailLoad {
   route: AtlasDetailRoute | null
-  artPaths: readonly AtlasMiniPath[]
   bbox?: readonly [number, number, number, number]
-  start?: readonly [number, number]
-  end?: readonly [number, number]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -114,19 +118,13 @@ const loadRouteDetail = cache(async (routeId: string): Promise<DetailLoad> => {
   const root = process.env.GPX_LIBRARY_PATH ?? path.join(process.cwd(), "data/gpx-library")
   try {
     const manifest: unknown = await readJsonCached(path.join(root, "manifest.json"))
-    if (!manifestHasRoute(manifest, routeId)) return { route: null, artPaths: [] }
+    if (!manifestHasRoute(manifest, routeId)) return { route: null }
     const parsedRoute: unknown = await readJsonCached(path.join(root, "routes", `${routeId}.json`))
-    if (!isDetailRoute(parsedRoute) || parsedRoute.id !== routeId) return { route: null, artPaths: [] }
+    if (!isDetailRoute(parsedRoute) || parsedRoute.id !== routeId) return { route: null }
     const art = (await readAtlasArt())[routeId]
-    return {
-      route: parsedRoute,
-      artPaths: art?.paths ?? [],
-      bbox: art?.bbox,
-      start: art?.start,
-      end: art?.end
-    }
+    return { route: parsedRoute, ...art?.bbox ? { bbox: art.bbox } : {} }
   } catch {
-    return { route: null, artPaths: [] }
+    return { route: null }
   }
 })
 
@@ -136,13 +134,21 @@ export async function generateMetadata({ params }: { params: Promise<{ routeId: 
   if (!route) return { title: `Route not found — ${PRODUCT_BRAND.name}` }
   const story = buildRouteStory({ ...route, durationMinutes: knownDurationMinutes(route.durationMinutes) })
   return {
-    title: `${story.title} — ${PRODUCT_BRAND.name} Route Library`,
+    title: `${displayTitle(route, story.title)} — ${PRODUCT_BRAND.name} GPX Library`,
     description: story.summary
   }
 }
 
-// Constructing an Intl formatter is the expensive part; build it once, as the
-// listing page already does.
+/**
+ * Rider-facing title. An imported filename is provenance, not a product name,
+ * so the story title and the deterministic cleaner both get a turn before the
+ * raw filename does — and the raw filename stays visible in the technical
+ * details for anyone tracing the import.
+ */
+function displayTitle(route: AtlasDetailRoute, storyTitle: string): string {
+  return catalogDisplayTitle({ catalogTitle: storyTitle, originalName: route.name })
+}
+
 const WHOLE_NUMBER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
 
 function formatMiles(value: number): string {
@@ -161,8 +167,8 @@ function formatDuration(minutes: number | null): string | null {
 }
 
 /** Plain-language climb character from total ascent over the ride's length. */
-function climbCharacter(ascentMeters: number | null | undefined, distanceMiles: number): string | null {
-  if (typeof ascentMeters !== "number" || ascentMeters <= 0 || distanceMiles <= 0) return null
+function climbCharacter(ascentMeters: number | null, distanceMiles: number): string | null {
+  if (ascentMeters === null || ascentMeters <= 0 || distanceMiles <= 0) return null
   const feetPerMile = (ascentMeters * 3.28084) / distanceMiles
   if (feetPerMile < 30) return "Flat — barely any climbing"
   if (feetPerMile < 70) return "Rolling — gentle grades"
@@ -170,59 +176,21 @@ function climbCharacter(ascentMeters: number | null | undefined, distanceMiles: 
   return "Mountainous — sustained, serious climbs"
 }
 
-/**
- * Turn density describes the mapped line only; it does not know pace, road
- * width, sightlines, or how demanding the ride feels.
- */
-function turnCharacter(turnsPerTenMiles: number): string {
-  if (turnsPerTenMiles < 10) return "Few mapped turns for the distance"
-  if (turnsPerTenMiles < 30) return "Moderate mapped turn density"
-  if (turnsPerTenMiles < 70) return "High mapped turn density"
-  return "Very high mapped turn density"
+const BAND_CHARACTER: Record<ReturnType<typeof curvatureBand>, string> = {
+  calm: "Calm",
+  mellow: "Mellow",
+  twisty: "Twisty",
+  hairpin: "Hairpin"
 }
 
-/** Prefer the measured GPX evidence, fall back to the coarse stored mix. */
-function surfaceEntries(route: AtlasDetailRoute): Array<[string, number]> {
-  const evidence = route.gpxIntelligence?.surface
-  const source = evidence && evidence.status === "known" && Object.keys(evidence.distribution).length > 0
-    ? evidence.distribution
-    : route.surfaceMix
-  if (!source || Object.keys(source).length === 0) return []
-  const total = Object.values(source).reduce((sum, value) => sum + Math.max(0, value), 0)
-  if (total <= 0) return []
-  return Object.entries(source)
-    .map(([name, value]): [string, number] => [name.replaceAll("_", " "), (Math.max(0, value) / total) * 100])
-    .filter(([, share]) => share >= 0.5)
-    .sort((left, right) => right[1] - left[1])
-}
+const TECHNICAL_DETAILS_ID = "route-technical-details"
 
-const SURFACE_TINT: Record<string, string> = {
-  asphalt: "var(--sb-signal)",
-  paved: "var(--sb-signal)",
-  concrete: "var(--sb-slate)",
-  gravel: "var(--sb-trail-brown)",
-  unpaved: "var(--sb-trail-brown)",
-  dirt: "var(--sb-trail-brown)",
-  ground: "var(--sb-trail-brown)",
-  compacted: "var(--sb-golden-hour)",
-  sand: "var(--sb-golden-hour)",
-  grass: "var(--sb-moss)"
-}
-
-function surfaceTint(name: string, index: number): string {
-  const key = name.split(" ")[0]?.toLowerCase() ?? ""
-  return SURFACE_TINT[key] ?? ["var(--sb-moss)", "var(--sb-slate)", "var(--sb-golden-hour)", "var(--sb-trail-brown)"][index % 4]!
-}
-
-export default async function RouteAtlasPosterPage({ params }: { params: Promise<{ routeId: string }> }) {
+export default async function RouteDetailPage({ params }: { params: Promise<{ routeId: string }> }) {
   const { routeId } = await params
   if (routeId.length > 200 || !/^[A-Za-z0-9._-]+$/.test(routeId)) notFound()
   if (await isAtlasPageOverBudget()) {
     return (
-      <main className="atlas-page atlas-poster-page">
-        <nav className="atlas-context" aria-label="Route Library context">
-          <Link href="/gpx-library">Back to Route Library</Link>
-        </nav>
+      <main className="atlas-page">
         <p className="atlas-empty">
           <strong>Too many Route Library requests from this address.</strong>
           <span>Give it a minute and reload.</span>
@@ -230,148 +198,190 @@ export default async function RouteAtlasPosterPage({ params }: { params: Promise
       </main>
     )
   }
-  const { route, artPaths, bbox, start, end } = await loadRouteDetail(routeId)
+  const { route, bbox } = await loadRouteDetail(routeId)
   if (!route) notFound()
 
-  // Server-side poster build straight from geometry; atlas.json paths are the
-  // fast path for the gallery, this is the full-fidelity version.
-  const spec = Array.isArray(route.geometry) && route.geometry.length > 1
-    ? buildPosterSpec(route.geometry, { width: 600, height: 750, padding: 44 })
-    : null
-
-  const durationMinutes = knownDurationMinutes(route.durationMinutes)
+  const geometry = Array.isArray(route.geometry) ? route.geometry : []
+  const recordedMinutes = knownDurationMinutes(route.durationMinutes)
   const story = buildRouteStory({
     id: route.id,
     name: route.name,
     distanceMiles: route.distanceMiles,
-    durationMinutes,
+    durationMinutes: recordedMinutes,
     twistiness: route.twistiness,
     turnCount: route.turnCount,
     ascentMeters: route.ascentMeters
   })
-  const routeName = cleanCatalogRouteName(route.name) || route.name
+  const title = displayTitle(route, story.title)
   const area = classifyCatalogArea(bbox)
   const areaLabel = [area.region, ...area.ridingAreas].filter(Boolean).join(" · ")
   const band = curvatureBand(route.twistiness)
-  const hasDrawableGeometry = spec !== null || artPaths.length > 0
-  // Preview-only imports cannot be opened or saved as the real line.
-  const canUseGeometry = Array.isArray(route.geometry) && route.geometry.length > 1 && route.previewOnly !== true
 
-  const timeLabel = formatDuration(durationMinutes)
-  const turnsPerTenMiles = route.distanceMiles > 0 ? (route.turnCount / route.distanceMiles) * 10 : 0
+  const surface = surfaceEvidence({
+    intelligence: route.gpxIntelligence ?? null,
+    storedMix: route.surfaceMix ?? route.roadMix ?? null
+  })
+  const duration = durationEvidence({
+    recordedMinutes,
+    distanceMiles: route.distanceMiles,
+    durationSource: route.gpxIntelligence?.durationSource ?? null
+  })
+  const corners = twistinessEvidence({ twistiness: route.twistiness, turnCount: route.turnCount })
+  const confidence = trackConfidence(route.gpxIntelligence ?? null)
   const ascent = typeof route.ascentMeters === "number" && route.ascentMeters > 0 ? route.ascentMeters : null
   const descent = typeof route.descentMeters === "number" && route.descentMeters > 0 ? route.descentMeters : null
   const climb = climbCharacter(ascent, route.distanceMiles)
-  const surfaces = surfaceEntries(route)
+  const highlights = routeHighlights({
+    distanceMiles: route.distanceMiles,
+    twistiness: route.twistiness,
+    turnCount: route.turnCount,
+    ascentMeters: ascent,
+    profile: route.profile ?? null,
+    surface
+  })
+  const eyebrow = routeSizeEyebrow(route.distanceMiles)
+  const turnsPerTenMiles = route.distanceMiles > 0 ? (route.turnCount / route.distanceMiles) * 10 : 0
+  // Preview-only imports cannot be opened or saved as the real line.
+  const canUseGeometry = geometry.length > 1 && route.previewOnly !== true
 
   return (
-    <main className="atlas-page atlas-poster-page">
-      <nav className="atlas-back" aria-label="Breadcrumb">
-        <Link href="/">Back to planner</Link>
-        <Link href="/gpx-library">Route Library</Link>
-      </nav>
-      <div className="atlas-poster-layout">
-        <figure
-          className={`atlas-poster atlas-poster--large tone-${story.tone.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-        >
-          {spec ? (
-            <svg viewBox="0 0 600 750" role="img" aria-label={`Poster map of ${routeName || "shared ride"}`}>
-              <rect x="0.5" y="0.5" width="599" height="749" rx="14" className="atlas-frame" />
-              {spec.segments.map((segment, index) => (
-                <path key={index} d={segment.path} style={{ color: segment.color }} />
-              ))}
-              {spec ? (
+    <main className="atlas-page atlas-page--detail">
+      <RouteDetailHeader routeName={title} detailsAnchor={TECHNICAL_DETAILS_ID} />
+
+      <RouteDetailMap
+        geometry={geometry}
+        bbox={bbox ?? null}
+        routeName={title}
+        provenanceNote={route.previewOnly ? "Preview import — the full line was not stored." : null}
+      />
+
+      <section className="route-decision" aria-label="Route summary">
+        {eyebrow ? <p className="route-decision__eyebrow">{eyebrow}</p> : null}
+        <h2 className="route-decision__title">{title}</h2>
+        {areaLabel ? <p className="route-decision__area">{areaLabel}</p> : null}
+
+        <dl className="route-decision__stats">
+          <div>
+            <dt>Distance</dt>
+            <dd>{formatMiles(route.distanceMiles)} mi</dd>
+          </div>
+          <div data-evidence={duration.level}>
+            <dt>{duration.level === "verified" ? "Recorded time" : "Time"}</dt>
+            <dd>
+              {formatDuration(duration.minutes) ?? "Unknown"}
+              {duration.level === "estimated" ? <span className="route-evidence-tag">Estimated</span> : null}
+            </dd>
+          </div>
+          <div data-evidence={corners.level}>
+            <dt>Corners</dt>
+            <dd>
+              {corners.level === "unknown" ? "Unknown" : BAND_CHARACTER[band]}
+            </dd>
+          </div>
+          <div data-evidence={surface.level}>
+            <dt>Surface</dt>
+            <dd>
+              {surface.unpavedShare === null ? (
+                // The value *is* the evidence state here; repeating it as a
+                // tag underneath says "Unknown / UNKNOWN".
+                "Unknown"
+              ) : (
                 <>
-                  <circle cx={spec.start.x} cy={spec.start.y} r="5" className="atlas-marker-start" />
-                  <circle cx={spec.end.x} cy={spec.end.y} r="5" className="atlas-marker-end" />
+                  {`${Math.round(surface.unpavedShare * 100)}% unpaved`}
+                  <span className="route-evidence-tag">{surface.label}</span>
                 </>
-              ) : null}
-            </svg>
-          ) : artPaths.length > 0 ? (
-            <svg viewBox="0 0 100 125" role="img" aria-label={`Poster map of ${routeName || "shared ride"}`}>
-              {artPaths.map((piece, index) => (
-                <path key={index} d={piece.d} style={{ color: atlasPathColor(piece) }} />
-              ))}
-              {start ? <circle cx={start[0]} cy={start[1]} r="1.6" className="atlas-marker-start" /> : null}
-              {end ? <circle cx={end[0]} cy={end[1]} r="1.6" className="atlas-marker-end" /> : null}
-            </svg>
-          ) : (
-            <p className="atlas-poster-missing" role="status">No drawable geometry was imported for this route.</p>
-          )}
-          <figcaption className="atlas-poster-caption--large">
-            {hasDrawableGeometry ? `${routeName || "Shared ride"} · drawn from its own GPX geometry` : "No drawable GPX geometry was retained for this import."}
-          </figcaption>
-        </figure>
+              )}
+            </dd>
+          </div>
+        </dl>
 
-        <section className="atlas-story" aria-label="Route description">
-          <p className="atlas-card-tone">{story.tone}</p>
-          <h1>{story.title}</h1>
-          <p className="atlas-lede">{story.summary}</p>
-          <p>{story.body}</p>
+        <RouteLibraryActions
+          catalogRouteId={route.id}
+          routeName={title}
+          canUseGeometry={canUseGeometry}
+          className="route-decision__actions"
+        />
 
-          {areaLabel ? <p className="atlas-rail-area">{areaLabel}</p> : null}
+        <p className="route-decision__note">
+          Open in Planner loads this shared line as a track without saving it. Save keeps your own copy on this
+          device; the GPX Library entry stays as it is.
+        </p>
+      </section>
 
-          <RouteLibraryActions catalogRouteId={route.id} routeName={story.title} canUseGeometry={canUseGeometry} />
-          <p className="atlas-note">
-            Open in Planner loads this shared line as a track without saving it. Save to My Rides keeps your own
-            copy on this device; the Route Library entry stays as it is.
-          </p>
-
-          <dl className="atlas-facts">
-            <div><dt>Distance</dt><dd>{formatMiles(route.distanceMiles)} mi</dd></div>
-            {timeLabel ? <div><dt>Recorded time</dt><dd>{timeLabel}</dd></div> : null}
-            <div><dt>Turns</dt><dd>{formatMiles(route.turnCount)}</dd></div>
-            <div><dt>Turn density</dt><dd>{turnsPerTenMiles.toFixed(turnsPerTenMiles < 10 ? 1 : 0)} / 10 mi</dd></div>
-            <div><dt>Corners</dt><dd><span className={`band-dot band-${band}`}>{band}</span></dd></div>
-            {ascent ? (
-              <div>
-                <dt>Climb</dt>
-                <dd>&uarr; {formatMiles(ascent)} m{descent ? ` · ↓ ${formatMiles(descent)} m` : ""}</dd>
-              </div>
-            ) : null}
-            {route.profile ? <div><dt>Profile</dt><dd>{route.profile}</dd></div> : null}
-            {area.region ? <div><dt>Region</dt><dd>{area.region}</dd></div> : null}
-            {route.sourceProject ? <div><dt>Imported from</dt><dd>{route.sourceProject}</dd></div> : null}
-          </dl>
-
-          <ul className="atlas-read">
-            <li>{turnCharacter(turnsPerTenMiles)}.</li>
-            {climb ? <li>{climb}.</li> : null}
+      {highlights.length > 0 ? (
+        <section className="route-highlights" aria-label="Route highlights">
+          <ul>
+            {highlights.map((highlight) => (
+              <li key={highlight.id} data-tone={highlight.tone} title={highlight.basis}>{highlight.label}</li>
+            ))}
           </ul>
-
-          {surfaces.length > 0 ? (
-            <div className="atlas-mix" aria-label="Surface mix">
-              <p className="atlas-mix-title">Surface</p>
-              <div className="atlas-mix-bar" role="img" aria-label={surfaces.map(([name, share]) => `${Math.round(share)}% ${name}`).join(", ")}>
-                {surfaces.map(([name, share], index) => (
-                  <span key={name} style={{ width: `${share}%`, background: surfaceTint(name, index) }} />
-                ))}
-              </div>
-              <ul className="atlas-mix-legend">
-                {surfaces.map(([name, share], index) => (
-                  <li key={name}>
-                    <i aria-hidden="true" style={{ background: surfaceTint(name, index) }} />
-                    <span>{name}</span>
-                    <em>{Math.round(share)}%</em>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="atlas-note">Surface breakdown was not recoverable from this GPX.</p>
-          )}
-
-          {route.previewOnly ? (
-            <p className="atlas-note">This is a preview import — the full line wasn&apos;t stored.</p>
-          ) : null}
-        </section>
-      </div>
-
-      {route.gpxIntelligence ? (
-        <section className="atlas-detail-report" aria-label="Measured track report">
-          <GpxIntelligencePanel report={route.gpxIntelligence} />
         </section>
       ) : null}
+
+      <section className="route-section" aria-label="This ride">
+        <h3>This ride</h3>
+        <p className="route-section__lede">{story.summary}</p>
+        <p>{story.body}</p>
+      </section>
+
+      <section className="route-section" aria-label="Elevation">
+        <h3>Elevation</h3>
+        {ascent ? (
+          <>
+            <p className="route-climb">
+              <strong>↑ {formatMiles(ascent)} m</strong>
+              {descent ? <span>↓ {formatMiles(descent)} m</span> : null}
+            </p>
+            {climb ? <p className="route-section__lede">{climb}.</p> : null}
+          </>
+        ) : (
+          <p className="route-unavailable">Total climb was not recorded for this import.</p>
+        )}
+        {/* A per-mile elevation profile needs elevation samples along the line.
+            This catalog stores totals only, so there is no chart to draw —
+            and a flat or invented curve would read as a claim about the ride. */}
+        <p className="route-unavailable">
+          A per-mile elevation profile was not retained for this track.
+        </p>
+      </section>
+
+      <section className="route-section" aria-label="Track confidence">
+        <h3>Track confidence</h3>
+        <p className="route-confidence" data-confidence={confidence.level}>
+          <strong>{confidence.headline}.</strong> {confidence.detail}
+        </p>
+        <a className="route-section__more" href={`#${TECHNICAL_DETAILS_ID}`}>Learn more</a>
+      </section>
+
+      <section id={TECHNICAL_DETAILS_ID} className="route-section route-section--technical" aria-label="Route data and diagnostics">
+        <h3>Route data &amp; diagnostics</h3>
+        <dl className="route-technical">
+          <div><dt>Mapped turns</dt><dd>{formatMiles(route.turnCount)}</dd></div>
+          <div><dt>Turn density</dt><dd>{turnsPerTenMiles.toFixed(turnsPerTenMiles < 10 ? 1 : 0)} / 10 mi</dd></div>
+          <div><dt>Curvature score</dt><dd>{Math.round(route.twistiness)}</dd></div>
+          {route.profile ? <div><dt>Profile</dt><dd>{route.profile}</dd></div> : null}
+          {area.region ? <div><dt>Region</dt><dd>{area.region}</dd></div> : null}
+          {route.sourceProject ? <div><dt>Imported from</dt><dd>{route.sourceProject}</dd></div> : null}
+          <div><dt>Original filename</dt><dd className="route-provenance">{route.name}</dd></div>
+        </dl>
+
+        {surface.distribution ? (
+          <div className="route-mix" aria-label="Surface mix">
+            <p className="route-mix__title">Surface mix <span className="route-evidence-tag">{surface.label}</span></p>
+            <ul>
+              {surface.distribution.map(([name, share]) => (
+                <li key={name}><span>{name}</span><em>{Math.round(share)}%</em></li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="route-unavailable">Surface was never evaluated for this track, so no mix is shown.</p>
+        )}
+
+        {route.gpxIntelligence ? <GpxIntelligencePanel report={route.gpxIntelligence} /> : null}
+      </section>
+
+      <AppNavigationLinks active="explore" />
     </main>
   )
 }

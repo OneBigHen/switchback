@@ -1,16 +1,16 @@
 import { expect, test, type Page } from "@playwright/test"
 import { installPlannerServices } from "../helpers/planner-fixtures"
 
-// V2 information architecture: four persistent destinations
-// (Plan | Rides | Discover | Settings), Record as a secondary activity, and
-// legacy V1 `?tab=` deep links that migrate into V2 state instead of
-// breaking.
+// The approved information architecture: `Plan · Explore · Saved · Record ·
+// Settings`. Four of those are destinations; Record starts a task and never
+// claims to be a place. Superseded `?tab=` values migrate into current state
+// instead of breaking.
 //
 // URL semantics (PlannerShell.handleBack / applyDestination): a deep link
 // keeps its `?tab=` value so a reload re-migrates to the same state, while a
-// rider-selected destination rewrites the address bar to the V2 value.
+// rider-selected destination rewrites the address bar to the current value.
 //
-// Rides and Settings are destinations, not modals. Navigation therefore
+// Saved and Settings are destinations, not modals. Navigation therefore
 // remains reachable while the rider works in either surface.
 
 const activeDestination = (page: Page) =>
@@ -20,15 +20,15 @@ test.beforeEach(async ({ page }) => {
   await installPlannerServices(page)
 })
 
-test("primary navigation exposes exactly the four V2 destinations", async ({ page }) => {
+test("primary navigation exposes the approved mobile model in order", async ({ page }) => {
   await page.goto("/")
 
   const primary = page.getByRole("group", { name: "Primary destinations" })
-  await expect(primary.getByRole("button")).toHaveCount(4)
-  await expect(primary.getByRole("button", { name: "Plan" })).toBeVisible()
-  await expect(primary.getByRole("button", { name: "Rides" })).toBeVisible()
-  await expect(primary.getByRole("button", { name: "Discover" })).toBeVisible()
-  await expect(primary.getByRole("button", { name: "Settings" })).toBeVisible()
+  const items = primary.getByRole("button")
+  await expect(items).toHaveCount(5)
+  for (const [index, label] of ["Plan", "Explore", "Saved", "Record", "Settings"].entries()) {
+    await expect(items.nth(index)).toHaveText(label)
+  }
   await expect(activeDestination(page)).toHaveText("Plan")
 })
 
@@ -36,59 +36,22 @@ test("moving between destinations updates the URL and the visible surface", asyn
   await page.goto("/")
   const primary = page.getByRole("group", { name: "Primary destinations" })
 
-  await primary.getByRole("button", { name: "Rides" }).click()
-  await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
+  await primary.getByRole("button", { name: "Saved" }).click()
+  await expect(page).toHaveURL(/[?&]tab=saved(?:&|$)/)
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
   await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
-  await expect(activeDestination(page)).toHaveText("Rides")
+  await expect(activeDestination(page)).toHaveText("Saved")
 
-  await page.route(/\/api\/community\/routes\?limit=24$/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        routes: [
-          {
-            id: "ridge-runner",
-            revisionId: "ridge-runner-r1",
-            title: "Ridge Runner",
-            description: "A flowing ridge-road loop with long sight lines.",
-            routeFingerprint: "ridge-fingerprint",
-            stats: { distanceMiles: 54.2, durationMinutes: 87 },
-            provenanceClass: "rider-recorded",
-            visibility: "public",
-            updatedAt: "2026-08-31T12:00:00.000Z"
-          },
-          {
-            id: "forest-switchbacks",
-            revisionId: "forest-switchbacks-r1",
-            title: "Forest Switchbacks",
-            description: "Tighter paved switchbacks through shaded back roads.",
-            routeFingerprint: "forest-fingerprint",
-            stats: { distanceMiles: 38.7, durationMinutes: 74 },
-            provenanceClass: "built-and-verified",
-            visibility: "public",
-            updatedAt: "2026-08-30T12:00:00.000Z"
-          }
-        ]
-      })
-    })
-  })
-
-  await primary.getByRole("button", { name: "Discover" }).click()
-  await expect(page).toHaveURL(/[?&]tab=discover(?:&|$)/)
-  await expect(page.getByRole("region", { name: "Discover" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Find a better road." })).toBeVisible()
-  await expect(page.getByRole("searchbox", { name: "Search community routes" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Ridge Runner" })).toBeVisible()
-  await expect(page.getByText("54.2 mi")).toBeVisible()
-  await expect(page.getByRole("link", { name: "Forest Switchbacks" })).toBeVisible()
-
-  await page.getByRole("searchbox", { name: "Search community routes" }).fill("ridge")
-  await expect(page.getByRole("link", { name: "Ridge Runner" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Forest Switchbacks" })).toHaveCount(0)
-  await expect(activeDestination(page)).toHaveText("Discover")
+  await primary.getByRole("button", { name: "Explore" }).click()
+  await expect(page).toHaveURL(/[?&]tab=explore(?:&|$)/)
+  await expect(page.getByRole("region", { name: "Explore" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Explore routes" })).toBeVisible()
+  await expect(page.getByPlaceholder("Search routes, places, or regions")).toBeVisible()
+  // Rider-published routes keep their own home; Explore links to it rather
+  // than swallowing or quietly dropping a surface that already worked.
+  await expect(page.getByRole("link", { name: "Community Atlas" })).toHaveAttribute("href", "/routes")
+  await expect(activeDestination(page)).toHaveText("Explore")
 
   await primary.getByRole("button", { name: "Settings" }).click()
   await expect(page).toHaveURL(/[?&]tab=settings(?:&|$)/)
@@ -101,14 +64,20 @@ test("moving between destinations updates the URL and the visible surface", asyn
   await expect(activeDestination(page)).toHaveText("Plan")
 })
 
-test("legacy ?tab=library deep link lands on the Rides destination", async ({ page }) => {
+test("superseded ?tab= deep links migrate onto the current destinations", async ({ page }) => {
   await page.goto("/?tab=library")
 
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
   await expect(page.getByRole("dialog", { name: /ride library/i })).toHaveCount(0)
   await expect(page).toHaveURL(/[?&]tab=library(?:&|$)/)
-  await expect(activeDestination(page)).toHaveText("Rides")
+  await expect(activeDestination(page)).toHaveText("Saved")
+
+  await page.goto("/?tab=rides")
+  await expect(activeDestination(page)).toHaveText("Saved")
+
+  await page.goto("/?tab=discover")
+  await expect(activeDestination(page)).toHaveText("Explore")
 })
 
 test("legacy ?tab=profile deep link lands on the Settings destination", async ({ page }) => {
@@ -128,5 +97,14 @@ test("legacy ?tab=record deep link lands on Plan without starting a recording", 
   // auto-open its preflight overlay.
   await expect(page.getByRole("heading", { name: "Record a ride" })).toHaveCount(0)
   await expect(page).toHaveURL(/[?&]tab=record(?:&|$)/)
+  await expect(activeDestination(page)).toHaveText("Plan")
+})
+
+test("?open=record shows the Record surface without starting a recording", async ({ page }) => {
+  // Pages outside the app shell (the GPX Library) hand the rider back to
+  // Record this way. Showing the panel still starts nothing.
+  await page.goto("/?open=record")
+
+  await expect(page.getByRole("heading", { name: "Record a ride" })).toBeVisible()
   await expect(activeDestination(page)).toHaveText("Plan")
 })

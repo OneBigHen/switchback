@@ -25,9 +25,9 @@ import {
 } from "../persistence-mobile-states"
 
 async function openLibrary(page: import("@playwright/test").Page): Promise<void> {
-  if (await page.getByRole("main", { name: "Rides destination" }).isVisible().catch(() => false)) return
-  await page.getByRole("button", { name: "Rides", exact: true }).tap()
-  await expect(page).toHaveURL(/tab=rides/)
+  if (await page.getByRole("main", { name: "My Rides destination" }).isVisible().catch(() => false)) return
+  await page.getByRole("button", { name: "Saved", exact: true }).tap()
+  await expect(page).toHaveURL(/tab=saved/)
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(page.getByRole("region", { name: "My Rides" })).toBeVisible()
 }
@@ -60,7 +60,7 @@ test("fresh empty rides are honest and reachable on mobile", async ({ page, mobi
   await expectSheetsAndModalsInsideVisualViewport(page)
   await captureMobileQaScreenshot(page, testInfo, "empty-saved-routes")
   await page.getByRole("button", { name: "Plan", exact: true }).tap()
-  await expect(page.getByRole("main", { name: "Rides destination" })).toBeHidden()
+  await expect(page.getByRole("main", { name: "My Rides destination" })).toBeHidden()
   await assertSharedMobileSurface(page)
   expect(mobileQa.hasTouch).toBe(true)
   expectNoConsoleErrors(page, mobileQa.runtimeIssues)
@@ -104,13 +104,13 @@ test.describe("reload persistence", () => {
     await openLibrary(page)
     await expect(page.getByRole("button", { name: `Open ${route.name}` })).toBeVisible()
     await page.reload()
-    await expectMobileAppReady(page, { tab: "rides", heading: "My Rides" })
-    await expect(page.getByRole("main", { name: "Rides destination" })).toBeVisible()
-    await expect(page.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Rides")
+    await expectMobileAppReady(page, { tab: "saved", heading: "My Rides" })
+    await expect(page.getByRole("main", { name: "My Rides destination" })).toBeVisible()
+    await expect(page.locator(".app-navigation-primary button[aria-current='page']")).toHaveText("Saved")
     await expect(page.getByRole("button", { name: `Open ${route.name}` })).toBeVisible()
     expect(await readSavedRouteName(page, route.id)).toBe(route.name)
     await page.getByRole("button", { name: "Plan", exact: true }).tap()
-    await expect(page.getByRole("main", { name: "Rides destination" })).toBeHidden()
+    await expect(page.getByRole("main", { name: "My Rides destination" })).toBeHidden()
     await captureMobileQaScreenshot(page, testInfo, "persisted-route-reload")
     await expectNoHorizontalOverflow(page)
     await expectSheetsAndModalsInsideVisualViewport(page)
@@ -160,7 +160,7 @@ test("provider failure remains visible and is limited to the deliberate routes e
   await openPlannerEditor(page)
   await ensureFixtureStart(page)
   await fillFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).tap()
+  await page.getByRole("button", { name: "Create ride", exact: true }).tap()
   await expect(page.getByText("Route unavailable")).toBeVisible()
   await captureMobileQaScreenshot(page, testInfo, "provider-failure")
   expectOnlyDeliberateNetworkFailures(mobileQa.runtimeIssues, { host: new URL(page.url()).host, pathname: "/api/routes", status: 503 })

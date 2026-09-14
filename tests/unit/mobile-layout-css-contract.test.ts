@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 const routeStyles = readFileSync(resolve(process.cwd(), "src/app/styles/route-comparison.css"), "utf8")
 const routeShareStyles = readFileSync(resolve(process.cwd(), "src/app/styles/route-share-panel.css"), "utf8")
 const plannerDeckStyles = readFileSync(resolve(process.cwd(), "src/app/styles/planner-deck.css"), "utf8")
+const adaptiveWorkspaceStyles = readFileSync(resolve(process.cwd(), "src/app/styles/adaptive-workspace.css"), "utf8")
 
 describe("responsive planner layout CSS contract", () => {
   it("keeps the preparation action strip inside its scroll owner", () => {
@@ -38,5 +39,11 @@ describe("responsive planner layout CSS contract", () => {
 
     expect(editRule).toContain("position: static")
     expect(headingRule).toContain("position: static")
+  })
+
+  it("keeps all five destinations in one portrait tablet navigation row", () => {
+    const tabletPortraitRule = adaptiveWorkspaceStyles.match(/@media \(min-width: 761px\) and \(max-width: 1180px\) and \(orientation: portrait\) \{[\s\S]*?\.planner-shell \.app-navigation-primary\s*\{([\s\S]*?)\n\s*}/)?.[1] ?? ""
+
+    expect(tabletPortraitRule).toContain("grid-template-columns: repeat(5, minmax(0, 1fr))")
   })
 })

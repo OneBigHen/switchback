@@ -280,6 +280,9 @@ describe("route comparison rack", () => {
         if (this.classList.contains("route-selection-identity")) {
           return { x: 0, y: 280, top: 280, right: 390, bottom: 304, left: 0, width: 390, height: 24, toJSON: () => ({}) }
         }
+        if (this.classList.contains("planner-route-details__header")) {
+          return { x: 0, y: 100, top: 100, right: 390, bottom: 160, left: 0, width: 390, height: 60, toJSON: () => ({}) }
+        }
         return originalGetBoundingClientRect.call(this)
       }
     })
@@ -301,9 +304,9 @@ describe("route comparison rack", () => {
     try {
       // Production opens details for a route that is already selected, so the
       // layout effect runs on mount rather than after a chooser tap.
-      const { container } = render(<div className="planner-scroll"><Harness /></div>)
+      const { container } = render(<div className="planner-scroll"><div className="planner-route-details"><header className="planner-route-details__header" style={{ position: "sticky" }} /><Harness /></div></div>)
       const scrollOwner = container.querySelector<HTMLElement>(".planner-scroll")
-      await vi.waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 172, behavior: "auto" }))
+      await vi.waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 112, behavior: "auto" }))
       expect(scrollTo.mock.contexts.at(-1)).toBe(scrollOwner)
     } finally {
       Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", { configurable: true, value: originalGetBoundingClientRect })

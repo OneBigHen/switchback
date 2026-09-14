@@ -1,4 +1,10 @@
-export type PrimaryDestination = "plan" | "rides" | "discover" | "settings"
+/**
+ * The approved OpenGravel mobile model: Plan, Explore, Saved and Settings are
+ * places; Record is an activity launched from the same bar (see
+ * `AppNavigation`). `explore` owns route discovery and the GPX Library;
+ * `saved` owns rider-owned, imported and recorded material.
+ */
+export type PrimaryDestination = "plan" | "explore" | "saved" | "settings"
 
 export type AppMode = "explore" | "plan" | "ride" | "library"
 
@@ -8,7 +14,7 @@ export function appModeForState(input: {
   hasPlan: boolean
 }): AppMode {
   if (input.surface === "ride" || input.surface === "free-ride") return "ride"
-  if (input.surface === "library" || input.destination === "rides") return "library"
+  if (input.surface === "library" || input.destination === "saved") return "library"
   return input.destination === "plan" && input.hasPlan ? "plan" : "explore"
 }
 
@@ -46,10 +52,25 @@ export type AppNavigationAction =
   | { type: "set_theme"; theme: ThemePreference }
 
 /**
- * V2 destinations reachable through the ?tab= URL parameter. Legacy V1 tab
+ * Destinations reachable through the ?tab= URL parameter. Superseded tab
  * values are migrated by `destinationFromLocation`, never reintroduced here.
  */
-const DESTINATIONS_FROM_URL: ReadonlyArray<PrimaryDestination> = ["rides", "discover", "settings"]
+const DESTINATIONS_FROM_URL: ReadonlyArray<PrimaryDestination> = ["explore", "saved", "settings"]
+
+/**
+ * Superseded tab values, kept working so shared links and browser history
+ * from earlier builds still land somewhere sensible.
+ *
+ * - `library` / `rides` were the rider's own material, now `saved`
+ * - `discover` was community browsing, now folded into `explore`
+ * - `profile` was the settings sheet, now the `settings` destination
+ */
+const MIGRATED_TABS: Readonly<Record<string, PrimaryDestination>> = {
+  library: "saved",
+  rides: "saved",
+  discover: "explore",
+  profile: "settings"
+}
 
 export interface LocationDestination {
   destination: PrimaryDestination
@@ -57,21 +78,22 @@ export interface LocationDestination {
 }
 
 /**
- * Derive the V2 navigation state from a ?tab= URL parameter (deep links,
- * reloads, browser Back). Legacy V1 tabs migrate rather than break:
- * - ?tab=library → the Rides destination
- * - ?tab=profile → the Settings destination
- * - ?tab=record  → Plan; recording is an activity and never auto-starts
+ * Derive navigation state from the URL (deep links, reloads, browser Back).
+ *
+ * `?tab=record` keeps its historical meaning — Plan, with no overlay, because
+ * recording is an activity that never auto-starts. `?open=record` is the
+ * explicit request to *show* the Record surface, which pages outside the app
+ * shell (the GPX Library) use to hand the rider back to it. Showing the panel
+ * still starts nothing: the rider presses Start recording.
  */
 export function destinationFromLocation(url: string): LocationDestination {
   try {
-    const tab = new URL(url).searchParams.get("tab")
-    if (tab === "library") return { destination: "rides", overlays: [] }
-    if (tab === "profile") return { destination: "settings", overlays: [] }
-    if (DESTINATIONS_FROM_URL.includes(tab as PrimaryDestination)) {
-      return { destination: tab as PrimaryDestination, overlays: [] }
-    }
-    return { destination: "plan", overlays: [] }
+    const params = new URL(url).searchParams
+    const tab = params.get("tab")
+    const destination = MIGRATED_TABS[tab ?? ""]
+      ?? (DESTINATIONS_FROM_URL.includes(tab as PrimaryDestination) ? tab as PrimaryDestination : "plan")
+    const overlays: AppOverlay[] = params.get("open") === "record" ? ["record"] : []
+    return { destination, overlays }
   } catch {
     return { destination: "plan", overlays: [] }
   }

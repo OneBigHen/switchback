@@ -70,7 +70,10 @@ describe("mobile planner geometry contract", () => {
   })
 
   it("caps the idle mobile planner at the shared map-first height and keeps overflow reachable", () => {
-    expect(designSystem).toContain("--sb-sheet-idle-height: 300px;")
+    // The cap is what keeps the map at roughly half a 390x844 viewport while
+    // the approved planning composition is on screen. It is a design contract,
+    // so it is pinned here rather than left to drift silently.
+    expect(designSystem).toContain("--sb-sheet-idle-height: min(44dvh, 360px);")
     expect(designSystem).toContain(
       "max-height: min(var(--sb-sheet-idle-height), calc(100dvh - var(--sb-mobile-sheet-bottom) - var(--sb-space-4)));"
     )

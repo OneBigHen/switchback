@@ -35,7 +35,7 @@ async function planDirectRoute(page: import("@playwright/test").Page, capture: R
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expectRouteOutcome(page, capture)
 }
 
@@ -45,9 +45,9 @@ test("the idle composer keeps trip shape and free-form planning discoverable", a
   await expandPhonePlanner(page)
   await expect(page.getByPlaceholder("Search a place or describe a ride")).toBeVisible()
   const composer = page.locator(".plan-v2")
-  await expect(composer.getByRole("button", { name: "Destination" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "To", exact: true })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Loop" })).toBeVisible()
-  await expect(composer.getByRole("button", { name: "Draw route" })).toBeVisible()
+  await expect(composer.getByRole("button", { name: "Draw manually", exact: true })).toBeVisible()
   await expect(composer.getByRole("button", { name: "Free Ride" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Where do you want to ride?" })).toHaveCount(0)
   await expect(page.getByText("Try", { exact: true })).toHaveCount(0)
@@ -58,7 +58,7 @@ test("Draw opens the typed sketch toolbar from the V2 composer", async ({ page }
   await page.goto("/")
   await expandPhonePlanner(page)
 
-  await page.getByRole("button", { name: "Draw route", exact: true }).click()
+  await page.getByRole("button", { name: "Draw manually", exact: true }).click()
 
   await expect(page.getByRole("region", { name: "Draw a rough route" })).toBeVisible()
   await expect(page.getByRole("toolbar", { name: "Draw route controls" })).toBeVisible()
@@ -141,7 +141,7 @@ test("loop planning uses one fixed start and completes with a non-empty geometry
   await openPlannerEditor(page)
   await ensureStart(page)
   await page.getByRole("button", { name: "Loop" }).click()
-  await page.getByRole("button", { name: "Plan a 2-hour loop" }).click()
+  await page.getByRole("button", { name: "Create 2-hour loop", exact: true }).click()
   await expectRouteOutcome(page, capture)
   expect(capture.requests[0]).toMatchObject({
     roundTrip: { targetMinutes: 120 },
@@ -188,11 +188,11 @@ test("provider failure ends loading and exposes a typed actionable error", async
   await openPlannerEditor(page)
   await ensureStart(page)
   await chooseFixtureFinish(page)
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await expect(page.getByText("Route unavailable")).toBeVisible()
   await expect(page.getByText(/temporarily unavailable/i)).toBeVisible()
   await expect(page.getByRole("status", { name: "Ride planning progress" })).toBeHidden()
-  await expect(page.getByRole("button", { name: "Plan route" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Create ride", exact: true })).toBeEnabled()
 })
 
 test("a newer plan wins and a stale provider response cannot overwrite it", async ({ page }) => {
@@ -292,15 +292,15 @@ test("a saved route survives a reload and remains available in the library", asy
   // Rides is a persistent V2 destination, not the retired modal LibraryDrawer.
   // Verify the saved object in the destination, then reload while that destination
   // is active so persistence and URL-state restoration are covered together.
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
-  const rides = page.getByRole("main", { name: "Rides destination" })
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
+  const rides = page.getByRole("main", { name: "My Rides destination" })
   await expect(rides).toBeVisible()
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await expect(rides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 
   await page.reload()
-  await expect(page).toHaveURL(/[?&]tab=rides(?:&|$)/)
-  const restoredRides = page.getByRole("main", { name: "Rides destination" })
+  await expect(page).toHaveURL(/[?&]tab=saved(?:&|$)/)
+  const restoredRides = page.getByRole("main", { name: "My Rides destination" })
   await expect(restoredRides).toBeVisible()
   await expect(restoredRides.getByRole("button", { name: "Open Saved fixture route" })).toBeVisible()
 })
@@ -308,7 +308,7 @@ test("a saved route survives a reload and remains available in the library", asy
 test("valid GPX import appears in the route library", async ({ page }) => {
   await installPlannerServices(page)
   await page.goto("/")
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
   await expect(page.getByRole("heading", { name: "My Rides", exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Import ride" }).click()
   await page.getByLabel("Choose GPX, KML, or KMZ file").setInputFiles({

@@ -44,7 +44,7 @@ test("10 planner cycles keep measurable browser resources bounded", async ({ pag
     await fillFixtureFinish(page)
 
     console.log(`memory-soak cycle ${cycle}/${cycleCount}: plan`)
-    const planRoute = page.getByRole("button", { name: "Plan route" })
+    const planRoute = page.getByRole("button", { name: "Create ride", exact: true })
     await expect(planRoute).toBeEnabled()
     await planRoute.click()
 

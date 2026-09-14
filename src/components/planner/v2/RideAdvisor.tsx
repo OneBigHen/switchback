@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, ArrowUp, MapPin, MapTrifold, X } from "@phosphor-icons/react"
+import { ArrowRight, ArrowUp, CaretRight, MapPin, MapTrifold, X } from "@phosphor-icons/react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import type {
@@ -375,14 +375,26 @@ export function RideAdvisor({
     if (!hasRoute) {
       return (
         <section className={styles.goblinInvite} aria-label="Gravel Goblin ride builder">
-          <button type="button" className={styles.goblinInviteButton} onClick={() => openWith()}>
+          <button
+            type="button"
+            className={styles.goblinInviteButton}
+            aria-expanded={false}
+            onClick={() => openWith()}
+          >
             <GoblinAvatar size="large" />
             <span className={styles.goblinInviteCopy}>
               <small>Gravel Goblin</small>
               <strong>Need a ride idea?</strong>
-              <span>Give me the vibe — time, dirt, twisties, food — and I’ll scout something worth riding.</span>
+              {/* The pitch is worth reading once, on a surface with room for
+                  it. On a phone the advisor is one row, and the map keeps the
+                  space this sentence would have taken. */}
+              <span className={styles.goblinInvitePitch}>
+                Give me the vibe — time, dirt, twisties, food — and I’ll scout something worth riding.
+              </span>
             </span>
-            <span className={styles.goblinInviteAction}>Ask</span>
+            <span className={styles.goblinInviteAction} aria-hidden="true">
+              <CaretRight weight="bold" />
+            </span>
           </button>
         </section>
       )

@@ -1,0 +1,131 @@
+/* Geographic route preview shared by the GPX Library list, the Explore card
+   rail and the route-detail summary. One image element per card: the map that
+   produced it is a single shared instance (see route-preview-renderer.ts). */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--sb-moss) 12%, var(--sb-surface));
+  isolation: isolate;
+}
+
+/* Positioned, not in flow. An absolutely-positioned sibling paints above
+   in-flow content in the same stacking context, so an in-flow image sat
+   *underneath* the fallback plate it was supposed to replace — the rendered
+   map was there, fully opaque, and invisible. */
+.image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Shown until the shared renderer returns, and kept as the resting state when
+   it cannot run at all. It draws the route in true Mercator over a land/water
+   wash and names the area, so the card still answers "where is this ride?"
+   rather than showing a decorative squiggle. */
+.plate {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background:
+    linear-gradient(178deg, color-mix(in srgb, var(--sb-sage) 26%, var(--sb-paper)) 0%, color-mix(in srgb, var(--sb-moss) 20%, var(--sb-paper)) 100%);
+}
+
+.plateLine {
+  fill: none;
+  stroke: var(--sb-ember-strong);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.plateHalo {
+  fill: none;
+  stroke: color-mix(in srgb, var(--sb-paper) 88%, transparent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.plateStart {
+  fill: var(--sb-spruce);
+  stroke: var(--sb-paper);
+  stroke-width: 1.4;
+}
+
+.plateEnd {
+  fill: var(--sb-ember-strong);
+  stroke: var(--sb-paper);
+  stroke-width: 1.4;
+}
+
+.areaLabel {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  overflow: hidden;
+  padding: 2px 6px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--sb-paper) 82%, transparent);
+  color: var(--sb-text);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unplaceable {
+  display: grid;
+  height: 100%;
+  padding: 10px;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--sb-surface-raised) 70%, var(--sb-surface));
+  color: var(--sb-text-muted);
+  text-align: center;
+}
+
+.unplaceable strong {
+  color: var(--sb-text);
+  font-size: 11px;
+}
+
+.unplaceable span {
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .image {
+    animation: previewFade 180ms ease-out;
+  }
+}
+
+@keyframes previewFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* The renderer answered that it cannot draw a basemap here. The card still
+   shows the route's real line in its own projection, and says so rather than
+   letting the plate pass for a map. */
+.lineOnly {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sb-paper) 85%, transparent);
+  color: var(--sb-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+}

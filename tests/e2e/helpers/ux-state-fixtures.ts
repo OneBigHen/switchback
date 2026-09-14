@@ -141,7 +141,7 @@ async function driveToRouteResult(page: Page): Promise<RouteCapture> {
   const held = await holdRouteResponse(page, tripPlan([
     makeRoute("twisty", { name: "Contract fixture route" })
   ]))
-  await page.getByRole("button", { name: "Plan route" }).click()
+  await page.getByRole("button", { name: "Create ride", exact: true }).click()
   await held.release()
   await expectRouteOutcome(page, held.capture)
   return held.capture
@@ -202,7 +202,7 @@ export const uxState = {
     const held = await holdRouteResponse(page, tripPlan([
       makeRoute("twisty", { name: "Contract fixture route" })
     ]))
-    await page.getByRole("button", { name: "Plan route" }).click()
+    await page.getByRole("button", { name: "Create ride", exact: true }).click()
     await expect(page.getByRole("button", { name: "Reading the roads…" })).toBeVisible()
     return held
   },
@@ -236,7 +236,7 @@ export const uxState = {
       makeRoute("twisty", { name: "Twisty contract route" }),
       makeRoute("scenic", { name: "Scenic contract route" })
     ]))
-    await page.getByRole("button", { name: "Plan route" }).click()
+    await page.getByRole("button", { name: "Create ride", exact: true }).click()
     await held.release()
     await expectRouteOutcome(page, held.capture)
     await expect(page.getByRole("button", { name: /^Select / })).toHaveCount(2)

@@ -48,6 +48,7 @@ artifacts/audit/
 artifacts/screenshots/
 artifacts/cinco/
 artifacts/vqa/
+artifacts/opengravel-mobile/
 
 # Benchmark run output. The harness (bench/*.mts) and the blind scoring corpus
 # (bench/out/blind-round*) are tracked; timestamped run records are not.

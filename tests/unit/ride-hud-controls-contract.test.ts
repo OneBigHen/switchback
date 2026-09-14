@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 const readSource = (name: string) => readFileSync(resolve(process.cwd(), name), "utf8")
 const rideHud = readSource("src/components/planner/RideHud.tsx")
 const rideHudStyles = readSource("src/app/styles/ride-hud.css")
+const riderGlanceabilityStyles = readSource("src/app/styles/rider-glanceability.css")
 
 describe("ride HUD mobile control geometry", () => {
   it("gives each active-navigation control a distinct semantic grid placement", () => {
@@ -37,6 +38,15 @@ describe("ride HUD mobile control geometry", () => {
 
     expect(controlRule).toContain("min-width: var(--sb-touch-target)")
     expect(controlRule).toContain("min-height: var(--sb-touch-target)")
+  })
+
+  it("does not shrink the secondary short-landscape rail below the touch target", () => {
+    const shortLandscape = riderGlanceabilityStyles.match(
+      /\.ride-hud:not\(\.free-ride-hud\) \.ride-topbar \.ride-overnight-stop,\s*\.ride-hud:not\(\.free-ride-hud\) \.ride-topbar \.ride-record-toggle\s*\{([^}]*)\}/s,
+    )?.[1] ?? ""
+
+    expect(shortLandscape).toContain("min-height: var(--sb-touch-target)")
+    expect(shortLandscape).toContain("height: var(--sb-touch-target)")
   })
 
   it("keeps the ride status and route name on separate readable lines", () => {

@@ -62,7 +62,7 @@ async function openRouteEditor(page: import("@playwright/test").Page) {
   const editRoute = page.getByRole("button", { name: "Edit route", exact: true })
   if (await editRoute.isVisible().catch(() => false)) await editRoute.click()
 
-  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  const options = page.getByRole("button", { name: /^Ride options/ })
   await expect(async () => {
     await expect(options).toBeVisible({ timeout: 1_000 })
     if (await options.getAttribute("aria-expanded") !== "true") await options.click()
@@ -311,21 +311,21 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   }
   await minimizePlanner.click()
   await expect(page.getByRole("button", { name: "Expand planner" })).toBeVisible()
-  await expectInsideViewport(page, page.getByRole("button", { name: "Plan route" }))
+  await expectInsideViewport(page, page.getByRole("button", { name: "Create ride", exact: true }))
   await page.getByRole("button", { name: "Expand planner" }).click()
   await expect(page.getByRole("combobox", { name: "Start", exact: true })).toBeVisible()
 
   await page.getByRole("button", { name: "Loop", exact: true }).click()
-  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  const options = page.getByRole("button", { name: /^Ride options/ })
   if (await options.getAttribute("aria-expanded") !== "true") await options.click()
   // The V2 timing control presents the 120-minute preset as “2 hr”. Selecting
   // it explicitly keeps this behavioral journey independent of the old CTA.
   await page.getByLabel("Loop duration").getByRole("button", { name: "2 hr", exact: true }).click()
   await page.getByRole("button", { name: "Twisty", exact: true }).click()
-  const planRouteButton = page.locator(".planner-action-dock .plan-button")
-  await expect(planRouteButton).toHaveAccessibleName(/Plan/)
-  await expectInsideViewport(page, planRouteButton)
-  await planRouteButton.click()
+  const createRideButton = page.locator(".planner-action-dock .plan-button")
+  await expect(createRideButton).toHaveAccessibleName("Create 2-hour loop")
+  await expectInsideViewport(page, createRideButton)
+  await createRideButton.click()
   await expect(page.getByRole("region", { name: "Route choices" })).toBeVisible()
   expect(routeRequest).toMatchObject({ profile: "twisty", compare: false, candidateSet: "primary" })
   await page.getByRole("button", { name: "Select Twisty route", exact: true }).click()
@@ -362,8 +362,8 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   // and its modal drawer are retired; primary navigation is the way in, and
   // importing is a two-step flow (open the import panel, then choose what the
   // file becomes) rather than a bare file input inside the drawer.
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
-  const rides = page.getByRole("main", { name: "Rides destination" })
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
+  const rides = page.getByRole("main", { name: "My Rides destination" })
   await expect(rides).toBeVisible()
   if (testInfo.project.name.includes("landscape")) {
     await expectInsideViewport(page, rides)
@@ -385,7 +385,7 @@ test("plans, compares, saves, exports, restores, and opens ride mode", async ({ 
   })
 
   await expect(page.getByText("Imported Loop imported to your library.")).toBeHidden({ timeout: 10_000 })
-  await page.getByRole("button", { name: "Rides", exact: true }).click()
+  await page.getByRole("button", { name: "Saved", exact: true }).click()
   await page.getByRole("button", { name: /^Open Quick route/ }).click()
   await page.getByRole("button", { name: /Start .* route/i }).click()
   await expect(page.getByRole("region", { name: "Ride mode for Quick route" })).toBeVisible()
@@ -503,7 +503,7 @@ test("turns a free-form timebox into a gravel loop with route intelligence", asy
   await openRouteEditor(page)
   await expect(page.getByRole("button", { name: "Loop", exact: true })).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("button", { name: "90 min" })).toHaveAttribute("aria-pressed", "true")
-  const options = page.getByRole("button", { name: "Ride options", exact: true })
+  const options = page.getByRole("button", { name: /^Ride options/ })
   if (await options.getAttribute("aria-expanded") === "true") await options.click()
   await page.getByRole("button", { name: /^Details for /i }).first().click()
   const timeboxDetails = page.getByRole("button", { name: /Show route details/i })
@@ -644,7 +644,7 @@ test("draws a rough route on the map and snaps it into editable route points", a
   await page.goto(appUrl)
   await openRouteEditor(page)
   await expect(page.locator(".map-loading")).toBeHidden({ timeout: 15_000 })
-  await page.getByRole("button", { name: "Draw route", exact: true }).click()
+  await page.getByRole("button", { name: "Draw manually", exact: true }).click()
   const surface = page.getByRole("region", { name: "Draw a rough route" })
   await expect(surface).toBeVisible()
   if (testInfo.project.name === "mobile-safari") {
@@ -774,7 +774,7 @@ test("offers corridor options for a drawn line instead of a single traced route"
   await page.goto(appUrl)
   await openRouteEditor(page)
   await expect(page.locator(".map-loading")).toBeHidden({ timeout: 15_000 })
-  await page.getByRole("button", { name: "Draw route", exact: true }).click()
+  await page.getByRole("button", { name: "Draw manually", exact: true }).click()
   const surface = page.getByRole("region", { name: "Draw a rough route" })
   await expect(surface).toBeVisible()
   const box = await surface.boundingBox()
