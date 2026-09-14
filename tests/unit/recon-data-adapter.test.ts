@@ -226,12 +226,12 @@ describe("adaptCatalogRoute", () => {
     expect(unknown.facts.descentMeters).toBeNull();
   });
 
-  it("carries no surface or match claims in phase 0", () => {
+  it("carries no planned geometry, note or moments for a catalog preview", () => {
     const track = adaptCatalogRoute(makePlannedRoute())!;
 
-    expect(track.facts.surfaceKnown).toBe(false);
-    expect(track.facts.matchPercent).toBeNull();
-    expect(track.facts.confidence).toBeNull();
+    expect(track.plannedGeometry).toBeNull();
+    expect(track.note).toBeNull();
+    expect(track.moments).toEqual([]);
   });
 
   it("rejects invalid catalog geometry", () => {

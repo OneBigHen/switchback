@@ -1,24 +1,27 @@
-import type { Metadata } from "next";
-import ReconShell from "@/features/recon/ui/ReconShell";
-import "@/features/recon/recon.css";
+import type { Metadata } from "next"
+import ReconRideView from "@/features/recon/ui/ReconRideView"
+import "@/features/recon/recon.css"
 
 export const metadata: Metadata = {
- title: "Recon — OpenGravel Labs",
- description:
-  "A focused view of one recorded ride or Route Library preview on the Recon explorer.",
-};
+  title: "Replay — OpenGravel Recon",
+  description: "Replay a recorded ride on its real GPS timeline, with X-Ray and Cinematic views."
+}
 
-/**
- * The focused ride view. The URL segment is `replay` (frozen by the run's
- * routing contract); the view itself presents the track truthfully — a
- * recorded ride or a route preview on the pitched Explorer — and only ever
- * earns replay language when real playback exists.
- */
 export default async function ReconReplayPage({
- params,
+  params,
+  searchParams
 }: {
- params: Promise<{ rideId: string }>;
+  params: Promise<{ rideId: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
- const { rideId } = await params;
- return <ReconShell focusedTrackId={decodeURIComponent(rideId)} />;
+  const [{ rideId }, query] = await Promise.all([params, searchParams])
+  return <ReconRideView key={rideId} trackId={safeDecode(rideId)} startFilm={query.film === "1"} />
+}
+
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
 }

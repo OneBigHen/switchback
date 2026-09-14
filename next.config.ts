@@ -20,9 +20,9 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
       "object-src 'none'",
       "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline https://basemap.nationalmap.gov",
+      "img-src 'self' data: blob: https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline https://basemap.nationalmap.gov",
       "font-src 'self' data:",
-      "connect-src 'self' https://tiles.openfreemap.org https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov",
+      "connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov",
       "worker-src 'self' blob:",
       "media-src 'self' blob:"
     ].join("; ")

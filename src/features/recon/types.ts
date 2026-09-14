@@ -1,4 +1,4 @@
-import type { Coordinate } from "@/lib/routing/types";
+import type { Coordinate } from "@/lib/routing/types"
 
 /**
  * OpenGravel Recon — presentation-layer data contract.
@@ -9,86 +9,83 @@ import type { Coordinate } from "@/lib/routing/types";
  */
 
 /** Where a Recon track came from. */
-export type ReconTrackKind = "recorded-ride" | "saved-route" | "catalog-route";
+export type ReconTrackKind = "recorded-ride" | "catalog-route"
 
 /**
- * How the track plays back. `recorded` means real ride-journal points with
- * real `recordedAt` timestamps exist and Replay interpolates on observed
- * time. `preview` means geometry only: distance-normalized progress, no
- * observed speed, no invented elapsed time, never presented as a replay.
+ * `recorded` means every point carries a real `recordedAt` and Replay runs on
+ * observed time. `preview` means geometry only: distance-normalized progress,
+ * no observed speed, no invented elapsed time, never called a replay.
  */
-export type ReconPlaybackKind = "recorded" | "preview";
+export type ReconPlaybackKind = "recorded" | "preview"
 
 export interface ReconTrackPoint {
- /** `[longitude, latitude]`, matching the OpenGravel Coordinate convention. */
- coordinate: Coordinate;
- /** Epoch milliseconds of the GPS fix; null for geometry without timestamps. */
- recordedAt: number | null;
- speedMph: number | null;
- altitudeMeters: number | null;
- headingDegrees: number | null;
- accuracyMeters: number | null;
+  /** `[longitude, latitude]`, the OpenGravel Coordinate convention. */
+  coordinate: Coordinate
+  /** Epoch milliseconds of the GPS fix; null for geometry without timestamps. */
+  recordedAt: number | null
+  speedMph: number | null
+  altitudeMeters: number | null
+  headingDegrees: number | null
+  accuracyMeters: number | null
 }
 
-/**
- * Rider-facing facts derived from the source object itself. A null is an
- * honest "not observed / not evaluated"; surface and match evidence arrive
- * only from existing OpenGravel intelligence, never from inference.
- */
+/** A timestamped photo/note the rider captured during the ride. */
+export interface ReconTrackMoment {
+  id: string
+  caption: string
+  /** Epoch milliseconds, always inside the ride's recorded time span. */
+  at: number
+}
+
 export interface ReconTrackFacts {
- /** Observed ride duration; null for previews (no invented elapsed time). */
- durationMinutes: number | null;
- ascentMeters: number | null;
- descentMeters: number | null;
- /** True only when existing surface evidence actually covers this track. */
- surfaceKnown: boolean;
- matchPercent: number | null;
- confidence: "high" | "medium" | "low" | null;
+  /** Observed ride duration; null for previews. */
+  durationMinutes: number | null
+  /** GPS altitude totals — approximate, null when readings are absent. */
+  ascentMeters: number | null
+  descentMeters: number | null
 }
 
 export interface ReconTrack {
- id: string;
- name: string;
- sourceKind: ReconTrackKind;
- playbackKind: ReconPlaybackKind;
- /**
-  * GeoJSON view of the track for map rendering, derived from `points`.
-  * Rendering decimation (applied later, per phase) lives in the renderer,
-  * never here: the stored/observed geometry stays untouched.
-  */
- geometry: { type: "LineString"; coordinates: Coordinate[] };
- points: ReconTrackPoint[];
- distanceMeters: number;
- /** Epoch milliseconds; null for previews. */
- startedAt: number | null;
- endedAt: number | null;
- /** The route this track's geometry or ride belongs to, when one exists. */
- routeId: string | null;
- facts: ReconTrackFacts;
+  id: string
+  name: string
+  sourceKind: ReconTrackKind
+  playbackKind: ReconPlaybackKind
+  /** GeoJSON view of `points`, for map rendering. */
+  geometry: { type: "LineString"; coordinates: Coordinate[] }
+  points: ReconTrackPoint[]
+  distanceMeters: number
+  /** Epoch milliseconds; null for previews. */
+  startedAt: number | null
+  endedAt: number | null
+  routeId: string | null
+  /** The geometry the rider planned to follow, when the source carries one. */
+  plannedGeometry: Coordinate[] | null
+  /** Ride-level journal note; never placed on the timeline (it has no time). */
+  note: string | null
+  moments: ReconTrackMoment[]
+  facts: ReconTrackFacts
 }
 
-/** How a stretch of a recorded ride compares against ride history. */
-export type ExplorationSegmentStatus = "new-to-you" | "previously-ridden";
+export type ExplorationSegmentStatus = "new-to-you" | "previously-ridden"
 
+/** A contiguous stretch of a ride, by distance along its original points. */
 export interface ExplorationSegment {
- /** Inclusive start index into the track's points. */
- fromIndex: number;
- /** Inclusive end index into the track's points. */
- toIndex: number;
- distanceMeters: number;
- status: ExplorationSegmentStatus;
+  fromMeters: number
+  toMeters: number
+  status: ExplorationSegmentStatus
 }
 
 /**
- * One sample of playback. `elapsedMs` is normalized to start at zero so GPU
- * layers never see absolute epoch values; `speedMph`/`elapsedMs` are null
- * for previews, and unknown readings stay null everywhere.
+ * One sample of playback. `elapsedMs` starts at zero so GPU layers never see
+ * absolute epoch values; `elapsedMs` and `speedMph` are null for previews.
  */
 export interface ReplayFrame {
- progress: number;
- elapsedMs: number | null;
- coordinate: Coordinate;
- bearingDegrees: number;
- speedMph: number | null;
- altitudeMeters: number | null;
+  progress: number
+  elapsedMs: number | null
+  /** Distance travelled along the original track at this sample. */
+  distanceMeters: number
+  coordinate: Coordinate
+  bearingDegrees: number
+  speedMph: number | null
+  altitudeMeters: number | null
 }

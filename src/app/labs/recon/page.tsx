@@ -1,13 +1,12 @@
-import type { Metadata } from "next";
-import ReconShell from "@/features/recon/ui/ReconShell";
-import "@/features/recon/recon.css";
+import type { Metadata } from "next"
+import ReconExplorer from "@/features/recon/ui/ReconExplorer"
+import "@/features/recon/recon.css"
 
 export const metadata: Metadata = {
   title: "Recon — OpenGravel Labs",
-  description:
-    "An experimental Labs surface for exploring recorded rides and Route Library previews on a pitched, terrain-backed map.",
-};
+  description: "Explore your recorded rides on pitched, terrain-backed maps, then replay them."
+}
 
 export default function ReconLabsPage() {
-  return <ReconShell />;
+  return <ReconExplorer />
 }

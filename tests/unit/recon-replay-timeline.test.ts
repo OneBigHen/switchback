@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { adaptRecordedRide } from "@/features/recon/data/recorded-ride-adapter";
 import { adaptCatalogRoute } from "@/features/recon/data/catalog-route-adapter";
-import { sampleReplay } from "@/features/recon/replay/replay-sampler";
+import { sampleReplay } from "@/features/recon/replay/replay-timeline";
 import type { ReconTrack, ReconTrackPoint } from "@/features/recon/types";
 import {
   makePlannedRoute,
@@ -15,7 +15,8 @@ describe("sampleReplay on recorded tracks", () => {
   it("returns the exact first point at position 0", () => {
     const frame = sampleReplay(track, 0)!;
 
-    expect(frame).toEqual({
+    expect(frame.distanceMeters).toBe(0);
+    expect(frame).toMatchObject({
       progress: 0,
       elapsedMs: 0,
       coordinate: [0, 0],
@@ -28,7 +29,8 @@ describe("sampleReplay on recorded tracks", () => {
   it("returns the exact last point at position 1 with the full duration", () => {
     const frame = sampleReplay(track, 1)!;
 
-    expect(frame).toEqual({
+    expect(frame.distanceMeters).toBeCloseTo(track.distanceMeters, 6);
+    expect(frame).toMatchObject({
       progress: 1,
       elapsedMs: 120_000,
       coordinate: [0, 0.002],
@@ -186,13 +188,13 @@ describe("sampleReplay fails safely on impossible tracks", () => {
       startedAt: null,
       endedAt: null,
       routeId: null,
+      plannedGeometry: null,
+      note: null,
+      moments: [],
       facts: {
         durationMinutes: null,
         ascentMeters: null,
         descentMeters: null,
-        surfaceKnown: false,
-        matchPercent: null,
-        confidence: null,
       },
     };
   }
