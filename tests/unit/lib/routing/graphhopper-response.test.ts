@@ -108,6 +108,23 @@ describe("GraphHopper response normalization", () => {
     )).toEqual([tollWarning, coverageWarning])
   })
 
+  it("does not collide when warning fields contain the old delimiter", () => {
+    const first = {
+      code: "low-confidence" as const,
+      segmentId: "segment|one",
+      severity: "warning" as const,
+      message: "condition"
+    }
+    const second = {
+      code: "low-confidence" as const,
+      segmentId: "segment",
+      severity: "warning" as const,
+      message: "one|condition"
+    }
+
+    expect(mergeRouteWarnings([first], [second])).toEqual([first, second])
+  })
+
   it("keeps route IDs stable for identical profile, geometry, and index inputs", () => {
     const first = createRouteId("twisty", path.points!.coordinates!, 0)
     expect(first).toBe(createRouteId("twisty", path.points!.coordinates!, 0))

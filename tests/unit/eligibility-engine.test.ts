@@ -153,4 +153,15 @@ describe("route policy eligibility contract", () => {
     expect(report.eligible).toBe(true)
     expect(report.failures).toEqual([])
   })
+
+  it("fails closed on malformed toll evidence when avoidance is explicit", () => {
+    const report = evaluateEligibility(plannedRoute({
+      tollEvidence: { known: true, tollSharePercent: null }
+    }), { tollPolicy: "avoid" })
+
+    expect(report.eligible).toBe(false)
+    expect(report.failures).toMatchObject([{
+      code: "invalid-feature-data"
+    }])
+  })
 })

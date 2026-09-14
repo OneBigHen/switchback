@@ -296,7 +296,14 @@ function mustRoadFailure(route: PlannedRoute): EligibilityFailure | null {
 
 function tollFailure(route: PlannedRoute, tollPolicy: TollPolicy): EligibilityFailure | null {
   if (tollPolicy !== "avoid" || route.tollEvidence?.known !== true) return null
-  if ((route.tollEvidence.tollSharePercent ?? 0) <= 0) return null
+  const share = route.tollEvidence.tollSharePercent
+  if (typeof share !== "number" || !Number.isFinite(share) || share < 0 || share > 100) {
+    return {
+      code: "invalid-feature-data",
+      message: "This route has incomplete toll evidence, so toll avoidance cannot be verified."
+    }
+  }
+  if (share <= 0) return null
   return {
     code: "toll-exposure",
     message: "This route uses tolled roads, which you asked to avoid."

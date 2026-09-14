@@ -83,8 +83,11 @@ export async function planSegmentedTrip(
     : legs.some((leg) => leg.tollEvidence)
       ? { known: false, tollSharePercent: null }
       : undefined
-  const warnings = mergeRouteWarnings(...legs.map((leg) => leg.warnings))
-  const composed: PlannedRoute = {
+  // Leg-level toll warnings describe each leg's local share. Recompute the
+  // policy warning from the weighted composed evidence so the rider sees the
+  // percentage for the route they will actually ride.
+  const warnings = mergeRouteWarnings(...legs.map((leg) => leg.warnings?.filter((warning) => warning.code !== "toll-exposure")))
+  const composedWithoutPolicyWarning: PlannedRoute = {
     id: `mixed-${legs.map((leg) => leg.id).join("-")}`,
     name: `Custom ${segmentProfiles.map((profile) => profile[0].toUpperCase() + profile.slice(1)).join(" / ")} route`,
     profile: request.profile,
@@ -111,6 +114,7 @@ export async function planSegmentedTrip(
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: [...segmentProfiles]
   }
+  const composed = withRoutePolicyWarnings(composedWithoutPolicyWarning, request.tollPolicy)
   const enriched = await enrichCandidates(request, [composed], enricher, options)
   const selected = enriched.routes[0] ?? composed
   return {

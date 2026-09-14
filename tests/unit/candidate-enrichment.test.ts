@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createCandidateEnricher, type CandidateEnricherOptions } from "@/lib/routing/candidate-enrichment"
+import { enrichCandidates } from "@/lib/routing/planner-shared"
 import type { PlannedRoute, RouteRequest } from "@/lib/routing/types"
 
 const route = { id: "r1", ascentMeters: null } as unknown as PlannedRoute
@@ -29,6 +30,48 @@ describe("accepted-candidate enrichment", () => {
 
     expect(result.routes[0]?.warnings).toEqual(warningRoute.warnings)
     expect(result.routes[0]?.ascentMeters).toBe(321)
+  })
+
+  it("restores warnings when an enrichment stage replaces a route without them", async () => {
+    const warningRoute = {
+      ...route,
+      warnings: [{
+        code: "toll-exposure" as const,
+        severity: "warning" as const,
+        message: "Known toll exposure covers 40% of this route."
+      }]
+    }
+    const regionEvidence = vi.fn(async (_request: RouteRequest, routes: PlannedRoute[]) => ({
+      routes: routes.map((candidate) => ({ ...candidate, warnings: undefined })),
+      warnings: []
+    }))
+    const elevate = vi.fn(async (result: { routes: PlannedRoute[] }) => ({
+      routes: result.routes.map((candidate) => ({ ...candidate, warnings: undefined, ascentMeters: 321 })),
+      warnings: []
+    }))
+    const run = createCandidateEnricher({ regionEvidence, elevate, signal: new AbortController().signal })
+
+    const result = await run({ ...request, candidateSet: "alternatives" }, [warningRoute])
+
+    expect(result.routes[0]?.warnings).toEqual(warningRoute.warnings)
+    expect(result.routes[0]?.ascentMeters).toBe(321)
+  })
+
+  it("preserves warnings across a custom planner enrichment seam", async () => {
+    const warningRoute = {
+      ...route,
+      warnings: [{
+        code: "toll-exposure" as const,
+        severity: "warning" as const,
+        message: "Known toll exposure covers 40% of this route."
+      }]
+    }
+    const result = await enrichCandidates(request, [warningRoute], async (_request, routes) => ({
+      routes: routes.map((candidate) => ({ ...candidate, warnings: undefined })),
+      warnings: []
+    }))
+
+    expect(result.routes[0]?.warnings).toEqual(warningRoute.warnings)
   })
 
   it("adds elevation to accepted alternatives but never to a primary", async () => {

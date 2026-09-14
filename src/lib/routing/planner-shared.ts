@@ -4,6 +4,7 @@ import { partitionLocksByPrecedence } from "@/lib/roads/lock-precedence"
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
 import type { PlannedRoute, RouteRequest, TollPolicy } from "./types"
+import { mergeRouteWarnings } from "./route-warnings"
 import type {
   CandidateEnrichmentOptions,
   RouteCandidateEnricher,
@@ -74,6 +75,24 @@ export function tripPlanMetadata(
   }
 }
 
+function preserveRouteWarnings(
+  originalRoutes: readonly PlannedRoute[],
+  result: RouteCandidateEnrichmentResult
+): RouteCandidateEnrichmentResult {
+  const warningsById = new Map(originalRoutes.map((route) => [route.id, route.warnings]))
+  return {
+    ...result,
+    routes: result.routes.map((route, index) => {
+      const warnings = mergeRouteWarnings(
+        warningsById.get(route.id),
+        originalRoutes[index]?.warnings,
+        route.warnings
+      )
+      return warnings.length > 0 ? { ...route, warnings } : route
+    })
+  }
+}
+
 export async function enrichCandidates(
   request: RouteRequest,
   routes: PlannedRoute[],
@@ -83,7 +102,7 @@ export async function enrichCandidates(
   if (options?.signal?.aborted) throw options.signal.reason ?? new DOMException("Route enrichment was cancelled.", "AbortError")
   if (!enricher) return { routes, warnings: [] }
   try {
-    return await enricher(request, routes, options)
+    return preserveRouteWarnings(routes, await enricher(request, routes, options))
   } catch (reason) {
     if (options?.signal?.aborted) throw reason
     return {

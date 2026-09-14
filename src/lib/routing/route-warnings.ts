@@ -3,7 +3,7 @@ import type { PlannedRoute, TollPolicy } from "./types"
 
 /** Stable identity for one rider-facing warning, independent of array order. */
 export function routeWarningIdentity(warning: RouteWarning): string {
-  return [warning.code, warning.segmentId ?? "", warning.message].join("|")
+  return JSON.stringify([warning.code, warning.segmentId ?? null, warning.message])
 }
 
 /** Merge warning evidence without overwriting distinct conditions. */
@@ -38,7 +38,8 @@ export function tollWarningsForRoute(
     route.tollEvidence?.known !== true ||
     typeof share !== "number" ||
     !Number.isFinite(share) ||
-    share <= 0
+    share <= 0 ||
+    share > 100
   ) {
     return []
   }

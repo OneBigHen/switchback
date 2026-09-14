@@ -98,7 +98,11 @@ describe("segmented planner strategy", () => {
       tollSharePercent: 25
     })
     expect(plan.routes[0]?.warnings).toEqual([
-      expect.objectContaining({ code: "toll-exposure" })
+      expect.objectContaining({
+        code: "toll-exposure",
+        message: expect.stringContaining("25%")
+      })
     ])
+    expect(plan.routes[0]?.warnings?.[0]?.message).not.toContain("50%")
   })
 })

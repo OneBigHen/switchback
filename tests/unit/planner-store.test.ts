@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { initialPlannerState, usePlannerStore } from "@/stores/planner-store"
+import { routeEntityCache } from "@/lib/client/route-entity-cache"
 import type { TripPlan } from "@/lib/routing/planner"
 import type { PlannedRoute } from "@/lib/routing/types"
 
@@ -29,7 +30,10 @@ const plan: TripPlan = {
 }
 
 describe("planner store", () => {
-  beforeEach(() => usePlannerStore.setState(initialPlannerState))
+  beforeEach(() => {
+    routeEntityCache.clear()
+    usePlannerStore.setState(initialPlannerState)
+  })
 
   it("starts empty until the rider chooses a point or grants location access", () => {
     expect(initialPlannerState).toMatchObject({
@@ -84,6 +88,7 @@ describe("planner store", () => {
     })
 
     expect(usePlannerStore.getState().plan?.routes[0]?.warnings).toEqual(warningRoute.warnings)
+    expect(routeEntityCache.get(warningRoute.id)?.warnings).toEqual(warningRoute.warnings)
   })
 
   it("never lets automatic selection replace an explicit user selection (SB-005)", () => {
