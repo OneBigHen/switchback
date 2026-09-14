@@ -41,3 +41,15 @@ export function formatRecordedRowMeta(track: ReconTrack): string {
     parts.push(`${track.facts.durationMinutes} min`);
   return parts.join(" · ");
 }
+
+/** m:ss under an hour, h:mm:ss above — observed ride time only. */
+export function formatElapsedClock(ms: number): string {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const twoDigits = (value: number) => String(value).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${twoDigits(minutes)}:${twoDigits(seconds)}`
+    : `${minutes}:${twoDigits(seconds)}`;
+}
