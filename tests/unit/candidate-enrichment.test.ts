@@ -14,6 +14,23 @@ function enricher(elevate: NonNullable<CandidateEnricherOptions["elevate"]> = vi
 }
 
 describe("accepted-candidate enrichment", () => {
+  it("preserves structured route warnings while adding optional evidence", async () => {
+    const warningRoute = {
+      ...route,
+      warnings: [{
+        code: "toll-exposure" as const,
+        severity: "warning" as const,
+        message: "Known toll exposure covers 40% of this route."
+      }]
+    }
+    const { run } = enricher()
+
+    const result = await run({ ...request, candidateSet: "alternatives" }, [warningRoute])
+
+    expect(result.routes[0]?.warnings).toEqual(warningRoute.warnings)
+    expect(result.routes[0]?.ascentMeters).toBe(321)
+  })
+
   it("adds elevation to accepted alternatives but never to a primary", async () => {
     const { elevate, regionEvidence, run } = enricher()
 

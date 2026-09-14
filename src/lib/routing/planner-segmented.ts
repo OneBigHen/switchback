@@ -1,5 +1,6 @@
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
 import type { PlannedRoute } from "./types"
+import { mergeRouteWarnings, withRoutePolicyWarnings } from "./route-warnings"
 import type {
   PlanningOptions,
   RouteCandidateEnricher,
@@ -45,12 +46,16 @@ export async function planSegmentedTrip(
     // Every leg inherits the full normalized constraint set: bike profile,
     // surface/rough-track policy, toll policy, avoid areas, and surviving
     // road requirements — never just the profile and points (SB-003).
-    const result = await provider({
+    const rawResult = await provider({
       ...request,
       profile,
       points: [request.points[index]!, request.points[index + 1]!]
     }, options)
-    const selected = chooseSelectedCandidate(result.routes)
+    const result = {
+      ...rawResult,
+      routes: rawResult.routes.map((route) => withRoutePolicyWarnings(route, request.tollPolicy))
+    }
+    const selected = chooseSelectedCandidate(result.routes, { tollPolicy: request.tollPolicy })
     if (!selected) throw new Error(`The ${profile} leg returned no route.`)
     return selected
   }))
@@ -68,6 +73,17 @@ export async function planSegmentedTrip(
   })
   const distanceMiles = Number(legs.reduce((sum, leg) => sum + leg.distanceMiles, 0).toFixed(2))
   const durationMinutes = Number(legs.reduce((sum, leg) => sum + leg.durationMinutes, 0).toFixed(2))
+  const totalMiles = Math.max(0.01, distanceMiles)
+  const tollEvidence = legs.length > 0 && legs.every((leg) => leg.tollEvidence?.known === true)
+    ? {
+        known: true,
+        tollSharePercent: Number(legs.reduce((sum, leg) => sum +
+          (leg.tollEvidence?.tollSharePercent ?? 0) * leg.distanceMiles / totalMiles, 0).toFixed(1))
+      }
+    : legs.some((leg) => leg.tollEvidence)
+      ? { known: false, tollSharePercent: null }
+      : undefined
+  const warnings = mergeRouteWarnings(...legs.map((leg) => leg.warnings))
   const composed: PlannedRoute = {
     id: `mixed-${legs.map((leg) => leg.id).join("-")}`,
     name: `Custom ${segmentProfiles.map((profile) => profile[0].toUpperCase() + profile.slice(1)).join(" / ")} route`,
@@ -89,6 +105,8 @@ export async function planSegmentedTrip(
     surfaceMix: mergeDistribution(legs, "surfaceMix"),
     routingSource: "live",
     previewOnly: false,
+    ...(tollEvidence ? { tollEvidence } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
     avoidHighways: request.avoidHighways,
     avoidAreas: request.avoidAreas?.map((area) => ({ ...area, polygon: [...area.polygon] })),
     segmentProfiles: [...segmentProfiles]

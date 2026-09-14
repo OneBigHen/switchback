@@ -66,6 +66,26 @@ describe("planner store", () => {
     })
   })
 
+  it("keeps structured route warnings in the state summary and entity cache", () => {
+    const warningRoute = {
+      ...route,
+      id: "warning-route",
+      warnings: [{
+        code: "toll-exposure" as const,
+        severity: "warning" as const,
+        message: "Known toll exposure covers 40% of this route."
+      }]
+    }
+
+    usePlannerStore.getState().applyPlan({
+      selectedRouteId: warningRoute.id,
+      routes: [warningRoute],
+      warnings: []
+    })
+
+    expect(usePlannerStore.getState().plan?.routes[0]?.warnings).toEqual(warningRoute.warnings)
+  })
+
   it("never lets automatic selection replace an explicit user selection (SB-005)", () => {
     usePlannerStore.getState().applyPlan(plan)
     expect(usePlannerStore.getState().selectionSource).toBe("automatic")

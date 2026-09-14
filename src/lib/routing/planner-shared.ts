@@ -2,7 +2,8 @@ import { evaluateRoadLockSatisfaction } from "@/lib/roads/road-locks"
 import type { RoadLock } from "@/lib/roads/road-locks"
 import { partitionLocksByPrecedence } from "@/lib/roads/lock-precedence"
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
-import type { PlannedRoute, RouteRequest } from "./types"
+import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
+import type { PlannedRoute, RouteRequest, TollPolicy } from "./types"
 import type {
   CandidateEnrichmentOptions,
   RouteCandidateEnricher,
@@ -48,8 +49,16 @@ export function selectedCandidateScore(route: PlannedRoute): number {
     route.durationMinutes * (route.profile === "quick" ? 1 : 0.08)
 }
 
-export function chooseSelectedCandidate(routes: PlannedRoute[]): PlannedRoute | null {
-  return routes.filter(route => route.routeScore?.accepted !== false).reduce<PlannedRoute | null>((best, candidate) => {
+export function chooseSelectedCandidate(
+  routes: PlannedRoute[],
+  options: { tollPolicy?: TollPolicy } = {}
+): PlannedRoute | null {
+  const candidates = routes
+    .filter(route => route.routeScore?.accepted !== false)
+    .filter(route => options.tollPolicy === undefined || evaluateEligibility(route, {
+      tollPolicy: options.tollPolicy
+    }).eligible)
+  return candidates.reduce<PlannedRoute | null>((best, candidate) => {
     if (!best) return candidate
     return selectedCandidateScore(candidate) > selectedCandidateScore(best) ? candidate : best
   }, null)

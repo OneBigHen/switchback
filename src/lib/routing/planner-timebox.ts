@@ -1,5 +1,6 @@
 import type { NormalizedRouteRequest } from "@/lib/domain/routing/normalized-request"
-import type { Coordinate, PlannedRoute, RouteRequest, Waypoint } from "./types"
+import { evaluateEligibility } from "@/lib/domain/routing/eligibility"
+import type { Coordinate, PlannedRoute, RouteRequest, TollPolicy, Waypoint } from "./types"
 import {
   buildAnchorSets,
   corridorEnvelope,
@@ -38,12 +39,16 @@ function durationDifference(route: PlannedRoute, targetMinutes: number): number 
 
 function closestDurationCandidate(
   routes: PlannedRoute[],
-  targetMinutes: number
+  targetMinutes: number,
+  tollPolicy?: TollPolicy
 ): PlannedRoute | null {
-  return routes.filter(route => route.routeScore?.accepted !== false).sort((left, right) =>
-    durationDifference(left, targetMinutes) - durationDifference(right, targetMinutes) ||
-    selectedCandidateScore(right) - selectedCandidateScore(left)
-  )[0] ?? null
+  return routes
+    .filter(route => route.routeScore?.accepted !== false)
+    .filter(route => tollPolicy === undefined || evaluateEligibility(route, { tollPolicy }).eligible)
+    .sort((left, right) =>
+      durationDifference(left, targetMinutes) - durationDifference(right, targetMinutes) ||
+      selectedCandidateScore(right) - selectedCandidateScore(left)
+    )[0] ?? null
 }
 
 function preserveLoopRequestMetadata(
@@ -123,7 +128,7 @@ export async function requestTimeboxedRoutes(
     }
   }
 
-  const initialCandidate = closestDurationCandidate(initial.routes, targetMinutes)
+  const initialCandidate = closestDurationCandidate(initial.routes, targetMinutes, request.tollPolicy)
   if (!initialCandidate) {
     return { result: initial, warning: initial.warnings?.join(" ") || null }
   }
@@ -146,7 +151,7 @@ export async function requestTimeboxedRoutes(
   }
   if (!roundTrip) {
     const enriched = await enrichCandidates(request, initial.routes, enricher, options)
-    const closest = closestDurationCandidate(enriched.routes, targetMinutes) ?? initialCandidate
+    const closest = closestDurationCandidate(enriched.routes, targetMinutes, request.tollPolicy) ?? initialCandidate
     return {
       result: {
         ...initial,
@@ -189,7 +194,7 @@ export async function requestTimeboxedRoutes(
     ...initial.routes,
     ...retries.flatMap((retry) => retry.status === "fulfilled" ? retry.value.routes : [])
   ]
-  let closest = closestDurationCandidate(candidates, targetMinutes) ?? initialCandidate
+  let closest = closestDurationCandidate(candidates, targetMinutes, request.tollPolicy) ?? initialCandidate
   let remainingError = durationDifference(closest, targetMinutes) / targetMinutes
   let feedbackMinutes = adjustedMinutes
   for (let attempt = 0; attempt < 2 && remainingError > ROUND_TRIP_DURATION_TOLERANCE; attempt += 1) {
@@ -207,7 +212,7 @@ export async function requestTimeboxedRoutes(
         }
       }, provider, options)
       candidates.push(...finalAttempt.routes)
-      closest = closestDurationCandidate(candidates, targetMinutes) ?? closest
+      closest = closestDurationCandidate(candidates, targetMinutes, request.tollPolicy) ?? closest
       remainingError = durationDifference(closest, targetMinutes) / targetMinutes
     } catch (reason) {
       if (options.signal?.aborted) throw options.signal.reason ?? reason
@@ -231,8 +236,8 @@ export async function requestTimeboxedRoutes(
     durationDifference(candidate, targetMinutes) / targetMinutes <= ROUND_TRIP_DURATION_TOLERANCE
   )
   closest = timeMatchedCandidates.length > 0
-    ? chooseSelectedCandidate(timeMatchedCandidates) ?? closest
-    : closestDurationCandidate(enriched.routes, targetMinutes) ?? closest
+    ? chooseSelectedCandidate(timeMatchedCandidates, { tollPolicy: request.tollPolicy }) ?? closest
+    : closestDurationCandidate(enriched.routes, targetMinutes, request.tollPolicy) ?? closest
   remainingError = durationDifference(closest, targetMinutes) / targetMinutes
   const warning = remainingError > ROUND_TRIP_DURATION_TOLERANCE
     ? `${request.profile} loop is ${Math.round(closest.durationMinutes)} minutes; the road network could not safely match the ${targetMinutes}-minute target more closely.`
@@ -272,7 +277,9 @@ export async function planDestinationTimebox(
     undefined,
     options
   )
-  const baseline = chooseSelectedCandidate(baselineAttempt.result.routes)
+  const baseline = chooseSelectedCandidate(baselineAttempt.result.routes, {
+    tollPolicy: request.tollPolicy
+  })
   if (!baseline) throw new Error("The selected profile returned no routes")
 
   const feasibility = estimateTimeboxBaseline(baseline.durationMinutes, baseline.distanceMiles, targetMinutes)
@@ -318,7 +325,7 @@ export async function planDestinationTimebox(
     const inTolerance = (route: PlannedRoute) =>
       Math.abs(route.durationMinutes - targetMinutes) / targetMinutes <= 0.1
     if (candidates.length > 0 && !candidates.some(inTolerance)) {
-      const best = closestDurationCandidate(candidates, targetMinutes)
+      const best = closestDurationCandidate(candidates, targetMinutes, request.tollPolicy)
       if (best) {
         const refinedBaseline = estimateTimeboxBaseline(best.durationMinutes, best.distanceMiles, targetMinutes)
         envelope = corridorEnvelope(refinedBaseline.estimatedTargetDistanceMiles)
@@ -333,7 +340,6 @@ export async function planDestinationTimebox(
         const refined = await routeAnchorSets(request, provider, anchorSets, corridorOptions, options.signal)
         if (refined.length > 0) candidates = refined
       }
-    }
 
     if (options.signal?.aborted) throw options.signal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
 
@@ -472,7 +478,9 @@ async function routeAnchorSets(
         if (callerSignal?.aborted) {
           throw callerSignal.reason ?? new DOMException("Route planning was cancelled.", "AbortError")
         }
-        const selected = chooseSelectedCandidate(attempt.result.routes)
+        const selected = chooseSelectedCandidate(attempt.result.routes, {
+          tollPolicy: request.tollPolicy
+        })
         if (selected) results.push({ ...selected, candidateSource: candidate.source })
       } catch (reason) {
         if (callerSignal?.aborted) throw callerSignal.reason ?? reason

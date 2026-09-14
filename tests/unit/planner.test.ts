@@ -142,6 +142,68 @@ describe("trip planner", () => {
     expect(plan.selectedRouteId).toBe("scenic-route")
   })
 
+  it("keeps an allow-with-warning candidate eligible and carries all distinct warnings", async () => {
+    const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [{
+        ...route(request.profile),
+        tollEvidence: { known: true, tollSharePercent: 40 },
+        warnings: [{
+          code: "low-confidence",
+          severity: "warning",
+          message: "Some road evidence is incomplete."
+        }]
+      }]
+    }))
+
+    const plan = await planMotorcycleTrip({
+      profile: "scenic",
+      compare: false,
+      tollPolicy: "allow-with-warning",
+      points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
+    }, provider)
+
+    expect(plan.routes[0]?.warnings).toEqual([
+      {
+        code: "low-confidence",
+        severity: "warning",
+        message: "Some road evidence is incomplete."
+      },
+      expect.objectContaining({ code: "toll-exposure", severity: "warning" })
+    ])
+    expect(plan.selectedRouteId).toBe(plan.routes[0]?.id)
+  })
+
+  it("never selects a known-toll candidate when the rider chose avoid", async () => {
+    const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [
+        {
+          ...route(request.profile, 0, "tolled"),
+          twistiness: 99,
+          tollEvidence: { known: true, tollSharePercent: 40 }
+        },
+        {
+          ...route(request.profile, 0.03, "clean"),
+          twistiness: 10,
+          tollEvidence: { known: true, tollSharePercent: 0 }
+        }
+      ]
+    }))
+
+    const plan = await planMotorcycleTrip({
+      profile: "scenic",
+      compare: false,
+      tollPolicy: "avoid",
+      points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.2, lon: -76.7 }]
+    }, provider)
+
+    expect(plan.selectedRouteId).toBe("clean")
+    expect(plan.routes[0]?.id).toBe("clean")
+  })
+
   it("builds alternatives separately: sequential profiles, at most two meaningfully different routes", async () => {
     const provider = vi.fn(async (request: RouteRequest): Promise<GraphHopperResult> => ({
       engine: "graphhopper",

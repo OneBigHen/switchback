@@ -6,6 +6,7 @@ import {
   normalizeGraphHopperProviderError,
   type GraphHopperPath
 } from "@/lib/routing/graphhopper-response"
+import { mergeRouteWarnings } from "@/lib/routing/route-warnings"
 
 const request = normalizeRouteRequest({
   profile: "twisty",
@@ -56,7 +57,12 @@ describe("GraphHopper response normalization", () => {
       descentMeters: 390,
       routingSource: "live",
       previewOnly: false,
-      tollEvidence: { known: true, tollSharePercent: expect.closeTo(66.7, 0) }
+      tollEvidence: { known: true, tollSharePercent: expect.closeTo(66.7, 0) },
+      warnings: [{
+        code: "toll-exposure",
+        severity: "warning",
+        message: expect.stringMatching(/Known toll exposure covers 66\.[0-9]%/)
+      }]
     })
     expect(route.waypoints).toEqual([
       { lat: 40.2731, lon: -76.8866, label: "Harrisburg" },
@@ -66,6 +72,40 @@ describe("GraphHopper response normalization", () => {
       streetName: "River Road",
       speedLimitKmh: 80
     })
+  })
+
+  it("does not invent a toll warning for zero or unknown evidence", () => {
+    const noTolls = normalizeGraphHopperPath({
+      ...path,
+      details: { ...path.details, toll: [[0, 3, "NO"]] }
+    }, request, 0)
+    const unknown = normalizeGraphHopperPath({
+      ...path,
+      details: undefined
+    }, request, 0)
+
+    expect(noTolls.tollEvidence).toEqual({ known: true, tollSharePercent: 0 })
+    expect(noTolls.warnings).toBeUndefined()
+    expect(unknown.tollEvidence).toEqual({ known: false, tollSharePercent: null })
+    expect(unknown.warnings).toBeUndefined()
+  })
+
+  it("deduplicates the same warning while preserving distinct conditions", () => {
+    const tollWarning = {
+      code: "toll-exposure" as const,
+      severity: "warning" as const,
+      message: "Known toll exposure covers 40% of this route."
+    }
+    const coverageWarning = {
+      code: "low-confidence" as const,
+      severity: "warning" as const,
+      message: "Some road evidence is incomplete."
+    }
+
+    expect(mergeRouteWarnings(
+      [tollWarning, coverageWarning],
+      [tollWarning]
+    )).toEqual([tollWarning, coverageWarning])
   })
 
   it("keeps route IDs stable for identical profile, geometry, and index inputs", () => {

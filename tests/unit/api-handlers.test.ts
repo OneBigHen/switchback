@@ -114,6 +114,38 @@ describe("route HTTP contract", () => {
     })
   })
 
+  it("serializes structured route warnings without moving them to console-only output", async () => {
+    const warningRoute = {
+      ...route,
+      tollEvidence: { known: true, tollSharePercent: 40 },
+      warnings: [{
+        code: "low-confidence" as const,
+        severity: "warning" as const,
+        message: "Some road evidence is incomplete."
+      }]
+    }
+    const provider = vi.fn(async (): Promise<GraphHopperResult> => ({
+      engine: "graphhopper",
+      engineVersion: "11.0",
+      routes: [warningRoute]
+    }))
+
+    const response = await handleRouteRequest(new Request("http://switchback.test/api/routes", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "twisty",
+        compare: false,
+        points: [{ lat: 40.2, lon: -76.9 }, { lat: 40.3, lon: -76.8 }]
+      })
+    }), provider)
+
+    expect(response.status).toBe(200)
+    expect((await response.json()).routes[0].warnings).toEqual([
+      ...warningRoute.warnings,
+      expect.objectContaining({ code: "toll-exposure", severity: "warning" })
+    ])
+  })
+
   it("serializes alternatives outcome, lane diagnostics, and server timing", async () => {
     const provider = vi.fn(async (): Promise<GraphHopperResult> => ({
       engine: "graphhopper",
