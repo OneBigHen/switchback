@@ -16,6 +16,16 @@ const ACTIVE_CACHES = [SHELL_CACHE, BUILD_CACHE, TILE_CACHE, IMAGE_CACHE]
 
 const SHELL = ["/", "/icon.svg", "/manifest.webmanifest"]
 
+// Mapbox GL owns the lifecycle and caching of its cross-origin style, glyph,
+// sprite, vector-tile, terrain, and telemetry requests. Let the browser and
+// Mapbox handle them instead of routing them through the generic image cache.
+function isMapboxRequest(url) {
+  return url.hostname === "api.mapbox.com"
+    || url.hostname === "events.mapbox.com"
+    || url.hostname === "tiles.mapbox.com"
+    || url.hostname.endsWith(".tiles.mapbox.com")
+}
+
 /** Bounded caches: evict oldest entries (insertion order) past the cap. */
 async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName)
@@ -57,6 +67,9 @@ self.addEventListener("fetch", (event) => {
   // Same-origin API responses are never cached: an offline API must fail
   // honestly instead of serving a stale fake success.
   if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) return
+  // Mapbox Standard requests must not be intercepted by the generic image
+  // strategy; doing so can break Mapbox GL's dependent request lifecycle.
+  if (isMapboxRequest(url)) return
 
   // Navigation: network-first with a shell fallback.
   if (request.mode === "navigate") {
