@@ -1,7 +1,8 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
+import { telemetry } from "@/lib/telemetry/client"
 import { FreeRideHud } from "@/components/shell/FreeRideHud"
 import type { RecordingSessionController } from "@/components/shell/useRecordingSession"
 
@@ -55,9 +56,41 @@ const controller = {
   finish: vi.fn()
 } as unknown as RecordingSessionController
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe("Free Ride HUD", () => {
+  it("records suggestion display and rider choice without suggestion identity or GPS data", async () => {
+    const capture = vi.spyOn(telemetry, "capture")
+    const user = userEvent.setup()
+
+    render(
+      <FreeRideHud
+        controller={controller}
+        suggestion={suggestion}
+        loading={false}
+        error={null}
+        onAccept={vi.fn()}
+        onIgnore={vi.fn()}
+        onLessLikeThis={vi.fn()}
+        onExit={vi.fn()}
+      />
+    )
+
+    await waitFor(() => expect(capture).toHaveBeenCalledWith("free_ride_live_suggestion_shown", expect.objectContaining({
+      free_ride_mode: "live"
+    })))
+    await user.click(screen.getByRole("button", { name: "Accept suggestion" }))
+
+    expect(capture).toHaveBeenCalledWith("free_ride_suggestion_accepted", expect.objectContaining({
+      suggestion_outcome: "accepted"
+    }))
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("ridge-1")
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("-77.1")
+  })
+
   it("presents one safe suggestion and exposes accept, ignore, and preference controls", async () => {
     const user = userEvent.setup()
     const onAccept = vi.fn()

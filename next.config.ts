@@ -1,5 +1,27 @@
 import type { NextConfig } from "next"
 
+const POSTHOG_DEFAULT_CSP_ORIGINS = [
+  "https://us.i.posthog.com",
+  "https://us-assets.i.posthog.com",
+  "https://us.posthog.com"
+]
+
+function configuredCspOrigin(value: string | undefined): string | null {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null
+  } catch {
+    return null
+  }
+}
+
+const POSTHOG_CSP_ORIGINS = Array.from(new Set([
+  ...POSTHOG_DEFAULT_CSP_ORIGINS,
+  configuredCspOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST),
+  configuredCspOrigin(process.env.NEXT_PUBLIC_POSTHOG_UI_HOST)
+].filter((origin): origin is string => origin !== null)))
+
 // Production-only security headers. Dev keeps HMR websockets and inline
 // styles working without a CSP. The CSP intentionally allows 'unsafe-inline'
 // scripts (Next.js inlines the RSC bootstrap); the restrictive directives (connect-src, img-src,
@@ -18,11 +40,11 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
       "form-action 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'unsafe-inline' ${POSTHOG_CSP_ORIGINS.join(" ")}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline https://basemap.nationalmap.gov",
       "font-src 'self' data:",
-      "connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov",
+      `connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov ${POSTHOG_CSP_ORIGINS.join(" ")}`,
       "worker-src 'self' blob:",
       "media-src 'self' blob:"
     ].join("; ")

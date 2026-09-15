@@ -31,10 +31,32 @@ import type { StorageQuotaProjection } from "@/lib/offline/storage-quota"
 import { RegionSuitePicker } from "@/components/planner/RegionSuitePicker"
 import { StorageQuotaMeter } from "@/components/planner/StorageQuotaMeter"
 import { AriaLiveRegion } from "@/components/planner/a11y"
+import { telemetry } from "@/lib/telemetry/client"
+import type { TelemetryEventName, TelemetryEventProperties, TelemetryFileSizeBand } from "@/lib/telemetry/events"
+import { telemetryFailureClass } from "@/lib/telemetry/route"
 
 const DAILY_MANIFEST_CHECK_KEY = "switchback:region-manifest-last-check"
 const LARGE_DOWNLOAD_BYTES = 100 * 1024 * 1024
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+function telemetryOfflinePackSizeBand(bytes: number): TelemetryFileSizeBand {
+  if (!Number.isFinite(bytes) || bytes < 0) return "unknown"
+  if (bytes < 100 * 1024) return "0-100kb"
+  if (bytes < 1024 * 1024) return "100kb-1mb"
+  if (bytes < 5 * 1024 * 1024) return "1-5mb"
+  return "5mb+"
+}
+
+function captureTelemetry<EventName extends TelemetryEventName>(
+  eventName: EventName,
+  properties: TelemetryEventProperties<EventName>
+): void {
+  try {
+    telemetry.capture(eventName, properties)
+  } catch {
+    // Offline downloads must remain usable when observability is blocked.
+  }
+}
 
 interface DownloadedRegion {
   id: string
@@ -312,6 +334,14 @@ export function RegionDownloadsPanel({
       return
     }
     dispatch({ type: "set_downloading", regionId: region.id })
+    const packSizeBand = telemetryOfflinePackSizeBand(region.estimatedDownloadBytes)
+    const downloadProperties = {
+      offline_reason: "manual" as const,
+      region_count_band: "1" as const,
+      pack_size_band: packSizeBand
+    }
+    captureTelemetry("offline_pack_download_started", downloadProperties)
+    const workflow = telemetry.startWorkflow("offline_pack_download", downloadProperties)
     try {
       const graph = await client.download(region, (progress) => {
         dispatch({ type: "set_progress", regionId: region.id, progress })
@@ -326,9 +356,27 @@ export function RegionDownloadsPanel({
       void graph
       setInstalledBytes(await client.getTotalBytes())
       onRegionDownloaded?.(region.id)
+      captureTelemetry("offline_pack_download_completed", downloadProperties)
+      workflow?.end("success", downloadProperties)
     } catch (err) {
+      const failureClass = err instanceof DOMException && err.name === "AbortError"
+        ? "cancelled"
+        : telemetryFailureClass(err instanceof Error ? err.message : undefined)
+      captureTelemetry("offline_pack_download_failed", {
+        ...downloadProperties,
+        failure_class: failureClass
+      })
+      captureTelemetry("app_error", {
+        error_class: failureClass,
+        feature: "offline",
+        surface: "offline",
+        recoverable: true,
+        recovery_path: "retry",
+        user_impact: "degraded"
+      })
       if (err instanceof DOMException && err.name === "AbortError") {
         dispatch({ type: "set_paused", regionId: region.id })
+        workflow?.cancel({ ...downloadProperties, failure_class: failureClass })
         return
       }
       dispatch({
@@ -336,6 +384,7 @@ export function RegionDownloadsPanel({
         regionId: region.id,
         error: err instanceof Error ? err.message : "Download failed"
       })
+      workflow?.fail(failureClass, downloadProperties)
     }
   }, [onRegionDownloaded])
 
@@ -367,33 +416,14 @@ export function RegionDownloadsPanel({
         const rs = state.regionStates[region.id]
         if (!rs || rs.status !== "ready") continue
         if (rs.stalenessTier !== "stale" && rs.stalenessTier !== "very-stale" && rs.stalenessTier !== "aging") continue
-        dispatch({ type: "set_downloading", regionId: region.id })
-        try {
-          await client.download(region, (progress) => {
-            dispatch({ type: "set_progress", regionId: region.id, progress })
-          })
-          const entry = await client.getEntry(region.id)
-          dispatch({
-            type: "set_ready",
-            regionId: region.id,
-            builtAt: entry?.builtAt ?? new Date().toISOString(),
-            bundleVersion: entry?.bundleVersion ?? "0"
-          })
-          onRegionDownloaded?.(region.id)
-        } catch (err) {
-          dispatch({
-            type: "set_error",
-            regionId: region.id,
-            error: err instanceof Error ? err.message : "Update failed"
-          })
-        }
+        await downloadRegion(region, { confirmed: true })
       }
       setInstalledBytes(await client.getTotalBytes())
       setNotice("Wi-Fi update finished. Routing is never blocked based on age alone.")
     } finally {
       setUpdateAllRunning(false)
     }
-  }, [onRegionDownloaded, state.regionStates])
+  }, [downloadRegion, state.regionStates])
 
   /**
    * Conservative Wi-Fi check (SB-009): only a provable Wi-Fi/Ethernet link

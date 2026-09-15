@@ -5,6 +5,7 @@ import { routeEntityCache } from "@/lib/client/route-entity-cache"
 import { requestTripPlan } from "@/lib/client/routing-client"
 import type { TripPlan, TripPlanRequest } from "@/lib/routing/planner"
 import type { PlannedRoute } from "@/lib/routing/types"
+import type { TelemetryController } from "@/lib/telemetry/client"
 import { initialPlannerState, usePlannerStore } from "@/stores/planner-store"
 
 /**
@@ -41,6 +42,7 @@ function route(id: string): PlannedRoute {
     roadMix: {},
     surfaceMix: {},
     routingSource: "live",
+    provider: "graphhopper",
     previewOnly: false
   }
 }
@@ -58,6 +60,27 @@ function primaryRequests(): TripPlanRequest[] {
 
 function renderOrchestrator(onWarning = vi.fn()) {
   return { onWarning, ...renderHook(() => usePlanningOrchestrator({ onWarning })) }
+}
+
+function fakeTelemetry() {
+  const span = {
+    spanId: "span-planner",
+    end: vi.fn(() => true),
+    cancel: vi.fn(() => true),
+    fail: vi.fn(() => true),
+    abandon: vi.fn(() => true),
+    step: vi.fn()
+  }
+  const telemetry = {
+    capture: vi.fn(),
+    identify: vi.fn(() => true),
+    resetIdentity: vi.fn(),
+    startWorkflow: vi.fn(() => span),
+    visibilityChanged: vi.fn(),
+    getReleaseContext: vi.fn(() => null),
+    initialize: vi.fn(() => "initialized" as const)
+  } as unknown as TelemetryController
+  return { telemetry, span }
 }
 
 beforeEach(() => {
@@ -79,6 +102,84 @@ afterEach(() => {
 })
 
 describe("planning orchestrator", () => {
+  it("captures a safe planner request, result, and workflow span", async () => {
+    usePlannerStore.setState({ start, finish })
+    const { telemetry, span } = fakeTelemetry()
+    const { result } = renderHook(() => usePlanningOrchestrator({ onWarning: vi.fn(), telemetry }))
+
+    await act(async () => { await result.current.plan() })
+
+    expect(telemetry.capture).toHaveBeenCalledWith("route_plan_requested", expect.objectContaining({
+      route_mode: "destination",
+      route_source: "manual",
+      waypoint_count_band: "2-3"
+    }))
+    expect(telemetry.capture).toHaveBeenCalledWith("route_plan_succeeded", expect.objectContaining({
+      route_mode: "destination",
+      success: true,
+      candidate_count: 1
+    }))
+    expect(telemetry.capture).toHaveBeenCalledWith("provider_request_started", expect.objectContaining({
+      operation: "route-plan-primary",
+      provider: "unknown"
+    }))
+    expect(telemetry.capture).toHaveBeenCalledWith("provider_request_completed", expect.objectContaining({
+      operation: "route-plan-primary",
+      provider_set: "graphhopper"
+    }))
+    expect(telemetry.startWorkflow).toHaveBeenCalledWith("planner_to_first_routes", expect.objectContaining({
+      route_mode: "destination",
+      route_source: "manual"
+    }))
+    expect(span.end).toHaveBeenCalledWith("success", expect.objectContaining({ candidate_count: 1 }))
+  })
+
+  it("closes the plan-to-navigation span only when guidance actually starts", async () => {
+    usePlannerStore.setState({ start, finish })
+    const { telemetry, span } = fakeTelemetry()
+    const { result } = renderHook(() => usePlanningOrchestrator({ onWarning: vi.fn(), telemetry }))
+
+    await act(async () => { await result.current.plan() })
+    act(() => { result.current.markNavigationStarted(route("route-primary")) })
+
+    expect(telemetry.capture).toHaveBeenCalledWith("navigation_started", expect.objectContaining({
+      selected_candidate_role: "balanced"
+    }))
+    expect(span.end).toHaveBeenLastCalledWith("success", expect.objectContaining({
+      navigation_started: true
+    }))
+  })
+
+  it("captures a bounded failure and closes the planner span", async () => {
+    usePlannerStore.setState({ start, finish })
+    vi.mocked(requestTripPlan).mockRejectedValueOnce(new Error("provider exploded"))
+    const { telemetry, span } = fakeTelemetry()
+    const { result } = renderHook(() => usePlanningOrchestrator({ onWarning: vi.fn(), telemetry }))
+
+    await act(async () => { await expect(result.current.plan()).resolves.toBeNull() })
+
+    expect(telemetry.capture).toHaveBeenCalledWith("route_plan_failed", expect.objectContaining({
+      route_mode: "destination",
+      success: false,
+      failure_class: "provider-failure"
+    }))
+    expect(telemetry.capture).toHaveBeenCalledWith("provider_request_failed", expect.objectContaining({
+      operation: "route-plan-primary",
+      failure_class: "provider-failure"
+    }))
+    expect(telemetry.capture).toHaveBeenCalledWith("app_error", {
+      error_class: "provider-failure",
+      feature: "planner",
+      surface: "planner",
+      recoverable: true,
+      recovery_path: "retry",
+      user_impact: "degraded"
+    })
+    expect(span.fail).toHaveBeenCalledWith("provider-failure", expect.objectContaining({
+      route_mode: "destination"
+    }))
+  })
+
   it("plans the ride the store holds now, not the one a callback captured", async () => {
     usePlannerStore.setState({ start, finish, profile: "balanced" })
     const { result } = renderOrchestrator()

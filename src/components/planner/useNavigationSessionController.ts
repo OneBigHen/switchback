@@ -28,6 +28,10 @@ import {
   type NavigationSessionViewModel
 } from "@/lib/client/navigation-session"
 import { navigationStore } from "@/stores/navigation-store"
+import { telemetry as defaultTelemetry, type TelemetryController } from "@/lib/telemetry/client"
+import type { TelemetryEventName, TelemetryEventProperties, TelemetryProvider, TelemetryRerouteProperties } from "@/lib/telemetry/events"
+import type { WorkflowSpanHandle } from "@/lib/telemetry/spans"
+import { latencyProperties, routeTelemetryProperties, telemetryFailureClass } from "@/lib/telemetry/route"
 
 export type GpsState = "acquiring" | "ready" | "weak" | "error"
 export type RejoinPolicy = "nearest-safe" | "next-shaping-point" | "skip-point" | "preserve-original" | "fuel-detour"
@@ -41,6 +45,7 @@ export interface NavigationSessionControllerInput {
   onReroute?(route: PlannedRoute): void
   onRideRecorded?(input: { route: PlannedRoute; points: RecordedRidePoint[] }): void
   onNavigationFrame?(frame: NavigationFrame | null): void
+  telemetry?: TelemetryController
 }
 
 export interface NavigationSessionControllerCommands {
@@ -80,6 +85,27 @@ export function instructionDistance(meters: number): string {
 
 type RecoveryMode = RejoinPolicy | "automatic"
 
+function captureTelemetry<EventName extends TelemetryEventName>(
+  controller: TelemetryController,
+  eventName: EventName,
+  properties: TelemetryEventProperties<EventName>
+): void {
+  try {
+    controller.capture(eventName, properties)
+  } catch {
+    // Guidance must remain usable when observability is blocked.
+  }
+}
+
+function rerouteReason(mode: RecoveryMode): NonNullable<TelemetryRerouteProperties["reroute_reason"]> {
+  return mode === "fuel-detour" ? "rider-edit" : mode === "automatic" ? "off-route" : "off-route"
+}
+
+function telemetryProvider(route: PlannedRoute | null, fallback: TelemetryProvider = "unknown"): TelemetryProvider {
+  if (route?.provider === "graphhopper" || route?.provider === "valhalla") return route.provider
+  return fallback
+}
+
 function isTrackGuidanceFrame(route: PlannedRoute, frame: NavigationFrame): boolean {
   return route.navigationMode === "track-only" ||
     (route.navigationMode === "continuous-track" &&
@@ -112,7 +138,8 @@ export function useNavigationSessionController({
   onExit,
   onReroute,
   onRideRecorded,
-  onNavigationFrame
+  onNavigationFrame,
+  telemetry: telemetryController = defaultTelemetry
 }: NavigationSessionControllerInput): NavigationSessionController {
   const navigationModel = useMemo(() => buildNavigationModel(route), [route])
   const initialFrame = useMemo(
@@ -160,6 +187,7 @@ export function useNavigationSessionController({
   const rerouteInFlightRef = useRef(false)
   const rerouteVersionRef = useRef(0)
   const rerouteAbortRef = useRef<AbortController | null>(null)
+  const rerouteSpanRef = useRef<WorkflowSpanHandle | null>(null)
   const automaticRerouteStartedRef = useRef(false)
   const rerouteHandlerRef = useRef(onReroute)
   const navigationFrameHandlerRef = useRef(onNavigationFrame)
@@ -307,6 +335,8 @@ export function useNavigationSessionController({
         // this re-armed the automatic reroute and left the request running,
         // so the route was replaced seconds later anyway.
         rerouteVersionRef.current += 1
+        rerouteSpanRef.current?.cancel({ reason: "rider-kept-original", success: false })
+        rerouteSpanRef.current = null
         rerouteAbortRef.current?.abort()
         rerouteAbortRef.current = null
         rerouteInFlightRef.current = false
@@ -326,8 +356,17 @@ export function useNavigationSessionController({
         mode: mode as RideRerouteMode,
         fuelStop
       })
+      const reason = rerouteReason(mode)
+      const rerouteSpan = telemetryController.startWorkflow("reroute_recovery", {
+        reroute_reason: reason,
+        route_mode: "unknown",
+        route_source: "replan"
+      })
+      rerouteSpanRef.current = rerouteSpan
       if (!points) {
         setRerouteStatus("error")
+        rerouteSpan?.fail("missing-input", { success: false })
+        if (rerouteSpanRef.current === rerouteSpan) rerouteSpanRef.current = null
         return
       }
 
@@ -349,6 +388,17 @@ export function useNavigationSessionController({
       // stuck on "Finding a safe way back…" indefinitely.
       const rerouteDeadline = AbortSignal.timeout(30_000)
       const rerouteSignal = AbortSignal.any([requestController.signal, rerouteDeadline])
+      const startedAt = Date.now()
+      const rerouteProperties: TelemetryRerouteProperties = {
+        ...routeTelemetryProperties(route, [route], { routeSource: "replan" }),
+        reroute_reason: reason
+      }
+      captureTelemetry(telemetryController, "route_reroute_triggered", rerouteProperties)
+      captureTelemetry(telemetryController, "provider_request_started", {
+        ...rerouteProperties,
+        operation: "reroute",
+        provider: "unknown"
+      })
 
       void resolveReroute({
         route,
@@ -356,22 +406,96 @@ export function useNavigationSessionController({
         online: navigator.onLine !== false,
         signal: rerouteSignal
       }).then((resolution) => {
-        if (requestVersion !== rerouteVersionRef.current) return
+        if (requestVersion !== rerouteVersionRef.current) {
+          rerouteSpan?.abandon({ reason: "superseded", success: false })
+          return
+        }
         if (rerouteAbortRef.current === requestController) rerouteAbortRef.current = null
         rerouteInFlightRef.current = false
         dispatch({ type: "cancelReroute" })
         setRerouteStatus("idle")
         if (resolution.source !== "online") setGpsMessage("Offline routing (beta) · verify turns, accuracy varies")
+        const resolvedRouteProperties = {
+          ...routeTelemetryProperties(resolution.route, [resolution.route], {
+            routeSource: resolution.source === "online" ? "replan" : "offline-recovery"
+          }),
+          reroute_reason: reason,
+          ...latencyProperties(Date.now() - startedAt),
+          success: true as const
+        }
+        const resolvedProvider = telemetryProvider(
+          resolution.route,
+          resolution.source === "regional-offline" ? "regional-offline" : resolution.source === "offline-pack" ? "offline-pack" : "unknown"
+        )
+        rerouteSpan?.end("success", {
+          success: true,
+          provider: resolvedProvider
+        })
+        if (rerouteSpanRef.current === rerouteSpan) rerouteSpanRef.current = null
+        captureTelemetry(telemetryController, "route_reroute_completed", resolvedRouteProperties)
+        captureTelemetry(telemetryController, "provider_request_completed", {
+          ...resolvedRouteProperties,
+          operation: "reroute",
+          provider: resolvedProvider
+        })
+        if (resolution.source !== "online") {
+          captureTelemetry(telemetryController, "offline_route_planned", {
+            ...resolvedRouteProperties,
+            offline_reason: navigator.onLine === false ? "browser-offline" : "no-network"
+          })
+          if (navigator.onLine !== false) {
+            captureTelemetry(telemetryController, "provider_fallback_used", {
+              ...resolvedRouteProperties,
+              operation: "reroute",
+              provider: resolvedProvider,
+              fallback_from: "unknown",
+              fallback_to: resolvedProvider
+            })
+          }
+        }
         rerouteHandlerRef.current?.(resolution.route)
-      }).catch(() => {
-        if (requestVersion !== rerouteVersionRef.current) return
+      }).catch((caught) => {
+        if (requestVersion !== rerouteVersionRef.current) {
+          rerouteSpan?.abandon({ reason: "superseded", success: false })
+          return
+        }
         if (rerouteAbortRef.current === requestController) rerouteAbortRef.current = null
         setRerouteStatus("error")
         rerouteInFlightRef.current = false
         automaticRerouteStartedRef.current = false
+        const failureClass = caught !== null && typeof caught === "object" && (caught as { name?: unknown }).name === "TimeoutError"
+          ? "provider-timeout"
+          : caught !== null && typeof caught === "object" && (caught as { name?: unknown }).name === "AbortError"
+            ? "cancelled"
+            : telemetryFailureClass(caught instanceof Error ? caught.message : undefined)
+        const failureProperties = {
+          ...rerouteProperties,
+          ...latencyProperties(Date.now() - startedAt),
+          success: false as const,
+          failure_class: failureClass
+        }
+        if (failureClass === "cancelled") {
+          rerouteSpan?.cancel({ success: false, failure_class: failureClass })
+        } else {
+          rerouteSpan?.fail(failureClass, { success: false })
+        }
+        if (rerouteSpanRef.current === rerouteSpan) rerouteSpanRef.current = null
+        captureTelemetry(telemetryController, "route_reroute_failed", failureProperties)
+        captureTelemetry(telemetryController, "provider_request_failed", {
+          ...failureProperties,
+          operation: "reroute",
+          provider: "unknown"
+        })
+        if (failureClass === "provider-timeout") {
+          captureTelemetry(telemetryController, "provider_timeout", {
+            ...failureProperties,
+            operation: "reroute",
+            provider: "unknown"
+          })
+        }
       })
     },
-    [route, navigationModel, dispatch]
+    [route, navigationModel, dispatch, telemetryController]
   )
 
   useEffect(() => {
@@ -714,6 +838,8 @@ export function useNavigationSessionController({
     return () => {
       disposed = true
       rerouteVersionRef.current += 1
+      rerouteSpanRef.current?.abandon({ reason: "navigation_unmounted", success: false })
+      rerouteSpanRef.current = null
       rerouteAbortRef.current?.abort()
       rerouteAbortRef.current = null
       rerouteInFlightRef.current = false

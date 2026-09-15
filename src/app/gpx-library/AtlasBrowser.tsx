@@ -2,7 +2,10 @@
 
 import { RouteDiscoverySurface } from "@/components/route-library/RouteDiscoverySurface"
 import type { QuickChipId } from "@/components/route-library/route-discovery-state"
+import { telemetry } from "@/lib/telemetry/client"
+import { telemetryCountBand } from "@/lib/telemetry/route"
 import type { AtlasBrowseRoute } from "./atlas-browse"
+import { useEffect } from "react"
 
 /**
  * The GPX Library, list-first.
@@ -38,6 +41,14 @@ export function AtlasBrowser({
   totalMiles,
   updatedLabel
 }: AtlasBrowserProps) {
+  useEffect(() => {
+    telemetry.capture("gpx_library_opened", {
+      source_class: "catalog",
+      format: "gpx",
+      route_count_band: telemetryCountBand(routeCount)
+    })
+  }, [routeCount])
+
   return (
     <RouteDiscoverySurface
       routes={routes}

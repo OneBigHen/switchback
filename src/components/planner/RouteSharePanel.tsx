@@ -5,6 +5,8 @@ import { useMemo, useState } from "react"
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand"
 import { createPortableShare, type PrivacyZone } from "@/lib/share/route-share"
 import type { PlannedRoute } from "@/lib/routing/types"
+import { telemetry } from "@/lib/telemetry/client"
+import { routeTelemetryProperties } from "@/lib/telemetry/route"
 
 interface RouteSharePanelProps {
   route: PlannedRoute
@@ -32,6 +34,19 @@ export function RouteSharePanel({ route, onShareCreated }: RouteSharePanelProps)
 
   const buildShare = async (nativeShare: boolean) => {
     try {
+      telemetry.capture("primary_action_invoked", {
+        surface: "plan",
+        control: "unknown",
+        action: "share"
+      })
+    } catch {
+      // Sharing remains available when observability is blocked.
+    }
+    const workflow = telemetry.startWorkflow("share_flow", {
+      route_mode: "unknown",
+      route_source: "manual"
+    })
+    try {
       const share = createPortableShare(route, zones, window.location.origin)
       if (nativeShare && navigator.share) {
         await navigator.share({ title: route.name, text: `A private ${PRODUCT_BRAND.name} route copy.`, url: share.url })
@@ -40,10 +55,23 @@ export function RouteSharePanel({ route, onShareCreated }: RouteSharePanelProps)
         await navigator.clipboard.writeText(share.url)
         setMessage("Private route link copied. Anyone opening it gets an editable copy, not your live route.")
       } else {
+        workflow?.cancel({ reason: "share-unavailable", success: false })
         setMessage("Your browser cannot copy automatically. Use the Share button to send the private route copy.")
+        return
       }
+      try {
+        telemetry.capture("route_shared", routeTelemetryProperties(route, [route]))
+      } catch {
+        // Sharing remains successful when telemetry is blocked.
+      }
+      workflow?.end("success", { success: true })
       onShareCreated?.(share.url)
     } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        workflow?.cancel({ reason: "rider-cancelled", success: false })
+      } else {
+        workflow?.fail("unknown", { success: false })
+      }
       setMessage(caught instanceof Error ? caught.message : "Private route link could not be created.")
     }
   }

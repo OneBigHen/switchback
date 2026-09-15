@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AtlasBrowser } from "@/app/gpx-library/AtlasBrowser"
 import type { AtlasBrowseRoute } from "@/app/gpx-library/atlas-browse"
+import { telemetry } from "@/lib/telemetry/client"
 
 vi.mock("@/lib/client/near-me", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/client/near-me")>(),
@@ -112,6 +113,28 @@ describe("GPX Library discovery", () => {
 
     expect(screen.getByRole("heading", { name: "GPX Library" })).toBeInTheDocument()
     expect(screen.getByText(/2 routes · 153 miles · Updated Sep 9, 2026/)).toBeInTheDocument()
+  })
+
+  it("records library entry and bounded filter changes without search text", () => {
+    const capture = vi.spyOn(telemetry, "capture")
+    renderBrowser()
+
+    expect(capture).toHaveBeenCalledWith("gpx_library_opened", expect.objectContaining({
+      source_class: "catalog",
+      format: "gpx",
+      route_count_band: "2-3"
+    }))
+
+    openFilters()
+    fireEvent.click(screen.getByRole("button", { name: "Under 50 mi" }))
+
+    expect(capture).toHaveBeenCalledWith("gpx_filter_changed", expect.objectContaining({
+      source_class: "catalog",
+      filter_kind: "length",
+      filter_state: "applied",
+      active_filter_count: 1
+    }))
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("Water Gap")
   })
 
   it("shows a truthful card: clean name, distance, known duration only, area and saved state", () => {

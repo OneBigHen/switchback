@@ -21,6 +21,8 @@ import {
 } from "@/lib/client/map-experience"
 import { availableMapPresets, type MapPresetId } from "@/lib/client/map-preset-registry"
 import { provenanceSummary } from "@/lib/client/map-data-provenance"
+import { telemetry } from "@/lib/telemetry/client"
+import type { TelemetryMapLayer, TelemetryMapStyle } from "@/lib/telemetry/events"
 import { subscribeMapEdit } from "./map-edit-command"
 import { useMapLayerMenu } from "./useMapLayerMenu"
 import { LayersSheet } from "./v2/LayersSheet"
@@ -84,6 +86,22 @@ function mapPresetChoices(premium: boolean): { id: MapPresetId; label: string }[
     .map((preset) => ({ id: preset.id, label: PRESET_LABELS[preset.id] }))
 }
 
+function telemetryMapStyle(preset: MapPresetId): TelemetryMapStyle {
+  return preset === "road" ? "standard" : preset
+}
+
+function telemetryMapLayer(id: RiderLayerId): TelemetryMapLayer {
+  switch (id) {
+    case "curvature": return "curvature"
+    case "unpaved": return "unpaved"
+    case "gravel-atlas": return "gravel-atlas"
+    case "closures": return "closures"
+    case "road-controls": return "road-controls"
+    case "live-traffic": return "traffic"
+    default: return "unknown"
+  }
+}
+
 export function MapStageLayerControl({
   avoidMode,
   mapPreset,
@@ -138,6 +156,27 @@ export function MapStageLayerControl({
     closeLayerMenu()
   }
 
+  const handleMapPresetChange = (next: MapPresetId) => {
+    telemetry.capture("map_style_changed", {
+      surface: "plan",
+      control: "style",
+      map_style: telemetryMapStyle(next)
+    })
+    onMapPresetChange(next)
+  }
+
+  const handleRiderLayerChange = (id: RiderLayerId, patch: Partial<Pick<RiderLayerSetting, "visible" | "opacity">>) => {
+    if (typeof patch.visible === "boolean") {
+      telemetry.capture("map_layer_toggled", {
+        surface: "plan",
+        control: "layer",
+        layer: telemetryMapLayer(id),
+        enabled: patch.visible
+      })
+    }
+    onRiderLayerChange(id, patch)
+  }
+
   const toggleMenu = () => {
     if (layerMenuOpen) setAdvancedOpen(false)
     toggleLayerMenu()
@@ -188,8 +227,8 @@ export function MapStageLayerControl({
             premiumExperiences={premiumExperiences}
             riderLayers={riderLayers}
             quickLayerIds={QUICK_LAYER_IDS}
-            onMapPresetChange={onMapPresetChange}
-            onRiderLayerVisibilityChange={(id, visible) => onRiderLayerChange(id, { visible })}
+            onMapPresetChange={handleMapPresetChange}
+            onRiderLayerVisibilityChange={(id, visible) => handleRiderLayerChange(id, { visible })}
             onOpenAdvanced={() => setAdvancedOpen(true)}
           />
         ) : (
@@ -206,7 +245,7 @@ export function MapStageLayerControl({
                 key={choice.id}
                 role="radio"
                 aria-checked={mapPreset === choice.id}
-                onClick={() => onMapPresetChange(choice.id)}
+                onClick={() => handleMapPresetChange(choice.id)}
               >
                 <span className={`style-swatch style-${choice.id}`} aria-hidden="true" />
                 {choice.label}
@@ -276,7 +315,7 @@ export function MapStageLayerControl({
               }
             })()
             return <label key={definition.id} className={layerState ? `has-layer-state is-${layerState}` : undefined}>
-              <input type="checkbox" checked={setting.visible} onChange={(event) => onRiderLayerChange(definition.id, { visible: event.target.checked })} />
+              <input type="checkbox" checked={setting.visible} onChange={(event) => handleRiderLayerChange(definition.id, { visible: event.target.checked })} />
               <span className={`overlay-key ${definition.id === "unpaved" ? "unpaved-key" : definition.id === "curvature" ? "curvature-key" : "catalog-key"}`} aria-hidden="true" />
               <span className="overlay-meta"><b>{definition.name}</b><small>{detail}</small><small className="layer-freshness">{definition.freshness} · zoom {definition.minZoom}+</small><small className="layer-legend">Legend: {definition.legend}</small><small className="layer-confidence">Confidence: {riderLayerConfidence(definition)}</small>
                 <span className="layer-order-controls"><button type="button" aria-label={`Move ${definition.name} earlier`} disabled={index === 0} onClick={() => onMoveRiderLayer(definition.id, "earlier")}>Up</button><button type="button" aria-label={`Move ${definition.name} later`} disabled={index === catalogSettings.length - 1} onClick={() => onMoveRiderLayer(definition.id, "later")}>Down</button></span>
@@ -297,7 +336,7 @@ export function MapStageLayerControl({
         <div className="map-provenance-options"><strong>Data sources</strong><small className="map-provenance-summary">{provenanceSummary().authoritative} authoritative · {provenanceSummary().heuristic} heuristic · {provenanceSummary().live} live updates</small><ul>{catalogSettings.map(({ definition }) => <li key={definition.id}><b>{definition.name}</b><span>{definition.provenance}</span></li>)}</ul></div>
         <div className="route-visibility-options"><strong>Route visibility</strong><label><input type="checkbox" checked={routeVisibility === "high-contrast"} onChange={(event) => onRouteVisibilityChange(event.target.checked ? "high-contrast" : "standard")} />High contrast route line</label></div>
         <div className="map-pack-options"><strong>Rider Map Packs</strong><div className="map-pack-save"><input value={mapPackName} maxLength={80} placeholder="Name this setup" aria-label="New map pack name" onChange={(event) => setMapPackName(event.target.value)} /><button type="button" onClick={saveMapPack}>Save</button></div>{mapPacks.length > 0 ? <div className="map-pack-list">{mapPacks.slice(0, 5).map((pack) => <button key={pack.id} type="button" onClick={() => onApplyMapPack(pack.id)}>{pack.name}</button>)}</div> : <small>Saved only on this device.</small>}</div>
-        <div className="reference-map-options"><strong>Reference map or screenshot</strong><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Add reference map image" onChange={(event) => { onReferenceFile(event.currentTarget.files?.[0]); event.currentTarget.value = "" }} />{referenceMap ? <div className="reference-map-actions"><span>{referenceMap.name}</span><label>Opacity<input type="range" min="0.1" max="1" step="0.05" value={referenceMap.opacity} aria-label="Reference map opacity" onChange={(event) => onReferenceMapChange({ ...referenceMap, opacity: Number(event.target.value) })} /></label><button type="button" onClick={onAlignReferenceToView}>Align to current view</button><button type="button" onClick={onRemoveReferenceMap}>Remove</button></div> : null}<small>{referenceMessage || "Kept on this device. Align it over the live map, then trace the intended line."}</small></div>
+        <div className="reference-map-options"><strong>Reference map or screenshot</strong><input type="file" data-telemetry-replay-block="true" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Add reference map image" onChange={(event) => { onReferenceFile(event.currentTarget.files?.[0]); event.currentTarget.value = "" }} />{referenceMap ? <div className="reference-map-actions"><span data-telemetry-replay-mask="true">{referenceMap.name}</span><label>Opacity<input type="range" min="0.1" max="1" step="0.05" value={referenceMap.opacity} aria-label="Reference map opacity" onChange={(event) => onReferenceMapChange({ ...referenceMap, opacity: Number(event.target.value) })} /></label><button type="button" onClick={onAlignReferenceToView}>Align to current view</button><button type="button" onClick={onRemoveReferenceMap}>Remove</button></div> : null}<small>{referenceMessage || "Kept on this device. Align it over the live map, then trace the intended line."}</small></div>
           </>
         )}
       </div> : null}

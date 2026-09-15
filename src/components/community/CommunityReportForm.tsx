@@ -40,7 +40,7 @@ export function CommunityReportForm({ routeId }: { routeId: string }) {
       <p>Authenticate with your passkey so operators can review a bounded report.</p>
       <label>
         Reason
-        <textarea value={reason} maxLength={500} required onChange={(event) => setReason(event.currentTarget.value)} />
+        <textarea data-telemetry-replay-block="true" value={reason} maxLength={500} required onChange={(event) => setReason(event.currentTarget.value)} />
       </label>
       <button type="submit" disabled={busy || reason.trim().length === 0}>{busy ? "Sending…" : "Authenticate and report"}</button>
       {message ? <p role="status">{message}</p> : null}

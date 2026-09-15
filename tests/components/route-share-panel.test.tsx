@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { PlannedRoute } from "@/lib/routing/types"
 import { RouteSharePanel } from "@/components/planner/RouteSharePanel"
+import { telemetry } from "@/lib/telemetry/client"
+import type { WorkflowSpanHandle } from "@/lib/telemetry/spans"
 
 function longRoute(): PlannedRoute {
   // ~0.95 degrees of latitude (~106 km / ~66 mi) — comfortably longer than a
@@ -27,7 +29,10 @@ function longRoute(): PlannedRoute {
   }
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe("RouteSharePanel", () => {
   beforeEach(() => {
@@ -39,6 +44,37 @@ describe("RouteSharePanel", () => {
       value: vi.fn(async () => undefined),
       configurable: true
     })
+  })
+
+  it("records successful sharing with route aggregates and no generated link", async () => {
+    const capture = vi.spyOn(telemetry, "capture")
+    const end = vi.fn(() => true)
+    const startWorkflow = vi.spyOn(telemetry, "startWorkflow").mockReturnValue({
+      spanId: "share-span",
+      end,
+      cancel: vi.fn(() => true),
+      fail: vi.fn(() => true),
+      abandon: vi.fn(() => true),
+      step: vi.fn()
+    } satisfies WorkflowSpanHandle)
+    render(<RouteSharePanel route={longRoute()} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /Copy private link/i }))
+
+    await waitFor(() => expect(capture).toHaveBeenCalledWith("route_shared", expect.objectContaining({
+      selected_candidate_role: "twisty"
+    })))
+    expect(capture).toHaveBeenCalledWith("primary_action_invoked", {
+      surface: "plan",
+      control: "unknown",
+      action: "share"
+    })
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("blob:")
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("Long ridge run")
+    expect(startWorkflow).toHaveBeenCalledWith("share_flow", expect.objectContaining({
+      route_source: "manual"
+    }))
+    expect(end).toHaveBeenCalledWith("success", expect.objectContaining({ success: true }))
   })
 
   it("clamps a manually-typed out-of-range privacy radius instead of redacting the whole route", async () => {

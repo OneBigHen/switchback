@@ -1,20 +1,25 @@
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { MapStage } from "@/components/planner/MapStage"
 import { cancelMapEdit, requestMapEdit } from "@/components/planner/map-edit-command"
 import type { NavigationFrame } from "@/lib/client/navigation-engine"
+import { telemetry } from "@/lib/telemetry/client"
 
 vi.mock("maplibre-gl", () => ({}))
 
 // requestMapEdit schedules focus retries and a MutationObserver that outlive the
 // React tree; drop that in-flight state before the environment tears down.
 afterEach(cancelMapEdit)
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe("map layer controls", () => {
   it("mounts the bounded V2 quick layer surface and keeps specialized controls behind Advanced", async () => {
     const user = userEvent.setup()
+    const capture = vi.spyOn(telemetry, "capture")
     render(
       <MapStage
         routes={[]}
@@ -69,6 +74,20 @@ describe("map layer controls", () => {
     expect(screen.getByRole("checkbox", { name: "Great roads" })).toBeVisible()
     expect(screen.queryByText(/OpenGravel road-shape analysis/i)).not.toBeInTheDocument()
 
+    await user.click(screen.getByRole("radio", { name: "Terrain" }))
+    expect(capture).toHaveBeenCalledWith("map_style_changed", expect.objectContaining({
+      surface: "plan",
+      control: "style",
+      map_style: "terrain"
+    }))
+    await user.click(screen.getByRole("checkbox", { name: "Great roads" }))
+    expect(capture).toHaveBeenCalledWith("map_layer_toggled", expect.objectContaining({
+      surface: "plan",
+      control: "layer",
+      layer: "curvature",
+      enabled: false
+    }))
+
     await user.click(screen.getByRole("button", { name: "Advanced map settings" }))
     expect(screen.getByText(/OpenGravel road-shape analysis/i)).toBeVisible()
     // Basemaps are the preset radio group above, never a second overlay
@@ -79,6 +98,7 @@ describe("map layer controls", () => {
   })
 
   it("exposes a touch-sized recenter control for the shared ride navigation frame", () => {
+    const capture = vi.spyOn(telemetry, "capture")
     const navigationFrame = {
       status: "navigating",
       rawCoordinate: [-76.9, 40],
@@ -126,7 +146,13 @@ describe("map layer controls", () => {
       />
     )
 
-    expect(screen.getByRole("button", { name: "Recenter map on current location" })).toBeVisible()
+    const recenter = screen.getByRole("button", { name: "Recenter map on current location" })
+    expect(recenter).toBeVisible()
+    fireEvent.click(recenter)
+    expect(capture).toHaveBeenCalledWith("map_recenter_used", expect.objectContaining({
+      surface: "ride",
+      control: "recenter"
+    }))
   })
 
   it("closes the layer popover with Escape", async () => {

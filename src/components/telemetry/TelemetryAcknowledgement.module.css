@@ -1,0 +1,125 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgb(22 29 28 / 70%);
+  backdrop-filter: blur(8px);
+}
+
+.panel {
+  width: min(620px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: clamp(22px, 5vw, 40px);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-panel);
+  background: var(--sb-surface);
+  box-shadow: 0 24px 72px rgb(0 0 0 / 30%);
+  color: var(--sb-text);
+}
+
+.eyebrow {
+  margin-bottom: var(--sb-space-2);
+  color: var(--sb-ember-strong);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.panel h1 {
+  margin: 0;
+  font-size: clamp(30px, 7vw, 46px);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.lede,
+.protection,
+.note {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.lede {
+  margin: 16px 0 0;
+  color: var(--sb-text);
+}
+
+.scope {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+  padding: 16px 16px 16px 32px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-card);
+  background: var(--sb-surface-raised);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.scope li::marker {
+  color: var(--sb-ember-strong);
+}
+
+.protection {
+  margin: 0;
+  color: var(--sb-text);
+}
+
+.note {
+  margin: 12px 0 0;
+  color: var(--sb-text-muted);
+}
+
+.specLink {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--sb-text-link);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.actions button {
+  min-height: var(--sb-touch-target);
+  padding: 0 16px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-control);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.primary {
+  border-color: var(--sb-spruce) !important;
+  background: var(--sb-spruce);
+  color: var(--sb-paper);
+}
+
+.secondary {
+  background: transparent;
+  color: var(--sb-text);
+}
+
+.actions button:focus-visible,
+.specLink:focus-visible {
+  outline: 3px solid var(--sb-focus-fill);
+  outline-offset: 3px;
+}
+
+@media (min-width: 560px) {
+  .actions {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  }
+}

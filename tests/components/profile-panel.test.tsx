@@ -20,6 +20,7 @@ const syncController = vi.hoisted(() => ({
 vi.mock("@/lib/client/passkey", () => passkey)
 vi.mock("@/lib/client/sync-controller", () => ({ createSyncController: vi.fn(() => syncController) }))
 import { ProfilePanel } from "@/components/shell/ProfilePanel"
+import { telemetry } from "@/lib/telemetry/client"
 
 describe("ProfilePanel advanced account and data tools", () => {
   beforeEach(() => {
@@ -84,11 +85,13 @@ describe("ProfilePanel advanced account and data tools", () => {
   })
 
   it("offers optional passkey identity without reintroducing rider settings controls", async () => {
+    const identify = vi.spyOn(telemetry, "identify")
     render(<ProfilePanel onOpenDownloads={vi.fn()} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Create OpenGravel ID" }))
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/OpenGravel ID ready/i))
     expect(passkey.registerPasskey).toHaveBeenCalledOnce()
+    expect(identify).toHaveBeenCalledWith("rider-12345678901234567890")
 
     fireEvent.click(screen.getByRole("button", { name: "Use existing passkey" }))
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Signed in/i))
@@ -101,6 +104,8 @@ describe("ProfilePanel advanced account and data tools", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export recovery kit" }))
     await waitFor(() => expect(screen.getByTitle("OpenGravel encrypted sync recovery QR code")).toBeInTheDocument())
     expect(screen.getByText(/SB1\.ns-profile-test-1/)).toBeVisible()
+    expect(screen.getByRole("textbox", { name: "Recovery seed" })).toHaveAttribute("data-telemetry-replay-mask", "true")
+    expect(screen.getByLabelText("Recovery kit")).toHaveAttribute("data-telemetry-replay-block", "true")
     expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled()
 
     fireEvent.click(screen.getByRole("button", { name: "Authenticate and link device" }))
