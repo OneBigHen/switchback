@@ -22,6 +22,19 @@ const POSTHOG_CSP_ORIGINS = Array.from(new Set([
   configuredCspOrigin(process.env.NEXT_PUBLIC_POSTHOG_UI_HOST)
 ].filter((origin): origin is string => origin !== null)))
 
+// Mapbox Standard is an opt-in browser renderer. Its style, glyph, sprite,
+// terrain and telemetry requests stay behind the CSP even though the public
+// access token is intentionally compiled into the client. These hosts are
+// allowed unconditionally because the renderer falls back to MapLibre when no
+// Mapbox token is configured; the token's URL restrictions remain the provider
+// boundary.
+const MAPBOX_CSP_ORIGINS = [
+  "https://api.mapbox.com",
+  "https://events.mapbox.com",
+  "https://tiles.mapbox.com",
+  "https://*.tiles.mapbox.com"
+]
+
 // Production-only security headers. Dev keeps HMR websockets and inline
 // styles working without a CSP. The CSP intentionally allows 'unsafe-inline'
 // scripts (Next.js inlines the RSC bootstrap); the restrictive directives (connect-src, img-src,
@@ -42,9 +55,9 @@ const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
       "object-src 'none'",
       `script-src 'self' 'unsafe-inline' ${POSTHOG_CSP_ORIGINS.join(" ")}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline https://basemap.nationalmap.gov",
+      `img-src 'self' data: blob: https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline https://basemap.nationalmap.gov ${MAPBOX_CSP_ORIGINS.join(" ")}`,
       "font-src 'self' data:",
-      `connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov ${POSTHOG_CSP_ORIGINS.join(" ")}`,
+      `connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com https://tile.opentopomap.org https://server.arcgisonline.com https://basemap.nationalmap.gov ${MAPBOX_CSP_ORIGINS.join(" ")} ${POSTHOG_CSP_ORIGINS.join(" ")}`,
       "worker-src 'self' blob:",
       "media-src 'self' blob:"
     ].join("; ")
