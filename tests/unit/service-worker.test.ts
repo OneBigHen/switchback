@@ -28,4 +28,18 @@ describe("service worker data boundaries (SB-019)", () => {
     expect(source).toContain('url.hostname === "tiles.openfreemap.org"')
     expect(source).toContain("TILE_CACHE")
   })
+
+  it("leaves Mapbox provider requests outside the generic image cache", () => {
+    const source = readFileSync("public/sw.js", "utf8")
+    const bypassIndex = source.indexOf("if (isMapboxRequest(url)) return")
+    const genericCacheIndex = source.indexOf("// Everything else (images, fonts)")
+
+    expect(source).toContain("function isMapboxRequest")
+    expect(source).toContain('url.hostname === "api.mapbox.com"')
+    expect(source).toContain('url.hostname === "events.mapbox.com"')
+    expect(source).toContain('url.hostname === "tiles.mapbox.com"')
+    expect(source).toContain('url.hostname.endsWith(".tiles.mapbox.com")')
+    expect(bypassIndex).toBeGreaterThan(-1)
+    expect(bypassIndex).toBeLessThan(genericCacheIndex)
+  })
 })
