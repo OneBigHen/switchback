@@ -53,6 +53,7 @@ import {
 import { useRiderFeatureLayers } from "./workspace/use-rider-feature-layers"
 import { useReferenceMapOverlay } from "./useReferenceMapOverlay"
 import { useRoadLockDraft } from "./useRoadLockDraft"
+import { telemetry } from "@/lib/telemetry/client"
 import {
   reduceRouteSculptState,
   type RouteSculptAction,
@@ -1261,6 +1262,10 @@ export function PlannerMapStage(props: PlannerMapStageProps) {
           aria-label="Recenter map on current location"
           aria-pressed={navigationFollowing}
           onClick={() => {
+            telemetry.capture("map_recenter_used", {
+              surface: "ride",
+              control: "recenter"
+            })
             navigationFollowingRef.current = true
             setNavigationFollowing(true)
             const map = mapRef.current

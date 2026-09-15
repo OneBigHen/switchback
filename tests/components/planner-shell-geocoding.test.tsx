@@ -10,6 +10,7 @@ import { requestRideIntent } from "@/lib/client/ride-intent-client"
 import { requestRideResearch } from "@/lib/client/ride-research-client"
 import { requestTripPlan } from "@/lib/client/routing-client"
 import { savePlannerHome } from "@/lib/client/planner-location"
+import { telemetry } from "@/lib/telemetry/client"
 import type { RideIntent } from "@/lib/ai/ride-intent"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { TripPlan } from "@/lib/routing/planner"
@@ -156,6 +157,9 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
         onUndoRideChange(): void
         onRedoRideChange(): void
       }
+      rideConfig: {
+        onPlanModeChange(mode: "destination" | "loop"): void
+      }
       onStartDrawing?(): void
       onClearRoute(): void
       onStartRide?(route: PlannedRoute): void
@@ -166,7 +170,7 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
   }) => {
     const researchSources = viewModel.intent.researchSources
     const selectedRoute = viewModel.ui.selectedRoute ?? null
-    const { intent, waypoint, rideHistory, onClearRoute, onStartRide, onStartFreeRide } = commands
+    const { intent, waypoint, rideHistory, rideConfig, onClearRoute, onStartRide, onStartFreeRide } = commands
     return (
       <section>
         <h1>Where do you want to ride?</h1>
@@ -176,6 +180,7 @@ vi.mock("@/components/planner/PlannerDeck", () => ({
         <button type="button" onClick={onClearRoute}>Clear test route</button>
         <button type="button" onClick={() => waypoint.onMoveVia(1, 0)}>Move second stop</button>
         <button type="button" onClick={waypoint.onReverseRoute}>Reverse route</button>
+        <button type="button" onClick={() => rideConfig.onPlanModeChange("loop")}>Switch to loop mode</button>
         <button type="button" onClick={rideHistory.onUndoRideChange}>Undo edit</button>
         <button type="button" onClick={rideHistory.onRedoRideChange}>Redo edit</button>
         <button type="button" onClick={() => intent.onResearchRideIdea("first request")}>Research first request</button>
@@ -431,6 +436,7 @@ describe("free-form planner place resolution", () => {
 
   it("resets an explicit selection back to the planning state without fallback selection", async () => {
     const user = userEvent.setup()
+    const capture = vi.spyOn(telemetry, "capture")
     const alternative: PlannedRoute = { ...route, id: "route-2", name: "Alternative ride" }
     usePlannerStore.getState().applyPlan({
       selectedRouteId: route.id,
@@ -448,6 +454,29 @@ describe("free-form planner place resolution", () => {
     expect(screen.getByTestId("shell-selected-route")).toHaveTextContent("none")
     expect(screen.getByTestId("shell-selection-source")).toHaveTextContent("automatic")
     expect(screen.getByTestId("shell-stage")).toHaveTextContent("Search")
+    expect(capture).toHaveBeenCalledWith("route_abandoned", expect.objectContaining({
+      comparison_outcome: "abandoned",
+      navigation_started: false,
+      candidate_count: 2
+    }))
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("Alternative ride")
+  })
+
+  it("records a route mode change with only bounded planner dimensions", async () => {
+    const user = userEvent.setup()
+    const capture = vi.spyOn(telemetry, "capture")
+    usePlannerStore.getState().applyPlan({ selectedRouteId: route.id, routes: [route], warnings: [] })
+    usePlannerStore.setState({ planningPhase: "ready" })
+
+    render(<PlannerShell />)
+    await user.click(screen.getByRole("button", { name: "Switch to loop mode" }))
+
+    expect(capture).toHaveBeenCalledWith("route_mode_changed", expect.objectContaining({
+      route_mode: "loop",
+      route_source: "manual"
+    }))
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("Harrisburg")
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("-76.8867")
   })
 
   it("does not reuse the previous finish when destination intent omits a destination", async () => {

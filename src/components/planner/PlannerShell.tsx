@@ -88,6 +88,9 @@ import { usePlannerLocationSeed } from "./usePlannerLocationSeed"
 import { usePlannerRideActions } from "./usePlannerRideActions"
 import { useRideCheckpoint } from "./useRideCheckpoint"
 import type { RideResearchSource } from "@/lib/ai/ride-research"
+import { telemetry } from "@/lib/telemetry/client"
+import { routeTelemetryProperties, telemetryCountBand } from "@/lib/telemetry/route"
+import type { WorkflowSpanHandle, WorkflowSpanOutcome } from "@/lib/telemetry/spans"
 import { buildPlannerDeckViewModel } from "./PlannerDeckViewModel"
 import { useProviderHealth } from "./ProviderHealthNotice"
 import { RegionDownloadsPanel } from "./RegionDownloadsPanel"
@@ -190,6 +193,7 @@ export function PlannerShell() {
   const freeRideStateRef = useRef(freeRideRecommendation)
   const recordingStateRef = useRef(recording.state)
   const freeRideTransitionRef = useRef(false)
+  const freeRideSpanRef = useRef<WorkflowSpanHandle | null>(null)
   useEffect(() => {
     freeRideStateRef.current = freeRideRecommendation
   }, [freeRideRecommendation])
@@ -266,6 +270,19 @@ export function PlannerShell() {
   const planning = usePlanningOrchestrator({ onWarning: showWarning })
   const routeRequestGate = planning.gate
   const { nextSeed, plan: handlePlan, previousRoute, runTripPlan } = planning
+  const closeFreeRideWorkflow = useCallback((
+    outcome: WorkflowSpanOutcome,
+    properties: Record<string, string | number | boolean> = {}
+  ) => {
+    const span = freeRideSpanRef.current
+    freeRideSpanRef.current = null
+    if (!span) return
+    try {
+      span.end(outcome, properties)
+    } catch {
+      // Free Ride remains usable when observability is unavailable.
+    }
+  }, [])
   const offlinePackLibraryRef = useRef<OfflineRoutePackLibrary | null>(null)
   const riderPreferenceLibraryRef = useRef<RiderPreferenceLibrary | null>(null)
   const tripPlanLibraryRef = useRef<TripPlanLibrary | null>(null)
@@ -357,11 +374,23 @@ export function PlannerShell() {
       const wasFreeRide = recording.state.kind === "free-ride"
       const preserveSurface = freeRideTransitionRef.current
       if (points.length < 2) {
+        if (wasFreeRide && !preserveSurface) {
+          closeFreeRideWorkflow("failure", {
+            free_ride_mode: "live",
+            user_impact: "blocked"
+          })
+        }
         setNotice({ kind: "warning", message: "Record at least two GPS points before finishing." })
         recording.discard()
         if (!preserveSurface) usePlannerStore.getState().setSurface("planner")
         else freeRideTransitionRef.current = false
         return
+      }
+      if (wasFreeRide && !preserveSurface) {
+        closeFreeRideWorkflow("success", {
+          free_ride_mode: "live",
+          completion: "finish-and-save"
+        })
       }
       const recordedRoute = finalizeRecordedRide({
         points,
@@ -386,6 +415,14 @@ export function PlannerShell() {
     // referenced libraries/routes are read at that moment, not subscribed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording.state.status])
+
+  useEffect(() => () => {
+    closeFreeRideWorkflow("abandoned", {
+      free_ride_mode: "live",
+      reason: "planner_unmounted"
+    })
+  }, [closeFreeRideWorkflow])
+
   const perLegStyles = activeSegmentProfiles({ mode: planMode, via, profile, segmentProfiles })
 
   useEffect(() => {
@@ -795,6 +832,7 @@ export function PlannerShell() {
   const { startRide: handleStartRide, matchImported: handleMatchImported } = usePlannerRideActions({
     runTripPlan,
     invalidateRequests: routeRequestGate.invalidate,
+    onNavigationStarted: planning.markNavigationStarted,
     setRideOriginalRoute: (route) => {
       if (rideOriginalRouteId && rideOriginalRouteId !== route.id) {
         routeEntityCache.release(rideOriginalRouteId)
@@ -887,6 +925,18 @@ export function PlannerShell() {
   const handleStartFreeRide = () => {
     routeRequestGate.invalidate()
     if (recording.isActive) recording.discard()
+    const previousSpan = freeRideSpanRef.current
+    freeRideSpanRef.current = null
+    try {
+      previousSpan?.abandon({ replaced_by_new_session: true })
+    } catch {
+      // A stale span cannot prevent a new Free Ride session.
+    }
+    telemetry.capture("free_ride_opened", { free_ride_mode: "live" })
+    telemetry.capture("free_ride_live_started", { free_ride_mode: "live" })
+    freeRideSpanRef.current = telemetry.startWorkflow("free_ride_live", {
+      free_ride_mode: "live"
+    })
     freeRideTransitionRef.current = false
     dispatchFreeRideRecommendation({ type: "reset" })
     setFreeRideError(null)
@@ -898,6 +948,7 @@ export function PlannerShell() {
 
   const handleExitFreeRide = () => {
     if (!confirmRecordingDiscard(recording.state.points.length)) return
+    closeFreeRideWorkflow("cancelled", { free_ride_mode: "live", exit: true })
     freeRideTransitionRef.current = false
     recording.discard()
     dispatchFreeRideRecommendation({ type: "clear" })
@@ -994,7 +1045,7 @@ export function PlannerShell() {
         sketchCorridor: current.sketchCorridor ?? undefined,
         seed: nextSeed(),
         planningId: createPlanningId()
-      }))
+      }), { source: "free-ride", workflow: null })
       const route = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
       if (!route) throw new Error("The accepted road could not be turned into a navigable route.")
       // SB-031: the routed path must actually traverse the suggested road.
@@ -1007,9 +1058,14 @@ export function PlannerShell() {
       } else {
         setNotice({ kind: "success", message: "Free Ride suggestion accepted. Live guidance is ready." })
       }
-      await handleStartRide(route)
+      const started = await handleStartRide(route)
+      closeFreeRideWorkflow(started ? "success" : "failure", {
+        free_ride_mode: "live",
+        suggestion_outcome: "accepted"
+      })
     } catch (caught) {
       freeRideTransitionRef.current = false
+      closeFreeRideWorkflow("failure", { free_ride_mode: "live", suggestion_outcome: "accepted" })
       usePlannerStore.getState().setSurface("planner")
       setNotice({
         kind: "warning",
@@ -1067,13 +1123,18 @@ export function PlannerShell() {
         sketchCorridor: current.sketchCorridor ?? undefined,
         seed: nextSeed(),
         planningId: createPlanningId()
-      }))
+      }), { source: "free-ride", workflow: null })
       const route = planned?.routes.find((candidate) => candidate.id === planned.selectedRouteId) ?? planned?.routes[0]
       if (!route) throw new Error("Home could not be turned into a navigable route.")
       setNotice({ kind: "success", message: "Head Home route is ready." })
-      await handleStartRide(route)
+      const started = await handleStartRide(route)
+      closeFreeRideWorkflow(started ? "success" : "failure", {
+        free_ride_mode: "live",
+        completion: "head-home"
+      })
     } catch (caught) {
       freeRideTransitionRef.current = false
+      closeFreeRideWorkflow("failure", { free_ride_mode: "live", completion: "head-home" })
       usePlannerStore.getState().setSurface("planner")
       setNotice({
         kind: "warning",
@@ -1365,6 +1426,20 @@ message: failure?.message ?? "The rough route could not be routed."
     routeRequestGate.invalidate()
     cancelRideResearch()
     const store = usePlannerStore.getState()
+    if (selectedRoute) {
+      try {
+        telemetry.capture("route_abandoned", {
+          ...routeTelemetryProperties(selectedRoute, routes, {
+            routeMode: planMode,
+            routeSource: "unknown"
+          }),
+          comparison_outcome: "abandoned",
+          navigation_started: false
+        })
+      } catch {
+        // Clearing a route remains available when observability is blocked.
+      }
+    }
     store.clearRoute()
     usePlannerStore.setState({ selectionSource: "automatic" })
     setAddingVia(false)
@@ -1653,7 +1728,23 @@ message: failure?.message ?? "The rough route could not be routed."
                   mode === "loop" ? "Switched to a loop ride" : "Switched to a destination ride"
                 )
                 setIntentSummary(null)
-                if (outcome === "applied") replanAfterIntentEdit()
+                if (outcome === "applied") {
+                  const current = usePlannerStore.getState()
+                  const waypointCount = mode === "loop"
+                    ? (current.start ? 1 : 0) + current.via.length
+                    : [current.start, ...current.via, current.finish].filter(Boolean).length
+                  try {
+                    telemetry.capture("route_mode_changed", {
+                      route_mode: mode,
+                      route_source: "manual",
+                      completion_method: "unknown",
+                      waypoint_count_band: telemetryCountBand(waypointCount)
+                    })
+                  } catch {
+                    // Mode changes remain usable when observability is blocked.
+                  }
+                  replanAfterIntentEdit()
+                }
               },
               onRideTimeChange: (minutes, shaped) => {
                 routeRequestGate.invalidate()

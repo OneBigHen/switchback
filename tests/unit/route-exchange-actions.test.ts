@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest"
 import { createRouteExchangeActions } from "@/lib/client/route-exchange-actions"
 import type { PlannedRoute } from "@/lib/routing/types"
 import type { SavedRoute } from "@/lib/storage/route-library"
+import type { TelemetryController } from "@/lib/telemetry/client"
+import type { WorkflowSpanHandle } from "@/lib/telemetry/spans"
 
 const route: PlannedRoute = {
   id: "route-1",
@@ -62,7 +64,121 @@ function actions(overrides: Partial<Parameters<typeof createRouteExchangeActions
   }
 }
 
+function fakeWorkflowSpan(): WorkflowSpanHandle & {
+  end: ReturnType<typeof vi.fn>
+  cancel: ReturnType<typeof vi.fn>
+  fail: ReturnType<typeof vi.fn>
+  abandon: ReturnType<typeof vi.fn>
+  step: () => void
+} {
+  return {
+    spanId: "test-span",
+    end: vi.fn(() => true),
+    cancel: vi.fn(() => true),
+    fail: vi.fn(() => true),
+    abandon: vi.fn(() => true),
+    step: () => undefined
+  }
+}
+
+function fakeTelemetry(span: WorkflowSpanHandle | null = null) {
+  const capture = vi.fn()
+  return {
+    capture,
+    identify: vi.fn(() => true),
+    resetIdentity: vi.fn(),
+    startWorkflow: vi.fn(() => span),
+    visibilityChanged: vi.fn(),
+    getReleaseContext: vi.fn(() => null),
+    initialize: vi.fn(() => "initialized" as const)
+  } as unknown as TelemetryController & { capture: typeof capture }
+}
+
 describe("route exchange actions", () => {
+  it("reports a bounded GPX import lifecycle without sending the filename or file contents", async () => {
+    const telemetry = fakeTelemetry()
+    const parseFile = vi.fn().mockResolvedValue({
+      ...route,
+      geometry: [[-77, 40], [-76.9, 40.1], [-76.8, 40.2]]
+    })
+    const subject = actions({ parseFile, telemetry })
+    const file = new File(["<gpx />"], "a-rider-home-address.gpx", { type: "application/gpx+xml" })
+
+    await subject.actions.importRoute(file)
+
+    expect(telemetry.capture).toHaveBeenCalledWith("gpx_import_started", expect.objectContaining({
+      source_class: "imported-file",
+      format: "gpx",
+      file_size_band: "0-100kb"
+    }))
+    expect(telemetry.capture).toHaveBeenCalledWith("gpx_import_succeeded", expect.objectContaining({
+      source_class: "imported-file",
+      point_count_band: "2-3",
+      route_count_band: "1"
+    }))
+    expect(JSON.stringify(telemetry.capture.mock.calls)).not.toContain("a-rider-home-address.gpx")
+  })
+
+  it("closes the GPX import workflow with aggregate success context", async () => {
+    const span = fakeWorkflowSpan()
+    const telemetry = fakeTelemetry(span)
+    const subject = actions({ telemetry })
+
+    await subject.actions.importRoute(new File(["<gpx />"], "weekend.gpx", { type: "application/gpx+xml" }))
+
+    expect(telemetry.startWorkflow).toHaveBeenCalledWith("gpx_import", expect.objectContaining({
+      source_class: "imported-file",
+      format: "gpx",
+      file_size_band: "0-100kb"
+    }))
+    expect(span.end).toHaveBeenCalledWith("success", expect.objectContaining({
+      success: true,
+      route_count_band: "1"
+    }))
+  })
+
+  it("fails the GPX import workflow when parsing fails", async () => {
+    const span = fakeWorkflowSpan()
+    const telemetry = fakeTelemetry(span)
+    const subject = actions({
+      telemetry,
+      parseFile: vi.fn().mockRejectedValue(new Error("GPX parse failed"))
+    })
+
+    await subject.actions.importRoute(new File(["<broken />"], "weekend.gpx", { type: "application/gpx+xml" }))
+
+    expect(span.fail).toHaveBeenCalledWith("parse-failure", expect.objectContaining({ success: false }))
+  })
+
+  it("closes a Route Library open workflow after a catalog route loads", async () => {
+    const span = fakeWorkflowSpan()
+    const telemetry = fakeTelemetry(span)
+    const catalogRoute = { ...route, id: "atlas-42", routingSource: "imported" as const }
+    const subject = actions({
+      telemetry,
+      fetcher: vi.fn(async () => new Response(JSON.stringify(catalogRoute)))
+    })
+
+    await subject.actions.openCatalogRoute("atlas-42")
+
+    expect(telemetry.startWorkflow).toHaveBeenCalledWith("gpx_library_to_route", expect.objectContaining({
+      source_class: "catalog"
+    }))
+    expect(span.end).toHaveBeenCalledWith("success", expect.objectContaining({ success: true }))
+  })
+
+  it("does not classify a filename without a dot-extension as a GPX format", async () => {
+    const telemetry = fakeTelemetry()
+    const subject = actions({ telemetry })
+    const file = new File(["<gpx />"], "privategpx", { type: "application/gpx+xml" })
+
+    await subject.actions.importRoute(file)
+
+    expect(telemetry.capture).toHaveBeenCalledWith("gpx_import_started", expect.objectContaining({
+      format: "unknown"
+    }))
+  })
+
   it("exports a cue GPX download and releases its object URL after the browser-safe delay", () => {
     vi.useFakeTimers()
     const originalCreateObjectUrl = URL.createObjectURL
@@ -118,6 +234,25 @@ describe("route exchange actions", () => {
 
     expect(parseFile).not.toHaveBeenCalled()
     expect(subject.onNotice).toHaveBeenCalledWith({ kind: "warning", message: "Route imports must be 5 MB or smaller." })
+  })
+
+  it("records a bounded GPX application error when parsing fails", async () => {
+    const telemetry = fakeTelemetry()
+    const parseFile = vi.fn().mockRejectedValue(new Error("GPX parse failed"))
+    const subject = actions({ parseFile, telemetry })
+    const file = new File(["<broken />"], "private-ride.gpx", { type: "application/gpx+xml" })
+
+    await subject.actions.importRoute(file)
+
+    expect(telemetry.capture).toHaveBeenCalledWith("app_error", {
+      error_class: "parse-failure",
+      feature: "gpx",
+      surface: "gpx",
+      recoverable: true,
+      recovery_path: "edit-input",
+      user_impact: "blocked"
+    })
+    expect(JSON.stringify(telemetry.capture.mock.calls)).not.toContain("private-ride.gpx")
   })
 
   it("opens a Route Library entry in the planner from its full detail without saving it", async () => {

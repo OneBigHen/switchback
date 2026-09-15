@@ -1,6 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { telemetry } from "@/lib/telemetry/client"
+import { routeTelemetryProperties } from "@/lib/telemetry/route"
+import type { WorkflowSpanHandle } from "@/lib/telemetry/spans"
 import { PlannerDeck } from "./PlannerDeck"
 import { PlannerRouteDetailsWorkspace } from "./PlannerRouteDetailsWorkspace"
 import type {
@@ -44,6 +47,89 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
   } = commands
   const workspaceMode = useWorkspaceMode()
   const [details, setDetails] = useState<RouteDetailsWorkspaceState | null>(null)
+  const comparisonSpanRef = useRef<WorkflowSpanHandle | null>(null)
+  const comparisonActiveRef = useRef(false)
+  const activeComparisonKeyRef = useRef<string | null>(null)
+  const comparisonSnapshotRef = useRef<PlannerRouteComparisonProps | null>(null)
+  const comparisonKey = comparison
+    ? comparison.routes.map((route) => route.id).join(",")
+    : null
+
+  const closeComparison = useCallback((outcome: "selected" | "backed-out" | "abandoned") => {
+    if (!comparisonActiveRef.current) return
+    comparisonActiveRef.current = false
+    const activeSpan = comparisonSpanRef.current
+    comparisonSpanRef.current = null
+    const snapshot = comparisonSnapshotRef.current
+    const routes = snapshot?.routes ?? []
+    const selected = routes.find((route) => route.id === snapshot?.selectedId) ?? routes[0]
+    try {
+      telemetry.capture("route_comparison_ended", {
+        ...(selected ? routeTelemetryProperties(selected, routes) : {
+          candidate_count: Math.min(20, routes.length),
+          provider_set: "unknown",
+          distance_band: "unknown",
+          duration_band: "unknown",
+          detour_band: "unknown",
+          waypoint_count_band: "unknown",
+          surface_mix_band: "unknown",
+          traffic_evidence_present: false,
+          selected_candidate_role: "unknown"
+        }),
+        comparison_outcome: outcome
+      })
+      activeSpan?.end(outcome === "abandoned" ? "abandoned" : "success", {
+        candidate_count: Math.min(20, routes.length),
+        comparison_outcome: outcome
+      })
+    } catch {
+      // Comparison telemetry is optional and must never block route choice.
+    }
+  }, [])
+
+  useEffect(() => {
+    if (
+      activeComparisonKeyRef.current !== null
+      && activeComparisonKeyRef.current !== comparisonKey
+    ) {
+      // Close against the previous snapshot before replacing it, so a replan
+      // cannot attribute the new candidate set to the abandoned comparison.
+      closeComparison("abandoned")
+    }
+    comparisonSnapshotRef.current = comparison
+    activeComparisonKeyRef.current = comparisonKey
+    if (!comparisonKey) {
+      return
+    }
+    if (comparisonActiveRef.current) return
+    const snapshot = comparisonSnapshotRef.current
+    if (!snapshot) return
+    comparisonActiveRef.current = true
+    const routes = snapshot.routes
+    const selected = routes.find((route) => route.id === snapshot.selectedId) ?? routes[0]
+    try {
+      telemetry.capture("route_comparison_started", selected
+        ? routeTelemetryProperties(selected, routes)
+        : {
+          candidate_count: Math.min(20, routes.length),
+          provider_set: "unknown",
+          distance_band: "unknown",
+          duration_band: "unknown",
+          detour_band: "unknown",
+          waypoint_count_band: "unknown",
+          surface_mix_band: "unknown",
+          traffic_evidence_present: false,
+          selected_candidate_role: "unknown"
+        })
+      comparisonSpanRef.current = telemetry.startWorkflow("route_comparison", {
+        candidate_count: Math.min(20, routes.length)
+      })
+    } catch {
+      // Comparison telemetry is optional and must never block route choice.
+    }
+  }, [closeComparison, comparison, comparisonKey])
+
+  useEffect(() => () => closeComparison("abandoned"), [closeComparison])
   // Clearing the plan ends the workspace. Route ids are derived from profile and
   // geometry, so replanning the same trip yields the same ids — a details state
   // that survived the gap would silently reopen over the route-choice stage
@@ -70,13 +156,45 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
   const advisorGroundingCurrent = !viewModel.rideHistory.hasUnappliedChange
 
   const selectRoute = (id: string) => {
-    setDetails(null)
+    closeDetails()
     comparison?.onSelect(id)
+  }
+
+  const closeDetails = () => {
+    if (!details) return
+    try {
+      telemetry.capture("panel_closed", {
+        surface: "plan",
+        control: "unknown",
+        panel: "route-details"
+      })
+    } catch {
+      // Route choice remains available when observability is blocked.
+    }
+    setDetails(null)
   }
 
   const openDetails = (id: string) => {
     if (!comparison) return
     comparison.onSelect(id)
+    const selected = comparison.routes.find((route) => route.id === id)
+    if (selected) {
+      try {
+        telemetry.capture("panel_opened", {
+          surface: "plan",
+          control: "unknown",
+          panel: "route-details"
+        })
+        const properties = routeTelemetryProperties(selected, comparison.routes)
+        telemetry.capture("route_detail_opened", properties)
+        telemetry.capture("route_explanation_opened", {
+          ...properties,
+          explanation_type: "preparation"
+        })
+      } catch {
+        // Route details remain available when observability is blocked.
+      }
+    }
     setDetails(openRouteDetails(id, comparison.routes))
   }
 
@@ -137,7 +255,7 @@ export function PlannerComposition({ model, commands }: PlannerCompositionProps)
           <PlannerRouteDetailsWorkspace
             comparison={comparison}
             route={selectedDetailsRoute}
-            onBack={() => setDetails(null)}
+            onBack={closeDetails}
           />
         ) : null}
       </PlannerDeck>

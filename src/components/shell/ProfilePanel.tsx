@@ -18,6 +18,7 @@ import { RegionDownloadClient } from "@/lib/storage/region-download-client"
 import type { DiagnosticsSnapshot } from "@/lib/domain/diagnostics"
 import { DiagnosticsPanel } from "./DiagnosticsPanel"
 import { authenticatePasskey, registerPasskey } from "@/lib/client/passkey"
+import { telemetry } from "@/lib/telemetry/client"
 import { createSyncController } from "@/lib/client/sync-controller"
 import type { RecoveryKit } from "@/lib/sync/recovery-kit"
 import type { SyncStateRecord } from "@/lib/sync/client-store"
@@ -74,8 +75,10 @@ export function ProfilePanel({
     setNotice(null)
     try {
       const riderName = loadRiderSettings().riderName || undefined
-      if (kind === "register") await registerPasskey(riderName)
-      else await authenticatePasskey()
+      const identity = kind === "register"
+        ? await registerPasskey(riderName)
+        : await authenticatePasskey()
+      telemetry.identify(identity.identityId)
       try {
         setSyncState(await syncController.linkCurrentSession())
         setNotice(kind === "register"
@@ -239,6 +242,7 @@ export function ProfilePanel({
                   onChange={(event) => setRecoverySeed(event.currentTarget.value)}
                   autoComplete="off"
                   spellCheck={false}
+                  data-telemetry-replay-mask="true"
                 />
               </label>
               <button className={styles.importButton} type="button" onClick={() => void importSyncKit()} disabled={syncBusy !== null || recoverySeed.trim().length === 0}>
@@ -246,7 +250,7 @@ export function ProfilePanel({
               </button>
             </div>
             {recoveryKit ? (
-              <div className={styles.recoveryKit} aria-label="Recovery kit">
+              <div className={styles.recoveryKit} aria-label="Recovery kit" data-telemetry-replay-block="true">
                 <QRCodeSVG value={recoveryKit.qrPayload} size={192} level="M" marginSize={2} title={`${PRODUCT_BRAND.name} encrypted sync recovery QR code`} />
                 <code>{recoveryKit.seed}</code>
               </div>

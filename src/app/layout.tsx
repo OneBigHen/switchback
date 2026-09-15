@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PRODUCT_BRAND } from "@/lib/brand/product-brand";
+import { TelemetryBootstrap } from "@/components/telemetry/TelemetryBootstrap";
 // Both renderer stylesheets ship while the premium migration runs (ADR 0015).
 // Their class prefixes differ, so neither can override the other.
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -81,7 +82,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
 	return (
 		<html lang="en">
-			<body>{children}</body>
+			<body><TelemetryBootstrap>{children}</TelemetryBootstrap></body>
 		</html>
 	);
 }

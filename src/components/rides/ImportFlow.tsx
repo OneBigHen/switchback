@@ -20,6 +20,7 @@ export function ImportFlow({ onImportRoute, onImportRoads }: ImportFlowProps) {
         <span>{file ? "Choose another file" : "Choose GPX, KML, or KMZ"}</span>
         <input
           type="file"
+          data-telemetry-replay-block="true"
           accept=".gpx,.kml,.kmz,application/gpx+xml,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/xml,text/xml"
           aria-label="Choose GPX, KML, or KMZ file"
           onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
@@ -29,7 +30,7 @@ export function ImportFlow({ onImportRoute, onImportRoads }: ImportFlowProps) {
       {file ? (
         <div className={styles.choices}>
           <header>
-            <strong>{file.name}</strong>
+            <strong data-telemetry-replay-mask="true">{file.name}</strong>
             <small>What should OpenGravel do with it?</small>
           </header>
           <button type="button" onClick={() => onImportRoute(file)}>

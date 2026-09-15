@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RouteDecisionRail } from "@/components/planner/v2/RouteDecisionRail"
 import { buildRouteDecisionPresentation } from "@/components/planner/v2/RouteDecisionCard"
@@ -7,13 +7,17 @@ import { createPlannerPresentationBoundary } from "@/components/planner/PlannerP
 import type { PlannerRouteComparisonProps } from "@/components/planner/PlannerPresentationBoundary"
 import type { PlannerDeckCommands, PlannerDeckViewModel } from "@/components/planner/PlannerDeckViewModel"
 import type { PlannedRoute, RouteProfileId } from "@/lib/routing/types"
+import { telemetry } from "@/lib/telemetry/client"
 import type { ReactNode } from "react"
 
 vi.mock("@/components/planner/PlannerDeck", () => ({
   PlannerDeck: ({ children }: { children?: ReactNode }) => <div data-testid="planner-deck">{children}</div>
 }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 function route(id: string, profile: RouteProfileId, minutes: number, miles: number, twistiness: number): PlannedRoute {
   return {
@@ -78,6 +82,60 @@ function boundary(comparison: PlannerRouteComparisonProps | null) {
 }
 
 describe("RouteDecisionRail", () => {
+  it("records comparison and detail intent with aggregate route properties", async () => {
+    const capture = vi.spyOn(telemetry, "capture")
+    const comparison = {
+      routes,
+      selectedId: "twisty",
+      onSelect: vi.fn(),
+      onSave: vi.fn(),
+      onExport: vi.fn(),
+      onRide: vi.fn()
+    }
+
+    render(<PlannerComposition {...boundary(comparison)} />)
+
+    await waitFor(() => expect(capture).toHaveBeenCalledWith("route_comparison_started", expect.objectContaining({
+      candidate_count: 3
+    })))
+    fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))
+
+    expect(capture).toHaveBeenCalledWith("route_detail_opened", expect.objectContaining({
+      selected_candidate_role: "twisty"
+    }))
+    expect(capture).toHaveBeenCalledWith("route_explanation_opened", expect.objectContaining({
+      explanation_type: "preparation"
+    }))
+  })
+
+  it("closes an active comparison before replacing it with a new candidate set", async () => {
+    const capture = vi.spyOn(telemetry, "capture")
+    const firstComparison = {
+      routes,
+      selectedId: "twisty",
+      onSelect: vi.fn(),
+      onSave: vi.fn(),
+      onExport: vi.fn(),
+      onRide: vi.fn()
+    }
+    const secondComparison = {
+      ...firstComparison,
+      routes: [...routes, route("new", "adventure", 88, 52, 84)]
+    }
+    const { rerender } = render(<PlannerComposition {...boundary(firstComparison)} />)
+
+    await waitFor(() => expect(capture).toHaveBeenCalledWith("route_comparison_started", expect.objectContaining({
+      candidate_count: 3
+    })))
+    rerender(<PlannerComposition {...boundary(secondComparison)} />)
+
+    await waitFor(() => expect(capture).toHaveBeenCalledWith("route_comparison_ended", expect.objectContaining({
+      candidate_count: 3,
+      comparison_outcome: "abandoned"
+    })))
+    expect(capture.mock.calls.filter(([eventName]) => eventName === "route_comparison_started")).toHaveLength(2)
+  })
+
   it("presents scan-first rider choices relative to the current route without provider jargon", () => {
     render(<RouteDecisionRail routes={routes} selectedId="twisty" onSelect={vi.fn()} />)
 
@@ -156,6 +214,7 @@ describe("RouteDecisionRail", () => {
       onRide: vi.fn()
     }
 
+    const capture = vi.spyOn(telemetry, "capture")
     render(
       <PlannerComposition {...boundary(comparison)} />
     )
@@ -168,11 +227,21 @@ describe("RouteDecisionRail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Details for twisty route" }))
 
     expect(comparison.onSelect).toHaveBeenCalledWith("twisty")
+    expect(capture).toHaveBeenCalledWith("panel_opened", {
+      surface: "plan",
+      control: "unknown",
+      panel: "route-details"
+    })
     expect(screen.getByRole("button", { name: "Back to route choices" })).toBeInTheDocument()
     expect(screen.getByText("Selected route")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Show turn-by-turn directions" })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Back to route choices" }))
+    expect(capture).toHaveBeenCalledWith("panel_closed", {
+      surface: "plan",
+      control: "unknown",
+      panel: "route-details"
+    })
     expect(screen.queryByText("Selected route")).not.toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Route choices" })).toBeInTheDocument()
   })

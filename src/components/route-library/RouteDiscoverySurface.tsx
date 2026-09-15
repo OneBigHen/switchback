@@ -15,6 +15,7 @@ import {
 } from "@/app/gpx-library/atlas-browse"
 import { useNearMe } from "@/lib/client/near-me"
 import type { CurvatureBand } from "@/lib/gpx/atlas-art"
+import { telemetry } from "@/lib/telemetry/client"
 import { RouteDiscoveryCard } from "./RouteDiscoveryCard"
 import { RouteLibraryMap } from "./RouteLibraryMap"
 import {
@@ -62,6 +63,29 @@ const CHIP_LABEL: Record<QuickChipId, string> = {
   twisty: "Twisty",
   "duration-2-4": "2–4 hr",
   filters: "Filters"
+}
+
+function activeFilterCount(filters: AtlasFilterState, quick: DiscoveryQuickState): number {
+  return (filters.sort !== DEFAULT_FILTERS.sort ? 1 : 0)
+    + (filters.radius !== DEFAULT_FILTERS.radius ? 1 : 0)
+    + (filters.lengths.length > 0 ? 1 : 0)
+    + (filters.bands.length > 0 ? 1 : 0)
+    + (filters.region !== null ? 1 : 0)
+    + (filters.area !== null ? 1 : 0)
+    + (filters.query.trim() !== "" ? 1 : 0)
+    + (quick.chips.length > 0 ? 1 : 0)
+}
+
+function changedFilterKind(previous: AtlasFilterState, next: AtlasFilterState, previousQuick: DiscoveryQuickState, nextQuick: DiscoveryQuickState) {
+  if (previous.query !== next.query) return "query" as const
+  if (previous.sort !== next.sort) return "sort" as const
+  if (previous.radius !== next.radius) return "radius" as const
+  if (previous.lengths !== next.lengths) return "length" as const
+  if (previous.bands !== next.bands) return "difficulty" as const
+  if (previous.region !== next.region) return "region" as const
+  if (previous.area !== next.area) return "area" as const
+  if (previousQuick.chips !== nextQuick.chips) return "quick-chip" as const
+  return null
 }
 
 export interface RouteDiscoverySurfaceProps {
@@ -115,6 +139,28 @@ export function RouteDiscoverySurface({
   const saved = useSavedCatalogRoutes()
   const railRef = useRef<HTMLUListElement>(null)
   const autoSortDone = useRef(false)
+  const filterSnapshotRef = useRef({ filters, quick })
+
+  useEffect(() => {
+    const previous = filterSnapshotRef.current
+    const filterKind = changedFilterKind(previous.filters, filters, previous.quick, quick)
+    if (filterKind) {
+      const wasActive = activeFilterCount(previous.filters, previous.quick)
+      const isActive = activeFilterCount(filters, quick)
+      try {
+        telemetry.capture("gpx_filter_changed", {
+          source_class: "catalog",
+          format: "gpx",
+          filter_kind: filterKind,
+          filter_state: isActive > wasActive ? "applied" : isActive < wasActive ? "cleared" : "unknown",
+          active_filter_count: isActive
+        })
+      } catch {
+        // Filter interaction remains usable when observability is blocked.
+      }
+    }
+    filterSnapshotRef.current = { filters, quick }
+  }, [filters, quick])
 
   // First fix while the rider has not chosen a sort: prefer what is near them.
   useEffect(() => {

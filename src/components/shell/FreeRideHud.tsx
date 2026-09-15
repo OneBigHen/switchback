@@ -1,9 +1,12 @@
 "use client"
 
 import { Check, GpsFix, GpsSlash, House, Pause, Play, Record, RoadHorizon, Warning, X } from "@phosphor-icons/react"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import type { FreeRideSuggestion } from "@/lib/domain/contracts"
 import { recordingTelemetry } from "@/lib/client/recording-session"
+import { freeRideSuggestionAsPlannedRoute } from "@/lib/recommendation/free-ride"
+import { telemetry as telemetryClient } from "@/lib/telemetry/client"
+import { routeTelemetryProperties } from "@/lib/telemetry/route"
 import type { RecordingSessionController } from "./useRecordingSession"
 
 interface FreeRideHudProps {
@@ -50,6 +53,14 @@ function formatScore(score: number): string {
   return Number.isFinite(score) ? `${Math.round(score)}/100` : "—"
 }
 
+function freeRideTelemetryProperties(suggestion: FreeRideSuggestion) {
+  const route = freeRideSuggestionAsPlannedRoute(suggestion)
+  return routeTelemetryProperties(route, [route], {
+    routeMode: "destination",
+    routeSource: "free-ride"
+  })
+}
+
 /**
  * Full-screen Free Ride surface. It deliberately presents at most one
  * suggestion and keeps all decision controls large, explicit, and optional;
@@ -69,10 +80,44 @@ export function FreeRideHud({
   onExit
 }: FreeRideHudProps) {
   const { state, clock, pause, resume, retryGps, finish } = controller
-  const telemetry = recordingTelemetry(state, clock)
+  const recording = recordingTelemetry(state, clock)
   const paused = state.status === "paused"
   const unavailable = state.status === "denied" || state.status === "error"
-  const accuracy = telemetry.accuracyMeters
+  const accuracy = recording.accuracyMeters
+  const shownSuggestionRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!suggestion) {
+      shownSuggestionRef.current = null
+      return
+    }
+    if (shownSuggestionRef.current === suggestion.id) return
+    shownSuggestionRef.current = suggestion.id
+    const routeProperties = freeRideTelemetryProperties(suggestion)
+    telemetryClient.capture("free_ride_suggestions_presented", {
+      ...routeProperties,
+      free_ride_mode: "live",
+      suggestion_count: 1
+    })
+    telemetryClient.capture("free_ride_live_suggestion_shown", {
+      ...routeProperties,
+      free_ride_mode: "live",
+      suggestion_count: 1
+    })
+  }, [suggestion])
+
+  const suggestionRouteProperties = suggestion ? freeRideTelemetryProperties(suggestion) : null
+
+  const captureSuggestionChoice = (
+    event: "free_ride_suggestion_accepted" | "free_ride_suggestion_dismissed",
+    suggestionOutcome: "accepted" | "dismissed" | "less-like-this"
+  ) => {
+    telemetryClient.capture(event, {
+      ...(suggestionRouteProperties ?? {}),
+      free_ride_mode: "live",
+      suggestion_outcome: suggestionOutcome
+    })
+  }
 
   useEffect(() => {
     const root = document.documentElement
@@ -113,12 +158,12 @@ export function FreeRideHud({
       <div className="free-ride-dock">
       <div className="free-ride-main">
         <div className="free-ride-speed" aria-label="Current speed">
-          <strong>{unavailable ? "—" : Math.round(telemetry.currentSpeedMph ?? 0)}</strong>
+          <strong>{unavailable ? "—" : Math.round(recording.currentSpeedMph ?? 0)}</strong>
           <span>mph</span>
         </div>
         <div className="free-ride-heading" aria-label="Current heading">
           <span>Heading</span>
-          <strong>{compassLabel(telemetry.headingDegrees)}</strong>
+          <strong>{compassLabel(recording.headingDegrees)}</strong>
         </div>
         <div className="free-ride-instruction" role="status" aria-live="polite">
           <RoadHorizon weight="fill" aria-hidden="true" />
@@ -143,12 +188,26 @@ export function FreeRideHud({
             {suggestion.reasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}
           </ul>
           <div className="free-ride-suggestion-actions">
-            <button type="button" className="free-ride-accept" onClick={() => onAccept(suggestion)}>
+            <button type="button" className="free-ride-accept" onClick={() => {
+              captureSuggestionChoice("free_ride_suggestion_accepted", "accepted")
+              telemetryClient.capture("free_ride_live_suggestion_accepted", {
+                ...(suggestionRouteProperties ?? {}),
+                free_ride_mode: "live",
+                suggestion_outcome: "accepted"
+              })
+              onAccept(suggestion)
+            }}>
               <NavigationIcon />
               Accept suggestion
             </button>
-            <button type="button" onClick={onIgnore}>Ignore suggestion</button>
-            <button type="button" onClick={onLessLikeThis}>Less like this</button>
+            <button type="button" onClick={() => {
+              captureSuggestionChoice("free_ride_suggestion_dismissed", "dismissed")
+              onIgnore()
+            }}>Ignore suggestion</button>
+            <button type="button" onClick={() => {
+              captureSuggestionChoice("free_ride_suggestion_dismissed", "less-like-this")
+              onLessLikeThis()
+            }}>Less like this</button>
           </div>
         </section>
       ) : (
@@ -163,9 +222,9 @@ export function FreeRideHud({
       {/* Heading is deliberately absent here — it already has a dedicated
           readout above, and showing it twice made the panel read as noise. */}
       <footer className="ride-telemetry free-ride-telemetry">
-        <div><strong>{telemetry.distanceMiles.toFixed(1)}</strong><span>miles ridden</span></div>
-        <div><strong>{telemetry.averageSpeedMph == null ? "—" : telemetry.averageSpeedMph.toFixed(1)}</strong><span>avg mph</span></div>
-        <div><strong>{feet(telemetry.currentAltitudeMeters)}</strong><span>feet elevation</span></div>
+        <div><strong>{recording.distanceMiles.toFixed(1)}</strong><span>miles ridden</span></div>
+        <div><strong>{recording.averageSpeedMph == null ? "—" : recording.averageSpeedMph.toFixed(1)}</strong><span>avg mph</span></div>
+        <div><strong>{feet(recording.currentAltitudeMeters)}</strong><span>feet elevation</span></div>
       </footer>
 
       {state.error ? <div className="recording-error" role="alert">{state.error}</div> : null}

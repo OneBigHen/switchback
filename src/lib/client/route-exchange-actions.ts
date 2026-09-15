@@ -12,6 +12,9 @@ import {
 } from "@/lib/roads/road-locks"
 import type { RoadAccessSnapshot } from "@/lib/roads/road-access"
 import type { Coordinate } from "@/lib/routing/types"
+import { telemetry as defaultTelemetry, type TelemetryController } from "@/lib/telemetry/client"
+import type { TelemetryErrorProperties, TelemetryEventName, TelemetryEventProperties, TelemetryFailureClass, TelemetryFileSizeBand, TelemetryGpxExportVariant, TelemetryGpxFormat, TelemetryGpxProperties } from "@/lib/telemetry/events"
+import { routeTelemetryProperties, telemetryCountBand, telemetryFailureClass } from "@/lib/telemetry/route"
 
 export interface RouteExchangeNotice {
   kind: "success" | "warning"
@@ -58,6 +61,8 @@ interface RouteExchangeActionsOptions {
    * gate advances for those and would drop the rider's explicit Open in Planner.
    */
   beginCatalogOpen?: () => () => boolean
+  /** Injectable observability seam; telemetry remains best effort. */
+  telemetry?: TelemetryController
 }
 
 function downloadName(route: PlannedRoute, variant: GpxExportVariant): string {
@@ -88,6 +93,64 @@ function defaultImportedLockAccessSnapshot(): RoadAccessSnapshot {
   }
 }
 
+function telemetryFileSizeBand(bytes: number): TelemetryFileSizeBand {
+  if (!Number.isFinite(bytes) || bytes < 0) return "unknown"
+  if (bytes < 100 * 1024) return "0-100kb"
+  if (bytes < 1024 * 1024) return "100kb-1mb"
+  if (bytes <= MAX_GPX_IMPORT_BYTES) return "1-5mb"
+  return "5mb+"
+}
+
+function telemetryGpxFormat(fileName: string): TelemetryGpxFormat {
+  const extension = /\.(gpx|kml|kmz)$/i.exec(fileName)?.[1]?.toLowerCase()
+  return extension === "gpx" || extension === "kml" || extension === "kmz" ? extension : "unknown"
+}
+
+function captureTelemetry<EventName extends TelemetryEventName>(
+  controller: TelemetryController,
+  eventName: EventName,
+  properties: TelemetryEventProperties<EventName>
+): void {
+  try {
+    controller.capture(eventName, properties)
+  } catch {
+    // Product behavior must continue when telemetry is blocked or unavailable.
+  }
+}
+
+function gpxErrorProperties(errorClass: TelemetryFailureClass): TelemetryErrorProperties {
+  return {
+    error_class: errorClass,
+    feature: "gpx",
+    surface: "gpx",
+    recoverable: true,
+    recovery_path: "edit-input",
+    user_impact: "blocked"
+  }
+}
+
+function importedGpxProperties(file: File): TelemetryGpxProperties {
+  return {
+    source_class: "imported-file",
+    format: telemetryGpxFormat(file.name),
+    file_size_band: telemetryFileSizeBand(file.size)
+  }
+}
+
+function exportedRouteProperties(
+  route: PlannedRoute,
+  exportVariant: TelemetryGpxExportVariant
+): TelemetryGpxProperties {
+  return {
+    ...routeTelemetryProperties(route, [route]),
+    source_class: "saved-route",
+    format: "gpx",
+    export_variant: exportVariant,
+    point_count_band: telemetryCountBand(route.geometry.length),
+    route_count_band: "1"
+  }
+}
+
 export interface ImportRoadLockOptions {
   mode: RoadLockMode
   displayName?: string
@@ -107,7 +170,8 @@ export function createRouteExchangeActions({
   defaultLockSourceGraphVersion = "gpx-import",
   buildImportedLockAccessSnapshot = defaultImportedLockAccessSnapshot,
   openedCatalogRouteIds = new Set<string>(),
-  beginCatalogOpen = () => () => false
+  beginCatalogOpen = () => () => false,
+  telemetry: telemetryController = defaultTelemetry
 }: RouteExchangeActionsOptions) {
   return {
     async saveRoute(route: PlannedRoute) {
@@ -124,11 +188,13 @@ export function createRouteExchangeActions({
             { kind: "catalog-copy", sourceCatalogRouteId: route.id }
           )
           await refresh()
+          captureTelemetry(telemetryController, "route_saved", routeTelemetryProperties(route, [route]))
           onNotice({ kind: "success", message: `${route.name} saved to My Rides.` })
           return
         }
         await library.save(route)
         await refresh()
+        captureTelemetry(telemetryController, "route_saved", routeTelemetryProperties(route, [route]))
         onNotice({ kind: "success", message: "Route saved on this device." })
       } catch {
         onNotice({ kind: "warning", message: "This route could not be saved on this device." })
@@ -146,6 +212,10 @@ export function createRouteExchangeActions({
         anchor.click()
         anchor.remove()
         window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
+        captureTelemetry(telemetryController, "gpx_exported", {
+          ...exportedRouteProperties(route, variant),
+          file_size_band: telemetryFileSizeBand(blob.size)
+        })
         onNotice({ kind: "success", message: `GPX ${variant} exported.` })
       } catch (caught) {
         onNotice({ kind: "warning", message: caught instanceof Error ? caught.message : "GPX export failed." })
@@ -163,6 +233,12 @@ export function createRouteExchangeActions({
         anchor.click()
         anchor.remove()
         window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
+        captureTelemetry(telemetryController, "gpx_exported", {
+          ...exportedRouteProperties(ride.route, "recorded"),
+          source_class: "recorded-ride",
+          point_count_band: telemetryCountBand(ride.points.length),
+          file_size_band: telemetryFileSizeBand(blob.size)
+        })
         onNotice({ kind: "success", message: "GPX recorded ride exported." })
       } catch (caught) {
         onNotice({ kind: "warning", message: caught instanceof Error ? caught.message : "Recorded ride export failed." })
@@ -182,17 +258,43 @@ export function createRouteExchangeActions({
     /** Route Library → Open in Planner. Loads the shared entry; never saves it. */
     async openCatalogRoute(catalogRouteId: string) {
       const superseded = beginCatalogOpen()
+      const workflow = telemetryController.startWorkflow("gpx_library_to_route", {
+        source_class: "catalog",
+        format: "gpx"
+      })
       try {
         const catalogRoute = await fetchCatalogRoute(catalogRouteId, fetcher)
-        if (superseded()) return
+        if (superseded()) {
+          workflow?.abandon({ reason: "superseded", success: false })
+          return
+        }
         openedCatalogRouteIds.add(catalogRoute.id)
         onLoad(catalogRoute)
+        captureTelemetry(telemetryController, "gpx_project_opened", {
+          source_class: "catalog",
+          format: "gpx",
+          ...routeTelemetryProperties(catalogRoute, [catalogRoute])
+        })
+        captureTelemetry(telemetryController, "gpx_route_loaded", {
+          source_class: "catalog",
+          format: "gpx",
+          ...routeTelemetryProperties(catalogRoute, [catalogRoute])
+        })
         onNotice({
           kind: "success",
           message: `${catalogRoute.name} opened from the Route Library. It is not in My Rides until you save it.`
         })
+        workflow?.end("success", {
+          success: true,
+          point_count_band: telemetryCountBand(catalogRoute.geometry.length),
+          route_count_band: "1"
+        })
       } catch (caught) {
-        if (superseded()) return
+        if (superseded()) {
+          workflow?.abandon({ reason: "superseded", success: false })
+          return
+        }
+        workflow?.fail(telemetryFailureClass(caught instanceof Error ? caught.message : undefined), { success: false })
         onNotice({
           kind: "warning",
           message: caught instanceof Error ? caught.message : "That Route Library entry could not be opened."
@@ -202,20 +304,56 @@ export function createRouteExchangeActions({
 
     /** Route Library → Open saved copy. Loads a rider-owned My Rides row by id. */
     async openSavedRoute(savedRouteId: string) {
+      const workflow = telemetryController.startWorkflow("gpx_library_to_route", {
+        source_class: "saved-route",
+        format: "gpx"
+      })
       try {
         const saved = await library.get(savedRouteId)
         if (!saved) {
+          workflow?.fail("storage-failure", { success: false })
           onNotice({ kind: "warning", message: "That ride is no longer in My Rides on this device." })
           return
         }
         onLoad(saved)
+        captureTelemetry(telemetryController, "gpx_project_opened", {
+          source_class: "saved-route",
+          format: "gpx",
+          ...routeTelemetryProperties(saved, [saved])
+        })
+        captureTelemetry(telemetryController, "gpx_route_loaded", {
+          source_class: "saved-route",
+          format: "gpx",
+          ...routeTelemetryProperties(saved, [saved])
+        })
+        workflow?.end("success", {
+          success: true,
+          point_count_band: telemetryCountBand(saved.geometry.length),
+          route_count_band: "1"
+        })
       } catch {
+        workflow?.fail("storage-failure", { success: false })
         onNotice({ kind: "warning", message: "My Rides could not be opened on this device." })
       }
     },
 
     async importRoute(file: File) {
+      const startedAt = Date.now()
+      const importProperties = importedGpxProperties(file)
+      const workflow = telemetryController.startWorkflow("gpx_import", {
+        source_class: importProperties.source_class ?? "unknown",
+        format: importProperties.format ?? "unknown",
+        file_size_band: importProperties.file_size_band ?? "unknown"
+      })
+      captureTelemetry(telemetryController, "gpx_import_started", importProperties)
       if (file.size > maxImportBytes) {
+        captureTelemetry(telemetryController, "gpx_import_failed", {
+          ...importProperties,
+          failure_class: "parse-failure",
+          parse_duration_ms: Math.max(0, Date.now() - startedAt)
+        })
+        workflow?.fail("parse-failure", { success: false })
+        captureTelemetry(telemetryController, "app_error", gpxErrorProperties("parse-failure"))
         onNotice({ kind: "warning", message: "Route imports must be 5 MB or smaller." })
         return
       }
@@ -223,8 +361,27 @@ export function createRouteExchangeActions({
         const imported = await parseFile(file)
         await library.save(imported, "", importedFileProvenance(file))
         await refresh()
+        captureTelemetry(telemetryController, "gpx_import_succeeded", {
+          ...importProperties,
+          point_count_band: telemetryCountBand(imported.geometry.length),
+          route_count_band: "1",
+          parse_duration_ms: Math.max(0, Date.now() - startedAt)
+        })
+        workflow?.end("success", {
+          success: true,
+          point_count_band: telemetryCountBand(imported.geometry.length),
+          route_count_band: "1"
+        })
         onNotice({ kind: "success", message: `${imported.name} imported to your library. Imported tracks stay intact until you choose to re-route them.` })
       } catch (caught) {
+        const failureClass = telemetryFailureClass(caught instanceof Error ? caught.message : undefined)
+        captureTelemetry(telemetryController, "gpx_import_failed", {
+          ...importProperties,
+          failure_class: failureClass,
+          parse_duration_ms: Math.max(0, Date.now() - startedAt)
+        })
+        workflow?.fail(failureClass, { success: false })
+        captureTelemetry(telemetryController, "app_error", gpxErrorProperties(failureClass))
         onNotice({
           kind: "warning",
           message: caught instanceof Error ? caught.message : "The route file could not be imported."

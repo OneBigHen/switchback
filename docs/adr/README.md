@@ -15,7 +15,7 @@ Supersede an ADR with a new one rather than rewriting history.
 | [0008](0008-recommendation-safety.md) | Advisory, workload-aware, single-suggestion Free Ride engine |
 | [0009](0009-product-scope-and-integration-gate.md) | Trip decision engine scope; a new provider must change a rider decision |
 | [0010](0010-map-renderer.md) | MapLibre is the only renderer; no Mapbox, no dual-renderer abstraction *(superseded by 0015)* |
-| [0011](0011-product-analytics.md) | Minimal PII-free PostHog events; `TELEMETRY_ENABLED=false` for self-hosters |
+| [0011](0011-product-analytics.md) | Minimal PII-free PostHog events; `TELEMETRY_ENABLED=false` for self-hosters *(superseded by 0026)* |
 | [0012](0012-public-route-sharing.md) | Opaque-link read-only snapshots; cheap/expensive rate-limit split; no Redis |
 | [0013](0013-default-route-mode.md) | Best Ride is the default mode; Fastest/Balanced one tap away with ETA delta shown |
 | [0014](0014-tomtom-traffic-adapter.md) | TomTom is the hosted traffic/incident adapter; OSS core works with no key |
@@ -30,3 +30,4 @@ Supersede an ADR with a new one rather than rewriting history.
 | [0023](0023-route-advisor.md) | The Gemini co-pilot proposes explanations, stops, and rides; it never ranks or selects a route |
 | [0024](0024-evidence-integrity.md) | A generated route is never its own evidence; absence is not negative evidence; community GPX is preference, not legal authority |
 | [0025](0025-recon-labs-renderer.md) | Recon Labs renders on MapLibre with an interleaved deck.gl replay overlay and Mapterhorn terrain; Ultra Cinematic deferred |
+| [0026](0026-hosted-beta-observability.md) | Hosted beta uses high-observability PostHog; self-hosted telemetry remains off by default |

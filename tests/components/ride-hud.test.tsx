@@ -10,6 +10,7 @@ import { requestTripPlan } from "@/lib/client/routing-client"
 import { requestRouteWeather } from "@/lib/client/weather-client"
 import { loadRideRecovery } from "@/lib/storage/ride-recovery"
 import { discoverPlaceIdeas } from "@/lib/client/place-ideas-client"
+import { telemetry } from "@/lib/telemetry/client"
 import { usePlannerStore } from "@/stores/planner-store"
 import type { PlaceResult } from "@/lib/geocoding/photon"
 import type { PlannedRoute } from "@/lib/routing/types"
@@ -155,6 +156,7 @@ describe("ride HUD GPS safety", () => {
   afterEach(() => {
     vi.useRealTimers()
     cleanup()
+    vi.restoreAllMocks()
     window.sessionStorage.clear()
     window.localStorage.clear()
     document.documentElement.classList.remove("ride-mode-active")
@@ -483,6 +485,48 @@ describe("ride HUD GPS safety", () => {
       ])
     })))
     await waitFor(() => expect(onReroute).toHaveBeenCalledWith(rerouted))
+  })
+
+  it("records bounded reroute lifecycle telemetry without GPS coordinates", async () => {
+    const capture = vi.spyOn(telemetry, "capture")
+    const end = vi.fn(() => true)
+    const startWorkflow = vi.spyOn(telemetry, "startWorkflow").mockReturnValue({
+      spanId: "reroute-span",
+      end,
+      cancel: vi.fn(() => true),
+      fail: vi.fn(() => true),
+      abandon: vi.fn(() => true),
+      step: vi.fn()
+    })
+    const rerouted = { ...route, id: "telemetry-reroute" }
+    vi.mocked(requestTripPlan).mockResolvedValue({
+      selectedRouteId: rerouted.id,
+      routes: [rerouted],
+      warnings: []
+    })
+    vi.mocked(startRideSession).mockImplementation(async ({ onPosition }) => {
+      for (const timestamp of [1_000, 3_000, 5_000]) {
+        onPosition(gpsPosition({ longitude: -75.8, latitude: 40.8, heading: 220, timestamp }))
+      }
+      return { stop: vi.fn(async () => undefined) }
+    })
+
+    render(<RideHud route={route} onExit={vi.fn()} onReroute={vi.fn()} />)
+    fireEvent.click(await screen.findByRole("button", { name: /nearest rejoin/i }))
+
+    await waitFor(() => expect(capture).toHaveBeenCalledWith("route_reroute_completed", expect.objectContaining({
+      reroute_reason: "off-route",
+      success: true
+    })))
+    expect(capture).toHaveBeenCalledWith("route_reroute_triggered", expect.objectContaining({
+      reroute_reason: "off-route"
+    }))
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("-75.8")
+    expect(JSON.stringify(capture.mock.calls)).not.toContain("40.8")
+    expect(startWorkflow).toHaveBeenCalledWith("reroute_recovery", expect.objectContaining({
+      reroute_reason: "off-route"
+    }))
+    expect(end).toHaveBeenCalledWith("success", expect.objectContaining({ success: true }))
   })
 
   it("lets the rider choose a rejoin policy instead of silently discarding their intended route", async () => {
