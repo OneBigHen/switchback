@@ -76,6 +76,29 @@ it does not become another audit.
 | 11 | Remove migration debt: retire MapLibre and temporary flags, final polish |
 | 12 | Deploy, production smoke, docs, and explicit wave closure |
 
+### Phase execution plan — 2026-09-14
+
+`docs/plans/2026-09-14-long-trip-choices-and-policy-v2.md` is the execution detail
+for phases 1 (rollout), 2 (partly), 4, 5, 6 (partly) and 7. It does not close any
+phase by itself: a phase still needs its own acceptance evidence.
+
+- **Phase 7** is represented only by a partial PR 2 foundation in that plan —
+  `PA_NJ_ROUTE_POLICY_V2`, server-side route roles, and Protect the Ride cost are
+  the intended Phase 7 scope. The current execution package does **not** close
+  Phase 7: real traffic scoring, the Protect-the-Ride cost, and the corpus/evidence
+  gate remain required in Packet F/G. Phase 5 keeps
+  the boundary stated above: the TomTom adapter and its bakeoff ship dark, and
+  federating Thrilling candidates into the lane pool is Phase 7 work (`T7` in that
+  plan), not Phase 5.
+- One routing bugfix precedes that work and is deliberately outside phase
+  sequencing: long trips returned no alternatives because every two-point
+  comparison call used GraphHopper `alternative_route`, measured at 18–21 s
+  against a 12 s deadline. It ships as its own PR based on
+  `ux/streamline-pass-1`.
+- Phase 1's rollout gate stays temporary. Phase 4 must supersede the client-only
+  `NEXT_PUBLIC_SWITCHBACK_PREMIUM_MAPBOX` flag with the server-declared
+  capability payload, as ADR 0021 requires.
+
 Real-device acceptance is mandatory for phases 3, 9, and 12. Provider live
 tests are explicit manual workflows, never ordinary PR blockers, and the
 expanded Mobile QA matrix stays advisory under the existing policy.
