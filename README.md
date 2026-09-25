@@ -135,6 +135,7 @@ real-device evidence is unavailable. Visual baselines live in
 | Container stack | [deployment/README.md](deployment/README.md) |
 | CI architecture | [docs/CI-ARCHITECTURE.md](docs/CI-ARCHITECTURE.md), [docs/SELF-HOSTED-CI.md](docs/SELF-HOSTED-CI.md) |
 | Quality workflow and gates | [docs/quality/README.md](docs/quality/README.md) |
+| Native iOS architecture research | [ADR 0027](docs/adr/0027-ios-native-companion-architecture.md), [research](docs/research/IOS-NATIVE-ARCHITECTURE-RESEARCH-2026-09-25.md), [runbook](docs/plans/IOS-NATIVE-IMPLEMENTATION-RUNBOOK.md) |
 | Retained legacy shims | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
 | Security policy | [SECURITY.md](SECURITY.md) |
 

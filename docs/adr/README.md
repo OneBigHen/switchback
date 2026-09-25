@@ -31,3 +31,4 @@ Supersede an ADR with a new one rather than rewriting history.
 | [0024](0024-evidence-integrity.md) | A generated route is never its own evidence; absence is not negative evidence; community GPX is preference, not legal authority |
 | [0025](0025-recon-labs-renderer.md) | Recon Labs renders on MapLibre with an interleaved deck.gl replay overlay and Mapterhorn terrain; Ultra Cinematic deferred |
 | [0026](0026-hosted-beta-observability.md) | Hosted beta uses high-observability PostHog; self-hosted telemetry remains off by default |
+| [0027](0027-ios-native-companion-architecture.md) | Proposed iOS companion: bundled Capacitor client, shared navigation authority, native OS adapters and renderer-neutral Map Scene contract |
