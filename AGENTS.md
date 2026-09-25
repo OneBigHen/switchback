@@ -58,12 +58,19 @@ behind a clean interface — no generic provider framework, no microservices.
   one quiet suggestion) are separate contracts sharing one engine (ADR 0020).
 - Offline: ships with an honest "limited coverage" state; parity % is not a
   release blocker (ADR 0003).
+- Native iOS: ADR 0027 defines the proposed companion architecture — bundled
+  Capacitor client, existing TypeScript routing/navigation authority, narrow
+  Swift OS adapters, explicit API/auth/link boundaries, and a renderer-neutral
+  Map Scene contract. This is architecture only until the owner explicitly
+  dispatches implementation. CarPlay is a later native consumer, not part of
+  the first iOS wave.
 
 **Rejected right now — do not build without a new decision:** Mapbox Directions
 or the Mapbox Navigation SDK, a learned/LLM route ranker, three permanent
 renderers, a plugin/provider marketplace, billing / Free-vs-Pro plans /
-entitlement tables, Redis, microservices, a social feed, native iOS/Android
-apps, CarPlay/Android Auto as a core phase, fully automatic route extraction
+entitlement tables, Redis, microservices, a social feed, native Android apps,
+an iOS implementation that bypasses ADR 0027 or starts before owner dispatch,
+CarPlay/Android Auto as the first native phase, fully automatic route extraction
 from arbitrary map images (assisted alignment only — `lib/roads/road-locks.ts`).
 
 **Do not restart closed campaigns.** The 2026-08 UX remediation campaign closed
