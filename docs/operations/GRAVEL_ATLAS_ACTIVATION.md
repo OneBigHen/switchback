@@ -41,17 +41,21 @@ snapshot's authorization reference, through a reviewed change. NJGIN activates i
 
 Never operate from a pasted SHA or handoff summary without reconciling GitHub first.
 
+PR #123 (`feat/pa-gravel-atlas-routing`) **merged on 2026-09-13** (merge commit `eab70fec`,
+head `1794bfa2`) and the remote branch was deleted afterwards. The merged branch is no longer a
+reconciliation target — reconcile against `origin/main`.
+
 ```bash
 cd /root/Vibe/switchback
 git status --short
 git fetch origin --prune
 git rev-parse origin/main
-git rev-parse origin/feat/pa-gravel-atlas-routing
-git log --oneline --decorate -15 origin/feat/pa-gravel-atlas-routing
+git log --oneline --decorate -15 origin/main
 ```
 
-Confirm PR #123 still points to that branch, the worktree is clean, and you are not about
-to operate on a superseded head.
+Confirm the host checkout matches `origin/main`, the worktree is clean, and you are not about
+to operate on a superseded head. Remove any local worktree still pinned to the merged head
+before starting activation work.
 
 ## 2. Verify the code baseline
 
@@ -245,7 +249,11 @@ restart and rerun health/profile checks and `npm run routing:fingerprint`.
 
 Keep rollback assets until post-release validation is complete.
 
-## 11. PR and merge gate
+## 11. PR and merge gate (historical — satisfied, retained as the release record)
+
+**Status: satisfied.** PR #123 merged 2026-09-13 (merge commit `eab70fec`, head `1794bfa2`),
+with every protected check and Mobile Core green on the merged head. The gate below records
+what was applied before merge; post-deploy production validation remains binding.
 
 PR #123 must remain draft until current policy-v2 real-data activation has been regenerated,
 validated, and documented. Before it may leave draft status:
