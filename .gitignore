@@ -66,6 +66,8 @@ data/route-research-cache.sqlite
 data/graphhopper.log
 data/graphhopper-legacy-*
 data/graphhopper-legacy-models/
+# GraphHopper custom-model rollback snapshots (preserved for swap-back).
+data/custom-models-rollback-*/
 data/graphhopper-legacy.yml
 data/next-3200.log
 data/.motorcycle-osm-*
